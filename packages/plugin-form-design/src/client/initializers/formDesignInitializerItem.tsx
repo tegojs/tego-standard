@@ -1,18 +1,12 @@
-import { SchemaInitializerItemType, useSchemaInitializer } from '@tachybase/client';
+import { SchemaInitializerItemType } from '@tachybase/client';
 
 import { featureNameLowerCase_formDesign } from '../constants';
-import { tval, useTranslation } from '../locale';
+import { tval } from '../locale';
 
 export const formDesignInitializerItem: SchemaInitializerItemType = {
+  type: 'item',
   name: featureNameLowerCase_formDesign,
-  Component: 'DataBlockInitializer',
-  useComponentProps: () => {
-    const { insert } = useSchemaInitializer();
-    const { t } = useTranslation();
-    return {
-      title: tval('Form design'),
-      icon: 'FormOutlined',
-      onCreateBlockSchema: ({ item }) => {},
-    };
-  },
+  title: tval('Form design'),
+  icon: 'FormOutlined',
+  Component: 'FormDesignBlockInitItem',
 };

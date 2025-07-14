@@ -20,7 +20,29 @@ export class PluginLogMetricsServer extends Plugin {
   async beforeLoad() {}
 
   async load() {
-    // 设置权限
+    // 设置访问权限
+    this.setACL();
+
+    // 初始化用户指标系统
+    await this.initializeUserMetricsSystem();
+
+    // 初始化追踪功能
+    if (isMainThread) {
+      // 只在主线程初始化
+      await this.initializeTrackingSystem();
+    }
+  }
+
+  async install() {}
+
+  async afterEnable() {}
+
+  async afterDisable() {}
+
+  async remove() {}
+
+  // 设置权限
+  setACL() {
     this.app.acl.allow('log-metrics', ['getMetrics', 'getMetricsAsJSON', 'resetMetrics'], 'public');
     this.app.acl.allow(
       'log-metrics',
@@ -44,14 +66,10 @@ export class PluginLogMetricsServer extends Plugin {
       name: `pm.system-services.log-metrics.tracking`,
       actions: ['log-metrics:*'],
     });
+  }
 
-    // 1. 初始化追踪功能
-    // 只在主线程初始化
-    if (isMainThread) {
-      await this.initializeTrackingSystem();
-    }
-
-    // 2. 初始化用户指标系统
+  // 初始化用户指标系统
+  async initializeUserMetricsSystem() {
     try {
       const { userMetrics } = await initializeUserMetrics(this.db, true);
       // 添加用户指标中间件
@@ -97,14 +115,6 @@ export class PluginLogMetricsServer extends Plugin {
       console.error('[PluginLogMetrics] 初始化追踪系统失败:', error);
     }
   }
-
-  async install() {}
-
-  async afterEnable() {}
-
-  async afterDisable() {}
-
-  async remove() {}
 }
 
 export default PluginLogMetricsServer;

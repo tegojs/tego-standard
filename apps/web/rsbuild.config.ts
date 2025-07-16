@@ -83,6 +83,8 @@ export default defineConfig({
   resolve: {
     alias: {
       ...config.alias,
+      // TODO：暂时只对这个库做处理
+      i18next: require.resolve('i18next'),
     },
   },
 });

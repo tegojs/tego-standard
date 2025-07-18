@@ -1,9 +1,8 @@
 import React from 'react';
-import { createRouterManager, Plugin, RouterManager } from '@tachybase/client';
+import { createRouterManager, DynamicPage, Plugin, RouterManager } from '@tachybase/client';
 
 import { Navigate } from 'react-router-dom';
 
-import { DynamicPage } from '../../../client/src/built-in/dynamic-page/DynamicPage';
 import PluginCalculator from './assistant-tool/calculator/plugin';
 import PluginDesignableButton from './assistant-tool/Designable/plugin';
 import PluginSearchAndJump from './assistant-tool/search-and-jump/plugin';

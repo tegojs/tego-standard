@@ -61,7 +61,6 @@ export * from './upload';
 export * from './variable';
 export * from './media-card';
 export * from './tracking-link';
-export * from './content-container';
 
 export { PageHeader } from '@ant-design/pro-layout';
 export { CodeMirror } from '@tachybase/components';

@@ -15,7 +15,7 @@ export const useStyles = createStyles(({ css, token }) => ({
         position: relative;
         height: 100%;
         overflow: hidden;
-        padding: 0;
+        /* padding: 0; */
         .ant-formily-layout {
           height: 100%;
           .ant-tb-grid {

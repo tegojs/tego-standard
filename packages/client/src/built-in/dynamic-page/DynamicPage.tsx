@@ -39,10 +39,10 @@ export const DynamicPage = () => {
                 id: pathParams.filterByTk,
               }}
             >
-              <PageNavBar uid={pathParams.sub} />
-              <Card className="page-content">
-                <RemoteSchemaComponent uid={pathParams.sub} onlyRenderProperties />
-              </Card>
+              {/* <PageNavBar uid={pathParams.sub} /> */}
+              {/* <Card className="page-content"> */}
+              <RemoteSchemaComponent uid={pathParams.sub} onlyRenderProperties />
+              {/* </Card> */}
             </RecordProvider>
           </RecordContext_deprecated.Provider>
         </DataBlockProvider>

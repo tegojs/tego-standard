@@ -99,6 +99,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
 
     // NOTE:page mode 在多标签页状态默认打开，在手机状态默认打开，
     const isPageMode = useMemo(() => {
+      console.log('%c Line:103 🍢 openMode', 'font-size:18px;color:#6ec1c2;background:#fca650', openMode);
       switch (openMode) {
         // 明确指定为 PAGE 模式
         case OpenMode.PAGE:
@@ -106,6 +107,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
         // 明确指定为 MODAL 模式和 DRAWER_MODE 模式
         case OpenMode.MODAL:
         case OpenMode.DRAWER_MODE:
+        case OpenMode.SHEET:
           return false;
         // 默认情况,默认模式和 Drawer(兼容旧版,作为默认模式) 模式下, 移动端或多标签页模式下默认为 PAGE 模式
         case OpenMode.DEFAULT:

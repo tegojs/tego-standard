@@ -21,26 +21,15 @@ export const ViewActionInitializer = (props) => {
           className: 'tb-action-popup',
         },
         properties: {
-          tabs: {
+          page: {
             type: 'void',
-            'x-component': 'Tabs',
-            'x-component-props': {},
-            'x-initializer': 'popup:addTab',
+            title: '{{ t("Details") }}',
+            'x-component': 'Page',
             properties: {
-              tab1: {
+              grid: {
                 type: 'void',
-                title: '{{t("Details")}}',
-                'x-component': 'Tabs.TabPane',
-                'x-designer': 'Tabs.Designer',
-                'x-component-props': {},
-                properties: {
-                  grid: {
-                    type: 'void',
-                    'x-component': 'Grid',
-                    'x-initializer': 'popup:common:addBlock',
-                    properties: {},
-                  },
-                },
+                'x-component': 'Grid',
+                'x-initializer': 'popup:common:addBlock',
               },
             },
           },

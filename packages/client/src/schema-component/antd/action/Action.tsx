@@ -99,7 +99,6 @@ export const Action: ComposedAction = withDynamicSchemaProps(
 
     // NOTE:page mode 在多标签页状态默认打开，在手机状态默认打开，
     const isPageMode = useMemo(() => {
-      console.log('%c Line:103 🍢 openMode', 'font-size:18px;color:#6ec1c2;background:#fca650', openMode);
       switch (openMode) {
         // 明确指定为 PAGE 模式
         case OpenMode.PAGE:
@@ -123,22 +122,6 @@ export const Action: ComposedAction = withDynamicSchemaProps(
         }
       }
     }, [pageMode?.enable, openMode, isMobile, pageStyle, isSystemPage]);
-    useEffect(() => {
-      field.stateOfLinkageRules = {};
-      linkageRules
-        .filter((k) => !k.disabled)
-        .forEach((v) => {
-          v.actions?.forEach((h) => {
-            linkageAction({
-              operator: h.operator,
-              field,
-              condition: v.condition,
-              variables,
-              localVariables,
-            });
-          });
-        });
-    }, [field, linkageRules, localVariables, record, variables]);
 
     const openModal = useCallback(() => {
       setVisible(true);
@@ -261,6 +244,23 @@ export const Action: ComposedAction = withDynamicSchemaProps(
         {element}
       </ActionContextProvider>
     );
+
+    useEffect(() => {
+      field.stateOfLinkageRules = {};
+      linkageRules
+        .filter((k) => !k.disabled)
+        .forEach((v) => {
+          v.actions?.forEach((h) => {
+            linkageAction({
+              operator: h.operator,
+              field,
+              condition: v.condition,
+              variables,
+              localVariables,
+            });
+          });
+        });
+    }, [field, linkageRules, localVariables, record, variables]);
 
     if (!isShow) {
       return null;

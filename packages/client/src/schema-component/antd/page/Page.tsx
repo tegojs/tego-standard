@@ -48,6 +48,10 @@ export const Page = (props) => {
   const aclStyles = useAClStyles();
   const { wrapSSR, hashId, componentCls } = getStyles();
 
+  const pageTitle = useMemo(() => {
+    return compile(fieldSchema.title || title) || '';
+  }, [fieldSchema.title, title]);
+
   useEffect(() => {
     if (!title) {
       setTitle(compile(fieldSchema.title));
@@ -57,12 +61,12 @@ export const Page = (props) => {
   return wrapSSR(
     <FilterBlockProvider>
       <div className={`${componentCls} ${hashId} ${aclStyles.styles}`}>
-        <PageDesigner title={fieldSchema.title || title} />
+        <PageDesigner title={pageTitle} />
         <PageHeader
           disablePageHeader={disablePageHeader}
           enablePageTabs={enablePageTabs}
           activeKey={pageTabActiveKey}
-          title={title}
+          title={pageTitle}
           fieldSchema={fieldSchema}
           parentProps={others}
           setHeight={setHeight}

@@ -24,7 +24,7 @@ export const UpdateActionInitializer = (props) => {
         properties: {
           page: {
             type: 'void',
-            title: '{{ t("Edit record") }}',
+            title: '{{ t("Details") }}',
             'x-component': 'Page',
             properties: {
               grid: {

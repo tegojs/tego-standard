@@ -34,14 +34,13 @@ export const PageHeader = (props) => {
 
   const { theme } = useGlobalTheme();
   const options = useContext(SchemaOptionsContext);
-  const compile = useCompile();
   const [open, setOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const { showScrollArea } = useContextMenu();
 
   const hidePageTitle = fieldSchema['x-component-props']?.hidePageTitle;
 
-  const pageHeaderTitle = hidePageTitle ? undefined : fieldSchema.title || compile(title);
+  const pageHeaderTitle = hidePageTitle ? undefined : title;
   const isShare = useMatch('/share/:name');
 
   // THINK: 思考下这里怎么缓存, 直接用 useMemo 是不行的
@@ -53,7 +52,10 @@ export const PageHeader = (props) => {
 
   const { styles } = modalStyle();
 
-  const { copyLink, imageAction } = useShareActions({ title: pageHeaderTitle, uid: '' });
+  const { copyLink, imageAction } = useShareActions({
+    title: pageHeaderTitle,
+    uid: '',
+  });
 
   return (
     <div
@@ -67,7 +69,7 @@ export const PageHeader = (props) => {
           className={classNames('pageHeaderCss', pageHeaderTitle || enableSharePage ? '' : 'height0')}
           ghost={false}
           // 如果标题为空的时候会导致 PageHeader 不渲染，所以这里设置一个空白字符，然后再设置高度为 0
-          title={pageHeaderTitle || ' '}
+          title={pageHeaderTitle}
           {...parentProps}
           extra={
             <HeaderExtra

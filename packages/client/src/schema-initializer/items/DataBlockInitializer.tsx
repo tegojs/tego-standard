@@ -359,6 +359,7 @@ export const DataBlockInitializer = (props: DataBlockInitializerProps) => {
   const collectionItems = useMemo(() => {
     const skipNames = new Set(['sql', 'view', 'import', 'importXlsx']);
     return collectionTemplates
+
       .filter((item) => !skipNames.has(item.name) || item.divider)
       .map((item) => {
         if (item.divider) {

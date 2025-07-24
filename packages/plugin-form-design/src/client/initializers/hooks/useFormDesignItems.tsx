@@ -11,18 +11,18 @@ import { uid } from '@tachybase/utils/client';
 import { cloneDeep } from 'lodash';
 import { createPortal } from 'react-dom';
 
-import { FormDesignModal } from '../components/FormDesignModal';
 import { systemFields } from '../constants/systemFields';
+import { useContextFormDesign } from '../contexts/FormDesign';
 
 export function useFormDesignItems(): SchemaInitializerItemType[] {
   const { getTemplate, templates: collectionTemplates, refreshCM } = useCollectionManager_deprecated();
   const compile = useCompile();
   const api = useAPIClient();
   const { insert, setVisible } = useSchemaInitializer();
-  const [isVisible, setIsVisible] = useState(true);
+  const { setVisible: setVisibleFormDesign } = useContextFormDesign();
 
   const handleClick = useCallback(async () => {
-    createPortal(<FormDesignModal visible={isVisible} onCancel={() => setIsVisible(false)} />, document.body);
+    setVisibleFormDesign(true);
   }, []);
 
   const collectionItems = useMemo(() => {

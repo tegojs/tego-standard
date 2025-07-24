@@ -1,6 +1,7 @@
 import { Plugin } from '@tachybase/client';
 
 import { formDesignInitializerItem } from './initializers/formDesignInitializerItem';
+import { FormDesignModalProvider } from './initializers/FormDesignModalProvider';
 
 class PluginFormDesignClient extends Plugin {
   async afterAdd() {}
@@ -8,7 +9,7 @@ class PluginFormDesignClient extends Plugin {
   async beforeLoad() {}
 
   async load() {
-    this.app.addComponents({});
+    this.app.addProvider(FormDesignModalProvider);
 
     this.app.schemaInitializerManager.addItem('page:addBlock', 'otherBlocks.formDesign', formDesignInitializerItem);
 

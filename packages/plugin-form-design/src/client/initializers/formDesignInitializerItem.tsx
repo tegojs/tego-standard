@@ -15,10 +15,6 @@ import { cloneDeep } from 'lodash';
 import { featureNameLowerCase_formDesign } from '../constants';
 import { tval } from '../locale';
 
-const FormDesignBlockInitItem = () => {
-  const children = useFormDesignItems();
-  return children.map((item) => <SchemaInitializerItem {...item} />);
-};
 export const formDesignInitializerItem: SchemaInitializerItemType = {
   type: 'subMenu',
   name: featureNameLowerCase_formDesign,
@@ -26,13 +22,6 @@ export const formDesignInitializerItem: SchemaInitializerItemType = {
   icon: <Icon type="FormOutlined" />,
   useChildren: useFormDesignItems,
 };
-
-function renderChildren() {
-  const children = useFormDesignItems();
-  return children.map((item) => ({
-    Component: () => <SchemaInitializerItem {...item} />,
-  }));
-}
 
 function useFormDesignItems(): SchemaInitializerItemType[] {
   const { getTemplate, templates: collectionTemplates, refreshCM } = useCollectionManager_deprecated();
@@ -43,12 +32,11 @@ function useFormDesignItems(): SchemaInitializerItemType[] {
   const collectionItems = useMemo(() => {
     const skipNames = new Set(['sql', 'view', 'import', 'importXlsx']);
     return collectionTemplates
-      .filter((item) => !skipNames.has(item.name) || item.divider)
+      .filter((item) => !skipNames.has(item.name) && !item.divider)
       .map((item) => {
-        if (item.divider) {
-          return { type: 'divider' };
-        }
         return {
+          type: 'item',
+          name: item.name,
           label: compile(item.title),
           key: item.name,
           onClick: async (info) => {

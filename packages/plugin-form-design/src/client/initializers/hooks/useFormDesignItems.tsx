@@ -6,7 +6,7 @@ import {
   useCompile,
   useSchemaInitializer,
 } from '@tachybase/client';
-import { uid } from '@tachybase/utils';
+import { uid } from '@tachybase/utils/client';
 
 import { cloneDeep } from 'lodash';
 

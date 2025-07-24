@@ -24,7 +24,7 @@ export const formDesignInitializerItem: SchemaInitializerItemType = {
   name: featureNameLowerCase_formDesign,
   title: tval('Form design'),
   icon: <Icon type="FormOutlined" />,
-  children: [],
+  useChildren: useFormDesignItems,
 };
 
 function renderChildren() {
@@ -34,7 +34,7 @@ function renderChildren() {
   }));
 }
 
-function useFormDesignItems() {
+function useFormDesignItems(): SchemaInitializerItemType[] {
   const { getTemplate, templates: collectionTemplates, refreshCM } = useCollectionManager_deprecated();
   const compile = useCompile();
   const api = useAPIClient();

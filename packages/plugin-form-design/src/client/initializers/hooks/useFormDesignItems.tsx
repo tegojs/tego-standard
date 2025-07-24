@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   SchemaInitializerItemType,
   useAPIClient,
@@ -9,7 +9,6 @@ import {
 import { uid } from '@tachybase/utils/client';
 
 import { cloneDeep } from 'lodash';
-import { createPortal } from 'react-dom';
 
 import { systemFields } from '../constants/systemFields';
 import { useContextFormDesign } from '../contexts/FormDesign';

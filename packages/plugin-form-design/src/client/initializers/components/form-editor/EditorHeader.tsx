@@ -17,7 +17,7 @@ import { ISchema, Schema, uid } from '@tachybase/schema';
 import { DesktopOutlined, EditOutlined, LeftOutlined, MobileOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { App, Button, Drawer, Input, Layout, Menu, message, Modal, Radio, Tooltip } from 'antd';
 import { CheckboxGroupProps } from 'antd/es/checkbox';
-import _, { cloneDeep } from 'lodash';
+import _ from 'lodash';
 
 import { EditableGrid } from './EditableGrid';
 import { useStyles } from './styles';
@@ -36,18 +36,13 @@ export const EditorHeader = ({ onCancel, schema }) => {
   const [tempTitle, setTempTitle] = useState(title);
   const { t } = useTranslation();
   const { modal } = App.useApp();
-  const handleTitleSave = () => {
-    setTitle(tempTitle || collectionTitle);
-    setModalVisible(false);
-  };
+
   const currentSchema = dn.current;
   const currentActionBarSchema = findSchemaUtils(currentSchema, 'x-component', 'ActionBar');
   const currentActionBarDN = useMemo(() => {
     return createDesignable({ t, api, refresh, current: currentActionBarSchema });
   }, [t, api, refresh, currentActionBarSchema]);
-  useEffect(() => {
-    currentActionBarDN.loadAPIClientEvents();
-  }, [currentActionBarDN]);
+
   const handleSave = async () => {
     for (const field of fields || []) {
       if (field.target === '__temp__') {
@@ -74,7 +69,7 @@ export const EditorHeader = ({ onCancel, schema }) => {
       if (cardSchema.name === currentSchema.name) {
         await currentActionBarDN.remove(null);
         newActionBarSchema.properties = currentActionBarSchema.properties;
-        const newSchema = cloneDeep(cardSchema.toJSON());
+        const newSchema = _.cloneDeep(cardSchema.toJSON());
         newSchema.name = newSchema['x-uid'];
         await dn.insertAdjacent('afterEnd', newSchema);
         await dn.remove(null);
@@ -90,6 +85,15 @@ export const EditorHeader = ({ onCancel, schema }) => {
     await refresh();
     await onCancel();
   };
+
+  const handleTitleSave = () => {
+    setTitle(tempTitle || collectionTitle);
+    setModalVisible(false);
+  };
+
+  useEffect(() => {
+    currentActionBarDN.loadAPIClientEvents();
+  }, [currentActionBarDN]);
 
   return (
     <>
@@ -151,6 +155,9 @@ export const EditorHeader = ({ onCancel, schema }) => {
           </Button>
           <Button type="primary" className="ant-save-button" onClick={handleSave}>
             {t('Save')}
+          </Button>
+          <Button type="primary" danger className="ant-save-button" onClick={onCancel}>
+            {t('Cancel')}
           </Button>
         </div>
       </Header>

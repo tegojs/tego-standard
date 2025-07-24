@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   SchemaInitializerItemType,
   useAPIClient,
@@ -19,9 +19,10 @@ export function useFormDesignItems(): SchemaInitializerItemType[] {
   const compile = useCompile();
   const api = useAPIClient();
   const { insert, setVisible } = useSchemaInitializer();
+  const [isVisible, setIsVisible] = useState(true);
 
-  const handleClick = useCallback(async (info) => {
-    createPortal(<FormDesignModal />, document.body);
+  const handleClick = useCallback(async () => {
+    createPortal(<FormDesignModal visible={isVisible} onCancel={() => setIsVisible(false)} />, document.body);
   }, []);
 
   const collectionItems = useMemo(() => {
@@ -63,7 +64,7 @@ export function useFormDesignItems(): SchemaInitializerItemType[] {
             });
             setVisible(false);
             await refreshCM();
-            handleClick(info);
+            handleClick();
           },
         };
       });

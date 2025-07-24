@@ -25,8 +25,14 @@ export const formDesignInitializerItem: SchemaInitializerItemType = {
   title: tval('Form design'),
   icon: <Icon type="FormOutlined" />,
   children: [],
-  Component: <FormDesignBlockInitItem />,
 };
+
+function renderChildren() {
+  const children = useFormDesignItems();
+  return children.map((item) => ({
+    Component: () => <SchemaInitializerItem {...item} />,
+  }));
+}
 
 function useFormDesignItems() {
   const { getTemplate, templates: collectionTemplates, refreshCM } = useCollectionManager_deprecated();

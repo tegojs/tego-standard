@@ -322,6 +322,11 @@ export const DataBlockInitializer = (props: DataBlockInitializerProps) => {
   const compile = useCompile();
   const { getTemplateSchemaByMode } = useSchemaTemplateManager();
   const { getTemplate, templates: collectionTemplates, refreshCM } = useCollectionManager_deprecated();
+  console.log(
+    '%c Line:325 🍒 collectionTemplates',
+    'font-size:18px;color:#b03734;background:#f5ce50',
+    collectionTemplates,
+  );
   const onClick = useCallback(
     async ({ item }) => {
       if (item.template) {
@@ -359,12 +364,8 @@ export const DataBlockInitializer = (props: DataBlockInitializerProps) => {
   const collectionItems = useMemo(() => {
     const skipNames = new Set(['sql', 'view', 'import', 'importXlsx']);
     return collectionTemplates
-
-      .filter((item) => !skipNames.has(item.name) || item.divider)
+      .filter((item) => !skipNames.has(item.name) && !item.divider)
       .map((item) => {
-        if (item.divider) {
-          return { type: 'divider' };
-        }
         return {
           label: compile(item.title),
           key: item.name,

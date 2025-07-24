@@ -17,7 +17,7 @@ export interface SchemaInitializerSubMenuProps {
   onClick?: (args: any) => void;
   onOpenChange?: (openKeys: string[]) => void;
   icon?: string | ReactNode;
-  children?: SchemaInitializerOptions['items'];
+  children?: SchemaInitializerOptions['items'] | (() => SchemaInitializerOptions['items']);
 }
 
 const useStyles = createStyles(({ css, token }) => {
@@ -86,7 +86,14 @@ export const SchemaInitializerMenu = (props: MenuProps) => {
 export const SchemaInitializerSubMenu: FC<SchemaInitializerSubMenuProps> = (props) => {
   const { children, title, name = uid(), onOpenChange, icon, ...others } = props;
   const compile = useCompile();
-  const validChildren = children?.filter((item) => (item.useVisible ? item.useVisible() : true));
+
+  // 判断 children 是否为函数（包括 hooks 函数），如果是则调用并获取结果
+  let resolvedChildren: SchemaInitializerOptions['items'] = [];
+  if (children && typeof children === 'function') {
+    resolvedChildren = children();
+  }
+
+  const validChildren = resolvedChildren?.filter((item) => (item.useVisible ? item.useVisible() : true));
   const childrenItems = useSchemaInitializerMenuItems(validChildren, name);
 
   const items = useMemo(() => {

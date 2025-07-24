@@ -322,11 +322,6 @@ export const DataBlockInitializer = (props: DataBlockInitializerProps) => {
   const compile = useCompile();
   const { getTemplateSchemaByMode } = useSchemaTemplateManager();
   const { getTemplate, templates: collectionTemplates, refreshCM } = useCollectionManager_deprecated();
-  console.log(
-    '%c Line:325 🍒 collectionTemplates',
-    'font-size:18px;color:#b03734;background:#f5ce50',
-    collectionTemplates,
-  );
   const onClick = useCallback(
     async ({ item }) => {
       if (item.template) {

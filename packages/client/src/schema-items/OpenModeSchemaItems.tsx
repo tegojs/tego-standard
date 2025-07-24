@@ -116,7 +116,12 @@ export const SchemaSettingOpenModeSchemaItems: React.FC<Options> = (options) => 
     return OpenMode.DRAWER_MODE;
   }, [isMobile, pageStyle]);
 
-  const openModeValue = fieldSchema?.['x-component-props']?.['openMode'] || defaultOpenMode;
+  let openModeValue = fieldSchema?.['x-component-props']?.['openMode'] || defaultOpenMode;
+
+  // 旧版抽屉模式 DRAWER，表现行为同 DEFAULT,是为了兼容旧版,旧版没有 DEFAULT 概念.
+  if (openModeValue === OpenMode.DRAWER) {
+    openModeValue = OpenMode.DEFAULT;
+  }
 
   return (
     <>
@@ -124,6 +129,7 @@ export const SchemaSettingOpenModeSchemaItems: React.FC<Options> = (options) => 
         <SchemaSettingsSelectItem
           title={t('Open mode')}
           options={[
+            { label: t('Default'), value: OpenMode.DEFAULT },
             { label: t('Drawer'), value: OpenMode.DRAWER_MODE },
             { label: t('Dialog'), value: OpenMode.MODAL },
             { label: t('Sheet'), value: OpenMode.SHEET },

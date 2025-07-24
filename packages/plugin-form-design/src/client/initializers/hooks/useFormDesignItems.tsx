@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   SchemaInitializerItemType,
   useAPIClient,
@@ -9,7 +9,9 @@ import {
 import { uid } from '@tachybase/utils/client';
 
 import { cloneDeep } from 'lodash';
+import { createPortal } from 'react-dom';
 
+import { FormDesignModal } from '../components/FormDesignModal';
 import { systemFields } from '../constants/systemFields';
 
 export function useFormDesignItems(): SchemaInitializerItemType[] {
@@ -17,6 +19,10 @@ export function useFormDesignItems(): SchemaInitializerItemType[] {
   const compile = useCompile();
   const api = useAPIClient();
   const { insert, setVisible } = useSchemaInitializer();
+
+  const handleClick = useCallback(async (info) => {
+    createPortal(<FormDesignModal />, document.body);
+  }, []);
 
   const collectionItems = useMemo(() => {
     const skipNames = new Set(['sql', 'view', 'import', 'importXlsx']);
@@ -57,12 +63,7 @@ export function useFormDesignItems(): SchemaInitializerItemType[] {
             });
             setVisible(false);
             await refreshCM();
-            // if (onCreateBlockSchema) {
-            //   onCreateBlockSchema({
-            //     item: { name: initialValue.name, dataSource: 'main', title: initialValue.title },
-            //     fromOthersInPopup,
-            //   });
-            // }
+            handleClick(info);
           },
         };
       });

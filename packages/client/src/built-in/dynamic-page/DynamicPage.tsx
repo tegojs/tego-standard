@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { useParams } from 'react-router-dom';
 
 import { AppNotFound } from '..';
@@ -7,7 +5,6 @@ import { DataBlockProvider } from '../../data-source';
 import { RecordContext_deprecated } from '../../record-provider';
 import { RemoteSchemaComponent } from '../../schema-component';
 import { WithPageRefresh } from './PageRefresh';
-import { PageRefreshProvider } from './PageRefreshContext';
 import { PathHandler } from './utils';
 
 export const DynamicPage = () => {
@@ -17,6 +14,7 @@ export const DynamicPage = () => {
     if (!path) {
       return <AppNotFound />;
     }
+
     return (
       // FIXME 这里是通过 DataBlock + RecordContext 来让它工作，实际上需要重构一个新的上下文，原来的卡片上下文用在这里无助于内部卡片判断
       <WithPageRefresh>

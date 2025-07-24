@@ -42,6 +42,7 @@ import { UserSettingsPlugin } from './user-settings';
 
 export { AdminProvider, NoticeArea, AdminLayout } from './admin-layout';
 export * from './context-menu/useContextMenu';
+export * from './dynamic-page/PageRefreshContext';
 
 interface AppStatusProps {
   error: Error;

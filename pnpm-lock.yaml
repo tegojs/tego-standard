@@ -4017,6 +4017,18 @@ importers:
 
   packages/plugin-form-design:
     dependencies:
+      '@tachybase/client':
+        specifier: workspace:*
+        version: link:../client
+      '@tachybase/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@tachybase/server':
+        specifier: workspace:*
+        version: link:../server
+      '@tachybase/test':
+        specifier: workspace:*
+        version: link:../test
       lodash:
         specifier: ^4.17.21
         version: 4.17.21

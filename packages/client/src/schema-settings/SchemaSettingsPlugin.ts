@@ -149,5 +149,31 @@ export class SchemaSettingsPlugin extends Plugin {
     this.schemaSettingsManager.add(cascadeSelectComponentFieldSettings);
     this.schemaSettingsManager.add(uploadAttachmentComponentFieldSettings);
     this.schemaSettingsManager.add(cascaderComponentFieldSettings);
+    this.schemaSettingsManager.add(multipleComponentFieldSettings);
+
+    // editable formItem settings
+    this.app.editableSchemaSettingsManager.add(formItemFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(createFormBlockEditableSettings);
+    this.app.editableSchemaSettingsManager.add(fieldInterfaceEditableSettings);
+
+    // editable field component settings
+    this.app.editableSchemaSettingsManager.add(selectComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(checkboxComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(datePickerComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(unixTimestampComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(uploadAttachmentComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(inputNumberComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(recordPickerComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(radioComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(subTablePopoverComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(subformComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(subformPopoverComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(drawerSubTableComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(cascaderComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(CustomTitleComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(fileManagerComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(tagComponentFieldEditableSettings);
+    this.app.editableSchemaSettingsManager.add(cascadeSelectComponentFieldEditableSettings);
+    this.schemaSettingsManager.add(multipleComponentFieldSettings);
   }
 }

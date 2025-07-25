@@ -50,6 +50,10 @@ export default defineCollection({
       type: 'string',
     },
     {
+      name: 'extendFunction',
+      type: 'string',
+    },
+    {
       name: 'version',
       type: 'string',
     },

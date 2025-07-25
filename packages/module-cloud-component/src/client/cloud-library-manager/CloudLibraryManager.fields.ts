@@ -105,4 +105,11 @@ export default () => {
     'x-collection-field': 'cloudLibraries.component',
     'x-component-props': {},
   },
+  extendFunction: {
+    type: 'string',
+    'x-component': 'CollectionField',
+    'x-decorator': 'FormItem',
+    'x-collection-field': 'cloudLibraries.extendFunction',
+    'x-component-props': {},
+  },
 };

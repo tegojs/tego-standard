@@ -1,5 +1,5 @@
 import React, { FC, useCallback } from 'react';
-import { ISchema } from '@tachybase/schema';
+import { ISchema, useFieldSchema } from '@tachybase/schema';
 
 import { useTranslation } from 'react-i18next';
 
@@ -20,6 +20,7 @@ export const SchemaSettingsDataScope: FC<DataScopeProps> = function DataScopeCon
   const record = useRecord();
   const { form } = useFormBlockContext();
   const variables = useVariables();
+  const fieldSchema = useFieldSchema();
   const localVariables = useLocalVariables();
   const { getAllCollectionsInheritChain } = useCollectionManager_deprecated();
   const { isInSubForm, isInSubTable } = useFlag() || {};
@@ -30,6 +31,7 @@ export const SchemaSettingsDataScope: FC<DataScopeProps> = function DataScopeCon
         <DatePickerProvider value={{ utc: false }}>
           <VariableInput
             {...props}
+            targetFieldSchema={props['targetFieldSchema'] || fieldSchema}
             form={form}
             record={record}
             shouldChange={getShouldChange({

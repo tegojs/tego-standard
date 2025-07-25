@@ -69,6 +69,10 @@ export default defineCollection({
       defaultValue: 'debug',
     },
     {
+      name: 'extendFunction',
+      type: 'string',
+    },
+    {
       name: 'versions',
       type: 'jsonb',
       defaultValue: '[]',

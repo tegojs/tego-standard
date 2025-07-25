@@ -83,6 +83,7 @@ export const VariableInput = (props: Props) => {
     returnScope = _.identity,
     targetFieldSchema,
   } = props;
+  console.log('🚀 ~ VariableInput ~ targetFieldSchema:', targetFieldSchema);
   const { name: blockCollectionName } = useBlockCollection();
   const scope = useVariableScope();
   const { operator, schema: uiSchema = collectionField?.uiSchema } = useValues();

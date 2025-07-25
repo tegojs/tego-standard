@@ -19,6 +19,8 @@ import { cloudComponentBlockSettings } from './settings/settings';
 export const CloudComponentNameKey = Symbol('CloudComponentNameKey');
 
 export class ModuleCloudComponentClient extends Plugin {
+  cloudLibraries = [];
+
   async afterAdd() {
     this.app.requirejs.define('react-use', () => reactUse);
     this.app.requirejs.define('exceljs', () => exceljs);
@@ -37,9 +39,6 @@ export class ModuleCloudComponentClient extends Plugin {
       sort: -50,
     });
     this.app.use(ProviderCloudComponent);
-    this.app.addComponents({
-      CloudComponentBlock,
-    });
     this.app.schemaSettingsManager.add(cloudComponentBlockSettings);
     // 添加到页面的 Add block 里
     this.app.schemaInitializerManager.addItem(
@@ -53,6 +52,8 @@ export class ModuleCloudComponentClient extends Plugin {
       `otherBlocks.${cloudComponentBlockInitializerItem.name}`,
       cloudComponentBlockInitializerItem,
     );
+
+    this.app.addComponents({ CloudComponentBlock });
 
     const addCloudComponent = {
       name: 'addCloudComponent',
@@ -150,6 +151,7 @@ export class ModuleCloudComponentClient extends Plugin {
       addCloudComponentColumn.name,
       addCloudComponentColumn,
     );
+    await this.initComponents();
   }
 
   async initLibraries() {
@@ -164,7 +166,9 @@ export class ModuleCloudComponentClient extends Plugin {
         },
       },
     });
+
     const libraries = data?.data || [];
+    this.cloudLibraries = libraries;
     for (const library of libraries) {
       const blob = new Blob([library.client], { type: 'application/javascript' });
       const url = URL.createObjectURL(blob);
@@ -176,12 +180,10 @@ export class ModuleCloudComponentClient extends Plugin {
     }
 
     // 加载客户端插件
-    const waitlist = [];
     for (const library of libraries) {
       if (!library.clientPlugin) {
         continue;
       }
-
       new Promise((resolve) => {
         this.app.requirejs.require([library.module], (m) => {
           this.app.pm.add(m[library.clientPlugin]);
@@ -189,8 +191,14 @@ export class ModuleCloudComponentClient extends Plugin {
         });
       });
     }
+  }
 
+  async initComponents() {
+    const waitlist = [];
+    const libraries = this.cloudLibraries;
+    const cloudFieldExtendComponent = [];
     const CloudComponentVoid = () => null;
+    const components = {};
 
     // 加载客户端组件
     for (const library of libraries) {
@@ -212,8 +220,46 @@ export class ModuleCloudComponentClient extends Plugin {
         }),
       );
     }
+
+    //加载客户端接口
+    for (const library of libraries) {
+      if (!library.extendFunction) {
+        continue;
+      }
+      waitlist.push(
+        new Promise((resolve) => {
+          this.app.requirejs.require([library.module], (m) => {
+            const { componentType, label, component } = m?.[library.extendFunction]();
+            if (m?.[component]) {
+              if (componentType) {
+                components[component] = m[component];
+                components['cloudComponent'] = library.name;
+                components[component][CloudComponentNameKey] = library.name;
+                cloudFieldExtendComponent.push({
+                  componentType: componentType,
+                  component: { label: label, value: component },
+                });
+              } else {
+                CloudComponentVoid[component] = m[component];
+                CloudComponentVoid[component][CloudComponentNameKey] = library.name;
+              }
+              resolve(component);
+            } else {
+              console.warn(`[CloudComponent] function ${library.extendFunction} not found in ${library.module}`);
+              resolve('empty function');
+            }
+          });
+        }),
+      );
+    }
     await Promise.all(waitlist);
-    this.app.addComponents({ CloudComponentVoid });
+    this.app.addComponents({ ...components, CloudComponentVoid });
+    cloudFieldExtendComponent.forEach((item) => {
+      this.app.dataSourceManager.collectionFieldInterfaceManager.addFieldInterfaceComponentOption(
+        item.componentType,
+        item.component,
+      );
+    });
   }
 }
 

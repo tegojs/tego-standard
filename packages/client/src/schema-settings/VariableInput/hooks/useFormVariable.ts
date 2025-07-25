@@ -65,12 +65,14 @@ export const useCurrentFormVariable = ({
   form: _form,
 }: Props = {}) => {
   // const { getActiveFieldsName } = useFormActiveFields() || {};
+
   const { t } = useTranslation();
   const { form, collectionName } = useFormBlockContext();
+  const formInstance = _form || form;
   const currentFormSettings = useBaseVariable({
     collectionField,
     uiSchema: schema,
-    targetFieldSchema,
+    targetFieldSchema: targetFieldSchema || formInstance,
     maxDepth: 4,
     name: '$nForm',
     title: t('Current form'),
@@ -88,8 +90,6 @@ export const useCurrentFormVariable = ({
       //   : fields;
     },
   });
-
-  const formInstance = _form || form;
 
   return {
     /** 变量配置 */

@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from 'react';
-import { ISchema, Schema } from '@tachybase/schema';
+import { ISchema, Schema, useFieldSchema } from '@tachybase/schema';
 
 import { CollectionFieldOptions_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
 import { useCompile, useGetFilterOptions } from '../../../schema-component';
@@ -152,7 +152,6 @@ export const useBaseVariable = ({
     if (!option.field?.target) {
       return Promise.resolve(void 0);
     }
-
     const target = option.field.target;
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -198,6 +197,23 @@ export const useBaseVariable = ({
           return;
         }
         option.children = children;
+        if (option.depth === 0 && targetFieldSchema) {
+          const cloudItems = Object.values(targetFieldSchema['fields'])?.filter(
+            (value) => value['componentType'] === 'CloudComponentBlock',
+          );
+          if (cloudItems.length) {
+            cloudItems.forEach((item) => {
+              option.children.push({
+                depth: option.depth + 1,
+                disabled: false,
+                isLeaf: true,
+                key: item['componentProps']?.['element'],
+                label: item['componentProps']?.['elementLabel'] || item['componentProps']?.['element'],
+                value: item['componentProps']?.['element'],
+              });
+            });
+          }
+        }
         resolve();
 
         // 延迟 5 毫秒，防止阻塞主线程，导致 UI 卡顿

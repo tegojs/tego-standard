@@ -17,13 +17,13 @@
     "swagger-ui-dist": "^5.26.2"
   },
   "peerDependencies": {
-    "@tachybase/actions": "^1.3.23",
+    "@tachybase/actions": "^1.3.24",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "^1.3.23",
-    "@tachybase/sdk": "^1.3.23",
-    "@tachybase/server": "^1.3.23",
-    "@tachybase/test": "^1.3.23",
-    "@tachybase/utils": "^1.3.23"
+    "@tachybase/database": "^1.3.24",
+    "@tachybase/sdk": "^1.3.24",
+    "@tachybase/server": "^1.3.24",
+    "@tachybase/test": "^1.3.24",
+    "@tachybase/utils": "^1.3.24"
   },
   "description.zh-CN": "开发工具,用于查看Api文档,中间件,环境变量,事件等信息",
   "displayName.zh-CN": "开发工具"

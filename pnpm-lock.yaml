@@ -193,23 +193,23 @@ importers:
         specifier: ^0.9.3
         version: 0.9.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/components':
-        specifier: ^1.3.21
-        version: 1.3.21(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^1.3.22
+        version: 1.3.22(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/evaluators':
-        specifier: ^1.3.21
-        version: 1.3.21
+        specifier: ^1.3.22
+        version: 1.3.22
       '@tachybase/requirejs':
-        specifier: ^1.3.21
-        version: 1.3.21
+        specifier: ^1.3.22
+        version: 1.3.22
       '@tachybase/schema':
-        specifier: ^1.3.21
-        version: 1.3.21(react@18.3.1)
+        specifier: ^1.3.22
+        version: 1.3.22(react@18.3.1)
       '@tachybase/sdk':
-        specifier: ^1.3.21
-        version: 1.3.21
+        specifier: ^1.3.22
+        version: 1.3.22
       '@tachybase/utils':
-        specifier: ^1.3.21
-        version: 1.3.21
+        specifier: ^1.3.22
+        version: 1.3.22
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -634,7 +634,7 @@ importers:
     devDependencies:
       '@antv/g6':
         specifier: ^5.0.49
-        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6))
+        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       '@babel/core':
         specifier: 7.27.4
         version: 7.27.4
@@ -8105,9 +8105,6 @@ packages:
   '@tachybase/cache@1.3.22':
     resolution: {integrity: sha512-MTF/B6tO9/WQjhWGrP4H4Qgrzgkp0zG+2ldMdzbKr9DUkpn2xlcrhNjWwHw14KxDOgUQmSjMHi/azViRfZkJbA==}
 
-  '@tachybase/components@1.3.21':
-    resolution: {integrity: sha512-LJFQlLFtNiWRqpcd0s0nP8cG1FZje1w78I4Xc2eDUYnhr3yn8qrTvASZHNzVqC+CsOeOu+aVSXLEgXt4AUJhAA==}
-
   '@tachybase/components@1.3.22':
     resolution: {integrity: sha512-E0BZEb7XYY7fMG01Q2lzq1GzAkJayBpzo49L+CcFrRw9hqHzvgpZpV5qeoT32AQJu5t5Uc4QTf0BTv7NPg71ow==}
 
@@ -8116,9 +8113,6 @@ packages:
 
   '@tachybase/database@1.3.22':
     resolution: {integrity: sha512-dcgqzxiw+ELGRaXt13tIKYR34+00u79v065Dd9xNdpumDCxTqG6ui7wKyNTv2nXdJ6wXompBx/h4n7r9VIe8Bg==}
-
-  '@tachybase/evaluators@1.3.21':
-    resolution: {integrity: sha512-AeEqyX7jk+29hV2xe9w4yln3zBkILEu+TCminZeYZcnYDoFhxctY+Ko3SqV56eUG9Hggme4pbQZqQQqYGw6tiA==}
 
   '@tachybase/evaluators@1.3.22':
     resolution: {integrity: sha512-1JAhz0BgltV0fbVcIVNXpKnzQGJiMr2P/P4MsdwbZz42OWRtNCbvqpw8obfDdvppXOz48H6jGuhCUzlQE76XMA==}
@@ -8132,24 +8126,16 @@ packages:
   '@tachybase/logger@1.3.22':
     resolution: {integrity: sha512-AG7dFcuHD3ihmv6EZwE4O1D327uHCytYZmPAWtQZnQ8UlGyBlXuxDgJBU8JUJGSY1+2rbP83LGVBMRB6sR3tVw==}
 
-  '@tachybase/requirejs@1.3.21':
-    resolution: {integrity: sha512-oqm3/bm4OOzYYeu2UOBw/io1gOm7rE/vOpo2R56KbhIsIzxvxeoYCispRUTkWaz5gBMJ1OMpT1077d896+BxRw==}
+  '@tachybase/requirejs@1.3.22':
+    resolution: {integrity: sha512-gqRihFfG6QLu2uWZvEhwCBMM1hFI8WN+BixX20Ter8IVDMu6LPZmSxepltTpnDZI19vU2Y8TqduF33n9Dp9CkQ==}
 
   '@tachybase/resourcer@1.3.22':
     resolution: {integrity: sha512-Nzt7EDUbPcgPfh3ZjjAI1xKocUI+VRgyuhXwvQXaJnoIYMmcQxg6gzikW5QptrR5YeYlJvM82avzwqA4Ytwuaw==}
-
-  '@tachybase/schema@1.3.21':
-    resolution: {integrity: sha512-erx6TZ8nqE+qeiwXkAudUSjj3xbnL0uqCvhW1eUtjS9c0a1afAh2UhKkyNNsbpkedz5PLgVP4ZL2Q2ugJbKODA==}
-    peerDependencies:
-      react: 18.3.1
 
   '@tachybase/schema@1.3.22':
     resolution: {integrity: sha512-f1pw17HehOWQGdtFnghbSbkgfGcHqzQj3mkyc95etlqfb0BdB3SQ9GVGtJPvqVmMh+HokOgcy7ZU0uecoXdyfg==}
     peerDependencies:
       react: 18.3.1
-
-  '@tachybase/sdk@1.3.21':
-    resolution: {integrity: sha512-kk/PYud2+flWhbvMuH8j/mqJZikId7Jpi5Og+RztAqR1h0tycCb54NQpyAL2Fa/s8iK0EED1Fa1IV1nfi4V5PA==}
 
   '@tachybase/sdk@1.3.22':
     resolution: {integrity: sha512-x29vvAqcRmX+zN6FpRwNzuZ4eOGuAHFsNBBrGoRZ6dH39iPckPBjjUc1q6jbD0kcQ4jiS2SMFeKwjBiknlEAWA==}
@@ -8165,9 +8151,6 @@ packages:
 
   '@tachybase/test@1.3.22':
     resolution: {integrity: sha512-4qa2XP2HjGxVtm9By937fYJ3FVP0GYBeuzZfT6LnwblT+kvPeR5Cu8mtN7tP8uuZjunhZkxkqBQzCByBQrSc5Q==}
-
-  '@tachybase/utils@1.3.21':
-    resolution: {integrity: sha512-Em2qmCZx7opWTMgGeSEtc2BaV0oEXH7wutwk4rcvrU8lvVocUlLVcPe+a4HoAJn9gtt6pU1dQ6GAjH/ca7w3ag==}
 
   '@tachybase/utils@1.3.22':
     resolution: {integrity: sha512-RmALmMWPKDHq8ZjpBfMWV8VQfAPCAwAgLIYHrmIXXClMP4FPKxUG+xYO+dsNG9EYIllFjWx9TpZaofTO7ZmqXA==}
@@ -17595,7 +17578,7 @@ snapshots:
       flru: 1.0.2
       pdfast: 0.2.0
 
-  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
       '@antv/algorithm': 0.1.26
       '@antv/component': 2.1.5
@@ -17605,7 +17588,7 @@ snapshots:
       '@antv/g-plugin-dragndrop': 2.0.37
       '@antv/graphlib': 2.0.4
       '@antv/hierarchy': 0.6.14
-      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))
+      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       '@antv/util': 3.3.11
       bubblesets-js: 2.3.4
     transitivePeerDependencies:
@@ -17641,12 +17624,12 @@ snapshots:
 
   '@antv/hierarchy@0.6.14': {}
 
-  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
       '@antv/event-emitter': 0.1.3
       '@antv/graphlib': 2.0.4
       '@antv/util': 3.3.11
-      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6))
+      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       comlink: 4.4.2
       d3-force: 3.0.0
       d3-force-3d: 3.0.6
@@ -20244,9 +20227,9 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
-  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
-      workerize-loader: 2.0.2(webpack@5.99.6)
+      workerize-loader: 2.0.2(webpack@5.99.6(esbuild@0.25.6))
 
   '@napi-rs/wasm-runtime@0.2.12':
     dependencies:
@@ -22106,29 +22089,6 @@ snapshots:
       deepmerge: 4.3.1
       lodash: 4.17.21
 
-  '@tachybase/components@1.3.21(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@ant-design/cssinjs': 1.22.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@ant-design/icons': 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/core': 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/sortable': 8.0.0(@dnd-kit/core@6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/utilities': 3.2.2(react@18.3.1)
-      '@monaco-editor/react': 4.7.0(monaco-editor@0.50.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tachybase/schema': 1.3.21(react@18.3.1)
-      antd: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      classnames: 2.5.1
-      dayjs: 1.11.13
-      prop-types: 15.8.1
-      react-modal: 3.16.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react-sticky-box: 1.0.2(react@18.3.1)
-    transitivePeerDependencies:
-      - date-fns
-      - luxon
-      - moment
-      - monaco-editor
-      - react
-      - react-dom
-
   '@tachybase/components@1.3.22(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@ant-design/cssinjs': 1.22.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -22214,12 +22174,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/evaluators@1.3.21':
-    dependencies:
-      '@formulajs/formulajs': 4.5.3
-      '@tachybase/utils': 1.3.21
-      lodash: 4.17.21
-
   '@tachybase/evaluators@1.3.22':
     dependencies:
       '@formulajs/formulajs': 4.5.3
@@ -22242,7 +22196,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@tachybase/requirejs@1.3.21': {}
+  '@tachybase/requirejs@1.3.22': {}
 
   '@tachybase/resourcer@1.3.22':
     dependencies:
@@ -22254,16 +22208,6 @@ snapshots:
       path-to-regexp2: path-to-regexp@8.2.0
       qs: 6.14.0
 
-  '@tachybase/schema@1.3.21(react@18.3.1)':
-    dependencies:
-      camel-case: 4.1.2
-      hoist-non-react-statics: 3.3.2
-      lower-case: 2.0.2
-      param-case: 3.0.4
-      pascal-case: 3.1.2
-      react: 18.3.1
-      upper-case: 2.0.2
-
   '@tachybase/schema@1.3.22(react@18.3.1)':
     dependencies:
       camel-case: 4.1.2
@@ -22273,13 +22217,6 @@ snapshots:
       pascal-case: 3.1.2
       react: 18.3.1
       upper-case: 2.0.2
-
-  '@tachybase/sdk@1.3.21':
-    dependencies:
-      axios: 1.7.7
-      qs: 6.14.0
-    transitivePeerDependencies:
-      - debug
 
   '@tachybase/sdk@1.3.22':
     dependencies:
@@ -22421,19 +22358,6 @@ snapshots:
       - tsx
       - utf-8-validate
       - yaml
-
-  '@tachybase/utils@1.3.21':
-    dependencies:
-      '@hapi/topo': 6.0.2
-      '@rc-component/mini-decimal': 1.1.0
-      dayjs: 1.11.13
-      dedupe: 3.0.3
-      deepmerge: 4.3.1
-      flat-to-nested: 1.1.1
-      graphlib: 2.1.8
-      lodash: 4.17.21
-      multer: 2.0.1
-      object-path: 0.11.8
 
   '@tachybase/utils@1.3.22':
     dependencies:
@@ -31547,14 +31471,16 @@ snapshots:
       - encoding
       - supports-color
 
-  terser-webpack-plugin@5.3.14(webpack@5.99.6):
+  terser-webpack-plugin@5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.29
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
       terser: 5.43.1
-      webpack: 5.99.6
+      webpack: 5.99.6(esbuild@0.25.6)
+    optionalDependencies:
+      esbuild: 0.25.6
 
   terser@5.43.1:
     dependencies:
@@ -32379,7 +32305,7 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.99.6:
+  webpack@5.99.6(esbuild@0.25.6):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -32401,7 +32327,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.2
       tapable: 2.2.2
-      terser-webpack-plugin: 5.3.14(webpack@5.99.6)
+      terser-webpack-plugin: 5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6))
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:
@@ -32599,10 +32525,10 @@ snapshots:
       worker-timers-broker: 6.1.8
       worker-timers-worker: 7.0.71
 
-  workerize-loader@2.0.2(webpack@5.99.6):
+  workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.99.6
+      webpack: 5.99.6(esbuild@0.25.6)
 
   wrap-ansi@7.0.0:
     dependencies:

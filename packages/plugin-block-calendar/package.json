@@ -16,8 +16,8 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "antd": "5.22.5",
     "cron-parser": "4.9.0",
     "dayjs": "1.11.13",
@@ -29,10 +29,10 @@
     "solarlunar-es": "^1.0.9"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "提供日历数据表模板和卡片，用于管理日期数据，通常用于事件、约会、任务等与日期/时间相关的信息。",
   "displayName.zh-CN": "日历"

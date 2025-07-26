@@ -26,14 +26,14 @@
     "react-use": "17.6.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/logger": "workspace:*",
-    "@tachybase/module-workflow": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/logger": "v1.3.21",
+    "@tachybase/module-workflow": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "PDF",
   "displayName.zh-CN": "PDF"

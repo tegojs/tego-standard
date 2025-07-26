@@ -14,8 +14,8 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "@types/react": "~18.3.18",
     "@types/react-dom": "~18.3.5",
     "ahooks": "~3.9.0",
@@ -32,12 +32,12 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "为 TachyBase 服务端提供客户端界面",
   "displayName.zh-CN": "WEB 客户端"

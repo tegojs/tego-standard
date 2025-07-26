@@ -14,8 +14,8 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
     "nanoid": "3.3.8",
@@ -25,13 +25,13 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/auth": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-auth": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/auth": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-auth": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "通过 OIDC (OpenID Connect) 协议认证身份。",
   "displayName.zh-CN": "认证：OIDC"

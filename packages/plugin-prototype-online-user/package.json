@@ -20,11 +20,11 @@
     "ws": "^8.18.0"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "在线用户管理（建设中）",
   "displayName.zh-CN": "在线用户管理（建设中）"

@@ -16,9 +16,9 @@
     "@alicloud/openapi-client": "0.4.15",
     "@alicloud/tea-util": "1.4.9",
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/utils": "workspace:*",
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/utils": "v1.3.21",
     "ahooks": "3.9.0",
     "antd": "5.22.5",
     "jsonwebtoken": "8.5.1",
@@ -29,12 +29,12 @@
     "ws": "^8.18.0"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-workflow": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-workflow": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "用于给用户发送消息",
   "displayName.zh-CN": "消息通知"

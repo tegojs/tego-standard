@@ -10,8 +10,8 @@
     "fast-glob": "^3.3.2"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   }
 }

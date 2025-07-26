@@ -14,11 +14,11 @@
     "sequelize": "^6.37.5"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "提供全字段搜索能力",
   "displayName.zh-CN": "全文搜索"

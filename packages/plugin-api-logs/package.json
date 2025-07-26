@@ -15,16 +15,16 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/data-source": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/resourcer": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/data-source": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/resourcer": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "Api Logs通过增强的用户界面组件、配置面板和仪表板提供对 API 操作的无缝跟踪",
   "displayName.zh-CN": "Api 日志"

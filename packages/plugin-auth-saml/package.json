@@ -15,21 +15,21 @@
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
     "@node-saml/node-saml": "^4.0.5",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
     "antd": "5.22.5",
     "react": "~18.3.1",
     "react-i18next": "^15.2.0",
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/auth": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-auth": "workspace:*",
-    "@tachybase/sdk": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/auth": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-auth": "v1.3.21",
+    "@tachybase/sdk": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "通过 SAML 2.0 协议认证身份。",
   "displayName.zh-CN": "认证：SAML 2.0"

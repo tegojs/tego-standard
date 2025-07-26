@@ -17,9 +17,9 @@
     "react-swipeable": "^7.0.2"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "Game runesweeper demo",
   "displayName.zh-CN": "Runesweeper"

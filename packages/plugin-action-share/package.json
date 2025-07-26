@@ -14,7 +14,7 @@
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
     "@emotion/css": "^11.13.5",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
     "antd": "5.22.5",
     "antd-style": "3.7.1",
     "qrcode": "^1.5.4",
@@ -23,12 +23,12 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/auth": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/auth": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "与外部用户分享页面。",
   "displayName.zh-CN": "动作：对外分享"

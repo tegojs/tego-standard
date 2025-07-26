@@ -14,21 +14,21 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^5.5.2",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
     "deepmerge": "^4.3.1",
     "react-i18next": "^15.2.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/cache": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-ui-schema": "workspace:*",
-    "@tachybase/module-web": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/cache": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-ui-schema": "v1.3.21",
+    "@tachybase/module-web": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "支持管理应用程序的本地化资源。",
   "displayName.zh-CN": "本地化"

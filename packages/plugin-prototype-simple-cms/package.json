@@ -15,11 +15,11 @@
     "antd": "5.22.5"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "内容管理",
   "displayName.zh-CN": "内容管理"

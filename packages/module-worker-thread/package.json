@@ -16,17 +16,17 @@
     "tsx": "4.20.3"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/globals": "workspace:*",
-    "@tachybase/loader": "workspace:*",
-    "@tachybase/logger": "workspace:*",
-    "@tachybase/module-collection": "workspace:*",
-    "@tachybase/module-user": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/globals": "v1.3.21",
+    "@tachybase/loader": "v1.3.21",
+    "@tachybase/logger": "v1.3.21",
+    "@tachybase/module-collection": "v1.3.21",
+    "@tachybase/module-user": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "工作线程,用于执行耗时任务",
   "displayName.zh-CN": "工作线程"

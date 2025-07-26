@@ -14,8 +14,8 @@
   "devDependencies": {
     "@ant-design/icons": "^5.5.2",
     "@hapi/topo": "^6.0.2",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/module-worker-thread": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/module-worker-thread": "v1.3.21",
     "@types/archiver": "^5.3.4",
     "@types/file-saver": "^2.0.7",
     "@types/lodash": "4.17.20",
@@ -38,13 +38,13 @@
     "yauzl": "^3.2.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "备份和还原应用，可用于应用的复制、迁移、升级等场景。",
   "displayName.zh-CN": "应用的备份与还原"

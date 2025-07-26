@@ -17,16 +17,16 @@
     "sequelize": "6.37.5"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/cache": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-error-handler": "workspace:*",
-    "@tachybase/module-user": "workspace:*",
-    "@tachybase/resourcer": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/cache": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-error-handler": "v1.3.21",
+    "@tachybase/module-user": "v1.3.21",
+    "@tachybase/resourcer": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "提供中心化的 UI schema 存储服务。",
   "displayName.zh-CN": "UI schema 存储服务"

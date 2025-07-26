@@ -14,8 +14,8 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "@types/node-xlsx": "^0.21.0",
     "antd": "5.22.5",
     "file-saver": "^2.0.5",
@@ -28,12 +28,12 @@
     "xlsx": "^0.18.5"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "使用 Excel 模板导入数据，可以配置导入哪些字段，自动生成模板。",
   "displayName.zh-CN": "操作：导入记录"

@@ -25,7 +25,7 @@
     "@bytemd/plugin-highlight": "1.21.0",
     "@bytemd/react": "1.21.0",
     "@hapi/topo": "6.0.2",
-    "@tachybase/components": "workspace:*",
+    "@tachybase/components": "v1.3.21",
     "@types/babel__core": "7.20.5",
     "@types/babel__traverse": "7.20.7",
     "ahooks": "3.9.0",
@@ -45,13 +45,13 @@
     "recharts": "^2.15.2"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "云组件",
   "displayName.zh-CN": "云组件"

@@ -13,18 +13,18 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "react": "^18.3.1",
     "react-i18next": "^15.2.0"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/evaluators": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/evaluators": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "可以配置并存储同一条记录的多字段值之间的计算结果，支持 Math.js 和 Excel formula functions 两种引擎",
   "displayName.zh-CN": "数据表字段：公式"

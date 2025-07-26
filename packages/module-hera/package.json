@@ -12,8 +12,8 @@
   },
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "@tachybase/sheet": "1.0.0-alpha.5",
     "@types/lodash": "~4.17.20",
     "ahooks": "^3.9.0",
@@ -34,17 +34,17 @@
     "ws": "^8.18.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/data-source": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/evaluators": "workspace:*",
-    "@tachybase/module-acl": "workspace:*",
-    "@tachybase/module-workflow": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/data-source": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/evaluators": "v1.3.21",
+    "@tachybase/module-acl": "v1.3.21",
+    "@tachybase/module-workflow": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "赫拉平台（已废弃）",
   "displayName.zh-CN": "赫拉平台"

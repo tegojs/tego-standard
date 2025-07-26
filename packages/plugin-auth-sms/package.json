@@ -13,20 +13,18 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/auth": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-auth": "v1.3.21",
+    "@tachybase/plugin-otp": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
     "antd": "5.22.5",
     "react": "~18.3.1",
     "react-i18next": "^15.2.0"
-  },
-  "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/auth": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-auth": "workspace:*",
-    "@tachybase/plugin-otp": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
   },
   "description.zh-CN": "通过短信验证码认证身份。",
   "displayName.zh-CN": "认证：短信"

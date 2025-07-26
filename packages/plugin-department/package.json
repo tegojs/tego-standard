@@ -10,7 +10,7 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
     "@types/lodash": "~4.17.20",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
@@ -18,13 +18,13 @@
     "react": "^18.3.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-acl": "workspace:*",
-    "@tachybase/module-collection": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-acl": "v1.3.21",
+    "@tachybase/module-collection": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21"
   },
   "description.zh-CN": "将用户划分在树状的部门里,也可以给部门分配角色",
   "displayName.zh-CN": "部门"

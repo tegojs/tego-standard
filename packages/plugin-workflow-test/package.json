@@ -17,13 +17,13 @@
     "lodash": "4.17.21"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/data-source": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/resourcer": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/data-source": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/resourcer": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "工作流测试工具包",
   "displayName.zh-CN": "工作流：测试工具包"

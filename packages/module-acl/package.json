@@ -14,8 +14,8 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^5.5.2",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "@types/jsonwebtoken": "^8.5.9",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
@@ -27,14 +27,14 @@
     "react-i18next": "^15.2.0"
   },
   "peerDependencies": {
-    "@tachybase/acl": "workspace:*",
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/cache": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/acl": "v1.3.21",
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/cache": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "基于角色、资源和操作的权限控制，可以精确控制界面配置权限、数据操作权限、菜单访问权限、插件权限。",
   "displayName.zh-CN": "权限控制"

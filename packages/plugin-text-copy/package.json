@@ -9,10 +9,10 @@
     "lodash": "^4.17.21"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "为文本字段添加复制按钮",
   "displayName.zh-CN": "文本复制"

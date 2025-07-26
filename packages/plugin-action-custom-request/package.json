@@ -13,8 +13,8 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "v1.3.21",
+    "@tachybase/schema": "v1.3.21",
     "antd": "5.22.5",
     "axios": "1.7.7",
     "file-saver": "^2.0.5",
@@ -23,15 +23,15 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/evaluators": "workspace:*",
-    "@tachybase/logger": "workspace:*",
-    "@tachybase/sdk": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/evaluators": "v1.3.21",
+    "@tachybase/logger": "v1.3.21",
+    "@tachybase/sdk": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "向任意 HTTP 服务发送请求，支持将上下文数据发送给目标服务。",
   "displayName.zh-CN": "操作：自定义请求"

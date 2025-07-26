@@ -13,7 +13,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
     "dayjs": "1.11.13",
@@ -22,13 +22,13 @@
     "react-i18next": "^15.2.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/resourcer": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/actions": "v1.3.21",
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/resourcer": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "允许用户使用 API 密钥访问应用的 HTTP API",
   "displayName.zh-CN": "认证：API 密钥"

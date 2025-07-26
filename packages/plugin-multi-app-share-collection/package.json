@@ -12,22 +12,22 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
     "antd": "5.22.5",
     "lodash": "4.17.21",
     "react": "~18.3.1",
     "react-i18next": "^15.2.0"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/module-collection": "workspace:*",
-    "@tachybase/module-error-handler": "workspace:*",
-    "@tachybase/module-multi-app": "workspace:*",
-    "@tachybase/module-user": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/module-collection": "v1.3.21",
+    "@tachybase/module-error-handler": "v1.3.21",
+    "@tachybase/module-multi-app": "v1.3.21",
+    "@tachybase/module-user": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21",
+    "@tachybase/utils": "v1.3.21"
   },
   "description.zh-CN": "多应用数据共享",
   "displayName.zh-CN": "多应用数据共享"

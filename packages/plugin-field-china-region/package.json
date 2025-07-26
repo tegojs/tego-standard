@@ -13,16 +13,16 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "v1.3.21",
     "@types/cross-spawn": "^6.0.6",
     "china-division": "^2.7.0",
     "cross-spawn": "^7.0.6"
   },
   "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/client": "v1.3.21",
+    "@tachybase/database": "v1.3.21",
+    "@tachybase/server": "v1.3.21",
+    "@tachybase/test": "v1.3.21"
   },
   "description.zh-CN": "提供中国行政区划数据和字段类型。",
   "displayName.zh-CN": "字段：中国行政区划"

@@ -12,21 +12,21 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^5.5.2",
-    "@tachybase/schema": "^1.3.22",
+    "@tachybase/schema": "^1.3.23",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
     "deepmerge": "^4.3.1",
     "react-i18next": "^15.2.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "^1.3.22",
-    "@tachybase/cache": "^1.3.22",
+    "@tachybase/actions": "^1.3.23",
+    "@tachybase/cache": "^1.3.23",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "^1.3.22",
+    "@tachybase/database": "^1.3.23",
     "@tachybase/module-ui-schema": "workspace:*",
     "@tachybase/module-web": "workspace:*",
-    "@tachybase/server": "^1.3.22",
-    "@tachybase/test": "^1.3.22"
+    "@tachybase/server": "^1.3.23",
+    "@tachybase/test": "^1.3.23"
   },
   "description.zh-CN": "支持管理应用程序的本地化资源。",
   "displayName.zh-CN": "本地化"

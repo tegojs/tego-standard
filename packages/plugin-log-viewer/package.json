@@ -19,11 +19,11 @@
     "tar-fs": "^3.1.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "^1.3.24",
+    "@tachybase/actions": "^1.3.26",
     "@tachybase/client": "workspace:*",
-    "@tachybase/logger": "^1.3.24",
-    "@tachybase/server": "^1.3.24",
-    "@tachybase/test": "^1.3.24"
+    "@tachybase/logger": "^1.3.26",
+    "@tachybase/server": "^1.3.26",
+    "@tachybase/test": "^1.3.26"
   },
   "description.zh-CN": "服务端日志，主要包括接口请求日志和系统运行日志，并支持打包和下载日志文件。",
   "displayName.zh-CN": "日志"

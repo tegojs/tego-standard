@@ -21,10 +21,10 @@
     "xml2js": "^0.6.2"
   },
   "peerDependencies": {
-    "@tachybase/actions": "v1.3.21",
-    "@tachybase/client": "v1.3.21",
-    "@tachybase/module-auth": "v1.3.21",
-    "@tachybase/server": "v1.3.21",
-    "@tachybase/test": "v1.3.21"
+    "@tachybase/actions": "^1.3.22",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/module-auth": "workspace:*",
+    "@tachybase/server": "^1.3.22",
+    "@tachybase/test": "^1.3.22"
   }
 }

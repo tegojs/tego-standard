@@ -12,7 +12,7 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/schema": "v1.3.21",
+    "@tachybase/schema": "^1.3.22",
     "antd": "5.22.5",
     "axios": "1.7.7",
     "cron": "^3.3.1",
@@ -23,15 +23,15 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "v1.3.21",
-    "@tachybase/auth": "v1.3.21",
-    "@tachybase/cache": "v1.3.21",
-    "@tachybase/client": "v1.3.21",
-    "@tachybase/database": "v1.3.21",
-    "@tachybase/logger": "v1.3.21",
-    "@tachybase/server": "v1.3.21",
-    "@tachybase/test": "v1.3.21",
-    "@tachybase/utils": "v1.3.21"
+    "@tachybase/actions": "^1.3.22",
+    "@tachybase/auth": "^1.3.22",
+    "@tachybase/cache": "^1.3.22",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/database": "^1.3.22",
+    "@tachybase/logger": "^1.3.22",
+    "@tachybase/server": "^1.3.22",
+    "@tachybase/test": "^1.3.22",
+    "@tachybase/utils": "^1.3.22"
   },
   "description.zh-CN": "用户认证管理，包括基础的密码认证、短信认证、SSO 协议的认证等，可扩展。",
   "displayName.zh-CN": "用户认证"

@@ -15,14 +15,14 @@
     "lodash": "^4.17.21"
   },
   "peerDependencies": {
-    "@tachybase/actions": "v1.3.21",
-    "@tachybase/client": "v1.3.21",
-    "@tachybase/components": "v1.3.21",
-    "@tachybase/database": "v1.3.21",
-    "@tachybase/schema": "v1.3.21",
-    "@tachybase/server": "v1.3.21",
-    "@tachybase/test": "v1.3.21",
-    "@tachybase/utils": "v1.3.21"
+    "@tachybase/actions": "^1.3.22",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/components": "^1.3.22",
+    "@tachybase/database": "^1.3.22",
+    "@tachybase/schema": "^1.3.22",
+    "@tachybase/server": "^1.3.22",
+    "@tachybase/test": "^1.3.22",
+    "@tachybase/utils": "^1.3.22"
   },
   "description.zh-CN": "Tachybase 应用的追踪和埋点模块",
   "displayName.zh-CN": "埋点追踪"

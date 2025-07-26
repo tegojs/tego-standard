@@ -17,14 +17,14 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "v1.3.21",
-    "@tachybase/auth": "v1.3.21",
-    "@tachybase/client": "v1.3.21",
-    "@tachybase/database": "v1.3.21",
-    "@tachybase/module-auth": "v1.3.21",
-    "@tachybase/schema": "v1.3.21",
-    "@tachybase/server": "v1.3.21",
-    "@tachybase/utils": "v1.3.21"
+    "@tachybase/actions": "^1.3.22",
+    "@tachybase/auth": "^1.3.22",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/database": "^1.3.22",
+    "@tachybase/module-auth": "workspace:*",
+    "@tachybase/schema": "^1.3.22",
+    "@tachybase/server": "^1.3.22",
+    "@tachybase/utils": "^1.3.22"
   },
   "description.zh-CN": "通过微信扫码认证身份。",
   "displayName.zh-CN": "认证：微信"

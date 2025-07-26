@@ -15,14 +15,14 @@
     "react-js-cron": "^3.2.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "v1.3.21",
-    "@tachybase/client": "v1.3.21",
-    "@tachybase/database": "v1.3.21",
-    "@tachybase/module-workflow": "v1.3.21",
-    "@tachybase/schema": "v1.3.21",
-    "@tachybase/server": "v1.3.21",
-    "@tachybase/test": "v1.3.21",
-    "@tachybase/utils": "v1.3.21"
+    "@tachybase/actions": "^1.3.22",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/database": "^1.3.22",
+    "@tachybase/module-workflow": "workspace:*",
+    "@tachybase/schema": "^1.3.22",
+    "@tachybase/server": "^1.3.22",
+    "@tachybase/test": "^1.3.22",
+    "@tachybase/utils": "^1.3.22"
   },
   "description.zh-CN": "安排任务在特定时间运行,采用工作流的方式",
   "displayName.zh-CN": "定时任务"

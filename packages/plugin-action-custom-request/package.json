@@ -8,9 +8,7 @@
   ],
   "license": "Apache-2.0",
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-action-custom-request"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@tachybase/components": "v1.3.21",

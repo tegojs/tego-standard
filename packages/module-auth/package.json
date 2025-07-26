@@ -8,9 +8,7 @@
     "Security"
   ],
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/module-auth"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",

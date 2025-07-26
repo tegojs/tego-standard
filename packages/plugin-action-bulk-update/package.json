@@ -8,9 +8,7 @@
   ],
   "license": "Apache-2.0",
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-action-bulk-update"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@tachybase/schema": "v1.3.21",

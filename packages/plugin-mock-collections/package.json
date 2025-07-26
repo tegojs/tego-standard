@@ -5,9 +5,7 @@
   "description": "mock-collections",
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-mock-collections"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@faker-js/faker": "9.9.0",

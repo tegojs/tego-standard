@@ -7,9 +7,7 @@
     "Others"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/module-pdf"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@babel/core": "7.27.4",

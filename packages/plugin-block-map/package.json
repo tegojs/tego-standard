@@ -8,9 +8,7 @@
   ],
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-block-map"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",

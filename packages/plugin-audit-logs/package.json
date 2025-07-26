@@ -7,9 +7,7 @@
     "System management"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-audit-logs"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",

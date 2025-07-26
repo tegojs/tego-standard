@@ -8,9 +8,7 @@
   ],
   "license": "Apache-2.0",
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-action-share"
-  },
+  "scripts": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
     "@emotion/css": "^11.13.5",

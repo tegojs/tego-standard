@@ -7,9 +7,7 @@
     "Data sources"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-data-source-common"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^5.5.2",

@@ -7,9 +7,7 @@
     "System management"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-adapter-remix"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@remix-run/express": "^2.16.8",

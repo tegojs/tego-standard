@@ -7,9 +7,7 @@
     "Users & permissions"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-online-user"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "antd": "5.22.5",

@@ -7,9 +7,7 @@
     "System management"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/module-cloud-component"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@antv/g6": "^5.0.49",

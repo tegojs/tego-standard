@@ -7,9 +7,7 @@
     "Others"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-demos-game-runesweeper"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "canvas-confetti": "^1.9.3",

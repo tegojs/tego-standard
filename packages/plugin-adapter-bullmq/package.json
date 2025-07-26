@@ -7,9 +7,7 @@
     "System management"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-adapter-bullmq"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@bull-board/api": "^6.11.1",

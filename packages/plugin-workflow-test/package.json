@@ -16,12 +16,12 @@
   },
   "peerDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/data-source": "^1.3.26",
-    "@tachybase/database": "^1.3.26",
-    "@tachybase/resourcer": "^1.3.26",
-    "@tachybase/server": "^1.3.26",
-    "@tachybase/test": "^1.3.26",
-    "@tachybase/utils": "^1.3.26"
+    "@tachybase/data-source": "^1.3.27",
+    "@tachybase/database": "^1.3.27",
+    "@tachybase/resourcer": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "工作流测试工具包",
   "displayName.zh-CN": "工作流：测试工具包"

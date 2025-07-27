@@ -14,8 +14,8 @@
   },
   "peerDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/server": "^1.3.26",
-    "@tachybase/test": "^1.3.26"
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27"
   },
   "description.zh-CN": "飞书使用手册",
   "displayName.zh-CN": "飞书使用手册"

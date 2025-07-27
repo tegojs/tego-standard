@@ -19,14 +19,14 @@
     "toposort": "^2.0.2"
   },
   "peerDependencies": {
-    "@tachybase/actions": "^1.3.26",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "^1.3.26",
+    "@tachybase/database": "^1.3.27",
     "@tachybase/module-error-handler": "workspace:*",
-    "@tachybase/resourcer": "^1.3.26",
-    "@tachybase/server": "^1.3.26",
-    "@tachybase/test": "^1.3.26",
-    "@tachybase/utils": "^1.3.26"
+    "@tachybase/resourcer": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "TachyBase 主数据库，支持 MySQL、PostgreSQL、SQLite 等关系型数据库。",
   "displayName.zh-CN": "数据源：主数据库"

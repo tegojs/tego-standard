@@ -23,10 +23,10 @@ export default class extends Instruction {
       'x-decorator': 'FormItem',
       'x-component': 'RadioWithTooltip',
       'x-component-props': {
-        options: getOptions(),
+        getOptions,
       },
       required: true,
-      default: 'math.js',
+      default: 'formula.js',
     },
     expression: {
       type: 'string',

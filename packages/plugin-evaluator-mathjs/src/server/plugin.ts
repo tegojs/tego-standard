@@ -5,7 +5,9 @@ import mathjs from './utils/mathjs';
 
 export class PluginMathjsEvaluatorServer extends Plugin {
   async load() {
-    evaluators.register('math.js', mathjs);
+    if (!evaluators.get('math.js')) {
+      evaluators.register('math.js', mathjs);
+    }
   }
 }
 

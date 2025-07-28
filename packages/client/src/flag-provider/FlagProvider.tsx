@@ -21,6 +21,7 @@ export interface FlagProviderProps {
    * 是否存在于 `子表单` 中
    */
   isInSubForm?: boolean;
+  currSchema?: any;
   children: any;
 }
 

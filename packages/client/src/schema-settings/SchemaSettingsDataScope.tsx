@@ -1,5 +1,5 @@
 import React, { FC, useCallback } from 'react';
-import { ISchema, useFieldSchema } from '@tachybase/schema';
+import { ISchema, useField, useFieldSchema } from '@tachybase/schema';
 
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,7 @@ export const SchemaSettingsDataScope: FC<DataScopeProps> = function DataScopeCon
   const { form } = useFormBlockContext();
   const variables = useVariables();
   const fieldSchema = useFieldSchema();
+  const field = useField();
   const localVariables = useLocalVariables();
   const { getAllCollectionsInheritChain } = useCollectionManager_deprecated();
   const { isInSubForm, isInSubTable } = useFlag() || {};
@@ -56,7 +57,7 @@ export const SchemaSettingsDataScope: FC<DataScopeProps> = function DataScopeCon
           enum: props.collectionFilterOption || getFields(),
           'x-decorator': (props) => (
             <BaseVariableProvider {...props}>
-              <FlagProvider isInSubForm={isInSubForm} isInSubTable={isInSubTable}>
+              <FlagProvider isInSubForm={isInSubForm} isInSubTable={isInSubTable} currSchema={fieldSchema}>
                 {props.children}
               </FlagProvider>
             </BaseVariableProvider>

@@ -72,12 +72,13 @@ export const useCurrentFormVariable = ({
   const currentFormSettings = useBaseVariable({
     collectionField,
     uiSchema: schema,
-    targetFieldSchema: targetFieldSchema || formInstance,
+    targetFieldSchema,
     maxDepth: 4,
     name: '$nForm',
     title: t('Current form'),
     collectionName: collectionName,
     noDisabled,
+    formInstance,
     returnFields: (fields, option) => {
       // fix
       return fields;

@@ -79,15 +79,14 @@ export const useCurrentObjectVariable = ({
   targetFieldSchema?: Schema;
 } = {}) => {
   // const { getActiveFieldsName } = useFormActiveFields() || {};
-  console.log('🚀 ~ targetFieldSchema:', targetFieldSchema);
   const collection = useCollection();
   const { formValue: currentObjectCtx, collection: collectionOfCurrentObject } = useSubFormValue();
-  const { isInSubForm, isInSubTable } = useFlag() || {};
+  const { isInSubForm, isInSubTable, currSchema } = useFlag() || {};
   const { t } = useTranslation();
   const currentObjectSettings = useBaseVariable({
     collectionField,
     uiSchema: schema,
-    targetFieldSchema,
+    targetFieldSchema: targetFieldSchema || currSchema?.parent,
     maxDepth: 4,
     name: '$iteration',
     title: t('Current object'),

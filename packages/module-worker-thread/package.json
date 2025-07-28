@@ -7,26 +7,24 @@
     "Workflow"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/module-worker-thread"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "antd": "5.22.5",
     "tsx": "4.20.3"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/globals": "workspace:*",
-    "@tachybase/loader": "workspace:*",
-    "@tachybase/logger": "workspace:*",
+    "@tachybase/globals": "^1.3.27",
+    "@tachybase/loader": "^1.3.27",
+    "@tachybase/logger": "^1.3.27",
     "@tachybase/module-collection": "workspace:*",
     "@tachybase/module-user": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/schema": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "工作线程,用于执行耗时任务",
   "displayName.zh-CN": "工作线程"

@@ -8,13 +8,11 @@
   ],
   "license": "Apache-2.0",
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-action-share"
-  },
+  "scripts": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
     "@emotion/css": "^11.13.5",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "^1.3.27",
     "antd": "5.22.5",
     "antd-style": "3.7.1",
     "qrcode": "^1.5.4",
@@ -23,12 +21,12 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/auth": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
+    "@tachybase/auth": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/database": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27"
   },
   "description.zh-CN": "与外部用户分享页面。",
   "displayName.zh-CN": "动作：对外分享"

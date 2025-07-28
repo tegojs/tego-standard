@@ -268,7 +268,7 @@ export default class ApprovalTrigger extends Trigger {
             if (payload.get(field)) {
               payload = payload.get(field);
             } else {
-              const association = <HasOne | BelongsTo>modelAssociationByKey(payload, field);
+              const association = <HasOne | BelongsTo>(<unknown>modelAssociationByKey(payload, field));
               payload = await payload[association.accessors.get]();
             }
           }

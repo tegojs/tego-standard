@@ -14,14 +14,14 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
+    "@tachybase/database": "^1.3.27",
     "@tachybase/module-workflow": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/schema": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "工作流分析工具：用于时间消耗和错误分析",
   "displayName.zh-CN": "工作流分析工具"

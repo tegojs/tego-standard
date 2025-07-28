@@ -8,17 +8,15 @@
   ],
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-block-map"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
     "@amap/amap-jsapi-types": "^0.0.10",
     "@ant-design/icons": "~5.3.7",
     "@googlemaps/js-api-loader": "^1.16.8",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "^1.3.27",
+    "@tachybase/schema": "^1.3.27",
     "@types/google.maps": "^3.58.1",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
@@ -31,12 +29,12 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/database": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "地图卡片，支持高德地图和 Google 地图，你也可以扩展更多地图类型。",
   "displayName.zh-CN": "卡片：地图"

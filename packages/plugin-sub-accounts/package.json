@@ -7,22 +7,20 @@
     "Users & permissions"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-sub-accounts"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "minimatch": "^5.1.6"
   },
   "peerDependencies": {
-    "@tachybase/acl": "workspace:*",
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/acl": "^1.3.27",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
+    "@tachybase/database": "^1.3.27",
     "@tachybase/module-acl": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "生成合成角色,每个用户可以生成自己的子账户(未完成)",
   "displayName.zh-CN": "子账户和合成角色"

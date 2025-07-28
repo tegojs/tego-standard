@@ -16,7 +16,7 @@
     "@rsbuild/plugin-react": "1.3.2",
     "@rsbuild/plugin-umd": "1.0.4",
     "@tachybase/client": "workspace:*",
-    "@tego/devkit": "workspace:*",
+    "@tego/devkit": "^1.3.27",
     "@types/react": "18.3.18",
     "@types/react-dom": "18.3.5",
     "i18next": "23.16.8",

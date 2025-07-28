@@ -1,4 +1,4 @@
-import actions, { Action, Context, Controller, Inject, Next } from '@tego/server';
+import { Action, actions, Context, Controller, Inject, Next } from '@tego/server';
 
 import { CloudCompiler } from '../services/cloud-compiler';
 

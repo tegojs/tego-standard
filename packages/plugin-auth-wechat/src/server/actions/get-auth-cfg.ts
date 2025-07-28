@@ -1,4 +1,4 @@
-import Application, { Context, Next } from '@tego/server';
+import { Application, Context, Next } from '@tego/server';
 
 import { AUTH_TIMEOUT_MINUTE, weChatApiOauthScope } from '../../constants';
 

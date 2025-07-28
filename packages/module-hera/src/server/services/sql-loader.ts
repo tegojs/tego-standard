@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import Database, { Db, Service } from '@tego/server';
+import { Database, Db, Service } from '@tego/server';
 import fs from 'fs-extra';
 
 import { isMain } from '../utils/multiprocess';

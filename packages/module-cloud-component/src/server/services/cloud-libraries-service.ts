@@ -3,7 +3,7 @@ import { createContext, Script } from 'node:vm';
 import * as babelParser from '@babel/parser';
 import traverse from '@babel/traverse';
 import Topo from '@hapi/topo';
-import Database, { App, Application, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
+import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import { CloudCompiler } from './cloud-compiler';
 

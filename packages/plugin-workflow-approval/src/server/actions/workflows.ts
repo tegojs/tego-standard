@@ -1,4 +1,4 @@
-import actions from '@tego/server';
+import { actions } from '@tego/server';
 
 export const workflows = {
   async listApprovalFlows(context, next) {

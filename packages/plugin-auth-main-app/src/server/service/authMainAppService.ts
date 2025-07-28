@@ -1,4 +1,4 @@
-import Database, { App, Application, Context, Db, InjectLog, Logger, Next, Service } from '@tego/server';
+import { App, Application, Context, Database, Db, InjectLog, Logger, Next, Service } from '@tego/server';
 
 import { COLLECTION_AUTH_MAIN_APP_CONFIG, NAMESPACE } from '../../constants';
 

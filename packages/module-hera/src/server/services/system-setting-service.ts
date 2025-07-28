@@ -1,4 +1,4 @@
-import Database, { Db, Service } from '@tego/server';
+import { Database, Db, Service } from '@tego/server';
 
 export interface SystemSetting {
   title: string;

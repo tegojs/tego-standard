@@ -1,4 +1,4 @@
-import Application, { AppSupervisor, Gateway } from '@tego/server';
+import { Application, AppSupervisor, Gateway } from '@tego/server';
 
 import { ApplicationModel } from './models/application';
 

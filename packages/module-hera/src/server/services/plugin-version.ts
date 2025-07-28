@@ -1,4 +1,4 @@
-import Application, { App, PluginManager, Service } from '@tego/server';
+import { App, Application, PluginManager, Service } from '@tego/server';
 
 @Service()
 export class PluginVersionService {

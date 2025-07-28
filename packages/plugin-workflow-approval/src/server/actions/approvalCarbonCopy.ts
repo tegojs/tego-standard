@@ -1,6 +1,6 @@
 import { COLLECTION_WORKFLOWS_NAME } from '@tachybase/module-workflow';
 
-import actions, { Op } from '@tego/server';
+import { actions, Op } from '@tego/server';
 
 import { APPROVAL_STATUS } from '../constants/status';
 import { findUniqueObjects } from '../utils';

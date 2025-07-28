@@ -1,4 +1,4 @@
-import Database, { Transaction } from '@tego/server';
+import { Database, Transaction } from '@tego/server';
 
 export type WhiteListItem = {
   title: string;

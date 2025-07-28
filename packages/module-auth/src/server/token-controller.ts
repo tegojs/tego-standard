@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
-import Database, {
+import {
+  Application,
   AuthError,
   AuthErrorCode,
   Cache,
+  Database,
   ITokenControlService,
   NumericTokenPolicyConfig,
   Repository,
@@ -11,7 +13,6 @@ import Database, {
   TokenPolicyConfig,
   type SystemLogger,
 } from '@tego/server';
-import Application from '@tego/server';
 import ms from 'ms';
 
 import {

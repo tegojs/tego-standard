@@ -19,10 +19,10 @@
   },
   "peerDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "^1.3.27",
-    "@tachybase/server": "^1.3.27",
-    "@tachybase/test": "^1.3.27",
-    "@tachybase/utils": "^1.3.27"
+    "@tachybase/schema": "^1.3.35",
+    "@tachybase/server": "^1.3.35",
+    "@tachybase/test": "^1.3.35",
+    "@tachybase/utils": "^1.3.35"
   },
   "description.zh-CN": "在线用户管理（建设中）",
   "displayName.zh-CN": "在线用户管理（建设中）"

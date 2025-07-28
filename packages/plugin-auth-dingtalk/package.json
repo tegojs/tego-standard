@@ -18,12 +18,12 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "^1.3.27",
-    "@tachybase/auth": "^1.3.27",
+    "@tachybase/actions": "^1.3.35",
+    "@tachybase/auth": "^1.3.35",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/server": "^1.3.27",
-    "@tachybase/test": "^1.3.27"
+    "@tachybase/server": "^1.3.35",
+    "@tachybase/test": "^1.3.35"
   },
   "description.zh-CN": "认证：钉钉",
   "displayName.zh-CN": "认证：钉钉"

@@ -1,4 +1,4 @@
-import actions from '@tego/server';
+import { actions } from '@tego/server';
 
 import { createMiddleware, destroyMiddleware } from './attachments';
 

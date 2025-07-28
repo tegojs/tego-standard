@@ -1,7 +1,8 @@
-import Database, {
+import {
   App,
   Application,
   Context,
+  Database,
   Db,
   Inject,
   InjectLog,

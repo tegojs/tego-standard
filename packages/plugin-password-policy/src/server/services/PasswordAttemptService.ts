@@ -1,9 +1,10 @@
 import { createContext, Script } from 'node:vm';
 
-import Database, {
+import {
   App,
   Application,
   Context,
+  Database,
   Db,
   Inject,
   InjectLog,

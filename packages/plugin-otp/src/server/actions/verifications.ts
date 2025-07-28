@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 
-import actions, { Context, Next, Op } from '@tego/server';
+import { actions, Context, Next, Op } from '@tego/server';
 import dayjs from 'dayjs';
 
 import Plugin, { namespace } from '..';

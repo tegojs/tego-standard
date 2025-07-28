@@ -1,4 +1,4 @@
-import Application, { ACL, ACLResource, ACLRole, Model } from '@tego/server';
+import { ACL, ACLResource, ACLRole, Application, Model } from '@tego/server';
 
 import { AssociationFieldsActions, GrantHelper } from '../server';
 import { RoleResourceActionModel } from './RoleResourceActionModel';

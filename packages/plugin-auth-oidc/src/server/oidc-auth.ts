@@ -5,7 +5,7 @@ import { Issuer } from 'openid-client';
 
 import { cookieName } from '../constants';
 
-export { Model } from '@tachybase/database';
+export { Model } from '@tego/server';
 
 export class OIDCAuth extends BaseAuth {
   constructor(config: AuthConfig) {

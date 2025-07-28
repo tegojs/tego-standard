@@ -1,4 +1,4 @@
-import actions, { Context, Next, Op, utils } from '@tego/server';
+import { actions, Context, Next, Op, utils } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
 import Plugin from '../Plugin';

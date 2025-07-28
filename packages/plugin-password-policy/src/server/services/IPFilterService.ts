@@ -1,4 +1,4 @@
-import Database, { App, Application, Context, Db, InjectLog, Logger, Next, Service } from '@tego/server';
+import { App, Application, Context, Database, Db, InjectLog, Logger, Next, Service } from '@tego/server';
 import * as ipaddr from 'ipaddr.js';
 
 import { NAMESPACE } from '../../constants';

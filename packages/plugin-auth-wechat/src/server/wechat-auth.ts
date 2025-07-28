@@ -2,7 +2,7 @@ import { AuthConfig, BaseAuth, Context, dayjs } from '@tego/server';
 
 import { namespace, weChatApiOauthBaseUrl, weChatApiOauthScope } from '../constants';
 
-export { Model } from '@tachybase/database';
+export { Model } from '@tego/server';
 
 export class WeChatAuth extends BaseAuth {
   constructor(config: AuthConfig) {

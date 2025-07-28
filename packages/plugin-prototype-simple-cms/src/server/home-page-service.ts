@@ -1,5 +1,4 @@
-import Database, { App, Db, Service } from '@tego/server';
-import Application from '@tego/server';
+import { App, Application, Database, Db, Service } from '@tego/server';
 
 @Service()
 export class HomePageService {

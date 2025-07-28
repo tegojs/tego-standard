@@ -1,4 +1,4 @@
-import Application from '@tego/server';
+import { Application } from '@tego/server';
 
 import * as fileConvert from './fileConvert';
 import * as ocrConvert from './ocrConvert';

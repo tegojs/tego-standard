@@ -1,6 +1,6 @@
 import { EXECUTION_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
 
-import Database, { App, Application, Db, InjectLog, Logger, Service } from '@tego/server';
+import { App, Application, Database, Db, InjectLog, Logger, Service } from '@tego/server';
 import parser from 'cron-parser';
 
 import { DATABASE_CRON_JOBS, SCHEDULE_MODE } from '../../constants';

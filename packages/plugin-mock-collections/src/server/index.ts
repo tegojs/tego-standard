@@ -1,8 +1,8 @@
-import { promises as fs } from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { CollectionRepository } from '@tachybase/module-collection';
 
-import Database, { Collection, InstallOptions, merge, Plugin, Repository, uid } from '@tego/server';
+import { Collection, Database, InstallOptions, merge, Plugin, Repository, uid } from '@tego/server';
 import _ from 'lodash';
 import { Client } from 'pg';
 

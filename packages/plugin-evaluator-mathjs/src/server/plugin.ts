@@ -1,4 +1,4 @@
-import evaluators, { Plugin } from '@tego/server';
+import { evaluators, Plugin } from '@tego/server';
 
 import mathjs from './utils/mathjs';
 

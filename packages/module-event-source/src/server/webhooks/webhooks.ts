@@ -86,7 +86,7 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
     try {
       const params = lodash.cloneDeep(ctx.action.params) as ActionParams;
       // const changedKeys = new Set(Object.keys(params.values));
-      const fieldsObj: Record<shtring, IField> = {};
+      const fieldsObj: Record<string, IField> = {};
       const app = ctx.app as Application;
       const c = app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
       const collectionRepo = ctx.db.getRepository(c.name);

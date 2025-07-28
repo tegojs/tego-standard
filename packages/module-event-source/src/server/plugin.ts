@@ -1,4 +1,4 @@
-import Application, { InjectedPlugin, Plugin, PluginOptions } from '@tego/server';
+import { Application, InjectedPlugin, Plugin, PluginOptions } from '@tego/server';
 
 import { CustomEventSourceController } from './actions/CustomEventSourceController';
 import { PluginWebhook } from './webhooks/Plugin';

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-instrumentation",
   "displayName": "Custom instrumentation",
-  "version": "1.3.20",
+  "version": "1.3.21",
   "description": "A module for tracking and instrumentation in Tachybase.",
   "keywords": [
     "Logging and monitoring"
@@ -15,14 +15,14 @@
     "lodash": "^4.17.21"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/components": "^1.3.27",
+    "@tachybase/database": "^1.3.27",
+    "@tachybase/schema": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "Tachybase 应用的追踪和埋点模块",
   "displayName.zh-CN": "埋点追踪"

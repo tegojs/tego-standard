@@ -1,20 +1,18 @@
 {
   "name": "@tachybase/plugin-block-comments",
   "displayName": "Comments",
-  "version": "1.3.20",
+  "version": "1.3.21",
   "description": "Comments",
   "keywords": [
     "Others"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-block-comments"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "^1.3.27",
+    "@tachybase/schema": "^1.3.27",
     "antd": "5.22.5",
     "dayjs": "1.11.13",
     "lodash": "^4.17.21",
@@ -22,8 +20,8 @@
   },
   "peerDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27"
   },
   "description.zh-CN": "评论",
   "displayName.zh-CN": "评论"

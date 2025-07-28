@@ -1,19 +1,17 @@
 {
   "name": "@tachybase/module-multi-app",
   "displayName": "Multi-app manager",
-  "version": "1.3.20",
+  "version": "1.3.21",
   "description": "Dynamically create multiple apps without separate deployments.",
   "keywords": [
     "System management"
   ],
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/module-multi-app"
-  },
+  "scripts": {},
   "devDependencies": {
     "@ant-design/icons": "^5.5.2",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "^1.3.27",
     "@types/lodash": "4.17.20",
     "antd": "5.22.5",
     "async-mutex": "^0.5.0",
@@ -26,12 +24,12 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/database": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "无需单独部署即可动态创建多个应用。",
   "displayName.zh-CN": "多应用管理器"

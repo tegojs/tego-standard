@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-password-policy",
   "displayName": "Password policy",
-  "version": "1.3.20",
+  "version": "1.3.21",
   "description": "Password policy, including password strength, password attempt limit, password lock time, ip whitelist/blacklist, etc.",
   "keywords": [
     "Security"
@@ -14,12 +14,12 @@
     "ipaddr.js": "^2.1.0"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/schema": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/database": "^1.3.27",
+    "@tachybase/schema": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "密码策略, 包含密码强度、密码尝试次数限制、密码锁定时间、ip黑白名单等",
   "displayName.zh-CN": "密码策略"

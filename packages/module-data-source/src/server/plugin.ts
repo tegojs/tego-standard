@@ -1,4 +1,4 @@
-import { resolve } from 'path';
+import { resolve } from 'node:path';
 import { Application, Plugin } from '@tachybase/server';
 
 import lodash from 'lodash';

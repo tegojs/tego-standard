@@ -1,23 +1,21 @@
 {
   "name": "@tachybase/plugin-otp",
   "displayName": "Verification",
-  "version": "1.3.20",
+  "version": "1.3.21",
   "description": "verification setting.",
   "keywords": [
     "Authentication"
   ],
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-otp"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@alicloud/dysmsapi20170525": "2.0.24",
     "@alicloud/openapi-client": "0.4.15",
     "@alicloud/tea-util": "1.4.9",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "^1.3.27",
+    "@tachybase/schema": "^1.3.27",
     "antd": "5.22.5",
     "dayjs": "1.11.13",
     "react": "~18.3.1",
@@ -25,13 +23,13 @@
     "tencentcloud-sdk-nodejs": "^4.0.996"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/resourcer": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
+    "@tachybase/database": "^1.3.27",
+    "@tachybase/resourcer": "^1.3.27",
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27",
+    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "验证码配置。",
   "displayName.zh-CN": "验证码"

@@ -1,21 +1,19 @@
 {
   "name": "@tachybase/plugin-auth-oidc",
   "displayName": "Auth: OIDC",
-  "version": "1.3.20",
+  "version": "1.3.21",
   "description": "OIDC (OpenID Connect) authentication.",
   "keywords": [
     "Authentication"
   ],
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-auth-oidc"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "~5.3.7",
-    "@tachybase/components": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/components": "^1.3.27",
+    "@tachybase/schema": "^1.3.27",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
     "nanoid": "3.3.8",
@@ -25,13 +23,13 @@
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/auth": "workspace:*",
+    "@tachybase/actions": "^1.3.27",
+    "@tachybase/auth": "^1.3.27",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
+    "@tachybase/database": "^1.3.27",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/server": "^1.3.27",
+    "@tachybase/test": "^1.3.27"
   },
   "description.zh-CN": "通过 OIDC (OpenID Connect) 协议认证身份。",
   "displayName.zh-CN": "认证：OIDC"

@@ -14,8 +14,8 @@
     "@alicloud/dysmsapi20170525": "2.0.24",
     "@alicloud/openapi-client": "0.4.15",
     "@alicloud/tea-util": "1.4.9",
-    "@tachybase/components": "^1.3.27",
-    "@tachybase/schema": "^1.3.27",
+    "@tachybase/components": "^1.3.35",
+    "@tachybase/schema": "^1.3.35",
     "antd": "5.22.5",
     "dayjs": "1.11.13",
     "react": "~18.3.1",
@@ -23,13 +23,13 @@
     "tencentcloud-sdk-nodejs": "^4.0.996"
   },
   "peerDependencies": {
-    "@tachybase/actions": "^1.3.27",
+    "@tachybase/actions": "^1.3.35",
     "@tachybase/client": "workspace:*",
-    "@tachybase/database": "^1.3.27",
-    "@tachybase/resourcer": "^1.3.27",
-    "@tachybase/server": "^1.3.27",
-    "@tachybase/test": "^1.3.27",
-    "@tachybase/utils": "^1.3.27"
+    "@tachybase/database": "^1.3.35",
+    "@tachybase/resourcer": "^1.3.35",
+    "@tachybase/server": "^1.3.35",
+    "@tachybase/test": "^1.3.35",
+    "@tachybase/utils": "^1.3.35"
   },
   "description.zh-CN": "验证码配置。",
   "displayName.zh-CN": "验证码"

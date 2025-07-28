@@ -1,4 +1,4 @@
-import Database, { Model, uid } from '@tego/server';
+import { Database, Model, uid } from '@tego/server';
 import { Utils } from 'sequelize';
 
 const setTargetKey = (db: Database, model: Model) => {

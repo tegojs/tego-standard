@@ -1,4 +1,4 @@
-import Application, { Registry } from '@tego/server';
+import { Application, Registry } from '@tego/server';
 import { StorageEngine } from 'multer';
 
 import { STORAGE_TYPE_ALI_OSS, STORAGE_TYPE_LOCAL, STORAGE_TYPE_S3, STORAGE_TYPE_TX_COS } from '../constants';

@@ -9,9 +9,9 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "^1.3.37",
-    "@tego/client": "^1.3.37",
-    "@tego/server": "^1.3.37",
+    "@tachybase/test": "^1.3.38",
+    "@tego/client": "^1.3.38",
+    "@tego/server": "^1.3.38",
     "@types/sequelize": "^4.28.20",
     "antd": "5.22.5",
     "lodash": "4.17.21",

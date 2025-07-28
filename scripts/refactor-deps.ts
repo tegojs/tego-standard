@@ -43,8 +43,8 @@ function processPackageJson(pkgPath) {
   }
 
   // 强制添加固定依赖
-  devDeps['@tego/client'] = '^1.3.37';
-  devDeps['@tego/server'] = '^1.3.37';
+  devDeps['@tego/client'] = '^1.3.38';
+  devDeps['@tego/server'] = '^1.3.38';
 
   pkg.devDependencies = devDeps;
 

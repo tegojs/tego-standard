@@ -1,4 +1,4 @@
-import Database from '@tego/server';
+import { Database } from '@tego/server';
 
 export function beforeCreateForReverseField(db: Database) {
   return async (model, { transaction }) => {

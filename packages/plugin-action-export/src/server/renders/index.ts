@@ -1,4 +1,4 @@
-import Database from '@tego/server';
+import { Database } from '@tego/server';
 
 import * as renders from './renders';
 

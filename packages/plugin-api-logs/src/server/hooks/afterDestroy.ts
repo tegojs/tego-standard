@@ -1,4 +1,4 @@
-import Database, { Application, Context } from '@tego/server';
+import { Application, Context, Database } from '@tego/server';
 
 import { getChanged } from './getFieldChange';
 

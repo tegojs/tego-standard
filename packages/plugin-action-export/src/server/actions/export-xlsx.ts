@@ -1,4 +1,4 @@
-import Application, { Context, dayjs, Next, Repository } from '@tego/server';
+import { Application, Context, dayjs, Next, Repository } from '@tego/server';
 import xlsx from 'node-xlsx';
 
 import ExportPlugin from '..';

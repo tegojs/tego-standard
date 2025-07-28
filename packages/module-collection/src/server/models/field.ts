@@ -1,4 +1,4 @@
-import Database, { Collection, MagicAttributeModel, SyncOptions, Transactionable } from '@tego/server';
+import { Collection, Database, MagicAttributeModel, SyncOptions, Transactionable } from '@tego/server';
 
 interface LoadOptions extends Transactionable {
   // TODO

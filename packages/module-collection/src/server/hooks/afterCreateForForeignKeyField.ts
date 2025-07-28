@@ -1,4 +1,4 @@
-import Database from '@tego/server';
+import { Database } from '@tego/server';
 
 export function afterCreateForForeignKeyField(db: Database) {
   function generateFkOptions(collectionName: string, foreignKey: string) {

@@ -10,7 +10,7 @@
   "main": "./dist/server/index.js",
   "scripts": {},
   "devDependencies": {
-    "@ant-design/icons": "~5.3.7",
+    "@ant-design/icons": "^5.6.1",
     "@babel/core": "7.27.4",
     "@babel/parser": "7.27.5",
     "@babel/preset-env": "7.27.2",
@@ -34,8 +34,8 @@
     "lru-cache": "11.1.0",
     "mime-types": "^2.1.35",
     "qrcode": "^1.5.4",
-    "react": "~18.3.1",
-    "react-i18next": "^15.2.0",
+    "react": "18.3.1",
+    "react-i18next": "15.2.0",
     "react-js-cron": "^3.2.0",
     "react-router-dom": "6.28.1",
     "sequelize": "^6.37.5"

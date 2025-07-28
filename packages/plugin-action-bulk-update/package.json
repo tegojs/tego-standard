@@ -13,7 +13,7 @@
   "devDependencies": {
     "@tachybase/schema": "^1.3.35",
     "antd": "5.22.5",
-    "react-i18next": "^15.2.0",
+    "react-i18next": "15.2.0",
     "react-router-dom": "6.28.1"
   },
   "peerDependencies": {

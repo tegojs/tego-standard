@@ -1,5 +1,4 @@
-import evaluators, { Evaluator } from '@tachybase/evaluators';
-import { parse } from '@tachybase/utils';
+import evaluators, { Evaluator, parse } from '@tego/server';
 
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
 

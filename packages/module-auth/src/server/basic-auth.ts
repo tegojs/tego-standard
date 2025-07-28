@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
-import { AuthConfig, BaseAuth } from '@tachybase/auth';
-import { PasswordField } from '@tachybase/database';
+
+import { AuthConfig, BaseAuth, PasswordField } from '@tego/server';
 
 // import VerificationPlugin from '@tachybase/plugin-otp';
 

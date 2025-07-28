@@ -1,8 +1,8 @@
 import React from 'react';
 import { css, FormItem } from '@tachybase/client';
-import { FormLayout } from '@tachybase/components';
 
 import { QuestionCircleOutlined } from '@ant-design/icons';
+import { FormLayout } from '@tego/client';
 import { Form, Radio, Tooltip } from 'antd';
 
 import { lang } from '../../../locale';

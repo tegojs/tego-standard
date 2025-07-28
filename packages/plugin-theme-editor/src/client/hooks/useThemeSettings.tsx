@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { SelectWithTitle, useAPIClient, useCurrentUserContext, useSystemSettings } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { MenuProps } from 'antd';
 
 import { useThemeId } from '../components/InitializeTheme';

@@ -1,11 +1,4 @@
-import {
-  BelongsToField,
-  BelongsToManyField,
-  Collection,
-  HasManyField,
-  HasOneField,
-  RelationField,
-} from '@tachybase/database';
+import { BelongsToField, BelongsToManyField, Collection, HasManyField, HasOneField, RelationField } from '@tego/server';
 
 import { isViewCollection } from '..';
 import multipleAssociation from './multiple-association';

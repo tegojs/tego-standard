@@ -1,4 +1,4 @@
-import Application, { Plugin, PluginOptions } from '@tachybase/server';
+import Application, { Plugin, PluginOptions } from '@tego/server';
 
 import { PluginHttpDatasource } from './http/plugin';
 import { HttpDataSource } from './http/services/http-data-source';

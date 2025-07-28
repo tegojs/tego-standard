@@ -1,6 +1,7 @@
 import React from 'react';
 import { FormItem, SchemaComponent, TemplateSummary, useCancelAction } from '@tachybase/client';
-import { ArrayItems, ArrayTable, FormCollapse, FormLayout } from '@tachybase/components';
+
+import { ArrayItems, ArrayTable, FormCollapse, FormLayout } from '@tego/client';
 
 import { tval } from '../../../locale';
 import { useSchemaCollection } from './CreateCollection.schema';

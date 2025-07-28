@@ -10,9 +10,9 @@ import {
   useResourceContext,
   WorkflowSelect,
 } from '@tachybase/client';
-import { str2moment } from '@tachybase/utils/client';
 
 import { DownOutlined, EllipsisOutlined, RightOutlined } from '@ant-design/icons';
+import { str2moment } from '@tego/client';
 import { App, Breadcrumb, Button, Dropdown, message, Modal, Result, Spin, Switch } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';

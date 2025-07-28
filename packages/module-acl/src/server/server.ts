@@ -1,10 +1,7 @@
-import { resolve } from 'path';
-import { isMainThread } from 'worker_threads';
-import { utils as actionUtils, Context } from '@tachybase/actions';
-import { Cache } from '@tachybase/cache';
-import { Collection, RelationField } from '@tachybase/database';
-import { Plugin } from '@tachybase/server';
+import { resolve } from 'node:path';
+import { isMainThread } from 'node:worker_threads';
 
+import { utils as actionUtils, Cache, Collection, Context, Plugin, RelationField } from '@tego/server';
 import { Mutex } from 'async-mutex';
 import lodash from 'lodash';
 

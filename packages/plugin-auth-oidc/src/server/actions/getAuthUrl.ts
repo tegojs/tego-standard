@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-
+import { Context, Next } from '@tego/server';
 import { nanoid } from 'nanoid';
 
 import { cookieName } from '../../constants';

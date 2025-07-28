@@ -8,9 +8,9 @@ import {
   useDesignable,
   useRequest,
 } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { useFieldSchema } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { App } from 'antd';
 
 import { listByCurrentRoleUrl } from '../constants';

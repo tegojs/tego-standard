@@ -1,4 +1,4 @@
-import type { Constructor, Plugin } from '@tachybase/server';
+import type { Constructor, Plugin } from '@tego/server';
 
 export enum WorkerEvent {
   Started = 'started',

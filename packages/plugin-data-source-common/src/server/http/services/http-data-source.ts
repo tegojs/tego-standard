@@ -1,5 +1,4 @@
-import { DataSource } from '@tachybase/data-source';
-
+import { DataSource } from '@tego/server';
 import _ from 'lodash';
 
 import { HttpApiRepository } from './http-api-repository';

@@ -1,4 +1,4 @@
-import { extendCollection } from '@tachybase/database';
+import { extendCollection } from '@tego/server';
 
 import { CHANNEL_SITE_MESSAGE } from '../constants';
 

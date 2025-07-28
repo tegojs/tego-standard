@@ -11,25 +11,17 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/components": "^1.3.36",
-    "@tachybase/schema": "^1.3.36",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/schema": "^1.3.37",
+    "@tachybase/test": "^1.3.37",
+    "@tego/client": "^1.3.37",
+    "@tego/server": "^1.3.37",
     "antd": "5.22.5",
     "axios": "1.7.7",
     "file-saver": "^2.0.5",
     "lodash": "4.17.21",
     "react-i18next": "15.2.0",
     "react-router-dom": "6.28.1"
-  },
-  "peerDependencies": {
-    "@tachybase/actions": "^1.3.36",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "^1.3.36",
-    "@tachybase/evaluators": "^1.3.36",
-    "@tachybase/logger": "^1.3.36",
-    "@tachybase/sdk": "^1.3.36",
-    "@tachybase/server": "^1.3.36",
-    "@tachybase/test": "^1.3.36",
-    "@tachybase/utils": "^1.3.36"
   },
   "description.zh-CN": "向任意 HTTP 服务发送请求，支持将上下文数据发送给目标服务。",
   "displayName.zh-CN": "操作：自定义请求"

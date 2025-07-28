@@ -1,5 +1,4 @@
-import actions, { Context, Next } from '@tachybase/actions';
-import { Action, Controller, Inject } from '@tachybase/utils';
+import actions, { Action, Context, Controller, Inject, Next } from '@tego/server';
 
 import { CloudCompiler } from '../services/cloud-compiler';
 

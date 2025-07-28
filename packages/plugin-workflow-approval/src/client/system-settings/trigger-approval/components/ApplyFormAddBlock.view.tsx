@@ -7,7 +7,8 @@ import {
   useFormBlockProps,
   useRequest,
 } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 //  发起人操作界面-添加卡片
 export const ViewApplyFormAddBlock = ({ value, onChange }) => {

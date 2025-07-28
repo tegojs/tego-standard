@@ -1,4 +1,4 @@
-import { Plugin } from '@tachybase/server';
+import { Plugin } from '@tego/server';
 
 export class PluginUserManualServer extends Plugin {
   async afterAdd() {}

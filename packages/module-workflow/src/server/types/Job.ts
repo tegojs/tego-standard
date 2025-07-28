@@ -1,4 +1,4 @@
-import { BelongsToGetAssociationMixin, Model } from '@tachybase/database';
+import { BelongsToGetAssociationMixin, Model } from '@tego/server';
 
 import FlowNodeModel from './FlowNode';
 

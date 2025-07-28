@@ -1,6 +1,7 @@
-import { Database, Model, ModelStatic } from '@tachybase/database';
 import VerificationPlugin from '@tachybase/plugin-otp';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { Database, Model, ModelStatic } from '@tego/server';
 
 import { authType } from '../../constants';
 

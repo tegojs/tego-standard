@@ -1,7 +1,15 @@
-import { Context, Next } from '@tachybase/actions';
-import Database, { PasswordField } from '@tachybase/database';
-import { Application, Logger } from '@tachybase/server';
-import { App, Db, Inject, InjectLog, Service } from '@tachybase/utils';
+import Database, {
+  App,
+  Application,
+  Context,
+  Db,
+  Inject,
+  InjectLog,
+  Logger,
+  Next,
+  PasswordField,
+  Service,
+} from '@tego/server';
 
 import { NAMESPACE } from '../../constants';
 

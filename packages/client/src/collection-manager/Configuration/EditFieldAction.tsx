@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { ArrayTable } from '@tachybase/components';
 import { ISchema, uid, useForm } from '@tachybase/schema';
 
+import { ArrayTable } from '@tego/client';
 import cloneDeep from 'lodash/cloneDeep';
 import omit from 'lodash/omit';
 import set from 'lodash/set';

@@ -1,4 +1,4 @@
-import { CollectionManager, CollectionOptions } from '@tachybase/data-source';
+import { CollectionManager, CollectionOptions } from '@tego/server';
 
 import { HttpCollection } from './http-collection';
 

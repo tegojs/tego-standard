@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
-import { ArrayCollapse, FormLayout } from '@tachybase/components';
 import { Field, ISchema, Schema, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayCollapse, FormLayout } from '@tego/client';
 import { createStyles } from 'antd-style';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';

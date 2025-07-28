@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { nextTick } from '@tachybase/utils/client';
 
+import { nextTick } from '@tego/client';
 import _ from 'lodash';
 
 import { useAssociationNames } from '../../../../block-provider/hooks';

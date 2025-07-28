@@ -1,4 +1,4 @@
-import { Plugin } from '@tachybase/server';
+import { Plugin } from '@tego/server';
 
 import PluginWorkflowServer from '../../Plugin';
 import { VariablesInstruction } from './VariableInstruction';

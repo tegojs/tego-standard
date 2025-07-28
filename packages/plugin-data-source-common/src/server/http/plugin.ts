@@ -1,5 +1,4 @@
-import { Plugin } from '@tachybase/server';
-
+import { Plugin } from '@tego/server';
 import _ from 'lodash';
 
 import { HttpCollection } from './services/http-collection';

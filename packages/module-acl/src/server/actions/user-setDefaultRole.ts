@@ -1,4 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
+import { Context, Next } from '@tego/server';
 
 export async function setDefaultRole(ctx: Context, next: Next) {
   const {
@@ -13,7 +13,7 @@ export async function setDefaultRole(ctx: Context, next: Next) {
     },
   } = ctx;
 
-  if (values.roleName == 'anonymous') {
+  if (values.roleName === 'anonymous') {
     return next();
   }
 

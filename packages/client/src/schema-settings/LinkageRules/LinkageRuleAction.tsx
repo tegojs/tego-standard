@@ -1,8 +1,8 @@
 import React, { useCallback, useContext, useMemo, useState } from 'react';
-import { TreeSelect } from '@tachybase/components';
 import { observer, uid } from '@tachybase/schema';
 
 import { CloseCircleOutlined } from '@ant-design/icons';
+import { TreeSelect } from '@tego/client';
 import { Select, Space } from 'antd';
 import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';

@@ -1,5 +1,4 @@
-import Database from '@tachybase/database';
-import { Db, Service } from '@tachybase/utils';
+import Database, { Db, Service } from '@tego/server';
 
 export interface SystemSetting {
   title: string;

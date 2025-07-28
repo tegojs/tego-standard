@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
-import { ArrayItems } from '@tachybase/components';
 import { Field, ISchema, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { useCompile } from '../../';

@@ -1,4 +1,4 @@
-import { CollectionOptions } from '@tachybase/database';
+import { CollectionOptions } from '@tego/server';
 
 import { tval } from '../../locale';
 

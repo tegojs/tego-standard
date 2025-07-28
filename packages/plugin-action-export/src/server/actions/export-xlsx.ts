@@ -1,8 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Repository } from '@tachybase/database';
-import Application from '@tachybase/server';
-import { dayjs } from '@tachybase/utils';
-
+import Application, { Context, dayjs, Next, Repository } from '@tego/server';
 import xlsx from 'node-xlsx';
 
 import ExportPlugin from '..';

@@ -1,6 +1,6 @@
-import type { Context, Next } from '@tachybase/actions';
-import { joinCollectionName } from '@tachybase/data-source';
 import PluginErrorHandler from '@tachybase/module-error-handler';
+
+import { joinCollectionName, type Context, type Next } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
 import PluginWorkflowServer from '../../Plugin';

@@ -1,6 +1,6 @@
-import { resolve } from 'path';
-import { Logger, LoggerOptions } from '@tachybase/logger';
-import { InstallOptions, Plugin } from '@tachybase/server';
+import { resolve } from 'node:path';
+
+import { InstallOptions, Logger, LoggerOptions, Plugin } from '@tego/server';
 
 import { listByCurrentRole } from './actions/listByCurrentRole';
 import { send } from './actions/send';

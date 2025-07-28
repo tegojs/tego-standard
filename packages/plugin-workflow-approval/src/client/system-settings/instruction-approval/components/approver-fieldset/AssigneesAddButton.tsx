@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { ArrayItems } from '@tachybase/components';
 import { useWorkflowExecuted } from '@tachybase/module-workflow/client';
 
 import { PlusOutlined } from '@ant-design/icons';
+import { ArrayItems } from '@tego/client';
 import { Button, Popover, Space } from 'antd';
 
 import { useTranslation } from '../../../../locale';

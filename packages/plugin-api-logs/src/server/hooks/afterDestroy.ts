@@ -1,6 +1,4 @@
-import { Context } from '@tachybase/actions';
-import Database from '@tachybase/database';
-import { Application } from '@tachybase/server';
+import Database, { Application, Context } from '@tego/server';
 
 import { getChanged } from './getFieldChange';
 

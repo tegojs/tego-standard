@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ISchema, useForm } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { SchemaInitializerItem, useSchemaInitializer } from '../../application';
 import { Action, ActionContextProvider, SchemaComponent } from '../../schema-component';

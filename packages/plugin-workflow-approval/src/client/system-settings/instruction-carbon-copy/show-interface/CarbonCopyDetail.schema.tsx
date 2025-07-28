@@ -1,8 +1,8 @@
 import React from 'react';
 import { Plugin, SchemaComponent, useAPIClient, useRequest } from '@tachybase/client';
 import { useForm } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
 
+import { uid } from '@tego/client';
 import { Spin } from 'antd';
 
 import { CarbonCopyDetailInitializer } from './CarbonCopyDetail.initializer';

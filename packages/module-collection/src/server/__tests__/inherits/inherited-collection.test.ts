@@ -1,11 +1,7 @@
-import Database, {
-  BelongsToManyRepository,
-  BelongsToRepository,
-  HasManyRepository,
-  Repository,
-} from '@tachybase/database';
-import Application from '@tachybase/server';
 import { pgOnly } from '@tachybase/test';
+
+import Database, { BelongsToManyRepository, BelongsToRepository, HasManyRepository, Repository } from '@tego/server';
+import Application from '@tego/server';
 
 import { createApp } from '..';
 

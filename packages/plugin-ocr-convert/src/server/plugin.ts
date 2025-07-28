@@ -1,6 +1,6 @@
-import path from 'path';
-import { Plugin } from '@tachybase/server';
-import { Registry } from '@tachybase/utils';
+import path from 'node:path';
+
+import { Plugin, Registry } from '@tego/server';
 
 import { initActions } from './actions';
 import { initProviders } from './providers';

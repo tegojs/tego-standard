@@ -1,4 +1,4 @@
-import { dayjs } from '@tachybase/utils/client';
+import { dayjs } from '@tego/client';
 
 const canBeOptionalFields = ['select', 'multipleSelect', 'radioGroup', 'checkboxGroup'];
 const canBeRelatedFields = ['oho', 'obo', 'o2m', 'm2o', 'm2m'];

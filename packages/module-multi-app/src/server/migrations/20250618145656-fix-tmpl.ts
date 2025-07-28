@@ -1,4 +1,4 @@
-import { Migration } from '@tachybase/server';
+import { Migration } from '@tego/server';
 
 /** n个嵌套的Not Exists(Not Exists(abc)) 取出中间的abc值 */
 function extractInnermost(expression) {

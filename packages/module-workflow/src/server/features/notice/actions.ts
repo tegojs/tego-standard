@@ -1,4 +1,4 @@
-import actions, { utils } from '@tachybase/actions';
+import actions, { utils } from '@tego/server';
 
 import { PluginWorkflow } from '../..';
 import { COLLECTION_NOTICE_NAME, NOTICE_INSTRUCTION_NAMESPACE } from '../common/constants';

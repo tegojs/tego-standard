@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createStyles, css, cx, useAPIClient, useGlobalTheme } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { Button, ConfigProvider, Input, message, Space } from 'antd';
 import antdEnUs from 'antd/locale/en_US';
 import antdZhCN from 'antd/locale/zh_CN';

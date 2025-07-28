@@ -1,6 +1,7 @@
-import { MockDatabase } from '@tachybase/database';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
+
+import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
 

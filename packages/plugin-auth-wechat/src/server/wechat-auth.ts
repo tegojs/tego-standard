@@ -1,6 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { AuthConfig, BaseAuth } from '@tachybase/auth';
-import { dayjs } from '@tachybase/utils';
+import { AuthConfig, BaseAuth, Context, dayjs } from '@tego/server';
 
 import { namespace, weChatApiOauthBaseUrl, weChatApiOauthScope } from '../constants';
 

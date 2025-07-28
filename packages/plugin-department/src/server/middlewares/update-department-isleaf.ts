@@ -1,4 +1,4 @@
-import type { Context, Next } from '@tachybase/actions';
+import type { Context, Next } from '@tego/server';
 
 const updateIsLeafWhenAddChild = async (repo, parent) => {
   if (parent && parent.isLeaf !== false) {

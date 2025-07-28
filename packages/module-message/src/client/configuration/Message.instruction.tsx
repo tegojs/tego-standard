@@ -1,5 +1,4 @@
 import { useCompile } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import {
   AdditionNotifiedPerson,
   BuiltinGroupType,
@@ -9,6 +8,8 @@ import {
   VariableOption,
   WorkflowVariableCodeMirror,
 } from '@tachybase/module-workflow/client';
+
+import { ArrayItems } from '@tego/client';
 
 import { WORKFLOW_INSTRUCTION_NAME_MESSAGE } from '../../common/constants';
 import { tval } from '../locale';

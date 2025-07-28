@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { GeneralField, reaction, useField, useFieldSchema } from '@tachybase/schema';
-import { flatten, getValuesByPath } from '@tachybase/utils/client';
 
+import { flatten, getValuesByPath } from '@tego/client';
 import _, { isString } from 'lodash';
 import cloneDeep from 'lodash/cloneDeep';
 

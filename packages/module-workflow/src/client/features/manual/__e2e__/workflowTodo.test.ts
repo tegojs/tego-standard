@@ -10,9 +10,9 @@ import {
   ManualNode,
 } from '@tachybase/plugin-workflow-test/e2e';
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
 
 import { faker } from '@faker-js/faker';
+import { dayjs } from '@tego/server';
 
 test('filter task node', async ({ page, mockPage, mockCollections, mockRecords }) => {
   //数据表后缀标识

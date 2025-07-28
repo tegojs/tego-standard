@@ -1,4 +1,4 @@
-import type { Context, Next } from '@tachybase/actions';
+import type { Context, Next } from '@tego/server';
 
 export const setMainDepartment = async (ctx: Context, next: Next) => {
   await next();

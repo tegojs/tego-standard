@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { FormLayout } from '@tachybase/components';
 import { Field, observer, RecursionField, Schema, useField, useForm } from '@tachybase/schema';
+
+import { FormLayout } from '@tego/client';
 
 import { NAMESPACE } from './locale';
 

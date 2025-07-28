@@ -1,7 +1,7 @@
 import React from 'react';
 import { Field, ISchema, observer, useField, useFieldSchema } from '@tachybase/schema';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { Select } from 'antd';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';

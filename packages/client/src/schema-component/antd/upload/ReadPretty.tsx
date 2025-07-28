@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Lightbox } from '@tachybase/components';
 import { Field, useField } from '@tachybase/schema';
-import { isString } from '@tachybase/utils/client';
 
 import { DownloadOutlined } from '@ant-design/icons';
+import { isString, Lightbox } from '@tego/client';
 import { Button, Modal, Space } from 'antd';
 import useUploadStyle from 'antd/es/upload/style';
 import cls from 'classnames';

@@ -1,6 +1,7 @@
 import React from 'react';
 import { RichText, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
+
+import { FormItem } from '@tego/client';
 
 import 'react-quill/dist/quill.snow.css'; // ES6
 

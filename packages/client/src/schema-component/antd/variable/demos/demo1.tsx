@@ -3,7 +3,8 @@
  */
 import React from 'react';
 import { SchemaComponent, SchemaComponentProvider, Variable } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
+
+import { FormItem } from '@tego/client';
 
 const scope = [
   { label: 'v1', value: 'v1' },

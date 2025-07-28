@@ -1,4 +1,4 @@
-import { defineCollection } from '@tachybase/database';
+import { defineCollection } from '@tego/server';
 
 import { COLLECTION_AUTH_MAIN_APP_CONFIG } from '../../constants';
 

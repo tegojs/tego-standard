@@ -1,5 +1,6 @@
-import { HasManyRepository } from '@tachybase/database';
 import { MockServer } from '@tachybase/test';
+
+import { HasManyRepository } from '@tego/server';
 
 import { createApp } from '..';
 

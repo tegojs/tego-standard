@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { FormItem, Input, SchemaComponent, useApp } from '@tachybase/client';
-import { ArrayItems, FormTab } from '@tachybase/components';
 import { observer } from '@tachybase/schema';
 
 import { CopyOutlined } from '@ant-design/icons';
+import { ArrayItems, FormTab } from '@tego/client';
 import { Card, message, Space } from 'antd';
 
 import { lang, useOidcTranslation } from './locale';

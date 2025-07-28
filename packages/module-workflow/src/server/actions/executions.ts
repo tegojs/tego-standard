@@ -1,5 +1,4 @@
-import actions, { Context, Next, utils } from '@tachybase/actions';
-import { Op } from '@tachybase/database';
+import actions, { Context, Next, Op, utils } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
 import Plugin from '../Plugin';

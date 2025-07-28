@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
 import { css, useRequest } from '@tachybase/client';
 import { onFieldChange, uid, useForm } from '@tachybase/schema';
-import { unflatten } from '@tachybase/utils/client';
 
+import { unflatten } from '@tego/client';
 import lodash from 'lodash';
 
 import { NAMESPACE } from '../../../locale';

@@ -1,4 +1,4 @@
-import Database, { Collection } from '@tachybase/database';
+import Database, { Collection } from '@tego/server';
 
 import { FieldBase } from './dialects/FieldBase';
 import { handleFieldParams, ProcessFieldParams } from './types';

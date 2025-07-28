@@ -1,6 +1,7 @@
-import Database, { Repository } from '@tachybase/database';
-import Application from '@tachybase/server';
 import { pgOnly } from '@tachybase/test';
+
+import Database, { Repository } from '@tego/server';
+import Application from '@tego/server';
 
 import { createApp } from '..';
 

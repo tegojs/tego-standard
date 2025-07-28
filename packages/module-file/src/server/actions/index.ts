@@ -1,4 +1,4 @@
-import actions from '@tachybase/actions';
+import actions from '@tego/server';
 
 import { createMiddleware, destroyMiddleware } from './attachments';
 

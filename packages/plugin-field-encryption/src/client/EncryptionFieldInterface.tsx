@@ -1,5 +1,6 @@
 import { CollectionFieldInterface, defaultProps } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { tval } from './locale';
 

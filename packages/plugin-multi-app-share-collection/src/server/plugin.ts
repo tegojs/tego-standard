@@ -1,8 +1,7 @@
 import { resolve } from 'node:path';
-import Database from '@tachybase/database';
 import PluginMultiAppManager from '@tachybase/module-multi-app';
-import { Application, AppSupervisor, Plugin } from '@tachybase/server';
 
+import Database, { Application, AppSupervisor, Plugin } from '@tego/server';
 import lodash from 'lodash';
 
 const subAppFilteredPlugins = ['multi-app-share-collection', 'multi-app'];

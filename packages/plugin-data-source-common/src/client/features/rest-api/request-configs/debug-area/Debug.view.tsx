@@ -1,7 +1,7 @@
 import React from 'react';
 import { Action, FormItem, Input, InputNumber, SchemaComponent, Space, Variable } from '@tachybase/client';
-import { Form, FormLayout } from '@tachybase/components';
 
+import { Form, FormLayout } from '@tego/client';
 import { Card, Col, Row, Select } from 'antd';
 
 import { useTranslation } from '../../../../locale';

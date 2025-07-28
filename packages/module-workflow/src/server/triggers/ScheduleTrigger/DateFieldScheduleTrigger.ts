@@ -1,6 +1,4 @@
-import { parseCollectionName } from '@tachybase/data-source';
-import { fn, literal, Op, Transactionable, where } from '@tachybase/database';
-
+import { fn, literal, Op, parseCollectionName, Transactionable, where } from '@tego/server';
 import parser from 'cron-parser';
 
 import type Plugin from '../../Plugin';

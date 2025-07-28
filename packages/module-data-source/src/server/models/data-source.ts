@@ -1,7 +1,6 @@
-import { ACL, AvailableActionOptions } from '@tachybase/acl';
-import { Model, Transaction } from '@tachybase/database';
 import { setCurrentRole } from '@tachybase/module-acl';
-import { Application } from '@tachybase/server';
+
+import { ACL, Application, AvailableActionOptions, Model, Transaction } from '@tego/server';
 
 import PluginDataSourceManagerServer from '../plugin';
 import { LocalData } from '../services/database-introspector';

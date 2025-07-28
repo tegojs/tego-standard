@@ -1,7 +1,7 @@
 import React from 'react';
 import { Field, isArr, ISchema, Schema } from '@tachybase/schema';
-import { getDefaultFormat, str2moment } from '@tachybase/utils/client';
 
+import { getDefaultFormat, str2moment } from '@tego/client';
 import { Tag } from 'antd';
 import dayjs from 'dayjs';
 

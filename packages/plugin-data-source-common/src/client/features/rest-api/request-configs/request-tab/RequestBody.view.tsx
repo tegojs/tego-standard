@@ -1,8 +1,8 @@
 import React from 'react';
 import { FormItem, FormProvider, SchemaComponent } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { useField } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { Input } from 'antd';
 
 import { useContextRequestInfo } from '../../contexts/RequestForm.context';

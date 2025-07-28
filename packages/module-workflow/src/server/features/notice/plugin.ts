@@ -1,5 +1,6 @@
-import path from 'path';
-import { Plugin } from '@tachybase/server';
+import path from 'node:path';
+
+import { Plugin } from '@tego/server';
 
 import { PluginWorkflow } from '../..';
 import { COLLECTION_NOTICE_NAME, NOTICE_INSTRUCTION_NAMESPACE } from '../common/constants';

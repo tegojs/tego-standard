@@ -1,6 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { AppSupervisor } from '@tachybase/server';
-import { Action, Controller } from '@tachybase/utils';
+import { Action, AppSupervisor, Context, Controller } from '@tego/server';
 
 import { COLLECTION_AUTH_MAIN_APP_CONFIG, NAMESPACE } from '../../constants';
 

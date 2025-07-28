@@ -7,8 +7,8 @@ import {
   useFilterByTk,
 } from '@tachybase/client';
 import { useField, useFieldSchema } from '@tachybase/schema';
-import { isURL } from '@tachybase/utils/client';
 
+import { isURL } from '@tego/client';
 import { App, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 
@@ -24,7 +24,7 @@ export function useRecordWorkflowCustomTriggerActionProps() {
   const { onSuccess, triggerWorkflows } = fieldSchema?.['x-action-settings'] || {};
   return {
     async onClick(e?, callback?) {
-      (_field.data = field.data || {}), (_field.data.loading = true);
+      ((_field.data = field.data || {}), (_field.data.loading = true));
       try {
         await resource.trigger({
           filterByTk: filterByTk,

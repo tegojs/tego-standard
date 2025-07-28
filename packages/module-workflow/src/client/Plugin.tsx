@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
-import { Registry } from '@tachybase/utils/client';
+
+import { Registry } from '@tego/client';
 
 import { WorkflowLink } from './components/WorkflowLink';
 import { ExecutionPage } from './ExecutionPage';

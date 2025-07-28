@@ -1,5 +1,6 @@
 import { css } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
+
+import { ArrayTable } from '@tego/client';
 
 import { VariableOption, WorkflowVariableInput } from '../..';
 import { NAMESPACE_INSTRUCTION_DATA_MAPPING } from '../../../common/constants';

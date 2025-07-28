@@ -1,7 +1,7 @@
-import fs from 'fs';
-import { promisify } from 'util';
-import { Context, Next } from '@tachybase/actions';
+import fs from 'node:fs';
+import { promisify } from 'node:util';
 
+import { Context, Next } from '@tego/server';
 import axios from 'axios';
 import Docxtemplater from 'docxtemplater';
 import ExcelJS from 'exceljs';

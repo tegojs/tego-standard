@@ -1,4 +1,4 @@
-import type { CollectionOptions } from '@tachybase/database';
+import type { CollectionOptions } from '@tego/server';
 
 import { generateNTemplate } from '../locale';
 

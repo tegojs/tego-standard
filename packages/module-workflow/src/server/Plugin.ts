@@ -1,9 +1,6 @@
-import path from 'path';
-import { Op, Transactionable } from '@tachybase/database';
-import { Logger, LoggerOptions } from '@tachybase/logger';
-import Application, { Plugin, PluginOptions } from '@tachybase/server';
-import { Registry } from '@tachybase/utils';
+import path from 'node:path';
 
+import Application, { Logger, LoggerOptions, Op, Plugin, PluginOptions, Registry, Transactionable } from '@tego/server';
 import { LRUCache } from 'lru-cache';
 
 import initActions from './actions';

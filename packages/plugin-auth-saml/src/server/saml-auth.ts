@@ -1,7 +1,7 @@
-import { AuthConfig, BaseAuth } from '@tachybase/auth';
 import { AuthModel } from '@tachybase/module-auth';
 
 import { SAML, SamlConfig } from '@node-saml/node-saml';
+import { AuthConfig, BaseAuth } from '@tego/server';
 
 export { Model } from '@tachybase/database';
 

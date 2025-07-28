@@ -1,5 +1,4 @@
-import { ACL } from '@tachybase/acl';
-import { Model } from '@tachybase/database';
+import { ACL, Model } from '@tego/server';
 
 export class RoleModel extends Model {
   writeToAcl(options: { acl: ACL; withOutStrategy?: boolean }) {

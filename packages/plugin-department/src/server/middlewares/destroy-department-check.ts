@@ -1,4 +1,4 @@
-import type { Context, Next } from '@tachybase/actions';
+import type { Context, Next } from '@tego/server';
 
 const destroyCheck = async (ctx: Context) => {
   const { filterByTk } = ctx.action.params;

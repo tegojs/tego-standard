@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
-import { Application, Plugin } from '@tachybase/server';
 
+import { Application, Plugin } from '@tego/server';
 import lodash from 'lodash';
 
 import { DataSourcesRolesResourcesModel } from './models/connections-roles-resources';

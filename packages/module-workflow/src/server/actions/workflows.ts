@@ -1,5 +1,4 @@
-import actions, { Context, Next, utils } from '@tachybase/actions';
-import { Op, Repository } from '@tachybase/database';
+import actions, { Context, Next, Op, Repository, utils } from '@tego/server';
 
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';

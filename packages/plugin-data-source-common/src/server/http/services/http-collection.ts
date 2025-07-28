@@ -1,6 +1,4 @@
-import { Collection, DataSource } from '@tachybase/data-source';
-import { dayjs, parse } from '@tachybase/utils';
-
+import { Collection, DataSource, dayjs, parse } from '@tego/server';
 import axios from 'axios';
 import _ from 'lodash';
 

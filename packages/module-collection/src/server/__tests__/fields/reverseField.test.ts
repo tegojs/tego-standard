@@ -1,5 +1,6 @@
-import Database, { Collection as DBCollection } from '@tachybase/database';
 import { MockServer } from '@tachybase/test';
+
+import Database, { Collection as DBCollection } from '@tego/server';
 
 import { createApp } from '..';
 

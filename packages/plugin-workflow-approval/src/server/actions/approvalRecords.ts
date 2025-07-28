@@ -1,5 +1,6 @@
-import actions, { utils } from '@tachybase/actions';
 import { PluginWorkflow } from '@tachybase/module-workflow';
+
+import actions, { utils } from '@tego/server';
 
 import { ERROR_CODE_MAP } from '../constants/error-code';
 import { APPROVAL_ACTION_STATUS } from '../constants/status';

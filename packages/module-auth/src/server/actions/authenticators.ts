@@ -1,6 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { AuthManager } from '@tachybase/auth';
-import { Model, MultipleRelationRepository, Repository } from '@tachybase/database';
+import { AuthManager, Context, Model, MultipleRelationRepository, Next, Repository } from '@tego/server';
 
 import { namespace } from '../../preset';
 

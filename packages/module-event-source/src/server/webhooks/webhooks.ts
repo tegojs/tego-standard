@@ -1,10 +1,6 @@
-import { Context } from '@tachybase/actions';
-import { IField } from '@tachybase/data-source';
 import { PluginWorkflow, Processor } from '@tachybase/module-workflow';
-import { ActionParams } from '@tachybase/resourcer';
-import Application from '@tachybase/server';
-import { dayjs } from '@tachybase/utils';
 
+import Application, { ActionParams, Context, dayjs, IField } from '@tego/server';
 import lodash from 'lodash';
 
 import { EVENT_SOURCE_COLLECTION } from '../constants';

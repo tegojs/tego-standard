@@ -1,6 +1,6 @@
 import React from 'react';
-import { APIClient as APIClientSDK } from '@tachybase/sdk';
 
+import { APIClient as APIClientSDK } from '@tego/client';
 import { Result } from 'ahooks/es/useRequest/src/types';
 import { notification } from 'antd';
 

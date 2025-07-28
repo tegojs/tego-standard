@@ -6,7 +6,7 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "antd": "5.22.5",
-    "lodash": "^4.17.21"
+    "lodash": "4.17.21"
   },
   "peerDependencies": {
     "@tachybase/client": "workspace:*",

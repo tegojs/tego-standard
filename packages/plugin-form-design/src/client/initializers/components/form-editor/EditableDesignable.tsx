@@ -1,5 +1,5 @@
 import React, { ComponentType, useCallback, useContext, useEffect, useMemo } from 'react';
-import { APIClient, SchemaComponentContext, useAPIClient } from '@tachybase/client';
+import { APIClient, SchemaComponentContext, useAPIClient, useTranslation } from '@tachybase/client';
 import {
   GeneralField,
   ISchema,
@@ -12,7 +12,6 @@ import {
 } from '@tachybase/schema';
 
 import { cloneDeep, get, set } from 'lodash';
-import { useTranslation } from 'react-i18next';
 
 interface CreateDesignableProps {
   current: Schema;

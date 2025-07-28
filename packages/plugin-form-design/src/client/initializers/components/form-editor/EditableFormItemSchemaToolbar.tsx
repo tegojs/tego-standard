@@ -14,16 +14,16 @@ import {
   Field,
   SchemaComponentsContext,
   SchemaExpressionScopeContext,
-  SchemaMarkupContext,
   useField,
   useFieldSchema,
   useForm,
 } from '@tachybase/schema';
+import { SchemaMarkupContext } from '@tachybase/schema/lib/react';
 
 import { DeleteOutlined, DragOutlined, PlusOutlined } from '@ant-design/icons';
 import { Popconfirm } from 'antd';
-import { useTranslation } from 'react-i18next';
 
+import { useTranslation } from '../../../locale';
 import { useEditableDesignable } from './EditableDesignable';
 import { useEditableSelectedField } from './EditableSelectedFieldContext';
 import { useStyles } from './styles';

@@ -1,12 +1,12 @@
 import { useContext, useMemo, useState } from 'react';
 import { ArrayTable, FormItem } from '@tachybase/components';
 import { action, createForm, Field, ISchema, uid, useField, useFieldSchema, useForm } from '@tachybase/schema';
+import { ContextCleaner, SchemaOptionsContext } from '@tachybase/schema/lib/react';
 
 import { Button, Modal } from 'antd';
 import _, { cloneDeep } from 'lodash';
 import { useTranslation } from 'react-i18next';
 
-import { ContextCleaner, SchemaOptionsContext } from '../../../../../../schema/src/react';
 import { useAPIClient } from '../../../../api-client';
 import { EditableSchemaSettings } from '../../../../application/schema-settings-editable';
 import { useCancelActionProps } from '../../../../block-provider';
@@ -29,7 +29,6 @@ import {
   useActionContext,
   useCompile,
 } from '../../../../schema-component';
-
 import { getProperties, isSpecialInterrface } from './interfaceSchemaOptions';
 
 export const fieldInterfaceEditableSettings = new EditableSchemaSettings({

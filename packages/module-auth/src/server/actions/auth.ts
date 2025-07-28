@@ -14,7 +14,13 @@ export default {
     await next();
   },
   changePassword: async (ctx: Context, next: Next) => {
-    ctx.body = await ctx.auth.changePassword();
+    if (ctx.action.params?.values?.verifyMethod === 'code') {
+      const auth = await ctx.app.authManager.get('sms', ctx);
+      ctx.body = await auth.changePassword();
+    } else {
+      const auth = await ctx.app.authManager.get('Email/Password', ctx);
+      ctx.body = await auth.changePassword();
+    }
     await next();
   },
 };

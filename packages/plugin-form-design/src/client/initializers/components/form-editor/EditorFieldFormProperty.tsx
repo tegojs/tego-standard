@@ -157,15 +157,14 @@ const AllSchemaProviders = ({
 };
 
 const FieldPropertiesContent = ({ fieldComponentName }) => {
-  // const app = useApp();
-  const plugin = usePlugin(PluginFormDesignClient);
+  const app = useApp();
   const [form] = useState(() => createForm());
   const specificItems =
-    plugin.editableSchemaSettingsManager.get(`editableFieldSettings:component:${fieldComponentName}`)?.options?.items ??
+    app.editableSchemaSettingsManager.get(`editableFieldSettings:component:${fieldComponentName}`)?.options?.items ??
     [];
-  const genericItems = plugin.editableSchemaSettingsManager.get('editableFieldSettings:FormItem')?.options?.items ?? [];
+  const genericItems = app.editableSchemaSettingsManager.get('editableFieldSettings:FormItem')?.options?.items ?? [];
   const fieldsInterface =
-    plugin.editableSchemaSettingsManager.get('editableFieldSettings:Fields:Infterface')?.options?.items ?? [];
+    app.editableSchemaSettingsManager.get('editableFieldSettings:Fields:Infterface')?.options?.items ?? [];
   const items = [...fieldsInterface, ...genericItems, ...specificItems];
   const { handleUpdate, components: itemsComponents, fullSchema, itemStates, initialValues } = useEditableItems(items);
   form.setValues(initialValues);

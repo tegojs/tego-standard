@@ -36,9 +36,6 @@ export const EditableFormBlockInitializer = ({
   onlyCurrentDataSource: boolean;
   hideSearch?: boolean;
   createBlockSchema?: (options: any) => any;
-  /**
-   * 虽然这里的命名现在看起来比较奇怪，但为了兼容旧版本的 template，暂时保留这个命名。
-   */
   componentType?: 'FormItem';
   templateWrap?: (
     templateSchema: any,
@@ -50,13 +47,8 @@ export const EditableFormBlockInitializer = ({
   ) => any;
   showAssociationFields?: boolean;
   hideChildrenIfSingleCollection?: boolean;
-  /**
-   * 隐藏弹窗中的 Other records 选项
-   */
   hideOtherRecordsInPopup?: boolean;
-  /** 用于更改 Current record 的文案 */
   currentText?: string;
-  /** 用于更改 Other records 的文案 */
   otherText?: string;
 }) => {
   const [visible, setVisible] = useState(false);

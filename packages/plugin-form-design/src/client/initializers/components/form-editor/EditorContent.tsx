@@ -12,6 +12,7 @@ interface EditorContentProps {
 }
 
 export const EditorContent = observer<EditorContentProps>(({ schema }) => {
+  console.log('%c Line:15 🍫 schema', 'color:#6ec1c2', schema);
   const girdSchema = findSchemaUtils(schema, 'x-component', 'EditableGrid') || {};
   const { Content } = Layout;
   const { refreshKey } = usePageRefresh();

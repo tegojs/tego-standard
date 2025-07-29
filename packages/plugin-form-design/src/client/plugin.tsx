@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
 
+import { EditableFormItemSchemaToolbar, EditableFormToolbar } from './initializers/components/form-editor';
 import { formDesignInitializerItem } from './initializers/formDesignInitializerItem';
 import { FormDesignModalProvider } from './initializers/FormDesignModalProvider';
 
@@ -17,11 +18,15 @@ class PluginFormDesignClient extends Plugin {
       'otherBlocks.formDesign',
       formDesignInitializerItem,
     );
-    this.app.schemaInitializerManager.addItem(
-      'popup:addNew:addBlock',
-      'otherBlocks.formDesign',
-      formDesignInitializerItem,
-    );
+    // this.app.schemaInitializerManager.addItem(
+    //   'popup:addNew:addBlock',
+    //   'otherBlocks.formDesign',
+    //   formDesignInitializerItem,
+    // );
+    this.app.addComponents({
+      EditableFormToolbar,
+      EditableFormItemSchemaToolbar,
+    });
   }
 }
 

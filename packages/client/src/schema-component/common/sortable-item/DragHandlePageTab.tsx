@@ -16,25 +16,26 @@ export const DragHandlePageTab = (props) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 }); // 存储元素的宽高
   const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 }); // 存储指针的初始位置
 
-  // 计算偏移量
-  const centerOffset = {
-    x: dimensions.width * 4,
-    y: dimensions.height * 3,
-  };
-
+  // 解决 zIndex 过高仍被遮挡问题，尝试将元素挂载到 body 下，并设置更高的 zIndex 和更强的定位
   const style = {
     position: isDragging ? 'fixed' : 'static', // 拖拽时脱离文档流
-    top: isDragging ? initialPosition.y - centerOffset.y : 0, // 初始位置减去偏移量
-    left: isDragging ? initialPosition.x - centerOffset.x : 0, // 初始位置减去偏移量
-    width: isDragging ? 'max-content' : '100%', // 保持宽高不变
+    top: isDragging ? initialPosition.y - dimensions.height * 5 : 0,
+    left: isDragging ? initialPosition.x - dimensions.width : 0,
+    width: isDragging ? 'max-content' : '100%',
     height: isDragging ? 'max-content' : '100%',
-    zIndex: isDragging ? 999 : 'auto', // 拖拽时提高层级
-    pointerEvents: isDragging ? 'none' : 'auto', // 拖拽时禁用指针事件
-
+    zIndex: isDragging ? 999 : 'auto', // 使用最大安全 zIndex，确保在最顶层
+    pointerEvents: isDragging ? 'none' : 'auto',
     transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? 1.05 : 1})` // 拖拽时放大 1.1 倍
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? 1.05 : 1})`
       : undefined,
-    boxShadow: isDragging ? '0 4px 8px rgba(0, 0, 0, 0.1)' : 'none',
+    boxShadow: isDragging ? '0 8px 24px 4px rgba(0,0,0,0.18)' : 'none',
+    // 兼容性处理，防止被遮挡
+    WebkitTransform: transform
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? 1.05 : 1})`
+      : undefined,
+    WebkitPerspective: isDragging ? 1000 : undefined,
+    // 通过设置 isolation，防止被父元素的 zIndex 影响
+    isolation: isDragging ? 'isolate' : undefined,
   };
 
   // 处理鼠标按下事件

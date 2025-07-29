@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import { AutoComplete, FormProvider, gridRowColWrap, SchemaComponent, useDesignable } from '@tachybase/client';
-import { ArrayItems, Editable, FormCollapse, FormItem, FormLayout, Switch } from '@tachybase/components';
 import {
   createForm,
   FormConsumer,
@@ -13,6 +12,7 @@ import {
 } from '@tachybase/schema';
 
 import { RightSquareOutlined } from '@ant-design/icons';
+import { ArrayItems, Editable, FormCollapse, FormItem, FormLayout, Switch } from '@tego/client';
 import { Alert, App, Button, Card, Col, Modal, Row, Space, Table, Tabs, Typography } from 'antd';
 import { cloneDeep, isEqual } from 'lodash';
 

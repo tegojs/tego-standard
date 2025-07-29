@@ -11,19 +11,14 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/test": "^1.3.39",
+    "@tego/client": "^1.3.39",
+    "@tego/server": "^1.3.39",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
     "react-i18next": "15.2.0",
     "swagger-ui-dist": "^5.26.2"
-  },
-  "peerDependencies": {
-    "@tachybase/actions": "^1.3.35",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "^1.3.35",
-    "@tachybase/sdk": "^1.3.35",
-    "@tachybase/server": "^1.3.35",
-    "@tachybase/test": "^1.3.35",
-    "@tachybase/utils": "^1.3.35"
   },
   "description.zh-CN": "开发工具,用于查看Api文档,中间件,环境变量,事件等信息",
   "displayName.zh-CN": "开发工具"

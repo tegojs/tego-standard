@@ -1,4 +1,4 @@
-import { BaseColumnFieldOptions, DataTypes, Field, Model } from '@tachybase/database';
+import { BaseColumnFieldOptions, DataTypes, Field, Model } from '@tego/server';
 
 export interface TstzrangeFieldOptions extends BaseColumnFieldOptions {
   type: 'tstzrange';

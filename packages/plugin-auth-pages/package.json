@@ -10,14 +10,13 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "antd": "5.22.5",
-    "react-router-dom": "6.28.1"
-  },
-  "peerDependencies": {
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/server": "^1.3.35",
-    "@tachybase/test": "^1.3.35"
+    "@tachybase/test": "^1.3.39",
+    "@tego/client": "^1.3.39",
+    "@tego/server": "^1.3.39",
+    "antd": "5.22.5",
+    "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "认证：页面",
   "displayName.zh-CN": "认证页面"

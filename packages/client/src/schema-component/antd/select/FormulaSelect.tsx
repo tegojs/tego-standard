@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { isValid, toArr, useFieldSchema, useForm } from '@tachybase/schema';
-import { isPlainObject } from '@tachybase/utils/client';
 
 import { CloseCircleFilled, CloseOutlined } from '@ant-design/icons';
+import { isPlainObject } from '@tego/client';
 import { useAsyncEffect } from 'ahooks';
 import { Select as AntdSelect, Empty, Spin, Tag, type SelectProps } from 'antd';
 

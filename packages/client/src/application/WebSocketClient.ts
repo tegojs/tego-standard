@@ -1,5 +1,6 @@
 import { define, observable } from '@tachybase/schema';
-import { getSubAppName } from '@tachybase/sdk';
+
+import { getSubAppName } from '@tego/client';
 
 import { Application } from './Application';
 

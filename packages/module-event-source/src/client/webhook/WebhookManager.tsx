@@ -16,7 +16,6 @@ import {
   withDynamicSchemaProps,
   WorkflowSelect,
 } from '@tachybase/client';
-import { CodeMirror } from '@tachybase/components';
 import {
   ExecutionLink,
   ExecutionRetryAction,
@@ -26,6 +25,7 @@ import {
 } from '@tachybase/module-workflow/client';
 import { ISchema, useField, useForm } from '@tachybase/schema';
 
+import { CodeMirror } from '@tego/client';
 import { Alert as AntdAlert, Button, Space, Tag, Typography } from 'antd';
 
 import ModuleEventSourceClient from '..';

@@ -1,8 +1,8 @@
-import { randomInt } from 'crypto';
-import path from 'path';
-import { promisify } from 'util';
-import { Plugin } from '@tachybase/server';
-import { Registry } from '@tachybase/utils';
+import { randomInt } from 'node:crypto';
+import path from 'node:path';
+import { promisify } from 'node:util';
+
+import { Plugin, Registry } from '@tego/server';
 
 import { Pattern, SequenceField } from './fields/field-sequence';
 

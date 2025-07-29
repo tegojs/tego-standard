@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { ArrayItems } from '@tachybase/components';
 
+import { ArrayItems } from '@tego/client';
 import { Button, Popover, Space } from 'antd';
 
 import { useWorkflowExecuted } from '../hooks/useWorkflowExecuted';

@@ -1,11 +1,12 @@
 import { css, tval } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
 import {
   Instruction,
   NodeAvailableContext,
   VariableOption,
   WorkflowVariableInput,
 } from '@tachybase/module-workflow/client';
+
+import { ArrayTable } from '@tego/client';
 
 export class PdfInstruction extends Instruction {
   title = tval('pdf');

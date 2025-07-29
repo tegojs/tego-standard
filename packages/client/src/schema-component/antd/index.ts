@@ -63,4 +63,3 @@ export * from './media-card';
 export * from './tracking-link';
 
 export { PageHeader } from '@ant-design/pro-layout';
-export { CodeMirror } from '@tachybase/components';

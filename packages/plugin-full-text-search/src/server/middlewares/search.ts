@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { Op } from '@tachybase/database';
+import { Context, Op } from '@tego/server';
 
 import { SEARCH_KEYWORDS_MAX } from '../../constants';
 import { FieldBase } from '../dialects/FieldBase';

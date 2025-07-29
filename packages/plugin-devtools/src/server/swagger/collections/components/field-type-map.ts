@@ -1,4 +1,4 @@
-import { Field } from '@tachybase/database';
+import { Field } from '@tego/server';
 
 const fieldTypeMap = {
   bigint: {

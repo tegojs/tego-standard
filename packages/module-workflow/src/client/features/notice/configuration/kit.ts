@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
+
+import { ArrayItems } from '@tego/client';
 
 import { PluginWorkflow } from '../../../Plugin';
 import { NOTICE_INSTRUCTION_NAMESPACE } from '../../common/constants';

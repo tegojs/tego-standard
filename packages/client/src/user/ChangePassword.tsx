@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { ISchema, uid, useForm } from '@tachybase/schema';
 
 import { MenuProps } from 'antd';
@@ -115,8 +115,8 @@ const schema: ISchema = {
               dependencies: ['.verifyMethod', '.phoneExist', '.phone'],
               fulfill: {
                 state: {
-                  hidden: `{{ 
-                          !$deps[1] || 
+                  hidden: `{{
+                          !$deps[1] ||
                           !smsVerifyEnabled ||
                           ($deps[0] !== 'code' && $deps[0] !== undefined) // 有 verifyMethod 但未选 code
                         }}`,
@@ -141,8 +141,8 @@ const schema: ISchema = {
               dependencies: ['.verifyMethod', '.oldPasswordExist'],
               fulfill: {
                 state: {
-                  hidden: `{{ 
-                          !$deps[1] || 
+                  hidden: `{{
+                          !$deps[1] ||
                           (smsVerifyEnabled && $deps[0] !== 'password' && $deps[0] !== undefined)
                         }}`,
                 },

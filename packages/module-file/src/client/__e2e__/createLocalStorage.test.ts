@@ -1,5 +1,6 @@
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
+
+import { dayjs } from '@tego/server';
 
 import { CreateLocalStorage } from './pageobject/localStorage';
 

@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
-import evaluators from '@tachybase/evaluators/client';
+
+import { evaluators } from '@tego/client';
 
 import mathjs from './mathjs';
 

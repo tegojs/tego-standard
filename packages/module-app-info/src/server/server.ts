@@ -1,4 +1,4 @@
-import { InstallOptions, Plugin } from '@tachybase/server';
+import { InstallOptions, Plugin } from '@tego/server';
 
 export class SystemSettingsPlugin extends Plugin {
   getInitAppLang(options) {

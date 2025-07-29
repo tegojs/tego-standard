@@ -1,5 +1,4 @@
-import { defineCollection } from '@tachybase/database';
-import { uid } from '@tachybase/utils';
+import { defineCollection, uid } from '@tego/server';
 
 export default defineCollection({
   dumpRules: {

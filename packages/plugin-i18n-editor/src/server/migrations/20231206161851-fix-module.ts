@@ -1,5 +1,4 @@
-import { Op } from '@tachybase/database';
-import { Migration } from '@tachybase/server';
+import { Migration, Op } from '@tego/server';
 
 import { getTextsFromDB, getTextsFromMenu } from '../actions/localization';
 import { NAMESPACE_COLLECTIONS, NAMESPACE_MENUS } from '../constans';

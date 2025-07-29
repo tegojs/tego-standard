@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { Application, Plugin } from '@tachybase/server';
+import { Application, Context, Plugin } from '@tego/server';
 
 import { getAntdLocale } from './antd';
 import { getCronLocale } from './cron';

@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-
+import { Context } from '@tego/server';
 import { ClientConfig } from 'tencentcloud-sdk-nodejs/tencentcloud/common/interface';
 import { Client } from 'tencentcloud-sdk-nodejs/tencentcloud/services/ocr/v20181119/ocr_client';
 

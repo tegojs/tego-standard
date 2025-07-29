@@ -1,6 +1,7 @@
-import path from 'path';
-import { Database } from '@tachybase/database';
+import path from 'node:path';
 import { MockServer } from '@tachybase/test';
+
+import { Database } from '@tego/server';
 
 import { getApp, requestFile } from '..';
 import { FILE_FIELD_NAME } from '../../constants';

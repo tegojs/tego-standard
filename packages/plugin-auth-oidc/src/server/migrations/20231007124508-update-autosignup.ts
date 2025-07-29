@@ -1,4 +1,4 @@
-import { Migration } from '@tachybase/server';
+import { Migration } from '@tego/server';
 
 import { authType } from '../../constants';
 

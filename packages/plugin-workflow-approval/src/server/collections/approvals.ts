@@ -1,4 +1,4 @@
-import { defineCollection } from '@tachybase/database';
+import { defineCollection } from '@tego/server';
 
 // 审批-发起
 export default defineCollection({

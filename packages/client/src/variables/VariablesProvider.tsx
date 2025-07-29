@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef } from 'react';
 import { raw, untracked } from '@tachybase/schema';
-import { getValuesByPath } from '@tachybase/utils/client';
 
+import { getValuesByPath } from '@tego/client';
 import _ from 'lodash';
 
 import { useAPIClient } from '../api-client';
@@ -118,7 +118,7 @@ const VariablesProvider = ({ children }) => {
           shouldToRequest(current[key]) &&
           current.id != null &&
           associationField?.target &&
-          associationField?.type != 'virtual'
+          associationField?.type !== 'virtual'
         ) {
           const url = `/${collectionName}/${current.id}/${key}:${getAction(associationField.type)}`;
           let data = null;

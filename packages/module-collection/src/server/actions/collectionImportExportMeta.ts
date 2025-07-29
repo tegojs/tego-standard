@@ -1,8 +1,7 @@
 import fsPromises from 'node:fs/promises';
 import os from 'node:os';
-import { Context } from '@tachybase/actions';
-import { ResourceOptions } from '@tachybase/resourcer';
-import { koaMulter as multer, uid } from '@tachybase/utils';
+
+import { Context, koaMulter as multer, ResourceOptions, uid } from '@tego/server';
 
 export const collectionImportExportMeta: ResourceOptions = {
   name: 'collections',

@@ -1,7 +1,7 @@
 import React from 'react';
-import { usePrefixCls } from '@tachybase/components';
 import { Field, isArr, observer, useField } from '@tachybase/schema';
 
+import { usePrefixCls } from '@tego/client';
 import { Tag } from 'antd';
 import { TreeSelectProps } from 'antd/es/tree-select';
 import cls from 'classnames';

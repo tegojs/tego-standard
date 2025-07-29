@@ -2,9 +2,8 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { DEFAULT_PAGE, DEFAULT_PER_PAGE } from '@tachybase/actions';
-import { Application } from '@tachybase/server';
-import { koaMulter as multer } from '@tachybase/utils';
+
+import { Application, DEFAULT_PAGE, DEFAULT_PER_PAGE, koaMulter as multer } from '@tego/server';
 
 import { Dumper } from '../dumper';
 import { Restorer } from '../restorer';

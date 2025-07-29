@@ -6,10 +6,10 @@ import {
   useDesignable,
   useTranslation,
 } from '@tachybase/client';
-import { ArrayItems, FormItem, Space } from '@tachybase/components';
 import { connect, ISchema, useFieldSchema } from '@tachybase/schema';
 
 import { PullRequestOutlined } from '@ant-design/icons';
+import { ArrayItems, FormItem, Space } from '@tego/client';
 
 import { GroupBlockContext } from './GroupBlockInitializer';
 

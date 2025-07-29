@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { Action, Controller } from '@tachybase/utils';
+import { Action, Context, Controller } from '@tego/server';
 
 @Controller('system_notifications')
 export class SystemMessageController {

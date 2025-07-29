@@ -1,7 +1,7 @@
 import { ChangeEvent, useCallback, useEffect } from 'react';
 import { Field, Form, ISchema, untracked, useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { isURL, parse } from '@tachybase/utils/client';
 
+import { isURL, parse } from '@tego/client';
 import { App } from 'antd';
 import flat from 'flat';
 import _ from 'lodash';

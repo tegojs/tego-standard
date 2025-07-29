@@ -1,5 +1,4 @@
-import { evaluators } from '@tachybase/evaluators';
-import { Registry } from '@tachybase/utils';
+import { evaluators, Registry } from '@tego/server';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';

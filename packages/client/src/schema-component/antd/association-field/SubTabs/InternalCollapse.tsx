@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { ArrayField, observer, onFieldChange, Schema, useFieldSchema, useFormEffects } from '@tachybase/schema';
-import { fuzzysearch } from '@tachybase/utils/client';
 
 import { CheckOutlined, SearchOutlined } from '@ant-design/icons';
+import { fuzzysearch } from '@tego/client';
 import { useAsyncEffect, useDeepCompareEffect } from 'ahooks';
 import { Button, Collapse, CollapseProps, Input, Space } from 'antd';
 import flat from 'flat';

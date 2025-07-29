@@ -1,5 +1,6 @@
-import Database, { Collection as DBCollection } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import Database, { Collection as DBCollection } from '@tego/server';
 
 describe('createdBy/updatedBy', () => {
   let api: MockServer;

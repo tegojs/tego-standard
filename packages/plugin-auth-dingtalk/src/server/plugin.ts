@@ -1,4 +1,4 @@
-import { Gateway, Plugin } from '@tachybase/server';
+import { Gateway, Plugin } from '@tego/server';
 
 import { authType } from '../constants';
 import { getAuthUrl, redirect } from './actions/dingding';

@@ -1,6 +1,6 @@
-import { Database } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
 
+import { Database } from '@tego/server';
 import { vi } from 'vitest';
 
 import { authType } from '../../constants';

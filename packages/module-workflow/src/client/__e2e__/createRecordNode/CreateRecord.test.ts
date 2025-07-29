@@ -11,9 +11,9 @@ import {
   generalWithNoRelationalFields,
 } from '@tachybase/plugin-workflow-test/e2e';
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
 
 import { faker } from '@faker-js/faker';
+import { dayjs } from '@tego/server';
 
 test('Collection event add data trigger, single row text fields for common tables, set constant data', async ({
   page,

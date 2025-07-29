@@ -1,4 +1,4 @@
-import { CollectionOptions } from '@tachybase/database';
+import { CollectionOptions } from '@tego/server';
 
 import { DATABASE_CRON_JOBS, NAMESPACE, SCHEDULE_MODE } from '../constants';
 

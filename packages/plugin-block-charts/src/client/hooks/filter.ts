@@ -11,8 +11,8 @@ import {
   useDataSourceManager,
 } from '@tachybase/client';
 import { Schema } from '@tachybase/schema';
-import { parse } from '@tachybase/utils/client';
 
+import { parse } from '@tego/client';
 import { useMemoizedFn } from 'ahooks';
 import deepmerge from 'deepmerge';
 import lodash from 'lodash';
@@ -351,7 +351,7 @@ export const useChartFilter = () => {
   const appendFilter = (chart: { dataSource: string; collection: string; query: any }, filterValues: any) => {
     const { dataSource, collection, query } = chart;
     let newQuery = { ...query };
-    const originFilter = { ...(newQuery.filter || {}) };
+    const originFilter = { ...newQuery.filter };
     let filter = {};
     const parsed = parse(originFilter);
     const { parameters } = parsed;

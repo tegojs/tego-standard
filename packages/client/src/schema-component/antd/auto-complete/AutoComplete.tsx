@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { connect, mapProps, mapReadPretty, useFieldSchema } from '@tachybase/schema';
-import { fuzzysearch } from '@tachybase/utils/client';
 
+import { fuzzysearch } from '@tego/client';
 import { useAsyncEffect } from 'ahooks';
 import { AutoComplete as AntdAutoComplete } from 'antd';
 

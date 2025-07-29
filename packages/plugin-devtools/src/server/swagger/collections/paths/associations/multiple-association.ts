@@ -1,4 +1,4 @@
-import { BelongsToManyField, Collection, HasManyField } from '@tachybase/database';
+import { BelongsToManyField, Collection, HasManyField } from '@tego/server';
 
 import {
   CreateActionTemplate,

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { dayjs } from '@tachybase/utils/client';
+
+import { dayjs } from '@tego/client';
 
 import { useCurrentUserVariable, useDatetimeVariable, useExactDateVariable } from '../../schema-settings';
 import { useCurrentRoleVariable } from '../../schema-settings/VariableInput/hooks/useRoleVariable';

@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { Plugin } from '@tachybase/server';
+import { Context, Plugin } from '@tego/server';
 
 import { ENVResource } from './actions/ENV-controller';
 import { MiddlewareOrderResource } from './actions/middleware-controller';

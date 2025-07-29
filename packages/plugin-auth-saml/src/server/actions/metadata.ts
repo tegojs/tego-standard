@@ -1,6 +1,5 @@
-import { Context, Next } from '@tachybase/actions';
-
 import { SAML } from '@node-saml/node-saml';
+import { Context, Next } from '@tego/server';
 
 import { SAMLAuth } from '../saml-auth';
 

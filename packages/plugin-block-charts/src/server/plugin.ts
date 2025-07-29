@@ -1,7 +1,6 @@
-import path, { resolve } from 'path';
-import { Cache } from '@tachybase/cache';
-import { InstallOptions, Plugin } from '@tachybase/server';
-import { Container } from '@tachybase/utils';
+import path, { resolve } from 'node:path';
+
+import { Cache, Container, InstallOptions, Plugin } from '@tego/server';
 
 import { query } from './actions/query';
 import { SqlLoader } from './services/sql-loader';

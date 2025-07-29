@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { flatten, unflatten } from '@tachybase/utils/client';
+
+import { flatten, unflatten } from '@tego/client';
 
 import { useLocalVariables, useVariables } from '../../variables';
 import { getVariableName } from '../../variables/utils/getVariableName';

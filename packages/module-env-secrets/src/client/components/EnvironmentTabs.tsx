@@ -1,19 +1,9 @@
 import React, { useContext, useState } from 'react';
 import { SchemaComponent, SchemaComponentOptions, useAPIClient } from '@tachybase/client';
-import {
-  Checkbox,
-  FormButtonGroup,
-  FormDrawer,
-  FormItem,
-  FormLayout,
-  Input,
-  Radio,
-  Reset,
-  Submit,
-} from '@tachybase/components';
 import { createSchemaField, registerValidateRules, useField } from '@tachybase/schema';
 
 import { DeleteOutlined, DownOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Checkbox, FormButtonGroup, FormDrawer, FormItem, FormLayout, Input, Radio, Reset, Submit } from '@tego/client';
 import { Alert, App, Button, Card, Dropdown, Flex, Space, Table, Tag } from 'antd';
 
 import { VAR_NAME_RE } from '../../re';

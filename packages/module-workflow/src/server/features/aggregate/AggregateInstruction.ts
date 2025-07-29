@@ -1,5 +1,4 @@
-import { parseCollectionName } from '@tachybase/data-source';
-import { DataTypes } from '@tachybase/database';
+import { DataTypes, parseCollectionName } from '@tego/server';
 
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
 

@@ -10,9 +10,9 @@ import {
   useIsFormReadPretty,
   useValidateSchema,
 } from '@tachybase/client';
-import { ArrayCollapse, FormLayout } from '@tachybase/components';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayCollapse, FormLayout } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 

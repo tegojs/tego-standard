@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
-import { Registry } from '@tachybase/utils/client';
+
+import { Registry } from '@tego/client';
 
 import { CustomEventSourcePane } from './custom-event-sources/CustomEventSourcePane';
 import { tval } from './locale';

@@ -1,5 +1,6 @@
-import { Collection, Database } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { Collection, Database } from '@tego/server';
 
 import { UiSchemaRepository } from '..';
 

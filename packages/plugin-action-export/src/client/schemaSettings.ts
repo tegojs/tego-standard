@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ButtonEditor, SchemaSettings, useDesignable, useSchemaToolbar } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { ISchema, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { useShared } from './useShared';

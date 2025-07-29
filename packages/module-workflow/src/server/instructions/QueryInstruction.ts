@@ -1,5 +1,4 @@
-import { DEFAULT_PAGE, DEFAULT_PER_PAGE, utils } from '@tachybase/actions';
-import { parseCollectionName } from '@tachybase/data-source';
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE, parseCollectionName, utils } from '@tego/server';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';

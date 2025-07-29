@@ -1,5 +1,4 @@
-import { evaluate } from '@tachybase/evaluators';
-
+import { evaluate } from '@tego/server';
 import * as math from 'mathjs';
 
 export default evaluate.bind(

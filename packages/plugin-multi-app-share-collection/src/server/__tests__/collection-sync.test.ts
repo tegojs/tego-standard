@@ -1,7 +1,7 @@
 import * as process from 'node:process';
-import { BelongsToManyRepository, Database } from '@tachybase/database';
-import { AppSupervisor } from '@tachybase/server';
 import { createMockServer, isPg, MockServer } from '@tachybase/test';
+
+import { AppSupervisor, BelongsToManyRepository, Database } from '@tego/server';
 
 describe.runIf(isPg())('enable plugin', () => {
   let mainDb: Database;

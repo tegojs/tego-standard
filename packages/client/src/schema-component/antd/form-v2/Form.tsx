@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo } from 'react';
-import { FormLayout } from '@tachybase/components';
 import {
   createForm,
   Field,
@@ -15,8 +14,8 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
-import { getValuesByPath } from '@tachybase/utils/client';
 
+import { FormLayout, getValuesByPath } from '@tego/client';
 import { ConfigProvider, Spin } from 'antd';
 import { createStyles } from 'antd-style';
 

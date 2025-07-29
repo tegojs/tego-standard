@@ -1,6 +1,4 @@
-import { Evaluator, evaluators } from '@tachybase/evaluators';
-import { parse } from '@tachybase/utils';
-
+import { Evaluator, evaluators, parse } from '@tego/server';
 import { cloneDeep, get } from 'lodash';
 
 import { Instruction } from '.';

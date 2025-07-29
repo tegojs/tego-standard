@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActionInitializer } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { tval } from '../locale';
 

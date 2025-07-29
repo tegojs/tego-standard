@@ -1,4 +1,4 @@
-import { defineCollection } from '@tachybase/database';
+import { defineCollection } from '@tego/server';
 
 export default defineCollection({
   name: 'users_jobs',

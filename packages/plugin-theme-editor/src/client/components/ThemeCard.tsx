@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { useAPIClient, useCurrentUserContext, useGlobalTheme, useToken } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
 
 import { DeleteOutlined, EditOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { error } from '@tego/client';
 import { App, Card, ConfigProvider, Dropdown, message, Space, Switch, Tag } from 'antd';
 
 import { ThemeConfig, ThemeItem } from '../../types';

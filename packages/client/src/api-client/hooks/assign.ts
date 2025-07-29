@@ -1,5 +1,4 @@
-import { isPlainObject } from '@tachybase/utils/client';
-
+import { isPlainObject } from '@tego/client';
 import deepmerge from 'deepmerge';
 import { uniq } from 'lodash';
 

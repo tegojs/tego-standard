@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from '@tachybase/client';
 import { connect, mapProps, mapReadPretty } from '@tachybase/schema';
-import { dayjs } from '@tachybase/utils/client';
 
+import { dayjs } from '@tego/client';
 import { Button, DatePicker } from 'antd-mobile';
 
 export const MDatePicker = connect(

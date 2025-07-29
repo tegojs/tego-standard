@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Application, AppSupervisor } from '@tachybase/server';
+import { Application, AppSupervisor, Context, Next } from '@tego/server';
 
 import { NAMESPACE, NOTIFY_STATUS_EVENT_KEY } from '../../constants';
 

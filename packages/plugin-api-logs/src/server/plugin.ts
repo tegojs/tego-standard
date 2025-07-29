@@ -1,6 +1,6 @@
 import { isMainThread } from 'node:worker_threads';
-import { Context } from '@tachybase/actions';
-import { InjectedPlugin, Plugin } from '@tachybase/server';
+
+import { Context, InjectedPlugin, Plugin } from '@tego/server';
 
 import { ApiLogsController } from './actions/apiLogsController';
 import { ApiFilter } from './ApiFilter';

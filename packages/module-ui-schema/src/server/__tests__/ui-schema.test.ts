@@ -1,6 +1,7 @@
-import { Database } from '@tachybase/database';
 import { ISchema } from '@tachybase/schema';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { Database } from '@tego/server';
 
 import { UiSchemaRepository } from '..';
 

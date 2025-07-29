@@ -1,5 +1,6 @@
-import { resolve } from 'path';
-import { Plugin } from '@tachybase/server';
+import { resolve } from 'node:path';
+
+import { Plugin } from '@tego/server';
 
 import initActions from './actions';
 import { FileModel } from './FileModel';

@@ -1,8 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
 import { useAPIClient, useCollectionManager, useCompile, useCurrentUserContext } from '@tachybase/client';
 import { observer } from '@tachybase/schema';
-import { dayjs } from '@tachybase/utils/client';
 
+import { dayjs } from '@tego/client';
 import { useDeepCompareEffect } from 'ahooks';
 import { Empty, List, Space, Tag } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';

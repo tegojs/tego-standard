@@ -1,4 +1,4 @@
-import type { RequireJS } from '@tachybase/requirejs';
+import type { RequireJS } from '@tego/client';
 
 import type { DevDynamicImport } from '../Application';
 import type { Plugin } from '../Plugin';

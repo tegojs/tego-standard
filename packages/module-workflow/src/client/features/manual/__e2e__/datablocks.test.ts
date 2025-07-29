@@ -17,9 +17,9 @@ import {
   QueryRecordNode,
 } from '@tachybase/plugin-workflow-test/e2e';
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
 
 import { faker } from '@faker-js/faker';
+import { dayjs } from '@tego/server';
 
 test.describe('field data', () => {
   test('Collection event to add a data trigger, get a single line of text data for the trigger node', async ({

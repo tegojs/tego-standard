@@ -7,9 +7,9 @@ import {
   SchemaComponentProvider,
   useAPIClient,
 } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
 import { action, ArrayField, useField } from '@tachybase/schema';
 
+import { FormItem } from '@tego/client';
 import MockAdapter from 'axios-mock-adapter';
 
 const apiClient = new APIClient();

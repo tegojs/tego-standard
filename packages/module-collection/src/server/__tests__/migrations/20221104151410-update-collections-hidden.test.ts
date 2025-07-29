@@ -1,5 +1,6 @@
-import { Database, MigrationContext } from '@tachybase/database';
 import { MockServer } from '@tachybase/test';
+
+import { Database, MigrationContext } from '@tego/server';
 
 import UpdateCollectionsHiddenMigration from '../../migrations/20221104151410-update-collections-hidden';
 import { createApp } from '../index';

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { defaultTheme as presetTheme, useAPIClient, useCurrentUserContext, useGlobalTheme } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { Spin } from 'antd';
 
 import { changeAlgorithmFromFunctionToString } from '../utils/changeAlgorithmFromFunctionToString';

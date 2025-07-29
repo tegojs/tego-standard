@@ -1,7 +1,8 @@
-import fs from 'fs';
-import path from 'path';
-import { Collection, Database } from '@tachybase/database';
+import fs from 'node:fs';
+import path from 'node:path';
 import { MockServer } from '@tachybase/test';
+
+import { Collection, Database } from '@tego/server';
 
 import { Dumper } from '../dumper';
 import { Restorer } from '../restorer';

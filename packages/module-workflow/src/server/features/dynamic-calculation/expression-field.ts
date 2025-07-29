@@ -1,4 +1,4 @@
-import { BaseFieldOptions, DataTypes, Field } from '@tachybase/database';
+import { BaseFieldOptions, DataTypes, Field } from '@tego/server';
 
 export interface ExpressionFieldOptions extends BaseFieldOptions {
   type: 'expression';

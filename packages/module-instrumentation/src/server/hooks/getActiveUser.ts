@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-
+import { Context } from '@tego/server';
 import dayjs from 'dayjs';
 
 export const getDailyActiveUser = async (ctx: Context) => {

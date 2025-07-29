@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
-import { ArrayBase } from '@tachybase/components';
 import { useForm } from '@tachybase/schema';
 
+import { ArrayBase } from '@tego/client';
 import { App } from 'antd';
 import { LRUCache } from 'lru-cache';
 import { useTranslation } from 'react-i18next';

@@ -1,7 +1,4 @@
-import { AuthManager, Storer as IStorer } from '@tachybase/auth';
-import { Cache } from '@tachybase/cache';
-import { Database, Model } from '@tachybase/database';
-import { Application } from '@tachybase/server';
+import { Application, AuthManager, Cache, Database, Storer as IStorer, Model } from '@tego/server';
 
 import { AuthModel } from './model/authenticator';
 

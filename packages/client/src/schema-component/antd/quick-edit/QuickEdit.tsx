@@ -1,7 +1,7 @@
 import React, { useMemo, useRef } from 'react';
-import { FormItem } from '@tachybase/components';
 import { createForm, Field, FormContext, observer, RecursionField, useField, useFieldSchema } from '@tachybase/schema';
 
+import { FormItem } from '@tego/client';
 import { createStyles } from 'antd-style';
 
 import { useCollectionManager_deprecated } from '../../../collection-manager';

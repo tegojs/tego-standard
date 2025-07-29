@@ -5,8 +5,9 @@ import {
   useCollectionManager_deprecated,
   useCompile,
 } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { useForm } from '@tachybase/schema';
+
+import { ArrayItems } from '@tego/client';
 
 import { CollectionBlockInitializer } from '../components/CollectionBlockInitializer';
 import { FilterDynamicComponent } from '../components/FilterDynamicComponent';

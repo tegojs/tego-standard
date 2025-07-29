@@ -1,4 +1,4 @@
-import { CollectionOptions } from '@tachybase/database';
+import { CollectionOptions } from '@tego/server';
 
 import { COLLECTION_AUTOBACKUP } from '../../constants';
 

@@ -1,4 +1,4 @@
-import { Migration } from '@tachybase/server';
+import { Migration } from '@tego/server';
 
 export default class AddTranslationToRoleTitleMigration extends Migration {
   appVersion = '<0.11.1-alpha.1';

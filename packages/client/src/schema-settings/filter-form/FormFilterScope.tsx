@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { ArrayCollapse } from '@tachybase/components';
 import { Form, observer, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayCollapse } from '@tego/client';
 import { css } from 'antd-style';
 
 import { FormBlockContext } from '../../block-provider';

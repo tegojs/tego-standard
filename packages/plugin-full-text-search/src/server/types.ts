@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { Collection } from '@tachybase/database';
+import { Collection, Context } from '@tego/server';
 
 import { FieldBase } from './dialects/FieldBase';
 

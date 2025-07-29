@@ -10,9 +10,9 @@ import {
   usePlugin,
   useResourceActionContext,
 } from '@tachybase/client';
-import { str2moment } from '@tachybase/utils/client';
 
 import { DownOutlined, ExclamationCircleFilled, StopOutlined } from '@ant-design/icons';
+import { str2moment } from '@tego/client';
 import { Breadcrumb, Button, Dropdown, message, Modal, Result, Space, Spin, Splitter, Tag, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';

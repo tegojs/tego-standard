@@ -1,7 +1,6 @@
-import { BaseError } from '@tachybase/database';
 import { Schema } from '@tachybase/schema';
-import { Plugin } from '@tachybase/server';
 
+import { BaseError, Plugin } from '@tego/server';
 import lodash from 'lodash';
 
 import { ErrorHandler } from './error-handler';

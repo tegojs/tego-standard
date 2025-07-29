@@ -22,7 +22,6 @@ import {
   useGlobalTheme,
   useSchemaInitializerItem,
 } from '@tachybase/client';
-import { FormItem, FormLayout } from '@tachybase/components';
 import {
   Field,
   observer,
@@ -35,6 +34,7 @@ import {
   useForm,
 } from '@tachybase/schema';
 
+import { FormItem, FormLayout } from '@tego/client';
 import { useMemoizedFn } from 'ahooks';
 import { Alert, ConfigProvider, Typography } from 'antd';
 import { ErrorBoundary } from 'react-error-boundary';

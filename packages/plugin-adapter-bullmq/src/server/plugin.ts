@@ -1,8 +1,7 @@
-import { Plugin } from '@tachybase/server';
-
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { KoaAdapter } from '@bull-board/koa';
+import { Plugin } from '@tego/server';
 import { Queue } from 'bullmq';
 
 export class PluginAdapterBullmqServer extends Plugin {

@@ -1,4 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
+import { Context, Next } from '@tego/server';
 
 export default {
   lostPassword: async (ctx: Context, next: Next) => {

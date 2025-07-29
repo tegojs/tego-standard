@@ -7,7 +7,7 @@ export const ProviderUserManual = (props) => {
     <PinnedPluginListProvider
       items={{
         userManual: {
-          order: 10,
+          order: 50,
           component: 'UserManualLink',
           pin: true,
           snippet: 'pm',

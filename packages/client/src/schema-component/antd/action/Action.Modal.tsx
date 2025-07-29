@@ -11,12 +11,16 @@ import { useStyles } from './Action.Modal.style';
 import { useSetAriaLabelForModal } from './hooks/useSetAriaLabelForModal';
 import { ComposedActionDrawer } from './types';
 
+interface CustomModalProps extends ModalProps {
+  fullScreenButton?: boolean;
+}
+
 const openSizeWidthMap = new Map<OpenSize, string>([
   ['small', '40%'],
   ['middle', '60%'],
   ['large', '80%'],
 ]);
-export const ActionModal: ComposedActionDrawer<ModalProps> = observer(
+export const ActionModal: ComposedActionDrawer<CustomModalProps> = observer(
   (props) => {
     const { footerNodeName = 'Action.Modal.Footer', width, fullScreenButton = true, ...others } = props;
     const { styles } = useStyles();

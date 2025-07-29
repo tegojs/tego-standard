@@ -1,10 +1,10 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { RecordProvider, useCurrentAppInfo, useTranslation } from '@tachybase/client';
 import { action, createForm, FormContext, ISchema, Schema, uid, useForm } from '@tachybase/schema';
 
 import { FormOutlined } from '@ant-design/icons';
 import { Button, Col, Collapse, Layout, Row, Tabs, Tooltip } from 'antd';
 import _, { cloneDeep } from 'lodash';
+import { useTranslation } from 'react-i18next';
 
 import { SchemaInitializerItemType, useApp } from '../../../../application';
 import {
@@ -16,8 +16,10 @@ import {
   useResourceActionContext,
   useResourceContext,
 } from '../../../../collection-manager';
+import { useCurrentAppInfo } from '../../../../common';
 import { CollectionRecordContext, useExtendCollections } from '../../../../data-source';
 import { Icon } from '../../../../icon';
+import { RecordProvider } from '../../../../record-provider';
 import { useActionContext, useCompile } from '../../../../schema-component';
 import { findSchema, removeGridFormItem } from '../../../../schema-initializer/utils';
 import { useStyles } from './styles';

@@ -1,12 +1,4 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  FormActiveFieldsProvider,
-  FormBlockContext,
-  RecordProvider,
-  useFieldComponentName,
-  useFormActiveFields,
-  useTranslation,
-} from '@tachybase/client';
 import { createForm, FormContext, SchemaContext, uid } from '@tachybase/schema';
 import {
   ContextCleaner,
@@ -19,14 +11,18 @@ import {
 
 import { Layout, Tabs } from 'antd';
 import _, { cloneDeep } from 'lodash';
+import { useTranslation } from 'react-i18next';
 
 import { useApp } from '../../../../application';
+import { FormActiveFieldsProvider, FormBlockContext, useFormActiveFields } from '../../../../block-provider';
 import { usePageRefresh } from '../../../../built-in/dynamic-page/PageRefreshContext';
 import { useCollection_deprecated } from '../../../../collection-manager';
 import * as components from '../../../../collection-manager/Configuration/components';
 import { CollectionFieldProvider } from '../../../../data-source';
+import { RecordProvider } from '../../../../record-provider';
 import { SchemaComponent, SchemaComponentContext, useSchemaComponentContext } from '../../../../schema-component';
 import { findSchema } from '../../../../schema-initializer/utils';
+import { useFieldComponentName } from '../table/utils';
 import { useEditableSelectedField } from './EditableSelectedFieldContext';
 import { useEditableSelectedForm } from './EditableSelectedFormContent';
 import { useStyles } from './styles';

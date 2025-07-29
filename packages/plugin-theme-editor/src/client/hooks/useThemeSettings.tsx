@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { SelectWithTitle, useAPIClient, useCurrentUserContext, useSystemSettings } from '@tachybase/client';
+import { useEffect, useMemo } from 'react';
+import { SelectWithTitle, useCurrentUserContext, useSystemSettings } from '@tachybase/client';
 
 import { error } from '@tego/client';
 import { MenuProps } from 'antd';

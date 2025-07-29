@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useAPIClient, useTranslation } from '@tachybase/client';
 import { ISchema, Schema, uid } from '@tachybase/schema';
 
 import { DesktopOutlined, EditOutlined, LeftOutlined, MobileOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { App, Button, Drawer, Input, Layout, Menu, message, Modal, Radio, Tooltip } from 'antd';
 import { CheckboxGroupProps } from 'antd/es/checkbox';
 import _, { cloneDeep } from 'lodash';
+import { useTranslation } from 'react-i18next';
 
+import { useAPIClient } from '../../../../api-client';
 import {
   useCollection_deprecated,
   useCollectionManager_deprecated,

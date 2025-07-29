@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useAPIClient, useTranslation } from '@tachybase/client';
 import { ISchema, Schema, uid } from '@tachybase/schema';
 
 import { Layout, Modal } from 'antd';
 import _ from 'lodash';
+import { useTranslation } from 'react-i18next';
 
+import { useAPIClient } from '../../../../api-client';
 import { PageRefreshProvider } from '../../../../built-in/dynamic-page/PageRefreshContext';
 import { CollectionContext, useCollectionManager } from '../../../../data-source';
 import { DndContext, useDesignable } from '../../../../schema-component';

@@ -2,6 +2,7 @@ import { Icon, SchemaInitializerItem, SchemaInitializerItemType } from '@tachyba
 
 import { featureNameLowerCase_formDesign } from '../constants';
 import { tval } from '../locale';
+import { EditableFormBlockInitializer } from './EditableFormBlockInitialzer';
 import { useFormDesignItems } from './hooks/useFormDesignItems';
 
 export const formDesignInitializerItem: SchemaInitializerItemType = {
@@ -9,5 +10,6 @@ export const formDesignInitializerItem: SchemaInitializerItemType = {
   name: featureNameLowerCase_formDesign,
   title: tval('Form design'),
   icon: <Icon type="FormOutlined" />,
-  useChildren: useFormDesignItems,
+  // useChildren: useFormDesignItems,
+  Component: EditableFormBlockInitializer,
 };

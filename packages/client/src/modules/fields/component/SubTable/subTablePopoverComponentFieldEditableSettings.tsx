@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ArrayItems, Switch } from '@tachybase/components';
 import { createForm, Field, ISchema, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
+import { ArrayItems, Switch } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { EditableSchemaSettings } from '../../../../application/schema-settings-editable';

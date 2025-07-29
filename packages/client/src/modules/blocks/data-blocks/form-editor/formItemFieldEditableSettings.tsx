@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
-import { ArrayCollapse, FormLayout } from '@tachybase/components';
 import { createForm, Field, ISchema, Schema, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
+import { ArrayCollapse, FormLayout } from '@tego/client';
 import { createStyles } from 'antd-style';
 import { DefaultOptionType } from 'antd/lib/cascader';
 import _ from 'lodash';

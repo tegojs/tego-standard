@@ -11,9 +11,9 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "^1.3.38",
-    "@tego/client": "^1.3.38",
-    "@tego/server": "^1.3.38"
+    "@tachybase/test": "^1.3.39",
+    "@tego/client": "^1.3.39",
+    "@tego/server": "^1.3.39"
   },
   "description.zh-CN": "认证: Lark",
   "displayName.zh-CN": "认证Lark"

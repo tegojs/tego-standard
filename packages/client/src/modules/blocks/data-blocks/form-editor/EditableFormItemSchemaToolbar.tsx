@@ -1,15 +1,15 @@
 import React, { FC, useContext, useEffect, useMemo, useRef } from 'react';
 import { Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
+import {
+  SchemaComponentsContext,
+  SchemaExpressionScopeContext,
+  SchemaMarkupContext,
+} from '@tachybase/schema/lib/react';
 
 import { DeleteOutlined, DragOutlined, PlusOutlined } from '@ant-design/icons';
 import { Popconfirm } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-import {
-  SchemaComponentsContext,
-  SchemaExpressionScopeContext,
-  SchemaMarkupContext,
-} from '../../../../../../schema/src/react';
 import { useFormActiveFields, useFormBlockContext } from '../../../../block-provider';
 import {
   DragHandler,

@@ -8,10 +8,6 @@ import {
   useTranslation,
 } from '@tachybase/client';
 import { createForm, FormContext, SchemaContext, uid } from '@tachybase/schema';
-
-import { Layout, Tabs } from 'antd';
-import _, { cloneDeep } from 'lodash';
-
 import {
   ContextCleaner,
   FieldContext,
@@ -19,7 +15,11 @@ import {
   SchemaExpressionScopeContext,
   SchemaMarkupContext,
   SchemaOptionsContext,
-} from '../../../../../../schema/src/react';
+} from '@tachybase/schema/lib/react';
+
+import { Layout, Tabs } from 'antd';
+import _, { cloneDeep } from 'lodash';
+
 import { useApp } from '../../../../application';
 import { usePageRefresh } from '../../../../built-in/dynamic-page/PageRefreshContext';
 import { useCollection_deprecated } from '../../../../collection-manager';

@@ -1,4 +1,4 @@
-import Application from '@tego/server';
+import { Application } from '@tego/server';
 
 import { MergeRoleModel } from '../model/MergeRoleModel';
 

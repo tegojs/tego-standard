@@ -8,6 +8,8 @@ overrides:
   '@types/node': 20.17.10
   '@types/react': 18.3.23
   '@types/react-dom': 18.3.7
+  '@tego/client': link:../tego/packages/tego-client
+  '@tego/server': link:../tego/packages/tego-server
   antd: 5.22.5
   dayjs: 1.11.13
   react: 18.3.1
@@ -103,7 +105,7 @@ importers:
         version: 5.8.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.0)(jsdom@16.7.0(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.0)(jsdom@24.1.1(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
 
   apps/web:
     devDependencies:
@@ -204,8 +206,8 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(react@18.3.1)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -361,11 +363,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/jsonwebtoken':
         specifier: ^8.5.9
         version: 8.5.9
@@ -403,11 +405,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
 
   packages/module-auth:
     devDependencies:
@@ -424,11 +426,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -475,11 +477,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/archiver':
         specifier: ^5.3.4
         version: 5.3.4
@@ -545,7 +547,7 @@ importers:
     devDependencies:
       '@antv/g6':
         specifier: ^5.0.49
-        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6))
       '@babel/core':
         specifier: 7.27.4
         version: 7.27.4
@@ -592,11 +594,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -664,11 +666,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -700,11 +702,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -736,11 +738,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -781,11 +783,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -802,11 +804,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -829,11 +831,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -865,11 +867,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/koa-multer':
         specifier: ^1.0.4
         version: 1.0.4
@@ -940,11 +942,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -1015,11 +1017,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1057,11 +1059,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1102,11 +1104,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -1168,11 +1170,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -1207,11 +1209,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -1237,11 +1239,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/jsonwebtoken':
         specifier: ^8.5.9
         version: 8.5.9
@@ -1270,11 +1272,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/react':
         specifier: 18.3.23
         version: 18.3.23
@@ -1342,11 +1344,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1402,11 +1404,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -1483,11 +1485,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1513,11 +1515,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1540,11 +1542,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1576,11 +1578,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1603,11 +1605,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1642,11 +1644,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1684,11 +1686,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       react-to-print:
         specifier: ^2.15.1
         version: 2.15.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1711,11 +1713,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1750,11 +1752,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       bullmq:
         specifier: ^5.56.4
         version: 5.56.4
@@ -1780,11 +1782,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/express':
         specifier: 5.0.2
         version: 5.0.2
@@ -1813,11 +1815,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -1858,11 +1860,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1894,11 +1896,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1933,11 +1935,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1966,11 +1968,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1996,11 +1998,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2038,11 +2040,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2065,11 +2067,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2092,11 +2094,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2131,11 +2133,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2152,11 +2154,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
 
   packages/plugin-auth-saml:
     devDependencies:
@@ -2179,11 +2181,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2215,11 +2217,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2245,11 +2247,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(react@18.3.1)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2275,11 +2277,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2308,11 +2310,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2359,11 +2361,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2413,11 +2415,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2449,11 +2451,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2479,11 +2481,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2521,11 +2523,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/google.maps':
         specifier: ^3.58.1
         version: 3.58.1
@@ -2572,11 +2574,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2605,11 +2607,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2641,11 +2643,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -2689,11 +2691,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(react@18.3.1)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -2735,11 +2737,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
 
   packages/plugin-devtools:
     devDependencies:
@@ -2753,11 +2755,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2777,11 +2779,11 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       mathjs:
         specifier: ^10.6.4
         version: 10.6.4
@@ -2798,11 +2800,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/cross-spawn':
         specifier: ^6.0.6
         version: 6.0.6
@@ -2822,11 +2824,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
 
   packages/plugin-field-formula:
     devDependencies:
@@ -2840,11 +2842,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -2867,11 +2869,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2897,11 +2899,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2939,11 +2941,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2969,11 +2971,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/sequelize':
         specifier: ^4.28.20
         version: 4.28.20
@@ -3008,11 +3010,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3038,11 +3040,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/tar-fs':
         specifier: ^2.0.4
         version: 2.0.4
@@ -3071,11 +3073,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3098,11 +3100,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -3134,11 +3136,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3164,11 +3166,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@vercel/ncc':
         specifier: 0.38.3
         version: 0.38.3
@@ -3224,11 +3226,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3257,11 +3259,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(react@18.3.1)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3281,11 +3283,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       canvas-confetti:
         specifier: ^1.9.3
         version: 1.9.3
@@ -3308,11 +3310,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3347,11 +3349,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       bullmq:
         specifier: ^5.56.4
         version: 5.56.4
@@ -3380,11 +3382,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3404,11 +3406,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/xml2js':
         specifier: ^0.4.14
         version: 0.4.14
@@ -3452,11 +3454,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       minimatch:
         specifier: ^5.1.6
         version: 5.1.6
@@ -3473,11 +3475,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3506,11 +3508,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -3548,11 +3550,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3575,11 +3577,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3611,11 +3613,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
@@ -3662,11 +3664,11 @@ importers:
         specifier: ^1.3.38
         version: 1.3.38(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
-        specifier: ^1.3.38
-        version: 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
+        specifier: link:../../../tego/packages/tego-client
+        version: link:../../../tego/packages/tego-client
       '@tego/server':
-        specifier: ^1.3.38
-        version: 1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
+        specifier: link:../../../tego/packages/tego-server
+        version: link:../../../tego/packages/tego-server
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -5908,16 +5910,6 @@ packages:
   '@module-federation/webpack-bundler-runtime@0.17.0':
     resolution: {integrity: sha512-o8XtXwqTDlqLgcALOfObcCbqXvUcSDHIEXrkcb4W+I8GJY7IqV0+x6rX4mJ3f59tca9qOF8zsZsOA6BU93Pvgw==}
 
-  '@monaco-editor/loader@1.5.0':
-    resolution: {integrity: sha512-hKoGSM+7aAc7eRTRjpqAZucPmoNOC4UUbknb/VNoTkEIkCPhqV8LfbsgM1webRM7S/z21eHEx9Fkwx8Z/C/+Xw==}
-
-  '@monaco-editor/react@4.7.0':
-    resolution: {integrity: sha512-cyzXQCtO47ydzxpQtCGSQGOC8Gk3ZUeBXFAxD+CWXYFo5OqZyZUonFl0DwUlTyAfRHntBfw2p3w4s9R6oe1eCA==}
-    peerDependencies:
-      monaco-editor: '>= 0.25.0 < 1'
-      react: 18.3.1
-      react-dom: 18.3.1
-
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     resolution: {integrity: sha512-QZHtlVgbAdy2zAqNA9Gu1UpIuI8Xvsd1v8ic6B2pZmeFnFcMWiPLfWXh7TVw4eGEZ/C9TH281KwhVoeQUKbyjw==}
     cpu: [arm64]
@@ -7296,9 +7288,6 @@ packages:
   '@tachybase/cache@1.3.38':
     resolution: {integrity: sha512-c5jEcjOMUoUh1VgBrl34P2VKFHNfKWm58gjuffsi15oRpU9/0kZ2xMM7dTTrqWa93NCrPaOGvZedXCxPBiWeEg==}
 
-  '@tachybase/components@1.3.38':
-    resolution: {integrity: sha512-eMhhu4ITfxI+ASl80fc6o6qinezzlL5tTeIq2gWGluECtHAoV4y6+eSy0H7q5vNPmYiwmy3ygVY7pKi4w+0q2w==}
-
   '@tachybase/data-source@1.3.38':
     resolution: {integrity: sha512-xW/WNIjdiCt7pDA3M5nLc92QvtEK53EoKn9sbXgn+td4LK+3kd1DVkb8fzsQR6gO54D0Zzow45WCt0ilwZ0hEQ==}
 
@@ -7317,9 +7306,6 @@ packages:
   '@tachybase/logger@1.3.38':
     resolution: {integrity: sha512-MSkszFwUxXAI90F33otuXnzRzqjyqiFeoE2+xwIoVpgW3B4aMxLwwNFY/hIUbsArJGQivSKvoOsyURhXMViJJw==}
 
-  '@tachybase/requirejs@1.3.38':
-    resolution: {integrity: sha512-h/l+wM4QDMUIwI4r5g+YQ7LHSzPQEOcq9FLlN4Lh6vTKcJ/FM0kjaeRaiUxnoyBoL8XIf6a7H/GUkFbAyD0BsA==}
-
   '@tachybase/resourcer@1.3.38':
     resolution: {integrity: sha512-anSgH+LGP7knwr9UcoEmJ4qqbeMfJTQ4zGQTjZqZgX/Pmod0zwn1ZedRWN22x7g8/hdLHCa0V92KfLv0V3AU5g==}
 
@@ -7327,9 +7313,6 @@ packages:
     resolution: {integrity: sha512-bxYZMxoLpB8QQUfbmkv6hwcEdtTS7FizoaizZrX1ohOeva/RQ4BKEvWhPm7bhudAhWEhHLZndDRUK3x9VkZMVA==}
     peerDependencies:
       react: 18.3.1
-
-  '@tachybase/sdk@1.3.38':
-    resolution: {integrity: sha512-hvcmSGnQNzEKPQYfOJ8gvYu2FnhCTD19mGi6C94D9Mr4qKfVR1VbuqN+yMKY+3fdB43iPTVC2UJWx3L8QVNVXQ==}
 
   '@tachybase/server@1.3.38':
     resolution: {integrity: sha512-3zeZvPM9fDCl8trG45sKPwDyoMqwBQHUxRiSMFQYyTiB1pmxpj8kyvg42CbQB61BAtRFmljw2QysxJv+ICTVdA==}
@@ -7346,15 +7329,9 @@ packages:
   '@tachybase/utils@1.3.38':
     resolution: {integrity: sha512-FWwVJeG3U4Ys+hmeWuGw91FRyv+gHjQiW52hk/ILiWsWnK1Dy6tpb/WpXSpZXGE/ApfWISBAwIcSdI4mKjXyUg==}
 
-  '@tego/client@1.3.38':
-    resolution: {integrity: sha512-QriPChh97Hj061flSL45jIKkGlsYisUOHSlpV35JKHcB/3UAAJJrdSRRzzs5QD3YRAgqmTgoM4C5Wvt3qVstUQ==}
-
   '@tego/devkit@1.3.38':
     resolution: {integrity: sha512-f1CMlXRHY58LPDz6vFTXuv+wdTJ1ZkdWIRbgVyVajdwdRT55P9QaSWsBB4SEnjlMuy7M5sumIX0s6jyn89j7yw==}
     hasBin: true
-
-  '@tego/server@1.3.38':
-    resolution: {integrity: sha512-WydWlm21ZrW30TMfQc9h+jXXHq/uFS+jjlNc6YOxDCZjjHNPvYwgfXjH6dBA2otbLGLEDoa/Fq9WeegdHTGZ7Q==}
 
   '@testing-library/dom@10.4.0':
     resolution: {integrity: sha512-pemlzrSESWbdAloYml3bAJMEfNh1Z7EduzqPKprCH5S341frlpYnUEW0H72dLxa6IsYr+mPno20GiSm+h9dEdQ==}
@@ -9936,9 +9913,6 @@ packages:
     resolution: {integrity: sha512-VyhnebXciFV2DESc+p6B+y0LjSm0krU4OgJN44qFAhBY0TJ+1V61tYD2+wHusZ6F9n5K+vl8k0sTy7PEfV4qpg==}
     engines: {node: '>=16.17'}
 
-  exenv@1.2.2:
-    resolution: {integrity: sha512-Z+ktTxTwv9ILfgKCk32OX3n/doe+OcLTRtqK9pcL+JsP3J1/VW8Uvl4ZjLlKqeW4rzK4oesDOGMEMRIZqtP4Iw==}
-
   expand-template@2.0.3:
     resolution: {integrity: sha512-XYfuKMvj4O35f/pOXLObndIRvyQ+/+6AhODh+OKWj9S9498pHHn/IMszH+gt0fBCRWMNfk1ZSp5x3AifmnI2vg==}
     engines: {node: '>=6'}
@@ -12064,9 +12038,6 @@ packages:
   moment@2.30.1:
     resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
 
-  monaco-editor@0.50.0:
-    resolution: {integrity: sha512-8CclLCmrRRh+sul7C08BmPBP3P8wVWfBHomsTcndxg5NRCEPfu/mc2AGU8k37ajjDVXcXFc12ORAMUkmk+lkFA==}
-
   moo@0.5.2:
     resolution: {integrity: sha512-iSAJLHYKnX41mKcJKjqvnAN9sf0LMDTXDEvFv+ffuRR9a1MIuXLjMNL6EsnDHSkKLTWNqQQ5uo61P4EbU4NU+Q==}
 
@@ -13533,12 +13504,6 @@ packages:
   react-merge-refs@1.1.0:
     resolution: {integrity: sha512-alTKsjEL0dKH/ru1Iyn7vliS2QRcBp9zZPGoWxUOvRGWPUYgjo+V01is7p04It6KhgrzhJGnIj9GgX8W4bZoCQ==}
 
-  react-modal@3.16.3:
-    resolution: {integrity: sha512-yCYRJB5YkeQDQlTt17WGAgFJ7jr2QYcWa1SHqZ3PluDmnKJ/7+tVU+E6uKyZ0nODaeEj+xCpK4LcSnKXLMC0Nw==}
-    peerDependencies:
-      react: 18.3.1
-      react-dom: 18.3.1
-
   react-overlays@5.2.1:
     resolution: {integrity: sha512-GLLSOLWr21CqtJn8geSwQfoJufdt3mfdsnIiQswouuQ2MMPns+ihZklxvsTDKD3cR2tF8ELbi5xUsvqVhR6WvA==}
     peerDependencies:
@@ -13600,11 +13565,6 @@ packages:
     peerDependencies:
       react: 18.3.1
       react-dom: 18.3.1
-
-  react-sticky-box@1.0.2:
-    resolution: {integrity: sha512-Kyvtppdtv1KqJyNU4DtrSMI0unyQRgtraZvVQ0GAazVbYiTsIVpyhpr+5R0Aavzu4uJNSe1awj2rk/qI7i6Zfw==}
-    peerDependencies:
-      react: 18.3.1
 
   react-swipeable@7.0.2:
     resolution: {integrity: sha512-v1Qx1l+aC2fdxKa9aKJiaU/ZxmJ5o98RMoFwUqAAzVWUcxgfHFXDDruCKXhw6zIYXm6V64JiHgP9f6mlME5l8w==}
@@ -14401,9 +14361,6 @@ packages:
 
   standard-as-callback@2.1.0:
     resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
-
-  state-local@1.0.7:
-    resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
 
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==}
@@ -16530,7 +16487,7 @@ snapshots:
       flru: 1.0.2
       pdfast: 0.2.0
 
-  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
       '@antv/algorithm': 0.1.26
       '@antv/component': 2.1.5
@@ -16540,7 +16497,7 @@ snapshots:
       '@antv/g-plugin-dragndrop': 2.0.37
       '@antv/graphlib': 2.0.4
       '@antv/hierarchy': 0.6.14
-      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))
       '@antv/util': 3.3.11
       bubblesets-js: 2.3.4
     transitivePeerDependencies:
@@ -16576,12 +16533,12 @@ snapshots:
 
   '@antv/hierarchy@0.6.14': {}
 
-  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
       '@antv/event-emitter': 0.1.3
       '@antv/graphlib': 2.0.4
       '@antv/util': 3.3.11
-      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6))
       comlink: 4.4.2
       d3-force: 3.0.0
       d3-force-3d: 3.0.6
@@ -18982,17 +18939,6 @@ snapshots:
       '@module-federation/runtime': 0.17.0
       '@module-federation/sdk': 0.17.0
 
-  '@monaco-editor/loader@1.5.0':
-    dependencies:
-      state-local: 1.0.7
-
-  '@monaco-editor/react@4.7.0(monaco-editor@0.50.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@monaco-editor/loader': 1.5.0
-      monaco-editor: 0.50.0
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     optional: true
 
@@ -19011,9 +18957,9 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
-  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
-      workerize-loader: 2.0.2(webpack@5.99.6(esbuild@0.25.6))
+      workerize-loader: 2.0.2(webpack@5.99.6)
 
   '@napi-rs/wasm-runtime@0.2.12':
     dependencies:
@@ -20872,29 +20818,6 @@ snapshots:
       deepmerge: 4.3.1
       lodash: 4.17.21
 
-  '@tachybase/components@1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)':
-    dependencies:
-      '@ant-design/cssinjs': 1.24.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@ant-design/icons': 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/core': 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/sortable': 8.0.0(@dnd-kit/core@6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/utilities': 3.2.2(react@18.3.1)
-      '@monaco-editor/react': 4.7.0(monaco-editor@0.50.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tachybase/schema': 1.3.38(react@18.3.1)
-      antd: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      classnames: 2.5.1
-      dayjs: 1.11.13
-      prop-types: 15.8.1
-      react-dom: 18.3.1(react@18.3.1)
-      react-modal: 3.16.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react-sticky-box: 1.0.2(react@18.3.1)
-    transitivePeerDependencies:
-      - date-fns
-      - luxon
-      - moment
-      - monaco-editor
-      - react
-
   '@tachybase/data-source@1.3.38(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/acl': 1.3.38
@@ -20971,8 +20894,6 @@ snapshots:
       winston-daily-rotate-file: 5.0.0(winston@3.17.0)
       winston-transport: 4.9.0
 
-  '@tachybase/requirejs@1.3.38': {}
-
   '@tachybase/resourcer@1.3.38':
     dependencies:
       '@tachybase/utils': 1.3.38
@@ -20991,13 +20912,6 @@ snapshots:
       pascal-case: 3.1.2
       react: 18.3.1
       upper-case: 2.0.2
-
-  '@tachybase/sdk@1.3.38':
-    dependencies:
-      axios: 1.7.7
-      qs: 6.14.0
-    transitivePeerDependencies:
-      - debug
 
   '@tachybase/server@1.3.38(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
@@ -21134,21 +21048,6 @@ snapshots:
       lodash: 4.17.21
       multer: 2.0.2
 
-  '@tego/client@1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)':
-    dependencies:
-      '@tachybase/components': 1.3.38(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.50.0)(react@18.3.1)
-      '@tachybase/evaluators': 1.3.38
-      '@tachybase/requirejs': 1.3.38
-      '@tachybase/sdk': 1.3.38
-      '@tachybase/utils': 1.3.38
-    transitivePeerDependencies:
-      - date-fns
-      - debug
-      - luxon
-      - moment
-      - monaco-editor
-      - react
-
   '@tego/devkit@1.3.38(@pnpm/logger@5.2.0)(@types/node@20.17.10)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(postcss@8.5.6)(sass@1.77.8)(terser@5.43.1)(yaml@2.8.0)':
     dependencies:
       '@hapi/topo': 6.0.2
@@ -21202,35 +21101,6 @@ snapshots:
       - terser
       - webpack-hot-middleware
       - yaml
-
-  '@tego/server@1.3.38(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)':
-    dependencies:
-      '@tachybase/acl': 1.3.38
-      '@tachybase/actions': 1.3.38(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.3.38(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.3.38
-      '@tachybase/data-source': 1.3.38(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.3.38(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/evaluators': 1.3.38
-      '@tachybase/logger': 1.3.38
-      '@tachybase/resourcer': 1.3.38
-      '@tachybase/server': 1.3.38(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/utils': 1.3.38
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-      - utf-8-validate
 
   '@testing-library/dom@10.4.0':
     dependencies:
@@ -24380,8 +24250,6 @@ snapshots:
       signal-exit: 4.1.0
       strip-final-newline: 3.0.0
 
-  exenv@1.2.2: {}
-
   expand-template@2.0.3: {}
 
   expect-type@1.2.2: {}
@@ -26869,8 +26737,6 @@ snapshots:
 
   moment@2.30.1: {}
 
-  monaco-editor@0.50.0: {}
-
   moo@0.5.2: {}
 
   mqtt-packet@9.0.0:
@@ -28558,15 +28424,6 @@ snapshots:
 
   react-merge-refs@1.1.0: {}
 
-  react-modal@3.16.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
-    dependencies:
-      exenv: 1.2.2
-      prop-types: 15.8.1
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      react-lifecycles-compat: 3.0.4
-      warning: 4.0.3
-
   react-overlays@5.2.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       '@babel/runtime': 7.28.2
@@ -28644,11 +28501,6 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-transition-group: 4.4.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-
-  react-sticky-box@1.0.2(react@18.3.1):
-    dependencies:
-      react: 18.3.1
-      resize-observer-polyfill: 1.5.1
 
   react-swipeable@7.0.2(react@18.3.1):
     dependencies:
@@ -29601,8 +29453,6 @@ snapshots:
 
   standard-as-callback@2.1.0: {}
 
-  state-local@1.0.7: {}
-
   statuses@1.5.0: {}
 
   statuses@2.0.1: {}
@@ -29985,16 +29835,14 @@ snapshots:
       - encoding
       - supports-color
 
-  terser-webpack-plugin@5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6)):
+  terser-webpack-plugin@5.3.14(webpack@5.99.6):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.29
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
       terser: 5.43.1
-      webpack: 5.99.6(esbuild@0.25.6)
-    optionalDependencies:
-      esbuild: 0.25.6
+      webpack: 5.99.6
 
   terser@5.43.1:
     dependencies:
@@ -30815,7 +30663,7 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.99.6(esbuild@0.25.6):
+  webpack@5.99.6:
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -30837,7 +30685,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.2
       tapable: 2.2.2
-      terser-webpack-plugin: 5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6))
+      terser-webpack-plugin: 5.3.14(webpack@5.99.6)
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:
@@ -31027,10 +30875,10 @@ snapshots:
       worker-timers-broker: 6.1.8
       worker-timers-worker: 7.0.71
 
-  workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)):
+  workerize-loader@2.0.2(webpack@5.99.6):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.99.6(esbuild@0.25.6)
+      webpack: 5.99.6
 
   wrap-ansi@7.0.0:
     dependencies:

@@ -1,11 +1,9 @@
-import { resolve } from 'node:path';
 import PluginMultiAppManager from '@tachybase/module-multi-app';
 
-import Database, { Application, AppSupervisor, Plugin } from '@tego/server';
+import { Application, AppSupervisor, Database, Plugin } from '@tego/server';
 import lodash from 'lodash';
 
 const subAppFilteredPlugins = ['multi-app-share-collection', 'multi-app'];
-const unSyncPlugins = ['localization-management'];
 
 class SubAppPlugin extends Plugin {
   beforeLoad() {

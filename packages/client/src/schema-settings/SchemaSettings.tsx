@@ -9,7 +9,6 @@ import React, {
   useTransition as useReactTransition,
   useState,
 } from 'react';
-import { ArrayCollapse, ArrayItems, FormItem, FormLayout, Input } from '@tachybase/components';
 import {
   createForm,
   Field,
@@ -22,8 +21,8 @@ import {
   useFieldSchema,
   useForm,
 } from '@tachybase/schema';
-import { error } from '@tachybase/utils/client';
 
+import { ArrayCollapse, ArrayItems, error, FormItem, FormLayout, Input } from '@tego/client';
 import {
   Alert,
   App,
@@ -1424,7 +1423,7 @@ export const SchemaSettingsDataTemplates = function DataTemplates(props) {
     [templateData],
   );
   const onSubmit = useCallback((v) => {
-    const data = { ...(formSchema['x-data-templates'] || {}), ...v.fieldReaction };
+    const data = { ...formSchema['x-data-templates'], ...v.fieldReaction };
     // 当 Tree 组件开启 checkStrictly 属性时，会导致 checkedKeys 的值是一个对象，而不是数组，所以这里需要转换一下以支持旧版本
     data.items.forEach((item) => {
       item.fields = Array.isArray(item.fields) ? item.fields : item.fields.checked;

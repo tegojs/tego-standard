@@ -1,6 +1,6 @@
-import { BaseAuth } from '@tachybase/auth';
-import { Database, Model } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { BaseAuth, Database, Model } from '@tego/server';
 
 describe('auth', () => {
   let auth: BaseAuth;

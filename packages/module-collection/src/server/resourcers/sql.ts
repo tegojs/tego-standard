@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { SqlCollection, SQLModel } from '@tachybase/database';
+import { Context, Next, SqlCollection, SQLModel } from '@tego/server';
 
 import { CollectionModel } from '../models';
 

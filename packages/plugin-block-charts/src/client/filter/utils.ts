@@ -1,7 +1,7 @@
 import { DEFAULT_DATA_SOURCE_KEY } from '@tachybase/client';
 import { Schema } from '@tachybase/schema';
-import { moment2str } from '@tachybase/utils/client';
 
+import { moment2str } from '@tego/client';
 import dayjs from 'dayjs';
 
 export const getOptionsSchema = () => {

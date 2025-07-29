@@ -1,6 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { BaseAuth } from '@tachybase/auth';
-import { Plugin } from '@tachybase/server';
+import { BaseAuth, Context, Plugin } from '@tego/server';
 
 import * as actions from './actions/users';
 import { banGuestActionMiddleware } from './middlewares/ban-guest-action';

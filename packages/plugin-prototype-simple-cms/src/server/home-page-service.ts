@@ -1,6 +1,4 @@
-import Database from '@tachybase/database';
-import Application from '@tachybase/server';
-import { App, Db, Service } from '@tachybase/utils';
+import { App, Application, Database, Db, Service } from '@tego/server';
 
 @Service()
 export class HomePageService {

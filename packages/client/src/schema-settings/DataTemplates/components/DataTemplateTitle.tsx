@@ -1,8 +1,8 @@
 import React, { Fragment, useEffect, useState } from 'react';
-import { ArrayBase } from '@tachybase/components';
 import { ArrayField, ISchema, observer, RecursionField, toArr, uid, useField, useFieldSchema } from '@tachybase/schema';
 
 import { CopyOutlined } from '@ant-design/icons';
+import { ArrayBase } from '@tego/client';
 import { Badge, Card, Collapse, CollapsePanelProps, CollapseProps, Empty, Input } from 'antd';
 import cls from 'classnames';
 import { clone } from 'lodash';

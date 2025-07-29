@@ -1,4 +1,4 @@
-import { Plugin } from '@tachybase/server';
+import { Plugin } from '@tego/server';
 
 import { default as WorkflowPlugin } from '../..';
 import LoopInstruction from './LoopInstruction';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ArrayTable } from '@tachybase/components';
 import { ISchema, uid } from '@tachybase/schema';
 
+import { ArrayTable } from '@tego/client';
 import { cloneDeep, omit, set } from 'lodash';
 import { useTranslation } from 'react-i18next';
 

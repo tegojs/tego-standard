@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { useApp } from '@tachybase/client';
 import { Authenticator } from '@tachybase/module-auth/client';
-import { getSubAppName } from '@tachybase/sdk';
 
 import { LoginOutlined } from '@ant-design/icons';
+import { getSubAppName } from '@tego/client';
 import { Button, message, Space } from 'antd';
 import { useLocation } from 'react-router-dom';
 

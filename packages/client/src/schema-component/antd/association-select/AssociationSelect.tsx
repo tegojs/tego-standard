@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { ArrayCollapse, ArrayItems, FormLayout } from '@tachybase/components';
 import { connect, Field, ISchema, mapProps, mapReadPretty, uid, useField, useFieldSchema } from '@tachybase/schema';
 
 import { LoadingOutlined } from '@ant-design/icons';
+import { ArrayCollapse, ArrayItems, FormLayout } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
@@ -301,7 +301,7 @@ AssociationSelect.Designer = function Designer() {
               title: t('Set default value'),
               properties: {
                 default: {
-                  ...(fieldSchemaWithoutRequired || {}),
+                  ...fieldSchemaWithoutRequired,
                   'x-decorator': 'FormItem',
                   'x-component-props': {
                     ...fieldSchemaWithoutRequired['x-component-props'],

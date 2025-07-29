@@ -1,7 +1,7 @@
 import path from 'node:path';
 import process from 'node:process';
-import { Gateway, Plugin } from '@tachybase/server';
 
+import { Gateway, Plugin } from '@tego/server';
 import express from 'express';
 
 import RED from './red';

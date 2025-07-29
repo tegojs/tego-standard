@@ -1,5 +1,6 @@
-import { resolve } from 'path';
-import { InstallOptions, Plugin } from '@tachybase/server';
+import { resolve } from 'node:path';
+
+import { InstallOptions, Plugin } from '@tego/server';
 
 import { FormulaField } from './field-formula';
 

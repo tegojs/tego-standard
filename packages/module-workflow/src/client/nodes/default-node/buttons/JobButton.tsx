@@ -1,6 +1,6 @@
 import React from 'react';
-import { str2moment } from '@tachybase/utils/client';
 
+import { str2moment } from '@tego/client';
 import { Dropdown } from 'antd';
 
 import { StatusButton } from '../../../components/StatusButton';

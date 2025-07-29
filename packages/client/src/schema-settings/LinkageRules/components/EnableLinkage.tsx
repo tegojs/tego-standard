@@ -1,6 +1,6 @@
 import React from 'react';
-import { ArrayBase } from '@tachybase/components';
 
+import { ArrayBase } from '@tego/client';
 import { Switch } from 'antd';
 import { useTranslation } from 'react-i18next';
 

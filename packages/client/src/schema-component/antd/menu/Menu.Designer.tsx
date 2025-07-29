@@ -1,6 +1,6 @@
-import { TreeSelect } from '@tachybase/components';
 import { Field, ISchema, onFieldChange, Schema, useField, useFieldSchema } from '@tachybase/schema';
 
+import { TreeSelect } from '@tego/client';
 import { App } from 'antd';
 import { saveAs } from 'file-saver';
 import { useTranslation } from 'react-i18next';

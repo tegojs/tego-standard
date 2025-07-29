@@ -1,7 +1,4 @@
-import { Model, Transaction, Transactionable } from '@tachybase/database';
-import { appendArrayColumn } from '@tachybase/evaluators';
-import { Logger } from '@tachybase/logger';
-import { parse } from '@tachybase/utils';
+import { appendArrayColumn, Logger, Model, parse, Transaction, Transactionable } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
 import { Runner } from './instructions';

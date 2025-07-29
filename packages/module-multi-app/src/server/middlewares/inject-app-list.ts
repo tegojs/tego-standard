@@ -1,4 +1,4 @@
-import { AppSupervisor } from '@tachybase/server';
+import { AppSupervisor } from '@tego/server';
 
 // 注入 APP 运行状态，替换 tmpl 为 displayName(name) 的格式
 export function injectAppListMiddleware() {

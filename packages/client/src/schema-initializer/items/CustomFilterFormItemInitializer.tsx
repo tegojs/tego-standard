@@ -1,5 +1,4 @@
 import React, { memo, useCallback, useContext, useMemo } from 'react';
-import { ArrayItems, FormLayout } from '@tachybase/components';
 import {
   Field,
   observer,
@@ -11,6 +10,7 @@ import {
   useFieldSchema,
 } from '@tachybase/schema';
 
+import { ArrayItems, FormLayout } from '@tego/client';
 import { ConfigProvider, Space } from 'antd';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
@@ -299,7 +299,7 @@ export const FilterCustomItemInitializer: React.FC<{
       'x-decorator': 'FilterFormItem',
       'x-decorator-props': collection,
       'x-component-props': {
-        ...(defaultSchema['x-component-props'] || {}),
+        ...defaultSchema['x-component-props'],
         fieldNames: {
           label: titleField,
           value: titleField,

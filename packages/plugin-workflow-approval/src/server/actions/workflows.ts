@@ -1,4 +1,4 @@
-import actions from '@tachybase/actions';
+import { actions } from '@tego/server';
 
 export const workflows = {
   async listApprovalFlows(context, next) {

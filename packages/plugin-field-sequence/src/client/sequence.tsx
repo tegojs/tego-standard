@@ -9,10 +9,9 @@ import {
   useCompile,
   useToken,
 } from '@tachybase/client';
-import { ArrayTable, FormButtonGroup, FormDrawer, FormLayout, Submit } from '@tachybase/components';
 import { ISchema, onFieldValueChange, SchemaOptionsContext, useForm, useFormEffects } from '@tachybase/schema';
-import { error } from '@tachybase/utils/client';
 
+import { ArrayTable, error, FormButtonGroup, FormDrawer, FormLayout, Submit } from '@tego/client';
 import { Button, Select } from 'antd';
 import { useTranslation } from 'react-i18next';
 

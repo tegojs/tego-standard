@@ -1,9 +1,9 @@
-import { Server } from 'http';
-import Database from '@tachybase/database';
+import { Server } from 'node:http';
 import PluginWorkflow, { EXECUTION_STATUS, JOB_STATUS, Processor } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 
+import Database from '@tego/server';
 import jwt from 'jsonwebtoken';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';

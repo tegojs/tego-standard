@@ -1,6 +1,6 @@
-import { Cache } from '@tachybase/cache';
-import { Database } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { Cache, Database } from '@tego/server';
 
 import UiSchemaRepository, { GetJsonSchemaOptions, GetPropertiesOptions } from '../repository';
 

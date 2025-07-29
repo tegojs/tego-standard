@@ -1,6 +1,6 @@
-import { Database, DataTypes, Field, Repository } from '@tachybase/database';
 import { MockServer } from '@tachybase/test';
-import { uid } from '@tachybase/utils';
+
+import { Database, DataTypes, Field, Repository, uid } from '@tego/server';
 
 import { createApp } from '../index';
 

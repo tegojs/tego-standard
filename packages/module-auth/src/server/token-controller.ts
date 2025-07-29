@@ -1,17 +1,18 @@
 import { randomUUID } from 'node:crypto';
+
 import {
+  Application,
   AuthError,
   AuthErrorCode,
+  Cache,
+  Database,
   ITokenControlService,
   NumericTokenPolicyConfig,
+  Repository,
   TokenInfo,
   TokenPolicyConfig,
-} from '@tachybase/auth';
-import { Cache } from '@tachybase/cache';
-import Database, { Repository } from '@tachybase/database';
-import type { SystemLogger } from '@tachybase/logger';
-import Application from '@tachybase/server';
-
+  type SystemLogger,
+} from '@tego/server';
 import ms from 'ms';
 
 import {

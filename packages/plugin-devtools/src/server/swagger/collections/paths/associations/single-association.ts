@@ -1,4 +1,4 @@
-import { BelongsToField, Collection, HasOneField } from '@tachybase/database';
+import { BelongsToField, Collection, HasOneField } from '@tego/server';
 
 import { CreateActionTemplate, DestroyActionTemplate, GetActionTemplate, UpdateActionTemplate } from '../collection';
 import { appendCollectionIndexParams } from './multiple-association';

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { ArrayItems } from '@tachybase/components';
 import { ISchema, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { Slider } from 'antd';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';

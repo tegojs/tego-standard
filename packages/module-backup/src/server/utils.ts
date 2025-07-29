@@ -1,7 +1,7 @@
-import fs from 'fs';
-import readline from 'readline';
-import { Database } from '@tachybase/database';
+import fs from 'node:fs';
+import readline from 'node:readline';
 
+import { Database } from '@tego/server';
 import lodash from 'lodash';
 
 export const DUMPED_EXTENSION = 'tbdump';

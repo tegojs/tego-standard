@@ -1,4 +1,4 @@
-import { Plugin } from '@tachybase/server';
+import { Plugin } from '@tego/server';
 
 export class PluginAuthPrototypeLarkServer extends Plugin {
   async afterAdd() {}

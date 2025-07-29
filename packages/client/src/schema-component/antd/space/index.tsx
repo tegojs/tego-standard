@@ -1,6 +1,6 @@
 import React from 'react';
-import { useFormLayout } from '@tachybase/components';
 
+import { useFormLayout } from '@tego/client';
 import { Space as AntdSpace, Divider, SpaceProps } from 'antd';
 
 export const Space: React.FC<SpaceProps> = (props) => {

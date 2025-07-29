@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { createForm, Field, Form, observer, useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { flatten, unflatten } from '@tachybase/utils/client';
 
+import { flatten, unflatten } from '@tego/client';
 import { Button, Space } from 'antd';
 import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';

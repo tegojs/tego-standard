@@ -26,10 +26,9 @@ import {
   useSchemaOptionsContext,
   VariableScopeProvider,
 } from '@tachybase/client';
-import { FormLayout } from '@tachybase/components';
 import { createForm, FormProvider, ISchema, Schema, useFieldSchema, useForm } from '@tachybase/schema';
-import { lodash, Registry } from '@tachybase/utils/client';
 
+import { FormLayout, lodash, Registry } from '@tego/client';
 import { Alert, Button, Modal, Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 

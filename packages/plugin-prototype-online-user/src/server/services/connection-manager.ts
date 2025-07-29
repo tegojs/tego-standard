@@ -1,6 +1,4 @@
-import Application, { Gateway } from '@tachybase/server';
-import { App, currentProcessNum, isMain, Service } from '@tachybase/utils';
-
+import { App, Application, currentProcessNum, Gateway, isMain, Service } from '@tego/server';
 import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
 import WebSocket from 'ws';

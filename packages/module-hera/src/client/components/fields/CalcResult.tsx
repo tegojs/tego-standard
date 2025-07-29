@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Input } from '@tachybase/client';
-import { evaluators } from '@tachybase/evaluators/client';
 import { onFormValuesChange, useField, useFieldSchema, useForm, useFormEffects } from '@tachybase/schema';
 
+import { evaluators } from '@tego/client';
 import { Descriptions, DescriptionsProps } from 'antd';
 import _ from 'lodash';
 

@@ -1,6 +1,4 @@
-import { Collection, DataSource } from '@tachybase/data-source';
-import { dayjs, parse } from '@tachybase/utils';
-
+import { DataSource, DataSourceCollection, dayjs, parse } from '@tego/server';
 import axios from 'axios';
 import _ from 'lodash';
 
@@ -155,7 +153,7 @@ function guessFilterTargetKeyName(fields) {
   }
   return void 0;
 }
-export class HttpCollection extends Collection {
+export class HttpCollection extends DataSourceCollection {
   availableActions() {
     const allActionOptions = this.options.actions || {};
     const actions = ['list', 'get', 'create', 'update', 'destroy'];

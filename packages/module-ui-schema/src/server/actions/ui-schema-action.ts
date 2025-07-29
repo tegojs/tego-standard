@@ -1,6 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { ActionParams } from '@tachybase/resourcer';
-
+import { ActionParams, Context } from '@tego/server';
 import lodash from 'lodash';
 
 import UiSchemaRepository, { GetJsonSchemaOptions, GetPropertiesOptions } from '../repository';

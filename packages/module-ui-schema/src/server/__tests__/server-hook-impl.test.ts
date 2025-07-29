@@ -1,6 +1,7 @@
-import { BelongsToManyRepository, Database } from '@tachybase/database';
 import ModuleUiSchema, { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { BelongsToManyRepository, Database } from '@tego/server';
 
 describe('server hooks', () => {
   let app: MockServer;

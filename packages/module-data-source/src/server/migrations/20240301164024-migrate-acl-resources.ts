@@ -1,5 +1,4 @@
-import { Migration } from '@tachybase/server';
-import { uid } from '@tachybase/utils';
+import { Migration, uid } from '@tego/server';
 
 export default class extends Migration {
   on = 'afterSync'; // 'beforeLoad' or 'afterLoad'

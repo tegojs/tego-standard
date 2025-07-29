@@ -1,5 +1,4 @@
-import { isPlainObject } from '@tachybase/utils/client';
-
+import { isPlainObject } from '@tego/client';
 import { castArray } from 'lodash';
 
 export interface FieldNames {
@@ -45,7 +44,7 @@ export function getCurrentOptions(values: string | string[], dataSource: any[], 
     if (!options) return [];
     const current: Option[] = [];
     for (const value of arrValues) {
-      const option = options.find((v) => v[fieldNames.value] == value) || {
+      const option = options.find((v) => v[fieldNames.value] === value) || {
         value,
         label: value ? value.toString() : value,
       };

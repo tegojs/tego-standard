@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { FormLayout } from '@tachybase/components';
 import { observer, RecursionField, useField, useFieldSchema } from '@tachybase/schema';
 
+import { FormLayout } from '@tego/client';
 import { createStyles } from 'antd-style';
 import cx from 'classnames';
 

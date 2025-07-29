@@ -1,5 +1,4 @@
-import { Plugin } from '@tachybase/server';
-import { Container } from '@tachybase/utils';
+import { Container, Plugin } from '@tego/server';
 
 import { HomePageService } from './home-page-service';
 

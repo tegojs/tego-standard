@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { fuzzysearch } from '@tachybase/utils/client';
 
+import { fuzzysearch } from '@tego/client';
 import { useDebounce } from 'ahooks';
 import {
   Button,

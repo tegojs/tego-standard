@@ -1,4 +1,4 @@
-import { Context, DEFAULT_PAGE, DEFAULT_PER_PAGE, Next } from '@tachybase/actions';
+import { Context, DEFAULT_PAGE, DEFAULT_PER_PAGE, Next } from '@tego/server';
 
 // import VerificationPlugin from '@tachybase/plugin-otp';
 

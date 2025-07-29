@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { css, useAPIClient, useApp, useRequest } from '@tachybase/client';
-import { getSubAppName } from '@tachybase/sdk';
 
+import { getSubAppName } from '@tego/client';
 import { Select, Space, Spin, Typography } from 'antd';
 import SwaggerUIBundle from 'swagger-ui-dist/swagger-ui-bundle';
 

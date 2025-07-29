@@ -1,5 +1,4 @@
-import { InjectedPlugin, Plugin } from '@tachybase/server';
-
+import { InjectedPlugin, Plugin } from '@tego/server';
 import _ from 'lodash';
 
 import { CloudLibrariesController } from './actions/cloud-libraries-controller';

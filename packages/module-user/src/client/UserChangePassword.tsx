@@ -8,8 +8,8 @@ import {
   VerificationCode,
 } from '@tachybase/client';
 import { ISchema, useForm } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
 
+import { uid } from '@tego/client';
 import { App } from 'antd';
 
 export const ChangePassword = () => {

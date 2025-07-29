@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
-import { FormLayout } from '@tachybase/components';
 import { createForm, FormContext, useField } from '@tachybase/schema';
 
+import { FormLayout } from '@tego/client';
 import { createStyles } from 'antd-style';
 import _ from 'lodash';
 

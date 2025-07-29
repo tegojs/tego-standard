@@ -1,5 +1,5 @@
-import Database, { CollectionGroupManager, Collection as DBCollection, HasManyRepository } from '@tachybase/database';
-import Application from '@tachybase/server';
+import Database, { CollectionGroupManager, Collection as DBCollection, HasManyRepository } from '@tego/server';
+import Application from '@tego/server';
 
 import { createApp } from '.';
 import CollectionManagerPlugin, { CollectionRepository } from '../index';

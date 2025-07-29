@@ -1,7 +1,6 @@
-import actions, { utils } from '@tachybase/actions';
-import { parseCollectionName } from '@tachybase/data-source';
-import { traverseJSON } from '@tachybase/database';
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
+
+import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
 
 import { NAMESPACE } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';

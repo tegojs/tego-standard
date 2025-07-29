@@ -1,7 +1,4 @@
-import { Context, DEFAULT_PAGE, DEFAULT_PER_PAGE, Next } from '@tachybase/actions';
-import { Cache } from '@tachybase/cache';
-import { Database, Model, Op } from '@tachybase/database';
-import { PluginManager } from '@tachybase/server';
+import { Cache, Context, Database, DEFAULT_PAGE, DEFAULT_PER_PAGE, Model, Next, Op, PluginManager } from '@tego/server';
 
 import { EXTEND_MODULES } from '../constans';
 

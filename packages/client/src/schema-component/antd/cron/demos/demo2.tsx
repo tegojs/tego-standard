@@ -1,7 +1,7 @@
 import React from 'react';
 import { CronSet, FormProvider, SchemaComponent } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
 
+import { FormItem } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 const schema = {

@@ -12,8 +12,8 @@ import {
   useSchemaInitializerItem,
 } from '@tachybase/client';
 import { ISchema, useField, useFieldSchema } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
 
+import { uid } from '@tego/client';
 import { Spin } from 'antd';
 
 import { GroupBlockConfigure } from './GroupBlockConfigure';

@@ -1,4 +1,4 @@
-import Database, { Transaction } from '@tachybase/database';
+import { Database, Transaction } from '@tego/server';
 
 export class ApiFilter {
   db: Database;

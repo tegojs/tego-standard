@@ -1,6 +1,7 @@
 import React, { ReactChild } from 'react';
 import { cx } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { addToDate } from '../../helpers/date-helper';
 import { Task } from '../../types/public-types';

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Lightbox } from '@tachybase/components';
 import { connect, mapProps, mapReadPretty } from '@tachybase/schema';
 
 import { DeleteOutlined, DownloadOutlined, InboxOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
+import { Lightbox } from '@tego/client';
 import { Upload as AntdUpload, Button, Modal, Progress, Space, UploadFile } from 'antd';
 import cls from 'classnames';
 import { saveAs } from 'file-saver';

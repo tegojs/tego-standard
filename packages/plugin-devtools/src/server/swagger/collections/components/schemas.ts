@@ -1,4 +1,4 @@
-import { Collection, Field, RelationField } from '@tachybase/database';
+import { Collection, Field, RelationField } from '@tego/server';
 
 import { associationFields } from '../paths/associations';
 import { getTypeByField } from './field-type-map';

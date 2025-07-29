@@ -1,8 +1,8 @@
 import React from 'react';
-import { usePrefixCls } from '@tachybase/components';
 import { useFieldSchema } from '@tachybase/schema';
 
 import { css } from '@emotion/css';
+import { usePrefixCls } from '@tego/client';
 import { Image, Typography } from 'antd';
 import { InputProps, TextAreaProps } from 'antd/es/input';
 import cls from 'classnames';

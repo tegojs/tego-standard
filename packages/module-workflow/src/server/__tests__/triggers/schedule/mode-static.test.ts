@@ -1,7 +1,8 @@
-import { scryptSync } from 'crypto';
-import Database from '@tachybase/database';
+import { scryptSync } from 'node:crypto';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
+
+import Database from '@tego/server';
 
 async function sleepToEvenSecond() {
   const now = new Date();

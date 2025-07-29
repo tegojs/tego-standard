@@ -1,6 +1,7 @@
-import Database from '@tachybase/database';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
+
+import Database from '@tego/server';
 
 async function sleepToEvenSecond() {
   const now = new Date();

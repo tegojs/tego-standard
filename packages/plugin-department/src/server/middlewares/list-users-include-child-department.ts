@@ -1,5 +1,4 @@
-import type { Context, Next } from '@tachybase/actions';
-import { Repository } from '@tachybase/database';
+import { Repository, type Context, type Next } from '@tego/server';
 
 type DepartmentInfo = {
   id: number;

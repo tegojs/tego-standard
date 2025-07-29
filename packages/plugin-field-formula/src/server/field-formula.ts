@@ -1,5 +1,4 @@
-import { BaseFieldOptions, DataTypes, Field } from '@tachybase/database';
-import { evaluators } from '@tachybase/evaluators';
+import { BaseFieldOptions, DataTypes, evaluators, Field } from '@tego/server';
 
 import { toDbType } from '../utils';
 

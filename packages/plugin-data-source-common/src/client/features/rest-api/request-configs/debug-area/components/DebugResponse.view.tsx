@@ -1,6 +1,7 @@
 import React from 'react';
 import { FormItem, Input, SchemaComponent } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
+
+import { ArrayTable } from '@tego/client';
 
 import { useContextResponseInfo } from '../../../contexts/ResponseInfo.context';
 import { getSchemaDebugResponse } from './DebugResponse.schema';

@@ -1,5 +1,4 @@
-import type { Context, Next } from '@tachybase/actions';
-import type { ArrayFieldRepository } from '@tachybase/database';
+import type { ArrayFieldRepository, Context, Next } from '@tego/server';
 
 export const setDepartmentsInfo = async (ctx: Context, next: Next) => {
   const currentUser = ctx.state.currentUser;

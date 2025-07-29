@@ -16,8 +16,8 @@ import {
   useFieldServiceFilter,
   useRequest,
 } from '@tachybase/client';
-import { isArray } from '@tachybase/utils/client';
 
+import { isArray } from '@tego/client';
 import _ from 'lodash';
 
 import { lang } from '../../../../../locale';

@@ -3,7 +3,8 @@
  */
 import React from 'react';
 import { SchemaComponent, SchemaComponentProvider, TimePicker } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
+
+import { FormItem } from '@tego/client';
 
 const schema = {
   type: 'object',

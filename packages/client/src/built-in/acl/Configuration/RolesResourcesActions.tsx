@@ -1,7 +1,7 @@
 import React, { createContext } from 'react';
-import { FormItem, FormLayout } from '@tachybase/components';
 import { ArrayField, connect, useField, useForm } from '@tachybase/schema';
 
+import { FormItem, FormLayout } from '@tego/client';
 import { Checkbox, Table, Tag } from 'antd';
 import { isEmpty } from 'lodash';
 import { useTranslation } from 'react-i18next';

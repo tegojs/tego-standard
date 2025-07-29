@@ -1,7 +1,7 @@
-import { CollectionManager, DataSource, IRepository } from '@tachybase/data-source';
 import { ICollectionManager, IModel } from '@tachybase/data-source/src/types';
 import { createMockServer, MockServer } from '@tachybase/test';
 
+import { CollectionManager, DataSource, IRepository } from '@tego/server';
 import { SuperAgentTest } from 'supertest';
 
 describe('data source with acl', () => {

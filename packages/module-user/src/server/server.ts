@@ -1,10 +1,8 @@
 import { resolve } from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-import { Cache } from '@tachybase/cache';
-import { Collection, Op } from '@tachybase/database';
+
 // import VerificationPlugin from '@tachybase/plugin-otp';
-import { Plugin } from '@tachybase/server';
-import { parse } from '@tachybase/utils';
+import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 
 import * as actions from './actions/users';
 import { UserModel } from './models/UserModel';

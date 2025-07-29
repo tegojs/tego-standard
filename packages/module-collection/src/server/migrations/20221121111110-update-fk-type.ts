@@ -1,5 +1,4 @@
-import { DataTypes } from '@tachybase/database';
-import { Migration } from '@tachybase/server';
+import { DataTypes, Migration } from '@tego/server';
 
 export default class UpdateIdToBigIntMigrator extends Migration {
   appVersion = '<0.8.1-alpha.2';

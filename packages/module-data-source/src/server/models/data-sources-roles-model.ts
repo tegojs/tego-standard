@@ -1,7 +1,4 @@
-import { ACL } from '@tachybase/acl';
-import { Model } from '@tachybase/database';
-import Application from '@tachybase/server';
-
+import { ACL, Application, Model } from '@tego/server';
 import { Transaction } from 'sequelize';
 
 import { DataSourcesRolesResourcesModel } from './connections-roles-resources';

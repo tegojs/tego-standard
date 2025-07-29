@@ -2,11 +2,10 @@ import './intercept';
 
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import TachybaseGlobal from '@tachybase/globals';
-import { getLoggerTransport } from '@tachybase/logger';
 import CollectionManagerPlugin, { CollectionRepository } from '@tachybase/module-collection';
 import PluginUsersServer from '@tachybase/module-user';
-import { Application, ApplicationOptions, AppLoggerOptions } from '@tachybase/server';
-import { Container, uid } from '@tachybase/utils';
+
+import { Application, ApplicationOptions, AppLoggerOptions, Container, getLoggerTransport, uid } from '@tego/server';
 
 import { WorkerEvent } from './workerTypes';
 

@@ -1,7 +1,7 @@
-import { AuthConfig, BaseAuth } from '@tachybase/auth';
-import { Model, PasswordField } from '@tachybase/database';
 import { AuthModel } from '@tachybase/module-auth';
 import VerificationPlugin from '@tachybase/plugin-otp';
+
+import { AuthConfig, BaseAuth, Model, PasswordField } from '@tego/server';
 
 import { namespace } from '../constants';
 

@@ -1,6 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Application } from '@tachybase/server';
-import { Action, Controller } from '@tachybase/utils';
+import { Action, Application, Context, Controller, Next } from '@tego/server';
 
 import { NAMESPACE } from '../constants';
 import { WORKER_COUNT, WORKER_COUNT_MAX, WORKER_COUNT_MAX_SUB, WORKER_COUNT_SUB } from './constants';

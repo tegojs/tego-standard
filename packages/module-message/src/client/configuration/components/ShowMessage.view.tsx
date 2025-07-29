@@ -1,7 +1,8 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { SchemaComponent, SchemaComponentContext } from '@tachybase/client';
 import { useFlowContext } from '@tachybase/module-workflow/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { ViewMessageDetail } from './MessageDetail.view';
 import { schemaShowMessage as schema } from './ShowMessage.schema';

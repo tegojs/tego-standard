@@ -10,8 +10,8 @@ import {
 } from '@tachybase/client';
 import { DetailsBlockProvider, SimpleDesigner } from '@tachybase/module-workflow/client';
 import { useForm } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
 
+import { uid } from '@tego/client';
 import { Spin } from 'antd';
 
 import { FormBlockProvider } from '../../../../common/components/FormBlock.provider';

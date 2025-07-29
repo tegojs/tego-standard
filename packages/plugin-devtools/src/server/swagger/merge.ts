@@ -1,4 +1,4 @@
-import { merge as deepmerge } from '@tachybase/utils';
+import { merge as deepmerge } from '@tego/server';
 
 const overwriteMerge = (destinationArray, sourceArray, options) => sourceArray.concat(destinationArray);
 

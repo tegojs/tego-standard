@@ -1,4 +1,4 @@
-import { BaseColumnFieldOptions, DataTypes, Field, FieldContext } from '@tachybase/database';
+import { BaseColumnFieldOptions, DataTypes, Field, FieldContext } from '@tego/server';
 
 import { decryptSync, encryptSync } from './utils';
 

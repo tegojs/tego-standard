@@ -1,7 +1,6 @@
-import { Model } from '@tachybase/database';
 import { ModuleUiSchema } from '@tachybase/module-ui-schema';
-import { InstallOptions, Plugin } from '@tachybase/server';
 
+import { InstallOptions, Model, Plugin } from '@tego/server';
 import deepmerge from 'deepmerge';
 
 import localization from './actions/localization';

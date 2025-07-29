@@ -1,6 +1,4 @@
-import Database, { Model } from '@tachybase/database';
-import { uid } from '@tachybase/utils';
-
+import { Database, Model, uid } from '@tego/server';
 import { Utils } from 'sequelize';
 
 const setTargetKey = (db: Database, model: Model) => {

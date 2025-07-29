@@ -10,9 +10,9 @@ import {
   generalWithNoRelationalFields,
 } from '@tachybase/plugin-workflow-test/e2e';
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
 
 import { faker } from '@faker-js/faker';
+import { dayjs } from '@tego/server';
 
 test.describe('no filter', () => {
   test('Collection event add data trigger, normal table integer fields not de-emphasised COUNT', async ({

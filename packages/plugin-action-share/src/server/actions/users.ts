@@ -1,4 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
+import { Context, Next } from '@tego/server';
 
 import { NAMESPACE } from '../../constants';
 

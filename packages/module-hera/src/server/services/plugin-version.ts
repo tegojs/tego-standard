@@ -1,5 +1,4 @@
-import Application, { PluginManager } from '@tachybase/server';
-import { App, Service } from '@tachybase/utils';
+import { App, Application, PluginManager, Service } from '@tego/server';
 
 @Service()
 export class PluginVersionService {

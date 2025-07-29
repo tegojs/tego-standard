@@ -1,4 +1,4 @@
-import Application, { Gateway, Repository, WSServer } from '@tego/server';
+import { Application, Gateway, Repository, WSServer } from '@tego/server';
 
 import { CHANNEL_SITE_SMS, MESSAGE_TYPE_MESSAGES, MESSAGES_UPDATE_BADGE_COUNT } from '../common/constants';
 import type { IMessage, IMessageService } from '../types/types';

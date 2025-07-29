@@ -1,4 +1,4 @@
-import evaluators, { Evaluator, parse } from '@tego/server';
+import { Evaluator, evaluators, parse } from '@tego/server';
 
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
 

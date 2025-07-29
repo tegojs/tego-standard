@@ -1,4 +1,4 @@
-import Application, { ACL, Model } from '@tego/server';
+import { ACL, Application, Model } from '@tego/server';
 import { Transaction } from 'sequelize';
 
 import { DataSourcesRolesResourcesModel } from './connections-roles-resources';

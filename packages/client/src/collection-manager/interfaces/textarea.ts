@@ -10,6 +10,7 @@ export class TextareaFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 2;
   title = '{{t("Long text")}}';
+  icon = 'FileTextOutlined';
   default = {
     interface: 'textarea',
     type: 'text',

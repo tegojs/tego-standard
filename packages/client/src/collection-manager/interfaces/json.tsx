@@ -25,6 +25,7 @@ export class JsonFieldInterface extends CollectionFieldInterface {
   group = 'advanced';
   order = 4;
   title = '{{t("JSON")}}';
+  icon = 'CodeOutlined';
   sortable = true;
   default = {
     type: 'json',

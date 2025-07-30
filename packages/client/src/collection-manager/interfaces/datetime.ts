@@ -7,6 +7,7 @@ export class DatetimeFieldInterface extends CollectionFieldInterface {
   group = 'datetime';
   order = 1;
   title = '{{t("Datetime")}}';
+  icon = 'dateTimeField';
   sortable = true;
   default = {
     type: 'date',

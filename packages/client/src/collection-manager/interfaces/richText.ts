@@ -10,6 +10,7 @@ export class RichTextFieldInterface extends CollectionFieldInterface {
   group = 'media';
   order = 2;
   title = '{{t("Rich Text")}}';
+  icon = 'AlignLeftOutlined';
   default = {
     interface: 'richText',
     type: 'text',

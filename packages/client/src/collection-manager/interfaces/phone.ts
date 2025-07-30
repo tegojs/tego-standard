@@ -7,6 +7,7 @@ export class PhoneFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 3;
   title = '{{t("Phone")}}';
+  icon = 'TabletOutlined';
   sortable = true;
   default = {
     type: 'string',

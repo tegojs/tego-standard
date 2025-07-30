@@ -9,6 +9,7 @@ export class NanoidFieldInterface extends CollectionFieldInterface {
   title = '{{t("Nano ID")}}';
   hidden = false;
   sortable = true;
+  icon = 'FieldNumberOutlined';
   default = {
     type: 'nanoid',
     uiSchema: {

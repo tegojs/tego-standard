@@ -9,6 +9,7 @@ export class O2OFieldInterface extends CollectionFieldInterface {
   type = 'object';
   group = 'relation';
   order = 3;
+  icon = 'DeploymentUnitOutlined';
   title = '{{t("One to one")}}';
   description = '{{t("One to one description")}}';
   isAssociation = true;

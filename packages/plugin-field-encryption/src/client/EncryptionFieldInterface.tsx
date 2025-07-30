@@ -6,6 +6,7 @@ import { tval } from './locale';
 export class EncryptionFieldInterface extends CollectionFieldInterface {
   name = 'encryption';
   type = 'object';
+  icon = 'LockOutlined';
   group = 'advanced';
   order = 10;
   title = tval('Encryption');

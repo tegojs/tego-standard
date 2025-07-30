@@ -126,7 +126,7 @@ export class CloudLibrariesService {
       const contextRequire = function (moduleName: string) {
         // FIXME:
         if (moduleName === '@tachybase/utils/client') {
-          return require.call(this, '@tachybase/utils');
+          return require.call(this, '@tego/client');
         }
         if (moduleName === '@tachybase/module-pdf/client') {
           return require.call(this, '@tachybase/module-pdf');

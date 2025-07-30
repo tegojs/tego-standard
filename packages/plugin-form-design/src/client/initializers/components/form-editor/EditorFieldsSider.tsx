@@ -18,13 +18,13 @@ import {
   useFieldInterfaceOptions,
   useResourceActionContext,
   useResourceContext,
-  useTranslation,
 } from '@tachybase/client';
 import { action, createForm, FormContext, ISchema, Schema, uid, useForm } from '@tachybase/schema';
 
 import { Button, Col, Collapse, Layout, Row, Tabs, Tooltip } from 'antd';
 import _, { cloneDeep } from 'lodash';
 
+import { useTranslation } from '../../../locale';
 import { useStyles } from './styles';
 
 type EditorFieldsSiderProps = {

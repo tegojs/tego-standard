@@ -14,7 +14,6 @@ import {
   useFormActiveFields,
   usePlugin,
   useSchemaComponentContext,
-  useTranslation,
 } from '@tachybase/client';
 import {
   createForm,
@@ -31,6 +30,7 @@ import { ContextCleaner, SchemaMarkupContext } from '@tachybase/schema/lib/react
 import { Layout, Tabs } from 'antd';
 import _ from 'lodash';
 
+import { useTranslation } from '../../../locale';
 import PluginFormDesignClient from '../../../plugin';
 import { usePageRefresh } from '../../contexts/PageRefreshContext';
 import { useEditableSelectedField } from './EditableSelectedFieldContext';

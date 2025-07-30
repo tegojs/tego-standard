@@ -10,7 +10,6 @@ import {
   useCompile,
   useDesignable,
   useSchemaComponentContext,
-  useTranslation,
 } from '@tachybase/client';
 import { ISchema, Schema, uid } from '@tachybase/schema';
 
@@ -19,6 +18,7 @@ import { App, Button, Drawer, Input, Layout, Menu, message, Modal, Radio, Toolti
 import { CheckboxGroupProps } from 'antd/es/checkbox';
 import _ from 'lodash';
 
+import { useTranslation } from '../../../locale';
 import { EditableGrid } from './EditableGrid';
 import { useStyles } from './styles';
 

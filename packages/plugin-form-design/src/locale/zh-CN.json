@@ -1,3 +1,13 @@
 {
-  "Form design": "表单设计"
+  "Caution: Changing this will directly modify the collection name": "警告：这将永久修改集合名称。",
+  "Click a field to start customizing its properties": "点击任意字段开始编辑其属性。",
+  "Design the form by selecting fields, adjusting layout, and adding properties": "通过选择字段、设置布局并添加属性来设计表单。",
+  "Field properties": "字段设置",
+  "Form design": "表单设计器",
+  "Form properties": "表单设置",
+  "Open editable page": "打开可编辑页面",
+  "Other fields": "其他字段",
+  "Set default properties": "设置默认字段值",
+  "The target collection for the association field \"{{field}}\" is not selected": "请为关联字段 \"{{field}}\" 选择目标集合。",
+  "Untitle collection": "未命名集合"
 }

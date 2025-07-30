@@ -23,6 +23,7 @@ import { EditableFormItemSchemaToolbar, EditableFormToolbar } from './initialize
 import { createFormBlockEditableSettings } from './initializers/components/form-editor/createFormBlockEditableSettings';
 import { fieldInterfaceEditableSettings } from './initializers/components/form-editor/fieldsInterfaceEditableSettings';
 import { formItemFieldEditableSettings } from './initializers/components/form-editor/formItemFieldEditableSettings';
+import { SchemaSettingsEditablePage } from './initializers/components/schemaSetting/openFormEditablePage';
 import { formDesignInitializerItem } from './initializers/formDesignInitializerItem';
 import { FormDesignModalProvider } from './initializers/FormDesignModalProvider';
 
@@ -34,7 +35,7 @@ class PluginFormDesignClient extends Plugin {
   async load() {
     this.app.addProvider(FormDesignModalProvider);
     this.app.schemaInitializerManager.addItem('page:addBlock', 'otherBlocks.formDesign', formDesignInitializerItem);
-
+    this.app.addComponents({ SchemaSettingsEditablePage });
     this.app.schemaInitializerManager.addItem(
       'popup:common:addBlock',
       'otherBlocks.formDesign',

@@ -135,22 +135,6 @@ const ColDivider = (props) => {
 
       _.set(prevSchema, 'x-component-props.width', preWidth);
       _.set(nextSchema, 'x-component-props.width', nextWidth);
-      // dn.emit('batchPatch', {
-      //   schemas: [
-      //     {
-      //       ['x-uid']: prevSchema['x-uid'],
-      //       'x-component-props': {
-      //         ...prevSchema['x-component-props'],
-      //       },
-      //     },
-      //     {
-      //       ['x-uid']: nextSchema['x-uid'],
-      //       'x-component-props': {
-      //         ...nextSchema['x-component-props'],
-      //       },
-      //     },
-      //   ],
-      // });
     },
   });
 

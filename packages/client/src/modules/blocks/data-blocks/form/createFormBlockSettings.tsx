@@ -1,5 +1,6 @@
 import { useFieldSchema } from '@tachybase/schema';
 
+import { useApp } from '../../../../application';
 import { SchemaSettings } from '../../../../application/schema-settings/SchemaSettings';
 import { useFormBlockContext } from '../../../../block-provider';
 import { useCollection_deprecated } from '../../../../collection-manager';
@@ -107,6 +108,21 @@ export const createFormBlockSettings = new SchemaSettings({
         return {
           collectionName: name,
         };
+      },
+    },
+    {
+      name: 'openEditablePage',
+      Component: 'SchemaSettingsEditablePage',
+      useComponentProps() {
+        const { name } = useCollection_deprecated();
+        return {
+          collectionName: name,
+        };
+      },
+      useVisible() {
+        const pm = useApp().pluginManager;
+        const formDesignPlugin = pm.get('@tachybase/plugin-form-design');
+        return !!formDesignPlugin;
       },
     },
     {

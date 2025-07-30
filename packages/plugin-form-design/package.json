@@ -13,7 +13,9 @@
   "peerDependencies": {
     "@tachybase/actions": "^1.3.27",
     "@tachybase/client": "workspace:*",
+    "@tachybase/components": "^1.3.27",
     "@tachybase/database": "^1.3.27",
+    "@tachybase/evaluators": "^1.3.27",
     "@tachybase/schema": "^1.3.27",
     "@tachybase/server": "^1.3.27",
     "@tachybase/test": "^1.3.27",

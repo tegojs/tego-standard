@@ -28,6 +28,7 @@ import { formItemFieldEditableSettings } from './initializers/components/form-ed
 import { SchemaSettingsEditablePage } from './initializers/components/schemaSetting/openFormEditablePage';
 import { formDesignInitializerItem } from './initializers/formDesignInitializerItem';
 import { FormDesignModalProvider } from './initializers/FormDesignModalProvider';
+import { openEditablePage } from './schema-settings/openEditablePage';
 
 class PluginFormDesignClient extends Plugin {
   private editableSchemaSettingsManager: EditableSchemaSettingsManager;
@@ -84,6 +85,14 @@ class PluginFormDesignClient extends Plugin {
     this.editableSchemaSettingsManager.add(fileManagerComponentFieldEditableSettings);
     this.editableSchemaSettingsManager.add(tagComponentFieldEditableSettings);
     this.editableSchemaSettingsManager.add(cascadeSelectComponentFieldEditableSettings);
+
+    this.app.schemaSettingsManager.addItemWithIndex({
+      schemaSettingName: 'blockSettings:createForm',
+      itemName: openEditablePage.name,
+      // NOTE: 这里可能顺序没法保证,有没有更精确的办法
+      index: -2,
+      data: openEditablePage,
+    });
 
     // register icons
     await import('./icons');

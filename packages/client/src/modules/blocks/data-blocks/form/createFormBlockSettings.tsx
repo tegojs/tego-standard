@@ -111,21 +111,6 @@ export const createFormBlockSettings = new SchemaSettings({
       },
     },
     {
-      name: 'openEditablePage',
-      Component: 'SchemaSettingsEditablePage',
-      useComponentProps() {
-        const { name } = useCollection_deprecated();
-        return {
-          collectionName: name,
-        };
-      },
-      useVisible() {
-        const pm = useApp().pluginManager;
-        const formDesignPlugin = pm.get('@tachybase/plugin-form-design');
-        return !!formDesignPlugin;
-      },
-    },
-    {
       name: 'divider',
       type: 'divider',
     },

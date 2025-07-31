@@ -30,7 +30,7 @@ import { ContextCleaner, SchemaMarkupContext } from '@tachybase/schema/lib/react
 import { Layout, Tabs } from 'antd';
 import _ from 'lodash';
 
-import { useEditableSchemaSettingsManager } from '../../../hooks/useEditableSchemaSettingsManager';
+import { useEditableSchemaSettingsManager } from '../../../contexts/EditableSchemaSettingsContext';
 import { useTranslation } from '../../../locale';
 import { usePageRefresh } from '../../contexts/PageRefreshContext';
 import { useEditableSelectedField } from './EditableSelectedFieldContext';

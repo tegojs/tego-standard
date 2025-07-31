@@ -30,8 +30,8 @@ import { ContextCleaner, SchemaMarkupContext } from '@tachybase/schema/lib/react
 import { Layout, Tabs } from 'antd';
 import _ from 'lodash';
 
+import { useEditableSchemaSettingsManager } from '../../../hooks/useEditableSchemaSettingsManager';
 import { useTranslation } from '../../../locale';
-import PluginFormDesignClient from '../../../plugin';
 import { usePageRefresh } from '../../contexts/PageRefreshContext';
 import { useEditableSelectedField } from './EditableSelectedFieldContext';
 import { useEditableSelectedForm } from './EditableSelectedFormContent';
@@ -157,14 +157,14 @@ const AllSchemaProviders = ({
 };
 
 const FieldPropertiesContent = ({ fieldComponentName }) => {
-  const app = useApp();
   const [form] = useState(() => createForm());
+  const editableSchemaSettingsManager = useEditableSchemaSettingsManager();
+
   const specificItems =
-    app.editableSchemaSettingsManager.get(`editableFieldSettings:component:${fieldComponentName}`)?.options?.items ??
-    [];
-  const genericItems = app.editableSchemaSettingsManager.get('editableFieldSettings:FormItem')?.options?.items ?? [];
+    editableSchemaSettingsManager?.get(`editableFieldSettings:component:${fieldComponentName}`)?.options?.items ?? [];
+  const genericItems = editableSchemaSettingsManager?.get('editableFieldSettings:FormItem')?.options?.items ?? [];
   const fieldsInterface =
-    app.editableSchemaSettingsManager.get('editableFieldSettings:Fields:Infterface')?.options?.items ?? [];
+    editableSchemaSettingsManager?.get('editableFieldSettings:Fields:Infterface')?.options?.items ?? [];
   const items = [...fieldsInterface, ...genericItems, ...specificItems];
   const { handleUpdate, components: itemsComponents, fullSchema, itemStates, initialValues } = useEditableItems(items);
   form.setValues(initialValues);
@@ -276,10 +276,11 @@ const EditorFormProperty = ({ schema }) => {
 };
 
 const FormPropertyContent = () => {
-  const app = useApp();
   const [form] = useState(() => createForm());
+  const editableSchemaSettingsManager = useEditableSchemaSettingsManager();
+
   const formPropertyItems =
-    app.editableSchemaSettingsManager.get('blockEditableSettings:createForm')?.options?.items ?? [];
+    editableSchemaSettingsManager?.get('blockEditableSettings:createForm')?.options?.items ?? [];
   const { handleUpdate, components, fullSchema, itemStates, initialValues } = useEditableItems(formPropertyItems);
 
   form.setValues(initialValues);

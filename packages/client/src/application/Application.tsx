@@ -90,7 +90,6 @@ export class Application {
   public notification;
   public schemaInitializerManager: SchemaInitializerManager;
   public schemaSettingsManager: SchemaSettingsManager;
-  public editableSchemaSettingsManager: any; // 将由 plugin-form-design 插件管理
   public dataSourceManager: DataSourceManager;
   public noticeManager: NoticeManager;
   public trackingManager: TrackingManager;

@@ -29,9 +29,11 @@ import { formDesignInitializerItem } from './initializers/formDesignInitializerI
 import { FormDesignModalProvider } from './initializers/FormDesignModalProvider';
 
 class PluginFormDesignClient extends Plugin {
+  private editableSchemaSettingsManager: EditableSchemaSettingsManager;
+
   async afterAdd() {
     // 初始化 EditableSchemaSettingsManager
-    this.app.editableSchemaSettingsManager = new EditableSchemaSettingsManager([], this.app);
+    this.editableSchemaSettingsManager = new EditableSchemaSettingsManager([], this.app);
   }
 
   async beforeLoad() {}
@@ -55,28 +57,33 @@ class PluginFormDesignClient extends Plugin {
       EditableFormItemSchemaToolbar,
     });
 
-    this.app.editableSchemaSettingsManager.add(formItemFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(createFormBlockEditableSettings);
-    this.app.editableSchemaSettingsManager.add(fieldInterfaceEditableSettings);
+    this.editableSchemaSettingsManager.add(formItemFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(createFormBlockEditableSettings);
+    this.editableSchemaSettingsManager.add(fieldInterfaceEditableSettings);
 
     // editable field component settings
-    this.app.editableSchemaSettingsManager.add(selectComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(checkboxComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(datePickerComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(unixTimestampComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(uploadAttachmentComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(inputNumberComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(recordPickerComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(radioComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(subTablePopoverComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(subformComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(subformPopoverComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(drawerSubTableComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(cascaderComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(CustomTitleComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(fileManagerComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(tagComponentFieldEditableSettings);
-    this.app.editableSchemaSettingsManager.add(cascadeSelectComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(selectComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(checkboxComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(datePickerComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(unixTimestampComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(uploadAttachmentComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(inputNumberComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(recordPickerComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(radioComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(subTablePopoverComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(subformComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(subformPopoverComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(drawerSubTableComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(cascaderComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(CustomTitleComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(fileManagerComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(tagComponentFieldEditableSettings);
+    this.editableSchemaSettingsManager.add(cascadeSelectComponentFieldEditableSettings);
+  }
+
+  // 提供获取 EditableSchemaSettingsManager 的方法
+  getEditableSchemaSettingsManager() {
+    return this.editableSchemaSettingsManager;
   }
 }
 

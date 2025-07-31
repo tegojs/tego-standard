@@ -1738,8 +1738,8 @@ importers:
   packages/plugin-adapter-bullmq:
     devDependencies:
       '@bull-board/api':
-        specifier: ^6.11.1
-        version: 6.11.1(@bull-board/ui@6.11.1)
+        specifier: ^6.12.0
+        version: 6.12.0(@bull-board/ui@6.11.1)
       '@bull-board/koa':
         specifier: ^6.11.1
         version: 6.11.1(@babel/core@7.27.4)(@types/koa@2.15.0)(handlebars@4.7.8)(lodash@4.17.21)(mustache@4.2.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(underscore@1.13.7)
@@ -3371,8 +3371,8 @@ importers:
   packages/plugin-prototype-print-template:
     devDependencies:
       '@bull-board/api':
-        specifier: ^6.11.1
-        version: 6.11.1(@bull-board/ui@6.11.1)
+        specifier: ^6.12.0
+        version: 6.12.0(@bull-board/ui@6.11.1)
       '@bull-board/koa':
         specifier: ^6.11.1
         version: 6.11.1(@babel/core@7.27.4)(@types/koa@2.15.0)(handlebars@4.7.8)(lodash@4.17.21)(mustache@4.2.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(underscore@1.13.7)
@@ -4878,6 +4878,11 @@ packages:
     resolution: {integrity: sha512-pe397z8LVPZGLnY6yCboDg/zVUQIXBTanfNRDMxDAwZp0HARfQgoK4tGyX96KsEpDARWEmp4xeFyuaBBb0erlg==}
     peerDependencies:
       '@bull-board/ui': 6.11.1
+
+  '@bull-board/api@6.12.0':
+    resolution: {integrity: sha512-tlMQTc0EAiYbv8gjR0lCYAXDL1Uc8/dPD9tKjxvG+m9lUUpPAoRUXUHNtzwVQo+AHiF6WHEK9iA3+8KHJamc/w==}
+    peerDependencies:
+      '@bull-board/ui': 6.12.0
 
   '@bull-board/koa@6.11.1':
     resolution: {integrity: sha512-nsGjw3g5c4LQ6EC2Yb/CUwW9vT7cztdMlFt+BKf1vSVsBTFzAEeJOxH4LDwgkdCg4L5d6VHhFnI5pOrrPmg/Iw==}
@@ -17949,6 +17954,11 @@ snapshots:
       '@babel/helper-validator-identifier': 7.27.1
 
   '@bull-board/api@6.11.1(@bull-board/ui@6.11.1)':
+    dependencies:
+      '@bull-board/ui': 6.11.1
+      redis-info: 3.1.0
+
+  '@bull-board/api@6.12.0(@bull-board/ui@6.11.1)':
     dependencies:
       '@bull-board/ui': 6.11.1
       redis-info: 3.1.0

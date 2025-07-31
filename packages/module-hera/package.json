@@ -21,7 +21,7 @@
     "@types/lodash": "^4.17.20",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
-    "axios": "1.7.7",
+    "axios": "1.11.0",
     "copy-to-clipboard": "^3.3.3",
     "dayjs": "1.11.13",
     "file-saver": "^2.0.5",

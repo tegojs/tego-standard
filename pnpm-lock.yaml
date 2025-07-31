@@ -2017,8 +2017,8 @@ importers:
   packages/plugin-auth-dingtalk:
     devDependencies:
       '@alicloud/dingtalk':
-        specifier: ^2.2.27
-        version: 2.2.27
+        specifier: ^2.2.28
+        version: 2.2.28
       '@alicloud/openapi-client':
         specifier: 0.4.15
         version: 0.4.15
@@ -3721,8 +3721,8 @@ packages:
   '@alicloud/credentials@2.4.4':
     resolution: {integrity: sha512-/eRAGSKcniLIFQ1UCpDhB/IrHUZisQ1sc65ws/c2avxUMpXwH1rWAohb76SVAUJhiF4mwvLzLJM1Mn1XL4Xe/Q==}
 
-  '@alicloud/dingtalk@2.2.27':
-    resolution: {integrity: sha512-lucUpoxjIEMxysPq3mHXtSfQU0WGoLQNzFXzKemO7iuU3A/Ne2JBeiH3n1aQ6Jg7VxEHm+LvVXvbIPqGGl7Ppg==}
+  '@alicloud/dingtalk@2.2.28':
+    resolution: {integrity: sha512-aNrUigK2l2+DHmkLjHKz/cRNvsQZ4og+MD7NKMJd/Q237VWFDKphIM6AN1I3AjPWYX2tIQloA3zpKQnRe1ED0w==}
 
   '@alicloud/dysmsapi20170525@2.0.24':
     resolution: {integrity: sha512-RtOwh3L+NbpfnOxySViIKLlNQeT9pZJS496ZTMMz7A29CBrlComC1UDLmwmD5odWF2Okv9ZdsyP3IRiQnoEL+A==}
@@ -15805,7 +15805,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@alicloud/dingtalk@2.2.27':
+  '@alicloud/dingtalk@2.2.28':
     dependencies:
       '@alicloud/endpoint-util': 0.0.2
       '@alicloud/gateway-dingtalk': 1.0.2

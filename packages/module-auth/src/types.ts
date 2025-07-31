@@ -1,1 +1,1 @@
-export type { TokenPolicyConfig as TokenPolicyConfig } from '@tachybase/auth';
+export type { TokenPolicyConfig } from '@tego/server';

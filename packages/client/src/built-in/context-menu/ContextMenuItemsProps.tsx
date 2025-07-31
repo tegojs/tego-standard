@@ -1,5 +1,4 @@
-import { uid } from '@tachybase/utils/client';
-
+import { uid } from '@tego/client';
 import { App } from 'antd';
 import { useTranslation } from 'react-i18next';
 

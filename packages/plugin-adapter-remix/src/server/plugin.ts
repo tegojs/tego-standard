@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { Gateway, Plugin } from '@tachybase/server';
 
 import { createRequestHandler } from '@remix-run/express';
+import { Gateway, Plugin } from '@tego/server';
 import express from 'express';
 
 export class PluginAdapterRemixServer extends Plugin {

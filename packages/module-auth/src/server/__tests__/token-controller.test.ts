@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi, MockedFunction } from 'vitest';
+import { Cache, Database, Logger } from '@tego/server';
+import { afterEach, beforeEach, describe, expect, it, MockedFunction, vi } from 'vitest';
+
 import { TokenController } from '../token-controller';
-import { Database } from '@tachybase/database';
-import { Cache } from '@tachybase/cache';
-import { Logger } from '@tachybase/logger';
 
 // Mock external dependencies
 vi.mock('@tachybase/database');
@@ -118,7 +117,7 @@ describe('TokenController', () => {
       const userData: UserPayload = { id: 'user123', email: 'test@example.com' };
 
       const token1 = await tokenController.generateToken(userData);
-      await new Promise(resolve => setTimeout(resolve, 1)); // Small delay
+      await new Promise((resolve) => setTimeout(resolve, 1)); // Small delay
       const token2 = await tokenController.generateToken(userData);
 
       expect(token1).not.toBe(token2);
@@ -175,7 +174,7 @@ describe('TokenController', () => {
     it('should handle expired tokens', async () => {
       // Mock an expired token scenario
       const expiredToken = await tokenController.generateToken(userData, { expiresIn: '1ms' });
-      await new Promise(resolve => setTimeout(resolve, 10)); // Wait for expiration
+      await new Promise((resolve) => setTimeout(resolve, 10)); // Wait for expiration
 
       const result = await tokenController.validateToken(expiredToken);
 
@@ -230,7 +229,7 @@ describe('TokenController', () => {
 
     it('should reject refresh of expired token', async () => {
       const expiredToken = await tokenController.generateToken(userData, { expiresIn: '1ms' });
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       await expect(tokenController.refreshToken(expiredToken)).rejects.toThrow('TOKEN_EXPIRED');
     });
@@ -241,7 +240,7 @@ describe('TokenController', () => {
       expect(mockCacheInstance.set).toHaveBeenCalledWith(
         expect.stringContaining(validToken),
         'blacklisted',
-        expect.any(Number)
+        expect.any(Number),
       );
     });
 
@@ -267,7 +266,7 @@ describe('TokenController', () => {
       expect(mockCacheInstance.set).toHaveBeenCalledWith(
         expect.stringContaining(validToken),
         'blacklisted',
-        expect.any(Number)
+        expect.any(Number),
       );
     });
 
@@ -296,7 +295,7 @@ describe('TokenController', () => {
 
     it('should handle multiple simultaneous token generations', async () => {
       const promises = Array.from({ length: 10 }, (_, i) =>
-        tokenController.generateToken({ ...userData, id: `user${i}` })
+        tokenController.generateToken({ ...userData, id: `user${i}` }),
       );
 
       const results = await Promise.all(promises);
@@ -306,12 +305,10 @@ describe('TokenController', () => {
 
     it('should handle rapid token validation requests', async () => {
       const token = await tokenController.generateToken(userData);
-      const promises = Array.from({ length: 50 }, () =>
-        tokenController.validateToken(token)
-      );
+      const promises = Array.from({ length: 50 }, () => tokenController.validateToken(token));
 
       const results = await Promise.all(promises);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.valid).toBe(true);
       });
     });
@@ -374,7 +371,7 @@ describe('TokenController', () => {
       const largeUserData: UserPayload = {
         id: 'user123',
         email: 'test@example.com',
-        permissions: Array.from({ length: 1000 }, (_, i) => `permission${i}`)
+        permissions: Array.from({ length: 1000 }, (_, i) => `permission${i}`),
       };
 
       const token = await tokenController.generateToken(largeUserData);
@@ -390,7 +387,7 @@ describe('TokenController', () => {
       const unicodeData: UserPayload = {
         id: 'user123',
         email: 'test@例え.com',
-        role: '管理者'
+        role: '管理者',
       };
 
       const token = await tokenController.generateToken(unicodeData);
@@ -415,7 +412,7 @@ describe('TokenController', () => {
       const emptyStringData: UserPayload = {
         id: 'user123',
         email: '',
-        role: ''
+        role: '',
       };
 
       const token = await tokenController.generateToken(emptyStringData);

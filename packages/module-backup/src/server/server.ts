@@ -1,7 +1,6 @@
 import { execSync } from 'node:child_process';
-import { DumpRulesGroupType } from '@tachybase/database';
-import { Plugin } from '@tachybase/server';
 
+import { DumpRulesGroupType, Plugin } from '@tego/server';
 import parser from 'cron-parser';
 
 import { COLLECTION_AUTOBACKUP } from '../constants';

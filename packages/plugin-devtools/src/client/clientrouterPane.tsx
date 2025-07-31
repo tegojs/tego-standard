@@ -1,6 +1,7 @@
 import React from 'react';
-import { CodeMirror, css, useApp } from '@tachybase/client';
+import { css, useApp } from '@tachybase/client';
 
+import { CodeMirror } from '@tego/client';
 import { Card, theme } from 'antd';
 
 export const clientrouterToolPane = React.memo(() => {

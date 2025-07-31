@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { FormLayout } from '@tachybase/components';
 import { createForm, uid, useField, useForm } from '@tachybase/schema';
 
 import { SyncOutlined } from '@ant-design/icons';
+import { FormLayout } from '@tego/client';
 import { Button } from 'antd';
 import { useTranslation } from 'react-i18next';
 

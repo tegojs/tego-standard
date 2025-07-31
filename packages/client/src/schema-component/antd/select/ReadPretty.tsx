@@ -23,7 +23,7 @@ export const ReadPretty = observer(
     const dataSource = field.dataSource || props.options || collectionField?.uiSchema.enum || [];
     const options = getCurrentOptions(field.value, dataSource, fieldNames);
     const currentOptions = getFormulaValue(
-      fieldSchema['x-component-props'].fieldNames?.['formula'],
+      fieldSchema['x-component-props']?.fieldNames?.['formula'],
       options,
       fieldSchema,
     );

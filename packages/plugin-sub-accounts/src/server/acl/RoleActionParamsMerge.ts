@@ -1,5 +1,4 @@
-import { RoleActionParams } from '@tachybase/acl';
-import { assign } from '@tachybase/utils';
+import { assign, RoleActionParams } from '@tego/server';
 
 export class RoleActionParamsMerge {
   public static merge(params: RoleActionParams[]): RoleActionParams {

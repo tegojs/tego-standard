@@ -1,6 +1,6 @@
 import { isMainThread } from 'node:worker_threads';
-import { Plugin } from '@tachybase/server';
-import { Container } from '@tachybase/utils';
+
+import { Container, Plugin } from '@tego/server';
 
 import { ConnectionManager } from './services/connection-manager';
 

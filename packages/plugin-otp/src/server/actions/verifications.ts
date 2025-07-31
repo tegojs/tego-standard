@@ -1,8 +1,7 @@
-import { randomInt, randomUUID } from 'crypto';
-import { promisify } from 'util';
-import actions, { Context, Next } from '@tachybase/actions';
-import { Op } from '@tachybase/database';
+import { randomInt, randomUUID } from 'node:crypto';
+import { promisify } from 'node:util';
 
+import { actions, Context, Next, Op } from '@tego/server';
 import dayjs from 'dayjs';
 
 import Plugin, { namespace } from '..';

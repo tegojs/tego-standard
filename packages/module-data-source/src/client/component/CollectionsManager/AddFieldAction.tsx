@@ -16,10 +16,10 @@ import {
   useRequest,
   useResourceActionContext,
 } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
 import { uid, useField, useForm } from '@tachybase/schema';
 
 import { PlusOutlined } from '@ant-design/icons';
+import { ArrayTable } from '@tego/client';
 import { Button, Dropdown, MenuProps } from 'antd';
 import { MenuItemType } from 'antd/es/menu/interface';
 import { cloneDeep } from 'lodash';

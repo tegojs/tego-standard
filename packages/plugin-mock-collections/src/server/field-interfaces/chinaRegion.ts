@@ -1,4 +1,4 @@
-import { uid } from '@tachybase/utils';
+import { uid } from '@tego/server';
 
 export const chinaRegion = {
   options: (options) => ({

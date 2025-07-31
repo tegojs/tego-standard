@@ -1,5 +1,6 @@
-import { Database } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { Database } from '@tego/server';
 
 import { UiSchemaRepository } from '../..';
 import Migration from '../../migrations/20230330214649-filter-form-block';

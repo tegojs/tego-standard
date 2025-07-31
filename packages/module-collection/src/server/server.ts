@@ -1,10 +1,9 @@
 import path from 'node:path';
 import * as process from 'node:process';
 import { isMainThread } from 'node:worker_threads';
-import { Filter, InheritedCollection, UniqueConstraintError } from '@tachybase/database';
 import PluginErrorHandler from '@tachybase/module-error-handler';
-import { Plugin } from '@tachybase/server';
 
+import { Filter, InheritedCollection, Plugin, UniqueConstraintError } from '@tego/server';
 import { Mutex } from 'async-mutex';
 import lodash from 'lodash';
 

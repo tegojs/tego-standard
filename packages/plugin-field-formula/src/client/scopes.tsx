@@ -1,7 +1,7 @@
 import React from 'react';
 import { css, i18n } from '@tachybase/client';
-import { Evaluator, evaluators } from '@tachybase/evaluators/client';
-import { Registry } from '@tachybase/utils/client';
+
+import { Evaluator, evaluators, Registry } from '@tego/client';
 
 import { NAMESPACE } from './locale';
 

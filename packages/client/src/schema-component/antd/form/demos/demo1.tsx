@@ -1,7 +1,8 @@
 import React from 'react';
 import { Action, Form, SchemaComponent, SchemaComponentProvider, useCloseAction } from '@tachybase/client';
-import { FormItem, Input } from '@tachybase/components';
 import { ISchema, observer, useForm } from '@tachybase/schema';
+
+import { FormItem, Input } from '@tego/client';
 
 const schema: ISchema = {
   type: 'object',

@@ -1,5 +1,5 @@
-import Database, { Collection as DBCollection } from '@tachybase/database';
-import Application from '@tachybase/server';
+import Database, { Collection as DBCollection } from '@tego/server';
+import Application from '@tego/server';
 
 import { createApp } from '..';
 

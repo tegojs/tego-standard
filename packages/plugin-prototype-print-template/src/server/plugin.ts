@@ -1,9 +1,8 @@
-import { exec } from 'child_process';
-import path from 'path';
-import util from 'util';
-import Database from '@tachybase/database';
-import { Plugin } from '@tachybase/server';
+import { exec } from 'node:child_process';
+import path from 'node:path';
+import util from 'node:util';
 
+import { Database, Plugin } from '@tego/server';
 import { Worker } from 'bullmq';
 
 import { generate, getTags, readPDF } from './actions/printTemplates';

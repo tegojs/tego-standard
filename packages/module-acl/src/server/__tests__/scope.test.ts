@@ -1,6 +1,6 @@
-import { Database } from '@tachybase/database';
 import { MockServer } from '@tachybase/test';
 
+import { Database } from '@tego/server';
 import UsersPlugin from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';

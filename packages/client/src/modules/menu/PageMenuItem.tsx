@@ -1,7 +1,7 @@
 import React, { useCallback, useContext } from 'react';
-import { FormLayout } from '@tachybase/components';
 import { SchemaOptionsContext, uid } from '@tachybase/schema';
 
+import { FormLayout } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { SchemaInitializerItem, useSchemaInitializer } from '../../application';

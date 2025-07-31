@@ -1,4 +1,4 @@
-import { Migration } from '@tachybase/server';
+import { Migration } from '@tego/server';
 
 export default class AddGuestSpecialRoleMigration extends Migration {
   on = 'afterLoad';

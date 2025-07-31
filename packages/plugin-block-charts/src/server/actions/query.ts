@@ -1,8 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Cache } from '@tachybase/cache';
-import { Field, FilterParser, snakeCase } from '@tachybase/database';
-import { getDateVars, parseFilter } from '@tachybase/utils';
-
+import { Cache, Context, Field, FilterParser, getDateVars, Next, parseFilter, snakeCase } from '@tego/server';
 import compose from 'koa-compose';
 
 import { formatter } from './formatter';

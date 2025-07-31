@@ -1,7 +1,6 @@
 import { PluginWorkflow } from '@tachybase/module-workflow';
-import { Gateway, Plugin } from '@tachybase/server';
-import { Registry } from '@tachybase/utils';
 
+import { Gateway, Plugin, Registry } from '@tego/server';
 import WebSocket from 'ws';
 
 import { COLLECTION_NAME_MESSAGES_PROVIDERS } from '../common/collections/messages_providers';

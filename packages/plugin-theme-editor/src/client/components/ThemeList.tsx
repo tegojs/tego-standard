@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { useToken } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { Space } from 'antd';
 
 import ThemeCard from './ThemeCard';

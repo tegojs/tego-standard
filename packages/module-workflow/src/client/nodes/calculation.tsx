@@ -1,5 +1,6 @@
 import { SchemaInitializerItemType } from '@tachybase/client';
-import { Evaluator, evaluators, getOptions } from '@tachybase/evaluators/client';
+
+import { Evaluator, evaluators, getOptions } from '@tego/client';
 
 import { RadioWithTooltip } from '../components/RadioWithTooltip';
 import { renderEngineReference } from '../components/renderEngineReference';

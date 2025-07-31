@@ -1,7 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Collection, Repository } from '@tachybase/database';
-import { uid } from '@tachybase/utils';
-
+import { Collection, Context, Next, Repository, uid } from '@tego/server';
 import xlsx from 'node-xlsx';
 import XLSX from 'xlsx';
 

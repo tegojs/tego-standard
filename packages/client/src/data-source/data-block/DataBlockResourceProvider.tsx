@@ -1,5 +1,6 @@
 import React, { createContext, ReactNode, useContext, useMemo } from 'react';
-import { IResource } from '@tachybase/sdk';
+
+import { IResource } from '@tego/client';
 
 import { useAPIClient } from '../../api-client';
 import { useCollectionManager } from '../collection';

@@ -9,9 +9,9 @@ import {
   useFormBlockContext,
   type CollectionOptions,
 } from '@tachybase/client';
-import { Evaluator, evaluators } from '@tachybase/evaluators/client';
 import { onFormValuesChange, toJS, useField, useFieldSchema, useFormEffects } from '@tachybase/schema';
-import { Registry, toFixedByStep } from '@tachybase/utils/client';
+
+import { Evaluator, evaluators, Registry, toFixedByStep } from '@tego/client';
 
 import { toDbType } from '../../../utils';
 

@@ -1,5 +1,6 @@
-import Database from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import Database from '@tego/server';
 
 describe('actions', () => {
   let app: MockServer;

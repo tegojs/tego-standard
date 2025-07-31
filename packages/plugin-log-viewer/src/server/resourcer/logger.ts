@@ -1,10 +1,9 @@
-import { readdir, readFile } from 'fs/promises';
-import { join } from 'path';
-import stream from 'stream';
-import zlib from 'zlib';
-import { Context, Next } from '@tachybase/actions';
-import { getLoggerFilePath } from '@tachybase/logger';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import stream from 'node:stream';
+import zlib from 'node:zlib';
 
+import { Context, getLoggerFilePath, Next } from '@tego/server';
 import { pack } from 'tar-fs';
 
 const tarFiles = (files: string[]): Promise<any> => {

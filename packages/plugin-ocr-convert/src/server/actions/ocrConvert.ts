@@ -1,4 +1,4 @@
-import actions, { Context, Next } from '@tachybase/actions';
+import actions, { Context, Next } from '@tego/server';
 
 import { PluginOcrConvert } from '../plugin';
 

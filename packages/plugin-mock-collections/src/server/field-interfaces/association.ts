@@ -1,6 +1,5 @@
-import { uid } from '@tachybase/utils';
-
 import { faker } from '@faker-js/faker';
+import { uid } from '@tego/server';
 
 function reverseFieldHandle(defaults, { target, reverseField }) {
   if (!reverseField) {

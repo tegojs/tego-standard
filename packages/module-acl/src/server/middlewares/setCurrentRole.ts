@@ -1,6 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { Cache } from '@tachybase/cache';
-import { Model, Repository } from '@tachybase/database';
+import { Cache, Context, Model, Repository } from '@tego/server';
 
 export async function setCurrentRole(ctx: Context, next) {
   const currentRole = ctx.get('X-Role');

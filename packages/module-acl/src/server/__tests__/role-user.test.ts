@@ -1,6 +1,6 @@
-import Database, { BelongsToManyRepository } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
 
+import Database, { BelongsToManyRepository } from '@tego/server';
 import jwt from 'jsonwebtoken';
 import UsersPlugin from 'packages/module-user/src';
 

@@ -1,6 +1,6 @@
-import fsPromises from 'fs/promises';
-import { DumpRulesGroupType } from '@tachybase/database';
-import { Application, AppSupervisor } from '@tachybase/server';
+import fsPromises from 'node:fs/promises';
+
+import { Application, AppSupervisor, DumpRulesGroupType } from '@tego/server';
 
 import { Dumper } from '../dumper';
 

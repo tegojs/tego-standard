@@ -1,6 +1,7 @@
 import React, { useContext, useEffect } from 'react';
 import { css, SchemaComponentOptions } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
+
+import { ArrayItems } from '@tego/client';
 
 import { useChartsTranslation } from '../locale';
 import { CollectionFieldInitializer } from './CollectionFieldInitializer';

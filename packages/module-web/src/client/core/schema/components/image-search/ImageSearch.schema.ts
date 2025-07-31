@@ -1,5 +1,6 @@
 import { ISchema } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 interface OptionsType {
   collection: string;

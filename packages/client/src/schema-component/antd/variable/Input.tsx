@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useForm } from '@tachybase/schema';
-import { error } from '@tachybase/utils/client';
 
 import { CloseCircleFilled } from '@ant-design/icons';
+import { error } from '@tego/client';
 import { Input as AntInput, Cascader, DatePicker, InputNumber, Select, Space, Tag } from 'antd';
 import { createStyles } from 'antd-style';
 import type { DefaultOptionType } from 'antd/lib/cascader';

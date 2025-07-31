@@ -1,4 +1,4 @@
-import { requireModule } from '@tachybase/utils';
+import { requireModule } from '@tego/server';
 
 import { merge } from './merge';
 

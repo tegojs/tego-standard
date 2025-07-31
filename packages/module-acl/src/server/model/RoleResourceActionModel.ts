@@ -1,5 +1,4 @@
-import { ACL, ACLRole } from '@tachybase/acl';
-import { Database, Model } from '@tachybase/database';
+import { ACL, ACLRole, Database, Model } from '@tego/server';
 
 import { AssociationFieldAction, AssociationFieldsActions, GrantHelper } from '../server';
 

@@ -1,5 +1,4 @@
-import { DumpRulesGroupType } from '@tachybase/database';
-import { Application, AppSupervisor } from '@tachybase/server';
+import { Application, AppSupervisor, DumpRulesGroupType } from '@tego/server';
 
 import { Restorer } from '../restorer';
 

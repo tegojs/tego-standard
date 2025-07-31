@@ -1,6 +1,4 @@
-import { MagicAttributeModel } from '@tachybase/database';
-import { Plugin } from '@tachybase/server';
-import { uid } from '@tachybase/utils';
+import { MagicAttributeModel, Plugin, uid } from '@tego/server';
 
 import { uiSchemaActions } from './actions/ui-schema-action';
 import { UiSchemaModel } from './model';

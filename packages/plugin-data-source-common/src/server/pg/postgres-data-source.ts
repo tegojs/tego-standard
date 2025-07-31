@@ -1,5 +1,4 @@
-import { DataSource } from '@tachybase/data-source';
-import { Database, type IDatabaseOptions } from '@tachybase/database';
+import { Database, DataSource, type IDatabaseOptions } from '@tego/server';
 
 import { DatabaseIntrospector } from './database-introspector';
 import { PostgresCollectionManager } from './postgres-collection-manager';

@@ -1,4 +1,4 @@
-import { dayjs, getDefaultFormat, str2moment, toGmt, toLocal, type Dayjs } from '@tachybase/utils/client';
+import { dayjs, getDefaultFormat, str2moment, toGmt, toLocal, type Dayjs } from '@tego/client';
 
 const toStringByPicker = (value, picker, timezone: 'gmt' | 'local') => {
   if (!dayjs.isDayjs(value)) return value;

@@ -1,7 +1,7 @@
-import { Database } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
 
 import { SAML } from '@node-saml/node-saml';
+import { Database } from '@tego/server';
 import { vi } from 'vitest';
 
 import { authType } from '../../constants';

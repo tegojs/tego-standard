@@ -1,7 +1,4 @@
-import { IField } from '@tachybase/data-source';
-import { ActionParams } from '@tachybase/resourcer';
-import { Application } from '@tachybase/server';
-import { lodash } from '@tachybase/utils';
+import { ActionParams, Application, IField, lodash } from '@tego/server';
 
 function isSameBasic(val1: any, val2: any): boolean {
   if (val1 instanceof Date || val2 instanceof Date) {

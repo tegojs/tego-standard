@@ -1,4 +1,4 @@
-import { Collection } from '@tachybase/database';
+import { Collection } from '@tego/server';
 
 import associations from './associations';
 import list from './collection';

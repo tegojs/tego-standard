@@ -1,4 +1,4 @@
-import { DEFAULT_PAGE, DEFAULT_PER_PAGE, type Context, type Next } from '@tachybase/actions';
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE, type Context, type Next } from '@tego/server';
 
 export const listExcludeDept = async (ctx: Context, next: Next) => {
   const { departmentId, page = DEFAULT_PAGE, pageSize = DEFAULT_PER_PAGE } = ctx.action.params;

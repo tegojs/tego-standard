@@ -1,4 +1,4 @@
-import { Migration } from '@tachybase/server';
+import { Migration } from '@tego/server';
 
 export default class UpdateCollectionsHiddenMigration extends Migration {
   appVersion = '<0.8.0-alpha.11';

@@ -1,5 +1,4 @@
-import type { Context, Next } from '@tachybase/actions';
-
+import type { Context, Next } from '@tego/server';
 import _ from 'lodash';
 
 const setOwners = async (ctx: Context, filterByTk, owners) => {

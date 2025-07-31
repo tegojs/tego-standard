@@ -1,8 +1,6 @@
-import Database from '@tachybase/database';
 import { EXECUTION_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
-import { Application, Logger } from '@tachybase/server';
-import { App, Db, InjectLog, Service } from '@tachybase/utils';
 
+import { App, Application, Database, Db, InjectLog, Logger, Service } from '@tego/server';
 import parser from 'cron-parser';
 
 import { DATABASE_CRON_JOBS, SCHEDULE_MODE } from '../../constants';

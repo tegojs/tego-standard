@@ -1,6 +1,7 @@
-import path from 'path';
-import { ApplicationOptions } from '@tachybase/server';
+import path from 'node:path';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { ApplicationOptions } from '@tego/server';
 
 export function sleep(ms: number) {
   return new Promise((resolve) => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { css } from '@tachybase/client';
-import { dayjs } from '@tachybase/utils/client';
 
+import { dayjs } from '@tego/client';
 import { DatePicker, Select } from 'antd';
 
 import { useTranslation } from '../../locale';

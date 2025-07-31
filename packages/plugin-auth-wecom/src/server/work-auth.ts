@@ -1,10 +1,11 @@
-import { AuthConfig, BaseAuth } from '@tachybase/auth';
 import { AuthModel } from '@tachybase/module-auth';
+
+import { AuthConfig, BaseAuth } from '@tego/server';
 
 import { namespace } from '../constants';
 import { WorkClient } from './work-client.js';
 
-export { Model } from '@tachybase/database';
+export { Model } from '@tego/server';
 
 export class WorkAuth extends BaseAuth {
   constructor(config: AuthConfig) {

@@ -10,10 +10,10 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
-import { isPortalInBody } from '@tachybase/utils/client';
 
 import { CopyOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons';
 import { SortableContext, SortableContextProps, useSortable } from '@dnd-kit/sortable';
+import { isPortalInBody } from '@tego/client';
 import { useMemoizedFn } from 'ahooks';
 import { Table as AntdTable, TableColumnProps } from 'antd';
 import { default as classNames, default as cls } from 'classnames';

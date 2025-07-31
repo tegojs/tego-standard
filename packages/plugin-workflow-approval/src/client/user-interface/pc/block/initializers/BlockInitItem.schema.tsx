@@ -1,4 +1,4 @@
-import { uid } from '@tachybase/utils/client';
+import { uid } from '@tego/client';
 
 export const getRemoteSchemaBlockInitItem = (params) => {
   const { item: itemSchema } = params;

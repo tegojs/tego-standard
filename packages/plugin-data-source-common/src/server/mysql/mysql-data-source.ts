@@ -1,5 +1,4 @@
-import { DataSource } from '@tachybase/data-source';
-import { Database } from '@tachybase/database';
+import { Database, DataSource } from '@tego/server';
 
 import { DatabaseIntrospector } from './database-introspector';
 import { MySQLCollectionManager } from './mysql-collection-manager';

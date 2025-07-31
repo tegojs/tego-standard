@@ -1,5 +1,4 @@
-import { MagicAttributeModel, Transaction } from '@tachybase/database';
-import { Application } from '@tachybase/server';
+import { Application, MagicAttributeModel, Transaction } from '@tego/server';
 
 import { mergeOptions } from '../utils';
 

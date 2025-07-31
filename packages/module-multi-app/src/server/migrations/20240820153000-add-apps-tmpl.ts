@@ -1,4 +1,4 @@
-import { Migration } from '@tachybase/server';
+import { Migration } from '@tego/server';
 
 export default class AddAppTmplMigration extends Migration {
   appVersion = '<0.21.99';

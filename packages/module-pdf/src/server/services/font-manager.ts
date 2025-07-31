@@ -1,8 +1,7 @@
 import path from 'node:path';
-import { Logger } from '@tachybase/logger';
-import { InjectLog, Service } from '@tachybase/utils';
 
 import { Font } from '@react-pdf/renderer';
+import { InjectLog, Logger, Service } from '@tego/server';
 import axios from 'axios';
 import fs from 'fs-extra';
 

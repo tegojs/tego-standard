@@ -1,4 +1,4 @@
-import { CacheManager } from '@tachybase/cache';
+import { CacheManager } from '@tego/server';
 
 import Resources from '../resources';
 

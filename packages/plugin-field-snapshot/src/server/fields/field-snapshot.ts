@@ -1,4 +1,4 @@
-import { BaseColumnFieldOptions, CreateOptions, DataTypes, Field, Model } from '@tachybase/database';
+import { BaseColumnFieldOptions, CreateOptions, DataTypes, Field, Model } from '@tego/server';
 
 export class SnapshotField extends Field {
   get dataType() {

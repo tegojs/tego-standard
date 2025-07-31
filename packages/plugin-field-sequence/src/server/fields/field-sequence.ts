@@ -4,12 +4,11 @@ import {
   Field,
   FieldContext,
   Model,
+  Registry,
   Transactionable,
   ValidationError,
   ValidationErrorItem,
-} from '@tachybase/database';
-import { Registry } from '@tachybase/utils';
-
+} from '@tego/server';
 import parser from 'cron-parser';
 import dayjs from 'dayjs';
 import lodash from 'lodash';

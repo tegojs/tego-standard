@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
-import { FormItem as Item } from '@tachybase/components';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
 
+import { FormItem as Item } from '@tego/client';
 import { createStyles } from 'antd-style';
 import cx from 'classnames';
 

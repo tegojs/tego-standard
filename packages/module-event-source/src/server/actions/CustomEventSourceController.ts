@@ -1,7 +1,4 @@
-import { Context, Next, utils } from '@tachybase/actions';
-import { Application } from '@tachybase/server';
-import { Action, App, Controller } from '@tachybase/utils';
-
+import { Action, App, Application, Context, Controller, Next, utils } from '@tego/server';
 import { QueryTypes } from 'sequelize';
 
 @Controller('customEventSources')

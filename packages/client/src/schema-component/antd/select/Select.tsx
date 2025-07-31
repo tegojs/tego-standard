@@ -1,7 +1,7 @@
 import { connect, isValid, mapProps, mapReadPretty, toArr, useFieldSchema } from '@tachybase/schema';
-import { isPlainObject } from '@tachybase/utils/client';
 
 import { CloseCircleFilled, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
+import { isPlainObject } from '@tego/client';
 import { Select as AntdSelect, Empty, Radio, Spin, Tag, type SelectProps } from 'antd';
 
 import FormulaSelect from './FormulaSelect';

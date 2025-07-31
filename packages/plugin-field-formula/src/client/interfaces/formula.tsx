@@ -1,6 +1,6 @@
 import { CollectionFieldInterface, i18n, interfacesProperties } from '@tachybase/client';
-import { Evaluator, evaluators } from '@tachybase/evaluators/client';
-import { lodash, Registry } from '@tachybase/utils/client';
+
+import { Evaluator, evaluators, lodash, Registry } from '@tego/client';
 
 import { NAMESPACE } from '../locale';
 

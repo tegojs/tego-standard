@@ -1,9 +1,6 @@
-import http from 'http';
-import { Context, Next } from '@tachybase/actions';
-import { appendArrayColumn } from '@tachybase/evaluators';
-import { Gateway } from '@tachybase/server';
-import { parse } from '@tachybase/utils';
+import http from 'node:http';
 
+import { appendArrayColumn, Context, Gateway, Next, parse } from '@tego/server';
 import axios from 'axios';
 
 import CustomRequestPlugin from '../plugin';

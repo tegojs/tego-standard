@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import VerificationPlugin from '@tachybase/plugin-otp';
-import { InstallOptions, Plugin } from '@tachybase/server';
+
+import { InstallOptions, Plugin } from '@tego/server';
 
 import { authType } from '../constants';
 import { SMSAuth } from './sms-auth';

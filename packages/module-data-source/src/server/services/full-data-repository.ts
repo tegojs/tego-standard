@@ -1,4 +1,4 @@
-import { CountOptions, FindOptions } from '@tachybase/database';
+import { CountOptions, FindOptions } from '@tego/server';
 
 export class FullDataRepository<T> {
   data: Array<T> = [];

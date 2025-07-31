@@ -1,4 +1,4 @@
-import Application from '@tachybase/server';
+import { Application } from '@tego/server';
 
 import { MergeRoleModel } from './model/MergeRoleModel';
 

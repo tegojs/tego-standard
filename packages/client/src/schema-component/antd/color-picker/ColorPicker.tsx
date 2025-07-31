@@ -1,7 +1,7 @@
 import React from 'react';
-import { usePrefixCls } from '@tachybase/components';
 import { connect, mapProps, mapReadPretty } from '@tachybase/schema';
 
+import { usePrefixCls } from '@tego/client';
 import { ColorPicker as AntdColorPicker } from 'antd';
 import { createStyles } from 'antd-style';
 import cls from 'classnames';

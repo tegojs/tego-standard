@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { css, cx, useCompile, Variable } from '@tachybase/client';
-import { evaluators } from '@tachybase/evaluators/client';
-import { Registry } from '@tachybase/utils/client';
 
 import { CloseCircleOutlined } from '@ant-design/icons';
+import { evaluators, Registry } from '@tego/client';
 import { Button, Select } from 'antd';
 import { Trans, useTranslation } from 'react-i18next';
 

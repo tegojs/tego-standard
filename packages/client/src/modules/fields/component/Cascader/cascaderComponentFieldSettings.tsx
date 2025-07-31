@@ -1,8 +1,8 @@
 import React from 'react';
-// import { useCollectionField } from '../utils';
-import { ArrayItems } from '@tachybase/components';
 import { Field, ISchema, useField, useFieldSchema } from '@tachybase/schema';
 
+// import { useCollectionField } from '../utils';
+import { ArrayItems } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 

@@ -1,10 +1,6 @@
-import { Context, utils } from '@tachybase/actions';
-import { MultipleRelationRepository, Op, Repository } from '@tachybase/database';
-
-
+import { Context, MultipleRelationRepository, Op, Repository, utils } from '@tego/server';
 
 import type { WorkflowModel } from '../types';
-
 
 export async function create(context: Context, next) {
   const { db } = context;
@@ -303,33 +299,42 @@ export async function moveDown(context: Context, next) {
   await db.sequelize.transaction(async (transaction) => {
     const { upstream, downstream } = instance.get();
 
-    const downDownstreamId = downstream.downstreamId
+    const downDownstreamId = downstream.downstreamId;
 
     if (!downstream) {
       context.throw(400, 'Last node could not be moved up');
     }
 
     if (upstream) {
-      await upstream.update({
-        downstreamId: instance.downstreamId,
-      }, {
-        transaction
-      })
+      await upstream.update(
+        {
+          downstreamId: instance.downstreamId,
+        },
+        {
+          transaction,
+        },
+      );
     }
 
-    await downstream.update({
-      upstreamId: instance.upstreamId,
-      downstreamId: instance.id,
-    }, {
-      transaction
-    })
+    await downstream.update(
+      {
+        upstreamId: instance.upstreamId,
+        downstreamId: instance.id,
+      },
+      {
+        transaction,
+      },
+    );
 
-    await instance.update({
-      downstreamId: downDownstreamId,
-      upstreamId: downstream.id,
-    }, {
-      transaction,
-    })
+    await instance.update(
+      {
+        downstreamId: downDownstreamId,
+        upstreamId: downstream.id,
+      },
+      {
+        transaction,
+      },
+    );
 
     if (downDownstreamId) {
       await repository.update({
@@ -340,7 +345,6 @@ export async function moveDown(context: Context, next) {
         transaction,
       });
     }
-
   });
 
   context.body = instance;

@@ -3,7 +3,8 @@
  */
 import React from 'react';
 import { SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
+
+import { FormItem } from '@tego/client';
 
 import Preview from '../Preview';
 

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useRef } from 'react';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { ItemType } from 'antd/es/menu/interface';
 
 type menuItemsKey =

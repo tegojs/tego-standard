@@ -7,8 +7,8 @@ import PluginWorkflowClient, {
   useAvailableUpstreams,
 } from '@tachybase/module-workflow/client';
 import { observer } from '@tachybase/schema';
-import { Registry } from '@tachybase/utils/client';
 
+import { Registry } from '@tego/client';
 import { Result } from 'antd';
 import { NavBar, Skeleton } from 'antd-mobile';
 import _ from 'lodash';

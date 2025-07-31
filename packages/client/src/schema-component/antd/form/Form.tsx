@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
-import { FormLayout } from '@tachybase/components';
 import {
   createForm,
   FieldContext,
@@ -10,6 +9,7 @@ import {
   useFieldSchema,
 } from '@tachybase/schema';
 
+import { FormLayout } from '@tego/client';
 import { Options, Result } from 'ahooks/es/useRequest/src/types';
 import { ConfigProvider, Spin } from 'antd';
 

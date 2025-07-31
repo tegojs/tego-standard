@@ -1,8 +1,8 @@
 import React from 'react';
 import { css } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { Instruction, RadioWithTooltip } from '@tachybase/module-workflow/client';
-import { uid } from '@tachybase/utils/client';
+
+import { ArrayItems, uid } from '@tego/client';
 
 import { INSTRUCTION_TYPE_NAME_APPROVAL } from '../../../common/constants';
 import { ConfigButton } from '../../common/components/ConfigButton';

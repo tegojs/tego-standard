@@ -1,9 +1,9 @@
 import React from 'react';
 import { cx, useCollectionRecord } from '@tachybase/client';
-import { usePrefixCls } from '@tachybase/components';
 import { connect, mapProps, mapReadPretty } from '@tachybase/schema';
 
 import { LoadingOutlined } from '@ant-design/icons';
+import { usePrefixCls } from '@tego/client';
 import { Input as AntdInput } from 'antd';
 
 const ReadPretty = (props) => {

@@ -1,5 +1,6 @@
-import path, { resolve } from 'path';
-import { InstallOptions, Plugin } from '@tachybase/server';
+import path, { resolve } from 'node:path';
+
+import { InstallOptions, Plugin } from '@tego/server';
 
 import { compact, compactDark, dark, defaultTheme } from './builtinThemes';
 

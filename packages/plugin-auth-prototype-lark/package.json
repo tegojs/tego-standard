@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-auth-lark",
   "displayName": "Auth: Lark",
-  "version": "1.3.21",
+  "version": "1.3.22",
   "description": "Lark for auth",
   "keywords": [
     "Authentication"
@@ -9,11 +9,11 @@
   "main": "dist/server/index.js",
   "scripts": {},
   "dependencies": {},
-  "devDependencies": {},
-  "peerDependencies": {
+  "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/server": "^1.3.27",
-    "@tachybase/test": "^1.3.27"
+    "@tachybase/test": "^1.3.39",
+    "@tego/client": "^1.3.39",
+    "@tego/server": "^1.3.39"
   },
   "description.zh-CN": "认证: Lark",
   "displayName.zh-CN": "认证Lark"

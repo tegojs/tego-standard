@@ -1,4 +1,4 @@
-import { extendCollection } from '@tachybase/database';
+import { extendCollection } from '@tego/server';
 
 export default extendCollection({
   name: 'systemSettings',

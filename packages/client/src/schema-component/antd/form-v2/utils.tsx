@@ -1,7 +1,6 @@
-import { evaluators } from '@tachybase/evaluators/client';
 import { Field } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
 
+import { evaluators, uid } from '@tego/client';
 import _ from 'lodash';
 
 import { ActionType } from '../../../schema-settings/LinkageRules/type';

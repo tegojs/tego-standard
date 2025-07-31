@@ -1,8 +1,9 @@
-import fsPromises from 'fs/promises';
-import * as os from 'os';
-import path from 'path';
-import { Database } from '@tachybase/database';
+import fsPromises from 'node:fs/promises';
+import * as os from 'node:os';
+import path from 'node:path';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import { Database } from '@tego/server';
 
 import { Dumper } from '../dumper';
 import { Restorer } from '../restorer';

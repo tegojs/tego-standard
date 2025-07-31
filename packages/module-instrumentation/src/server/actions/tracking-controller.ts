@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Action, Controller } from '@tachybase/utils';
+import { Action, Context, Controller, Next } from '@tego/server';
 
 import { getDailyActiveUser } from '../hooks/getActiveUser';
 import { getDataByEventFrequency } from '../hooks/getQueryResult';

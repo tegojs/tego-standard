@@ -18,7 +18,7 @@ export default {
       const auth = await ctx.app.authManager.get('sms', ctx);
       ctx.body = await auth.changePassword();
     } else {
-      const auth = await ctx.app.authManager.get('Email/Password', ctx);
+      const auth = await ctx.app.authManager.get('basic', ctx);
       ctx.body = await auth.changePassword();
     }
     await next();

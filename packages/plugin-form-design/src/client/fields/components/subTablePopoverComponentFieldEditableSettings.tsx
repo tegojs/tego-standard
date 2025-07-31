@@ -13,9 +13,9 @@ import {
   useIsFieldReadPretty,
   useSortFields,
 } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { createForm, Field, ISchema, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { Switch } from 'antd';
 
 import { EditableSchemaSettings } from '../../editable-schema-settings';

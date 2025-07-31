@@ -15,6 +15,7 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { FormDialog, ScrollArea } from '..';
 import { useToken } from '../__builtins__';
 import { useStyles as useAClStyles } from '../../../built-in/acl/style';
+import { useContextMenu } from '../../../built-in/context-menu/useContextMenu';
 import { useDocumentTitle } from '../../../built-in/document-title';
 import { FilterBlockProvider } from '../../../filter-provider/FilterProvider';
 import { Icon } from '../../../icon';
@@ -141,9 +142,9 @@ const PageHeader = (props) => {
   }));
   const { t } = useTranslation();
 
-  const { styles } = modalStyle();
+  // const { styles } = modalStyle();
 
-  const { copyLink, imageAction } = useShareActions({ title: pageHeaderTitle, uid: '' });
+  // const { copyLink, imageAction } = useShareActions({ title: pageHeaderTitle, uid: '' });
 
   return (
     <div
@@ -195,7 +196,7 @@ const PageHeader = (props) => {
           </Button>
         </div>
       )}
-      <Modal
+      {/* <Modal
         open={open}
         className={styles.firstmodal}
         title={t('Share')}
@@ -230,7 +231,7 @@ const PageHeader = (props) => {
         >
           {imageAction()}
         </Modal>
-      </Modal>
+      </Modal> */}
     </div>
   );
 };

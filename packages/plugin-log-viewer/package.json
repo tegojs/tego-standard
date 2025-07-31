@@ -13,9 +13,9 @@
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "^1.3.39",
-    "@tego/client": "^1.3.39",
-    "@tego/server": "^1.3.39",
+    "@tachybase/test": "^1.3.42",
+    "@tego/client": "^1.3.42",
+    "@tego/server": "^1.3.42",
     "@types/tar-fs": "^2.0.4",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",

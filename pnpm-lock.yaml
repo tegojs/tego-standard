@@ -622,8 +622,8 @@ importers:
         specifier: 5.8.1
         version: 5.8.1
       highlight.js:
-        specifier: 11.11.0
-        version: 11.11.0
+        specifier: 11.11.1
+        version: 11.11.1
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -10540,8 +10540,8 @@ packages:
   help-me@5.0.0:
     resolution: {integrity: sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg==}
 
-  highlight.js@11.11.0:
-    resolution: {integrity: sha512-6ErL7JlGu2CNFHyRQEuDogOyGPNiqcuWdt4iSSFUPyferNTGlNTPFqeV36Y/XwA4V/TJ8l0sxp6FTnxud/mf8g==}
+  highlight.js@11.11.1:
+    resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
 
   hmac-drbg@1.0.1:
@@ -18058,7 +18058,7 @@ snapshots:
   '@bytemd/plugin-highlight@1.21.0(bytemd@1.21.0)':
     dependencies:
       bytemd: 1.21.0
-      highlight.js: 11.11.0
+      highlight.js: 11.11.1
 
   '@bytemd/react@1.21.0(react@18.3.1)':
     dependencies:
@@ -25342,7 +25342,7 @@ snapshots:
 
   help-me@5.0.0: {}
 
-  highlight.js@11.11.0: {}
+  highlight.js@11.11.1: {}
 
   hmac-drbg@1.0.1:
     dependencies:

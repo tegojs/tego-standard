@@ -8,8 +8,8 @@ import {
   useFormBlockContext,
 } from '@tachybase/client';
 import { useFieldSchema, useForm } from '@tachybase/schema';
-import { error, forEach } from '@tachybase/utils/client';
 
+import { error, forEach } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 

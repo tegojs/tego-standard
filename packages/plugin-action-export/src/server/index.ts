@@ -1,9 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import path from 'path';
-import { Repository } from '@tachybase/database';
-import { InstallOptions, Plugin } from '@tachybase/server';
-import { dayjs } from '@tachybase/utils';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
+import { dayjs, InstallOptions, Plugin, Repository } from '@tego/server';
 import xlsx from 'node-xlsx';
 
 import { exportXlsx } from './actions';

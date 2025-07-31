@@ -1,5 +1,4 @@
-import { filterMatch } from '@tachybase/database';
-
+import { filterMatch } from '@tego/server';
 import _ from 'lodash';
 
 const middlewares = {

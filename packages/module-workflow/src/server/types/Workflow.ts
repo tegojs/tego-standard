@@ -4,7 +4,7 @@ import {
   HasManyCreateAssociationMixin,
   HasManyGetAssociationsMixin,
   Model,
-} from '@tachybase/database';
+} from '@tego/server';
 
 import ExecutionModel from './Execution';
 import FlowNodeModel from './FlowNode';

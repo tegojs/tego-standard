@@ -9,6 +9,7 @@ export class UrlFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 5;
   title = '{{t("URL")}}';
+  icon = 'GlobalOutlined';
   default = {
     type: 'text',
     uiSchema: {
@@ -16,6 +17,16 @@ export class UrlFieldInterface extends CollectionFieldInterface {
       'x-component': 'Input.URL',
     },
   };
+  componentOptions = [
+    {
+      label: 'URL',
+      value: 'Input.URL',
+    },
+    {
+      label: 'Preview',
+      value: 'Input.Preview',
+    },
+  ];
   availableTypes = ['string', 'text'];
   schemaInitialize(schema: ISchema, { block }) {}
   properties = {

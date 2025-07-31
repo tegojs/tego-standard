@@ -1,6 +1,6 @@
-import { createHash } from 'crypto';
-import actions, { Context, Next } from '@tachybase/actions';
-import { Repository } from '@tachybase/database';
+import { createHash } from 'node:crypto';
+
+import { actions, Context, Next, Repository } from '@tego/server';
 
 export async function create(ctx: Context, next: Next) {
   const { values } = ctx.action.params;

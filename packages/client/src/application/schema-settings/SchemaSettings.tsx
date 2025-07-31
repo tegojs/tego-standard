@@ -14,13 +14,17 @@ export class SchemaSettings<T = {}> {
     this.name = options.name;
   }
 
-  add(name: string, item: SchemaSettingsItemTypeWithoutName) {
+  add(name: string, item: SchemaSettingsItemTypeWithoutName, targetIndex?: number) {
     const arr = name.split('.');
     const data: any = { ...item, name: arr[arr.length - 1] };
     if (arr.length === 1) {
       const index = this.items.findIndex((item: any) => item.name === name);
       if (index === -1) {
-        this.items.push(data);
+        if (targetIndex) {
+          this.items.splice(targetIndex, 0, data);
+        } else {
+          this.items.push(data);
+        }
       } else {
         this.items[index] = data;
       }
@@ -35,7 +39,11 @@ export class SchemaSettings<T = {}> {
       }
       const index = parentItem.children.findIndex((item: any) => item.name === name);
       if (index === -1) {
-        parentItem.children.push(data);
+        if (targetIndex) {
+          parentItem.children.splice(targetIndex, 0, data);
+        } else {
+          parentItem.children.push(data);
+        }
       } else {
         parentItem.children[index] = data;
       }

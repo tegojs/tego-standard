@@ -4,6 +4,8 @@ import {
   css,
   cx,
   FilterBlockProvider,
+  PageExtendComponentProvider,
+  SchemaComponent,
   SortableItem,
   TabsContextProvider,
   useDesigner,
@@ -15,7 +17,6 @@ import { Button, TabsProps } from 'antd';
 import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { countGridCol, findSchema } from '../../helpers';
-import { ShareModal } from '../header/HeaderShareModal';
 import { PageDesigner } from './Page.Designer';
 import useStyles from './style';
 
@@ -45,7 +46,8 @@ const InternalPage: React.FC = () => {
   const tabsSchema = fieldSchema.properties?.['tabs'];
   const isHeaderEnabled = field.componentProps.headerEnabled !== false;
   const isTabsEnabled = field.componentProps.tabsEnabled !== false && tabsSchema;
-  const [open, setOpen] = useState(false);
+  const extendComponents = fieldSchema['x-extend-components'];
+  const enabledSharePage = fieldSchema['x-component-props']?.['enableSharePage'];
 
   let pageSchema = findSchema(fieldSchema, 'MPage');
   if (!isTabsEnabled && !pageSchema && tabsSchema) {
@@ -130,15 +132,22 @@ const InternalPage: React.FC = () => {
             }}
           ></RecursionField>
         ) : (
-          <div style={{ display: 'flex', justifyContent: 'end', backgroundColor: '#ffffff', paddingRight: '20px' }}>
-            <Button
-              icon={<ShareAltOutlined />}
-              style={{ border: 'none' }}
-              onClick={() => {
-                setOpen(true);
-              }}
-            />
-          </div>
+          <>
+            {Object.values(extendComponents)?.map((item: any) => {
+              const schema = {
+                type: 'void',
+                name: item.name,
+                'x-component': item.component,
+                'x-comonent-props': {},
+              };
+              const componentProps = { ...props, isHeaderEnabled, fieldSchema, enabledSharePage };
+              return (
+                <PageExtendComponentProvider {...componentProps}>
+                  <SchemaComponent schema={schema} />
+                </PageExtendComponentProvider>
+              );
+            })}
+          </>
         )}
         <TabsContextProvider PaneRoot={GlobalActionProvider} activeKey={pageTabActiveKey} onChange={onTabsChange}>
           <RecursionField
@@ -159,7 +168,6 @@ const InternalPage: React.FC = () => {
           ></RecursionField>
         )}
       </GlobalActionProvider>
-      <ShareModal open={open} setOpen={setOpen} uid={fieldSchema['x-uid']} />
     </SortableItem>
   );
 };

@@ -8,6 +8,7 @@ export class CreatedAtFieldInterface extends CollectionFieldInterface {
   order = 1;
   title = '{{t("Created at")}}';
   sortable = true;
+  icon = 'FieldTimeOutlined';
   default = {
     type: 'date',
     field: 'createdAt',

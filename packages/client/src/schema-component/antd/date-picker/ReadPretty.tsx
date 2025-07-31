@@ -1,7 +1,7 @@
 import React from 'react';
 import { isArr } from '@tachybase/schema';
-import { getDefaultFormat, str2moment } from '@tachybase/utils/client';
 
+import { getDefaultFormat, str2moment } from '@tego/client';
 import type {
   DatePickerProps as AntdDatePickerProps,
   RangePickerProps as AntdRangePickerProps,

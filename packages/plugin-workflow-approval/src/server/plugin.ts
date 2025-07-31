@@ -1,6 +1,7 @@
-import path from 'path';
+import path from 'node:path';
 import { PluginWorkflow } from '@tachybase/module-workflow';
-import { Plugin } from '@tachybase/server';
+
+import { Plugin } from '@tego/server';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../common/constants';
 import { init } from './actions';

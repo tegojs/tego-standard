@@ -7,9 +7,9 @@ import {
   SchemaSettingsRemove,
   useDesignable,
 } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { useField, useFieldSchema, type ISchema } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { useShared } from './useShared';
@@ -94,7 +94,7 @@ export const ImportDesigner = () => {
       <SchemaSettingsActionModalItem
         title={t('Importable fields')}
         schema={schema}
-        initialValues={{ ...(fieldSchema?.['x-action-settings']?.importSettings ?? {}) }}
+        initialValues={{ ...fieldSchema?.['x-action-settings']?.importSettings }}
         components={{ ArrayItems }}
         onSubmit={({ importColumns, explain }) => {
           const columns = importColumns

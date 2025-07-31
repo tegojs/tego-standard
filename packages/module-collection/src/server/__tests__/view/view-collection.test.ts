@@ -1,6 +1,5 @@
-import Database, { Repository, ViewCollection, ViewFieldInference } from '@tachybase/database';
-import Application from '@tachybase/server';
-import { uid } from '@tachybase/utils';
+import Database, { Repository, uid, ViewCollection, ViewFieldInference } from '@tego/server';
+import Application from '@tego/server';
 
 import { createApp } from '../index';
 

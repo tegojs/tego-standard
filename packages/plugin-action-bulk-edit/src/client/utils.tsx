@@ -11,8 +11,8 @@ import {
   useTableBlockContext,
 } from '@tachybase/client';
 import { SchemaExpressionScopeContext, useField, useForm } from '@tachybase/schema';
-import { isURL } from '@tachybase/utils/client';
 
+import { isURL } from '@tego/client';
 import { App, message } from 'antd';
 import { cloneDeep } from 'lodash';
 import { useTranslation } from 'react-i18next';

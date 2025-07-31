@@ -1,6 +1,6 @@
 import { ActionBarProvider as ClientActionBarProvider, useCompile } from '@tachybase/client';
-import { str2moment } from '@tachybase/utils/client';
 
+import { str2moment } from '@tego/client';
 import { Space, Tag } from 'antd';
 
 import { approvalTodoStatusMap } from '../../../../../common/constants/approval-todo-status-options';

@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { AppSupervisor } from '@tachybase/server';
+import { AppSupervisor, Context, Next } from '@tego/server';
 
 import { CASAuth } from '../auth';
 

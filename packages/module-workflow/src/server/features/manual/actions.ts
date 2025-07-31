@@ -1,4 +1,4 @@
-import { Context, utils } from '@tachybase/actions';
+import { Context, utils } from '@tego/server';
 
 import WorkflowPlugin, { EXECUTION_STATUS, JOB_STATUS } from '../..';
 import ManualInstruction from './ManualInstruction';

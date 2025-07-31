@@ -1,7 +1,7 @@
-import { EventEmitter } from 'events';
-import { ViewFieldInference } from '@tachybase/database';
+import { EventEmitter } from 'node:events';
 import { mergeOptions } from '@tachybase/module-data-source';
 
+import { ViewFieldInference } from '@tego/server';
 import _ from 'lodash';
 
 import { showUniqueIndexes } from './utils';

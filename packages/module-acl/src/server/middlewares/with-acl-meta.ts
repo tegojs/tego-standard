@@ -1,6 +1,4 @@
-import { NoPermissionError } from '@tachybase/acl';
-import { snakeCase } from '@tachybase/database';
-
+import { NoPermissionError, snakeCase } from '@tego/server';
 import lodash from 'lodash';
 
 function createWithACLMetaMiddleware() {

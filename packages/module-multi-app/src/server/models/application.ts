@@ -1,6 +1,4 @@
-import { md5, Model, Transactionable } from '@tachybase/database';
-import { Application, ApplicationOptions } from '@tachybase/server';
-import { merge } from '@tachybase/utils';
+import { Application, ApplicationOptions, md5, merge, Model, Transactionable } from '@tego/server';
 
 import mergeApplicationStartEnvs from '../app-start-env';
 import { AppOptionsFactory } from '../server';

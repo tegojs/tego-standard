@@ -1,5 +1,6 @@
 import { isMainThread } from 'node:worker_threads';
-import { InjectedPlugin, Plugin } from '@tachybase/server';
+
+import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { NAMESPACE } from '../constants';
 import { WORKER_COUNT, WORKER_COUNT_SUB } from './constants';

@@ -1,4 +1,4 @@
-import { InstallOptions, Plugin } from '@tachybase/server';
+import { InstallOptions, Plugin } from '@tego/server';
 
 import { authType } from '../constants';
 import { login } from './actions/login';

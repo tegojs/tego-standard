@@ -1,4 +1,4 @@
-import { Plugin } from '@tachybase/server';
+import { Plugin } from '@tego/server';
 
 import { searchMiddleware } from './middlewares/search';
 

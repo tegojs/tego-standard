@@ -8,11 +8,12 @@ import { SchemaSettings } from '../../../../application/schema-settings/SchemaSe
 import { useFormBlockContext } from '../../../../block-provider';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../../../collection-manager';
 import { useFieldComponentName } from '../../../../common/useFieldComponentName';
-import { useCollectionField } from '../../../../data-source';
+import { useCollectionField, useDataSourceManager } from '../../../../data-source';
 import { useRecord } from '../../../../record-provider';
 import {
   OpenMode,
   removeNullCondition,
+  useCompile,
   useDesignable,
   useFieldModeOptions,
   useIsAddNewForm,
@@ -311,15 +312,40 @@ export const fieldComponent: any = {
     const fieldMode = useFieldComponentName();
     const { dn } = useDesignable();
 
-    const isMuiltipleSelect = ['select'].includes(collectionFieldCurrent?.interface);
+    const isMuiltipleSelect = ['select', 'multipleSelect'].includes(collectionFieldCurrent?.interface);
 
     const optionsMuiltipleSelect = [
       { label: t('Select'), value: 'Select' },
       { label: t('Radio group'), value: 'Radio group' },
     ];
+    if (collectionFieldCurrent?.interface === 'multipleSelect') {
+      const index = optionsMuiltipleSelect.findIndex((item) => {
+        return item.value === 'Radio group';
+      });
+      optionsMuiltipleSelect.splice(index, 1);
+    }
+    const dm = useDataSourceManager();
+    const collectionInterface = dm.collectionFieldInterfaceManager.getFieldInterface(collectionFieldCurrent?.interface);
+    const compile = useCompile();
+    if (fieldSchema['x-component-props']['multiple']) {
+      const index = fieldModeOptions.findIndex((item) => item.value === 'Radio group');
+      fieldModeOptions.splice(index, 1);
+    }
+
+    const componentOptions = isMuiltipleSelect ? optionsMuiltipleSelect : fieldModeOptions;
+    collectionInterface?.componentOptions
+      ?.filter((item) => !item.useVisible || item.useVisible())
+      ?.forEach((item) => {
+        if (!componentOptions?.find((modeItem) => modeItem.value === item.value)) {
+          componentOptions?.push({
+            label: compile(item.label),
+            value: item.value,
+          });
+        }
+      });
     return {
       title: t('Field component'),
-      options: isMuiltipleSelect ? optionsMuiltipleSelect : fieldModeOptions,
+      options: componentOptions,
       value: fieldMode,
       onChange(mode) {
         const schema = {
@@ -361,6 +387,7 @@ export const CustomTitle = {
     const options = useFormulaTitleOptions();
     const def = fieldSchema['x-component-props']?.fieldNames?.formula;
     const field = useField();
+
     return {
       title: t('Custom option label'),
       schema: {
@@ -413,7 +440,6 @@ export const selectComponentFieldSettings = new SchemaSettings({
   items: [
     {
       ...fieldComponent,
-      useVisible: useIsMuiltipleAble,
     },
     {
       ...setTheDataScope,

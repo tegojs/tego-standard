@@ -1,4 +1,4 @@
-import { BaseValueParser } from '@tachybase/database';
+import { BaseValueParser } from '@tego/server';
 
 export class PointValueParser extends BaseValueParser {
   async setValue(value) {

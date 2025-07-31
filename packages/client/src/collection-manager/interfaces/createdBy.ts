@@ -11,6 +11,7 @@ export class CreatedByFieldInterface extends CollectionFieldInterface {
   group = 'systemInfo';
   order = 3;
   title = '{{t("Created by")}}';
+  icon = 'UserOutlined';
   isAssociation = true;
   default = {
     type: 'belongsTo',

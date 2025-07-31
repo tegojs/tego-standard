@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
-import { FormLayout } from '@tachybase/components';
 import { createForm, FormContext, useField, useFieldSchema } from '@tachybase/schema';
+
+import { FormLayout } from '@tego/client';
 
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
 import { BlockProvider, useBlockRequestContext, useParsedFilter } from '../../../block-provider';

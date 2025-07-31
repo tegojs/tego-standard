@@ -1,7 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import Database from '@tachybase/database';
-import { Application, Logger } from '@tachybase/server';
-import { App, Db, InjectLog, Service } from '@tachybase/utils';
+import { App, Application, Context, Database, Db, InjectLog, Logger, Next, Service } from '@tego/server';
 
 import { COLLECTION_AUTH_MAIN_APP_CONFIG, NAMESPACE } from '../../constants';
 

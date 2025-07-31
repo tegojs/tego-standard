@@ -7,6 +7,7 @@ export class UpdatedAtFieldInterface extends CollectionFieldInterface {
   group = 'systemInfo';
   order = 2;
   title = '{{t("Last updated at")}}';
+  icon = 'FieldTimeOutlined';
   sortable = true;
   default = {
     type: 'date',

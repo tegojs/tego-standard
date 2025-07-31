@@ -10,9 +10,9 @@ import {
   useCloseAction,
   useRequest,
 } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
 import { ISchema, observer } from '@tachybase/schema';
 
+import { FormItem } from '@tego/client';
 import { Button } from 'antd';
 
 const useValues = (options) => {

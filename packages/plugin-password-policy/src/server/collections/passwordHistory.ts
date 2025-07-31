@@ -1,4 +1,4 @@
-import { defineCollection } from '@tachybase/database';
+import { defineCollection } from '@tego/server';
 
 // 密码历史记录
 export default defineCollection({

@@ -1,5 +1,6 @@
 import { Plugin, useFormulaTitleVisible } from '@tachybase/client';
-import { CodeMirror } from '@tachybase/components';
+
+import { CodeMirror } from '@tego/client';
 
 import {
   AssociatedField,

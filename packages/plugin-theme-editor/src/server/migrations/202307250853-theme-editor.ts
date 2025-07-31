@@ -1,6 +1,4 @@
-import { Model } from '@tachybase/database';
-import { Migration } from '@tachybase/server';
-import { uid } from '@tachybase/utils';
+import { Migration, Model, uid } from '@tego/server';
 
 import { compact, compactDark, dark, defaultTheme } from '../builtinThemes';
 

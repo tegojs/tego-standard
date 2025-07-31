@@ -1,5 +1,6 @@
-import { CollectionManager, DataSource } from '@tachybase/data-source';
 import { createMockServer, MockServer, waitSecond } from '@tachybase/test';
+
+import { CollectionManager, DataSource } from '@tego/server';
 
 describe('data source', async () => {
   let app: MockServer;

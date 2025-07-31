@@ -1,5 +1,4 @@
-import { DataTypes } from '@tachybase/database';
-import { Migration } from '@tachybase/server';
+import { DataTypes, Migration } from '@tego/server';
 
 export default class AddUsersPhoneMigration extends Migration {
   on = 'beforeLoad';

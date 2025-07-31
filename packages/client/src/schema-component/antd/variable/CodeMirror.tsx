@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { CodeMirror as CodeMirrorComponent } from '@tachybase/components';
 import { useForm } from '@tachybase/schema';
 
+import { CodeMirror as CodeMirrorComponent } from '@tego/client';
 import { cloneDeep } from 'lodash';
 
 import { css, useTranslation } from '../../..';

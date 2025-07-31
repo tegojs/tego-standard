@@ -1,4 +1,4 @@
-import { AvailableStrategyOptions } from '@tachybase/acl';
+import { AvailableStrategyOptions } from '@tego/server';
 
 export type RoleStrategyOptions = string | AvailableStrategyOptions;
 

@@ -8,9 +8,9 @@ import {
   useCompile,
   useGlobalTheme,
 } from '@tachybase/client';
-import { FormLayout } from '@tachybase/components';
 import { SchemaOptionsContext, uid, useField } from '@tachybase/schema';
 
+import { FormLayout } from '@tego/client';
 import { Button, Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 

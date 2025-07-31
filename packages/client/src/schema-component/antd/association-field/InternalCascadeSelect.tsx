@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrayItems, FormItem } from '@tachybase/components';
 import {
   connect,
   createForm,
@@ -12,6 +11,7 @@ import {
   useFieldSchema,
 } from '@tachybase/schema';
 
+import { ArrayItems, FormItem } from '@tego/client';
 import { Select as AntdSelect, Input, Space, Spin, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';

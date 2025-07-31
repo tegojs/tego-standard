@@ -1,5 +1,4 @@
-import { Authenticator } from '@tachybase/auth';
-import { Database, Model } from '@tachybase/database';
+import { Authenticator, Database, Model } from '@tego/server';
 
 export class AuthModel extends Model implements Authenticator {
   declare authType: string;

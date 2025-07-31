@@ -1,6 +1,6 @@
-import { resolve } from 'path';
-import { Model } from '@tachybase/database';
-import { InstallOptions, Plugin } from '@tachybase/server';
+import { resolve } from 'node:path';
+
+import { InstallOptions, Model, Plugin } from '@tego/server';
 
 import { SnapshotField } from './fields/field-snapshot';
 

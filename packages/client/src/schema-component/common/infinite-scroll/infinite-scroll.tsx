@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
-import { getScrollParent, merge } from '@tachybase/utils/client';
 
+import { getScrollParent, merge } from '@tego/client';
 import { useLockFn, useThrottleFn } from 'ahooks';
 import { Spin } from 'antd';
 import { useTranslation } from 'react-i18next';

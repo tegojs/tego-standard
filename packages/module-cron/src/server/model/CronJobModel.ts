@@ -1,5 +1,6 @@
-import { Model } from '@tachybase/database';
 import { WorkflowModel } from '@tachybase/module-workflow';
+
+import { Model } from '@tego/server';
 
 import { SCHEDULE_MODE } from '../../constants';
 

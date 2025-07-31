@@ -1,31 +1,24 @@
 {
   "name": "@tachybase/plugin-devtools",
   "displayName": "Devtools",
-  "version": "1.3.19",
+  "version": "1.3.22",
   "description": "Development tools for viewing API documentation, middleware, environment variables, events, and more",
   "keywords": [
     "Logging and monitoring"
   ],
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-devtools"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.5.2",
+    "@ant-design/icons": "^5.6.1",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/test": "^1.3.39",
+    "@tego/client": "^1.3.39",
+    "@tego/server": "^1.3.39",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
-    "react-i18next": "^15.2.0",
+    "react-i18next": "15.2.0",
     "swagger-ui-dist": "^5.26.2"
-  },
-  "peerDependencies": {
-    "@tachybase/actions": "workspace:*",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/sdk": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
   },
   "description.zh-CN": "开发工具,用于查看Api文档,中间件,环境变量,事件等信息",
   "displayName.zh-CN": "开发工具"

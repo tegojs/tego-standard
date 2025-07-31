@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAPIClient, useRequest } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 export function useProps(props) {
   const { value: srcId, onChange } = props;

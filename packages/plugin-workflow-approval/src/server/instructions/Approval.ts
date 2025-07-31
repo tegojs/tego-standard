@@ -1,7 +1,7 @@
-import { parseCollectionName } from '@tachybase/data-source';
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
 import { Instruction, JOB_STATUS, toJSON } from '@tachybase/module-workflow';
-import { uid } from '@tachybase/utils';
+
+import { parseCollectionName, uid } from '@tego/server';
 
 import { APPROVAL_ACTION_STATUS, APPROVAL_STATUS } from '../constants/status';
 import ApprovalTrigger from '../triggers/Approval';

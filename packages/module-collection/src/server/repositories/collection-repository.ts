@@ -1,7 +1,4 @@
-import { Repository } from '@tachybase/database';
-import { Application } from '@tachybase/server';
-import { CollectionsGraph } from '@tachybase/utils';
-
+import { Application, CollectionsGraph, Repository } from '@tego/server';
 import lodash from 'lodash';
 
 import { CollectionModel } from '../models/collection';

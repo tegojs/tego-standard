@@ -1,7 +1,7 @@
+import path from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-import path from 'path';
-import { Transaction } from '@tachybase/database';
-import { Plugin } from '@tachybase/server';
+
+import { Plugin, Transaction } from '@tego/server';
 
 import { afterCreate, afterDestroy, afterUpdate } from './hooks';
 

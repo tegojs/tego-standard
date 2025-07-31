@@ -1,7 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Repository } from '@tachybase/database';
-import { NoticeType, WSServer } from '@tachybase/server';
-import { Action, Controller } from '@tachybase/utils';
+import { Action, Context, Controller, Next, NoticeType, Repository, WSServer } from '@tego/server';
 
 type NotificationLog = {
   title: string;

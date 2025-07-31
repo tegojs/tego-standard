@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { useAPIClient } from '../../api-client';

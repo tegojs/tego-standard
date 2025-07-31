@@ -1,4 +1,4 @@
-import { lodash } from '@tachybase/utils/client';
+import { lodash } from '@tego/client';
 
 export const debounceClick = lodash.debounce((parentForm, actionKey, keyName, headerValue) => {
   const { actions } = parentForm.values || {};

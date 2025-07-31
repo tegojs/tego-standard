@@ -1,4 +1,4 @@
-import { Registry } from '@tachybase/utils/client';
+import { Registry } from '@tego/client';
 
 export type RolesManagerOptions = {
   title: string;

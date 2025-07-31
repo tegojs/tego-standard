@@ -1,8 +1,8 @@
 import React from 'react';
 import { useAPIClient } from '@tachybase/client';
-import { parse } from '@tachybase/utils/client';
 
 import { DeleteOutlined } from '@ant-design/icons';
+import { parse } from '@tego/client';
 import { App, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
 

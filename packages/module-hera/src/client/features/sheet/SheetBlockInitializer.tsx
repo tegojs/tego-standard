@@ -10,9 +10,9 @@ import {
   useSchemaInitializerItem,
 } from '@tachybase/client';
 import { ISchema, useField, useFieldSchema } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
 
 import { TableOutlined } from '@ant-design/icons';
+import { uid } from '@tego/client';
 import { Button, Spin } from 'antd';
 
 import Sheet, { SheetRef } from '../../components/excel-table/Sheet';

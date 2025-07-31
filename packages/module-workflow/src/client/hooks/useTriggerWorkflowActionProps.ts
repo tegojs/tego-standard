@@ -9,8 +9,8 @@ import {
   useRecord,
 } from '@tachybase/client';
 import { useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { isURL } from '@tachybase/utils/client';
 
+import { isURL } from '@tego/client';
 import { App, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 

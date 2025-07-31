@@ -11,8 +11,11 @@ export interface RadioWithTooltipOption {
 }
 
 export function RadioWithTooltip(props) {
-  const { options = [], direction, ...other } = props;
+  const { options: optionsProps = [], getOptions = () => [], direction, ...other } = props;
   const compile = useCompile();
+
+  const optionsList = getOptions();
+  const options = optionsProps.length > 0 ? optionsProps : optionsList;
 
   return (
     <Radio.Group {...other}>

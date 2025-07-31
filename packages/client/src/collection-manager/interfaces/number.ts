@@ -8,6 +8,7 @@ export class NumberFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 7;
   title = '{{t("Number")}}';
+  icon = 'numberField';
   sortable = true;
   default = {
     type: 'double',

@@ -16,7 +16,9 @@ import {
   useFieldServiceFilter,
   useRequest,
 } from '@tachybase/client';
-import { isArray } from '@tachybase/utils/client';
+
+import { isArray } from '@tego/client';
+import _ from 'lodash';
 
 import { lang } from '../../../../../locale';
 import { MInput } from '../Input';
@@ -128,7 +130,15 @@ export const AntdSelect = observer((props) => {
     setPopupVisible(false);
   };
 
-  const handleSearch = (value) => setSearchValue(value);
+  const handleSearch = (value) => {
+    setSearchValue(value);
+    setFilter({
+      ...filter,
+      [fieldNamesLabel]: {
+        $includes: value,
+      },
+    });
+  };
 
   const handleChange = (valueList) => {
     setSelectValue(valueList);
@@ -147,6 +157,17 @@ export const AntdSelect = observer((props) => {
     setSearchValue('');
     setFilter(paramsFilter);
   };
+
+  const fetchOptions = useMemo(() => _.debounce(run, 300), [run]);
+
+  useEffect(() => {
+    if (collectionName && searchValue) {
+      fetchOptions();
+    }
+    return () => {
+      fetchOptions.cancel();
+    };
+  }, [searchValue, fetchOptions]);
 
   useEffect(() => {
     checkedPopup();
@@ -198,6 +219,7 @@ export const AntdSelect = observer((props) => {
               </CheckList>
             ) : (
               <PickerView
+                value={selectValue}
                 className={`${styles['customPickerView']}`}
                 columns={[showOptions]}
                 onChange={(value) => {

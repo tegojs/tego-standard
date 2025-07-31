@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { css, useCollectionManager_deprecated, useRecord, useRequest, useToken } from '@tachybase/client';
 import { connect } from '@tachybase/schema';
-import { CollectionsGraph, lodash } from '@tachybase/utils/client';
 
+import { CollectionsGraph, lodash } from '@tego/client';
 import { App, Col, Input, Row, Select, Space, Spin, Table, Tag } from 'antd';
 import { useTranslation } from 'react-i18next';
 

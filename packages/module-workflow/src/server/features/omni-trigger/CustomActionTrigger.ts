@@ -1,8 +1,6 @@
-import { Context, Next } from '@tachybase/actions';
-import { joinCollectionName, parseCollectionName } from '@tachybase/data-source';
-import { Model, modelAssociationByKey } from '@tachybase/database';
 import PluginErrorHandler from '@tachybase/module-error-handler';
 
+import { Context, joinCollectionName, Model, modelAssociationByKey, Next, parseCollectionName } from '@tego/server';
 import _, { get, isArray } from 'lodash';
 
 import { EXECUTION_STATUS } from '../../constants';

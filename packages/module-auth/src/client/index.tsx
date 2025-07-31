@@ -1,6 +1,7 @@
 import { ComponentType, lazy } from 'react';
 import { Plugin } from '@tachybase/client';
-import { Registry } from '@tachybase/utils/client';
+
+import { Registry } from '@tego/client';
 
 import { presetAuthType } from '../preset';
 import { Authenticator as AuthenticatorType } from './authenticator';

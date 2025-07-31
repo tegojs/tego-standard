@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { CardItem, createStyles, useCompile, useCurrentUserContext } from '@tachybase/client';
-import { dayjs } from '@tachybase/utils/client';
 
+import { dayjs } from '@tego/client';
 import { Space, Tag, Timeline } from 'antd';
 import _ from 'lodash';
 

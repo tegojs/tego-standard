@@ -1,5 +1,6 @@
-import { ArrayItems } from '@tachybase/components';
 import { GroupType, Instruction } from '@tachybase/module-workflow/client';
+
+import { ArrayItems } from '@tego/client';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../../../common/constants';
 import { tval } from '../../locale';

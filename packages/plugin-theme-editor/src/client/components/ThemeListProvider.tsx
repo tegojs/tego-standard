@@ -1,6 +1,7 @@
 import React, { createContext, useMemo } from 'react';
 import { ReturnTypeOfUseRequest, useRequest } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
+
+import { error } from '@tego/client';
 
 import { ThemeItem } from '../../types';
 import { changeAlgorithmFromStringToFunction } from '../utils/changeAlgorithmFromStringToFunction';

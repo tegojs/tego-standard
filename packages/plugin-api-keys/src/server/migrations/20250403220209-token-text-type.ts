@@ -1,5 +1,4 @@
-import { DataTypes } from '@tachybase/database';
-import { Migration } from '@tachybase/server';
+import { DataTypes, Migration } from '@tego/server';
 
 export default class extends Migration {
   on = 'afterLoad'; // 'beforeLoad' or 'afterLoad'

@@ -1,4 +1,4 @@
-import { Transactionable } from '@tachybase/database';
+import { Transactionable } from '@tego/server';
 
 import type Plugin from '../Plugin';
 import type Processor from '../Processor';

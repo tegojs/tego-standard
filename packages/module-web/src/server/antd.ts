@@ -1,5 +1,6 @@
-import { resolve } from 'path';
-import { requireModule } from '@tachybase/utils';
+import { resolve } from 'node:path';
+
+import { requireModule } from '@tego/server';
 
 export const getAntdLocale = (lang) => {
   const lng = lang.replace('-', '_');

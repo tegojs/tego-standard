@@ -9,6 +9,7 @@ import { SubTable } from './SubTable';
 
 export const AssociationField: any = connect(Editable, mapReadPretty(ReadPretty));
 export * from './SubTabs';
+export { isSubMode } from './util';
 
 AssociationField.SubTable = SubTable;
 AssociationField.Nester = Nester;

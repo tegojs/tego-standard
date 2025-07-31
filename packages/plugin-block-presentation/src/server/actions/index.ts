@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Repository } from '@tachybase/database';
+import { Context, Next, Repository } from '@tego/server';
 
 export async function getHtml(ctx: Context, next: Next) {
   const { filterByTk } = ctx.action.params;

@@ -1,5 +1,4 @@
-import { Migration } from '@tachybase/server';
-
+import { Migration } from '@tego/server';
 import { QueryTypes } from 'sequelize';
 
 export default class extends Migration {

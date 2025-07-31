@@ -1,8 +1,7 @@
-import { parseCollectionName } from '@tachybase/data-source';
-import { modelAssociationByKey } from '@tachybase/database';
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
 import { EXECUTION_STATUS, JOB_STATUS, toJSON, Trigger } from '@tachybase/module-workflow';
 
+import { modelAssociationByKey, parseCollectionName } from '@tego/server';
 import { get } from 'lodash';
 import { BelongsTo, HasOne, Op } from 'sequelize';
 
@@ -268,7 +267,7 @@ export default class ApprovalTrigger extends Trigger {
             if (payload.get(field)) {
               payload = payload.get(field);
             } else {
-              const association = <HasOne | BelongsTo>modelAssociationByKey(payload, field);
+              const association = <HasOne | BelongsTo>(<unknown>modelAssociationByKey(payload, field));
               payload = await payload[association.accessors.get]();
             }
           }

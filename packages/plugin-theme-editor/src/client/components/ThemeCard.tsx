@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { useAPIClient, useCurrentUserContext, useGlobalTheme, useToken } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
 
 import { DeleteOutlined, EditOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { error } from '@tego/client';
 import { App, Card, ConfigProvider, Dropdown, message, Space, Switch, Tag } from 'antd';
 
 import { ThemeConfig, ThemeItem } from '../../types';
@@ -27,7 +27,7 @@ const Overview = ({ theme }: { theme: ThemeConfig }) => {
   const { token } = useToken();
 
   return (
-    <ConfigProvider theme={{ ...theme, inherit: false }}>
+    <ConfigProvider theme={{ ...theme, inherit: false }} prefixCls={`${theme.name}-demo`}>
       <div
         style={{
           display: 'flex',
@@ -38,6 +38,7 @@ const Overview = ({ theme }: { theme: ThemeConfig }) => {
           borderRadius: token.borderRadiusLG,
           overflow: 'hidden',
         }}
+        className={`${theme.name}-demo`}
       >
         <Space
           style={{

@@ -1,4 +1,4 @@
-import { Collection, RelationField } from '@tachybase/database';
+import { Collection, RelationField } from '@tego/server';
 
 import { hasSortField, readOnlyCollection } from './index';
 

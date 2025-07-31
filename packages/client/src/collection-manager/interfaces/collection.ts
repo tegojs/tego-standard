@@ -7,6 +7,7 @@ export class CollectionSelectFieldInterface extends CollectionFieldInterface {
   name = 'collection';
   type = 'string';
   group = 'advanced';
+  icon = 'ClusterOutlined';
   order = 5;
   title = '{{t("Collection selector")}}';
   description =
@@ -34,7 +35,7 @@ export class CollectionSelectFieldInterface extends CollectionFieldInterface {
   schemaInitialize(schema: ISchema, { block }): void {
     const props = (schema['x-component-props'] = schema['x-component-props'] || {});
     props.style = {
-      ...(props.style || {}),
+      ...props.style,
       width: '100%',
     };
 

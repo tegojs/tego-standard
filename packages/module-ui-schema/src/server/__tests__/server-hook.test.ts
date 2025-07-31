@@ -1,7 +1,7 @@
-import { Database } from '@tachybase/database';
 import ModuleUiSchema, { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
 import { createMockServer, MockServer } from '@tachybase/test';
 
+import { Database } from '@tego/server';
 import { vi } from 'vitest';
 
 describe('server hooks', () => {

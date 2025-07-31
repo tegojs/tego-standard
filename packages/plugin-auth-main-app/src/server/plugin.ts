@@ -1,4 +1,4 @@
-import { InjectedPlugin, Plugin } from '@tachybase/server';
+import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { AuthMainAppController } from './actions/authMainApp';
 import { AuthMainAppService } from './service/authMainAppService';

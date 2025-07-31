@@ -1,4 +1,4 @@
-import { getDefaultFormat, str2moment, toFixedByStep } from '@tachybase/utils';
+import { getDefaultFormat, str2moment, toFixedByStep } from '@tego/server';
 
 export async function _(field, row, ctx, column?: any) {
   if (column?.dataIndex.length > 1) {

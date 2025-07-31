@@ -1,7 +1,6 @@
-import path from 'path';
-import Database from '@tachybase/database';
-import { Db, Service } from '@tachybase/utils';
+import path from 'node:path';
 
+import { Database, Db, Service } from '@tego/server';
 import fs from 'fs-extra';
 
 import { isMain } from '../utils/multiprocess';

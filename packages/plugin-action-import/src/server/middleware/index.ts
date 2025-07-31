@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { koaMulter as multer } from '@tachybase/utils';
+import { Context, koaMulter as multer, Next } from '@tego/server';
 
 export async function importMiddleware(ctx: Context, next: Next) {
   if (ctx.action.actionName !== 'importXlsx') {

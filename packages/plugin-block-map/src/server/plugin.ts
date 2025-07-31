@@ -1,5 +1,6 @@
-import path from 'path';
-import { InstallOptions, Plugin } from '@tachybase/server';
+import path from 'node:path';
+
+import { InstallOptions, Plugin } from '@tego/server';
 
 import { getConfiguration, setConfiguration } from './actions';
 import { CircleField, LineStringField, PointField, PolygonField } from './fields';

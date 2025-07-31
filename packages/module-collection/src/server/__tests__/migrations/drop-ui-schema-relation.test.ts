@@ -1,6 +1,6 @@
-import { Database, MigrationContext } from '@tachybase/database';
-import { Plugin } from '@tachybase/server';
 import { MockServer } from '@tachybase/test';
+
+import { Database, MigrationContext, Plugin } from '@tego/server';
 
 import Migrator from '../../migrations/20230225111112-drop-ui-schema-relation';
 import { createApp } from '../index';

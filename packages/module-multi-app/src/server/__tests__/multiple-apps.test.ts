@@ -1,8 +1,6 @@
-import { Database } from '@tachybase/database';
-import { AppSupervisor, Gateway } from '@tachybase/server';
 import { createMockServer, MockServer } from '@tachybase/test';
-import { uid } from '@tachybase/utils';
 
+import { AppSupervisor, Database, Gateway, uid } from '@tego/server';
 import { vi } from 'vitest';
 
 import { PluginMultiAppManager } from '../server';

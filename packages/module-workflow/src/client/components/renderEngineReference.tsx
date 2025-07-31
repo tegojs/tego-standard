@@ -1,6 +1,7 @@
 import React from 'react';
 import { css, i18n } from '@tachybase/client';
-import { evaluators } from '@tachybase/evaluators/client';
+
+import { evaluators } from '@tego/client';
 
 export const renderEngineReference = (key: string) => {
   const engine = evaluators.get(key);

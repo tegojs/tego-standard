@@ -3,9 +3,9 @@
  */
 import React from 'react';
 import { Markdown, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
 import { observer, useField } from '@tachybase/schema';
 
+import { FormItem } from '@tego/client';
 import { Button } from 'antd';
 
 const schema = {

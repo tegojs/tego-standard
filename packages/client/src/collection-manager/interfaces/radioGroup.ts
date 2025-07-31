@@ -7,6 +7,7 @@ export class RadioGroupFieldInterface extends CollectionFieldInterface {
   group = 'choices';
   order = 4;
   title = '{{t("Radio group")}}';
+  icon = 'TagsOutlined';
   sortable = true;
   default = {
     type: 'string',

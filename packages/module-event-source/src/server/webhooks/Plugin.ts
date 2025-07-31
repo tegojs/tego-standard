@@ -1,6 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Gateway, Plugin, WSServer } from '@tachybase/server';
-import { Registry } from '@tachybase/utils';
+import { Context, Gateway, Next, Plugin, Registry, WSServer } from '@tego/server';
 
 import { EVENT_SOURCE_COLLECTION, EVENT_SOURCE_REALTIME } from '../constants';
 import { EventSourceModel } from '../model/EventSourceModel';

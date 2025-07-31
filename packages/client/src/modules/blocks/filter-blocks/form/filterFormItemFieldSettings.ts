@@ -1,6 +1,6 @@
-import { ArrayCollapse, FormLayout } from '@tachybase/components';
 import { Field, ISchema, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayCollapse, FormLayout } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
@@ -8,7 +8,6 @@ import { useApp } from '../../../../application';
 import { SchemaSettings } from '../../../../application/schema-settings/SchemaSettings';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../../../collection-manager';
 import { useFieldComponentName } from '../../../../common/useFieldComponentName';
-import { fieldComponentSettingsItem } from '../../../../data-source';
 import { EditOperator, useDesignable, useValidateSchema } from '../../../../schema-component';
 import { SchemaSettingsDefaultValue } from '../../../../schema-settings';
 
@@ -316,7 +315,6 @@ export const filterFormItemFieldSettings = new SchemaSettings({
             name: 'operator',
             Component: EditOperator,
           },
-          { ...fieldComponentSettingsItem },
           {
             name: 'editDefaultValue',
             Component: SchemaSettingsDefaultValue,

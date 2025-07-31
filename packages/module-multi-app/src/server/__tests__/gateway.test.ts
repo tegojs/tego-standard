@@ -1,6 +1,6 @@
-import { AppSupervisor, Gateway } from '@tachybase/server';
 import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
-import { uid } from '@tachybase/utils';
+
+import { AppSupervisor, Gateway, uid } from '@tego/server';
 
 describe('gateway with multiple apps', () => {
   let app: MockServer;

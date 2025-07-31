@@ -1,5 +1,4 @@
-import { str2moment } from '@tachybase/utils/client';
-
+import { str2moment } from '@tego/client';
 import dayjs from 'dayjs';
 
 import { moment2str } from '../util';

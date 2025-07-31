@@ -1,28 +1,23 @@
 {
   "name": "@tachybase/module-error-handler",
   "displayName": "Error handler",
-  "version": "1.3.19",
+  "version": "1.3.22",
   "description": "Handling application errors and exceptions.",
   "keywords": [
     "System management"
   ],
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/module-error-handler"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/schema": "^1.3.39",
+    "@tachybase/test": "^1.3.39",
+    "@tego/client": "^1.3.39",
+    "@tego/server": "^1.3.39",
     "lodash": "4.17.21",
     "supertest": "^7.1.3"
-  },
-  "peerDependencies": {
-    "@tachybase/client": "workspace:*",
-    "@tachybase/database": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*",
-    "@tachybase/utils": "workspace:*"
   },
   "description.zh-CN": "处理应用程序中的错误和异常。",
   "displayName.zh-CN": "错误处理器"

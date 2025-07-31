@@ -1,7 +1,6 @@
-import { AppSupervisor, Plugin, PluginManager } from '@tachybase/server';
 import { createMockServer } from '@tachybase/test';
-import { uid } from '@tachybase/utils';
 
+import { AppSupervisor, Plugin, PluginManager, uid } from '@tego/server';
 import { vi } from 'vitest';
 
 describe('test with start', () => {

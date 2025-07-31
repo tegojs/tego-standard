@@ -1,7 +1,7 @@
-import Database from '@tachybase/database';
 import { EXECUTION_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-import { Application } from '@tachybase/server';
+
+import Database, { Application } from '@tego/server';
 
 import Plugin from '..';
 

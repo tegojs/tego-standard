@@ -11,6 +11,7 @@ export class UpdatedByFieldInterface extends CollectionFieldInterface {
   group = 'systemInfo';
   order = 4;
   title = '{{t("Last updated by")}}';
+  icon = 'UserOutlined';
   isAssociation = true;
   default = {
     type: 'belongsTo',

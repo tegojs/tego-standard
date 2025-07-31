@@ -1,5 +1,6 @@
 import { useCollectionManager, useCollectionRecordData, useCompile } from '@tachybase/client';
-import { dayjs } from '@tachybase/utils/client';
+
+import { dayjs } from '@tego/client';
 
 import useStyles from '../style';
 

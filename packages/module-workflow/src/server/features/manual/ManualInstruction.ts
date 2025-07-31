@@ -1,4 +1,4 @@
-import { Registry } from '@tachybase/utils';
+import { Registry } from '@tego/server';
 
 import WorkflowPlugin, { Instruction, JOB_STATUS, Processor } from '../..';
 import initFormTypes, { FormHandler } from './forms';
@@ -142,7 +142,7 @@ export default class extends Instruction {
       0,
     );
     const status = job.status || (getMode(mode).getStatus(distribution, assignees) ?? JOB_STATUS.PENDING);
-    const result = mode ? (submitted || 0) / assignees.length : job.latestUserJob?.result ?? job.result;
+    const result = mode ? (submitted || 0) / assignees.length : (job.latestUserJob?.result ?? job.result);
     processor.logger.debug(`manual resume job and next status: ${status}`);
     job.set({
       status,

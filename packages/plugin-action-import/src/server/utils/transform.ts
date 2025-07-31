@@ -1,5 +1,4 @@
-import { dayjs, str2moment } from '@tachybase/utils';
-
+import { dayjs, str2moment } from '@tego/server';
 import * as math from 'mathjs';
 
 import { namespace } from '../../';

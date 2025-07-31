@@ -1,6 +1,6 @@
-import { Database, MigrationContext } from '@tachybase/database';
 import { MockServer } from '@tachybase/test';
 
+import { Database, MigrationContext } from '@tego/server';
 import lodash from 'lodash';
 
 import Migrator from '../../migrations/20221121111113-update-id-to-bigint';

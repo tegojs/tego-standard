@@ -7,6 +7,7 @@ export class IconFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 10;
   title = '{{t("Icon")}}';
+  icon = 'FieldNumberOutlined';
   default = {
     type: 'string',
     uiSchema: {

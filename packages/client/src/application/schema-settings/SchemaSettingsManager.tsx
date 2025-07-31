@@ -56,6 +56,37 @@ export class SchemaSettingsManager {
     }
   }
 
+  addItemWithIndex({
+    schemaSettingName,
+    itemName,
+    index,
+    data,
+  }: {
+    schemaSettingName: string | string[];
+    itemName: string;
+    index?: number | number[];
+    data?: SchemaSettingsItemTypeWithoutName;
+  }) {
+    if (Array.isArray(schemaSettingName)) {
+      schemaSettingName.forEach((name, i) => {
+        this.addItemWithIndex({
+          schemaSettingName: name,
+          itemName,
+          index: Array.isArray(index) ? index[i] : index,
+          data,
+        });
+      });
+      return;
+    }
+    const schemaSetting = this.get(schemaSettingName);
+    if (!schemaSetting) {
+      return;
+    }
+
+    const targetIndex = Array.isArray(index) ? index[0] : index;
+    schemaSetting.add(itemName, data, targetIndex);
+  }
+
   get<T>(name: string): SchemaSettings<T> | undefined {
     return this.schemaSettings[name];
   }

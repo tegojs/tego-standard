@@ -1,4 +1,4 @@
-import { Plugin } from '@tachybase/server';
+import { Plugin } from '@tego/server';
 
 import WorkflowPlugin from '../..';
 import { NAMESPACE_INSTRUCTION_JSON_PARSE } from '../../../common/constants';

@@ -7,9 +7,9 @@ import {
   SchemaSettingsRemove,
   useDesignable,
 } from '@tachybase/client';
-import { ArrayItems } from '@tachybase/components';
 import { useField, useFieldSchema, type ISchema } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { useShared } from './useShared';

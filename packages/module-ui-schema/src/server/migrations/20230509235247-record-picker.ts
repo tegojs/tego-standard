@@ -1,4 +1,4 @@
-import { Migration } from '@tachybase/server';
+import { Migration } from '@tego/server';
 
 export default class extends Migration {
   appVersion = '<0.9.3-alpha.1';

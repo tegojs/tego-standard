@@ -103,7 +103,7 @@ importers:
         version: 5.8.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.0)(jsdom@24.1.1(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.0)(jsdom@16.7.0(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
 
   apps/web:
     devDependencies:
@@ -205,7 +205,7 @@ importers:
         version: 1.3.39(react@18.3.1)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -362,7 +362,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -404,7 +404,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -425,7 +425,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -476,7 +476,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -545,7 +545,7 @@ importers:
     devDependencies:
       '@antv/g6':
         specifier: ^5.0.49
-        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6))
+        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       '@babel/core':
         specifier: 7.27.4
         version: 7.27.4
@@ -593,7 +593,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -665,7 +665,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -701,7 +701,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -737,7 +737,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -782,7 +782,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -803,7 +803,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -830,7 +830,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -866,7 +866,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -941,7 +941,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1016,7 +1016,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1058,7 +1058,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1103,7 +1103,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1169,7 +1169,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1208,7 +1208,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1238,7 +1238,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1271,7 +1271,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1343,7 +1343,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1403,7 +1403,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1484,7 +1484,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1514,7 +1514,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1541,7 +1541,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1577,7 +1577,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1604,7 +1604,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1643,7 +1643,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1685,7 +1685,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1712,7 +1712,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1751,7 +1751,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1781,7 +1781,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1814,7 +1814,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1859,7 +1859,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1895,7 +1895,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1934,7 +1934,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1967,7 +1967,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -1997,7 +1997,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2039,7 +2039,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2066,7 +2066,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2093,7 +2093,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2132,7 +2132,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2153,7 +2153,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2180,7 +2180,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2216,7 +2216,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2246,7 +2246,7 @@ importers:
         version: 1.3.39(react@18.3.1)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2276,7 +2276,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2309,7 +2309,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2360,7 +2360,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2414,7 +2414,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2450,7 +2450,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2480,7 +2480,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2522,7 +2522,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2573,7 +2573,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2606,7 +2606,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2642,7 +2642,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2690,7 +2690,7 @@ importers:
         version: 1.3.39(react@18.3.1)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2736,7 +2736,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2754,7 +2754,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2778,7 +2778,7 @@ importers:
         version: link:../client
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2799,7 +2799,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2823,7 +2823,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2841,7 +2841,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2868,7 +2868,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2898,7 +2898,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2940,7 +2940,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -2961,34 +2961,6 @@ importers:
         version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-form-design:
-    dependencies:
-      '@tachybase/actions':
-        specifier: ^1.3.27
-        version: 1.3.39(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/client':
-        specifier: workspace:*
-        version: link:../client
-      '@tachybase/components':
-        specifier: ^1.3.27
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
-      '@tachybase/database':
-        specifier: ^1.3.27
-        version: 1.3.39(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/evaluators':
-        specifier: ^1.3.27
-        version: 1.3.39
-      '@tachybase/schema':
-        specifier: ^1.3.27
-        version: 1.3.39(react@18.3.1)
-      '@tachybase/server':
-        specifier: ^1.3.27
-        version: 1.3.40(encoding@0.1.13)
-      '@tachybase/test':
-        specifier: ^1.3.27
-        version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
-      '@tachybase/utils':
-        specifier: ^1.3.27
-        version: 1.3.39
     devDependencies:
       '@ant-design/icons':
         specifier: ^5.6.1
@@ -2999,6 +2971,21 @@ importers:
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tachybase/client':
+        specifier: workspace:*
+        version: link:../client
+      '@tachybase/schema':
+        specifier: ^1.3.39
+        version: 1.3.39(react@18.3.1)
+      '@tachybase/test':
+        specifier: ^1.3.39
+        version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+      '@tego/client':
+        specifier: ^1.3.39
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
+      '@tego/server':
+        specifier: ^1.3.39
+        version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3019,7 +3006,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3058,7 +3045,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3088,7 +3075,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3121,7 +3108,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3148,7 +3135,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3184,7 +3171,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3214,7 +3201,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3274,7 +3261,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3307,7 +3294,7 @@ importers:
         version: 1.3.39(react@18.3.1)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3331,7 +3318,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3358,7 +3345,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3397,7 +3384,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3430,7 +3417,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3454,7 +3441,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3502,7 +3489,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3523,7 +3510,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3556,7 +3543,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3598,7 +3585,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3625,7 +3612,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3661,7 +3648,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -3712,7 +3699,7 @@ importers:
         version: 1.3.39(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(canvas@2.11.2(encoding@0.1.13))(encoding@0.1.13)(jiti@2.5.0)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       '@tego/client':
         specifier: ^1.3.39
-        version: 1.3.39(react@18.3.1)
+        version: 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: ^1.3.39
         version: 1.3.39(encoding@0.1.13)(mysql2@3.14.1)(pg@8.16.3)
@@ -7305,26 +7292,14 @@ packages:
   '@tachybase/acl@1.3.39':
     resolution: {integrity: sha512-nvWs79Slg0DW4F5n67vnoZNUNkF7md31GdkS47WOIV2S9r/tIY4B0lJA0drhqqqL6yoLW2mn6esWWONZDyJu3w==}
 
-  '@tachybase/acl@1.3.40':
-    resolution: {integrity: sha512-4PY+aFNnq5WnREynN8vdi1+ZC37nybCWK6Ir8Y85VoglkBMSKotl/K+MOjWRvEjNpMS0MEaiHx2A2Ncr+SzSiw==}
-
   '@tachybase/actions@1.3.39':
     resolution: {integrity: sha512-QQwMl+hNQuv0qSzJCM+ZOgP4pBmV4vRo/0LQdaJRJ0o6MD89OWJYHkZmUK1OtZdKN2VPm0Boe44wlzXi3ML6SQ==}
-
-  '@tachybase/actions@1.3.40':
-    resolution: {integrity: sha512-HNtIYZH9N0B7GuwedJ54YOhjoSb+jUTv3kCZ+kjD6v24kzhyJXMxR+zV0q40Z81p/s0TNosVBAkColi57YHmvw==}
 
   '@tachybase/auth@1.3.39':
     resolution: {integrity: sha512-81tvummIavbBJ1ANExBK0rupZD2R9fw/lM5W78I4B/vZNb4HLzuWWmx1ZohOFdK0z3NquVPlZxFpI47h6ha1rQ==}
 
-  '@tachybase/auth@1.3.40':
-    resolution: {integrity: sha512-Qky5R95DSsgvWwvfG5UEsBgAXB9qSZiTDhPPVuYo8yj23ealMYoizrDyDlaXIhj7zgjyE/jhGl5vRr+E32wPLg==}
-
   '@tachybase/cache@1.3.39':
     resolution: {integrity: sha512-zkMCIRPwNSvOOPF/ouK/MVtmsblIkPfbgAb19GKjKakBYcbhwKuLz4kSTJ8utfaJ1diyHHz0O7MK6q08tLkpFw==}
-
-  '@tachybase/cache@1.3.40':
-    resolution: {integrity: sha512-2HOYOyhYwrllm2cH1hOBQp5wVRmYsBOKQkuyoyDvWUoIl8lsAxczwRCrS4EbRzyy9SvCq+UGlAUbb4e9UuiJmQ==}
 
   '@tachybase/components@1.3.39':
     resolution: {integrity: sha512-0k0Lt8vUJEb8L5NdqjpONBFrokSwnRDyD/UtQf9K5GsVdBipmp2VVcd1e03AxXOnyKTLISr+Ralthx2k4NB7mA==}
@@ -7332,14 +7307,8 @@ packages:
   '@tachybase/data-source@1.3.39':
     resolution: {integrity: sha512-RJHXMGpLvy9mxDx8ETY6CE9x1v4nZDDTCYqnV97FcxgzGKv2B5a2X0wUdNKHgsW6VuIAWskTIFmYuDgWLe+Veg==}
 
-  '@tachybase/data-source@1.3.40':
-    resolution: {integrity: sha512-iRSvL7zP0vU5kgB1jwhEV4isQbi5BJn1ELCiaHVWCuPyAGwIRP65eknYSx9BGIH5/E/1dISMV7Q4ds3IGxKjMg==}
-
   '@tachybase/database@1.3.39':
     resolution: {integrity: sha512-VFqJ8Bz5nyUpYhMmnYR3Gp4+o4ysxx1jKrwI2GhDMW9FIvRZU8VMJbysQrHR0cKYcaBcL41BvEg2zBr1EhW+BA==}
-
-  '@tachybase/database@1.3.40':
-    resolution: {integrity: sha512-xcnkl5Ard9k90c4HuI3fMzigXUKze+xIwwWYfJcGGSX8TjV6RkY1EyP14fQrj4otgfrY0dipwRuqgtn0jRwDwg==}
 
   '@tachybase/evaluators@1.3.39':
     resolution: {integrity: sha512-QweoTXLL5hD+u9kFR194E5bk8dJ8JQCVSdJ5XQTxkxjWB3xNolZie1pYewKLsDgplX3PYtQfRTotbdom0pU7lw==}
@@ -7347,26 +7316,17 @@ packages:
   '@tachybase/globals@1.3.39':
     resolution: {integrity: sha512-K+lQ56WntkIQy8t5rwf59NWLmL/6OY9joA4qW1RrwuPhUzA5+6JnG2aXo88tncr0wV47G0droYwSQWMPZ6ibxg==}
 
-  '@tachybase/globals@1.3.40':
-    resolution: {integrity: sha512-ujGKf7BFbo281lfIfVm7SgmtsTTvORuUIa5zs9Cg/P2ukdy4kCNjeB1dVqR6BEbEB+tT2JW9j9OBjbh2bQtEjw==}
-
   '@tachybase/loader@1.3.39':
     resolution: {integrity: sha512-qwKrGZE4XuZBvrbDS1RGZXU25Quh1SfQ8IwCjZOxkbNFRNpE2gVL7YX5C0/jmF0b7E6bIqPrpgLyvTqRrONJig==}
 
   '@tachybase/logger@1.3.39':
     resolution: {integrity: sha512-yspJXzDQ/4JafFZJliXTmd0WC4ziGwBu3jL8x/SOy9q1n2axNgkHD7VXExTarpY6M5dRo1C40bKdexyhJrbOpA==}
 
-  '@tachybase/logger@1.3.40':
-    resolution: {integrity: sha512-DtQUFQaPpggbQc1PRRwy7NFY6Aiky2/zTbzn1w3h//3QEt4IaBdSweQpMM9f6dEM2hhF3R1c+JfjY/ij2jlSFQ==}
-
   '@tachybase/requirejs@1.3.39':
     resolution: {integrity: sha512-jML6TObJ7cfUT77+yWOpeWxw5Ef9Pv9UGyYsos80Pb++bsgR6Kz0cAOzQ6UpmuJoUDaLnGQkQ9cytTKUn0CF9Q==}
 
   '@tachybase/resourcer@1.3.39':
     resolution: {integrity: sha512-3m+xKN1yCssi04H9UoN3BtnhOjW4fmUf/UlQOo5R+dN+gHTDVfhjKWMy2WiYQ/wYHkj/AfkJ4R/N8seBkNbMaw==}
-
-  '@tachybase/resourcer@1.3.40':
-    resolution: {integrity: sha512-gniQDavFiqAxw7iStwRJawZ3SPenAILPmrOQXxxI+tDlUv525zcodVb/scJZKFQMBDurq8y6v9/EbeABk4+VPA==}
 
   '@tachybase/schema@1.3.39':
     resolution: {integrity: sha512-AQEOPKTgVBxOlMgH0xpGlZyq6K4KzUkQNmlNV41hXx2L1IEIAyOWuHF+oJyF7znGX9eSIlxqPJvxYkuKvk7ilA==}
@@ -7379,9 +7339,6 @@ packages:
   '@tachybase/server@1.3.39':
     resolution: {integrity: sha512-z7ifFp3ZZZbvKdiLOPPl3acdgDznrMhXVkXHMh7MEbUPKa0gTGdeHYDigUS7Wf1W6aibVvXnNM6BCVmGMxaZog==}
 
-  '@tachybase/server@1.3.40':
-    resolution: {integrity: sha512-FTamoyrDOkhRym27b/fosU6GBQeDRUBBPM70d+WM7z1rbtoRm4Px9rA+foVcAOp70FKMEsjpTnuqL2EtegwsIA==}
-
   '@tachybase/sheet@1.0.0-alpha.5':
     resolution: {integrity: sha512-dnCP+Eedpm8P+LLBgMWZmq5RuHtVKUv9ivDUK1Y5s+HcbT/rd+PSXkLSnYKFT4bkJ3PYKHjshg5tr/9pG0FApA==}
     peerDependencies:
@@ -7393,9 +7350,6 @@ packages:
 
   '@tachybase/utils@1.3.39':
     resolution: {integrity: sha512-ojKi7hyaO4HRsLMsjY/mG1IArma3ZlUjXjnLerrgxzBFsa+ZDE7Rp8GH1Wt64iIYgs63SnVUb7r0roOq6aWtrg==}
-
-  '@tachybase/utils@1.3.40':
-    resolution: {integrity: sha512-pKrxFtr6lque2oDO4Vl0NgcKVf2xZfsVBuwmzIxhFV43N9IvhYQvpwqbcGTJujR3VXSe6WKOhJMtZ9FBURLPQg==}
 
   '@tego/client@1.3.39':
     resolution: {integrity: sha512-cgzIgHs/kMEn4X9hG1dSJgbHvwLRKFGFPCXoKVvWNAOPJ+YOKSzF2E4xmbaXBWFe0/wea9DbdjncPAVyeOLMTg==}
@@ -16561,7 +16515,7 @@ snapshots:
       flru: 1.0.2
       pdfast: 0.2.0
 
-  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
       '@antv/algorithm': 0.1.26
       '@antv/component': 2.1.5
@@ -16571,7 +16525,7 @@ snapshots:
       '@antv/g-plugin-dragndrop': 2.0.37
       '@antv/graphlib': 2.0.4
       '@antv/hierarchy': 0.6.14
-      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))
+      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       '@antv/util': 3.3.11
       bubblesets-js: 2.3.4
     transitivePeerDependencies:
@@ -16607,12 +16561,12 @@ snapshots:
 
   '@antv/hierarchy@0.6.14': {}
 
-  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
       '@antv/event-emitter': 0.1.3
       '@antv/graphlib': 2.0.4
       '@antv/util': 3.3.11
-      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6))
+      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       comlink: 4.4.2
       d3-force: 3.0.0
       d3-force-3d: 3.0.6
@@ -19042,9 +18996,9 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
-  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
-      workerize-loader: 2.0.2(webpack@5.99.6)
+      workerize-loader: 2.0.2(webpack@5.99.6(esbuild@0.25.6))
 
   '@napi-rs/wasm-runtime@0.2.12':
     dependencies:
@@ -20853,42 +20807,12 @@ snapshots:
       lodash: 4.17.21
       minimatch: 5.1.6
 
-  '@tachybase/acl@1.3.40':
-    dependencies:
-      '@tachybase/resourcer': 1.3.40
-      '@tachybase/utils': 1.3.40
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      minimatch: 5.1.6
-
   '@tachybase/actions@1.3.39(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/cache': 1.3.39
       '@tachybase/database': 1.3.39(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.3.39
       '@tachybase/utils': 1.3.39
-      koa: 2.16.1
-      lodash: 4.17.21
-      sequelize: 6.37.5(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-    transitivePeerDependencies:
-      - encoding
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@tachybase/actions@1.3.40(encoding@0.1.13)':
-    dependencies:
-      '@tachybase/cache': 1.3.40
-      '@tachybase/database': 1.3.40(encoding@0.1.13)
-      '@tachybase/resourcer': 1.3.40
-      '@tachybase/utils': 1.3.40
       koa: 2.16.1
       lodash: 4.17.21
       sequelize: 6.37.5(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -20925,35 +20849,7 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.3.40(encoding@0.1.13)':
-    dependencies:
-      '@tachybase/actions': 1.3.40(encoding@0.1.13)
-      '@tachybase/database': 1.3.40(encoding@0.1.13)
-      '@tachybase/resourcer': 1.3.40
-      '@tachybase/utils': 1.3.40
-      jsonwebtoken: 8.5.1
-    transitivePeerDependencies:
-      - encoding
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/cache@1.3.39':
-    dependencies:
-      bloom-filters: 3.0.4
-      cache-manager: 5.7.6
-      cache-manager-redis-yet: 4.2.0
-      deepmerge: 4.3.1
-      lodash: 4.17.21
-
-  '@tachybase/cache@1.3.40':
     dependencies:
       bloom-filters: 3.0.4
       cache-manager: 5.7.6
@@ -20984,29 +20880,6 @@ snapshots:
       - monaco-editor
       - react
 
-  '@tachybase/components@1.3.39(react@18.3.1)':
-    dependencies:
-      '@ant-design/cssinjs': 1.24.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@ant-design/icons': 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/core': 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/sortable': 8.0.0(@dnd-kit/core@6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/utilities': 3.2.2(react@18.3.1)
-      '@monaco-editor/react': 4.7.0(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tachybase/schema': 1.3.39(react@18.3.1)
-      antd: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      classnames: 2.5.1
-      dayjs: 1.11.13
-      prop-types: 15.8.1
-      react-dom: 18.3.1(react@18.3.1)
-      react-modal: 3.16.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react-sticky-box: 1.0.2(react@18.3.1)
-    transitivePeerDependencies:
-      - date-fns
-      - luxon
-      - moment
-      - monaco-editor
-      - react
-
   '@tachybase/data-source@1.3.39(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/acl': 1.3.39
@@ -21014,29 +20887,6 @@ snapshots:
       '@tachybase/database': 1.3.39(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.3.39
       '@tachybase/utils': 1.3.39
-      deepmerge: 4.3.1
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-    transitivePeerDependencies:
-      - encoding
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@tachybase/data-source@1.3.40(encoding@0.1.13)':
-    dependencies:
-      '@tachybase/acl': 1.3.40
-      '@tachybase/actions': 1.3.40(encoding@0.1.13)
-      '@tachybase/database': 1.3.40(encoding@0.1.13)
-      '@tachybase/resourcer': 1.3.40
-      '@tachybase/utils': 1.3.40
       deepmerge: 4.3.1
       koa-compose: 4.1.0
       lodash: 4.17.21
@@ -21087,40 +20937,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/database@1.3.40(encoding@0.1.13)':
-    dependencies:
-      '@tachybase/logger': 1.3.40
-      '@tachybase/utils': 1.3.40
-      async-mutex: 0.5.0
-      chalk: 4.1.2
-      dayjs: 1.11.13
-      debug: 4.4.1(supports-color@5.5.0)
-      deepmerge: 4.3.1
-      dottie: 2.0.6
-      excel-date-to-js: 1.1.5
-      exponential-backoff: 3.1.2
-      flat: 5.0.2
-      glob: 11.0.0
-      lodash: 4.17.21
-      nanoid: 3.3.11
-      node-fetch: 2.7.0(encoding@0.1.13)
-      qs: 6.14.0
-      semver: 7.7.2
-      sequelize: 6.37.5(mariadb@2.5.6)(mysql2@3.14.1)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      umzug: 3.8.2
-    transitivePeerDependencies:
-      - encoding
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/evaluators@1.3.39':
     dependencies:
       '@formulajs/formulajs': 4.5.3
@@ -21129,20 +20945,9 @@ snapshots:
 
   '@tachybase/globals@1.3.39': {}
 
-  '@tachybase/globals@1.3.40': {}
-
   '@tachybase/loader@1.3.39': {}
 
   '@tachybase/logger@1.3.39':
-    dependencies:
-      chalk: 4.1.2
-      lodash: 4.17.21
-      triple-beam: 1.4.1
-      winston: 3.17.0
-      winston-daily-rotate-file: 5.0.0(winston@3.17.0)
-      winston-transport: 4.9.0
-
-  '@tachybase/logger@1.3.40':
     dependencies:
       chalk: 4.1.2
       lodash: 4.17.21
@@ -21156,15 +20961,6 @@ snapshots:
   '@tachybase/resourcer@1.3.39':
     dependencies:
       '@tachybase/utils': 1.3.39
-      glob: 11.0.0
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      path-to-regexp: 8.2.0
-      qs: 6.14.0
-
-  '@tachybase/resourcer@1.3.40':
-    dependencies:
-      '@tachybase/utils': 1.3.40
       glob: 11.0.0
       koa-compose: 4.1.0
       lodash: 4.17.21
@@ -21201,60 +20997,6 @@ snapshots:
       '@tachybase/logger': 1.3.39
       '@tachybase/resourcer': 1.3.39
       '@tachybase/utils': 1.3.39
-      '@types/decompress': 4.2.7
-      '@types/ini': 1.3.34
-      async-mutex: 0.5.0
-      axios: 0.29.0
-      commander: 9.5.0
-      compression: 1.7.5
-      dayjs: 1.11.13
-      decompress: 4.2.1
-      execa: 5.1.1
-      fast-glob: 3.3.3
-      fs-extra: 11.3.0
-      glob: 11.0.0
-      i18next: 23.16.8
-      ini: 4.1.3
-      koa: 2.16.1
-      koa-bodyparser: 4.4.1
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      nanoid: 3.3.8
-      qs: 6.14.0
-      semver: 7.7.2
-      serve-handler: 6.1.6
-      winston: 3.17.0
-      ws: 8.18.3
-      xpipe: 1.0.8
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-      - utf-8-validate
-
-  '@tachybase/server@1.3.40(encoding@0.1.13)':
-    dependencies:
-      '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.3.40
-      '@tachybase/actions': 1.3.40(encoding@0.1.13)
-      '@tachybase/auth': 1.3.40(encoding@0.1.13)
-      '@tachybase/cache': 1.3.40
-      '@tachybase/data-source': 1.3.40(encoding@0.1.13)
-      '@tachybase/database': 1.3.40(encoding@0.1.13)
-      '@tachybase/globals': 1.3.40
-      '@tachybase/logger': 1.3.40
-      '@tachybase/resourcer': 1.3.40
-      '@tachybase/utils': 1.3.40
       '@types/decompress': 4.2.7
       '@types/ini': 1.3.34
       async-mutex: 0.5.0
@@ -21377,36 +21119,9 @@ snapshots:
       lodash: 4.17.21
       multer: 2.0.2
 
-  '@tachybase/utils@1.3.40':
-    dependencies:
-      '@hapi/topo': 6.0.2
-      '@rc-component/mini-decimal': 1.1.0
-      dayjs: 1.11.13
-      dedupe: 3.0.3
-      deepmerge: 4.3.1
-      graphlib: 2.1.8
-      lodash: 4.17.21
-      multer: 2.0.2
-
-  '@tego/client@1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react@18.3.1)':
+  '@tego/client@1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)':
     dependencies:
       '@tachybase/components': 1.3.39(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
-      '@tachybase/evaluators': 1.3.39
-      '@tachybase/requirejs': 1.3.39
-      '@tachybase/schema': 1.3.39(react@18.3.1)
-      '@tachybase/sdk': 1.3.39
-      '@tachybase/utils': 1.3.39
-    transitivePeerDependencies:
-      - date-fns
-      - debug
-      - luxon
-      - moment
-      - monaco-editor
-      - react
-
-  '@tego/client@1.3.39(react@18.3.1)':
-    dependencies:
-      '@tachybase/components': 1.3.39(react@18.3.1)
       '@tachybase/evaluators': 1.3.39
       '@tachybase/requirejs': 1.3.39
       '@tachybase/schema': 1.3.39(react@18.3.1)
@@ -30259,14 +29974,16 @@ snapshots:
       - encoding
       - supports-color
 
-  terser-webpack-plugin@5.3.14(webpack@5.99.6):
+  terser-webpack-plugin@5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.29
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
       terser: 5.43.1
-      webpack: 5.99.6
+      webpack: 5.99.6(esbuild@0.25.6)
+    optionalDependencies:
+      esbuild: 0.25.6
 
   terser@5.43.1:
     dependencies:
@@ -31087,7 +30804,7 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.99.6:
+  webpack@5.99.6(esbuild@0.25.6):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -31109,7 +30826,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.2
       tapable: 2.2.2
-      terser-webpack-plugin: 5.3.14(webpack@5.99.6)
+      terser-webpack-plugin: 5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6))
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:
@@ -31299,10 +31016,10 @@ snapshots:
       worker-timers-broker: 6.1.8
       worker-timers-worker: 7.0.71
 
-  workerize-loader@2.0.2(webpack@5.99.6):
+  workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.99.6
+      webpack: 5.99.6(esbuild@0.25.6)
 
   wrap-ansi@7.0.0:
     dependencies:

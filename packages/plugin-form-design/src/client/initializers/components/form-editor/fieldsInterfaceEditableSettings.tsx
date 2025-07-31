@@ -15,7 +15,6 @@ import {
   useDialect,
   useRecord,
 } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
 import {
   action,
   createForm,
@@ -29,6 +28,7 @@ import {
 } from '@tachybase/schema';
 import { ContextCleaner } from '@tachybase/schema/lib/react';
 
+import { ArrayTable } from '@tego/client';
 import { Button } from 'antd';
 import _ from 'lodash';
 

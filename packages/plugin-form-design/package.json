@@ -12,20 +12,14 @@
     "@ant-design/icons": "^5.6.1",
     "@ctrl/tinycolor": "^3.6.1",
     "@dnd-kit/core": "^6.3.1",
+    "@tachybase/client": "workspace:*",
+    "@tachybase/schema": "^1.3.39",
+    "@tachybase/test": "^1.3.39",
+    "@tego/client": "^1.3.39",
+    "@tego/server": "^1.3.39",
     "antd": "5.22.5",
     "antd-style": "3.7.1",
     "lodash": "^4.17.21"
-  },
-  "peerDependencies": {
-    "@tachybase/actions": "^1.3.27",
-    "@tachybase/client": "workspace:*",
-    "@tachybase/components": "^1.3.27",
-    "@tachybase/database": "^1.3.27",
-    "@tachybase/evaluators": "^1.3.27",
-    "@tachybase/schema": "^1.3.27",
-    "@tachybase/server": "^1.3.27",
-    "@tachybase/test": "^1.3.27",
-    "@tachybase/utils": "^1.3.27"
   },
   "description.zh-CN": "所见即所得的表单设计插件"
 }

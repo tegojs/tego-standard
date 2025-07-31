@@ -1,5 +1,4 @@
 import {
-  EditableSchemaSettings,
   isSubMode,
   useColumnSchema,
   useFieldComponentName,
@@ -11,6 +10,7 @@ import {
 } from '@tachybase/client';
 import { Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../locale';
 
 export const fileManagerComponentFieldEditableSettings = new EditableSchemaSettings({

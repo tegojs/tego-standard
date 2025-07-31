@@ -1,8 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   BaseVariableProvider,
   DynamicComponentProps,
-  EditableSchemaSettings,
   FlagProvider,
   getShouldChange,
   IsDisabledParams,
@@ -36,6 +35,7 @@ import { createForm, Field, useField, useFieldSchema, useForm } from '@tachybase
 
 import _ from 'lodash';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings/EditableSchemaSettings';
 import {
   createEditableDesignable,
   useEditableDesignable,

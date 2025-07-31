@@ -1,5 +1,4 @@
 import {
-  EditableSchemaSettings,
   isSubMode,
   useCollectionField,
   useFieldComponentName,
@@ -9,6 +8,7 @@ import {
 } from '@tachybase/client';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings';
 import { useTranslation } from '../../locale';
 
 export const cascadeSelectComponentFieldEditableSettings = new EditableSchemaSettings({

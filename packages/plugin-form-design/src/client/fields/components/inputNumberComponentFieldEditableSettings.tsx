@@ -1,5 +1,4 @@
 import {
-  EditableSchemaSettings,
   useActionContext,
   useCollectionField,
   useCollectionManager_deprecated,
@@ -8,11 +7,12 @@ import {
   useDataSourceManager,
   useIsFieldReadPretty,
 } from '@tachybase/client';
-import { createForm, Field, ISchema, useField, useFieldSchema, useForm } from '@tachybase/schema';
+import { createForm, Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
 import { message, Select } from 'antd';
 import _ from 'lodash';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../locale';
 
 const UnitConversion = ({ unitConversionType }) => {

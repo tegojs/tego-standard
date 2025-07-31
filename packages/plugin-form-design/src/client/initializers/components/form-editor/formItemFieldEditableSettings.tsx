@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import {
   ActionType,
-  EditableSchemaSettings,
   findParentFieldSchema,
   FlagProvider,
   formatVariableScop,
@@ -34,6 +33,7 @@ import { createStyles } from 'antd-style';
 import { DefaultOptionType } from 'antd/lib/cascader';
 import _ from 'lodash';
 
+import { EditableSchemaSettings } from '../../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../../locale';
 
 const useStyles = createStyles(({ css }) => {
@@ -224,7 +224,7 @@ export const formItemFieldEditableSettings = new EditableSchemaSettings({
       },
       useSchema() {
         const { styles } = useStyles();
-        const fieldSchema = useFieldSchema();
+        const fieldSchema: any = useFieldSchema();
         const field: Field = useField();
         const { t } = useTranslation();
         const actionCtx = useActionContext();

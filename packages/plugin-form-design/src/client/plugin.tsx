@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
 
+import { EditableSchemaSettingsManager } from './editable-schema-settings';
 import {
   cascaderComponentFieldEditableSettings,
   cascadeSelectComponentFieldEditableSettings,
@@ -28,7 +29,10 @@ import { formDesignInitializerItem } from './initializers/formDesignInitializerI
 import { FormDesignModalProvider } from './initializers/FormDesignModalProvider';
 
 class PluginFormDesignClient extends Plugin {
-  async afterAdd() {}
+  async afterAdd() {
+    // 初始化 EditableSchemaSettingsManager
+    this.app.editableSchemaSettingsManager = new EditableSchemaSettingsManager([], this.app);
+  }
 
   async beforeLoad() {}
 
@@ -51,7 +55,6 @@ class PluginFormDesignClient extends Plugin {
       EditableFormItemSchemaToolbar,
     });
 
-    // editable formItem settings
     this.app.editableSchemaSettingsManager.add(formItemFieldEditableSettings);
     this.app.editableSchemaSettingsManager.add(createFormBlockEditableSettings);
     this.app.editableSchemaSettingsManager.add(fieldInterfaceEditableSettings);

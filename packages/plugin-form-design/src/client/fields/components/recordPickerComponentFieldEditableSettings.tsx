@@ -1,5 +1,4 @@
 import {
-  EditableSchemaSettings,
   isSubMode,
   useCollectionField,
   useColumnSchema,
@@ -11,6 +10,7 @@ import {
 } from '@tachybase/client';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../locale';
 
 export const recordPickerComponentFieldEditableSettings = new EditableSchemaSettings({

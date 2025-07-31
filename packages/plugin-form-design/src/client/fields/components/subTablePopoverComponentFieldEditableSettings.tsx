@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  EditableSchemaSettings,
   isSubMode,
   SecondLevelSelect,
   useActionContext,
@@ -19,6 +18,7 @@ import { createForm, Field, ISchema, useField, useFieldSchema, useForm } from '@
 
 import { Switch } from 'antd';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings';
 import { useTranslation } from '../../locale';
 
 export const subTablePopoverComponentFieldEditableSettings = new EditableSchemaSettings({

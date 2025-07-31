@@ -1,6 +1,5 @@
 import { useContext } from 'react';
 import {
-  EditableSchemaSettings,
   findFormBlock,
   FlagProvider,
   FormDataTemplates,
@@ -21,6 +20,7 @@ import { Schema, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
 import _ from 'lodash';
 
+import { EditableSchemaSettings } from '../../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../../locale';
 
 const findGridSchema = (fieldSchema) => {

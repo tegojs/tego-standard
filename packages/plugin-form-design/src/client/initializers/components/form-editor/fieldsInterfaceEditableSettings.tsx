@@ -2,7 +2,6 @@ import { useContext, useMemo, useState } from 'react';
 import {
   ActionContextProvider,
   DataSourceContext_deprecated,
-  EditableSchemaSettings,
   RecordProvider,
   SchemaComponent,
   SchemaComponentProvider,
@@ -33,6 +32,7 @@ import { ContextCleaner } from '@tachybase/schema/lib/react';
 import { Button } from 'antd';
 import _ from 'lodash';
 
+import { EditableSchemaSettings } from '../../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../../locale';
 import { usePageRefresh } from '../../contexts/PageRefreshContext';
 import { getProperties } from './interfaceSchemaOptions';
@@ -223,7 +223,7 @@ const useCurrentFields = () => {
   return fields;
 };
 
-const getSchema = (defaultValues, record): ISchema => {
+const getSchema = (defaultValues, record): ISchema | { properties: Record<string, any> } => {
   const gird = getProperties(record.interface);
   const form = createForm({
     initialValues: defaultValues,

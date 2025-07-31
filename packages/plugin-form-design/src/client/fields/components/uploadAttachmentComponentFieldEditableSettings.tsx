@@ -1,6 +1,7 @@
-import { EditableSchemaSettings, useColumnSchema, useIsFieldReadPretty } from '@tachybase/client';
+import { useColumnSchema, useIsFieldReadPretty } from '@tachybase/client';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../locale';
 
 export const uploadAttachmentComponentFieldEditableSettings = new EditableSchemaSettings({

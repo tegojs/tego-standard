@@ -6,7 +6,6 @@ export * from './utils';
 export * from './components';
 export * from './schema-initializer';
 export * from './schema-settings';
-export * from './schema-settings-editable';
 export * from './schema-toolbar';
 export * from './SystemSettingsManager';
 export * from './NoticesManager';

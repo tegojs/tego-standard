@@ -1,8 +1,6 @@
-import React from 'react';
 import {
   BaseVariableProvider,
   DynamicComponentProps,
-  EditableSchemaSettings,
   FlagProvider,
   getShouldChange,
   IsDisabledParams,
@@ -33,6 +31,7 @@ import { createForm, Field, ISchema, useField, useFieldSchema, useForm } from '@
 
 import _ from 'lodash';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../locale';
 
 export const cascaderComponentFieldEditableSettings = new EditableSchemaSettings({

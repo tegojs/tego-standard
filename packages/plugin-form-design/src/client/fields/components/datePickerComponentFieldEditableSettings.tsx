@@ -1,15 +1,10 @@
-import {
-  DateFormatCom,
-  EditableSchemaSettings,
-  ExpiresRadio,
-  useActionContext,
-  useCollectionManager_deprecated,
-} from '@tachybase/client';
+import { DateFormatCom, ExpiresRadio, useActionContext, useCollectionManager_deprecated } from '@tachybase/client';
 import { createForm, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
 import { createStyles } from 'antd-style';
 import _ from 'lodash';
 
+import { EditableSchemaSettings } from '../../editable-schema-settings/EditableSchemaSettings';
 import { useTranslation } from '../../locale';
 
 const useStyles = createStyles(({ css }) => {

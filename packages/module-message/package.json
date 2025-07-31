@@ -27,7 +27,7 @@
     "react-i18next": "15.2.0",
     "react-router-dom": "6.28.1",
     "tencentcloud-sdk-nodejs": "^4.0.996",
-    "ws": "^8.18.0"
+    "ws": "^8.18.3"
   },
   "description.zh-CN": "用于给用户发送消息",
   "displayName.zh-CN": "消息通知"

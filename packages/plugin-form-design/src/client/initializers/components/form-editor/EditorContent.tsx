@@ -1,4 +1,4 @@
-import { AddFieldsIcon, findSchemaUtils, SchemaComponent } from '@tachybase/client';
+import { findSchemaUtils, Icon, SchemaComponent } from '@tachybase/client';
 import { observer, Schema } from '@tachybase/schema';
 
 import { Layout } from 'antd';
@@ -29,7 +29,7 @@ export const EditorContent = observer<EditorContentProps>(({ schema }) => {
             paddingBottom: '10%',
           }}
         >
-          <AddFieldsIcon style={{ width: '200px', height: '100%' }} />
+          <Icon type="add-fields" style={{ width: '200px', height: '100%' }} />
         </div>
       ) : (
         <SchemaComponent schema={schema} components={{ EditableGrid }} />

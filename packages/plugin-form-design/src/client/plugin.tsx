@@ -84,6 +84,9 @@ class PluginFormDesignClient extends Plugin {
     this.editableSchemaSettingsManager.add(fileManagerComponentFieldEditableSettings);
     this.editableSchemaSettingsManager.add(tagComponentFieldEditableSettings);
     this.editableSchemaSettingsManager.add(cascadeSelectComponentFieldEditableSettings);
+
+    // register icons
+    await import('./icons');
   }
 
   // 提供获取 EditableSchemaSettingsManager 的方法

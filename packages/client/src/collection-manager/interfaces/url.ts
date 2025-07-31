@@ -9,6 +9,7 @@ export class UrlFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 5;
   title = '{{t("URL")}}';
+  icon = 'GlobalOutlined';
   default = {
     type: 'text',
     uiSchema: {

@@ -15,6 +15,7 @@ export class IntegerFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 6;
   title = '{{t("Integer")}}';
+  icon = 'FieldBinaryOutlined';
   sortable = true;
   default = {
     type: 'bigInt',

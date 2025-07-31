@@ -11,6 +11,7 @@ export class M2OFieldInterface extends CollectionFieldInterface {
   order = 5;
   title = '{{t("Many to one")}}';
   description = '{{t("Many to one description")}}';
+  icon = 'DeploymentUnitOutlined';
   isAssociation = true;
   default = {
     type: 'belongsTo',

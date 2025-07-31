@@ -9,6 +9,7 @@ export class MultipleSelectFieldInterface extends CollectionFieldInterface {
   group = 'choices';
   order = 3;
   title = '{{t("Multiple select")}}';
+  icon = 'multipleSelectField';
   default = {
     type: 'array',
     defaultValue: [],
@@ -33,7 +34,7 @@ export class MultipleSelectFieldInterface extends CollectionFieldInterface {
   schemaInitialize(schema: ISchema, { block }) {
     const props = (schema['x-component-props'] = schema['x-component-props'] || {});
     props.style = {
-      ...(props.style || {}),
+      ...props.style,
       width: '100%',
     };
 

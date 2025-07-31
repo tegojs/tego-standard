@@ -45,8 +45,11 @@ export * from './modules/blocks/data-blocks/details-multi/setDataLoadingModeSett
 export * from './modules/blocks/data-blocks/form';
 export * from './modules/blocks/data-blocks/table';
 export * from './modules/blocks/data-blocks/table-selector';
+export * from './modules/fields/component/SubTable/secondLevelSelect';
 export { useTranslation } from 'react-i18next';
 export * from 'react-i18next';
 export { useHotkeys } from 'react-hotkeys-hook';
 
 export * from './modules/blocks/useParentRecordCommon';
+
+export { findSchema as findSchemaUtils, removeGridFormItem } from './schema-initializer/utils';

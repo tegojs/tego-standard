@@ -7,6 +7,7 @@ export class AttachmentFieldInterface extends CollectionFieldInterface {
   name = 'attachment';
   type = 'object';
   group = 'media';
+  icon = 'FileOutlined';
   title = `{{t("Attachment", { ns: "${NAMESPACE}" })}}`;
   isAssociation = true;
   default = {

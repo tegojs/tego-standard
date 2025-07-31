@@ -9,6 +9,7 @@ export class SelectFieldInterface extends CollectionFieldInterface {
   group = 'choices';
   order = 2;
   title = '{{t("Single select")}}';
+  icon = 'SelectOutlined';
   sortable = true;
   default = {
     type: 'string',
@@ -31,7 +32,7 @@ export class SelectFieldInterface extends CollectionFieldInterface {
   schemaInitialize(schema: ISchema, { block }) {
     const props = (schema['x-component-props'] = schema['x-component-props'] || {});
     props.style = {
-      ...(props.style || {}),
+      ...props.style,
       width: '100%',
     };
 

@@ -19,6 +19,7 @@ export abstract class CollectionFieldInterface {
   name: string;
   group: string;
   title?: string;
+  icon?: string;
   description?: string;
   order?: number;
   default?: {

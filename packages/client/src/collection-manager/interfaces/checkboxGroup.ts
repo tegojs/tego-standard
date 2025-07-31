@@ -7,6 +7,7 @@ export class CheckboxGroupFieldInterface extends CollectionFieldInterface {
   name = 'checkboxGroup';
   type = 'object';
   group = 'choices';
+  icon = 'UnorderedListOutlined';
   order = 5;
   title = '{{t("Checkbox group")}}';
   default = {

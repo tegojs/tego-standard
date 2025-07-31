@@ -53,6 +53,7 @@ export class PercentFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 8;
   title = '{{t("Percent")}}';
+  icon = 'PercentageOutlined';
   sortable = true;
   default = {
     type: 'float',
@@ -71,7 +72,7 @@ export class PercentFieldInterface extends CollectionFieldInterface {
   schemaInitialize(schema: ISchema, { field, block, readPretty, action }) {
     const props = (schema['x-component-props'] = schema['x-component-props'] || {});
     schema['x-component-props'].style = {
-      ...(props.style || {}),
+      ...props.style,
       width: '100%',
     };
   }

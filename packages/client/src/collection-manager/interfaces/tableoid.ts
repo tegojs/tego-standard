@@ -7,6 +7,7 @@ export class TableoidFieldInterface extends CollectionFieldInterface {
   group = 'systemInfo';
   order = 0;
   title = '{{t("Table OID")}}';
+  icon = 'FieldNumberOutlined';
   sortable = true;
   default = {
     name: '__collection',

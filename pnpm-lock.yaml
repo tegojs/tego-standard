@@ -219,8 +219,8 @@ importers:
         specifier: 1.7.7
         version: 1.7.7
       axios-mock-adapter:
-        specifier: ^1.22.0
-        version: 1.22.0(axios@1.7.7)
+        specifier: ^2.1.0
+        version: 2.1.0(axios@1.7.7)
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
@@ -8268,8 +8268,8 @@ packages:
   aws4@1.13.2:
     resolution: {integrity: sha512-lHe62zvbTB5eEABUVi/AwVh0ZKY9rMMDhmm+eeyuuUQbQ3+J+fONVQOZyj+DdrvD4BY33uYniyRJ4UJIaSKAfw==}
 
-  axios-mock-adapter@1.22.0:
-    resolution: {integrity: sha512-dmI0KbkyAhntUR05YY96qg2H6gg0XMl2+qTW0xmYg6Up+BFBAJYRLROMXRdDEL06/Wqwa0TJThAYvFtSFdRCZw==}
+  axios-mock-adapter@2.1.0:
+    resolution: {integrity: sha512-AZUe4OjECGCNNssH8SOdtneiQELsqTsat3SQQCWLPjN436/H+L9AjWfV7bF+Zg/YL9cgbhrz5671hoh+Tbn98w==}
     peerDependencies:
       axios: '>= 0.17.0'
 
@@ -22390,7 +22390,7 @@ snapshots:
 
   aws4@1.13.2: {}
 
-  axios-mock-adapter@1.22.0(axios@1.7.7):
+  axios-mock-adapter@2.1.0(axios@1.7.7):
     dependencies:
       axios: 1.7.7
       fast-deep-equal: 3.1.3

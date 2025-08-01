@@ -5,12 +5,12 @@ import { PlusOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { PageHeader as AntdPageHeader } from '@ant-design/pro-layout';
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { FormLayout } from '@tego/client';
-import { Button, Divider, Modal, Tabs } from 'antd';
+import { Button, Tabs } from 'antd';
 import { cx } from 'antd-style';
 import classNames from 'classnames';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { FormDialog, ScrollArea } from '..';
 import { useToken } from '../__builtins__';
@@ -116,18 +116,19 @@ const PageHeader = (props) => {
     setHeight,
     activeKey,
     setLoading,
-    setSearchParams,
+
     fieldSchema,
     title,
     parentProps,
     enableSharePage,
   } = props;
 
+  const [_, setSearchParams] = useSearchParams();
+
   const { theme } = useGlobalTheme();
   const options = useContext(SchemaOptionsContext);
   const compile = useCompile();
   const [open, setOpen] = useState(false);
-  const [imageOpen, setImageOpen] = useState(false);
   const { showScrollArea } = useContextMenu();
 
   const hidePageTitle = fieldSchema['x-component-props']?.hidePageTitle;
@@ -140,11 +141,6 @@ const PageHeader = (props) => {
     key: schema.name as string,
     label: <TabItem schema={schema} />,
   }));
-  const { t } = useTranslation();
-
-  // const { styles } = modalStyle();
-
-  // const { copyLink, imageAction } = useShareActions({ title: pageHeaderTitle, uid: '' });
 
   return (
     <div
@@ -184,54 +180,6 @@ const PageHeader = (props) => {
           }
         ></AntdPageHeader>
       )}
-      {disablePageHeader && enableSharePage && !isShare && (
-        <div className="tb-page-header-button">
-          <Button
-            icon={<ShareAltOutlined />}
-            onClick={() => {
-              setOpen(true);
-            }}
-          >
-            {t('Share')}
-          </Button>
-        </div>
-      )}
-      {/* <Modal
-        open={open}
-        className={styles.firstmodal}
-        title={t('Share')}
-        footer={null}
-        width={500}
-        onCancel={() => {
-          setOpen(false);
-        }}
-      >
-        <div className={styles.secondmodal}>
-          <div className="tb-header-modal-list" onClick={copyLink}>
-            <Icon type="PaperClipOutlined" />
-            {t('Copy link')}
-          </div>
-          <div
-            className="tb-header-modal-list"
-            onClick={() => {
-              setImageOpen(true);
-            }}
-          >
-            <Icon type="QrcodeOutlined" />
-            {t('Generate QR code')}
-          </div>
-        </div>
-        <Modal
-          className={styles.imageModal}
-          open={imageOpen}
-          footer={null}
-          onCancel={() => {
-            setImageOpen(false);
-          }}
-        >
-          {imageAction()}
-        </Modal>
-      </Modal> */}
     </div>
   );
 };

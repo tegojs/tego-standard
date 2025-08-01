@@ -44,16 +44,16 @@ export const Page = (props) => {
   const enableSharePage = fieldSchema['x-component-props']?.enableSharePage;
 
   const [loading, setLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const navigate = useNavigate();
   const location = useLocation();
 
   // NOTE: 是否有其他路由模式?
   const match = useMatch('/:entry/:entryId/page-tab/:pageTabId/*');
-
   const pageTabActiveKey = useMemo(() => {
-    return match?.params?.pageTabId || Object.keys(fieldSchema.properties || {}).shift();
-  }, [match?.params?.pageTabId, fieldSchema.properties]);
+    return match?.params?.pageTabId || searchParams.get('tab') || Object.keys(fieldSchema.properties || {}).shift();
+  }, [match?.params?.pageTabId, fieldSchema.properties, searchParams]);
 
   const setPageTabUrl = (pageTabId) => {
     const currentPath = location.pathname;
@@ -94,6 +94,7 @@ export const Page = (props) => {
           setLoading={setLoading}
           enableSharePage={enableSharePage}
           setPageTabUrl={setPageTabUrl}
+          setSearchParams={setSearchParams}
         />
         <PageContentComponent
           loading={loading}
@@ -121,9 +122,8 @@ const PageHeader = (props) => {
     title,
     parentProps,
     enableSharePage,
+    setSearchParams,
   } = props;
-
-  const [_, setSearchParams] = useSearchParams();
 
   const { theme } = useGlobalTheme();
   const options = useContext(SchemaOptionsContext);

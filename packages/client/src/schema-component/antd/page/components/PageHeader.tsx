@@ -3,17 +3,13 @@ import { SchemaOptionsContext } from '@tachybase/schema';
 
 import { ShareAltOutlined } from '@ant-design/icons';
 import { PageHeader as AntdPageHeader } from '@ant-design/pro-layout';
-import { Button, Modal } from 'antd';
+import { Button } from 'antd';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { useMatch } from 'react-router-dom';
 
 import { useContextMenu } from '../../../../built-in/context-menu/useContextMenu';
-import { Icon } from '../../../../icon';
 import { useGlobalTheme } from '../../../../style/theme';
-import { useCompile } from '../../../hooks';
-import { useShareActions } from '../hooks/useShareActions';
-import { useStyles as modalStyle } from '../style';
 import { HeaderExtra } from './HeaderExtra';
 import { TabComponent } from './TabComponent';
 import { TabItem } from './TabItem';
@@ -35,7 +31,6 @@ export const PageHeader = (props) => {
   const { theme } = useGlobalTheme();
   const options = useContext(SchemaOptionsContext);
   const [open, setOpen] = useState(false);
-  const [imageOpen, setImageOpen] = useState(false);
   const { showScrollArea } = useContextMenu();
 
   const hidePageTitle = fieldSchema['x-component-props']?.hidePageTitle;
@@ -49,13 +44,6 @@ export const PageHeader = (props) => {
     label: <TabItem schema={schema} />,
   }));
   const { t } = useTranslation();
-
-  const { styles } = modalStyle();
-
-  const { copyLink, imageAction } = useShareActions({
-    title: pageHeaderTitle,
-    uid: '',
-  });
 
   return (
     <div
@@ -107,42 +95,6 @@ export const PageHeader = (props) => {
           </Button>
         </div>
       )}
-      <Modal
-        open={open}
-        className={styles.firstmodal}
-        title={t('Share')}
-        footer={null}
-        width={500}
-        onCancel={() => {
-          setOpen(false);
-        }}
-      >
-        <div className={styles.secondmodal}>
-          <div className="tb-header-modal-list" onClick={copyLink}>
-            <Icon type="PaperClipOutlined" />
-            {t('Copy link')}
-          </div>
-          <div
-            className="tb-header-modal-list"
-            onClick={() => {
-              setImageOpen(true);
-            }}
-          >
-            <Icon type="QrcodeOutlined" />
-            {t('Generate QR code')}
-          </div>
-        </div>
-        <Modal
-          className={styles.imageModal}
-          open={imageOpen}
-          footer={null}
-          onCancel={() => {
-            setImageOpen(false);
-          }}
-        >
-          {imageAction()}
-        </Modal>
-      </Modal>
     </div>
   );
 };

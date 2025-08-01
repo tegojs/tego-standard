@@ -1,5 +1,4 @@
-import { FormLayout } from '@tachybase/components';
-
+import { FormLayout } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { SchemaComponent, SchemaComponentOptions } from '../../../core';

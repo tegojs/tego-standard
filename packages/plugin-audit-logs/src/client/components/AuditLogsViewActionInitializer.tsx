@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActionInitializer } from '@tachybase/client';
+import { ActionInitializer, OpenMode } from '@tachybase/client';
 
 import { uid } from '@tego/client';
 

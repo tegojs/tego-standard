@@ -12,15 +12,14 @@ import {
 } from '@tachybase/client';
 import { RecursionField, useField, useFieldSchema } from '@tachybase/schema';
 
-import { ShareAltOutlined } from '@ant-design/icons';
-import { Button, TabsProps } from 'antd';
+import { TabsProps } from 'antd';
 import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { countGridCol, findSchema } from '../../helpers';
 import { PageDesigner } from './Page.Designer';
 import useStyles from './style';
 
-const InternalPage: React.FC = () => {
+const InternalPage: React.FC = (props) => {
   const { styles } = useStyles();
   const Designer = useDesigner();
   const field = useField();

@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { useCompile, useCurrentUserContext } from '@tachybase/client';
 import { EXECUTION_STATUS } from '@tachybase/module-workflow/client';
 
-import { dayjs } from '@tego/client';
 import { Space, Steps, Tag } from 'antd-mobile';
+import dayjs from 'dayjs';
 import _ from 'lodash';
 
 import { APPROVAL_INITIATION_STATUS } from '../../../common/constants/approval-initiation-status';

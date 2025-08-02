@@ -1,10 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { css, useTranslation } from '@tachybase/client';
 
-import { dayjs } from '@tego/client';
 import { ActionSheet, Button, Calendar, Divider, Grid, Input, Picker, Popup } from 'antd-mobile';
 import { DownOutline } from 'antd-mobile-icons';
 import type { Action } from 'antd-mobile/es/components/action-sheet';
+import dayjs from 'dayjs';
 
 import { lang } from '../../../../../../locale';
 import { convertFormat } from '../../utils';

@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { CardItem, createStyles, useCompile, useCurrentUserContext } from '@tachybase/client';
 
-import { dayjs } from '@tego/client';
 import { Space, Tag, Timeline } from 'antd';
+import dayjs from 'dayjs';
 import _ from 'lodash';
 
 import { APPROVAL_INITIATION_STATUS } from '../../../common/constants/approval-initiation-status';

@@ -1,4 +1,5 @@
-import { ActionParams, Application, IField, lodash } from '@tego/server';
+import { ActionParams, Application, IField } from '@tego/server';
+import lodash from 'lodash';
 
 function isSameBasic(val1: any, val2: any): boolean {
   if (val1 instanceof Date || val2 instanceof Date) {

@@ -13,7 +13,7 @@ import {
 import { expect, test } from '@tachybase/test/e2e';
 
 import { faker } from '@faker-js/faker';
-import { dayjs } from '@tego/server';
+import dayjs from 'dayjs';
 
 test('Collection event add data trigger, filter single line text field not empty, common table single line text field data, set single line text field constant data', async ({
   page,

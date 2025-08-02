@@ -1,4 +1,4 @@
-import { lodash } from '@tego/server';
+import lodash from 'lodash';
 
 export default {
   echo: {

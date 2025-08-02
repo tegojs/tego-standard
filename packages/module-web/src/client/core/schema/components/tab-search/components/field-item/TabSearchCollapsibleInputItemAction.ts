@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useCollection, useCollectionManager, useDesignable, useDesigner } from '@tachybase/client';
 import { useFieldSchema } from '@tachybase/schema';
 
-import { dayjs } from '@tego/client';
+import dayjs from 'dayjs';
 
 import {
   canBeCalculatedField,

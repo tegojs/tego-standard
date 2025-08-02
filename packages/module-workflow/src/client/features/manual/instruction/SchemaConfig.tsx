@@ -28,8 +28,9 @@ import {
 } from '@tachybase/client';
 import { createForm, FormProvider, ISchema, Schema, useFieldSchema, useForm } from '@tachybase/schema';
 
-import { FormLayout, lodash, Registry } from '@tego/client';
+import { FormLayout, Registry } from '@tego/client';
 import { Alert, Button, Modal, Space } from 'antd';
+import lodash from 'lodash';
 import { useTranslation } from 'react-i18next';
 
 import WorkflowPlugin, {

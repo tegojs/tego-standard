@@ -1,4 +1,5 @@
-import { AppSupervisor, Context, dayjs, Next } from '@tego/server';
+import { AppSupervisor, Context, Next } from '@tego/server';
+import dayjs from 'dayjs';
 
 import { AUTH_TIMEOUT_MINUTE } from '../../constants';
 

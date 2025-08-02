@@ -1,4 +1,5 @@
-import { dayjs, str2moment } from '@tego/server';
+import { str2moment } from '@tego/server';
+import dayjs from 'dayjs';
 import * as math from 'mathjs';
 
 import { namespace } from '../../';

@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { Project } from 'ts-morph';
 
 const project = new Project({
@@ -8,17 +6,9 @@ const project = new Project({
 
 const TARGET_MODULES = ['@tego/client', '@tego/server'];
 
-const lodashExports = new Set([
-  'cloneDeep',
-  'merge',
-  'get',
-  'set',
-  'omit',
-  'pick',
-  'isEqual', // 可根据实际情况扩展
-]);
+const lodashExports = new Set(['lodash']);
 
-const dayjsIdentifiers = new Set(['dayjs']);
+const dayjsIdentifiers = new Set(['dayjs', 'Dayjs']);
 
 project.getSourceFiles().forEach((sourceFile) => {
   let changed = false;
@@ -36,6 +26,11 @@ project.getSourceFiles().forEach((sourceFile) => {
     // dayjs symbol (default import or named)
     const dayjsSymbols = namedImports.filter((namedImport) => dayjsIdentifiers.has(namedImport.getName()));
 
+    // 记录哪些是类型导入
+    const typeOnlyDayjs = dayjsSymbols.filter((s) => s.isTypeOnly());
+    const typeNames = typeOnlyDayjs.map((s) => ({ name: s.getName() }));
+    const valueDayjs = dayjsSymbols.filter((s) => !s.isTypeOnly());
+
     // 移除匹配项
     if (lodashSymbols.length || dayjsSymbols.length) {
       // 如果该 import 全部都要移动，删除整个 import 声明
@@ -43,23 +38,31 @@ project.getSourceFiles().forEach((sourceFile) => {
         importDecl.remove();
       } else {
         // 只移除特定的符号
-        [...dayjsSymbols].forEach((s) => s.remove());
+        [...lodashSymbols, ...dayjsSymbols].forEach((s) => s.remove());
       }
 
-      // // 重建 lodash import
-      // if (lodashSymbols.length) {
-      //   const lodashNames = lodashSymbols.map((s) => s.getText()).join(', ');
-      //   sourceFile.addImportDeclaration({
-      //     namedImports: lodashNames,
-      //     moduleSpecifier: 'lodash',
-      //   });
-      //   changed = true;
-      // }
+      if (lodashSymbols.length) {
+        sourceFile.addImportDeclaration({
+          defaultImport: 'lodash',
+          moduleSpecifier: 'lodash',
+        });
+        changed = true;
+      }
 
       // 重建 dayjs import（dayjs 通常是默认导出）
-      if (dayjsSymbols.length) {
+      if (valueDayjs.length) {
         sourceFile.addImportDeclaration({
           defaultImport: 'dayjs',
+          moduleSpecifier: 'dayjs',
+        });
+        changed = true;
+      }
+
+      // dayjs 类型导入
+      if (typeNames.length) {
+        sourceFile.addImportDeclaration({
+          isTypeOnly: true,
+          namedImports: typeNames,
           moduleSpecifier: 'dayjs',
         });
         changed = true;

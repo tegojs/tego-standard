@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { dayjs, InstallOptions, Plugin, Repository } from '@tego/server';
+import { InstallOptions, Plugin, Repository } from '@tego/server';
+import dayjs from 'dayjs';
 import xlsx from 'node-xlsx';
 
 import { exportXlsx } from './actions';

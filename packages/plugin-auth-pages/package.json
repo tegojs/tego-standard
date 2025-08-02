@@ -12,9 +12,9 @@
   "devDependencies": {
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/test": "^1.3.42",
-    "@tego/client": "^1.3.42",
-    "@tego/server": "^1.3.42",
+    "@tachybase/test": "^1.3.43",
+    "@tego/client": "^1.3.43",
+    "@tego/server": "^1.3.43",
     "antd": "5.22.5",
     "react-router-dom": "6.28.1"
   },

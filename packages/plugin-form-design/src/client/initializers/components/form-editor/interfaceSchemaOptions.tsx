@@ -24,11 +24,11 @@ import {
   FormButtonGroup,
   FormDrawer,
   FormLayout,
-  lodash,
   Registry,
   Submit,
 } from '@tego/client';
 import { Button, Select } from 'antd';
+import lodash from 'lodash';
 
 import { useTranslation } from '../../../locale';
 

@@ -1,4 +1,4 @@
-import { dayjs } from '@tego/server';
+import dayjs from 'dayjs';
 import { lowerCase } from 'lodash';
 
 /**

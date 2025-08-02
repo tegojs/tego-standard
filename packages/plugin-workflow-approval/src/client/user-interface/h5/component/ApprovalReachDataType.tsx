@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { observer } from '@tachybase/schema';
 
-import { dayjs } from '@tego/client';
 import { AutoCenter, Button, DatePicker, Grid, Popup, Space, Toast } from 'antd-mobile';
 import { DownOutline } from 'antd-mobile-icons';
+import dayjs from 'dayjs';
 
 export const ApprovalReachDataType = observer((props) => {
   const { changeFilter, filter } = props as any;

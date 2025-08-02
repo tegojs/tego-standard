@@ -17,6 +17,24 @@ import weekday from 'dayjs/plugin/weekday';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import weekYear from 'dayjs/plugin/weekYear';
 
+// fix plugin type errors
+import 'dayjs/plugin/advancedFormat';
+import 'dayjs/plugin/calendar';
+import 'dayjs/plugin/customParseFormat';
+import 'dayjs/plugin/isBetween';
+import 'dayjs/plugin/isoWeek';
+import 'dayjs/plugin/isSameOrAfter';
+import 'dayjs/plugin/isSameOrBefore';
+import 'dayjs/plugin/localeData';
+import 'dayjs/plugin/quarterOfYear';
+import 'dayjs/plugin/relativeTime';
+import 'dayjs/plugin/timezone';
+import 'dayjs/plugin/updateLocale';
+import 'dayjs/plugin/utc';
+import 'dayjs/plugin/weekday';
+import 'dayjs/plugin/weekOfYear';
+import 'dayjs/plugin/weekYear';
+
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(tz);

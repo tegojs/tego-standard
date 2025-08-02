@@ -8,8 +8,6 @@
     "Workflow"
   ],
   "main": "dist/server/index.js",
-  "scripts": {},
-  "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",

@@ -1,6 +1,6 @@
 import PluginMultiAppManager from '@tachybase/module-multi-app';
-
 import { Application, AppSupervisor, Database, Plugin } from '@tego/server';
+
 import lodash from 'lodash';
 
 const subAppFilteredPlugins = ['multi-app-share-collection', 'multi-app'];

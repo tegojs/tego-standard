@@ -11,9 +11,9 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "^1.3.42",
-    "@tego/client": "^1.3.42",
-    "@tego/server": "^1.3.42"
+    "@tachybase/test": "^1.3.43",
+    "@tego/client": "^1.3.43",
+    "@tego/server": "^1.3.43"
   },
   "description.zh-CN": "加密字段",
   "displayName.zh-CN": "数据表字段：加密字段"

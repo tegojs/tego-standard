@@ -14,9 +14,9 @@
     "@tachybase/client": "workspace:*",
     "@tachybase/module-error-handler": "workspace:*",
     "@tachybase/module-user": "workspace:*",
-    "@tachybase/test": "^1.3.43",
-    "@tego/client": "^1.3.43",
-    "@tego/server": "^1.3.43",
+    "@tachybase/test": "^1.3.44",
+    "@tego/client": "^1.3.44",
+    "@tego/server": "^1.3.44",
     "lodash": "4.17.21",
     "sequelize": "^6.37.5"
   },

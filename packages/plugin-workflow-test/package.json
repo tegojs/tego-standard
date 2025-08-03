@@ -11,9 +11,9 @@
   "types": "./dist/server/index.d.ts",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "^1.3.43",
-    "@tego/client": "^1.3.43",
-    "@tego/server": "^1.3.43",
+    "@tachybase/test": "^1.3.44",
+    "@tego/client": "^1.3.44",
+    "@tego/server": "^1.3.44",
     "dayjs": "^1.11.13",
     "lodash": "4.17.21"
   },

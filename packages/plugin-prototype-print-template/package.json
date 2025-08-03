@@ -1,6 +1,6 @@
 {
   "name": "@tachybase/plugin-print-template",
-  "version": "1.3.23",
+  "version": "1.3.24",
   "main": "dist/server/index.js",
   "scripts": {},
   "dependencies": {},

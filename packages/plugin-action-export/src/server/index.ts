@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-
 import { InstallOptions, Plugin, Repository } from '@tego/server';
+
 import dayjs from 'dayjs';
 import xlsx from 'node-xlsx';
 
@@ -25,7 +25,7 @@ export class ExportPlugin extends Plugin {
   public static defaultSavePath = 'storage/uploads';
 
   xlsxStorageDir() {
-    return path.resolve(process.cwd(), ExportPlugin.defaultSavePath);
+    return path.resolve(process.env.TEGO_RUNTIME_HOME, ExportPlugin.defaultSavePath);
   }
 
   async workerExportXlsx(params) {

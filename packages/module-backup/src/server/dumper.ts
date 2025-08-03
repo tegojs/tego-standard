@@ -4,8 +4,8 @@ import path from 'node:path';
 import * as process from 'node:process';
 import stream from 'node:stream';
 import util from 'node:util';
-
 import { Collection, CollectionGroupManager as DBCollectionGroupManager, DumpRulesGroupType } from '@tego/server';
+
 import archiver from 'archiver';
 import dayjs from 'dayjs';
 import { default as _, default as lodash } from 'lodash';
@@ -175,9 +175,9 @@ export class Dumper extends AppMigrator {
 
   backUpStorageDir(appName?: string) {
     if (appName && appName !== 'main') {
-      return path.resolve(process.cwd(), 'storage', 'backups', appName);
+      return path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'backups', appName);
     }
-    return path.resolve(process.cwd(), 'storage', 'backups');
+    return path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'backups');
   }
 
   async allBackUpFilePaths(options?: { includeInProgress?: boolean; dir?: string; appName?: string }) {

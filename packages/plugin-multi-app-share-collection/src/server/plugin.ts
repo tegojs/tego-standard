@@ -279,7 +279,6 @@ export class MultiAppShareCollectionPlugin extends Plugin {
             'header.x-app',
           ],
         },
-        // pmSock: resolve(process.cwd(), 'storage', `${appName}.sock`),
       };
     });
 

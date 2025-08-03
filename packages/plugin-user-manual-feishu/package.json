@@ -11,9 +11,9 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "^1.3.44",
-    "@tego/client": "^1.3.44",
-    "@tego/server": "^1.3.44",
+    "@tachybase/test": "^1.3.49",
+    "@tego/client": "^1.3.49",
+    "@tego/server": "^1.3.49",
     "antd": "5.22.5"
   },
   "description.zh-CN": "飞书使用手册",

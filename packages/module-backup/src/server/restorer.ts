@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
+import { Application, DataTypes, DumpRulesGroupType } from '@tego/server';
 
 import * as Topo from '@hapi/topo';
-import { Application, DataTypes, DumpRulesGroupType } from '@tego/server';
 import lodash, { isPlainObject } from 'lodash';
 import semver from 'semver';
 import yauzl from 'yauzl';
@@ -63,10 +63,10 @@ export class Restorer extends AppMigrator {
     if (path.isAbsolute(backUpFilePath)) {
       this.backUpFilePath = backUpFilePath;
     } else if (path.basename(backUpFilePath) === backUpFilePath) {
-      const dirname = path.resolve(process.cwd(), 'storage', 'duplicator');
+      const dirname = path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'duplicator');
       this.backUpFilePath = path.resolve(dirname, backUpFilePath);
     } else {
-      this.backUpFilePath = path.resolve(process.cwd(), backUpFilePath);
+      this.backUpFilePath = path.resolve(process.env.TEGO_RUNTIME_HOME, backUpFilePath);
     }
   }
 

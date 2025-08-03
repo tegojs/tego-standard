@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { Gateway, Plugin } from '@tego/server';
 
 import { createRequestHandler } from '@remix-run/express';
-import { Gateway, Plugin } from '@tego/server';
 import express from 'express';
 
 export class PluginAdapterRemixServer extends Plugin {
@@ -16,7 +16,7 @@ export class PluginAdapterRemixServer extends Plugin {
 
     const prefix = '/adapters/remix';
 
-    const remixPath = path.join(process.cwd(), 'storage/remix');
+    const remixPath = path.join(process.env.TEGO_RUNTIME_HOME, 'storage/remix');
     if (!fs.existsSync(remixPath)) {
       fs.mkdirSync(remixPath, { recursive: true });
     }

@@ -1,28 +1,66 @@
-import { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useMemo } from 'react';
 
-import { css } from '@emotion/css';
 import { Outlet, useLocation, useOutlet, useParams } from 'react-router-dom';
 
 import { useTranslation } from '../..';
+import { RemoteSchemaComponent } from '../../schema-component';
 import { useDocumentTitle } from '../document-title';
 import { PageStyle, PageStyleContext } from './PageStyle.provider';
 import { usePageStyle } from './usePageStyle';
 
-export const TabContentInternal = ({ items, activeKey }) => {
-  return items.map((item) => (
+interface TabItem {
+  key: string;
+  label: string | React.ReactNode;
+  schemaKey?: string;
+  children?: React.ReactNode;
+  disabled?: boolean;
+  closable?: boolean;
+}
+
+interface TabContentItemProps {
+  item: TabItem;
+  activeKey: string;
+}
+
+const TabContentItem = ({ item, activeKey }: TabContentItemProps) => {
+  const { key, schemaKey, children, label } = item;
+
+  // 只在激活时渲染内容，非激活时保持内容但隐藏
+  return (
     <div
-      className={
-        activeKey !== item.key
-          ? css`
-              display: none;
-            `
-          : ''
-      }
-      key={item.key}
+      key={key}
+      style={{
+        display: activeKey === key ? '' : 'none',
+        width: '100%',
+        height: '100%',
+      }}
     >
-      {item.children}
+      {children ? (
+        // 如果有 children，直接渲染
+        children
+      ) : (
+        // 如果没有 children（从缓存恢复），使用 RemoteSchemaComponent 根据 schemaKey 重新渲染
+        <RemoteSchemaComponent
+          uid={schemaKey}
+          noForm
+          onlyRenderProperties
+          onSuccess={(data) => {
+            // 可以在这里处理 schema 加载成功后的逻辑
+            console.log(`Schema loaded for key: ${schemaKey}`, data);
+          }}
+        />
+      )}
     </div>
-  ));
+  );
+};
+
+interface TabContentInternalProps {
+  items: TabItem[];
+  activeKey: string;
+}
+
+const TabContentInternal = ({ items, activeKey }: TabContentInternalProps) => {
+  return items.map((item) => <TabContentItem key={item.key} item={item} activeKey={activeKey} />);
 };
 
 export const TabContent = () => {
@@ -32,20 +70,25 @@ export const TabContent = () => {
   const { items, setItems } = useContext(PageStyleContext);
   const targetKey = location.pathname;
 
+  const schemaKey = useMemo(() => {
+    return targetKey.split('/').pop() || '';
+  }, [targetKey]);
+
   const outlet = useOutlet();
+
   useEffect(() => {
     if (targetKey) {
       const targetItem = items.find((value) => value.key === targetKey);
       if (!targetItem) {
         // 现有tab页数组里,不存在之前浏览的tab页面,添加新的tab页进数组
-        setItems([
-          ...items,
-          {
-            key: targetKey,
-            label: title || `${t('tabs')}`,
-            children: outlet,
-          },
-        ]);
+        const targetItem = {
+          key: targetKey,
+          schemaKey,
+          label: title || `${t('tabs')}`,
+          children: outlet,
+        };
+        const newItems = [...items, targetItem];
+        setItems(newItems);
       } else {
         // 如果存在之前浏览的tab页面,只用更新页面标题
         setTitle(targetItem?.label);

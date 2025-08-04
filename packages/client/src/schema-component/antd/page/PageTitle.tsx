@@ -15,7 +15,7 @@ export const PageTitle = (props) => {
   const isShowBack = !isPageTabStyle && isSubPage;
 
   const navigate = useNavigate();
-  const handleBack = () => navigate(-1);
+  const handleBack = () => isShowBack && navigate(-1);
 
   return (
     <div

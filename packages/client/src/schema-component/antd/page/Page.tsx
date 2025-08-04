@@ -133,7 +133,7 @@ const PageHeader = (props) => {
 
   const hidePageTitle = fieldSchema['x-component-props']?.hidePageTitle;
 
-  const pageHeaderTitle = hidePageTitle ? undefined : fieldSchema.title || compile(title);
+  const pageHeaderTitle = hidePageTitle ? undefined : compile(fieldSchema.title || title);
   const isShare = useMatch('/share/:name');
 
   // THINK: 思考下这里怎么缓存, 直接用 useMemo 是不行的

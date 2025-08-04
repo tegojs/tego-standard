@@ -6,12 +6,12 @@ import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { StablePopover, useActionContext } from '../..';
 import { useDesignable } from '../../';
 import { useApp } from '../../../application';
-import { useIsSubPage, useIsSystemPage } from '../../../application/CustomRouterContextProvider';
+import { useIsSystemPage } from '../../../application/CustomRouterContextProvider';
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
 import { useIsMobile } from '../../../block-provider';
 import { useACLActionParamsContext } from '../../../built-in/acl';
@@ -63,6 +63,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
     } = useProps(props); // 新版 UISchema（1.0 之后）中已经废弃了 useProps，这里之所以继续保留是为了兼容旧版的 UISchema
     const aclCtx = useACLActionParamsContext();
     const navigate = useNavigate();
+    const location = useLocation();
     const { wrapSSR, componentCls, hashId } = useStyles();
     const { t } = useTranslation();
     const [visible, setVisible] = useState(false);
@@ -153,10 +154,23 @@ export const Action: ComposedAction = withDynamicSchemaProps(
         return;
       }
 
-      const finalPath = isMobile ? `./${MPageUID}/${subPath}/${target}` : `./${subPath}/${target}`;
+      // 构建路径时考虑页面样式模式，确保导航行为一致
+      let finalPath;
+      if (isMobile) {
+        finalPath = `./${MPageUID}/${subPath}/${target}`;
+      } else {
+        // 在 Tab Style 模式下，需要确保路径相对于当前页面而不是根路径
+        if (isPageTabStyle) {
+          // 获取当前路径，确保相对路径基于当前页面
+          const currentPath = location.pathname;
+          finalPath = `${currentPath}/${subPath}/${target}`;
+        } else {
+          finalPath = `./${subPath}/${target}`;
+        }
+      }
 
       navigate(finalPath);
-    }, [fieldSchema, record, collectionKey, collection?.name, navigate]);
+    }, [fieldSchema, record, collectionKey, collection?.name, navigate, location.pathname, isPageTabStyle]);
 
     const handleButtonClick = useCallback(
       (e: React.MouseEvent) => {

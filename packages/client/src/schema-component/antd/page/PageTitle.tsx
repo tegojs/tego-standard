@@ -23,7 +23,7 @@ export const PageTitle = (props) => {
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
-        cursor: 'pointer',
+        cursor: isShowBack ? 'pointer' : 'default',
       }}
       onClick={handleBack}
     >

@@ -154,19 +154,11 @@ export const Action: ComposedAction = withDynamicSchemaProps(
         return;
       }
 
-      // 构建路径时考虑页面样式模式，确保导航行为一致
       let finalPath;
       if (isMobile) {
         finalPath = `./${MPageUID}/${subPath}/${target}`;
       } else {
-        // 在 Tab Style 模式下，需要确保路径相对于当前页面而不是根路径
-        if (isPageTabStyle) {
-          // 获取当前路径，确保相对路径基于当前页面
-          const currentPath = location.pathname;
-          finalPath = `${currentPath}/${subPath}/${target}`;
-        } else {
-          finalPath = `./${subPath}/${target}`;
-        }
+        finalPath = `./${subPath}/${target}`;
       }
 
       navigate(finalPath);

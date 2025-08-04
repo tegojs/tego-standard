@@ -1,8 +1,39 @@
-import { useContext, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 
 import { PageStyleContext } from './PageStyle.provider';
 
 const PAGE_TAB_ITEMS_KEY = 'pageTabItems';
+const IS_REFRESHED_KEY = 'isRefreshed';
+
+// 检查是否是浏览器初次刷新
+const useIsRefreshed = () => {
+  const [isRefreshed, setIsRefreshed] = useState(false);
+
+  useEffect(() => {
+    // 检查是否是初次刷新
+    const checkIsRefreshed = () => {
+      try {
+        // 如果 sessionStorage 中没有标记，说明是初次刷新
+        if (!sessionStorage.getItem(IS_REFRESHED_KEY)) {
+          setIsRefreshed(true);
+          // 设置标记，表示已经不是初次刷新了
+          sessionStorage.setItem(IS_REFRESHED_KEY, 'true');
+        } else {
+          sessionStorage.setItem(IS_REFRESHED_KEY, 'false');
+          setIsRefreshed(false);
+        }
+      } catch (error) {
+        // 如果 sessionStorage 不可用，默认为非刷新状态
+        console.warn('sessionStorage not available:', error);
+      }
+    };
+
+    // 在组件挂载时立即检查
+    checkIsRefreshed();
+  }, []);
+
+  return isRefreshed;
+};
 
 // 提取可序列化的 tab 信息（不包含 children）
 const extractSerializableData = (items: any[]) => {
@@ -32,6 +63,7 @@ const rebuildTabItems = (cachedData: any[], originalItems: any[]) => {
         return {
           ...originalItem,
           children: undefined, // 确保 children 为空，触发 RemoteSchemaComponent 重新加载
+          isCached: true,
         };
       }
       return cachedItem;
@@ -66,6 +98,7 @@ const setCachedItems = (items: any[]): void => {
 // 使用 sessionStorage 缓存 tabItems
 export const usePageTabItems = (): { tabItems: any[] } => {
   const context = useContext(PageStyleContext);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const { items = [], setItems = () => {} } = useMemo(
     () => ({
@@ -75,23 +108,31 @@ export const usePageTabItems = (): { tabItems: any[] } => {
     [context],
   );
 
+  const isRefreshed = useIsRefreshed();
+
+  // 只在组件首次挂载时检查是否是刷新
+  useEffect(() => {
+    if (!hasInitialized) {
+      if (isRefreshed) {
+        // 如果是刷新，尝试从缓存中恢复
+        const cachedData = getCachedItems();
+        if (cachedData.length > 1) {
+          const rebuiltItems = rebuildTabItems(cachedData, items);
+          console.log('%c Line:105 🚀 rebuiltItems', 'font-size:18px;color:#42b983;background:#465975', rebuiltItems);
+          setItems(rebuiltItems);
+        }
+      }
+      setHasInitialized(true);
+    }
+  }, [hasInitialized, items, setItems]);
+
   return useMemo(() => {
-    // 如果 context 中有多个 items，优先使用并缓存
+    // 如果 context 中有多个 items，缓存它们
     if (items.length > 1) {
       setCachedItems(items);
-      return { tabItems: items };
     }
 
-    // 否则尝试从缓存中获取
-    const cachedData = getCachedItems();
-    if (cachedData.length > 1) {
-      // 使用缓存数据重建 tab items（不包含 children）
-      const rebuiltItems = rebuildTabItems(cachedData, items);
-      setItems(rebuiltItems);
-      return { tabItems: rebuiltItems };
-    }
-
-    // 最后使用 context 中的 items
+    // 始终返回 context 中的 items
     return { tabItems: items };
-  }, [items, setItems]);
+  }, [items]);
 };

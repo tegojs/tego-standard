@@ -15,6 +15,7 @@ interface TabItem {
   children?: React.ReactNode;
   disabled?: boolean;
   closable?: boolean;
+  isCached?: boolean;
 }
 
 interface TabContentItemProps {
@@ -23,8 +24,7 @@ interface TabContentItemProps {
 }
 
 const TabContentItem = ({ item, activeKey }: TabContentItemProps) => {
-  const { key, schemaKey, children, label } = item;
-
+  const { key, schemaKey, children, label, isCached } = item;
   // 只在激活时渲染内容，非激活时保持内容但隐藏
   return (
     <div
@@ -35,20 +35,12 @@ const TabContentItem = ({ item, activeKey }: TabContentItemProps) => {
         height: '100%',
       }}
     >
-      {children ? (
+      {isCached ? (
+        // 如果是从缓存恢复，此时没有 children,使用 RemoteSchemaComponent 根据 schemaKey 重新渲染
+        <RemoteSchemaComponent uid={schemaKey} noForm onlyRenderProperties />
+      ) : (
         // 如果有 children，直接渲染
         children
-      ) : (
-        // 如果没有 children（从缓存恢复），使用 RemoteSchemaComponent 根据 schemaKey 重新渲染
-        <RemoteSchemaComponent
-          uid={schemaKey}
-          noForm
-          onlyRenderProperties
-          onSuccess={(data) => {
-            // 可以在这里处理 schema 加载成功后的逻辑
-            console.log(`Schema loaded for key: ${schemaKey}`, data);
-          }}
-        />
       )}
     </div>
   );
@@ -71,7 +63,7 @@ export const TabContent = () => {
   const targetKey = location.pathname;
 
   const schemaKey = useMemo(() => {
-    return targetKey.split('/').pop() || '';
+    return targetKey.split('/').at(-1) || '';
   }, [targetKey]);
 
   const outlet = useOutlet();

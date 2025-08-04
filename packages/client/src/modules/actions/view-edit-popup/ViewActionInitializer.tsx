@@ -13,7 +13,7 @@ export const ViewActionInitializer = (props) => {
       openMode: OpenMode.DEFAULT,
     },
     properties: {
-      drawer: {
+      actionContainer: {
         type: 'void',
         title: '{{ t("View record") }}',
         'x-component': 'Action.Container',
@@ -23,7 +23,7 @@ export const ViewActionInitializer = (props) => {
         properties: {
           page: {
             type: 'void',
-            title: '{{ t("Details") }}',
+            title: '{{ t("View record") }}',
             'x-component': 'Page',
             properties: {
               grid: {

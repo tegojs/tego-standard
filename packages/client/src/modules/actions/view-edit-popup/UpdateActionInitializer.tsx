@@ -10,7 +10,7 @@ export const UpdateActionInitializer = (props) => {
     'x-settings': 'actionSettings:edit',
     'x-component': 'Action',
     'x-component-props': {
-      openMode: OpenMode.DRAWER_MODE,
+      openMode: OpenMode.DEFAULT,
       icon: 'EditOutlined',
     },
     properties: {
@@ -24,7 +24,7 @@ export const UpdateActionInitializer = (props) => {
         properties: {
           page: {
             type: 'void',
-            title: '{{ t("Details") }}',
+            title: '{{ t("Edit record") }}',
             'x-component': 'Page',
             properties: {
               grid: {

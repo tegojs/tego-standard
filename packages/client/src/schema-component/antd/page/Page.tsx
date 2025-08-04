@@ -31,6 +31,7 @@ import FixedBlock from './FixedBlock';
 import { useStyles } from './Page.style';
 import { PageDesigner } from './PageDesigner';
 import { PageTabDesigner } from './PageTabDesigner';
+import { PageTitle } from './PageTitle';
 import { getStyles } from './style';
 
 export const Page = (props) => {
@@ -154,7 +155,7 @@ const PageHeader = (props) => {
           className={classNames('pageHeaderCss', pageHeaderTitle || enableSharePage ? '' : 'height0')}
           ghost={false}
           // 如果标题为空的时候会导致 PageHeader 不渲染，所以这里设置一个空白字符，然后再设置高度为 0
-          title={pageHeaderTitle || ' '}
+          title={<PageTitle title={pageHeaderTitle || ' '} />}
           {...parentProps}
           extra={
             <HeaderExtra
@@ -178,7 +179,7 @@ const PageHeader = (props) => {
               />
             )
           }
-        ></AntdPageHeader>
+        />
       )}
     </div>
   );

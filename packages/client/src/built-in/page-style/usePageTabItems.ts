@@ -2,7 +2,7 @@ import { useContext, useMemo } from 'react';
 
 import { PageStyleContext } from './PageStyle.provider';
 
-// 使用 localStorage 缓存 tabItems
+// 使用 sessionStorage 缓存 tabItems
 export const usePageTabItems = (): { tabItems: any[] } => {
   const context = useContext(PageStyleContext);
 
@@ -37,7 +37,7 @@ const PAGE_TAB_ITEMS_KEY = 'pageTabItems';
 
 const getCachedItems = (): any[] => {
   try {
-    const cache = localStorage.getItem(PAGE_TAB_ITEMS_KEY);
+    const cache = sessionStorage.getItem(PAGE_TAB_ITEMS_KEY);
     if (!cache) return [];
 
     const cacheItems = JSON.parse(cache);
@@ -51,8 +51,8 @@ const setCachedItems = (items: any[]): void => {
   if (!items?.length) return;
 
   try {
-    localStorage.setItem(PAGE_TAB_ITEMS_KEY, JSON.stringify(items));
+    sessionStorage.setItem(PAGE_TAB_ITEMS_KEY, JSON.stringify(items));
   } catch {
-    // 忽略 localStorage 错误
+    // 忽略 sessionStorage 错误
   }
 };

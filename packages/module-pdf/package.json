@@ -15,7 +15,7 @@
     "@babel/preset-env": "7.27.2",
     "@babel/preset-react": "7.27.1",
     "@babel/preset-typescript": "7.27.1",
-    "@react-pdf/renderer": "^3.4.5",
+    "@react-pdf/renderer": "^4.3.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-workflow": "workspace:*",
     "@tachybase/test": "*",

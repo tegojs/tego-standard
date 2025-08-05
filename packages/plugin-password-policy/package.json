@@ -13,7 +13,7 @@
     "@tachybase/schema": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "antd": "5.22.5",
+    "antd": "5.26.7",
     "geoip-lite": "^1.4.9",
     "ipaddr.js": "^2.1.0"
   },

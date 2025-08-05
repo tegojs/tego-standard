@@ -14,7 +14,7 @@
     "@tachybase/test": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "antd": "5.22.5"
+    "antd": "5.26.7"
   },
   "description.zh-CN": "内容管理",
   "displayName.zh-CN": "内容管理"

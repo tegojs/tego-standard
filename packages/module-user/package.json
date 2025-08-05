@@ -19,7 +19,7 @@
     "@tego/client": "*",
     "@tego/server": "*",
     "@types/jsonwebtoken": "^8.5.9",
-    "antd": "5.22.5",
+    "antd": "5.26.7",
     "jsonwebtoken": "^8.5.1",
     "react-i18next": "15.2.0"
   },

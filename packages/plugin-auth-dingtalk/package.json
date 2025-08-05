@@ -19,7 +19,7 @@
     "@tachybase/test": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "antd": "5.22.5",
+    "antd": "5.26.7",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "认证：钉钉",

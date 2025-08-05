@@ -10,7 +10,7 @@
     "@tachybase/test": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "antd": "5.22.5",
+    "antd": "5.26.7",
     "lodash": "4.17.21"
   },
   "description.zh-CN": "为文本字段添加复制按钮",

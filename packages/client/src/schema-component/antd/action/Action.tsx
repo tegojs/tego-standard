@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { observer, RecursionField, useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { isPortalInBody } from '@tego/client';
+
 import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
@@ -128,41 +128,41 @@ export const Action: ComposedAction = withDynamicSchemaProps(
       setVisible(true);
     }, []);
 
-    const openPage = useCallback(() => {
-      const containerSchema = fieldSchema.reduceProperties((buf, s) =>
-        s['x-component'] === 'Action.Container' ? s : buf,
-      );
-      const target = PathHandler.getInstance().toWildcardPath({
-        collection: collection.name,
-        filterByTk: record[collectionKey],
-      });
+    const openPage = useCallback(
+      (containerSchema) => {
+        const target = PathHandler.getInstance().toWildcardPath({
+          collection: collection.name,
+          filterByTk: record[collectionKey],
+        });
 
-      const findMPageSchema = (schema) => {
-        if (!schema) return;
-        if (schema['x-component'] === 'MPage') {
-          return schema['x-uid'];
+        const findMPageSchema = (schema) => {
+          if (!schema) return;
+          if (schema['x-component'] === 'MPage') {
+            return schema['x-uid'];
+          }
+          return findMPageSchema(schema?.parent);
+        };
+
+        const MPageUID = findMPageSchema(fieldSchema);
+
+        const subPath = containerSchema?.['x-uid'] ? `sub/${containerSchema?.['x-uid']}` : '';
+
+        // 如果 containerSchema 没有 x-uid, 不进行跳转
+        if (!subPath) {
+          return;
         }
-        return findMPageSchema(schema?.parent);
-      };
 
-      const MPageUID = findMPageSchema(fieldSchema);
+        let finalPath;
+        if (isMobile) {
+          finalPath = `./${MPageUID}/${subPath}/${target}`;
+        } else {
+          finalPath = `./${subPath}/${target}`;
+        }
 
-      const subPath = containerSchema?.['x-uid'] ? `sub/${containerSchema?.['x-uid']}` : '';
-
-      // 如果 containerSchema 没有 x-uid, 不进行跳转
-      if (!subPath) {
-        return;
-      }
-
-      let finalPath;
-      if (isMobile) {
-        finalPath = `./${MPageUID}/${subPath}/${target}`;
-      } else {
-        finalPath = `./${subPath}/${target}`;
-      }
-
-      navigate(finalPath);
-    }, [fieldSchema, record, collectionKey, collection?.name, navigate, location.pathname, isPageTabStyle]);
+        navigate(finalPath);
+      },
+      [fieldSchema, record, collectionKey, collection?.name, navigate, location.pathname, isPageTabStyle],
+    );
 
     const handleButtonClick = useCallback(
       (e: React.MouseEvent) => {
@@ -174,16 +174,14 @@ export const Action: ComposedAction = withDynamicSchemaProps(
 
         if (!disabled && aclCtx) {
           const onOk = () => {
-            if (onClick) {
-              // 如果 onClick 存在, 由应用方自行处理, 不进行跳转
-              onClick(e);
+            onClick?.(e);
+            const containerSchema = fieldSchema.reduceProperties((buf, s) =>
+              s['x-component'] === 'Action.Container' ? s : buf,
+            );
+            if (isPageMode && containerSchema) {
+              openPage(containerSchema);
             } else {
-              // 如果 onClick 不存在, 根据 openMode 决定是打开弹窗还是跳转页面
-              if (isPageMode) {
-                openPage();
-              } else {
-                openModal();
-              }
+              openModal();
             }
             run();
           };

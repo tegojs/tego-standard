@@ -18,6 +18,7 @@ import { DataSourceManager, type DataSourceManagerOptions } from '../data-source
 import { i18n } from '../i18n';
 import { CSSVariableProvider } from '../style/css-variable';
 import { AntdAppProvider, GlobalThemeProvider } from '../style/theme';
+import { VariableManager, VariableManagerOptions } from '../variables/VariablesManager';
 import { AppSchemaComponentProvider } from './AppSchemaComponentProvider';
 import { AttachmentPreviewManager, PluginAttachmentItemsOptions } from './AttachmentPreviewManager';
 import { AppComponent, BlankComponent, defaultAppComponents, SharePage, ShareSchemaComponent } from './components';
@@ -68,6 +69,7 @@ export interface ApplicationOptions {
   dataSourceManager?: DataSourceManagerOptions;
   pluginMenuItems?: Record<string, PluginItemsOptions>;
   attachmentItem?: Record<string, PluginAttachmentItemsOptions>;
+  variableManagerOptions?: Record<string, VariableManagerOptions>;
 }
 
 export class Application {
@@ -98,6 +100,7 @@ export class Application {
   public AttachmentPreviewManager: AttachmentPreviewManager;
   public name: string;
   public globalVars: Record<string, any> = {};
+  public VariableManager: VariableManager;
 
   loading = true;
   maintained = false;
@@ -146,6 +149,7 @@ export class Application {
     this.name = this.options.name || getSubAppName(options.publicPath) || 'main';
     this.pluginContextMenu = new PluginContextMenu(options.pluginMenuItems);
     this.AttachmentPreviewManager = new AttachmentPreviewManager(options.attachmentItem, this);
+    this.VariableManager = new VariableManager(options.variableManagerOptions, this);
 
     this.i18n.on('languageChanged', (lng) => {
       this.apiClient.auth.locale = lng;

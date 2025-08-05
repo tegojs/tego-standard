@@ -12,7 +12,7 @@ import * as recharts from 'recharts';
 import { CloudLibraryManager } from './cloud-library-manager/CloudLibraryManager';
 import { ProviderCloudComponent } from './CloudComponent.provider';
 import { useTranslation } from './locale';
-import { CloudComponentBlock } from './settings/CloudComponentBlock';
+import { addOptions, CloudComponentBlock } from './settings/CloudComponentBlock';
 import { cloudComponentBlockInitializerItem } from './settings/InitializerItem';
 import { cloudComponentBlockSettings } from './settings/settings';
 
@@ -151,6 +151,7 @@ export class ModuleCloudComponentClient extends Plugin {
       addCloudComponentColumn.name,
       addCloudComponentColumn,
     );
+    this.app.VariableManager.addVariableOption('CloudComponentBlock', { blockName: 'CloudComponentBlock', addOptions });
     await this.initComponents();
   }
 

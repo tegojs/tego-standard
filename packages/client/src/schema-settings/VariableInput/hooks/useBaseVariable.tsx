@@ -1,6 +1,7 @@
 import React, { useContext, useMemo } from 'react';
 import { Form, ISchema, Schema, useFieldSchema } from '@tachybase/schema';
 
+import { useApp } from '../../../application';
 import { CollectionFieldOptions_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
 import { useCompile, useGetFilterOptions } from '../../../schema-component';
 import { isSpecialCaseField } from '../../../schema-component/antd/form-item/hooks/useSpecialCase';
@@ -130,25 +131,28 @@ const getChildren = (
   return result;
 };
 
-export const useBaseVariable = ({
-  collectionField,
-  uiSchema,
-  targetFieldSchema,
-  maxDepth = 3,
-  name,
-  title,
-  collectionName,
-  noChildren = false,
-  // TODO: 等整理完完整测试用例后，再开启该功能
-  noDisabled = true,
-  dataSource,
-  formInstance,
-  returnFields = (fields) => fields,
-}: BaseProps) => {
+export const useBaseVariable = (props: BaseProps) => {
+  const {
+    collectionField,
+    uiSchema,
+    targetFieldSchema,
+    maxDepth = 3,
+    name,
+    title,
+    collectionName,
+    noChildren = false,
+    // TODO: 等整理完完整测试用例后，再开启该功能
+    noDisabled = true,
+    dataSource,
+    formInstance,
+    returnFields = (fields) => fields,
+  } = props;
   const compile = useCompile();
   const getFilterOptions = useGetFilterOptions();
   const { isDisabled } = useContext(BaseVariableContext) || {};
   const { getCollectionField } = useCollectionManager_deprecated(dataSource);
+  const app = useApp();
+  const addOptions = app.VariableManager.variableOptions();
 
   const loadChildren = (option: Option): Promise<void> => {
     if (!option.field?.target) {
@@ -198,7 +202,15 @@ export const useBaseVariable = ({
           resolve();
           return;
         }
-        option.children = extendField(option.depth, children, targetFieldSchema, formInstance);
+        Object.entries(addOptions).forEach(([key, item]) => {
+          const addOptions = item.addOptions({ option, ...props }) || [];
+          addOptions.forEach((item) => {
+            if (!children.find((childrenItem) => childrenItem.key === item.key)) {
+              children.push(item);
+            }
+          });
+        });
+        option.children = children;
         resolve();
         // 延迟 5 毫秒，防止阻塞主线程，导致 UI 卡顿
       }, 5);
@@ -279,41 +291,3 @@ function isDisabledDefault(params: IsDisabledParams) {
 
   return false;
 }
-
-const extendField = (depth, children, targetFieldSchema: Schema, formInstance) => {
-  if (depth === 0 && (formInstance || targetFieldSchema)) {
-    const cloudItems = [];
-
-    if (formInstance) {
-      Object.values(formInstance['fields'])?.forEach((value) => {
-        if (value['componentType'] === 'CloudComponentBlock') {
-          cloudItems.push(value);
-        }
-      });
-    } else if (targetFieldSchema) {
-      const blockSchema = getBlockSchema(targetFieldSchema);
-    }
-    if (cloudItems.length) {
-      cloudItems.forEach((item) => {
-        children.push({
-          depth: depth + 1,
-          disabled: false,
-          isLeaf: true,
-          key: item['componentProps']?.['element'],
-          label: item['componentProps']?.['elementLabel'] || item['componentProps']?.['element'],
-          value: item['componentProps']?.['element'],
-        });
-      });
-    }
-  }
-  return children;
-};
-
-const getBlockSchema = (targetFieldSchema) => {
-  return targetFieldSchema?.properties?.forEach((schema) => {
-    if (schema['x-component'] === 'CloudComponentBlock') {
-      return schema;
-    }
-    return getBlockSchema(schema);
-  });
-};

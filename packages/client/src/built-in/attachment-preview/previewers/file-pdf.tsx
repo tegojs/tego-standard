@@ -17,7 +17,7 @@ const options = {
   cMapPacked: true,
   standardFontDataUrl: `https://assets.tachybase.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
 };
-pdfjs.GlobalWorkerOptions.workerSrc = `https://assets.tachybase.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://assets.tachybase.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const TransformInternal = ({ noTransformWrapper = false, children }) => {
   return noTransformWrapper ? (

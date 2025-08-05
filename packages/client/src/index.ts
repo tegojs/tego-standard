@@ -1,6 +1,7 @@
 // 重置浏览器样式
 import 'antd/dist/reset.css';
 import './global.less';
+import './preload';
 
 export * from './built-in/acl';
 export * from './api-client';

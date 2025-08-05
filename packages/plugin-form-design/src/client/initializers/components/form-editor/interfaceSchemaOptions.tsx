@@ -14,12 +14,21 @@ import {
   useCompile,
   useToken,
 } from '@tachybase/client';
-import { ArrayTable, FormButtonGroup, FormDrawer, FormLayout, Submit } from '@tachybase/components';
-import { Evaluator, evaluators } from '@tachybase/evaluators/client';
 import { onFieldValueChange, SchemaOptionsContext, useForm, useFormEffects } from '@tachybase/schema';
-import { error, lodash, Registry } from '@tachybase/utils/client';
 
+import {
+  ArrayTable,
+  error,
+  Evaluator,
+  evaluators,
+  FormButtonGroup,
+  FormDrawer,
+  FormLayout,
+  Registry,
+  Submit,
+} from '@tego/client';
 import { Button, Select } from 'antd';
+import lodash from 'lodash';
 
 import { useTranslation } from '../../../locale';
 

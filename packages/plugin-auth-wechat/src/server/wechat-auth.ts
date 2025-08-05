@@ -1,4 +1,5 @@
-import { AuthConfig, BaseAuth, Context, dayjs } from '@tego/server';
+import { AuthConfig, BaseAuth, Context } from '@tego/server';
+import dayjs from 'dayjs';
 
 import { namespace, weChatApiOauthBaseUrl, weChatApiOauthScope } from '../constants';
 

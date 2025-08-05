@@ -1,5 +1,6 @@
-import { DataSource, DataSourceCollection, dayjs, parse } from '@tego/server';
+import { DataSource, DataSourceCollection, parse } from '@tego/server';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import _ from 'lodash';
 
 import { HttpApiRepository } from './http-api-repository';

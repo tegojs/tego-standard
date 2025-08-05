@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-block-gantt",
   "displayName": "Block: Gantt",
-  "version": "1.3.22",
+  "version": "1.3.24",
   "description": "Provides Gantt block.",
   "keywords": [
     "Blocks"
@@ -14,10 +14,10 @@
     "@ant-design/icons": "^5.6.1",
     "@ctrl/tinycolor": "^3.6.1",
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "^1.3.39",
-    "@tachybase/test": "^1.3.39",
-    "@tego/client": "^1.3.39",
-    "@tego/server": "^1.3.39",
+    "@tachybase/schema": "*",
+    "@tachybase/test": "*",
+    "@tego/client": "*",
+    "@tego/server": "*",
     "antd": "5.22.5",
     "lodash": "4.17.21",
     "react-i18next": "15.2.0"

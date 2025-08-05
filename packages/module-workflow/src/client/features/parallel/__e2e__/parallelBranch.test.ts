@@ -14,7 +14,7 @@ import {
 import { expect, test } from '@tachybase/test/e2e';
 
 import { faker } from '@faker-js/faker';
-import { dayjs } from '@tego/server';
+import dayjs from 'dayjs';
 
 test.describe('All succeeded', () => {
   test('All 3 branches were successful', async ({ page, mockCollections, mockRecords }) => {

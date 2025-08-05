@@ -2,7 +2,8 @@ import crypto from 'node:crypto';
 import { createContext, Script } from 'node:vm';
 
 import { transform } from '@babel/core';
-import { Context, dayjs } from '@tego/server';
+import { Context } from '@tego/server';
+import dayjs from 'dayjs';
 import jsonata from 'jsonata';
 import _ from 'lodash';
 import qrcode from 'qrcode';

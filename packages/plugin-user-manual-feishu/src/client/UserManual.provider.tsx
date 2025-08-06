@@ -10,7 +10,7 @@ export const ProviderUserManual = (props) => {
           order: 50,
           component: 'UserManualLink',
           pin: true,
-          snippet: 'pm',
+          isPublic: true,
           belongTo: 'pinnedmenu',
         },
       }}

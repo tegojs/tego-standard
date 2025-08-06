@@ -1053,8 +1053,8 @@ importers:
         specifier: 0.4.15
         version: 0.4.15
       '@alicloud/tea-util':
-        specifier: 1.4.9
-        version: 1.4.9
+        specifier: 1.4.10
+        version: 1.4.10
       '@ant-design/icons':
         specifier: ^5.6.1
         version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2055,8 +2055,8 @@ importers:
         specifier: 0.4.15
         version: 0.4.15
       '@alicloud/tea-util':
-        specifier: 1.4.9
-        version: 1.4.9
+        specifier: 1.4.10
+        version: 1.4.10
       '@ant-design/icons':
         specifier: ^5.6.1
         version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3289,8 +3289,8 @@ importers:
         specifier: 0.4.15
         version: 0.4.15
       '@alicloud/tea-util':
-        specifier: 1.4.9
-        version: 1.4.9
+        specifier: 1.4.10
+        version: 1.4.10
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3794,6 +3794,9 @@ packages:
 
   '@alicloud/tea-typescript@1.8.0':
     resolution: {integrity: sha512-CWXWaquauJf0sW30mgJRVu9aaXyBth5uMBCUc+5vKTK1zlgf3hIqRUjJZbjlwHwQ5y9anwcu18r48nOZb7l2QQ==}
+
+  '@alicloud/tea-util@1.4.10':
+    resolution: {integrity: sha512-VEsXWP2dlJLvsY2THj+sH++zwxQRz3Y5BQ8EkfnFems36RkngQKYOLsoto5nR6ej1Gf6I+0IOgBXrkRdpNCQ1g==}
 
   '@alicloud/tea-util@1.4.9':
     resolution: {integrity: sha512-S0wz76rGtoPKskQtRTGqeuqBHFj8BqUn0Vh+glXKun2/9UpaaaWmuJwcmtImk6bJZfLYEShDF/kxDmDJoNYiTw==}
@@ -5073,6 +5076,9 @@ packages:
 
   '@dabh/diagnostics@2.0.3':
     resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
+
+  '@darabonba/typescript@1.0.3':
+    resolution: {integrity: sha512-/y2y6wf5TsxD7pCPIm0OvTC+5qV0Tk7HQYxwpIuWRLXQLB0CRDvr6qk4bR6rTLO/JglJa8z2uCGZsaLYpQNqFQ==}
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -15947,7 +15953,7 @@ snapshots:
       '@alicloud/openapi-client': 0.4.15
       '@alicloud/openapi-util': 0.3.2
       '@alicloud/tea-typescript': 1.8.0
-      '@alicloud/tea-util': 1.4.9
+      '@alicloud/tea-util': 1.4.10
     transitivePeerDependencies:
       - supports-color
 
@@ -15957,7 +15963,7 @@ snapshots:
       '@alicloud/openapi-client': 0.4.15
       '@alicloud/openapi-util': 0.3.2
       '@alicloud/tea-typescript': 1.8.0
-      '@alicloud/tea-util': 1.4.9
+      '@alicloud/tea-util': 1.4.10
     transitivePeerDependencies:
       - supports-color
 
@@ -15974,7 +15980,7 @@ snapshots:
     dependencies:
       '@alicloud/gateway-spi': 0.0.8
       '@alicloud/tea-typescript': 1.8.0
-      '@alicloud/tea-util': 1.4.9
+      '@alicloud/tea-util': 1.4.10
     transitivePeerDependencies:
       - supports-color
 
@@ -15999,7 +16005,7 @@ snapshots:
   '@alicloud/openapi-util@0.3.2':
     dependencies:
       '@alicloud/tea-typescript': 1.8.0
-      '@alicloud/tea-util': 1.4.9
+      '@alicloud/tea-util': 1.4.10
       kitx: 2.2.0
       sm3: 1.0.3
     transitivePeerDependencies:
@@ -16009,6 +16015,14 @@ snapshots:
     dependencies:
       '@types/node': 20.17.10
       httpx: 2.3.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@alicloud/tea-util@1.4.10':
+    dependencies:
+      '@alicloud/tea-typescript': 1.8.0
+      '@darabonba/typescript': 1.0.3
+      kitx: 2.2.0
     transitivePeerDependencies:
       - supports-color
 
@@ -18347,6 +18361,17 @@ snapshots:
       colorspace: 1.1.4
       enabled: 2.0.0
       kuler: 2.0.0
+
+  '@darabonba/typescript@1.0.3':
+    dependencies:
+      '@alicloud/tea-typescript': 1.8.0
+      httpx: 2.3.3
+      lodash: 4.17.21
+      moment: 2.30.1
+      moment-timezone: 0.5.48
+      xml2js: 0.6.2
+    transitivePeerDependencies:
+      - supports-color
 
   '@dnd-kit/accessibility@3.1.1(react@18.3.1)':
     dependencies:

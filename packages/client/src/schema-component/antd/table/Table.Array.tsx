@@ -271,17 +271,28 @@ export const TableArray: React.FC<any> = observer(
 
     return (
       <div className={styles.table}>
-        {/* @ts-ignore */}
-        <ReactDragListView
-          handleSelector={'.drag-handle'}
-          onDragEnd={async (fromIndex, toIndex) => {
-            const from = field.value[fromIndex];
-            const to = field.value[toIndex];
-            field.move(fromIndex, toIndex);
-            await move(from, to);
-          }}
-          lineClassName={styles.line}
-        >
+        {dragSort ? (
+          /* @ts-ignore */
+          <ReactDragListView
+            handleSelector={'.drag-handle'}
+            onDragEnd={async (fromIndex, toIndex) => {
+              const from = field.value[fromIndex];
+              const to = field.value[toIndex];
+              field.move(fromIndex, toIndex);
+              await move(from, to);
+            }}
+            lineClassName={styles.line}
+          >
+            <Table
+              rowKey={defaultRowKey}
+              {...others}
+              {...restProps}
+              components={components}
+              columns={columns}
+              dataSource={field?.value?.slice?.()}
+            />
+          </ReactDragListView>
+        ) : (
           <Table
             rowKey={defaultRowKey}
             {...others}
@@ -290,7 +301,7 @@ export const TableArray: React.FC<any> = observer(
             columns={columns}
             dataSource={field?.value?.slice?.()}
           />
-        </ReactDragListView>
+        )}
       </div>
     );
   },

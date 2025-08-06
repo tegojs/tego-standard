@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -20,9 +21,7 @@ export default {
     return multer.diskStorage({
       destination: function (req, file, cb) {
         const destPath = path.join(getDocumentRoot(storage), storage.path);
-        fs.mkdir(destPath, { recursive: true })
-          .then(() => cb(null, destPath))
-          .catch((err) => cb(err));
+        mkdir(destPath, { recursive: true }, (err: Error | null) => cb(err, destPath));
       },
       filename: getFilename,
     });

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-
 import { error } from '@tego/client';
+
 import { useTranslation } from 'react-i18next';
 
 import { useAPIClient } from '../../api-client';
@@ -21,10 +21,17 @@ export function Label() {
   const { updateUserPageStyle } = useUpdatePageStyleSettings();
   const currentUser = useCurrentUserContext();
 
+  let pageStyle = currentUser.data.data.systemSettings?.pageStyle;
+
+  // 兼容旧版，tab 和 tab-style 都表示多标签页, tab 是旧版字段
+  if (pageStyle === 'tab') {
+    pageStyle = PageStyle.TAB_STYLE;
+  }
+
   return (
     <SelectWithTitle
       title={t('Page style')}
-      defaultValue={currentUser.data.data.systemSettings?.pageStyle || PageStyle.CLASSICAL}
+      defaultValue={pageStyle || PageStyle.CLASSICAL}
       options={[
         {
           label: t('classical'),

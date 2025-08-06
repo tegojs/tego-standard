@@ -2,7 +2,7 @@ import { Application, i18n, tval as nTval, useApp } from '@tachybase/client';
 
 import { type TranslationHook } from './type';
 
-const NAMESPACE = 'user-manual';
+const NAMESPACE = 'user-manual-feishu';
 
 export class Locale {
   private app: Application;

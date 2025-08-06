@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import mkdirp from 'mkdirp';
 import multer from 'multer';
 
 import { AttachmentModel } from '.';
@@ -21,7 +20,9 @@ export default {
     return multer.diskStorage({
       destination: function (req, file, cb) {
         const destPath = path.join(getDocumentRoot(storage), storage.path);
-        mkdirp(destPath, (err: Error | null) => cb(err, destPath));
+        fs.mkdir(destPath, { recursive: true })
+          .then(() => cb(null, destPath))
+          .catch((err) => cb(err));
       },
       filename: getFilename,
     });

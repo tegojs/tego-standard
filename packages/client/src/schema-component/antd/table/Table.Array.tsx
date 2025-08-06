@@ -159,9 +159,9 @@ const SortHandle = (props) => {
 const TableIndex = (props) => {
   const { index, ...otherProps } = props;
   return (
-    <div className={classNames('tb-table-index')} style={{ padding: '0 8px 0 16px' }} {...otherProps}>
+    <span className={classNames('tb-table-index')} style={{ padding: '0 8px 0 16px' }} {...otherProps}>
       {index + 1}
-    </div>
+    </span>
   );
 };
 
@@ -191,10 +191,12 @@ export const TableArray: React.FC<any> = observer(
       () => ({
         header: {
           wrapper: (props) => {
-            return (
+            return dragSort ? (
               <DndContext>
                 <thead {...props} />
               </DndContext>
+            ) : (
+              <thead {...props} />
             );
           },
           cell: (props) => {
@@ -203,10 +205,12 @@ export const TableArray: React.FC<any> = observer(
         },
         body: {
           wrapper: (props) => {
-            return (
+            return dragSort ? (
               <DndContext>
                 <tbody {...props} />
               </DndContext>
+            ) : (
+              <tbody {...props} />
             );
           },
           row: (props) => {
@@ -215,7 +219,7 @@ export const TableArray: React.FC<any> = observer(
           cell: (props) => <td {...props} className={classNames(props.className, styles.bodyCell)} />,
         },
       }),
-      [styles],
+      [styles, dragSort],
     );
     useDataSource({
       onSuccess(data) {
@@ -243,17 +247,17 @@ export const TableArray: React.FC<any> = observer(
                 index = index + (current - 1) * pageSize;
               }
               return (
-                <div className={classNames(checked ? 'checked' : null, styles.cell)}>
-                  <div className={classNames(checked ? 'checked' : null, styles.drag)}>
+                <span className={classNames(checked ? 'checked' : null, styles.cell)}>
+                  <span className={classNames(checked ? 'checked' : null, styles.drag)}>
                     {dragSort && <SortHandle role="button" aria-label={`sort-handle-${record?.name || index}`} />}
                     {showIndex && (
                       <TableIndex role="button" aria-label={`table-index-${record?.name || index}`} index={index} />
                     )}
-                  </div>
-                  <div className={classNames('tb-origin-node', checked ? 'checked' : null, styles.node)}>
+                  </span>
+                  <span className={classNames('tb-origin-node', checked ? 'checked' : null, styles.node)}>
                     {originNode}
-                  </div>
-                </div>
+                  </span>
+                </span>
               );
             },
             ...props.rowSelection,

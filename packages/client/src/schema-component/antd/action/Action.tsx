@@ -6,19 +6,13 @@ import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 import { StablePopover, useActionContext } from '../..';
 import { useDesignable } from '../../';
-import { useApp } from '../../../application';
-import { useIsSystemPage } from '../../../application/CustomRouterContextProvider';
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
-import { useIsMobile } from '../../../block-provider';
 import { useACLActionParamsContext } from '../../../built-in/acl';
-import { PathHandler } from '../../../built-in/dynamic-page/utils';
-import { PageStyle } from '../../../built-in/page-style/PageStyle.provider';
-import { usePageStyle } from '../../../built-in/page-style/usePageStyle';
-import { useCollection, useCollectionRecordData } from '../../../data-source';
+import { useCollectionRecordData } from '../../../data-source';
+import { usePageMode } from '../../../hooks/usePageMode';
 import { Icon } from '../../../icon';
 import { RecordProvider } from '../../../record-provider';
 import { useLocalVariables, useVariables } from '../../../variables';
@@ -33,7 +27,7 @@ import { ActionLink } from './Action.Link';
 import { ActionModal } from './Action.Modal';
 import { ActionPage } from './Action.Page';
 import useStyles from './Action.style';
-import { ActionContextProvider, OpenMode } from './context';
+import { ActionContextProvider } from './context';
 import { useA } from './hooks';
 import { useGetAriaLabelOfAction } from './hooks/useGetAriaLabelOfAction';
 import { ComposedAction } from './types';
@@ -62,23 +56,17 @@ export const Action: ComposedAction = withDynamicSchemaProps(
       ...others
     } = useProps(props); // 新版 UISchema（1.0 之后）中已经废弃了 useProps，这里之所以继续保留是为了兼容旧版的 UISchema
     const aclCtx = useACLActionParamsContext();
-    const navigate = useNavigate();
-    const location = useLocation();
     const { wrapSSR, componentCls, hashId } = useStyles();
     const { t } = useTranslation();
-    const [visible, setVisible] = useState(false);
     const [formValueChanged, setFormValueChanged] = useState(false);
     const Designer = useDesigner();
     const field = useField<any>();
-    const app = useApp();
-    const pageMode = app.usePageMode();
     const { run, element } = useAction(actionCallback);
     const fieldSchema = useFieldSchema();
     const compile = useCompile();
     const form = useForm();
     // TODO 这里这么改，会影响还没重构的设置代码，但是剩下没重构的插件设置代码也没几个，可以碰到修改就行
     const record = useCollectionRecordData();
-    const collection = useCollection();
     const designerProps = fieldSchema['x-designer-props'];
     const openMode = fieldSchema?.['x-component-props']?.['openMode'];
     const openSize = fieldSchema?.['x-component-props']?.['openSize'];
@@ -92,77 +80,9 @@ export const Action: ComposedAction = withDynamicSchemaProps(
     const { getAriaLabel } = useGetAriaLabelOfAction(title);
     let actionTitle = title || compile(fieldSchema.title);
     actionTitle = lodash.isString(actionTitle) ? t(actionTitle) : actionTitle;
-    const collectionKey = collection?.getPrimaryKey();
-    const pageStyle = usePageStyle();
-    const isMobile = useIsMobile();
-    const isSystemPage = useIsSystemPage();
-    const isPageTabStyle = pageStyle === PageStyle.TAB_STYLE;
 
-    // NOTE:page mode 在多标签页状态默认打开，在手机状态默认打开，
-    const isPageMode = useMemo(() => {
-      switch (openMode) {
-        // 明确指定为 PAGE 模式
-        case OpenMode.PAGE:
-          return true;
-        // 明确指定为 MODAL 模式和 DRAWER_MODE 模式
-        case OpenMode.MODAL:
-        case OpenMode.DRAWER_MODE:
-        case OpenMode.SHEET:
-          return false;
-        // 默认情况,默认模式和 Drawer(兼容旧版,作为默认模式) 模式下, 移动端或多标签页模式下默认为 PAGE 模式
-        case OpenMode.DEFAULT:
-        case OpenMode.DRAWER:
-        default: {
-          if (isMobile || isPageTabStyle) {
-            return true;
-          }
-          if (isSystemPage) {
-            return false;
-          }
-          return pageMode?.enable;
-        }
-      }
-    }, [pageMode?.enable, openMode, isMobile, pageStyle, isSystemPage]);
-
-    const openModal = useCallback(() => {
-      setVisible(true);
-    }, []);
-
-    const openPage = useCallback(
-      (containerSchema) => {
-        const target = PathHandler.getInstance().toWildcardPath({
-          collection: collection.name,
-          filterByTk: record[collectionKey],
-        });
-
-        const findMPageSchema = (schema) => {
-          if (!schema) return;
-          if (schema['x-component'] === 'MPage') {
-            return schema['x-uid'];
-          }
-          return findMPageSchema(schema?.parent);
-        };
-
-        const MPageUID = findMPageSchema(fieldSchema);
-
-        const subPath = containerSchema?.['x-uid'] ? `sub/${containerSchema?.['x-uid']}` : '';
-
-        // 如果 containerSchema 没有 x-uid, 不进行跳转
-        if (!subPath) {
-          return;
-        }
-
-        let finalPath;
-        if (isMobile) {
-          finalPath = `./${MPageUID}/${subPath}/${target}`;
-        } else {
-          finalPath = `./${subPath}/${target}`;
-        }
-
-        navigate(finalPath);
-      },
-      [fieldSchema, record, collectionKey, collection?.name, navigate, location.pathname, isPageTabStyle],
-    );
+    // 页面模式控制逻辑，包括打开抽屉、弹窗、页面等
+    const { isPageMode, visible, setVisible, openModal, openPage } = usePageMode();
 
     const handleButtonClick = useCallback(
       (e: React.MouseEvent) => {
@@ -175,11 +95,9 @@ export const Action: ComposedAction = withDynamicSchemaProps(
         if (!disabled && aclCtx) {
           const onOk = () => {
             onClick?.(e);
-            const containerSchema = fieldSchema.reduceProperties((buf, s) =>
-              s['x-component'] === 'Action.Container' ? s : buf,
-            );
-            if (isPageMode && containerSchema) {
-              openPage(containerSchema);
+
+            if (isPageMode) {
+              openPage();
             } else {
               openModal();
             }

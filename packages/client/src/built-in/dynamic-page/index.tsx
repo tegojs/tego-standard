@@ -8,7 +8,7 @@ import { DynamicPage } from './DynamicPage';
 
 declare module '../../application' {
   interface Application {
-    usePageMode: typeof usePageMode;
+    usePageMode: typeof useContextPageMode;
   }
 }
 
@@ -22,7 +22,7 @@ export class PluginDynamicPage extends Plugin {
       path: '/:entry/:name/*',
       Component: DynamicPage,
     });
-    this.app.usePageMode = usePageMode;
+    this.app.usePageMode = useContextPageMode;
   }
 
   async afterLoad() {
@@ -47,12 +47,12 @@ export const PageModeProvider = ({ children }) => {
   return <PageModeContext.Provider value={{ enable, setEnable }}>{children}</PageModeContext.Provider>;
 };
 
-export const usePageMode = () => React.useContext(PageModeContext);
+export const useContextPageMode = () => React.useContext(PageModeContext);
 
 const pageMode = {
   name: 'pageMode',
   useLoadMethod: () => {
-    const { enable, setEnable } = usePageMode();
+    const { enable, setEnable } = useContextPageMode();
     const { t } = useTranslation();
     return {
       title: t('Page mode: {{enabled}}', { enabled: enable ? 'On' : 'Off' }),

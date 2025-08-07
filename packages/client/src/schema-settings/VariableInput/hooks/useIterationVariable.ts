@@ -1,11 +1,14 @@
-import { Schema } from '@tachybase/schema';
+import { useEffect, useState } from 'react';
+import { Schema, useField, useFieldSchema } from '@tachybase/schema';
 
 import { useTranslation } from 'react-i18next';
 
+import { useTableFieldContext } from '../../..//block-provider';
 import { CollectionFieldOptions_deprecated } from '../../../collection-manager';
 import { useCollection } from '../../../data-source';
 import { CollectionFieldOptions } from '../../../data-source/collection/Collection';
 import { useFlag } from '../../../flag-provider';
+import { useColumnSchema } from '../../../schema-component';
 import { useSubFormValue } from '../../../schema-component/antd/association-field/hooks';
 import { useBaseVariable } from './useBaseVariable';
 
@@ -78,12 +81,12 @@ export const useCurrentObjectVariable = ({
   // const { getActiveFieldsName } = useFormActiveFields() || {};
   const collection = useCollection();
   const { formValue: currentObjectCtx, collection: collectionOfCurrentObject } = useSubFormValue();
-  const { isInSubForm, isInSubTable } = useFlag() || {};
+  const { isInSubForm, isInSubTable, currSchema } = useFlag() || {};
   const { t } = useTranslation();
   const currentObjectSettings = useBaseVariable({
     collectionField,
     uiSchema: schema,
-    targetFieldSchema,
+    targetFieldSchema: targetFieldSchema || currSchema?.parent,
     maxDepth: 4,
     name: '$iteration',
     title: t('Current object'),

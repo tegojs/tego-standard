@@ -16,7 +16,7 @@
     "@tachybase/test": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "bullmq": "^5.56.4"
+    "bullmq": "^5.56.9"
   },
   "description.zh-CN": "集成和管理BullMQ消息队列",
   "displayName.zh-CN": "BullMQ管理"

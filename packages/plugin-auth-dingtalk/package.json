@@ -12,7 +12,7 @@
   "devDependencies": {
     "@alicloud/dingtalk": "^2.2.27",
     "@alicloud/openapi-client": "0.4.15",
-    "@alicloud/tea-util": "1.4.9",
+    "@alicloud/tea-util": "1.4.10",
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",

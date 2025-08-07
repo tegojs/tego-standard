@@ -236,8 +236,8 @@ importers:
         specifier: 1.1.2
         version: 1.1.2(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       cronstrue:
-        specifier: ^2.52.0
-        version: 2.52.0
+        specifier: ^3.2.0
+        version: 3.2.0
       d3-format:
         specifier: ^3.1.0
         version: 3.1.0
@@ -550,7 +550,7 @@ importers:
     devDependencies:
       '@antv/g6':
         specifier: ^5.0.49
-        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6))
       '@babel/core':
         specifier: 7.27.4
         version: 7.27.4
@@ -1305,8 +1305,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0
       cronstrue:
-        specifier: ^2.52.0
-        version: 2.52.0
+        specifier: ^3.2.0
+        version: 3.2.0
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -9323,8 +9323,8 @@ packages:
     resolution: {integrity: sha512-d6S6+ep7dJxsAG8OQQCdKuByI/S/AV64d9OF5mtmcykOyPu92cAkAnF3Tbc9s5oOaLQBYYQmTNvjqYRkPJ/u5Q==}
     engines: {node: '>=8.0.0'}
 
-  cronstrue@2.52.0:
-    resolution: {integrity: sha512-NKgHbWkSZXJUcaBHSsyzC8eegD6bBd4O0oCI6XMIJ+y4Bq3v4w7sY3wfWoKPuVlq9pQHRB6od0lmKpIqi8TlKA==}
+  cronstrue@3.2.0:
+    resolution: {integrity: sha512-CqpqV5bCei+jmKyIw2Wihz+npXDuSkeExWCItEn5hlpD8+QFMXUU2YW5W3Vh/hFxWwzWhguoGXm5gl1os+L2Hw==}
     hasBin: true
 
   cross-env@7.0.3:
@@ -16781,7 +16781,7 @@ snapshots:
       flru: 1.0.2
       pdfast: 0.2.0
 
-  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
       '@antv/algorithm': 0.1.26
       '@antv/component': 2.1.5
@@ -16791,7 +16791,7 @@ snapshots:
       '@antv/g-plugin-dragndrop': 2.0.37
       '@antv/graphlib': 2.0.4
       '@antv/hierarchy': 0.6.14
-      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))
       '@antv/util': 3.3.11
       bubblesets-js: 2.3.4
     transitivePeerDependencies:
@@ -16827,12 +16827,12 @@ snapshots:
 
   '@antv/hierarchy@0.6.14': {}
 
-  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
       '@antv/event-emitter': 0.1.3
       '@antv/graphlib': 2.0.4
       '@antv/util': 3.3.11
-      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6))
       comlink: 4.4.2
       d3-force: 3.0.0
       d3-force-3d: 3.0.6
@@ -19273,9 +19273,9 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
-  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
-      workerize-loader: 2.0.2(webpack@5.99.6(esbuild@0.25.6))
+      workerize-loader: 2.0.2(webpack@5.99.6)
 
   '@napi-rs/canvas-android-arm64@0.1.76':
     optional: true
@@ -23832,7 +23832,7 @@ snapshots:
 
   cronosjs@1.7.1: {}
 
-  cronstrue@2.52.0: {}
+  cronstrue@3.2.0: {}
 
   cross-env@7.0.3:
     dependencies:
@@ -30394,16 +30394,14 @@ snapshots:
       - encoding
       - supports-color
 
-  terser-webpack-plugin@5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6)):
+  terser-webpack-plugin@5.3.14(webpack@5.99.6):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.29
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
       terser: 5.43.1
-      webpack: 5.99.6(esbuild@0.25.6)
-    optionalDependencies:
-      esbuild: 0.25.6
+      webpack: 5.99.6
 
   terser@5.43.1:
     dependencies:
@@ -31230,7 +31228,7 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.99.6(esbuild@0.25.6):
+  webpack@5.99.6:
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -31252,7 +31250,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.2
       tapable: 2.2.2
-      terser-webpack-plugin: 5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6))
+      terser-webpack-plugin: 5.3.14(webpack@5.99.6)
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:
@@ -31442,10 +31440,10 @@ snapshots:
       worker-timers-broker: 6.1.8
       worker-timers-worker: 7.0.71
 
-  workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)):
+  workerize-loader@2.0.2(webpack@5.99.6):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.99.6(esbuild@0.25.6)
+      webpack: 5.99.6
 
   wrap-ansi@7.0.0:
     dependencies:

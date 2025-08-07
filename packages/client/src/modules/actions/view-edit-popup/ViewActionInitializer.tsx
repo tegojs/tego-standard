@@ -13,7 +13,7 @@ export const ViewActionInitializer = (props) => {
       openMode: OpenMode.DEFAULT,
     },
     properties: {
-      actionContainer: {
+      pageModeContainer: {
         type: 'void',
         title: '{{ t("View record") }}',
         'x-component': 'Action.Container',

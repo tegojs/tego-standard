@@ -14,7 +14,7 @@ export const UpdateActionInitializer = (props) => {
       icon: 'EditOutlined',
     },
     properties: {
-      actionContainer: {
+      pageModeContainer: {
         type: 'void',
         title: '{{ t("Edit record") }}',
         'x-component': 'Action.Container',

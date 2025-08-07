@@ -11,41 +11,27 @@ export const CustomizeAddRecordActionInitializer = () => {
     'x-component': 'Action',
     'x-action': 'customize:create',
     'x-component-props': {
-      openMode: OpenMode.DRAWER_MODE,
+      openMode: OpenMode.DEFAULT,
       icon: 'PlusOutlined',
     },
     properties: {
-      drawer: {
+      pageModeContainer: {
         type: 'void',
-        title: '{{t("Add record")}}',
+        title: '{{ t("Add record") }}',
         'x-component': 'Action.Container',
         'x-component-props': {
           className: 'tb-action-popup',
         },
         properties: {
-          tabs: {
+          page: {
             type: 'void',
-            'x-component': 'Tabs',
-            'x-component-props': {},
-            'x-initializer': 'TabPaneInitializersForCreateFormBlock',
-            'x-initializer-props': {
-              gridInitializer: 'popup:addRecord:addBlock',
-            },
+            title: '{{ t("Add record") }}',
+            'x-component': 'Page',
             properties: {
-              tab1: {
+              grid: {
                 type: 'void',
-                title: '{{t("Add record")}}',
-                'x-component': 'Tabs.TabPane',
-                'x-designer': 'Tabs.Designer',
-                'x-component-props': {},
-                properties: {
-                  grid: {
-                    type: 'void',
-                    'x-component': 'Grid',
-                    'x-initializer': 'popup:addRecord:addBlock',
-                    properties: {},
-                  },
-                },
+                'x-component': 'Grid',
+                'x-initializer': 'popup:addRecord:addBlock',
               },
             },
           },

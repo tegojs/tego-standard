@@ -13,13 +13,13 @@ export const CreateActionInitializer = () => {
     'x-component': 'Action',
     'x-decorator': 'ACLActionProvider',
     'x-component-props': {
-      openMode: OpenMode.DRAWER_MODE,
+      openMode: OpenMode.DEFAULT,
       type: 'primary',
       component: 'CreateRecordAction',
       icon: 'PlusOutlined',
     },
     properties: {
-      actionContainer: {
+      pageModeContainer: {
         type: 'void',
         title: '{{ t("Add record") }}',
         'x-component': 'Action.Container',

@@ -9,6 +9,7 @@ import * as qrcode from 'qrcode';
 import * as reactUse from 'react-use';
 import * as recharts from 'recharts';
 
+import { CouldAssociationComponent } from './cloud-component';
 import { CloudLibraryManager } from './cloud-library-manager/CloudLibraryManager';
 import { ProviderCloudComponent } from './CloudComponent.provider';
 import { useTranslation } from './locale';
@@ -17,6 +18,7 @@ import { cloudComponentBlockInitializerItem } from './settings/InitializerItem';
 import { cloudComponentBlockSettings } from './settings/settings';
 
 export const CloudComponentNameKey = Symbol('CloudComponentNameKey');
+export * from './cloud-component';
 
 export class ModuleCloudComponentClient extends Plugin {
   cloudLibraries = [];
@@ -53,7 +55,7 @@ export class ModuleCloudComponentClient extends Plugin {
       cloudComponentBlockInitializerItem,
     );
 
-    this.app.addComponents({ CloudComponentBlock });
+    this.app.addComponents({ CloudComponentBlock, CouldAssociationComponent });
 
     const addCloudComponent = {
       name: 'addCloudComponent',

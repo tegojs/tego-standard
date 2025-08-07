@@ -10,7 +10,8 @@ import { PageStyle } from '../built-in/page-style/PageStyle.provider';
 import { usePageStyle } from '../built-in/page-style/usePageStyle';
 import { OpenMode } from '../schema-component/antd/action/context';
 
-// 管理页面模式，包括打开抽屉、弹窗、页面等
+// 管理页面模式，包括打开抽屉、弹窗、页面等,
+// 在多标签页状态默认打开，在手机状态默认打开，在系统页面默认关闭
 export const usePageMode = () => {
   const app = useApp();
   const pageMode = app.usePageMode();

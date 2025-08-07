@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { useAPIClient } from '../../api-client';
@@ -52,7 +52,7 @@ export function useUpdatePageStyleSettings() {
         await api.resource('users').updateProfile({
           values: {
             systemSettings: {
-              ...(currentUser.data.data.systemSettings || {}),
+              ...currentUser.data.data.systemSettings,
               pageStyle,
             },
           },
@@ -61,7 +61,7 @@ export function useUpdatePageStyleSettings() {
           data: {
             ...currentUser.data.data,
             systemSettings: {
-              ...(currentUser.data.data.systemSettings || {}),
+              ...currentUser.data.data.systemSettings,
               pageStyle,
             },
           },

@@ -1,8 +1,7 @@
-import fs from 'fs';
-import fsPromises from 'fs/promises';
-import path from 'path';
-import { DataTypes, DumpRulesGroupType } from '@tachybase/database';
-import { Application } from '@tachybase/server';
+import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
+import path from 'node:path';
+import { Application, DataTypes, DumpRulesGroupType } from '@tego/server';
 
 import * as Topo from '@hapi/topo';
 import lodash, { isPlainObject } from 'lodash';
@@ -64,10 +63,10 @@ export class Restorer extends AppMigrator {
     if (path.isAbsolute(backUpFilePath)) {
       this.backUpFilePath = backUpFilePath;
     } else if (path.basename(backUpFilePath) === backUpFilePath) {
-      const dirname = path.resolve(process.cwd(), 'storage', 'duplicator');
+      const dirname = path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'duplicator');
       this.backUpFilePath = path.resolve(dirname, backUpFilePath);
     } else {
-      this.backUpFilePath = path.resolve(process.cwd(), backUpFilePath);
+      this.backUpFilePath = path.resolve(process.env.TEGO_RUNTIME_HOME, backUpFilePath);
     }
   }
 
@@ -184,7 +183,7 @@ export class Restorer extends AppMigrator {
             const filePath = path.join(this.workDir, entry.fileName);
 
             // 如果是目录，创建目录
-            if (/\/$/.test(entry.fileName)) {
+            if (entry.fileName.endsWith('/')) {
               fs.mkdir(filePath, { recursive: true }, (err) => {
                 if (err) return reject(err);
                 zipfile.readEntry(); // 继续处理下一个条目

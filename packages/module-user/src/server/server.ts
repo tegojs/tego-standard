@@ -1,9 +1,8 @@
-import { resolve } from 'path';
-import { isMainThread } from 'worker_threads';
-import { Cache } from '@tachybase/cache';
-import { Collection, Op } from '@tachybase/database';
-import { Plugin } from '@tachybase/server';
-import { parse } from '@tachybase/utils';
+import { resolve } from 'node:path';
+import { isMainThread } from 'node:worker_threads';
+
+// import VerificationPlugin from '@tachybase/plugin-otp';
+import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 
 import * as actions from './actions/users';
 import { UserModel } from './models/UserModel';
@@ -151,6 +150,24 @@ export default class PluginUsersServer extends Plugin {
       },
       { tag: 'roleCacheInvalidation' },
     );
+    const verificationPlugin = this.app.getPlugin('otp') as any;
+    if (!verificationPlugin) {
+      this.app.logger.warn('sms-auth: @tachybase/plugin-otp is required');
+      return;
+    }
+    verificationPlugin.interceptors.register('users:updateProfile', {
+      manual: true,
+      getReceiver: (ctx) => {
+        return ctx.action.params.values.phone;
+      },
+      expiresIn: 120,
+      validate: async (ctx, phone) => {
+        if (!phone) {
+          throw new Error(ctx.t('Not a valid cellphone number, please re-enter'));
+        }
+        return true;
+      },
+    });
   }
 
   getInstallingData(options: any = {}) {

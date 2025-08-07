@@ -1,8 +1,8 @@
 import React from 'react';
 import { SchemaComponent, SchemaSettings, useApp, useDesignable, usePlugin } from '@tachybase/client';
-import { Field } from '@tachybase/database';
 import { useField, useFieldSchema } from '@tachybase/schema';
 
+import { Field } from '@tego/server';
 import { ErrorBoundary } from 'react-error-boundary';
 
 import { useCustomComponent } from '../../hooks/useCustomComponent';

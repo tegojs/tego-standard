@@ -1,6 +1,7 @@
-import { Database } from '@tachybase/database';
 import { CollectionRepository } from '@tachybase/module-collection';
 import { MockServer } from '@tachybase/test';
+
+import { Database } from '@tego/server';
 
 import { prepareApp } from './prepare';
 

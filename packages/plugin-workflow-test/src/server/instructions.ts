@@ -1,4 +1,4 @@
-import { lodash } from '@tachybase/utils';
+import lodash from 'lodash';
 
 export default {
   echo: {

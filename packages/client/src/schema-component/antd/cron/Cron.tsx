@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { connect, mapReadPretty } from '@tachybase/schema';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { createStyles } from 'antd-style';
 import cronstrue from 'cronstrue';
 import { CronProps, Cron as ReactCron } from 'react-js-cron';

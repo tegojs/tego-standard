@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { ExtendCollectionsProvider, RecordProvider, SchemaComponent, SchemaComponentContext } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { collectionApprovalTodos } from '../../../../common/collections/approvalRecords';
 import { ViewApplyShowDetailAddBlock } from './ApplyShowDetailAddBlock.view';

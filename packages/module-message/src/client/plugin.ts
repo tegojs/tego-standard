@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
-import { Registry } from '@tachybase/utils/client';
+
+import { Registry } from '@tego/client';
 
 import { KitBase } from './base/kit';
 import { KitConfiguration } from './configuration/kit';

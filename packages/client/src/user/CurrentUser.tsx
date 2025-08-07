@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useMemo as useEffect, useState } from 'react';
-import { error } from '@tachybase/utils/client';
 
 import { UserOutlined } from '@ant-design/icons';
+import { error } from '@tego/client';
 import { App, Dropdown, Menu, MenuProps } from 'antd';
 import { createStyles } from 'antd-style';
 import { ItemType } from 'antd/es/menu/interface';

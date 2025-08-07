@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
-import { Database } from '@tachybase/database';
+import fs from 'node:fs';
+import path from 'node:path';
 import { MockServer } from '@tachybase/test';
+import { Database } from '@tego/server';
 
 import { Dumper } from '../dumper';
 import { Restorer } from '../restorer';
@@ -807,7 +807,7 @@ describe('dumper', () => {
     const dumpableCollections = await dumper.dumpableCollections();
     const applicationPlugins = dumpableCollections.find(({ name }) => name === 'applicationPlugins');
 
-    expect(applicationPlugins.origin).toBe('@tachybase/server');
+    expect(applicationPlugins.origin).toBe('@tego/core');
   });
 
   it('should get custom collections group', async () => {

@@ -8,8 +8,9 @@ import {
   useCompile,
   useRecord,
 } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
 import { observer, useField } from '@tachybase/schema';
+
+import { ArrayTable } from '@tego/client';
 
 import { tval } from '../locale';
 import { ApiLogsDesigner } from './ApiLogsDesigner';

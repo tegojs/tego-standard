@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useCollectionManager, useCollectionRecordData, useCompile } from '@tachybase/client';
-import { dayjs } from '@tachybase/utils/client';
+
+import dayjs from 'dayjs';
 
 import { useStyles } from './ColumnShowJSON.style';
 

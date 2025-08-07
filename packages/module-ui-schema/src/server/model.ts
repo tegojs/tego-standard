@@ -1,4 +1,4 @@
-import { MagicAttributeModel } from '@tachybase/database';
+import { MagicAttributeModel } from '@tego/server';
 
 import { HookType } from './server-hooks';
 

@@ -1,4 +1,4 @@
-import { Model } from '@tachybase/database';
+import { Model } from '@tego/server';
 
 export function toJSON(data: any): any {
   if (Array.isArray(data)) {

@@ -1,5 +1,4 @@
-import { Database, ViewFieldInference } from '@tachybase/database';
-
+import { Database, ViewFieldInference } from '@tego/server';
 import lodash from 'lodash';
 import { ColumnsDescription } from 'sequelize';
 

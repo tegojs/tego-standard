@@ -1,4 +1,4 @@
-import { Database, ViewFieldInference } from '@tachybase/database';
+import { Database, ViewFieldInference } from '@tego/server';
 
 export default {
   name: 'dbViews',

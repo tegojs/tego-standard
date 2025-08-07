@@ -1,4 +1,4 @@
-import { ArrayItems } from '@tachybase/components';
+import { ArrayItems } from '@tego/client';
 
 import { defaultFieldNames, WorkflowVariableInput, WorkflowVariableJSON, WorkflowVariableTextArea } from '../..';
 import { NAMESPACE } from '../../locale';

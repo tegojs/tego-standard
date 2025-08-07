@@ -1,5 +1,4 @@
-import { fn, Op, where } from '@tachybase/database';
-
+import { fn, Op, where } from '@tego/server';
 import { col, literal, WhereOptions } from 'sequelize';
 
 import { handleFieldParams } from '../types';

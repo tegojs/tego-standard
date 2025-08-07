@@ -1,10 +1,10 @@
-import crypto from 'crypto';
-import EventEmitter from 'events';
-import fsPromises from 'fs/promises';
-import * as os from 'os';
-import path from 'path';
-import { Application } from '@tachybase/server';
-import { applyMixins, AsyncEmitter } from '@tachybase/utils';
+import crypto from 'node:crypto';
+import EventEmitter from 'node:events';
+import fsPromises from 'node:fs/promises';
+import * as os from 'node:os';
+import path from 'node:path';
+
+import { Application, applyMixins, AsyncEmitter } from '@tego/server';
 
 export type AppMigratorOptions = {
   workDir?: string;

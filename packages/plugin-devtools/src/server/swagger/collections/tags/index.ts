@@ -1,4 +1,4 @@
-import { Collection } from '@tachybase/database';
+import { Collection } from '@tego/server';
 
 import { associationFields } from '../paths/associations';
 import { relationTypeToString } from '../paths/collection';

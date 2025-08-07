@@ -1,5 +1,6 @@
 import { PluginWorkflow } from '@tachybase/module-workflow';
-import { InjectedPlugin, Plugin } from '@tachybase/server';
+
+import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { PdfInstruction } from './PdfInstruction';
 import { FontManager } from './services/font-manager';

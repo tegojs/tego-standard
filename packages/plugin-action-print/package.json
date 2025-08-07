@@ -1,24 +1,21 @@
 {
   "name": "@tachybase/plugin-action-print",
   "displayName": "Action: Print",
-  "version": "1.3.19",
+  "version": "1.3.24",
   "description": "Calls the browser's print function to print a record.",
   "keywords": [
     "Actions"
   ],
   "license": "Apache-2.0",
   "main": "dist/server/index.js",
-  "scripts": {
-    "build": "tachybase-build --no-dts @tachybase/plugin-action-print"
-  },
+  "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "react-to-print": "^2.15.1"
-  },
-  "peerDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/server": "workspace:*",
-    "@tachybase/test": "workspace:*"
+    "@tachybase/test": "*",
+    "@tego/client": "*",
+    "@tego/server": "*",
+    "react-to-print": "^2.15.1"
   },
   "description.zh-CN": "调用浏览器的打印功能实现单条数据的打印。",
   "displayName.zh-CN": "操作：打印"

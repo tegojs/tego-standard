@@ -1,7 +1,7 @@
 import { css, cx } from '@tachybase/client';
 import { onFieldChange } from '@tachybase/schema';
-import { unflatten } from '@tachybase/utils/client';
 
+import { unflatten } from '@tego/client';
 import lodash from 'lodash';
 
 import { useTranslation } from '../../../../locale';

@@ -1,4 +1,4 @@
-import Database from '@tachybase/database';
+import { Database } from '@tego/server';
 
 export function afterCreateForForeignKeyField(db: Database) {
   function generateFkOptions(collectionName: string, foreignKey: string) {
@@ -117,6 +117,7 @@ export function afterCreateForForeignKeyField(db: Database) {
     } = model.get();
 
     if (source) return;
+    if (target === '__temp__') return;
 
     // foreign key in target collection
     if (['oho', 'o2m'].includes(interfaceType)) {

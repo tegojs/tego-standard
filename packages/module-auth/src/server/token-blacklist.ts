@@ -1,7 +1,4 @@
-import { ITokenBlacklistService } from '@tachybase/auth';
-import { BloomFilter } from '@tachybase/cache';
-import { Repository } from '@tachybase/database';
-
+import { BloomFilter, ITokenBlacklistService, Repository } from '@tego/server';
 import { CronJob } from 'cron';
 
 import AuthPlugin from './plugin';

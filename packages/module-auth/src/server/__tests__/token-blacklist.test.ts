@@ -1,6 +1,6 @@
-import { ITokenBlacklistService } from '@tachybase/auth';
-import Database, { Repository } from '@tachybase/database';
 import { createMockServer, MockServer } from '@tachybase/test';
+
+import Database, { ITokenBlacklistService, Repository } from '@tego/server';
 
 describe('token-blacklist', () => {
   let app: MockServer;

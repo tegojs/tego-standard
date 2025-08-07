@@ -1,4 +1,4 @@
-import { BelongsToGetAssociationMixin, Database, Model } from '@tachybase/database';
+import { BelongsToGetAssociationMixin, Database, Model } from '@tego/server';
 
 import WorkflowModel from './Workflow';
 

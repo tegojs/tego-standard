@@ -1,6 +1,6 @@
 import { useAPIClient } from '@tachybase/client';
 
-export type { IResource } from '@tachybase/sdk';
+export type { IResource } from '@tego/client';
 
 export const useCustomRequestsResource = () => {
   const apiClient = useAPIClient();

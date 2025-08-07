@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrayItems, FormItem } from '@tachybase/components';
 import {
   connect,
   createForm,
@@ -11,8 +10,8 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
-import { fuzzysearch } from '@tachybase/utils/client';
 
+import { ArrayItems, FormItem, fuzzysearch } from '@tego/client';
 import { Input, Space } from 'antd';
 import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';

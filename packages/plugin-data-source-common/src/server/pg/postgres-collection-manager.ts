@@ -1,3 +1,3 @@
-import { SequelizeCollectionManager } from '@tachybase/data-source';
+import { SequelizeCollectionManager } from '@tego/server';
 
 export class PostgresCollectionManager extends SequelizeCollectionManager {}

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ExtendCollectionsProvider, SchemaComponent, useAPIClient } from '@tachybase/client';
-import { CodeMirror as CodeMirrorComponent } from '@tachybase/components';
 import { useForm } from '@tachybase/schema';
 
+import { CodeMirror as CodeMirrorComponent } from '@tego/client';
 import { Card, Table } from 'antd';
 
 import { trackingLogCollection } from './collections/trackingLog.collection';

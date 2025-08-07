@@ -1,4 +1,4 @@
-import { Plugin } from '@tachybase/server';
+import { Plugin } from '@tego/server';
 
 import { LOG_TYPE_DESTROY } from '../constants';
 

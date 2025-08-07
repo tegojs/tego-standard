@@ -1,7 +1,7 @@
 import React, { FC } from 'react';
-import { ArrayItems } from '@tachybase/components';
 import { useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayItems } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 

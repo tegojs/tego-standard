@@ -1,6 +1,4 @@
-import { Collection } from '@tachybase/database';
-import { Migration } from '@tachybase/server';
-
+import { Collection, Migration } from '@tego/server';
 import _ from 'lodash';
 
 import { FieldModel } from '../models';

@@ -1,6 +1,7 @@
 import React from 'react';
-import { FormItem, FormLayout } from '@tachybase/components';
 import { registerValidateRules } from '@tachybase/schema';
+
+import { FormItem, FormLayout } from '@tego/client';
 
 import { CollectionFieldInterface } from '../../data-source/collection-field-interface/CollectionFieldInterface';
 import { defaultProps, operators } from './properties';
@@ -25,6 +26,7 @@ export class JsonFieldInterface extends CollectionFieldInterface {
   group = 'advanced';
   order = 4;
   title = '{{t("JSON")}}';
+  icon = 'CodeOutlined';
   sortable = true;
   default = {
     type: 'json',

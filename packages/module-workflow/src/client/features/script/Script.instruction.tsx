@@ -1,5 +1,5 @@
 import { css } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
+import { ArrayTable } from '@tego/client';
 
 import { VariableOption, WorkflowVariableInput } from '../..';
 import { NAMESPACE_INSTRUCTION_DATA_MAPPING } from '../../../common/constants';
@@ -114,8 +114,7 @@ export class ScriptInstruction extends Instruction {
         defaultLanguage: 'typescript',
         height: '50vh',
         defaultValue: `
-import { Context } from '@tachybase/actions';
-import { MagicAttributeModel, Transactionable } from '@tachybase/database';
+import { Context, MagicAttributeModel, Transactionable } from '@tego/server';
 
 export default async function (
   _data,

@@ -1,4 +1,4 @@
-import { BaseAuth } from '@tachybase/auth';
+import { BaseAuth } from '@tego/server';
 
 import { namespace } from '../constants';
 import { DingtalkClient } from './dingtalk-client';

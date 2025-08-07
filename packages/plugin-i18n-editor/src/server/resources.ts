@@ -1,6 +1,6 @@
-import { randomUUID } from 'crypto';
-import { Cache } from '@tachybase/cache';
-import { Database, Transaction } from '@tachybase/database';
+import { randomUUID } from 'node:crypto';
+
+import { Cache, Database, Transaction } from '@tego/server';
 
 export default class Resources {
   cache: Cache;

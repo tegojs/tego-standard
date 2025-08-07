@@ -1,12 +1,5 @@
 import React from 'react';
-import * as tachybaseComponents from '@tachybase/components';
-import * as tachybaseEvaluators from '@tachybase/evaluators/client';
-import type { RequireJS } from '@tachybase/requirejs';
-import * as tachybaseRequirejs from '@tachybase/requirejs';
 import * as tachybaseSchema from '@tachybase/schema';
-import * as tachybaseSDK from '@tachybase/sdk';
-import * as tachybaseClientUtils from '@tachybase/utils/client';
-import { dayjs } from '@tachybase/utils/client';
 
 import * as antdCssinjs from '@ant-design/cssinjs';
 import * as antdIcons from '@ant-design/icons';
@@ -17,10 +10,13 @@ import * as dndKitSortable from '@dnd-kit/sortable';
 import * as dndKitUtilities from '@dnd-kit/utilities';
 import * as emotionCss from '@emotion/css';
 import * as floatingUI from '@floating-ui/react';
+import * as tegoClient from '@tego/client';
+import type { RequireJS } from '@tego/client';
 import * as ahooks from 'ahooks';
 import * as antd from 'antd';
 import * as antdStyle from 'antd-style';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import * as i18next from 'i18next';
 import lodash from 'lodash';
 import ReactDOM from 'react-dom';
@@ -55,13 +51,9 @@ export function defineGlobalDeps(requirejs: RequireJS) {
   requirejs.define('react-i18next', () => reactI18next);
 
   // tachybase
-  requirejs.define('@tachybase/utils/client', () => tachybaseClientUtils);
+  requirejs.define('@tego/client', () => tegoClient);
   requirejs.define('@tachybase/client', () => tachybaseClient);
-  requirejs.define('@tachybase/evaluators/client', () => tachybaseEvaluators);
-  requirejs.define('@tachybase/sdk', () => tachybaseSDK);
   requirejs.define('@tachybase/schema', () => tachybaseSchema);
-  requirejs.define('@tachybase/requirejs', () => tachybaseRequirejs);
-  requirejs.define('@tachybase/components', () => tachybaseComponents);
 
   // dnd-kit 相关
   requirejs.define('@dnd-kit/accessibility', () => dndKitAccessibility);

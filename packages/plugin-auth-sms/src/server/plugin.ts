@@ -1,6 +1,7 @@
-import { resolve } from 'path';
+import { resolve } from 'node:path';
 import VerificationPlugin from '@tachybase/plugin-otp';
-import { InstallOptions, Plugin } from '@tachybase/server';
+
+import { InstallOptions, Plugin } from '@tego/server';
 
 import { authType } from '../constants';
 import { SMSAuth } from './sms-auth';
@@ -23,6 +24,20 @@ export class SmsAuthPlugin extends Plugin {
       return;
     }
     verificationPlugin.interceptors.register('auth:signIn', {
+      manual: true,
+      getReceiver: (ctx) => {
+        return ctx.action.params.values.phone;
+      },
+      expiresIn: 120,
+      validate: async (ctx, phone) => {
+        if (!phone) {
+          throw new Error(ctx.t('Not a valid cellphone number, please re-enter'));
+        }
+        return true;
+      },
+    });
+
+    verificationPlugin.interceptors.register('auth:changePassword', {
       manual: true,
       getReceiver: (ctx) => {
         return ctx.action.params.values.phone;

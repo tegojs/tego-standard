@@ -1,8 +1,8 @@
 import { Plugin, useApp, useDesignable } from '@tachybase/client';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
-import { uid } from '@tachybase/utils/client';
 
 import * as antv from '@antv/g6';
+import { uid } from '@tego/client';
 import exceljs from 'exceljs';
 import * as fileSaver from 'file-saver';
 import * as qrcode from 'qrcode';

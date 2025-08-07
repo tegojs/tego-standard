@@ -1,17 +1,5 @@
 import React from 'react';
 import {
-  ArrayTable,
-  Editable,
-  Form,
-  FormButtonGroup,
-  FormDrawer,
-  FormItem,
-  FormLayout,
-  Input,
-  NumberPicker,
-  Submit,
-} from '@tachybase/components';
-import {
   connect,
   createForm,
   createSchemaField,
@@ -23,6 +11,18 @@ import {
   useFormEffects,
 } from '@tachybase/schema';
 
+import {
+  ArrayTable,
+  Editable,
+  Form,
+  FormButtonGroup,
+  FormDrawer,
+  FormItem,
+  FormLayout,
+  Input,
+  NumberPicker,
+  Submit,
+} from '@tego/client';
 import { Select } from 'antd';
 
 const ViewOptions = connect((props) => {

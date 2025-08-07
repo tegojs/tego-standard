@@ -1,7 +1,7 @@
 import { ChangeEvent, useCallback, useEffect } from 'react';
 import { Field, Form, ISchema, untracked, useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { isURL, parse } from '@tachybase/utils/client';
 
+import { isURL, parse } from '@tego/client';
 import { App } from 'antd';
 import flat from 'flat';
 import _ from 'lodash';
@@ -1371,7 +1371,7 @@ export const useAssociationNames = (dataSource?: string) => {
       }
 
       //从自定义字段中取appends
-      if (s['x-component-props']?.fieldNames?.formula) {
+      if (s['x-component-props']?.fieldNames?.formula && isAssociationField) {
         appends.add(s['name']);
         const regex = /{{(.*?)}}/g;
         const formula = s['x-component-props']?.fieldNames?.formula;

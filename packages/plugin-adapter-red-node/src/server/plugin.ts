@@ -1,6 +1,6 @@
 import path from 'node:path';
 import process from 'node:process';
-import { Gateway, Plugin } from '@tachybase/server';
+import { Gateway, Plugin } from '@tego/server';
 
 import express from 'express';
 
@@ -26,7 +26,7 @@ export class PluginAdapterRedNodeServer extends Plugin {
     const settings = {
       httpAdminRoot: prefix + '/red',
       httpNodeRoot: prefix + '/api',
-      userDir: path.join(process.cwd(), 'storage/red-node'),
+      userDir: path.join(process.env.TEGO_RUNTIME_HOME, 'storage/red-node'),
       functionGlobalContext: {}, // enables global context
     };
 

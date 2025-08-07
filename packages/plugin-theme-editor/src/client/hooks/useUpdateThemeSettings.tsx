@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAPIClient, useCurrentUserContext, useSystemSettings } from '@tachybase/client';
-import { error } from '@tachybase/utils/client';
+
+import { error } from '@tego/client';
 
 export function useUpdateThemeSettings() {
   const api = useAPIClient();

@@ -1,8 +1,7 @@
 import React, { ComponentType, ReactElement } from 'react';
-import { getRequireJs, type RequireJS } from '@tachybase/requirejs';
 import { define, observable } from '@tachybase/schema';
-import { APIClientOptions, getSubAppName } from '@tachybase/sdk';
 
+import { APIClientOptions, getRequireJs, getSubAppName, type RequireJS } from '@tego/client';
 import { i18n as i18next } from 'i18next';
 import { get, merge, set } from 'lodash';
 import { createRoot } from 'react-dom/client';
@@ -21,7 +20,7 @@ import { AntdAppProvider, GlobalThemeProvider } from '../style/theme';
 import { VariableManager, VariableManagerOptions } from '../variables/VariablesManager';
 import { AppSchemaComponentProvider } from './AppSchemaComponentProvider';
 import { AttachmentPreviewManager, PluginAttachmentItemsOptions } from './AttachmentPreviewManager';
-import { AppComponent, BlankComponent, defaultAppComponents, SharePage, ShareSchemaComponent } from './components';
+import { AppComponent, BlankComponent, defaultAppComponents } from './components';
 import { NoticeManager } from './NoticesManager';
 import type { Plugin } from './Plugin';
 import { PluginContextMenu, PluginItemsOptions } from './PluginContextMenu';
@@ -191,11 +190,6 @@ export class Application {
       path: '*',
       Component: this.components['AppNotFound'],
     });
-    this.router.add('share', {
-      path: '/share',
-      Component: SharePage,
-    });
-    this.router.add('share.page', { path: '/share/:name', Component: ShareSchemaComponent });
     this.router.add('share.notAuthorized', { path: '/share/not-authorized', element: null });
   }
 

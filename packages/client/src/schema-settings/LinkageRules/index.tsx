@@ -16,6 +16,8 @@ import { EnableLinkage } from './components/EnableLinkage';
 import { ArrayCollapse } from './components/LinkageHeader';
 import { LinkageRuleActionGroup } from './LinkageRuleActionGroup';
 
+export * from './type';
+export * from './action-hooks';
 interface Props {
   dynamicComponent: any;
 }

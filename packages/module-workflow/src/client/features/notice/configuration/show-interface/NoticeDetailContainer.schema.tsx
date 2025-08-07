@@ -1,6 +1,7 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { SchemaComponent, SchemaComponentContext } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { useFlowContext } from '../../../../FlowContext';
 import { tval } from '../../locale';

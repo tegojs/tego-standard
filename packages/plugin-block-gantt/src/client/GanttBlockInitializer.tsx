@@ -9,10 +9,10 @@ import {
   useSchemaInitializer,
   useSchemaInitializerItem,
 } from '@tachybase/client';
-import { FormLayout } from '@tachybase/components';
 import { SchemaOptionsContext } from '@tachybase/schema';
 
 import { FormOutlined } from '@ant-design/icons';
+import { FormLayout } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { createGanttBlockUISchema } from './createGanttBlockUISchema';

@@ -1,5 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Action, Controller, Inject } from '@tachybase/utils';
+import { Action, Context, Controller, Inject, Next } from '@tego/server';
 
 import { COLLECTION_PASSWORD_POLICY } from '../../constants';
 import { PasswordPolicyService } from '../services/PasswordPolicyService';

@@ -1,4 +1,4 @@
-import { extendCollection } from '@tachybase/database';
+import { extendCollection } from '@tego/server';
 
 // show workflows feature card theme-color and icon
 export default extendCollection({

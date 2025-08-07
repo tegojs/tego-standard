@@ -16,6 +16,7 @@ export class InputFieldInterface extends CollectionFieldInterface {
   group = 'basic';
   order = 1;
   title = '{{t("Single line text")}}';
+  icon = 'inputField';
   sortable = true;
   default = {
     interface: 'input',

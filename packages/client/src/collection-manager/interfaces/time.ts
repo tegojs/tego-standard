@@ -7,6 +7,7 @@ export class TimeFieldInterface extends CollectionFieldInterface {
   group = 'datetime';
   order = 2;
   title = '{{t("Time")}}';
+  icon = 'FieldTimeOutlined';
   sortable = true;
   default = {
     type: 'time',

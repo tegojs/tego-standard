@@ -1,0 +1,13 @@
+{
+  "Caution: Changing this will directly modify the collection name": "Caution: Changing this will directly modify the collection name",
+  "Click a field to start customizing its properties": "Click a field to start customizing its properties",
+  "Design the form by selecting fields, adjusting layout, and adding properties": "Design the form by selecting fields, adjusting layout, and adding properties",
+  "Field properties": "Field properties",
+  "Form design": "Form design",
+  "Form properties": "Form properties",
+  "Open editable page": "Open editable page",
+  "Other fields": "Other fields",
+  "Set default properties": "Set default properties",
+  "The target collection for the association field \"{{field}}\" is not selected": "The target collection for the association field \"{{field}}\" is not selected",
+  "Untitle collection": "Untitle collection"
+}

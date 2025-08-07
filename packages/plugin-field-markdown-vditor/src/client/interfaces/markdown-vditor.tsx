@@ -28,6 +28,7 @@ export class MarkdownVditorFieldInterface extends CollectionFieldInterface {
   group = 'media';
   order = 1;
   title = generateNTemplate('Vditor');
+  icon = 'CodeOutlined';
   sortable = true;
   default = {
     type: 'text',

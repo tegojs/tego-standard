@@ -1,5 +1,6 @@
 import type { CollectionRepository } from '@tachybase/module-collection';
-import { InstallOptions, Plugin } from '@tachybase/server';
+
+import { InstallOptions, Plugin } from '@tego/server';
 
 import {
   aggregateSearch,

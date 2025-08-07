@@ -1,7 +1,7 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { BasicAuth } from '@tachybase/module-auth';
-import { Plugin } from '@tachybase/server';
 
+import { Plugin } from '@tego/server';
 import axios from 'axios';
 import { Op } from 'sequelize';
 import xml2js from 'xml2js';

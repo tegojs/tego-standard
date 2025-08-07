@@ -1,7 +1,7 @@
 import React from 'react';
-import { usePrefixCls } from '@tachybase/components';
 import { toArr } from '@tachybase/schema';
 
+import { usePrefixCls } from '@tego/client';
 import { TimeRangePickerProps } from 'antd/es/time-picker';
 import cls from 'classnames';
 import dayjs from 'dayjs';

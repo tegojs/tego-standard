@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Schema, useFieldSchema } from '@tachybase/schema';
-import { dayjs, flatten, getValuesByPath } from '@tachybase/utils/client';
 
+import { flatten, getValuesByPath } from '@tego/client';
+import dayjs from 'dayjs';
 import _ from 'lodash';
 
 import { FilterTarget, findFilterTargets } from '../block-provider/hooks';

@@ -1,7 +1,8 @@
 import { SchemaInitializerItemType } from '@tachybase/client';
 import { JOB_STATUS } from '@tachybase/module-workflow/client';
 import { ISchema } from '@tachybase/schema';
-import { Registry } from '@tachybase/utils/client';
+
+import { Registry } from '@tego/client';
 
 import { updateFormConfig } from './update';
 

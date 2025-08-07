@@ -1,6 +1,5 @@
-import { Service, uid } from '@tachybase/utils';
-
 import { transform } from '@babel/core';
+import { Service, uid } from '@tego/server';
 
 /**
  * TODO 支持混淆

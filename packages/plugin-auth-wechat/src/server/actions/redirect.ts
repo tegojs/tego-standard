@@ -1,6 +1,5 @@
-import { Context, Next } from '@tachybase/actions';
-import { AppSupervisor } from '@tachybase/server';
-import { dayjs } from '@tachybase/utils';
+import { AppSupervisor, Context, Next } from '@tego/server';
+import dayjs from 'dayjs';
 
 import { AUTH_TIMEOUT_MINUTE } from '../../constants';
 

@@ -1,6 +1,6 @@
-import { ArrayCollapse, FormLayout } from '@tachybase/components';
 import { Field, ISchema, useField, useFieldSchema } from '@tachybase/schema';
 
+import { ArrayCollapse, FormLayout } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
@@ -480,7 +480,6 @@ export const fieldSettingsFormItem = new SchemaSettings({
               return form && !isFormReadPretty && validateSchema;
             },
           },
-          { ...fieldComponentSettingsItem },
         ];
       },
     },

@@ -1,7 +1,7 @@
 import path from 'node:path';
-import { Plugin } from '@tachybase/server';
 
 import { createRsbuild, type RsbuildInstance, type StartServerResult } from '@rsbuild/core';
+import { Plugin } from '@tego/server';
 // import { build, defineConfig } from '@rslib/core';
 import fg from 'fast-glob';
 

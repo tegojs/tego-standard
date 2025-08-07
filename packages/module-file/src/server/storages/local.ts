@@ -1,7 +1,7 @@
-import fs from 'fs/promises';
-import path from 'path';
+import { mkdir } from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
-import mkdirp from 'mkdirp';
 import multer from 'multer';
 
 import { AttachmentModel } from '.';
@@ -11,7 +11,9 @@ import { getFilename } from '../utils';
 function getDocumentRoot(storage): string {
   const { documentRoot = process.env.LOCAL_STORAGE_DEST || 'storage/uploads' } = storage.options || {};
   // TODO(feature): 后面考虑以字符串模板的方式使用，可注入 req/action 相关变量，以便于区分文件夹
-  return path.resolve(path.isAbsolute(documentRoot) ? documentRoot : path.join(process.cwd(), documentRoot));
+  return path.resolve(
+    path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+  );
 }
 
 export default {
@@ -19,7 +21,7 @@ export default {
     return multer.diskStorage({
       destination: function (req, file, cb) {
         const destPath = path.join(getDocumentRoot(storage), storage.path);
-        mkdirp(destPath, (err: Error | null) => cb(err, destPath));
+        mkdir(destPath, { recursive: true }, (err: Error | null) => cb(err, destPath));
       },
       filename: getFilename,
     });

@@ -11,10 +11,10 @@ import {
   useSchemaInitializer,
   useSchemaInitializerItem,
 } from '@tachybase/client';
-import { FormLayout } from '@tachybase/components';
 import { SchemaOptionsContext } from '@tachybase/schema';
 
 import { CalendarOutlined } from '@ant-design/icons';
+import { FormLayout } from '@tego/client';
 
 import { useTranslation } from '../../../locale';
 import { createCalendarBlockUISchema } from '../createCalendarBlockUISchema';

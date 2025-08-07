@@ -1,4 +1,4 @@
-import { getOptions } from '@tachybase/evaluators/client';
+import { getOptions } from '@tego/client';
 
 import { CollectionTemplate } from '../../data-source/collection-template/CollectionTemplate';
 import { getConfigurableProperties } from './properties';

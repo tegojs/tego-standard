@@ -1,7 +1,4 @@
-import { Cache } from '@tachybase/cache';
-import { Repository, Transaction, Transactionable } from '@tachybase/database';
-import { uid } from '@tachybase/utils';
-
+import { Cache, Repository, Transaction, Transactionable, uid } from '@tego/server';
 import lodash from 'lodash';
 
 import { ChildOptions, SchemaNode, TargetPosition } from './dao/ui_schema_node_dao';

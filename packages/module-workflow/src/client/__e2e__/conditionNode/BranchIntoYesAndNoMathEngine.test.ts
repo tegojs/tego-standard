@@ -15,9 +15,9 @@ import {
   QueryRecordNode,
 } from '@tachybase/plugin-workflow-test/e2e';
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
 
 import { faker } from '@faker-js/faker';
+import dayjs from 'dayjs';
 
 test('Collection event add data trigger, determine trigger node integer field variable is equal to an equal constant, pass.', async ({
   page,

@@ -1,5 +1,6 @@
 import { expect, test } from '@tachybase/test/e2e';
-import { uid } from '@tachybase/utils';
+
+import { uid } from '@tego/server';
 
 import { CollectionManagerPage } from '../utils';
 

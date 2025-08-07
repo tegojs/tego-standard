@@ -1,9 +1,9 @@
 import React from 'react';
-import { GeneralSchemaDesigner, SchemaSettingsModalItem } from '@tachybase/client';
-import { Switch } from '@tachybase/components';
+import { GeneralSchemaDesigner, SchemaSettingsModalItem, useTranslation } from '@tachybase/client';
 import { useField } from '@tachybase/schema';
 
-import { useTranslation } from '../../../../locale';
+import { Switch } from '@tego/client';
+
 import { useSchemaPatch } from '../../hooks';
 
 export const HeaderDesigner = () => {

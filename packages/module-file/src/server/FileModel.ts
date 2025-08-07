@@ -1,4 +1,4 @@
-import { Model } from '@tachybase/database';
+import { Model } from '@tego/server';
 
 export class FileModel extends Model {
   public toJSON() {

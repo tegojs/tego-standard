@@ -1,10 +1,9 @@
-import { Context } from '@tachybase/actions';
-import { AuthConfig, BaseAuth } from '@tachybase/auth';
-import { dayjs } from '@tachybase/utils';
+import { AuthConfig, BaseAuth, Context } from '@tego/server';
+import dayjs from 'dayjs';
 
 import { namespace, weChatApiOauthBaseUrl, weChatApiOauthScope } from '../constants';
 
-export { Model } from '@tachybase/database';
+export { Model } from '@tego/server';
 
 export class WeChatAuth extends BaseAuth {
   constructor(config: AuthConfig) {

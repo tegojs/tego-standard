@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { GeneralField, reaction, useField, useFieldSchema } from '@tachybase/schema';
-import { flatten, getValuesByPath } from '@tachybase/utils/client';
 
+import { flatten, getValuesByPath } from '@tego/client';
 import _, { isString } from 'lodash';
 import cloneDeep from 'lodash/cloneDeep';
 
@@ -201,4 +201,52 @@ export const useSubFormValue = () => {
     formValue: value,
     collection,
   };
+};
+
+export const useCustomTitle = (record, schema, fieldNames) => {
+  if (schema['x-component-props']?.mode === 'CustomTitle' && schema['x-component-props']?.fieldNames?.formula) {
+    if (Array.isArray(record[schema['name']])) {
+      record[schema['name']].forEach((recordItem) => {
+        recordItem['customLabel'] = getCustomLabel(recordItem, schema);
+      });
+    } else {
+      record[schema['name']]['customLabel'] = getCustomLabel(record[schema['name']], schema);
+    }
+    return { formulaRecord: record, fieldNames: { ...fieldNames, label: 'customLabel' } };
+  }
+  return { formulaRecord: record, fieldNames };
+};
+
+const getCustomLabel = (record, schema) => {
+  const regex = /{{(.*?)}}/g;
+
+  const valueOject = {};
+  let outputStr = '';
+  let match;
+  const formula = schema['x-component-props']?.fieldNames?.formula;
+  while ((match = regex.exec(formula))) {
+    if (match[1].includes('.')) {
+      const fieldList = match[1].split('.');
+      const result = { currRecord: record, value: '' };
+      fieldList.forEach((value, index) => {
+        if (fieldList.length - 1 !== index) {
+          result.currRecord = result.currRecord?.[value];
+          return;
+        }
+        result.value = result.currRecord?.[value];
+      });
+      valueOject[match[1]] = result.value ?? '';
+    } else {
+      valueOject[match[1]] = record[match[1]] || '';
+    }
+  }
+  outputStr = replacePlaceholders(formula, valueOject);
+
+  return outputStr;
+};
+
+const replacePlaceholders = (inputStr, values) => {
+  return inputStr.replace(/{{(.*?)}}/g, function (match, placeholder) {
+    return Object.prototype.hasOwnProperty.call(values, placeholder) ? values[placeholder] : match;
+  });
 };

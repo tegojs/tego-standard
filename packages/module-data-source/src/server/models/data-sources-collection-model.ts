@@ -1,8 +1,7 @@
-import { MagicAttributeModel, Model, Transaction } from '@tachybase/database';
-import { Application } from '@tachybase/server';
+import { Application, ICollection, MagicAttributeModel, Model, Transaction } from '@tego/server';
 
 export class DataSourcesCollectionModel extends MagicAttributeModel {
-  async load(loadOptions: { app: Application; transaction: Transaction }) {
+  async load(loadOptions: { app: Application; transaction: Transaction }): Promise<ICollection> {
     const { app, transaction } = loadOptions;
 
     const collectionFields = await this.getFields({ transaction });

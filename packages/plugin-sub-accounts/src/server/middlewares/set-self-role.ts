@@ -1,4 +1,4 @@
-import { Context } from '@tachybase/actions';
+import { Context } from '@tego/server';
 
 export async function setSelfRole(ctx: Context, next) {
   if (!ctx.state.currentUser) {

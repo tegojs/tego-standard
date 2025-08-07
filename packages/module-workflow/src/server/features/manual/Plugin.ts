@@ -1,6 +1,4 @@
-import actions from '@tachybase/actions';
-import { HandlerType } from '@tachybase/resourcer';
-import { Plugin } from '@tachybase/server';
+import { actions, HandlerType, Plugin } from '@tego/server';
 
 import WorkflowPlugin, { JOB_STATUS } from '../..';
 import { submit } from './actions';

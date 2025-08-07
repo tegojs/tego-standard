@@ -21,9 +21,9 @@ import {
   useSchemaInitializer,
   useSchemaInitializerItem,
 } from '@tachybase/client';
-import { FormDrawer, FormLayout } from '@tachybase/components';
 import { createForm, FormContext, ISchema, SchemaOptionsContext, uid } from '@tachybase/schema';
 
+import { FormDrawer, FormLayout } from '@tego/client';
 import { cloneDeep } from 'lodash';
 
 const collection: any = {

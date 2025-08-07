@@ -1,4 +1,5 @@
-import { dayjs, getDefaultFormat, str2moment, toGmt, toLocal, type Dayjs } from '@tachybase/utils/client';
+import { getDefaultFormat, str2moment, toGmt, toLocal } from '@tego/client';
+import dayjs, { type Dayjs } from 'dayjs';
 
 const toStringByPicker = (value, picker, timezone: 'gmt' | 'local') => {
   if (!dayjs.isDayjs(value)) return value;
@@ -161,5 +162,21 @@ export const getDateRanges = () => {
     next30Days: () => [getStart(1, 'day'), getEnd(30, 'days')],
     last90Days: () => [getStart(-89, 'days'), getEnd(0, 'days')],
     next90Days: () => [getStart(1, 'day'), getEnd(90, 'days')],
+  };
+};
+
+export const getDateExact = () => {
+  return {
+    nowUtc: () => dayjs().toISOString(),
+    nowLocal: () => dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    todayUtc: () => dayjs().startOf('day').utc().toISOString(),
+    todayLocal: () => dayjs().startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+    todayDate: () => dayjs().format('YYYY-MM-DD'),
+    yesterdayUtc: () => dayjs().subtract(1, 'day').startOf('day').utc().toISOString(),
+    yesterdayLocal: () => dayjs().subtract(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+    yesterdayDate: () => dayjs().subtract(1, 'day').format('YYYY-MM-DD'),
+    tomorrowUtc: () => dayjs().add(1, 'day').startOf('day').utc().toISOString(),
+    tomorrowLocal: () => dayjs().add(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+    tomorrowDate: () => dayjs().add(1, 'day').format('YYYY-MM-DD'),
   };
 };

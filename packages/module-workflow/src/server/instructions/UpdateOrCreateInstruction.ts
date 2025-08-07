@@ -1,8 +1,4 @@
-import { parseCollectionName } from '@tachybase/data-source';
-import { Repository } from '@tachybase/database';
-import { Gateway } from '@tachybase/server';
-import { uid } from '@tachybase/utils';
-
+import { Gateway, parseCollectionName, Repository, uid } from '@tego/server';
 import axios, { AxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
 import _ from 'lodash';

@@ -1,9 +1,6 @@
-import path from 'path';
-import { Context } from '@tachybase/actions';
-import { Op } from '@tachybase/database';
-import { HandlerType } from '@tachybase/resourcer';
-import { Plugin } from '@tachybase/server';
-import { Registry } from '@tachybase/utils';
+import path from 'node:path';
+
+import { Context, HandlerType, Op, Plugin, Registry } from '@tego/server';
 
 import { namespace, Provider } from '.';
 import initActions from './actions';

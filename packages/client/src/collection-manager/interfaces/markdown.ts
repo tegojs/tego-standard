@@ -9,6 +9,7 @@ export class MarkdownFieldInterface extends CollectionFieldInterface {
   type = 'object';
   title = '{{t("Markdown")}}';
   group = 'media';
+  icon = 'CodeOutlined';
   default = {
     type: 'text',
     // name,

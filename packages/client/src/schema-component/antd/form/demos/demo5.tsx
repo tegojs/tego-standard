@@ -7,9 +7,9 @@ import {
   SchemaComponentProvider,
   useAPIClient,
 } from '@tachybase/client';
-import { FormItem, Input } from '@tachybase/components';
 import { ISchema, observer, useForm } from '@tachybase/schema';
 
+import { FormItem, Input } from '@tego/client';
 import { Card, Space } from 'antd';
 
 import { apiClient } from './apiClient';

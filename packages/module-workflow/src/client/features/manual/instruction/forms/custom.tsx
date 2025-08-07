@@ -16,10 +16,9 @@ import {
   useSchemaInitializer,
   useSchemaInitializerItem,
 } from '@tachybase/client';
-import { ArrayTable } from '@tachybase/components';
 import { createForm, Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { merge, uid } from '@tachybase/utils/client';
 
+import { ArrayTable, merge, uid } from '@tego/client';
 import { cloneDeep, pick, set } from 'lodash';
 
 import { JOB_STATUS } from '../../../..';

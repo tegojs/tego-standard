@@ -1,6 +1,7 @@
 import React from 'react';
-import { CodeMirror, css, useAPIClient, useRequest } from '@tachybase/client';
+import { css, useAPIClient, useRequest } from '@tachybase/client';
 
+import { CodeMirror } from '@tego/client';
 import { useMemoizedFn } from 'ahooks';
 import { Card, theme } from 'antd';
 

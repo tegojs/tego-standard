@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { error } from '@tachybase/utils/client';
 
+import { error } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { CollectionFieldOptions_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';

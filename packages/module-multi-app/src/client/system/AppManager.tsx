@@ -8,9 +8,9 @@ import {
   useDataBlockRequest,
   useNoticeSub,
 } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
 
 import { LoadingOutlined } from '@ant-design/icons';
+import { uid } from '@tego/client';
 import { Card, Divider, notification, Space, Spin } from 'antd';
 
 import { NAMESPACE, NOTIFICATION_CLIENT_KEY, NOTIFY_STATUS_EVENT_KEY } from '../../constants';

@@ -1,6 +1,5 @@
 import path from 'node:path';
-import { Logger } from '@tachybase/logger';
-import { InjectLog, Service } from '@tachybase/utils';
+import { InjectLog, Logger, Service } from '@tego/server';
 
 import { Font } from '@react-pdf/renderer';
 import axios from 'axios';
@@ -68,7 +67,7 @@ export class FontManager {
         url: 'https://assets.tachybase.com/fonts/SourceHanSansCN-Heavy.otf',
       },
     ];
-    const fontsDir = path.join(process.cwd(), 'storage', 'fonts');
+    const fontsDir = path.join(process.env.TEGO_RUNTIME_HOME, 'storage', 'fonts');
     const isExists = await fs.exists(fontsDir);
     if (!isExists) {
       fs.mkdir(fontsDir);

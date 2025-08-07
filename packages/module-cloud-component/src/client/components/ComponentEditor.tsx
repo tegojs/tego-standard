@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { css } from '@tachybase/client';
-import { CodeEditor } from '@tachybase/components';
 import { connect } from '@tachybase/schema';
 
 import * as Babel from '@babel/standalone';
+import { CodeEditor } from '@tego/client';
 import { useDebounceFn, useKeyPress } from 'ahooks';
 import { Spin, Splitter } from 'antd';
 import parserJavaScript from 'prettier/plugins/babel';

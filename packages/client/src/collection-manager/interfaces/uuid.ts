@@ -7,6 +7,7 @@ export class UUIDFieldInterface extends CollectionFieldInterface {
   group = 'advanced';
   order = 0;
   title = '{{t("UUID")}}';
+  icon = 'FieldNumberOutlined';
   hidden = false;
   sortable = true;
   default = {

@@ -15,9 +15,9 @@ import {
   useTableBlockContext,
 } from '@tachybase/client';
 import { observer, useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { dayjs } from '@tachybase/utils/client';
 
 import { Space, Spin, Tag } from 'antd';
+import dayjs from 'dayjs';
 
 import WorkflowPlugin, {
   DetailsBlockProvider,

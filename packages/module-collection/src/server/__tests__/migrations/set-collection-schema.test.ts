@@ -1,5 +1,6 @@
-import { Database, MigrationContext } from '@tachybase/database';
 import { MockServer, pgOnly } from '@tachybase/test';
+
+import { Database, MigrationContext } from '@tego/server';
 
 import Migrator from '../../migrations/20230918024546-set-collection-schema';
 import { createApp } from '../index';

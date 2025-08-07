@@ -1,5 +1,4 @@
 import React, { useCallback, useContext, useMemo, useState } from 'react';
-import { ArrayTable } from '@tachybase/components';
 import {
   Field,
   ISchema,
@@ -12,6 +11,7 @@ import {
   useFormEffects,
 } from '@tachybase/schema';
 
+import { ArrayTable } from '@tego/client';
 import { Alert, Flex, ModalProps, Tag } from 'antd';
 import { useTranslation } from 'react-i18next';
 

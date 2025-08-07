@@ -1,7 +1,6 @@
-import { ACL } from '@tachybase/acl';
-import { Database, Model } from '@tachybase/database';
 import { MockServer } from '@tachybase/test';
 
+import { ACL, Database, Model } from '@tego/server';
 import UsersPlugin from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';

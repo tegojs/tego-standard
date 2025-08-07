@@ -1,6 +1,7 @@
 import React from 'react';
 import { SchemaComponentOptions, useActionContext, useRequest } from '@tachybase/client';
-import { uid } from '@tachybase/utils/client';
+
+import { uid } from '@tego/client';
 
 import { collectionMultiApp } from '../base/collections/collectionMultiApp';
 import { formSchema } from '../base/schemas/schemaForm';

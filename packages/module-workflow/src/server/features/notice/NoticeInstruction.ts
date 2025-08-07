@@ -1,5 +1,6 @@
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
-import { uid } from '@tachybase/utils';
+
+import { uid } from '@tego/server';
 
 import { JOB_STATUS } from '../../constants';
 import Instruction from '../../instructions';

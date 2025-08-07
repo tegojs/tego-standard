@@ -1,5 +1,4 @@
-import { dayjs } from '@tachybase/utils';
-
+import dayjs from 'dayjs';
 import { lowerCase } from 'lodash';
 
 /**

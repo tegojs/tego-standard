@@ -1,4 +1,4 @@
-import { ArrayItems } from '@tachybase/components';
+import { ArrayItems } from '@tego/client';
 
 import { GROUP_TAG_DEPRECATED } from '../../../../common/constants';
 import { Instruction } from '../../../nodes/default-node/interface';

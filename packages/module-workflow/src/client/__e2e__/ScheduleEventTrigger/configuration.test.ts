@@ -9,9 +9,9 @@ import {
   WorkflowListRecords,
 } from '@tachybase/plugin-workflow-test/e2e';
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
 
 import { faker } from '@faker-js/faker';
+import dayjs from 'dayjs';
 
 test.describe('Configuration page to configure the Trigger node', () => {
   test('Triggered one minute after the current time of the customized time', async ({

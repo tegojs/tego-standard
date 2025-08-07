@@ -6,14 +6,14 @@ import {
   useCollectionManager,
   useFieldServiceFilter,
   useRequest,
+  useTranslation,
 } from '@tachybase/client';
 import { ArrayField, observer, useField, useFieldSchema, useForm } from '@tachybase/schema';
-import { isArray } from '@tachybase/utils/client';
 
+import { isArray } from '@tego/client';
 import { Button, CascaderView, Divider, Popup, SearchBar, Space } from 'antd-mobile';
 import { CloseOutline } from 'antd-mobile-icons';
 
-import { useTranslation } from '../../../../../locale';
 import { MInput } from '../Input';
 import { useStyles } from './style';
 

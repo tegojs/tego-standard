@@ -1,9 +1,9 @@
 import { observer } from '@tachybase/schema';
-import { getSubAppName } from '@tachybase/sdk';
 
 import { DisconnectOutlined, LoadingOutlined } from '@ant-design/icons';
 import { css } from '@emotion/css';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { getSubAppName } from '@tego/client';
 import { Button, Result } from 'antd';
 import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +40,8 @@ import { SystemSettingsPlugin } from './system-settings';
 import { PluginSystemVersion } from './system-version';
 import { UserSettingsPlugin } from './user-settings';
 
-export { AdminProvider, NoticeArea, AdminLayout } from './admin-layout';
+export { AdminProvider, NoticeArea, AdminLayout, MenuEditor, AdminTabs } from './admin-layout';
+export * from './pinned-list';
 export * from './context-menu/useContextMenu';
 
 interface AppStatusProps {

@@ -1,5 +1,4 @@
-import { DataTypes, Field } from '@tachybase/database';
-
+import { DataTypes, Field } from '@tego/server';
 import lodash from 'lodash';
 
 type WriterFunc = (val: any) => any;
@@ -23,7 +22,7 @@ export class FieldValueWriter {
   static write(field: Field, val) {
     if (val === null) return val;
 
-    if (field.type == 'point' || field.type == 'lineString' || field.type == 'circle' || field.type === 'polygon') {
+    if (field.type === 'point' || field.type === 'lineString' || field.type === 'circle' || field.type === 'polygon') {
       return getMapFieldWriter(field)(lodash.isString(val) ? JSON.parse(val) : val);
     }
 
@@ -40,7 +39,7 @@ export class FieldValueWriter {
   static toDumpedValue(field: Field, val) {
     if (val === null) return val;
 
-    if (field.type == 'point' || field.type == 'lineString' || field.type == 'circle' || field.type === 'polygon') {
+    if (field.type === 'point' || field.type === 'lineString' || field.type === 'circle' || field.type === 'polygon') {
       const mockObj = {
         getDataValue: () => val,
       };

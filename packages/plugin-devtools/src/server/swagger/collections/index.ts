@@ -1,4 +1,4 @@
-import { Collection } from '@tachybase/database';
+import { Collection } from '@tego/server';
 
 import components from './components';
 import paths from './paths';

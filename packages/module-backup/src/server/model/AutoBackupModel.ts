@@ -1,4 +1,4 @@
-import { Model } from '@tachybase/database';
+import { Model } from '@tego/server';
 
 export class AutoBackupModel extends Model {
   declare id: number;

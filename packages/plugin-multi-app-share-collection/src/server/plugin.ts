@@ -1,12 +1,9 @@
-import { resolve } from 'node:path';
-import Database from '@tachybase/database';
 import PluginMultiAppManager from '@tachybase/module-multi-app';
-import { Application, AppSupervisor, Plugin } from '@tachybase/server';
+import { Application, AppSupervisor, Database, Plugin } from '@tego/server';
 
 import lodash from 'lodash';
 
 const subAppFilteredPlugins = ['multi-app-share-collection', 'multi-app'];
-const unSyncPlugins = ['localization-management'];
 
 class SubAppPlugin extends Plugin {
   beforeLoad() {
@@ -282,7 +279,6 @@ export class MultiAppShareCollectionPlugin extends Plugin {
             'header.x-app',
           ],
         },
-        // pmSock: resolve(process.cwd(), 'storage', `${appName}.sock`),
       };
     });
 

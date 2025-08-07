@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CodeMirror, css, useAPIClient, useRequest } from '@tachybase/client';
+import { css, useAPIClient, useRequest } from '@tachybase/client';
 
 import { CodeOutlined } from '@ant-design/icons';
+import { CodeMirror } from '@tego/client';
 import { useMemoizedFn } from 'ahooks';
-import { Card, Empty, theme, Tree, TreeDataNode } from 'antd';
+import { Card, Empty, theme, Tree } from 'antd';
 import type { DataNode } from 'antd/lib/tree';
 
 import { lang } from './locale';

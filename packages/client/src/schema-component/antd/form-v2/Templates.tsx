@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldSchema } from '@tachybase/schema';
-import { error, forEach } from '@tachybase/utils/client';
 
+import { error, forEach } from '@tego/client';
 import { Select, Space } from 'antd';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';

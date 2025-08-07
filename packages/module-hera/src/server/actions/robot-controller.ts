@@ -1,6 +1,4 @@
-import { Context, Next } from '@tachybase/actions';
-import { Action, Controller } from '@tachybase/utils';
-
+import { Action, Context, Controller, Next } from '@tego/server';
 import axios from 'axios';
 
 @Controller('robot')

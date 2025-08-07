@@ -1,7 +1,8 @@
 import React from 'react';
 import { SchemaSettingsModalItem, useCollectionManager, useDesignable } from '@tachybase/client';
 import { ISchema, useFieldSchema } from '@tachybase/schema';
-import { dayjs } from '@tachybase/utils/client';
+
+import dayjs from 'dayjs';
 
 import { tval, useTranslation } from '../locale';
 
@@ -73,7 +74,7 @@ export const SchemaSettingsDatePresets: React.FC = () => {
         };
         schema['x-component-props'] = fieldSchema['x-component-props'] || {};
         fieldSchema['x-component-props'] = {
-          ...(fieldSchema['x-component-props'] || {}),
+          ...fieldSchema['x-component-props'],
           ...data,
         };
         schema['x-component-props'] = fieldSchema['x-component-props'];

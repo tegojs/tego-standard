@@ -7,6 +7,7 @@ export class ChinaRegionFieldInterface extends CollectionFieldInterface {
   name = 'chinaRegion';
   type = 'object';
   group = 'choices';
+  icon = 'CompassOutlined';
   order = 7;
   title = '{{t("China region")}}';
   isAssociation = true;

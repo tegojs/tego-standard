@@ -1,9 +1,9 @@
 import crypto from 'node:crypto';
 import { createContext, Script } from 'node:vm';
-import { Context } from '@tachybase/actions';
-import { dayjs } from '@tachybase/utils';
 
 import { transform } from '@babel/core';
+import { Context } from '@tego/server';
+import dayjs from 'dayjs';
 import jsonata from 'jsonata';
 import _ from 'lodash';
 import qrcode from 'qrcode';

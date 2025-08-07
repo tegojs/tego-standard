@@ -1,4 +1,4 @@
-import { parseCollectionName } from '@tachybase/data-source';
+import { parseCollectionName } from '@tego/server';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';

@@ -1,6 +1,5 @@
-import { dayjs } from '@tachybase/utils';
-
 import { faker } from '@faker-js/faker';
+import dayjs from 'dayjs';
 
 export const time = {
   options: () => ({

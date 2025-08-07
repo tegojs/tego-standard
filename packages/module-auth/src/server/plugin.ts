@@ -1,8 +1,6 @@
-import { resolve } from 'path';
-import { Cache } from '@tachybase/cache';
-import { Model } from '@tachybase/database';
-import { InstallOptions, Plugin } from '@tachybase/server';
-import { tval } from '@tachybase/utils';
+import { resolve } from 'node:path';
+
+import { Cache, InstallOptions, Model, Plugin, tval } from '@tego/server';
 
 import { tokenPolicyCollectionName, tokenPolicyRecordKey } from '../constants';
 import { namespace, presetAuthenticator, presetAuthType } from '../preset';

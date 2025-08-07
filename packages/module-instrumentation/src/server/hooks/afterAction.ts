@@ -1,5 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { Application } from '@tachybase/server';
+import { Application, Context } from '@tego/server';
 
 import { WhiteListItem } from '../ServerTrackingFilter';
 import { filterMatch } from './filterMatch';

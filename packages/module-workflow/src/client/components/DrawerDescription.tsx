@@ -1,7 +1,7 @@
 import React from 'react';
 import { createStyles, cx } from '@tachybase/client';
-import { convertUTCToLocal } from '@tachybase/utils/client';
 
+import { convertUTCToLocal } from '@tego/client';
 import { Tag } from 'antd';
 
 import { useTranslation } from '../locale';

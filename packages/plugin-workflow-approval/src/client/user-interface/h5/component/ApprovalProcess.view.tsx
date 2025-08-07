@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useCompile, useCurrentUserContext } from '@tachybase/client';
 import { EXECUTION_STATUS } from '@tachybase/module-workflow/client';
-import { dayjs } from '@tachybase/utils/client';
 
 import { Space, Steps, Tag } from 'antd-mobile';
+import dayjs from 'dayjs';
 import _ from 'lodash';
 
 import { APPROVAL_INITIATION_STATUS } from '../../../common/constants/approval-initiation-status';
@@ -82,7 +82,7 @@ function getResults({ approval, currentUser }) {
     {},
   );
 
-  records
+  (records
     .sort((prevRecord, nextRecord) => {
       const prev = new Date(prevRecord.job?.createdAt);
       const next = new Date(nextRecord.job?.createdAt);
@@ -91,7 +91,7 @@ function getResults({ approval, currentUser }) {
     .forEach((record) => {
       const approvalExecutionId = approvalExecution[record.approvalExecutionId];
       const omitApprovalExecutionId = _.omit(approvalExecutionId, ['records']);
-      (record.workflow = workflow),
+      ((record.workflow = workflow),
         (record.execution = { ...omitApprovalExecutionId }),
         approvalExecutionId.records.push(record),
         approvalExecutionId.jobs || (approvalExecutionId.jobs = {}),
@@ -104,7 +104,7 @@ function getResults({ approval, currentUser }) {
               [APPROVAL_INITIATION_STATUS.REJECTED]: 0,
             })),
         [APPROVAL_INITIATION_STATUS.APPROVED, APPROVAL_INITIATION_STATUS.REJECTED].includes(record.status) &&
-          (approvalExecutionId.jobs[record.jobId].first.statusCount[record.status] += 1);
+          (approvalExecutionId.jobs[record.jobId].first.statusCount[record.status] += 1));
     }),
     approval.createdById === (currentUser == null ? void 0 : currentUser.data.id) &&
       approvalExecutions.forEach((approvalExecution) => {
@@ -116,7 +116,7 @@ function getResults({ approval, currentUser }) {
             status: APPROVAL_TODO_STATUS.WITHDRAWN,
             updatedAt: approvalExecution.updatedAt,
           }));
-      });
+      }));
   const aELength = approvalExecutions.length;
   return approvalExecutions.filter(
     (approvalExecution, index) =>

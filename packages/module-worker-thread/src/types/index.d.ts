@@ -1,6 +1,6 @@
 import { WorkerManager } from '../server/workerManager';
 
-declare module '@tachybase/server' {
+declare module '@tego/server' {
   interface Application {
     worker: WorkerManager;
   }

@@ -1,5 +1,6 @@
 import { SchemaInitializerItemType } from '@tachybase/client';
-import { Evaluator, evaluators, getOptions } from '@tachybase/evaluators/client';
+
+import { Evaluator, evaluators, getOptions } from '@tego/client';
 
 import { RadioWithTooltip } from '../components/RadioWithTooltip';
 import { renderEngineReference } from '../components/renderEngineReference';
@@ -23,10 +24,10 @@ export default class extends Instruction {
       'x-decorator': 'FormItem',
       'x-component': 'RadioWithTooltip',
       'x-component-props': {
-        options: getOptions(),
+        getOptions,
       },
       required: true,
-      default: 'math.js',
+      default: 'formula.js',
     },
     expression: {
       type: 'string',

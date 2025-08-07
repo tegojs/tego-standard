@@ -40,8 +40,6 @@ export class LocalePlugin extends Plugin {
       dayjs.locale(dayjsLang);
 
       // 防止数据源没有日期值的时候, 界面显示 Invalid Date
-      const updateLocale = await import('dayjs/plugin/updateLocale');
-      dayjs.extend(updateLocale.default);
       const localeSetting = { invalidDate: '-' };
       dayjs.updateLocale(dayjsLang, localeSetting);
 

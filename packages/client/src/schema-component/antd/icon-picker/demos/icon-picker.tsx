@@ -1,6 +1,7 @@
 import React from 'react';
 import { IconPicker, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
-import { FormItem } from '@tachybase/components';
+
+import { FormItem } from '@tego/client';
 
 const schema = {
   type: 'object',

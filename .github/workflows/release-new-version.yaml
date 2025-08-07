@@ -13,6 +13,7 @@ on:
           - minor
           - major
 
+# TODO：去除统一的版本更新逻辑
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -87,83 +88,4 @@ jobs:
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
           pnpm -r publish --provenance --access public --no-git-checks
-      - name: Build with pkg
-        run: pnpm --filter tego run build
-
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.release.outputs.version }}
-          files: |
-            apps/tego/dist/tego-linux-x64
-            apps/tego/dist/tego-macos-x64
-            apps/tego/dist/tego-win-x64.exe
-            apps/tego/dist/tego-linux-arm64
-            apps/tego/dist/tego-macos-arm64
-
-  tego-all:
-    needs: [publish, release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release.outputs.version }}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build Tego All
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/tego-all/Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            TEGO_VERSION=${{ needs.release.outputs.version }}
-          tags: |
-            tegojs/tego-all:${{ needs.release.outputs.version }}
-            tegojs/tego-all:latest
-
-  tego:
-    needs: [publish, release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release.outputs.version }}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build Tego Engine
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/tego/Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            TEGO_VERSION=${{ needs.release.outputs.version }}
-          tags: |
-            tegojs/tego:${{ needs.release.outputs.version }}
-            tegojs/tego:latest
 

@@ -12,9 +12,9 @@ import {
   ManualNode,
 } from '@tachybase/plugin-workflow-test/e2e';
 import { expect, test } from '@tachybase/test/e2e';
-import { dayjs } from '@tachybase/utils';
 
 import { faker } from '@faker-js/faker';
+import dayjs from 'dayjs';
 
 test.describe('block configuration', () => {});
 

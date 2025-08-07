@@ -1,6 +1,6 @@
-import path from 'path';
-import { Context, Next } from '@tachybase/actions';
-import { koaMulter as multer } from '@tachybase/utils';
+import path from 'node:path';
+
+import { Context, koaMulter as multer, Next } from '@tego/server';
 
 import { DEFAULT_MAX_FILE_SIZE, FILE_FIELD_NAME, LIMIT_FILES } from '../constants';
 import * as Rules from '../rules';

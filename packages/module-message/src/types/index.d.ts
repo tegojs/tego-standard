@@ -1,7 +1,7 @@
 import { MessageService } from '../server/MessageManager';
 
 // Inject messageManager
-declare module '@tachybase/server' {
+declare module '@tego/server' {
   interface Application {
     messageManager: MessageService;
   }

@@ -1,6 +1,4 @@
-import { Context } from '@tachybase/actions';
-import { AppSupervisor } from '@tachybase/server';
-import { Action, Controller } from '@tachybase/utils';
+import { Action, AppSupervisor, Context, Controller } from '@tego/server';
 
 import { COLLECTION_AUTH_MAIN_APP_CONFIG, NAMESPACE } from '../../constants';
 
@@ -28,8 +26,7 @@ export class AuthMainAppController {
     const multiAppRepo = mainApp.db.getRepository('applications');
     const multiApp = await multiAppRepo.findOne({
       filter: {
-        name: ctx.app.name,
-        createdById: user.userId,
+        $and: [{ name: ctx.app.name }, { $or: [{ createdById: user.userId }, { partners: { id: user.userId } }] }],
       },
     });
     if (!multiApp) {

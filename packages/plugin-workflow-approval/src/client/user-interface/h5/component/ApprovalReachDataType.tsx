@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { observer } from '@tachybase/schema';
-import { dayjs } from '@tachybase/utils/client';
 
 import { AutoCenter, Button, DatePicker, Grid, Popup, Space, Toast } from 'antd-mobile';
 import { DownOutline } from 'antd-mobile-icons';
+import dayjs from 'dayjs';
 
 export const ApprovalReachDataType = observer((props) => {
   const { changeFilter, filter } = props as any;
@@ -38,7 +38,7 @@ export const ApprovalReachDataType = observer((props) => {
           <Grid.Item
             span={4}
             onClick={() => {
-              setPickerVisible(true), setCurrPicker('start');
+              (setPickerVisible(true), setCurrPicker('start'));
             }}
           >
             <AutoCenter style={{ lineHeight: '10vh' }}>{formatDate(startData) || ''}</AutoCenter>
@@ -48,7 +48,7 @@ export const ApprovalReachDataType = observer((props) => {
             style={{ lineHeight: '10vh' }}
             span={4}
             onClick={() => {
-              setPickerVisible(true), setCurrPicker('end');
+              (setPickerVisible(true), setCurrPicker('end'));
             }}
           >
             <AutoCenter>{formatDate(endData) || ''}</AutoCenter>

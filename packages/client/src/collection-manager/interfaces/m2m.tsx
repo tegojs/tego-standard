@@ -10,6 +10,7 @@ export class M2MFieldInterface extends CollectionFieldInterface {
   group = 'relation';
   order = 6;
   title = '{{t("Many to many")}}';
+  icon = 'DeploymentUnitOutlined';
   description = '{{t("Many to many description")}}';
   isAssociation = true;
   default = {

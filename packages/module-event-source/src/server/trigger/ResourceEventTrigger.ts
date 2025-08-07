@@ -1,5 +1,6 @@
-import { Context } from '@tachybase/actions';
 import { JOB_STATUS } from '@tachybase/module-workflow';
+
+import { Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
 import { WebhookController } from '../webhooks/webhooks';

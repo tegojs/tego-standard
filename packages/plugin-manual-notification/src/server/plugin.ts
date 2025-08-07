@@ -1,4 +1,4 @@
-import { InjectedPlugin, Plugin } from '@tachybase/server';
+import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { notificationsController } from './actions/notificationsController';
 

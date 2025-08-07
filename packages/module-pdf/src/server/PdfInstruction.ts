@@ -1,8 +1,8 @@
 import { createContext, Script } from 'node:vm';
-import { Context } from '@tachybase/actions';
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '@tachybase/module-workflow';
 
 import { transform } from '@babel/core';
+import { Context } from '@tego/server';
 import _ from 'lodash';
 
 export class PdfInstruction extends Instruction {

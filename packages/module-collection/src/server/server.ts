@@ -1,10 +1,9 @@
-import path from 'path';
-import * as process from 'process';
-import { isMainThread } from 'worker_threads';
-import { Filter, InheritedCollection, UniqueConstraintError } from '@tachybase/database';
+import path from 'node:path';
+import * as process from 'node:process';
+import { isMainThread } from 'node:worker_threads';
 import PluginErrorHandler from '@tachybase/module-error-handler';
-import { Plugin } from '@tachybase/server';
 
+import { Filter, InheritedCollection, Plugin, UniqueConstraintError } from '@tego/server';
 import { Mutex } from 'async-mutex';
 import lodash from 'lodash';
 
@@ -17,6 +16,7 @@ import {
   beforeDestroyForeignKey,
   beforeInitOptions,
 } from './hooks';
+import { afterUpdateForForeignKeyField } from './hooks/afterUpdateForForeignKeyField';
 import { beforeCreateForValidateField } from './hooks/beforeCreateForValidateField';
 import { beforeCreateForViewCollection } from './hooks/beforeCreateForViewCollection';
 import { CollectionModel, FieldModel } from './models';
@@ -156,7 +156,7 @@ export class CollectionManagerPlugin extends Plugin {
         model.set('sortBy', model.get('foreignKey') + 'Sort');
       }
     });
-
+    this.app.db.on('fields.afterUpdate', afterUpdateForForeignKeyField(this.app.db));
     this.app.db.on('fields.afterUpdate', async (model: FieldModel, { context, transaction }) => {
       const prevOptions = model.previous('options');
       const currentOptions = model.get('options');

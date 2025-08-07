@@ -1,9 +1,8 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-import { Gateway } from '@tachybase/server';
-import { uid } from '@tachybase/utils';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
+import { Gateway, uid } from '@tego/server';
 import axios, { AxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
 import _ from 'lodash';

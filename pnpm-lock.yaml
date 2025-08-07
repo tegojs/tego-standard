@@ -236,8 +236,8 @@ importers:
         specifier: 1.1.2
         version: 1.1.2(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       cronstrue:
-        specifier: ^2.52.0
-        version: 2.52.0
+        specifier: ^3.2.0
+        version: 3.2.0
       d3-format:
         specifier: ^3.1.0
         version: 3.1.0
@@ -1305,8 +1305,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0
       cronstrue:
-        specifier: ^2.52.0
-        version: 2.52.0
+        specifier: ^3.2.0
+        version: 3.2.0
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -9327,8 +9327,8 @@ packages:
     resolution: {integrity: sha512-d6S6+ep7dJxsAG8OQQCdKuByI/S/AV64d9OF5mtmcykOyPu92cAkAnF3Tbc9s5oOaLQBYYQmTNvjqYRkPJ/u5Q==}
     engines: {node: '>=8.0.0'}
 
-  cronstrue@2.52.0:
-    resolution: {integrity: sha512-NKgHbWkSZXJUcaBHSsyzC8eegD6bBd4O0oCI6XMIJ+y4Bq3v4w7sY3wfWoKPuVlq9pQHRB6od0lmKpIqi8TlKA==}
+  cronstrue@3.2.0:
+    resolution: {integrity: sha512-CqpqV5bCei+jmKyIw2Wihz+npXDuSkeExWCItEn5hlpD8+QFMXUU2YW5W3Vh/hFxWwzWhguoGXm5gl1os+L2Hw==}
     hasBin: true
 
   cross-env@7.0.3:
@@ -23838,7 +23838,7 @@ snapshots:
 
   cronosjs@1.7.1: {}
 
-  cronstrue@2.52.0: {}
+  cronstrue@3.2.0: {}
 
   cross-env@7.0.3:
     dependencies:

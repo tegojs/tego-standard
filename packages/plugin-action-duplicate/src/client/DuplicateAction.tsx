@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   ActionContextProvider,
   CollectionProvider_deprecated,
@@ -24,45 +24,7 @@ import { observer, RecursionField, useField, useFieldSchema } from '@tachybase/s
 import { App, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-export const actionDesignerCss = css`
-  position: relative;
-  &:hover {
-    .general-schema-designer {
-      display: block;
-    }
-  }
-  .general-schema-designer {
-    position: absolute;
-    z-index: 999;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: none;
-    background: var(--colorBgSettingsHover);
-    border: 0;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    pointer-events: none;
-    > .general-schema-designer-icons {
-      position: absolute;
-      right: 2px;
-      top: 2px;
-      line-height: 16px;
-      pointer-events: all;
-      .ant-space-item {
-        background-color: var(--colorSettings);
-        color: #fff;
-        line-height: 16px;
-        width: 16px;
-        padding-left: 1px;
-        align-self: stretch;
-      }
-    }
-  }
-`;
+import { actionDesignerCss } from './DuplicateAction.style';
 
 export const DuplicateAction = observer(
   (props: any) => {
@@ -99,6 +61,7 @@ export const DuplicateAction = observer(
         }) || [],
       collection: __collection || name,
     };
+
     const isLinkBtn = fieldSchema['x-component'] === 'Action.Link';
 
     // 页面模式控制逻辑，包括打开抽屉、弹窗、页面等

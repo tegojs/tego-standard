@@ -10,7 +10,7 @@ export const useCloseTab = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { items, setItems } = useContext(PageStyleContext);
-  const targetKey = location.pathname;
+  const currentPath = location.pathname;
 
   const isSubPage = useIsSubPage();
 
@@ -20,7 +20,7 @@ export const useCloseTab = () => {
       e?.stopPropagation();
       setItems((items) => {
         const idx = items.findIndex((i) => i.key === item.key);
-        const isCurrent = item.key === targetKey;
+        const isCurrent = item.key === currentPath;
         const newItems = items.filter((i) => i.key !== item.key);
 
         if (isCurrent) {
@@ -29,9 +29,15 @@ export const useCloseTab = () => {
             // 没有标签页了，跳转到首页
             navigate('/');
           } else {
-            // 如果当前页面是子页面,优先返回上一页
-            if (isSubPage && window?.history.length > 1) {
-              navigate(-1);
+            // 如果当前页面是子页面,跳转到对应的主页面,主页面是去除 sub 后的路径
+            if (isSubPage) {
+              const mainPagePath = stripSubPath(currentPath);
+              if (mainPagePath && mainPagePath !== currentPath) {
+                navigate(mainPagePath);
+              } else {
+                // 如果无法正确解析主页面路径，则返回上一页兜底, 大部分情况下,主页面和上一页是同一个页面
+                navigate(-1);
+              }
             } else {
               // 优先跳转到右侧标签页，否则跳转到左侧
               const nextTab = items[idx + 1] || items[idx - 1];
@@ -47,8 +53,18 @@ export const useCloseTab = () => {
         return newItems;
       });
     },
-    [items, targetKey, navigate, setItems],
+    [items, currentPath, navigate, setItems],
   );
 
   return { handleCloseTab };
 };
+
+/**
+ * 从路径中移除 '/sub' 及其后面的所有内容
+ * @param {string} path 原始路径
+ * @returns {string} 移除后的路径
+ */
+function stripSubPath(path: string) {
+  const subIndex = path.indexOf('/sub');
+  return subIndex === -1 ? path : path.slice(0, subIndex);
+}

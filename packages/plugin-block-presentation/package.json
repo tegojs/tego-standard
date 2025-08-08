@@ -19,7 +19,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "react": "18.3.1",
-    "react-i18next": "15.2.0",
+    "react-i18next": "15.6.1",
     "react-iframe": "~1.8.5"
   },
   "description.zh-CN": "在页面上创建和管理，用于嵌入和展示外部网页或内容。",

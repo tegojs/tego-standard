@@ -17,7 +17,7 @@
     "@tego/server": "*",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
-    "react-i18next": "15.2.0",
+    "react-i18next": "15.6.1",
     "swagger-ui-dist": "^5.26.2"
   },
   "description.zh-CN": "开发工具,用于查看Api文档,中间件,环境变量,事件等信息",

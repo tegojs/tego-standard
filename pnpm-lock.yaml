@@ -272,8 +272,8 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1
       nanoid:
-        specifier: ^3.3.8
-        version: 3.3.8
+        specifier: ^5.1.5
+        version: 5.1.5
       rc-menu:
         specifier: 9.16.1
         version: 9.16.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2130,8 +2130,8 @@ importers:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       nanoid:
-        specifier: ^3.3.8
-        version: 3.3.11
+        specifier: ^5.1.5
+        version: 5.1.5
       openid-client:
         specifier: ^5.7.1
         version: 5.7.1
@@ -12079,6 +12079,11 @@ packages:
   nanoid@3.3.8:
     resolution: {integrity: sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
+  nanoid@5.1.5:
+    resolution: {integrity: sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==}
+    engines: {node: ^18 || >=20}
     hasBin: true
 
   napi-build-utils@1.0.2:
@@ -26537,6 +26542,8 @@ snapshots:
   nanoid@3.3.11: {}
 
   nanoid@3.3.8: {}
+
+  nanoid@5.1.5: {}
 
   napi-build-utils@1.0.2: {}
 

@@ -12,7 +12,7 @@
     "@node-red/editor-api": "4.0.8",
     "@node-red/nodes": "4.0.8",
     "@node-red/runtime": "4.0.8",
-    "@node-red/util": "4.0.8",
+    "@node-red/util": "4.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/test": "*",
     "@tego/client": "*",

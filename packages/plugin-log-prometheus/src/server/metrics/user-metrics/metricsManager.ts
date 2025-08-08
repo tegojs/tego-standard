@@ -1,15 +1,19 @@
+import Database from '@tachybase/database';
+import Application from '@tachybase/server';
+
 import { metricsUtils } from './metricsUtils';
 
 /**
  * 初始化用户指标系统
  * @param db 数据库实例
+ * @param app 应用实例
  * @param autoStart 是否自动启动统计数据收集
  */
-export async function initializeUserMetrics(db?: any, autoStart: boolean = true) {
+export async function initializeUserMetrics(db?: Database, app?: Application, autoStart: boolean = true) {
   try {
     console.log('[UserMetrics] Initializing user metrics system...');
 
-    const userMetrics = new UserLoginMetrics(db);
+    const userMetrics = new UserLoginMetrics(db, app);
     const statsCollector = new UserStatsCollector(userMetrics);
 
     if (autoStart) {
@@ -34,9 +38,11 @@ export async function initializeUserMetrics(db?: any, autoStart: boolean = true)
  */
 export class UserLoginMetrics {
   private db: any;
+  private app: any;
 
-  constructor(db?: any) {
+  constructor(db?: any, app?: any) {
     this.db = db;
+    this.app = app;
   }
 
   /**
@@ -129,6 +135,18 @@ export class UserLoginMetrics {
   }
 
   /**
+   * 记录在线用户数
+   */
+  async recordOnlineUsers(count: number) {
+    try {
+      metricsUtils.recordOnlineUsers(count);
+      console.log(`[UserMetrics] 记录在线用户数: ${count}`);
+    } catch (error) {
+      console.error('[UserMetrics] 记录用户数失败:', error);
+    }
+  }
+
+  /**
    * 从数据库获取每日活跃用户数
    */
   async getDailyActiveUsersFromDB(): Promise<number> {
@@ -176,6 +194,33 @@ export class UserLoginMetrics {
       return totalUsers;
     } catch (error) {
       console.error('[UserMetrics] 获取注册用户总数失败:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * 获取当前应用的在线用户数
+   */
+  async getOnlineUsersFromAPP(): Promise<number> {
+    if (!this.app) {
+      console.warn('[UserMetrics] app 未初始化，返回 0');
+      return 0;
+    }
+
+    const appName = this.app.name;
+    const key = `online_users${appName}`;
+
+    try {
+      const onlineService = this.app.online?.all;
+      console.log('%c Line:213 🍻 onlineService', 'color:#33a5ff', onlineService);
+      if (!onlineService || typeof onlineService.HLEN !== 'function') {
+        console.warn('[UserMetrics] onlineService 或 HLEN 方法未定义，返回 0');
+        return 0;
+      }
+      const count = await onlineService.HLEN(key);
+      return count ?? 0;
+    } catch (error) {
+      console.error(`[UserMetrics] 获取在线用户数失败（key: ${key}）:`, error);
       return 0;
     }
   }
@@ -238,10 +283,12 @@ export class UserStatsCollector {
       // 从数据库获取实际数据
       const dailyActiveUsers = await this.userMetrics.getDailyActiveUsersFromDB();
       const totalRegisteredUsers = await this.userMetrics.getTotalRegisteredUsersFromDB();
+      const onlineUsers = await this.userMetrics.getOnlineUsersFromAPP();
 
       // 更新指标
       await this.userMetrics.updateDailyActiveUsers(dailyActiveUsers);
       await this.userMetrics.updateTotalRegisteredUsers(totalRegisteredUsers);
+      await this.userMetrics.recordOnlineUsers(onlineUsers);
 
       console.log(
         `[UserStatsCollector] 用户统计数据已更新: 活跃用户 ${dailyActiveUsers}, 注册用户 ${totalRegisteredUsers}`,

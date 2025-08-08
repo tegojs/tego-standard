@@ -21,6 +21,10 @@ export const metricsUtils = {
       method,
     });
   },
+  // 记录在线人数
+  recordOnlineUsers(count: number) {
+    userMetrics.onlineUsers.set(count);
+  },
 
   // 更新每日登录人次
   updateDailyLoginCount() {

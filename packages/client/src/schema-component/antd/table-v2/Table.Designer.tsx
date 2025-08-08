@@ -6,7 +6,7 @@ import { GeneralSchemaDesigner, SchemaSettingsRemove } from '../../../schema-set
 export const TableDesigner = () => {
   const { name, title } = useCollection_deprecated();
   return (
-    <GeneralSchemaDesigner title={title || name}>
+    <GeneralSchemaDesigner title={title || name} disableSettings>
       <SchemaSettingsRemove
         removeParentsIfNoChildren
         breakRemoveOn={{

@@ -1,3 +1,5 @@
+import { formatDateTime } from '@tachybase/utils';
+
 import client from 'prom-client';
 
 import { register } from '../metrics/register';
@@ -28,10 +30,15 @@ export class TrackingMetricsUtils {
     userId?: string,
     errorType?: string,
   ) {
+    const today = formatDateTime(new Date(), 'YYYY-MM-DD');
     const labels = {
-      config_title: config.title,
-      resource_name: config.resourceName,
-      action_name: config.action,
+      config_title: config.title || '',
+      resource_name: config.resourceName || '',
+      action_name: config.action || '',
+      status,
+    };
+    const baesLabels = {
+      date: today || '',
       status,
     };
 
@@ -41,14 +48,14 @@ export class TrackingMetricsUtils {
     } else {
       // 判断指标类型，执行不同方法
       if (metric instanceof client.Counter) {
-        metric.inc(labels);
+        metric.inc(baesLabels);
       } else if (metric instanceof client.Histogram) {
         if (duration !== undefined) {
-          metric.observe(labels, duration / 1000);
+          metric.observe(baesLabels, duration / 1000);
         }
       } else if (metric instanceof client.Gauge) {
         // Gauge 例子，这里根据业务定
-        metric.set(labels, 0);
+        metric.set(baesLabels, 0);
       }
     }
 

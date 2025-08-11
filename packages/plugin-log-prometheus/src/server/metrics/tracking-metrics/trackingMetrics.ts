@@ -49,7 +49,7 @@ export const trackingMetrics = {
 export function addDynamicMetric(config: any) {
   let metric: any;
 
-  const labelNames = ['config_title', 'resource_name', 'action_name', 'status'];
+  const labelNames = ['date', 'status'];
   switch (config.type) {
     case 'Counter':
       metric = new client.Counter({

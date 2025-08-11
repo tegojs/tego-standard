@@ -35,6 +35,11 @@ export class PluginLogMetricsServer extends Plugin {
       // 只在主线程初始化
       await this.initializeTrackingSystem();
     }
+
+    this.app.acl.registerSnippet({
+      name: `pm.system-services.prometheus`,
+      actions: ['metricsConfig:*'],
+    });
   }
 
   async install() {}

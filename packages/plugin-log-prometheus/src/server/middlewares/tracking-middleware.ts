@@ -147,8 +147,8 @@ async function processTracking(
 ) {
   try {
     const duration = Date.now() - startTime;
-    const userId = ctx.auth?.user?.id;
-    const { actionName, resourceName, params } = ctx.action;
+    // const userId = ctx.auth?.user?.id;
+    const { params } = ctx.action;
     const data = ctx.response?.body || null;
 
     // 提取配置的数据
@@ -171,12 +171,12 @@ async function processTracking(
 
     const collection = ctx.app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
     const currentRecordId = ctx.body?.[collection?.filterTargetKey] || null;
-    const currentUserId = ctx.auth?.user?.id || null;
+    const userId = ctx.auth?.user?.id || null;
     const currentTime = new Date().toISOString();
     const currentUserDevice = ctx.req?.headers?.['user-agent'] || null;
 
     const baseValues: Record<string, any> = {};
-    if (configKeys.meta.includes('userId')) baseValues.userId = currentUserId;
+    if (configKeys.meta.includes('userId')) baseValues.userId = userId;
     if (configKeys.meta.includes('recordId')) baseValues.recordId = currentRecordId;
     if (configKeys.meta.includes('createdAt')) baseValues.createdAt = currentTime;
     if (configKeys.meta.includes('user-agent')) baseValues.userAgent = currentUserDevice;

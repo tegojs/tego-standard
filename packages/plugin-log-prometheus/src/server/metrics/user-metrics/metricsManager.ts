@@ -85,12 +85,24 @@ export class UserLoginMetrics {
    * @param userId 用户ID
    * @param registrationDate 注册日期
    */
-  async recordUserRegistration(userId: string, registrationDate: Date) {
+  async recordUserRegistration(registrationDate: Date) {
     try {
-      metricsUtils.recordUserRegistration(userId, registrationDate);
-      console.log(`[UserMetrics] 记录用户注册: ${userId}, 日期: ${registrationDate.toISOString()}`);
+      metricsUtils.recordUserRegistration(registrationDate);
+      console.log(`[UserMetrics] 记录用户注册日期: ${registrationDate.toISOString()}`);
     } catch (error) {
       console.error('[UserMetrics] 记录用户注册失败:', error);
+    }
+  }
+
+  /**
+   * 记录用户访问次数
+   */
+  async recordUserVisit(pageType: string, visitDate?: Date) {
+    try {
+      metricsUtils.recordUserVisit(pageType, visitDate);
+      console.log(`[UserMetrics] 记录用户访问次数`);
+    } catch (error) {
+      console.error('[UserMetrics] 记录用户访问次数失败:', error);
     }
   }
 
@@ -212,7 +224,6 @@ export class UserLoginMetrics {
 
     try {
       const onlineService = this.app.online?.all;
-      console.log('%c Line:213 🍻 onlineService', 'color:#33a5ff', onlineService);
       if (!onlineService || typeof onlineService.HLEN !== 'function') {
         console.warn('[UserMetrics] onlineService 或 HLEN 方法未定义，返回 0');
         return 0;

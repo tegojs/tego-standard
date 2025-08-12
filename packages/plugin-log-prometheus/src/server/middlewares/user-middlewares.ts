@@ -25,12 +25,20 @@ export function createUserMetricsMiddleware(userMetrics: UserLoginMetrics) {
       }
 
       // 检测用户注册请求
-      if (ctx.action && ctx.action.actionName === 'create' && ctx.action.resourceName === 'users') {
+      if (ctx.action && ctx.action.actionName === 'signUp' && ctx.action.resourceName === 'auth') {
         if (ctx.status === 200 || !ctx.body?.errors) {
           // 注册成功
-          const userId = ctx.body?.data?.id || 'unknown';
           const registrationDate = new Date();
-          await userMetrics.recordUserRegistration(userId, registrationDate);
+          await userMetrics.recordUserRegistration(registrationDate);
+        }
+      }
+
+      // 检测用户访问
+      if (ctx.action && ctx.action.actionName === 'publicList' && ctx.action.resourceName === 'authenticators') {
+        if (ctx.status === 200 || !ctx.body?.errors) {
+          const visitDate = new Date();
+          const pageType = 'loginPage';
+          await userMetrics.recordUserVisit(pageType, visitDate);
         }
       }
 

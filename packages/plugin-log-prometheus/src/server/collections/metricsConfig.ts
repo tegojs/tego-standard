@@ -56,13 +56,13 @@ export default defineCollection({
       },
     },
   ],
-  indexes: [
-    {
-      fields: ['resourceName', 'action'],
-      unique: true,
-    },
-    {
-      fields: ['enabled'],
-    },
-  ],
+  // indexes: [
+  //   {
+  //     fields: ['resourceName', 'action'],
+  //     unique: true,
+  //   },
+  //   {
+  //     fields: ['enabled'],
+  //   },
+  // ],
 } as CollectionOptions);

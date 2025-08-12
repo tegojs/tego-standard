@@ -20,7 +20,7 @@
     "antd": "5.22.5",
     "dayjs": "^1.11.13",
     "lodash": "4.17.21",
-    "sequelize": "^6.37.5"
+    "sequelize": "^6.37.7"
   },
   "description.zh-CN": "注册和管理自定义事件源",
   "displayName.zh-CN": "事件源"

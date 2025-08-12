@@ -18,7 +18,7 @@
     "@tego/client": "*",
     "@tego/server": "*",
     "lodash": "4.17.21",
-    "sequelize": "^6.37.5"
+    "sequelize": "^6.37.7"
   },
   "description.zh-CN": "提供中心化的 UI schema 存储服务。",
   "displayName.zh-CN": "UI schema 存储服务"

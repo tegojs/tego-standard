@@ -12,10 +12,10 @@
     "@tachybase/test": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "@types/sequelize": "^4.28.20",
+    "@types/sequelize": "^6.12.0",
     "antd": "5.22.5",
     "lodash": "4.17.21",
-    "sequelize": "^6.37.5"
+    "sequelize": "^6.37.7"
   },
   "description.zh-CN": "提供全字段搜索能力",
   "displayName.zh-CN": "全文搜索"

@@ -28,7 +28,7 @@
     "react": "18.3.1",
     "react-error-boundary": "^6.0.0",
     "react-i18next": "15.2.0",
-    "sequelize": "^6.37.5"
+    "sequelize": "^6.37.7"
   },
   "description.zh-CN": "提供数据可视化功能，包含图表卡片和图表筛选卡片，支持折线图、面积图、柱状图等十几种图表，你也可以扩展更多图表类型。",
   "displayName.zh-CN": "卡片：图表"

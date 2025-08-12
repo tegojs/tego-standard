@@ -208,15 +208,15 @@ export class PluginMultiAppManager extends Plugin {
           context: options.context,
         });
 
-        if ((options as any).values.options.autoStart) {
-          const startPromise = subApp.runCommand('start', '--quickstart');
+        // if ((options as any).values.options.autoStart) {
+        //   const startPromise = subApp.runCommand('start', '--quickstart');
 
-          if (options?.context?.waitSubAppInstall) {
-            await startPromise;
-          }
+        //   if (options?.context?.waitSubAppInstall) {
+        //     await startPromise;
+        //   }
 
-          this.app.noticeManager.notify(NOTIFY_STATUS_EVENT_KEY, { level: 'info', refresh: true });
-        }
+        //   this.app.noticeManager.notify(NOTIFY_STATUS_EVENT_KEY, { level: 'info', refresh: true });
+        // }
       },
     );
 

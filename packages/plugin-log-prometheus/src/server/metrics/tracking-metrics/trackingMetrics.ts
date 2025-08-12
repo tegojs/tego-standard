@@ -1,6 +1,6 @@
 import client from 'prom-client';
 
-import { register } from './register';
+import { register } from '../register';
 
 // 追踪相关指标
 export const trackingMetrics = {
@@ -45,3 +45,44 @@ export const trackingMetrics = {
     registers: [register],
   }),
 };
+
+export function addDynamicMetric(config: any) {
+  let metric: any;
+
+  const labelNames = ['date', 'status'];
+  switch (config.type) {
+    case 'Counter':
+      metric = new client.Counter({
+        name: `tego_action_${config.title}`,
+        help: config.help || `Counter for ${config.title}`,
+        labelNames,
+        registers: [register],
+      });
+      break;
+
+    case 'Histogram':
+      metric = new client.Histogram({
+        name: `tego_action_${config.title}_duration_seconds`,
+        help: config.help || `Histogram for ${config.title} duration`,
+        labelNames,
+        buckets: [0.1, 0.5, 1, 2, 5, 10],
+        registers: [register],
+      });
+      break;
+
+    case 'Gauge':
+      metric = new client.Gauge({
+        name: `tego_action_${config.title}`,
+        help: config.help || `Gauge for ${config.title}`,
+        labelNames,
+        registers: [register],
+      });
+      break;
+
+    default:
+      throw new Error(`Unsupported metric type: ${config.type}`);
+  }
+
+  trackingMetrics[`tracking_${config.title}`] = metric;
+  return metric;
+}

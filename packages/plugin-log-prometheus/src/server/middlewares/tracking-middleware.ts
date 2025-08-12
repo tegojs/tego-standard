@@ -1,28 +1,71 @@
 import { Context } from '@tachybase/actions';
 
-import { TrackingFilter } from '../metrics/trackingFilter';
+import { transaction } from 'packages/database/src/relation-repository/relation-repository';
+
+import { TrackingFilter } from '../metrics/tracking-metrics/trackingFilter';
+import { addDynamicMetric } from '../metrics/tracking-metrics/trackingMetrics';
 import { trackingMetricsUtils } from '../utils/tracking-metrics-utils';
 
 // 数据过滤工具函数
-function filterMatch(data: any, filter: Record<string, any>): boolean {
-  if (!filter || Object.keys(filter).length === 0) {
-    return true;
-  }
 
+const operators = {
+  $eq: (a, b) => a === b,
+  $ne: (a, b) => a !== b,
+  $gt: (a, b) => a > b,
+  $gte: (a, b) => a >= b,
+  $lt: (a, b) => a < b,
+  $lte: (a, b) => a <= b,
+  $in: (a, b) => a.includes(b),
+  $exists: (a, b) => (b ? a !== undefined : a === undefined),
+  $null: (a, b) => (b ? a === null : a !== null),
+};
+
+function getValueByPath(obj: any, path: string): any {
+  if (!obj || !path) return undefined;
+
+  return path.split('.').reduce((acc, key) => {
+    if (acc === undefined || acc === null) return undefined;
+    return acc[key];
+  }, obj);
+}
+function matchCondition(value, condition) {
+  for (const op in condition) {
+    const operator = op;
+    if (operators[operator]) {
+      if (!operators[operator](value, condition[op])) return false;
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+function filterMatch(data: any, filter: Record<string, any>): boolean {
   try {
-    // 简单的过滤逻辑，可以根据需要扩展
-    for (const [key, value] of Object.entries(filter)) {
-      if (key === '$and' && Array.isArray(value)) {
-        return value.every((condition) => filterMatch(data, condition));
-      }
-      if (key === '$or' && Array.isArray(value)) {
-        return value.some((condition) => filterMatch(data, condition));
-      }
-      if (key === '$exists') {
-        return value === (data !== undefined && data !== null);
-      }
-      if (data[key] !== value) {
-        return false;
+    if ('$and' in filter) {
+      return filter['$and'].every((subFilter) => filterMatch(data, subFilter));
+    }
+    if ('$or' in filter) {
+      return filter['$or'].some((subFilter) => filterMatch(data, subFilter));
+    }
+    for (const key in filter) {
+      const value = filter[key];
+
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        for (const subKey in value) {
+          const nested = value[subKey];
+
+          const fullPath = `${key}.${subKey}`;
+          const actualValue = getValueByPath(data, fullPath);
+
+          if (!matchCondition(actualValue, nested)) {
+            return false;
+          }
+        }
+      } else {
+        if (getValueByPath(data, key) !== value) {
+          return false;
+        }
       }
     }
     return true;
@@ -104,8 +147,8 @@ async function processTracking(
 ) {
   try {
     const duration = Date.now() - startTime;
-    const userId = ctx.auth?.user?.id;
-    const { actionName, resourceName, params } = ctx.action;
+    // const userId = ctx.auth?.user?.id;
+    const { params } = ctx.action;
     const data = ctx.response?.body || null;
 
     // 提取配置的数据
@@ -115,19 +158,42 @@ async function processTracking(
       filter: config.trackingOptions?.filter || {},
     };
 
-    // 构建追踪数据
-    const trackingData = {
-      params,
-      data,
-      meta: {
-        userId,
-        createdAt: new Date().toISOString(),
-        userAgent: ctx.req?.headers?.['user-agent'],
-      },
-    };
+    // // 构建追踪数据
+    // const trackingData = {
+    //   params,
+    //   data,
+    //   meta: {
+    //     userId,
+    //     createdAt: new Date().toISOString(),
+    //     userAgent: ctx.req?.headers?.['user-agent'],
+    //   },
+    // };
 
+    const collection = ctx.app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
+    const currentRecordId = ctx.body?.[collection?.filterTargetKey] || null;
+    const userId = ctx.auth?.user?.id || null;
+    const currentTime = new Date().toISOString();
+    const currentUserDevice = ctx.req?.headers?.['user-agent'] || null;
+
+    const baseValues: Record<string, any> = {};
+    if (configKeys.meta.includes('userId')) baseValues.userId = userId;
+    if (configKeys.meta.includes('recordId')) baseValues.recordId = currentRecordId;
+    if (configKeys.meta.includes('createdAt')) baseValues.createdAt = currentTime;
+    if (configKeys.meta.includes('user-agent')) baseValues.userAgent = currentUserDevice;
+
+    const nestedValuesMap = findValuesByKeys({ params, data }, configKeys.payload);
+
+    const finalValues = {
+      meta: baseValues,
+      payload: Object.fromEntries(
+        Object.entries(nestedValuesMap).map(([key, value]) => [
+          key,
+          Array.isArray(value) && value.length === 1 ? value[0] : value,
+        ]),
+      ),
+    };
     // 检查过滤条件
-    if (filterMatch(trackingData, configKeys.filter)) {
+    if (filterMatch(finalValues, configKeys.filter)) {
       // 记录到 Prometheus metrics
       trackingMetricsUtils.recordActionExecution(config, status, duration, userId, errorType);
 
@@ -143,7 +209,8 @@ export async function initializeDefaultTrackingConfig(db: any) {
   try {
     const SignInTracking = await db.getRepository('metricsConfig').findOne({
       filter: {
-        title: 'sign-in',
+        title: 'sign_in',
+        type: 'Counter',
         resourceName: 'auth',
         action: 'signIn',
       },
@@ -152,7 +219,9 @@ export async function initializeDefaultTrackingConfig(db: any) {
     if (!SignInTracking) {
       await db.getRepository('metricsConfig').create({
         values: {
-          title: 'sign-in',
+          title: 'sign_in',
+          help: '登录操作',
+          type: 'Counter',
           resourceName: 'auth',
           action: 'signIn',
           enabled: true,
@@ -174,6 +243,17 @@ export async function initializeDefaultTrackingConfig(db: any) {
         },
       });
       console.log('[TrackingMiddleware] 已创建默认登录追踪配置');
+    }
+  } catch (error) {
+    console.error('[TrackingMiddleware] 初始化默认追踪配置失败:', error);
+  }
+}
+
+export async function initializeDefaultTrackingMetrics(db: any) {
+  try {
+    const allMetricsConfigs = await db.getRepository('metricsConfig').find();
+    for (const config of allMetricsConfigs) {
+      addDynamicMetric(config);
     }
   } catch (error) {
     console.error('[TrackingMiddleware] 初始化默认追踪配置失败:', error);

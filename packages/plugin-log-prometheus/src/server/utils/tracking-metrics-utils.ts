@@ -1,5 +1,9 @@
+import { formatDateTime } from '@tachybase/utils';
+
+import client from 'prom-client';
+
 import { register } from '../metrics/register';
-import { trackingMetrics } from '../metrics/trackingMetrics';
+import { trackingMetrics } from '../metrics/tracking-metrics/trackingMetrics';
 
 // 追踪指标工具类
 export class TrackingMetricsUtils {
@@ -26,12 +30,34 @@ export class TrackingMetricsUtils {
     userId?: string,
     errorType?: string,
   ) {
+    const today = formatDateTime(new Date(), 'YYYY-MM-DD');
     const labels = {
-      config_title: config.title,
-      resource_name: config.resourceName,
-      action_name: config.action,
+      config_title: config.title || '',
+      resource_name: config.resourceName || '',
+      action_name: config.action || '',
       status,
     };
+    const baesLabels = {
+      date: today || '',
+      status,
+    };
+
+    const metric = trackingMetrics[`tracking_${config.title}`];
+    if (!metric) {
+      console.warn(`[recordActionExecution] 未找到动态指标实例: ${config.title}`);
+    } else {
+      // 判断指标类型，执行不同方法
+      if (metric instanceof client.Counter) {
+        metric.inc(baesLabels);
+      } else if (metric instanceof client.Histogram) {
+        if (duration !== undefined) {
+          metric.observe(baesLabels, duration / 1000);
+        }
+      } else if (metric instanceof client.Gauge) {
+        // Gauge 例子，这里根据业务定
+        metric.set(baesLabels, 0);
+      }
+    }
 
     // 记录执行次数
     trackingMetrics.actionExecutionCount.inc(labels);

@@ -31,7 +31,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-i18next": "15.2.0",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "7.8.0"
   },
   "description.zh-CN": "为 TachyBase 服务端提供客户端界面",
   "displayName.zh-CN": "WEB 客户端"

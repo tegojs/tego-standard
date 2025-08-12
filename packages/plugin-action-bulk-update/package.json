@@ -18,7 +18,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "react-i18next": "15.2.0",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "7.8.0"
   },
   "description.zh-CN": "对全部数据或选中的数据进行批量更新。",
   "displayName.zh-CN": "操作：批量更新"

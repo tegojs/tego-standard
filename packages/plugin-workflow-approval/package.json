@@ -28,7 +28,7 @@
     "jsonata": "^2.0.6",
     "lodash": "4.17.21",
     "react-i18next": "15.2.0",
-    "react-router-dom": "6.28.1",
+    "react-router-dom": "7.8.0",
     "sequelize": "^6.37.5"
   },
   "description.zh-CN": "审批系统是一个强大的BPM工具，为业务流程自动化提供基础支持，同时具备高度灵活性和可扩展性，确保审批流程的效率和合规性，助力企业释放创新潜力。",

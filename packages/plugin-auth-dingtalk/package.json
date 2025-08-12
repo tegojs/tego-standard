@@ -20,7 +20,7 @@
     "@tego/client": "*",
     "@tego/server": "*",
     "antd": "5.22.5",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "7.8.0"
   },
   "description.zh-CN": "认证：钉钉",
   "displayName.zh-CN": "认证：钉钉"

@@ -22,7 +22,7 @@
     "qrcode": "^1.5.4",
     "react-i18next": "15.2.0",
     "react-router": "6.28.1",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "7.8.0"
   },
   "description.zh-CN": "与外部用户分享页面。",
   "displayName.zh-CN": "动作：对外分享"

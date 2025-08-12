@@ -104,7 +104,7 @@ export const updateMetricsConfig: ISchema = {
                   'x-decorator': 'FormItem',
                   required: true,
                 },
-                apiConfig: {
+                enabled: {
                   type: 'boolean',
                   default: true,
                   'x-component': 'CollectionField',
@@ -121,7 +121,7 @@ export const updateMetricsConfig: ISchema = {
                   },
                   'x-reactions': [
                     {
-                      dependencies: ['apiConfig'],
+                      dependencies: ['enabled'],
                       fulfill: {
                         state: {
                           visible: '{{!!$deps[0]}}',

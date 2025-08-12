@@ -113,7 +113,7 @@ export const createMetricsConfig: ISchema = {
                   'x-decorator': 'FormItem',
                   required: true,
                 },
-                apiConfig: {
+                enabled: {
                   type: 'boolean',
                   default: true,
                   'x-component': 'CollectionField',
@@ -129,11 +129,11 @@ export const createMetricsConfig: ISchema = {
                     },
                   },
                   description: `e.g. 
-                                                    filter: {
-                                                    "$and": [
-                                                        { "meta": { "userId": { "$gt": 1 } } },
-                                                        { "payload": { "resourceName": { "$eq": "xxxxxx" } } },
-                                                    ]}`,
+                    filter: {
+                    "$and": [
+                        { "meta": { "userId": { "$gt": 1 } } },
+                        { "payload": { "resourceName": { "$eq": "xxxxxx" } } },
+                    ]}`,
                   'x-component': 'CollectionField',
                   'x-decorator': 'FormItem',
                   'x-component-props': {
@@ -143,7 +143,7 @@ export const createMetricsConfig: ISchema = {
                   },
                   'x-reactions': [
                     {
-                      dependencies: ['apiConfig'],
+                      dependencies: ['enabled'],
                       fulfill: {
                         state: {
                           visible: '{{!!$deps[0]}}',

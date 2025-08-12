@@ -35,19 +35,19 @@ export const metricsConfigsCollection = {
       name: 'type',
       uiSchema: {
         type: 'string',
-        title: `{{t("type")}}`,
+        title: `{{t("Metrics type")}}`,
         enum: [
           {
             value: 'Counter',
-            label: 'Counter',
+            label: tval('Counter'),
           },
           {
             value: 'Histogram',
-            label: 'Histogram',
+            label: tval('Histogram'),
           },
           {
             value: 'Gauge',
-            label: 'Gauge',
+            label: tval('Gauge'),
           },
         ],
         'x-component': 'Select',
@@ -81,7 +81,7 @@ export const metricsConfigsCollection = {
     {
       interface: 'boolean',
       type: 'boolean',
-      name: 'apiConfig',
+      name: 'enabled',
       uiSchema: {
         type: 'boolean',
         title: tval('Api audit'),

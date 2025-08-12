@@ -130,7 +130,7 @@ export const schemaMetricsConfigs: ISchema = {
                 },
               },
             },
-            apiConfig: {
+            enabled: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
@@ -138,7 +138,7 @@ export const schemaMetricsConfigs: ISchema = {
                 align: 'center',
               },
               properties: {
-                apiConfig: {
+                enabled: {
                   type: 'boolean',
                   'x-component': 'CollectionField',
                   'x-read-pretty': true,

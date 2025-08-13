@@ -1,5 +1,4 @@
-import React from 'react';
-import { ActionInitializer } from '@tachybase/client';
+import { ActionInitializer, OpenMode } from '@tachybase/client';
 
 export const DuplicateActionInitializer = (props) => {
   const schema = {
@@ -10,11 +9,11 @@ export const DuplicateActionInitializer = (props) => {
     'x-component': 'Action.Link',
     'x-decorator': 'ACLActionProvider',
     'x-component-props': {
-      openMode: 'drawer',
+      openMode: OpenMode.DEFAULT,
       component: 'DuplicateAction',
     },
     properties: {
-      drawer: {
+      pageModeContainer: {
         type: 'void',
         title: '{{ t("Duplicate") }}',
         'x-component': 'Action.Container',
@@ -22,26 +21,15 @@ export const DuplicateActionInitializer = (props) => {
           className: 'tb-action-popup',
         },
         properties: {
-          tabs: {
+          page: {
             type: 'void',
-            'x-component': 'Tabs',
-            'x-component-props': {},
-            'x-initializer': 'popup:addTab',
+            title: '{{ t("Duplicate") }}',
+            'x-component': 'Page',
             properties: {
-              tab1: {
+              grid: {
                 type: 'void',
-                title: '{{t("Duplicate")}}',
-                'x-component': 'Tabs.TabPane',
-                'x-designer': 'Tabs.Designer',
-                'x-component-props': {},
-                properties: {
-                  grid: {
-                    type: 'void',
-                    'x-component': 'Grid',
-                    'x-initializer': 'popup:addNew:addBlock',
-                    properties: {},
-                  },
-                },
+                'x-component': 'Grid',
+                'x-initializer': 'popup:addNew:addBlock',
               },
             },
           },

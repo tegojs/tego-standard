@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   CollectionOptions,
   CollectionRecordContext,
@@ -60,6 +60,10 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
       block: 'Form',
     }),
   };
+  const defaultExcludedNames = ['id', 'updatedAt', 'updatedBy', 'createdAt', 'createdBy'];
+  const fieldsOptionsFiltered = options.fieldsOptions.filter((item) => !defaultExcludedNames.includes(item.name));
+  const defaultTag = fieldsOptionsFiltered.length === 0 ? 'addNew' : 'existing';
+  const [activeTab, setActiveTab] = useState(defaultTag);
   const handleInsert = (s: ISchema) => {
     const wrapedSchema = wrapFieldInGridSchema(s);
     let maxIndex = 0;
@@ -96,13 +100,17 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
       },
     },
   };
+  useEffect(() => {
+    setActiveTab(defaultTag);
+  }, [defaultTag]);
   return (
     <Sider width={250} style={{ background: 'white', overflow: 'auto' }}>
       <RecordProvider record={record}>
         <ResourceActionProvider {...resourceActionProps}>
           <FormContext.Provider value={form}>
             <Tabs
-              defaultActiveKey="existing"
+              onChange={(key) => setActiveTab(key)}
+              activeKey={activeTab}
               centered
               tabBarGutter={50}
               items={[
@@ -115,7 +123,7 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
                 },
                 {
                   label: t('Add field'),
-                  key: 'extra',
+                  key: 'addNew',
                   children: <EditorAddFieldsSider schema={gridSchema} handleInsert={handleInsert} />,
                 },
               ]}

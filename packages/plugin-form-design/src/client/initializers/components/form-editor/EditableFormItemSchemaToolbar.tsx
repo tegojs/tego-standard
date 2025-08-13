@@ -56,7 +56,7 @@ const EditableInternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
   const field = useField<Field>();
   const { styles } = useStyles();
   const { getAriaLabel } = useGetAriaLabelOfDesigner();
-  const { setEditableField } = useEditableSelectedField();
+  const { setEditableField, fieldSchema: currentFieldSchema } = useEditableSelectedField();
   const { removeActiveFieldName } = useFormActiveFields() || {};
   const { dn } = useEditableDesignable();
 
@@ -109,7 +109,7 @@ const EditableInternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
 
   useEffect(() => {
     const toolbarElement = toolbarRef.current;
-    const parentElement = toolbarElement?.parentElement;
+    const parentElement = toolbarElement?.parentElement?.parentElement;
     function show() {
       if (toolbarElement) {
         toolbarElement.style.display = 'block';
@@ -164,18 +164,29 @@ const EditableInternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
     return null;
   }
 
+  const displaymode = currentFieldSchema?.['x-uid'] === fieldSchema['x-uid'] ? 'block' : 'none';
+
   return (
-    <div
-      ref={toolbarRef}
-      className={styles.toolbar}
-      style={{ border: showBorder ? 'auto' : 0, background: showBackground ? 'auto' : 0 }}
-    >
-      <div className={styles.toolbarIcons}>
-        <Space size={3} align={'center'}>
-          {dragElement}
-          {deleteElement}
-        </Space>
+    <div>
+      <div
+        ref={toolbarRef}
+        className={styles.toolbar}
+        style={{ border: showBorder ? 'auto' : 0, background: showBackground ? 'auto' : 0, borderRadius: '8px' }}
+      >
+        <div className={styles.toolbarIcons}>
+          <Space size={3} align={'center'}>
+            {dragElement}
+            {deleteElement}
+          </Space>
+        </div>
       </div>
+      <div
+        className={styles.currentbar}
+        style={{
+          display: displaymode,
+          borderRadius: '8px',
+        }}
+      ></div>
     </div>
   );
 };

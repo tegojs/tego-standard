@@ -211,6 +211,65 @@ function patchSchemaToolbars(schema: ISchema) {
   patch(schema);
 }
 
+const DeviceToggle = ({ device, onChange }: { device: string; onChange: (val: string) => void }) => {
+  const options = ['PC', 'Mobile'];
+  const selectedIndex = options.indexOf(device);
+  const handleClick = () => {
+    const nextDevice = device === 'PC' ? 'Mobile' : 'PC';
+    onChange(nextDevice);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        display: 'flex',
+        width: 100,
+        borderRadius: 24,
+        background: '#f0f0f0',
+        cursor: 'pointer',
+        userSelect: 'none',
+        padding: 2,
+      }}
+      onClick={handleClick}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: selectedIndex === 0 ? 2 : '50%',
+          width: '50%',
+          height: 'calc(100% - 4px)',
+          background: '#1890ff',
+          borderRadius: 20,
+          transition: 'left 0.3s',
+        }}
+      />
+      {options.map((d, idx) => {
+        const selected = device === d;
+        return (
+          <div
+            key={d}
+            style={{
+              flex: 1,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1,
+              color: selected ? '#fff' : '#000',
+              transition: 'color 0.3s',
+              borderRadius: idx === 0 ? '20px 0 0 20px' : '0 20px 20px 0',
+              padding: '4px 0',
+            }}
+          >
+            {d === 'PC' ? <DesktopOutlined /> : <MobileOutlined />}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const PreviewDrawer = ({ open, onClose, schema }) => {
   const { styles } = useStyles();
   const [device, setDevice] = useState('PC');
@@ -226,18 +285,7 @@ const PreviewDrawer = ({ open, onClose, schema }) => {
       onClose={onClose}
       closeIcon={<LeftOutlined />}
       className={styles.previewDrawer}
-      extra={
-        <div>
-          <Radio.Group
-            block
-            options={options}
-            value={device}
-            onChange={(e) => setDevice(e.target.value)}
-            optionType="button"
-            buttonStyle="solid"
-          />
-        </div>
-      }
+      extra={<DeviceToggle device={device} onChange={(val) => setDevice(val)} />}
     >
       <div
         style={{

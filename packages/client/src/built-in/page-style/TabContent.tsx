@@ -1,9 +1,9 @@
-import React, { useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Outlet, useLocation, useOutlet, useParams } from 'react-router-dom';
 
-import { useTranslation } from '../..';
-import { RemoteSchemaComponent } from '../../schema-component';
+import { useAPIClient, useTranslation } from '../..';
+import { RemoteSchemaComponent, useDesignable } from '../../schema-component';
 import { useDocumentTitle } from '../document-title';
 import { PageStyle, PageStyleContext } from './PageStyle.provider';
 import { usePageStyle } from './usePageStyle';
@@ -22,6 +22,12 @@ interface TabContentItemProps {
   item: TabItem;
   activeKey: string;
 }
+
+const TabContentContext = createContext({ schemaUid: '', setSchemaUid: null });
+
+export const useTabContent = () => {
+  return useContext(TabContentContext);
+};
 
 const TabContentItem = ({ item, activeKey }: TabContentItemProps) => {
   const { key, schemaKey, children, label, isCached } = item;
@@ -61,13 +67,10 @@ export const TabContent = () => {
   const location = useLocation();
   const { items, setItems } = useContext(PageStyleContext);
   const targetKey = location.pathname;
-
   const schemaKey = useMemo(() => {
     return targetKey.split('/').at(-1) || '';
   }, [targetKey]);
-
   const outlet = useOutlet();
-
   useEffect(() => {
     if (targetKey) {
       const targetItem = items.find((value) => value.key === targetKey);
@@ -94,5 +97,14 @@ export const TabContent = () => {
 export const CustomAdminContent = () => {
   const params = useParams<any>();
   const pageStyle = usePageStyle();
-  return params.name && pageStyle === PageStyle.TAB_STYLE ? <TabContent /> : <Outlet />;
+  const [schemaUid, setSchemaUid] = useState('');
+
+  return params.name && pageStyle === PageStyle.TAB_STYLE ? (
+    <TabContentContext.Provider value={{ schemaUid, setSchemaUid }}>
+      {' '}
+      <TabContent />
+    </TabContentContext.Provider>
+  ) : (
+    <Outlet />
+  );
 };

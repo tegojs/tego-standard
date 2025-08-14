@@ -27,8 +27,8 @@ import {
   VariableInput,
 } from '@tachybase/client';
 import { createForm, Field, ISchema, Schema, useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { ArrayCollapse, FormLayout } from '@tego/client';
+
 import { createStyles } from 'antd-style';
 import { DefaultOptionType } from 'antd/lib/cascader';
 import _ from 'lodash';
@@ -95,7 +95,6 @@ export const formItemFieldEditableSettings = new EditableSchemaSettings({
           type: 'string',
           title: t('Edit field title'),
           default: field?.title,
-          description: `${t('Original field title: ')}${collectionField?.uiSchema?.title}`,
           'x-decorator': 'FormItem',
           'x-component': 'Input',
           'x-component-props': {

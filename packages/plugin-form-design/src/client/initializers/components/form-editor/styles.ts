@@ -151,6 +151,19 @@ export const useStyles = createStyles(({ css }) => {
         display: block;
       }
     `,
+    currentbar: {
+      position: 'absolute',
+      zIndex: 999,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'var(--colorBgSettingsHover)',
+      pointerEvents: 'none',
+      '.ant-space-item .anticon': {
+        margin: 0,
+      },
+    },
     overrideAntdCSS: css`
       & .ant-space-item .anticon {
         margin: 0;

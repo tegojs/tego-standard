@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useRef, useState } from 'react';
 
 import { TabsProps } from 'antd';
 
@@ -24,6 +24,7 @@ export const PageStyleProvider = ({ children }) => {
   const currentUser = useCurrentUserContext();
   const tabItem = useTabSettings();
   const [items, setItems] = useState<TabsProps['items']>([]);
+
   const { addMenuItem } = useCurrentUserSettingsMenu();
   useEffect(() => {
     addMenuItem(tabItem, { before: 'divider_3' });

@@ -27,7 +27,7 @@
     "lodash": "4.17.21",
     "react-i18next": "15.2.0",
     "react-router-dom": "6.28.1",
-    "tencentcloud-sdk-nodejs": "^4.0.996",
+    "tencentcloud-sdk-nodejs": "^4.1.98",
     "ws": "^8.18.3"
   },
   "description.zh-CN": "用于给用户发送消息",

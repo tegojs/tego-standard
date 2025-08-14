@@ -23,7 +23,7 @@
     "dayjs": "1.11.13",
     "react": "18.3.1",
     "react-i18next": "15.2.0",
-    "tencentcloud-sdk-nodejs": "^4.0.996"
+    "tencentcloud-sdk-nodejs": "^4.1.98"
   },
   "description.zh-CN": "验证码配置。",
   "displayName.zh-CN": "验证码"

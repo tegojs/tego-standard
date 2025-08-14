@@ -56,7 +56,7 @@ const EditableInternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
   const field = useField<Field>();
   const { styles } = useStyles();
   const { getAriaLabel } = useGetAriaLabelOfDesigner();
-  const { setEditableField, fieldSchema: currentFieldSchema } = useEditableSelectedField();
+  const { setEditableField, fieldSchema: currentFieldSchema, highLightField } = useEditableSelectedField();
   const { removeActiveFieldName } = useFormActiveFields() || {};
   const { dn } = useEditableDesignable();
 
@@ -110,6 +110,7 @@ const EditableInternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
   useEffect(() => {
     const toolbarElement = toolbarRef.current;
     const parentElement = toolbarElement?.parentElement?.parentElement;
+
     function show() {
       if (toolbarElement) {
         toolbarElement.style.display = 'block';
@@ -127,6 +128,12 @@ const EditableInternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
       const isInsideToolbar = toolbarElement?.contains(target);
       if (!isInsideToolbar) {
         // const uid = fieldSchema?.['x-uid'] || null;
+        if (toolbarRef.current) {
+          toolbarRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }
         setEditableField({
           field,
           fieldSchema,
@@ -163,6 +170,25 @@ const EditableInternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
   if (!designable) {
     return null;
   }
+
+  useEffect(() => {
+    if (highLightField?.['name'] === fieldSchema['name'] && toolbarRef.current) {
+      setEditableField({
+        field,
+        fieldSchema,
+        schemaMarkup,
+        expressionScope,
+        schemaComponents,
+        schemaOptions,
+        form,
+        formBlockValue,
+        highLightField: null,
+      });
+      requestAnimationFrame(() => {
+        toolbarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [highLightField]);
 
   const displaymode = currentFieldSchema?.['x-uid'] === fieldSchema['x-uid'] ? 'block' : 'none';
 

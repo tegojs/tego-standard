@@ -25,6 +25,7 @@ import { Button, Col, Collapse, Layout, Row, Tabs, Tooltip } from 'antd';
 import _, { cloneDeep } from 'lodash';
 
 import { useTranslation } from '../../../locale';
+import { useEditableSelectedField } from './EditableSelectedFieldContext';
 import { useStyles } from './styles';
 
 type EditorFieldsSiderProps = {
@@ -48,6 +49,7 @@ interface FieldButtonGridProps {
 
 export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
   const record = useCollection_deprecated();
+  const { setEditableField } = useEditableSelectedField();
   const { Sider } = Layout;
   const { t } = useTranslation();
   const gridSchema = findSchemaUtils(schema, 'x-component', 'EditableGrid') || {};
@@ -80,6 +82,7 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
     wrapedSchema['x-index'] = hasIndex ? maxIndex + 1 : 1;
     gridSchema.addProperty(uid(), wrapedSchema);
     setSchemakey(uid());
+    setEditableField({ highLightField: s });
   };
   const form = useMemo(() => createForm(), []);
   const resourceActionProps = {
@@ -102,7 +105,7 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
   };
   useEffect(() => {
     setActiveTab(defaultTag);
-  }, [defaultTag]);
+  }, []);
   return (
     <Sider width={250} style={{ background: 'white', overflow: 'auto' }}>
       <RecordProvider record={record}>

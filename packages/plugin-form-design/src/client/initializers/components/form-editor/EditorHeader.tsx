@@ -20,6 +20,7 @@ import _ from 'lodash';
 
 import { useTranslation } from '../../../locale';
 import { EditableGrid } from './EditableGrid';
+import { useEditableSelectedField } from './EditableSelectedFieldContext';
 import { useStyles } from './styles';
 
 export const EditorHeader = ({ onCancel, schema }) => {
@@ -36,7 +37,7 @@ export const EditorHeader = ({ onCancel, schema }) => {
   const [tempTitle, setTempTitle] = useState(title);
   const { t } = useTranslation();
   const { modal } = App.useApp();
-
+  const { setEditableField } = useEditableSelectedField();
   const currentSchema = dn.current;
   const currentActionBarSchema = findSchemaUtils(currentSchema, 'x-component', 'ActionBar');
   const currentActionBarDN = useMemo(() => {
@@ -52,6 +53,9 @@ export const EditorHeader = ({ onCancel, schema }) => {
             field: fieldTitle,
           }),
         );
+        setEditableField({
+          highLightField: field,
+        });
         return;
       }
     }
@@ -147,6 +151,8 @@ export const EditorHeader = ({ onCancel, schema }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Button
             className="ant-save-button"
+            color="primary"
+            variant="outlined"
             onClick={() => {
               setDrawerVisible(true);
             }}
@@ -156,9 +162,9 @@ export const EditorHeader = ({ onCancel, schema }) => {
           <Button type="primary" className="ant-save-button" onClick={handleSave}>
             {t('Save')}
           </Button>
-          <Button type="primary" danger className="ant-save-button" onClick={onCancel}>
+          {/* <Button type="primary" danger className="ant-save-button" onClick={onCancel}>
             {t('Cancel')}
-          </Button>
+          </Button> */}
         </div>
       </Header>
       <Modal

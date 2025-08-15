@@ -1041,8 +1041,8 @@ importers:
   packages/module-message:
     devDependencies:
       '@alicloud/dysmsapi20170525':
-        specifier: 2.0.24
-        version: 2.0.24
+        specifier: 4.1.2
+        version: 4.1.2
       '@alicloud/openapi-client':
         specifier: 0.4.15
         version: 0.4.15
@@ -3277,8 +3277,8 @@ importers:
   packages/plugin-otp:
     devDependencies:
       '@alicloud/dysmsapi20170525':
-        specifier: 2.0.24
-        version: 2.0.24
+        specifier: 4.1.2
+        version: 4.1.2
       '@alicloud/openapi-client':
         specifier: 0.4.15
         version: 0.4.15
@@ -3762,11 +3762,29 @@ packages:
   '@alicloud/credentials@2.4.4':
     resolution: {integrity: sha512-/eRAGSKcniLIFQ1UCpDhB/IrHUZisQ1sc65ws/c2avxUMpXwH1rWAohb76SVAUJhiF4mwvLzLJM1Mn1XL4Xe/Q==}
 
+  '@alicloud/darabonba-array@0.1.1':
+    resolution: {integrity: sha512-UPP7p9//jywqM8EN6BjSbw1ovl/BzqreXdi5FmxT6m3PmFxsxabe+yamjeopyf2Gi0p3WqwJTBCeNji5eYUsJw==}
+
+  '@alicloud/darabonba-encode-util@0.0.1':
+    resolution: {integrity: sha512-Sl5vCRVAYMqwmvXpJLM9hYoCHOMsQlGxaWSGhGWulpKk/NaUBArtoO1B0yHruJf1C5uHhEJIaylYcM48icFHgw==}
+
+  '@alicloud/darabonba-encode-util@0.0.2':
+    resolution: {integrity: sha512-mlsNctkeqmR0RtgE1Rngyeadi5snLOAHBCWEtYf68d7tyKskosXDTNeZ6VCD/UfrUu4N51ItO8zlpfXiOgeg3A==}
+
+  '@alicloud/darabonba-map@0.0.1':
+    resolution: {integrity: sha512-2ep+G3YDvuI+dRYVlmER1LVUQDhf9kEItmVB/bbEu1pgKzelcocCwAc79XZQjTcQGFgjDycf3vH87WLDGLFMlw==}
+
+  '@alicloud/darabonba-signature-util@0.0.4':
+    resolution: {integrity: sha512-I1TtwtAnzLamgqnAaOkN0IGjwkiti//0a7/auyVThdqiC/3kyafSAn6znysWOmzub4mrzac2WiqblZKFcN5NWg==}
+
+  '@alicloud/darabonba-string@1.0.3':
+    resolution: {integrity: sha512-NyWwrU8cAIesWk3uHL1Q7pTDTqLkCI/0PmJXC4/4A0MFNAZ9Ouq0iFBsRqvfyUujSSM+WhYLuTfakQXiVLkTMA==}
+
   '@alicloud/dingtalk@2.2.27':
     resolution: {integrity: sha512-lucUpoxjIEMxysPq3mHXtSfQU0WGoLQNzFXzKemO7iuU3A/Ne2JBeiH3n1aQ6Jg7VxEHm+LvVXvbIPqGGl7Ppg==}
 
-  '@alicloud/dysmsapi20170525@2.0.24':
-    resolution: {integrity: sha512-RtOwh3L+NbpfnOxySViIKLlNQeT9pZJS496ZTMMz7A29CBrlComC1UDLmwmD5odWF2Okv9ZdsyP3IRiQnoEL+A==}
+  '@alicloud/dysmsapi20170525@4.1.2':
+    resolution: {integrity: sha512-Wxg+wQjpBGmXCvmIf9QE0mBv9dcGI0q13NxzF48akLYjSf/Mpk7jbnYttqEzNZPpRMShi1wViANwo8q+WkvYfQ==}
 
   '@alicloud/endpoint-util@0.0.1':
     resolution: {integrity: sha512-+pH7/KEXup84cHzIL6UJAaPqETvln4yXlD9JzlrqioyCSaWxbug5FUobsiI6fuUOpw5WwoB3fWAtGbFnJ1K3Yg==}
@@ -3777,11 +3795,17 @@ packages:
   '@alicloud/gateway-dingtalk@1.0.2':
     resolution: {integrity: sha512-T8ml6kth/nCRthrtHIYnCYv7+q/41SnJaR8c99491azNSPcmMmgxis5ujYIl5irKm0cvoOCCjI9EWUFb2Tx7JA==}
 
+  '@alicloud/gateway-pop@0.0.6':
+    resolution: {integrity: sha512-KF4I+JvfYuLKc3fWeWYIZ7lOVJ9jRW0sQXdXidZn1DKZ978ncfGf7i0LBfONGk4OxvNb/HD3/0yYhkgZgPbKtA==}
+
   '@alicloud/gateway-spi@0.0.8':
     resolution: {integrity: sha512-KM7fu5asjxZPmrz9sJGHJeSU+cNQNOxW+SFmgmAIrITui5hXL2LB+KNRuzWmlwPjnuA2X3/keq9h6++S9jcV5g==}
 
   '@alicloud/openapi-client@0.4.15':
     resolution: {integrity: sha512-4VE0/k5ZdQbAhOSTqniVhuX1k5DUeUMZv74degn3wIWjLY6Bq+hxjaGsaHYlLZ2gA5wUrs8NcI5TE+lIQS3iiA==}
+
+  '@alicloud/openapi-core@1.0.5':
+    resolution: {integrity: sha512-ed4EKyqHjb9zwrXUs6IRthha/pRn3OUoOcUKuhYu4tllp0RpidA+JYswsweN6sh26H0WIs/LB6nzJEOvh1d3fg==}
 
   '@alicloud/openapi-util@0.3.2':
     resolution: {integrity: sha512-EC2JvxdcOgMlBAEG0+joOh2IB1um8CPz9EdYuRfTfd1uP8Yc9D8QRUWVGjP6scnj6fWSOaHFlit9H6PrJSyFow==}
@@ -4873,6 +4897,10 @@ packages:
 
   '@babel/runtime@7.28.2':
     resolution: {integrity: sha512-KHp2IflsnGywDjBWDkR9iEqiWSpc8GIi0lgTT3mOElT0PP1tG26P4tmFI2YvAdzgq9RGyoHZQEIEdZy6Ec5xCA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.28.3':
+    resolution: {integrity: sha512-9uIQ10o0WGdpP6GDhXcdOJPJuDgFtIDtN/9+ArJQ2NAfAmiuhTQdzkaTGR33v43GYS2UrSA0eX2pPPHoFVvpxA==}
     engines: {node: '>=6.9.0'}
 
   '@babel/standalone@7.27.6':
@@ -15797,6 +15825,41 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@alicloud/darabonba-array@0.1.1':
+    dependencies:
+      '@alicloud/tea-typescript': 1.8.0
+    transitivePeerDependencies:
+      - supports-color
+
+  '@alicloud/darabonba-encode-util@0.0.1':
+    dependencies:
+      '@alicloud/tea-typescript': 1.8.0
+      moment: 2.30.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@alicloud/darabonba-encode-util@0.0.2':
+    dependencies:
+      moment: 2.30.1
+
+  '@alicloud/darabonba-map@0.0.1':
+    dependencies:
+      '@alicloud/tea-typescript': 1.8.0
+    transitivePeerDependencies:
+      - supports-color
+
+  '@alicloud/darabonba-signature-util@0.0.4':
+    dependencies:
+      '@alicloud/darabonba-encode-util': 0.0.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@alicloud/darabonba-string@1.0.3':
+    dependencies:
+      '@alicloud/tea-typescript': 1.8.0
+    transitivePeerDependencies:
+      - supports-color
+
   '@alicloud/dingtalk@2.2.27':
     dependencies:
       '@alicloud/endpoint-util': 0.0.2
@@ -15809,13 +15872,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@alicloud/dysmsapi20170525@2.0.24':
+  '@alicloud/dysmsapi20170525@4.1.2':
     dependencies:
-      '@alicloud/endpoint-util': 0.0.1
-      '@alicloud/openapi-client': 0.4.15
-      '@alicloud/openapi-util': 0.3.2
-      '@alicloud/tea-typescript': 1.8.0
-      '@alicloud/tea-util': 1.4.10
+      '@alicloud/openapi-core': 1.0.5
+      '@darabonba/typescript': 1.0.3
     transitivePeerDependencies:
       - supports-color
 
@@ -15836,6 +15896,22 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@alicloud/gateway-pop@0.0.6':
+    dependencies:
+      '@alicloud/credentials': 2.4.4
+      '@alicloud/darabonba-array': 0.1.1
+      '@alicloud/darabonba-encode-util': 0.0.2
+      '@alicloud/darabonba-map': 0.0.1
+      '@alicloud/darabonba-signature-util': 0.0.4
+      '@alicloud/darabonba-string': 1.0.3
+      '@alicloud/endpoint-util': 0.0.1
+      '@alicloud/gateway-spi': 0.0.8
+      '@alicloud/openapi-util': 0.3.2
+      '@alicloud/tea-typescript': 1.8.0
+      '@alicloud/tea-util': 1.4.10
+    transitivePeerDependencies:
+      - supports-color
+
   '@alicloud/gateway-spi@0.0.8':
     dependencies:
       '@alicloud/credentials': 2.4.4
@@ -15851,6 +15927,15 @@ snapshots:
       '@alicloud/tea-typescript': 1.8.0
       '@alicloud/tea-util': 1.4.9
       '@alicloud/tea-xml': 0.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@alicloud/openapi-core@1.0.5':
+    dependencies:
+      '@alicloud/credentials': 2.4.4
+      '@alicloud/gateway-pop': 0.0.6
+      '@alicloud/gateway-spi': 0.0.8
+      '@darabonba/typescript': 1.0.3
     transitivePeerDependencies:
       - supports-color
 
@@ -17860,6 +17945,8 @@ snapshots:
   '@babel/runtime@7.27.6': {}
 
   '@babel/runtime@7.28.2': {}
+
+  '@babel/runtime@7.28.3': {}
 
   '@babel/standalone@7.27.6': {}
 
@@ -25261,7 +25348,7 @@ snapshots:
 
   i18next@25.1.2(typescript@5.8.3):
     dependencies:
-      '@babel/runtime': 7.28.2
+      '@babel/runtime': 7.28.3
     optionalDependencies:
       typescript: 5.8.3
 

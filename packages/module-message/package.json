@@ -10,7 +10,7 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@alicloud/dysmsapi20170525": "2.0.24",
+    "@alicloud/dysmsapi20170525": "4.1.2",
     "@alicloud/openapi-client": "0.4.15",
     "@alicloud/tea-util": "1.4.10",
     "@ant-design/icons": "^5.6.1",

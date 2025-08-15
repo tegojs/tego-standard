@@ -23,7 +23,6 @@ export const ActionModal: ComposedActionDrawer<ModalProps> = observer(
     const { visible, setVisible, openSize = 'middle', modalProps } = useActionContext();
     const actualWidth = width ?? openSizeWidthMap.get(openSize);
     const schema = useFieldSchema();
-    console.log('🚀 ~ schema:', schema);
     const field = useField();
     const footerSchema = schema.reduceProperties((buf, s) => {
       if (s['x-component'] === footerNodeName) {

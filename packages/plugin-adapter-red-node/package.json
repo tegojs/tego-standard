@@ -11,7 +11,7 @@
   "devDependencies": {
     "@node-red/editor-api": "4.0.8",
     "@node-red/nodes": "4.0.8",
-    "@node-red/runtime": "4.0.8",
+    "@node-red/runtime": "4.1.0",
     "@node-red/util": "4.0.8",
     "@tachybase/client": "workspace:*",
     "@tachybase/test": "*",

@@ -23,10 +23,12 @@ export const useStyles = createStyles(({ css }) => {
     modalClassName: css`
       max-height: 80vh;
       overflow: hidden;
-      .ant-tabs-content-holder {
-        height: 70vh;
-        overflow-y: scroll;
-        overflow-x: hidden;
+      padding-bottom: 2vh;
+      .ant-tb-page {
+        height: auto;
+      }
+      .tb-page-wrapper {
+        max-height: 60vh;
       }
     `,
   };

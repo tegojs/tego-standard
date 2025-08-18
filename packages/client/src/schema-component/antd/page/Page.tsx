@@ -4,7 +4,6 @@ import { Schema, SchemaOptionsContext, useFieldSchema } from '@tachybase/schema'
 import { PlusOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { PageHeader as AntdPageHeader } from '@ant-design/pro-layout';
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { FormLayout } from '@tego/client';
 import { Button, Tabs } from 'antd';
 import { cx } from 'antd-style';
 import classNames from 'classnames';
@@ -53,7 +52,7 @@ export const Page = (props) => {
   // NOTE: 是否有其他路由模式?
   const match = useMatch('/:entry/:entryId/page-tab/:pageTabId/*');
   const pageTabActiveKey = useMemo(() => {
-    return match?.params?.pageTabId || searchParams.get('tab') || Object.keys(fieldSchema.properties || {}).shift();
+    return searchParams.get('tab') || match?.params?.pageTabId || Object.keys(fieldSchema.properties || {}).shift();
   }, [match?.params?.pageTabId, fieldSchema.properties, searchParams]);
 
   const setPageTabUrl = (pageTabId) => {

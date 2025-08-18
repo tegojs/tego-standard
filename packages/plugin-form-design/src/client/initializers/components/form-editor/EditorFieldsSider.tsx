@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   CollectionOptions,
   CollectionRecordContext,
@@ -25,6 +25,7 @@ import { Button, Col, Collapse, Layout, Row, Tabs, Tooltip } from 'antd';
 import _, { cloneDeep } from 'lodash';
 
 import { useTranslation } from '../../../locale';
+import { useEditableSelectedField } from './EditableSelectedFieldContext';
 import { useStyles } from './styles';
 
 type EditorFieldsSiderProps = {
@@ -48,6 +49,7 @@ interface FieldButtonGridProps {
 
 export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
   const record = useCollection_deprecated();
+  const { setEditableField } = useEditableSelectedField();
   const { Sider } = Layout;
   const { t } = useTranslation();
   const gridSchema = findSchemaUtils(schema, 'x-component', 'EditableGrid') || {};
@@ -60,6 +62,10 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
       block: 'Form',
     }),
   };
+  const defaultExcludedNames = ['id', 'updatedAt', 'updatedBy', 'createdAt', 'createdBy'];
+  const fieldsOptionsFiltered = options.fieldsOptions.filter((item) => !defaultExcludedNames.includes(item.name));
+  const defaultTag = fieldsOptionsFiltered.length === 0 ? 'addNew' : 'existing';
+  const [activeTab, setActiveTab] = useState(defaultTag);
   const handleInsert = (s: ISchema) => {
     const wrapedSchema = wrapFieldInGridSchema(s);
     let maxIndex = 0;
@@ -76,6 +82,7 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
     wrapedSchema['x-index'] = hasIndex ? maxIndex + 1 : 1;
     gridSchema.addProperty(uid(), wrapedSchema);
     setSchemakey(uid());
+    setEditableField({ highLightField: s });
   };
   const form = useMemo(() => createForm(), []);
   const resourceActionProps = {
@@ -96,13 +103,17 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
       },
     },
   };
+  useEffect(() => {
+    setActiveTab(defaultTag);
+  }, []);
   return (
     <Sider width={250} style={{ background: 'white', overflow: 'auto' }}>
       <RecordProvider record={record}>
         <ResourceActionProvider {...resourceActionProps}>
           <FormContext.Provider value={form}>
             <Tabs
-              defaultActiveKey="existing"
+              onChange={(key) => setActiveTab(key)}
+              activeKey={activeTab}
               centered
               tabBarGutter={50}
               items={[
@@ -115,7 +126,7 @@ export const EditorFieldsSider = ({ schema, setSchemakey, eddn }) => {
                 },
                 {
                   label: t('Add field'),
-                  key: 'extra',
+                  key: 'addNew',
                   children: <EditorAddFieldsSider schema={gridSchema} handleInsert={handleInsert} />,
                 },
               ]}

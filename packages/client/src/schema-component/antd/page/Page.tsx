@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { Schema, SchemaOptionsContext, useFieldSchema } from '@tachybase/schema';
+import { FormLayout } from '@tego/client';
 
 import { PlusOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { PageHeader as AntdPageHeader } from '@ant-design/pro-layout';

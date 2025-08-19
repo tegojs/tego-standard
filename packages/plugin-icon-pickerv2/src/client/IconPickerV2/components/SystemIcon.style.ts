@@ -84,19 +84,6 @@ export const useStyles = createStyles(({ css, token }) => ({
         .icon {
           display: flex;
           flex-wrap: wrap;
-          .icon-li {
-            height: 30px;
-            width: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 5px;
-            border-radius: ${`${token.borderRadius}px`};
-            svg {
-              width: 15px !important;
-              height: 15px !important;
-            }
-          }
         }
       }
     }
@@ -133,6 +120,19 @@ export const useStyles = createStyles(({ css, token }) => ({
           color: white;
         }
       }
+    }
+  `,
+  iconItem: css`
+    height: 30px;
+    width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 5px;
+    border-radius: ${`${token.borderRadius}px`};
+    svg {
+      width: 15px !important;
+      height: 15px !important;
     }
   `,
 }));

@@ -3,15 +3,17 @@ import { Icon, icons } from '@tachybase/client';
 
 import { ColorPicker } from 'antd';
 
+import { iconSize, styleBackgroudColor } from '../../constant';
 import { useTranslation } from '../../locale';
+import { IconItem } from './IconItem';
 import { useStyles } from './SystemIcon.style';
 
 export const SystemIcon = (props) => {
+  const { size, setSize, color, setColor } = props;
   const { styles } = useStyles();
-  const [size, setSize] = useState();
-  const [color, setColor] = useState();
   const [activeSection, setActiveSection] = useState('Directional');
   const containerRef = useRef(null);
+
   const sizeProps = {
     ...props,
     size,
@@ -78,11 +80,19 @@ const SystemIconTop = (props) => {
       </div>
       <ul className={'system-icon-style'}>
         {styleBackgroudColor.map((item, index) => {
+          const isSelected = color === item.background;
+          const commonStyle = {
+            ...item,
+            borderRadius: iconSize[size]?.borderRadius,
+            border: isSelected ? '2px solid #1890ff' : '1px solid #d4d4d4',
+            boxSizing: 'border-box' as const,
+            cursor: 'pointer',
+          };
           if (index + 1 === styleBackgroudColor.length) {
             const chekoutColor = styleBackgroudColor.find((colorItem) => colorItem.background === color);
             return (
               <ColorPicker
-                style={{ ...item, borderRadius: iconSize[size]?.borderRadius }}
+                style={commonStyle}
                 value={chekoutColor ? '' : color}
                 onChange={(color) => {
                   setColor(color.toCssString());
@@ -92,7 +102,7 @@ const SystemIconTop = (props) => {
           }
           return (
             <li
-              style={{ ...item, borderRadius: iconSize[size]?.borderRadius }}
+              style={commonStyle}
               onClick={() => {
                 setColor(item.background);
               }}
@@ -105,7 +115,7 @@ const SystemIconTop = (props) => {
 };
 
 const SystemIconMiddle = (props) => {
-  const { filterKey, onChange, size, color, value, setActiveSection, containerRef } = props;
+  const { filterKey, onChange, size, color, value, setActiveSection, containerRef, setIconName } = props;
   const [clickValue, setClickValue] = useState();
   const { t } = useTranslation();
   const iconKeysByFilter = getFilterKeys(filterKey, icons);
@@ -143,7 +153,8 @@ const SystemIconMiddle = (props) => {
     // if (color) {
     //   changeProps['color']='white'
     // }
-    onChange(key);
+    // onChange(key);
+    setIconName(key);
     setClickValue(key);
   };
   return (
@@ -154,30 +165,16 @@ const SystemIconMiddle = (props) => {
           <div className={'system-icon-category'} id={item}>
             <div className="title">{t(item)}</div>
             <div className="icon">
-              {iconKeysByFilter[item].map((key) => {
-                let iconStyle = {};
-                if (key === clickValue || key === value) {
-                  iconStyle = {
-                    borderRadius: iconSize[size]?.borderRadius,
-                    background: color,
-                    border: '1px solid #D4D4D4 ',
-                  };
-                  if (color) {
-                    iconStyle['color'] = 'white';
-                  }
-                }
-                return (
-                  <div
-                    className="icon-li"
-                    style={{ ...iconStyle }}
-                    onClick={() => {
-                      iconChange(key);
-                    }}
-                  >
-                    <Icon type={key} />
-                  </div>
-                );
-              })}
+              {iconKeysByFilter[item].map((key) => (
+                <IconItem
+                  key={key}
+                  iconKey={key}
+                  selected={key === clickValue}
+                  size={iconSize[size]}
+                  color={color}
+                  onClick={iconChange}
+                />
+              ))}
             </div>
           </div>
         ) : null;
@@ -243,31 +240,6 @@ const SystemIconBottom = (props) => {
     </div>
   );
 };
-
-const iconSize = {
-  rounded: {
-    borderRadius: '50px',
-  },
-  smallRounded: {
-    borderRadius: '8px',
-  },
-  largeRounded: {
-    borderRadius: '11px',
-  },
-};
-
-const styleBackgroudColor = [
-  { background: 'linear-gradient( 138deg, #FFCBCB 21%, #FF7575 100%)' },
-  { background: 'linear-gradient( 136deg, #FFD07D 0%, #F4A94D 57%, #FB9EB1 92%)' },
-  { background: 'linear-gradient( 135deg, #9EC56F 32%, #77D19A 88%)' },
-  { background: 'linear-gradient( 136deg, #62D4C3 50%, #66CCE0 91%)' },
-  { background: 'linear-gradient( 136deg, #9FCAFF 0%, #606CFF 72%, #705DFF 100%)' },
-  { background: 'linear-gradient( 135deg, #8895F6 0%, #828FF4 27%, #956CF5 100%)' },
-  {
-    background:
-      'conic-gradient( from 179.99999762840656deg at 85.99999248981476% 86.00000143051147%, #7796FD 1%, #FBCAFD 14%, #C2FCFF 31%, #7C90FF 50%, #A1A5F4 70%, #BDF1FF 87%)',
-  },
-];
 
 const getFilterKeys = (filterKey, icons) => {
   const iconKeysByFilter = useMemo(() => {

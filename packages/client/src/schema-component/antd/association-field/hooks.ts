@@ -203,7 +203,7 @@ export const useSubFormValue = () => {
   };
 };
 
-export const useCustomTitle = (record, schema, fieldNames) => {
+export const getCustomTitle = (record, schema, fieldNames) => {
   if (schema['x-component-props']?.mode === 'CustomTitle' && schema['x-component-props']?.fieldNames?.formula) {
     if (Array.isArray(record?.[schema['name']])) {
       record[schema['name']].forEach((recordItem) => {

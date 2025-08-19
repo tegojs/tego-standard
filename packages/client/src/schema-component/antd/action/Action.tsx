@@ -1,20 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { observer, RecursionField, useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { isPortalInBody } from '@tego/client';
+
 import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import { StablePopover, useActionContext } from '../..';
 import { useDesignable } from '../../';
-import { useApp } from '../../../application';
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
 import { useACLActionParamsContext } from '../../../built-in/acl';
-import { PathHandler } from '../../../built-in/dynamic-page/utils';
-import { useCollection, useCollectionRecordData } from '../../../data-source';
+import { useCollectionRecordData } from '../../../data-source';
+import { usePageMode } from '../../../hooks/usePageMode';
 import { Icon } from '../../../icon';
 import { RecordProvider } from '../../../record-provider';
 import { useLocalVariables, useVariables } from '../../../variables';
@@ -58,27 +56,22 @@ export const Action: ComposedAction = withDynamicSchemaProps(
       ...others
     } = useProps(props); // 新版 UISchema（1.0 之后）中已经废弃了 useProps，这里之所以继续保留是为了兼容旧版的 UISchema
     const aclCtx = useACLActionParamsContext();
-    const navigate = useNavigate();
     const { wrapSSR, componentCls, hashId } = useStyles();
     const { t } = useTranslation();
-    const [visible, setVisible] = useState(false);
     const [formValueChanged, setFormValueChanged] = useState(false);
     const Designer = useDesigner();
     const field = useField<any>();
-    const app = useApp();
-    const pageMode = app.usePageMode();
     const { run, element } = useAction(actionCallback);
     const fieldSchema = useFieldSchema();
     const compile = useCompile();
     const form = useForm();
     // TODO 这里这么改，会影响还没重构的设置代码，但是剩下没重构的插件设置代码也没几个，可以碰到修改就行
     const record = useCollectionRecordData();
-    const collection = useCollection();
     const designerProps = fieldSchema['x-designer-props'];
     const openMode = fieldSchema?.['x-component-props']?.['openMode'];
     const openSize = fieldSchema?.['x-component-props']?.['openSize'];
     const disabled = form.disabled || field.disabled || field.data?.disabled || propsDisabled;
-    const linkageRules = fieldSchema?.['x-linkage-rules'] || [];
+    const linkageRules = useMemo(() => fieldSchema?.['x-linkage-rules'] || [], [fieldSchema]);
     const { designable } = useDesignable();
     const tarComponent = useComponent(component) || component;
     const { modal } = App.useApp();
@@ -88,48 +81,25 @@ export const Action: ComposedAction = withDynamicSchemaProps(
     let actionTitle = title || compile(fieldSchema.title);
     actionTitle = lodash.isString(actionTitle) ? t(actionTitle) : actionTitle;
 
-    useEffect(() => {
-      field.stateOfLinkageRules = {};
-      linkageRules
-        .filter((k) => !k.disabled)
-        .forEach((v) => {
-          v.actions?.forEach((h) => {
-            linkageAction({
-              operator: h.operator,
-              field,
-              condition: v.condition,
-              variables,
-              localVariables,
-            });
-          });
-        });
-    }, [field, linkageRules, localVariables, record, variables]);
+    // 页面模式控制逻辑，包括打开抽屉、弹窗、页面等
+    const { isPageMode, visible, setVisible, openModal, openPage } = usePageMode();
 
     const handleButtonClick = useCallback(
       (e: React.MouseEvent) => {
         if (isPortalInBody(e.target as Element)) {
           return;
         }
-
         e.preventDefault();
         e.stopPropagation();
 
         if (!disabled && aclCtx) {
           const onOk = () => {
             onClick?.(e);
-            // TODO: 这块需要验证下插件的设置有没有问题
-            const containerSchema = fieldSchema.reduceProperties((buf, s) =>
-              s['x-component'] === 'Action.Container' ? s : buf,
-            );
-            // TODO: 增加上下文判断
-            if (pageMode?.enable && containerSchema) {
-              const target = PathHandler.getInstance().toWildcardPath({
-                collection: collection.name,
-                filterByTk: record[collection.getPrimaryKey()],
-              });
-              navigate('../' + containerSchema['x-uid'] + '/' + target);
+
+            if (isPageMode) {
+              openPage();
             } else {
-              setVisible(true);
+              openModal();
             }
             run();
           };
@@ -144,7 +114,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
           }
         }
       },
-      [confirm, disabled, modal, onClick, run],
+      [confirm, disabled, modal, onClick, run, isPageMode, openPage, openModal, actionTitle, t],
     );
 
     const buttonStyle = useMemo(() => {
@@ -196,6 +166,23 @@ export const Action: ComposedAction = withDynamicSchemaProps(
         {element}
       </ActionContextProvider>
     );
+
+    useEffect(() => {
+      field.stateOfLinkageRules = {};
+      linkageRules
+        .filter((k) => !k.disabled)
+        .forEach((v) => {
+          v.actions?.forEach((h) => {
+            linkageAction({
+              operator: h.operator,
+              field,
+              condition: v.condition,
+              variables,
+              localVariables,
+            });
+          });
+        });
+    }, [field, linkageRules, localVariables, record, variables]);
 
     if (!isShow) {
       return null;

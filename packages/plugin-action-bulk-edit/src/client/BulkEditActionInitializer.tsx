@@ -1,5 +1,4 @@
-import React from 'react';
-import { BlockInitializer, useSchemaInitializerItem } from '@tachybase/client';
+import { BlockInitializer, OpenMode, useSchemaInitializerItem } from '@tachybase/client';
 
 export const BulkEditActionInitializer = () => {
   const schema = {
@@ -11,38 +10,27 @@ export const BulkEditActionInitializer = () => {
       updateMode: 'selected',
     },
     'x-component-props': {
-      openMode: 'drawer',
+      openMode: OpenMode.DRAWER_MODE,
       icon: 'EditOutlined',
     },
     properties: {
-      drawer: {
+      pageModeContainer: {
         type: 'void',
-        title: '{{t("Bulk edit")}}',
+        title: '{{ t("Bulk edit") }}',
         'x-component': 'Action.Container',
         'x-component-props': {
           className: 'tb-action-popup',
         },
         properties: {
-          tabs: {
+          page: {
             type: 'void',
-            'x-component': 'Tabs',
-            'x-component-props': {},
-            'x-initializer': 'TabPaneInitializersForBulkEditFormBlock',
+            title: '{{ t("Bulk edit") }}',
+            'x-component': 'Page',
             properties: {
-              tab1: {
+              grid: {
                 type: 'void',
-                title: '{{t("Bulk edit")}}',
-                'x-component': 'Tabs.TabPane',
-                'x-designer': 'Tabs.Designer',
-                'x-component-props': {},
-                properties: {
-                  grid: {
-                    type: 'void',
-                    'x-component': 'Grid',
-                    'x-initializer': 'popup:bulkEdit:addBlock',
-                    properties: {},
-                  },
-                },
+                'x-component': 'Grid',
+                'x-initializer': 'popup:bulkEdit:addBlock',
               },
             },
           },

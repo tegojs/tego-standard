@@ -123,9 +123,9 @@ export const getStyles = genStyleHook('tb-page', (token) => {
       '.tb-page-wrapper': {
         flex: 1,
         padding: token.paddingMD,
-        paddingBottom: 0,
         overflowX: 'hidden',
         overflowY: 'scroll',
+        background: '#F5F5F5',
       },
       '.tb-page-header-button': {
         flex: 1,

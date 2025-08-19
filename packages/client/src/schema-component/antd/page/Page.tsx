@@ -1,18 +1,18 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
-import { ISchema, Schema, SchemaOptionsContext, useFieldSchema } from '@tachybase/schema';
+import { Schema, SchemaOptionsContext, useFieldSchema } from '@tachybase/schema';
+import { FormLayout } from '@tego/client';
 
 import { PlusOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { PageHeader as AntdPageHeader } from '@ant-design/pro-layout';
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { FormLayout } from '@tego/client';
-import { Button, Divider, Modal, Tabs } from 'antd';
+import { Button, Tabs } from 'antd';
 import { cx } from 'antd-style';
 import classNames from 'classnames';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
-import { useMatch, useSearchParams } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 
-import { FormDialog, PageExtendComponentProvider, ScrollArea } from '..';
+import { FormDialog, ScrollArea } from '..';
 import { useToken } from '../__builtins__';
 import { useStyles as useAClStyles } from '../../../built-in/acl/style';
 import { useContextMenu } from '../../../built-in/context-menu/useContextMenu';
@@ -23,20 +23,20 @@ import { useGetAriaLabelOfSchemaInitializer } from '../../../schema-initializer/
 import { useGlobalTheme } from '../../../style/theme';
 import { DndContext } from '../../common';
 import { SortableItem } from '../../common/sortable-item';
-import { DragHandleMenu } from '../../common/sortable-item/DragHandleMenu';
 import { DragHandlePageTab } from '../../common/sortable-item/DragHandlePageTab';
-import { SchemaComponent, SchemaComponentOptions, SchemaComponentProvider } from '../../core';
+import { SchemaComponent, SchemaComponentOptions } from '../../core';
 import { useCompile, useDesignable } from '../../hooks';
 import { ErrorFallback } from '../error-fallback';
 import FixedBlock from './FixedBlock';
 import { useStyles } from './Page.style';
 import { PageDesigner } from './PageDesigner';
 import { PageTabDesigner } from './PageTabDesigner';
+import { PageTitle } from './PageTitle';
 import { getStyles } from './style';
 
 export const Page = (props) => {
   const { children, ...others } = props;
-  const { t } = useTranslation();
+  const compile = useCompile();
 
   const { title, setTitle } = useDocumentTitle();
   const fieldSchema = useFieldSchema();
@@ -44,36 +44,57 @@ export const Page = (props) => {
   const enablePageTabs = fieldSchema['x-component-props']?.enablePageTabs;
   const enableSharePage = fieldSchema['x-component-props']?.enableSharePage;
 
-  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const activeKey = useMemo(
-    () => searchParams.get('tab') || Object.keys(fieldSchema.properties || {}).shift(),
-    [fieldSchema.properties, searchParams],
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // NOTE: 是否有其他路由模式?
+  const match = useMatch('/:entry/:entryId/page-tab/:pageTabId/*');
+  const pageTabActiveKey = useMemo(() => {
+    return searchParams.get('tab') || match?.params?.pageTabId || Object.keys(fieldSchema.properties || {}).shift();
+  }, [match?.params?.pageTabId, fieldSchema.properties, searchParams]);
+
+  const setPageTabUrl = (pageTabId) => {
+    const currentPath = location.pathname;
+    const newPath = currentPath.replace(/\/page-tab\/[^/]*/, `/page-tab/${pageTabId}`);
+    if (!newPath.includes('/page-tab/')) {
+      navigate(`${currentPath}/page-tab/${pageTabId}`, { replace: true });
+    } else {
+      navigate(newPath, { replace: true });
+    }
+  };
+
   const [height, setHeight] = useState(0);
   const aclStyles = useAClStyles();
   const { wrapSSR, hashId, componentCls } = getStyles();
 
+  const pageTitle = useMemo(() => {
+    return compile(fieldSchema.title || title) || '';
+  }, [fieldSchema.title, title]);
+
   useEffect(() => {
     if (!title) {
-      setTitle(t(fieldSchema.title));
+      setTitle(compile(fieldSchema.title));
     }
   }, [fieldSchema.title, title]);
 
   return wrapSSR(
     <FilterBlockProvider>
       <div className={`${componentCls} ${hashId} ${aclStyles.styles}`}>
-        <PageDesigner title={fieldSchema.title || title} />
+        <PageDesigner title={pageTitle} />
         <PageHeader
           disablePageHeader={disablePageHeader}
           enablePageTabs={enablePageTabs}
-          activeKey={activeKey}
-          title={title}
+          activeKey={pageTabActiveKey}
+          title={pageTitle}
           fieldSchema={fieldSchema}
           parentProps={others}
           setHeight={setHeight}
           setLoading={setLoading}
           enableSharePage={enableSharePage}
+          setPageTabUrl={setPageTabUrl}
           setSearchParams={setSearchParams}
         />
         <PageContentComponent
@@ -81,7 +102,7 @@ export const Page = (props) => {
           disablePageHeader={disablePageHeader}
           enablePageTabs={enablePageTabs}
           fieldSchema={fieldSchema}
-          activeKey={activeKey}
+          activeKey={pageTabActiveKey}
           height={height}
         >
           {children}
@@ -90,7 +111,6 @@ export const Page = (props) => {
     </FilterBlockProvider>,
   );
 };
-
 const PageHeader = (props) => {
   const {
     disablePageHeader,
@@ -98,22 +118,24 @@ const PageHeader = (props) => {
     setHeight,
     activeKey,
     setLoading,
-    setSearchParams,
+
     fieldSchema,
     title,
     parentProps,
     enableSharePage,
+    setSearchParams,
   } = props;
 
   const { theme } = useGlobalTheme();
   const options = useContext(SchemaOptionsContext);
   const compile = useCompile();
+  const [open, setOpen] = useState(false);
   const { showScrollArea } = useContextMenu();
 
   const hidePageTitle = fieldSchema['x-component-props']?.hidePageTitle;
-  const extendComponents = fieldSchema['x-extend-components'] || {};
 
-  const pageHeaderTitle = hidePageTitle ? undefined : fieldSchema.title || compile(title);
+  const pageHeaderTitle = hidePageTitle ? undefined : compile(fieldSchema.title || title);
+  const isShare = useMatch('/share/:name');
 
   // THINK: 思考下这里怎么缓存, 直接用 useMemo 是不行的
   const items = fieldSchema.mapProperties((schema) => ({
@@ -133,26 +155,16 @@ const PageHeader = (props) => {
           className={classNames('pageHeaderCss', pageHeaderTitle || enableSharePage ? '' : 'height0')}
           ghost={false}
           // 如果标题为空的时候会导致 PageHeader 不渲染，所以这里设置一个空白字符，然后再设置高度为 0
-          title={pageHeaderTitle || ' '}
+          title={<PageTitle title={pageHeaderTitle || ' '} />}
           {...parentProps}
           extra={
-            <>
-              {Object.values(extendComponents)?.map((item: any, index) => {
-                const schema = {
-                  type: 'void',
-                  name: item.name,
-                  'x-component': item.component,
-                  'x-component-props': {},
-                } as ISchema;
-                const componentProps = { ...props, isExtra: true, fieldSchema };
-                return (
-                  <PageExtendComponentProvider {...componentProps}>
-                    <SchemaComponent schema={schema} />
-                  </PageExtendComponentProvider>
-                );
-              })}
-              {!enablePageTabs && showScrollArea && <ScrollArea />}
-            </>
+            <HeaderExtra
+              enablePageTabs={enablePageTabs}
+              showScrollArea={showScrollArea}
+              isShare={isShare}
+              setOpen={setOpen}
+              enableSharePage={enableSharePage}
+            />
           }
           footer={
             enablePageTabs && (
@@ -167,23 +179,26 @@ const PageHeader = (props) => {
               />
             )
           }
-        ></AntdPageHeader>
+        />
       )}
-      {Object.values(extendComponents)?.map((item: any, index) => {
-        const schema = {
-          type: 'void',
-          name: 'icon' + item.name,
-          'x-component': item.component,
-          'x-component-props': {},
-        } as ISchema;
-        const componentProps = { ...props, fieldSchema };
-        return (
-          <PageExtendComponentProvider {...componentProps}>
-            <SchemaComponent schema={schema} />
-          </PageExtendComponentProvider>
-        );
-      })}
     </div>
+  );
+};
+
+const HeaderExtra = ({ enablePageTabs, showScrollArea, isShare, setOpen, enableSharePage }) => {
+  return (
+    <>
+      {!isShare && (
+        <Button
+          icon={<ShareAltOutlined />}
+          onClick={() => {
+            setOpen(true);
+          }}
+          style={{ visibility: `${enableSharePage ? 'visible' : 'hidden'}` }}
+        />
+      )}
+      {!enablePageTabs && showScrollArea && <ScrollArea />}
+    </>
   );
 };
 

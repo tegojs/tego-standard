@@ -24,6 +24,6 @@ export class IconPickerV2Controller {
       console.error('IconPickerV2Controller findOrCreate error:', err);
       ctx.body = null;
     }
-    // await next();
+    await next();
   }
 }

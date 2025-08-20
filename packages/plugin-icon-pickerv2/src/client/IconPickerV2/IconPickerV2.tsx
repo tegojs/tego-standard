@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { hasIcon, Icon, StablePopover, useAPIClient } from '@tachybase/client';
+import { useAPIClient } from '@tachybase/client';
 import { connect, isValid, mapProps, mapReadPretty } from '@tachybase/schema';
 import { useFormLayout } from '@tego/client';
 

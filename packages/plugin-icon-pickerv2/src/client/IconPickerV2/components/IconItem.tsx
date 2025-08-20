@@ -10,6 +10,7 @@ export const IconItem = (props) => {
         borderRadius: size?.borderRadius,
         background: color,
         color: color ? 'white' : undefined,
+        border: '1px solid #D4D4D4 ',
       }
     : {};
 

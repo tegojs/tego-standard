@@ -12,26 +12,27 @@ export const useStyles = createStyles(({ css, token }) => ({
       background-color: #ffffff;
       .system-icon-size {
         display: flex;
+        font-size: 12px;
         justify-content: space-between;
         padding: 5px 15px 15px 15px;
         border-radius: 0 0 8px 8px;
         .system-icon-radius {
           display: flex;
           ul {
-            background-color: ${`${token.colorPrimaryBg}`};
+            background-color: #f5f8fe;
             display: flex;
             list-style: none;
             justify-content: space-evenly;
             padding: 0 5px;
             margin: 0;
             margin-left: 10px;
-            border-radius: ${`${token.borderRadius}px`};
+            border-radius: 999px;
             li {
               padding: 3px 8px;
               cursor: pointer;
             }
             .syste-icon-checkout {
-              border-radius: ${`${token.borderRadius}px`};
+              border-radius: 999px;
               background-color: ${`${token.colorPrimaryHover}`};
               color: white;
             }
@@ -73,13 +74,16 @@ export const useStyles = createStyles(({ css, token }) => ({
     .system-icon-middle {
       flex: 1;
       padding: 5px 15px;
+      font-size: 12px;
       height: 18dvw;
       overflow-y: scroll;
       .system-icon-category {
         background-color: #ffffff;
+        border-radius: 6px;
         margin-top: 10px;
         .title {
           padding: 10px;
+          color: #555555;
         }
         .icon {
           display: flex;

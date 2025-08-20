@@ -4,8 +4,7 @@ import { connect, isValid, mapProps, mapReadPretty } from '@tachybase/schema';
 import { useFormLayout } from '@tego/client';
 
 import { CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Space } from 'antd';
-import { color } from 'packages/plugin-mock-collections/src/server/field-interfaces';
+import { Button, Popover, Space } from 'antd';
 
 import { iconSize } from '../constant';
 import { useTranslation } from '../locale';
@@ -28,21 +27,35 @@ function IconField(props: any) {
   return (
     <div>
       <Space.Compact>
-        <StablePopover
+        <Popover
           overlayClassName={styles.popoverStyles}
           placement={'bottom'}
           open={visible}
+          arrow={false}
           onOpenChange={async (val) => {
             if (disabled) {
               return;
             }
-            if (val === false && iconName !== '') {
-              const iconData = api.resource('iconStorage').findOrCreate({
-                name: iconName,
-                color,
-                size,
-              });
-              console.log('%c Line:41 🍔 iconData', 'color:#f5ce50', iconData);
+            if (val === false) {
+              if (!iconName || typeof iconName !== 'string' || iconName.trim() === '') {
+                setVisible(val);
+                return;
+              }
+              try {
+                const iconData = await api.resource('iconStorage').findOrCreate({
+                  name: iconName,
+                  color: color || '',
+                  size: size || '',
+                });
+                const iconId = iconData?.data?.data;
+                if (iconId) {
+                  onChange(iconId);
+                } else {
+                  console.warn(t('iconStorage did not return an id'));
+                }
+              } catch (err) {
+                console.error(t('Failed to save iconStorage:'), err);
+              }
             }
             setVisible(val);
           }}
@@ -63,7 +76,7 @@ function IconField(props: any) {
               }}
             />
           }
-          trigger="click"
+          trigger="hover"
         >
           <Button size={layout.size as any} disabled={disabled}>
             {iconName ? (
@@ -72,7 +85,7 @@ function IconField(props: any) {
               t('Select icon')
             )}
           </Button>
-        </StablePopover>
+        </Popover>
 
         {iconName && !disabled && (
           <Button
@@ -102,7 +115,9 @@ export const IconPickerV2 = connect(
     if (!isValid(props.value)) {
       return <div></div>;
     }
-    return <Icon type={props.value} />;
+    const { name, color, size } = props.value || {};
+    if (!name) return <div />;
+    return <IconItem key={name} iconKey={name} selected={true} size={iconSize[size]} color={color} />;
   }),
 );
 

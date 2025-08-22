@@ -10,7 +10,7 @@
   "main": "dist/server/index.js",
   "scripts": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.0.0",
     "@emotion/css": "^11.13.5",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "*",

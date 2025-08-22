@@ -9,7 +9,7 @@
   ],
   "main": "dist/server/index.js",
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.0.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-ui-schema": "workspace:*",
     "@tachybase/module-workflow": "workspace:*",

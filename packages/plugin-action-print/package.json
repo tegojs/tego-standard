@@ -15,7 +15,7 @@
     "@tachybase/test": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "react-to-print": "^2.15.1"
+    "react-to-print": "^3.1.1"
   },
   "description.zh-CN": "调用浏览器的打印功能实现单条数据的打印。",
   "displayName.zh-CN": "操作：打印"

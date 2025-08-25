@@ -8,15 +8,16 @@ import {
   useDataBlockRequest,
   useNoticeSub,
 } from '@tachybase/client';
+import { uid } from '@tego/client';
 
 import { LoadingOutlined } from '@ant-design/icons';
-import { uid } from '@tego/client';
 import { Card, Divider, notification, Space, Spin } from 'antd';
 
 import { NAMESPACE, NOTIFICATION_CLIENT_KEY, NOTIFY_STATUS_EVENT_KEY } from '../../constants';
 import { collectionMultiApp } from '../base/collections/collectionMultiApp';
 import { usePluginUtils } from '../locale';
 import { schemaAppManager } from './AppManager.schema';
+import { AddByPhone } from './hooks/useAddByPhoneProps';
 import { useCreateDatabaseConnectionAction } from './hooks/useCreateDatabaseConnectionAction';
 import { useHandle } from './hooks/useHandle';
 import { useMultiAppUpdateAction } from './hooks/useMultiAppUpdateAction';
@@ -105,7 +106,7 @@ export const AppManager = (props) => {
             t,
             uid,
           }}
-          components={{ AppVisitor, GlobalNotificationHandler }}
+          components={{ AppVisitor, GlobalNotificationHandler, AddByPhone }}
         />
       </ExtendCollectionsProvider>
     </Card>

@@ -76,12 +76,17 @@ export const tableActionColumnSchema: ISchema = {
           'x-decorator-props': {
             useValues: '{{ cm.useValuesFromRecord }}',
           },
-          title: '{{t("Share")}}',
+          title: '{{t("Add partners")}}',
           properties: {
             partners: {
               'x-component': 'CollectionField',
               'x-decorator': 'FormItem',
               'x-collection-field': 'applications.partners',
+            },
+            byPhone: {
+              title: '{{t("Add by Phone Number")}}',
+              'x-decorator': 'FormItem',
+              'x-component': 'AddByPhone',
             },
             footer: {
               type: 'void',

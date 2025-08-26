@@ -33,13 +33,13 @@ importers:
     devDependencies:
       '@commitlint/cli':
         specifier: ^19.8.1
-        version: 19.8.1(@types/node@20.17.10)(typescript@5.8.3)
+        version: 19.8.1(@types/node@20.17.10)(typescript@5.9.2)
       '@commitlint/config-conventional':
         specifier: ^19.8.1
         version: 19.8.1
       '@commitlint/prompt-cli':
         specifier: ^19.8.1
-        version: 19.8.1(@types/node@20.17.10)(typescript@5.8.3)
+        version: 19.8.1(@types/node@20.17.10)(typescript@5.9.2)
       '@ianvs/prettier-plugin-sort-imports':
         specifier: ^4.4.2
         version: 4.4.2(prettier@3.6.2)
@@ -107,8 +107,8 @@ importers:
         specifier: 4.20.3
         version: 4.20.3
       typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
+        specifier: ^5.9.2
+        version: 5.9.2
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.1)(jsdom@24.1.1(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)
@@ -158,8 +158,8 @@ importers:
         specifier: 15.2.0
         version: 15.2.0(i18next@23.16.8)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       typescript:
-        specifier: 5.8.3
-        version: 5.8.3
+        specifier: 5.9.2
+        version: 5.9.2
 
   packages/client:
     dependencies:
@@ -400,7 +400,7 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/module-app-info:
     devDependencies:
@@ -457,7 +457,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -532,7 +532,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-js-cron:
         specifier: ^3.2.0
         version: 3.2.0(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -766,7 +766,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -919,7 +919,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       supertest:
         specifier: ^7.1.3
         version: 7.1.3
@@ -1087,7 +1087,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1144,7 +1144,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1264,7 +1264,7 @@ importers:
         version: 8.5.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/module-web:
     devDependencies:
@@ -1327,7 +1327,7 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1477,7 +1477,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-js-cron:
         specifier: ^3.2.0
         version: 3.2.0(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1516,7 +1516,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1543,7 +1543,7 @@ importers:
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1579,7 +1579,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1609,7 +1609,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-action-export:
     devDependencies:
@@ -1648,7 +1648,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-action-import:
     devDependencies:
@@ -1696,7 +1696,7 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       xlsx:
         specifier: 0.18.5
         version: 0.18.5
@@ -1753,7 +1753,7 @@ importers:
         version: 1.5.4
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router:
         specifier: 6.28.1
         version: 6.28.1(react@18.3.1)
@@ -1828,10 +1828,10 @@ importers:
     devDependencies:
       '@remix-run/express':
         specifier: ^2.16.8
-        version: 2.16.8(express@4.21.2)(typescript@5.8.3)
+        version: 2.16.8(express@4.21.2)(typescript@5.9.2)
       '@remix-run/react':
         specifier: ^2.15.2
-        version: 2.15.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.3)
+        version: 2.15.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.2)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1873,7 +1873,7 @@ importers:
         version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/x':
         specifier: ^1.6.0
-        version: 1.6.0(@types/node@20.17.10)(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.44.2)(typescript@5.8.3)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))
+        version: 1.6.0(@types/node@20.17.10)(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.44.2)(typescript@5.9.2)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1906,7 +1906,7 @@ importers:
         version: 5.10.1(ws@8.18.3)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-api-keys:
     devDependencies:
@@ -1942,7 +1942,7 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-api-logs:
     devDependencies:
@@ -1972,7 +1972,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2005,7 +2005,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-auth-cas:
     devDependencies:
@@ -2035,7 +2035,7 @@ importers:
         version: 1.7.7
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2140,7 +2140,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2218,7 +2218,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2254,7 +2254,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-auth-wechat:
     devDependencies:
@@ -2284,7 +2284,7 @@ importers:
         version: 1.11.13
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2362,7 +2362,7 @@ importers:
         version: 1.19.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-js-cron:
         specifier: ^3.2.0
         version: 3.2.0(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2422,7 +2422,7 @@ importers:
         version: 6.0.0(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       sequelize:
         specifier: 6.37.5
         version: 6.37.5(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -2458,7 +2458,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-block-gantt:
     devDependencies:
@@ -2491,7 +2491,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-block-kanban:
     devDependencies:
@@ -2524,7 +2524,7 @@ importers:
         version: 13.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-block-map:
     devDependencies:
@@ -2581,7 +2581,7 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2614,7 +2614,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-iframe:
         specifier: ~1.8.5
         version: 1.8.5(react@18.3.1)
@@ -2650,7 +2650,7 @@ importers:
         version: 13.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-data-source-common:
     devDependencies:
@@ -2698,7 +2698,7 @@ importers:
         version: 8.16.3
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2798,7 +2798,7 @@ importers:
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       swagger-ui-dist:
         specifier: ^5.26.2
         version: 5.26.2
@@ -2888,7 +2888,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-field-markdown-vditor:
     devDependencies:
@@ -2957,7 +2957,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-js-cron:
         specifier: ^3.2.0
         version: 3.2.0(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2996,7 +2996,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-form-design:
     devDependencies:
@@ -3098,7 +3098,7 @@ importers:
         version: 4.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-log-viewer:
     devDependencies:
@@ -3128,7 +3128,7 @@ importers:
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       tar-fs:
         specifier: ^3.1.0
         version: 3.1.0
@@ -3221,7 +3221,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/plugin-ocr-convert:
     devDependencies:
@@ -3269,7 +3269,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       tencentcloud-sdk-nodejs:
         specifier: ^4.0.996
         version: 4.0.996(encoding@0.1.13)
@@ -3311,7 +3311,7 @@ importers:
         version: 18.3.1
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       tencentcloud-sdk-nodejs:
         specifier: ^4.0.996
         version: 4.0.996(encoding@0.1.13)
@@ -3436,8 +3436,8 @@ importers:
         specifier: ^3.1.7
         version: 3.1.7
       typescript:
-        specifier: 5.8.3
-        version: 5.8.3
+        specifier: 5.9.2
+        version: 5.9.2
       xml2js:
         specifier: ^0.6.2
         version: 0.6.2
@@ -3602,7 +3602,7 @@ importers:
         version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       tinycolor2:
         specifier: ^1.6.0
         version: 1.6.0
@@ -3656,7 +3656,7 @@ importers:
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3719,7 +3719,7 @@ importers:
         version: 4.17.21
       react-i18next:
         specifier: 15.2.0
-        version: 15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: 6.28.1
         version: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -4875,6 +4875,10 @@ packages:
     resolution: {integrity: sha512-KHp2IflsnGywDjBWDkR9iEqiWSpc8GIi0lgTT3mOElT0PP1tG26P4tmFI2YvAdzgq9RGyoHZQEIEdZy6Ec5xCA==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/runtime@7.28.3':
+    resolution: {integrity: sha512-9uIQ10o0WGdpP6GDhXcdOJPJuDgFtIDtN/9+ArJQ2NAfAmiuhTQdzkaTGR33v43GYS2UrSA0eX2pPPHoFVvpxA==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/standalone@7.27.6':
     resolution: {integrity: sha512-OHuaAM2Sh2SCt+yzP44J7nHt69Bx5Jos8t0NaeEwyK4IqInxKxkhDGIPq5UmSDhkrc6Od28wBHRI/qN10ufuPA==}
     engines: {node: '>=6.9.0'}
@@ -5013,8 +5017,8 @@ packages:
     resolution: {integrity: sha512-/yCrWGCoA1SVKOks25EGadP9Pnj0oAIHGpl2wH2M2Y46dPM2ueb8wyCVOD7O3WCTkaJ0IkKvzhl1JY7+uCT2Dw==}
     engines: {node: '>=v18'}
 
-  '@csstools/color-helpers@5.0.2':
-    resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
+  '@csstools/color-helpers@5.1.0':
+    resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
     engines: {node: '>=18'}
 
   '@csstools/css-calc@2.1.4':
@@ -5024,8 +5028,8 @@ packages:
       '@csstools/css-parser-algorithms': ^3.0.5
       '@csstools/css-tokenizer': ^3.0.4
 
-  '@csstools/css-color-parser@3.0.10':
-    resolution: {integrity: sha512-TiJ5Ajr6WRd1r8HSiwJvZBiJOqtH86aHpUjq5aEKWHiII2Qfjqd/HCWKPOW8EP4vcspXbHnXrwIDlu5savQipg==}
+  '@csstools/css-color-parser@3.1.0':
+    resolution: {integrity: sha512-nbtKwh3a6xNVIp/VRuXV64yTKnb1IjTAEEh3irzS+HkKjAOYLTGNb9pmVNntZ8iVBHcWDA2Dof0QtPgFI1BaTA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@csstools/css-parser-algorithms': ^3.0.5
@@ -14650,8 +14654,8 @@ packages:
   tabbable@6.2.0:
     resolution: {integrity: sha512-Cat63mxsVJlzYvN51JmVXIgNoUokrIaT2zLclCXjRd8boZ0004U4KCs/sToJ75C6sdlByWxpYnb5Boif1VSFew==}
 
-  tapable@2.2.2:
-    resolution: {integrity: sha512-Re10+NauLTMCudc7T5WLFLAwDhQ0JWdrMK+9B2M8zR5hRExKmsRDCBA7/aV/pNJFltmBFO5BAMlQFi/vq3nKOg==}
+  tapable@2.2.3:
+    resolution: {integrity: sha512-ZL6DDuAlRlLGghwcfmSn9sK3Hr6ArtyudlSAiCqQ6IfE+b+HHbydbYDIG15IfS5do+7XQQBdBiubF/cV2dnDzg==}
     engines: {node: '>=6'}
 
   tar-fs@2.1.3:
@@ -14984,8 +14988,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  typescript@5.8.3:
-    resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
+  typescript@5.9.2:
+    resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -16206,7 +16210,7 @@ snapshots:
       resize-observer-polyfill: 1.5.1
       throttle-debounce: 5.0.2
 
-  '@ant-design/x@1.6.0(@types/node@20.17.10)(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.44.2)(typescript@5.8.3)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))':
+  '@ant-design/x@1.6.0(@types/node@20.17.10)(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.44.2)(typescript@5.9.2)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))':
     dependencies:
       '@ant-design/colors': 7.2.1
       '@ant-design/cssinjs': 1.24.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -16220,7 +16224,7 @@ snapshots:
       rc-util: 5.44.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      tbox-nodejs-sdk: 0.0.13(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.8.3)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))
+      tbox-nodejs-sdk: 0.0.13(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.9.2)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))
     transitivePeerDependencies:
       - '@types/node'
       - debug
@@ -16613,7 +16617,7 @@ snapshots:
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
       '@csstools/css-calc': 2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
-      '@csstools/css-color-parser': 3.0.10(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
+      '@csstools/css-color-parser': 3.1.0(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 10.4.3
@@ -17861,6 +17865,8 @@ snapshots:
 
   '@babel/runtime@7.28.2': {}
 
+  '@babel/runtime@7.28.3': {}
+
   '@babel/standalone@7.27.6': {}
 
   '@babel/template@7.27.2':
@@ -17994,11 +18000,11 @@ snapshots:
 
   '@colors/colors@1.6.0': {}
 
-  '@commitlint/cli@19.8.1(@types/node@20.17.10)(typescript@5.8.3)':
+  '@commitlint/cli@19.8.1(@types/node@20.17.10)(typescript@5.9.2)':
     dependencies:
       '@commitlint/format': 19.8.1
       '@commitlint/lint': 19.8.1
-      '@commitlint/load': 19.8.1(@types/node@20.17.10)(typescript@5.8.3)
+      '@commitlint/load': 19.8.1(@types/node@20.17.10)(typescript@5.9.2)
       '@commitlint/read': 19.8.1
       '@commitlint/types': 19.8.1
       tinyexec: 1.0.1
@@ -18045,15 +18051,15 @@ snapshots:
       '@commitlint/rules': 19.8.1
       '@commitlint/types': 19.8.1
 
-  '@commitlint/load@19.8.1(@types/node@20.17.10)(typescript@5.8.3)':
+  '@commitlint/load@19.8.1(@types/node@20.17.10)(typescript@5.9.2)':
     dependencies:
       '@commitlint/config-validator': 19.8.1
       '@commitlint/execute-rule': 19.8.1
       '@commitlint/resolve-extends': 19.8.1
       '@commitlint/types': 19.8.1
       chalk: 5.5.0
-      cosmiconfig: 9.0.0(typescript@5.8.3)
-      cosmiconfig-typescript-loader: 6.1.0(@types/node@20.17.10)(cosmiconfig@9.0.0(typescript@5.8.3))(typescript@5.8.3)
+      cosmiconfig: 9.0.0(typescript@5.9.2)
+      cosmiconfig-typescript-loader: 6.1.0(@types/node@20.17.10)(cosmiconfig@9.0.0(typescript@5.9.2))(typescript@5.9.2)
       lodash.isplainobject: 4.0.6
       lodash.merge: 4.6.2
       lodash.uniq: 4.5.0
@@ -18069,19 +18075,19 @@ snapshots:
       conventional-changelog-angular: 7.0.0
       conventional-commits-parser: 5.0.0
 
-  '@commitlint/prompt-cli@19.8.1(@types/node@20.17.10)(typescript@5.8.3)':
+  '@commitlint/prompt-cli@19.8.1(@types/node@20.17.10)(typescript@5.9.2)':
     dependencies:
-      '@commitlint/prompt': 19.8.1(@types/node@20.17.10)(typescript@5.8.3)
+      '@commitlint/prompt': 19.8.1(@types/node@20.17.10)(typescript@5.9.2)
       inquirer: 9.3.7
       tinyexec: 1.0.1
     transitivePeerDependencies:
       - '@types/node'
       - typescript
 
-  '@commitlint/prompt@19.8.1(@types/node@20.17.10)(typescript@5.8.3)':
+  '@commitlint/prompt@19.8.1(@types/node@20.17.10)(typescript@5.9.2)':
     dependencies:
       '@commitlint/ensure': 19.8.1
-      '@commitlint/load': 19.8.1(@types/node@20.17.10)(typescript@5.8.3)
+      '@commitlint/load': 19.8.1(@types/node@20.17.10)(typescript@5.9.2)
       '@commitlint/types': 19.8.1
       chalk: 5.5.0
       inquirer: 9.3.7
@@ -18124,7 +18130,7 @@ snapshots:
       '@types/conventional-commits-parser': 5.0.1
       chalk: 5.5.0
 
-  '@csstools/color-helpers@5.0.2':
+  '@csstools/color-helpers@5.1.0':
     optional: true
 
   '@csstools/css-calc@2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
@@ -18133,9 +18139,9 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
     optional: true
 
-  '@csstools/css-color-parser@3.0.10(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
+  '@csstools/css-color-parser@3.1.0(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
     dependencies:
-      '@csstools/color-helpers': 5.0.2
+      '@csstools/color-helpers': 5.1.0
       '@csstools/css-calc': 2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
@@ -19974,16 +19980,16 @@ snapshots:
     dependencies:
       '@redis/client': 1.6.0
 
-  '@remix-run/express@2.16.8(express@4.21.2)(typescript@5.8.3)':
+  '@remix-run/express@2.16.8(express@4.21.2)(typescript@5.9.2)':
     dependencies:
-      '@remix-run/node': 2.16.8(typescript@5.8.3)
+      '@remix-run/node': 2.16.8(typescript@5.9.2)
       express: 4.21.2
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
-  '@remix-run/node@2.16.8(typescript@5.8.3)':
+  '@remix-run/node@2.16.8(typescript@5.9.2)':
     dependencies:
-      '@remix-run/server-runtime': 2.16.8(typescript@5.8.3)
+      '@remix-run/server-runtime': 2.16.8(typescript@5.9.2)
       '@remix-run/web-fetch': 4.4.2
       '@web3-storage/multipart-parser': 1.0.0
       cookie-signature: 1.2.2
@@ -19991,25 +19997,25 @@ snapshots:
       stream-slice: 0.1.2
       undici: 6.21.3
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
-  '@remix-run/react@2.15.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.3)':
+  '@remix-run/react@2.15.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.2)':
     dependencies:
       '@remix-run/router': 1.21.0
-      '@remix-run/server-runtime': 2.15.2(typescript@5.8.3)
+      '@remix-run/server-runtime': 2.15.2(typescript@5.9.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-router: 6.28.1(react@18.3.1)
       react-router-dom: 6.28.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       turbo-stream: 2.4.0
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   '@remix-run/router@1.21.0': {}
 
   '@remix-run/router@1.23.0': {}
 
-  '@remix-run/server-runtime@2.15.2(typescript@5.8.3)':
+  '@remix-run/server-runtime@2.15.2(typescript@5.9.2)':
     dependencies:
       '@remix-run/router': 1.21.0
       '@types/cookie': 0.6.0
@@ -20019,9 +20025,9 @@ snapshots:
       source-map: 0.7.4
       turbo-stream: 2.4.0
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
-  '@remix-run/server-runtime@2.16.8(typescript@5.8.3)':
+  '@remix-run/server-runtime@2.16.8(typescript@5.9.2)':
     dependencies:
       '@remix-run/router': 1.23.0
       '@types/cookie': 0.6.0
@@ -20031,7 +20037,7 @@ snapshots:
       source-map: 0.7.4
       turbo-stream: 2.4.1
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   '@remix-run/web-blob@3.1.0':
     dependencies:
@@ -20226,14 +20232,14 @@ snapshots:
     optionalDependencies:
       '@rsbuild/core': 1.4.7
 
-  '@rslib/core@0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(typescript@5.8.3)':
+  '@rslib/core@0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(typescript@5.9.2)':
     dependencies:
       '@rsbuild/core': 1.4.12
-      rsbuild-plugin-dts: 0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@rsbuild/core@1.4.12)(typescript@5.8.3)
+      rsbuild-plugin-dts: 0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@rsbuild/core@1.4.12)(typescript@5.9.2)
       tinyglobby: 0.2.14
     optionalDependencies:
       '@microsoft/api-extractor': 7.52.10(@types/node@20.17.10)
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   '@rspack/binding-darwin-arm64@1.4.11':
     optional: true
@@ -21250,7 +21256,7 @@ snapshots:
       '@rsbuild/core': 1.4.12
       '@rsbuild/plugin-less': 1.3.2(@rsbuild/core@1.4.12)
       '@rsbuild/plugin-react': 1.3.4(@rsbuild/core@1.4.12)
-      '@rslib/core': 0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(typescript@5.8.3)
+      '@rslib/core': 0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(typescript@5.9.2)
       '@types/fs-extra': 11.0.4
       '@umijs/utils': 4.4.12
       '@vercel/ncc': 0.38.3
@@ -21272,9 +21278,9 @@ snapshots:
       tar: 7.4.3
       tree-kill: 1.2.2
       tsconfig-paths: 4.2.0
-      tsup: 8.5.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(jiti@2.5.1)(postcss@8.5.6)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.1)
+      tsup: 8.5.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(jiti@2.5.1)(postcss@8.5.6)(tsx@4.20.3)(typescript@5.9.2)(yaml@2.8.1)
       tsx: 4.20.3
-      typescript: 5.8.3
+      typescript: 5.9.2
       update-notifier: 7.3.1
       vite: 7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)
       vite-plugin-css-injected-by-js: 3.5.2(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))
@@ -21953,7 +21959,7 @@ snapshots:
       de-indent: 1.0.2
       he: 1.2.0
 
-  '@vue/language-core@2.2.0(typescript@5.8.3)':
+  '@vue/language-core@2.2.0(typescript@5.9.2)':
     dependencies:
       '@volar/language-core': 2.4.23
       '@vue/compiler-dom': 3.5.18
@@ -21964,7 +21970,7 @@ snapshots:
       muggle-string: 0.4.1
       path-browserify: 1.0.1
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   '@vue/shared@3.5.18': {}
 
@@ -23596,12 +23602,12 @@ snapshots:
       mime-types: 2.1.35
       request: 2.88.2
 
-  cosmiconfig-typescript-loader@6.1.0(@types/node@20.17.10)(cosmiconfig@9.0.0(typescript@5.8.3))(typescript@5.8.3):
+  cosmiconfig-typescript-loader@6.1.0(@types/node@20.17.10)(cosmiconfig@9.0.0(typescript@5.9.2))(typescript@5.9.2):
     dependencies:
       '@types/node': 20.17.10
-      cosmiconfig: 9.0.0(typescript@5.8.3)
+      cosmiconfig: 9.0.0(typescript@5.9.2)
       jiti: 2.5.0
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   cosmiconfig@7.1.0:
     dependencies:
@@ -23611,14 +23617,14 @@ snapshots:
       path-type: 4.0.0
       yaml: 1.10.2
 
-  cosmiconfig@9.0.0(typescript@5.8.3):
+  cosmiconfig@9.0.0(typescript@5.9.2):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.0
       js-yaml: 4.1.0
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   crc-32@1.2.2: {}
 
@@ -24234,7 +24240,7 @@ snapshots:
   enhanced-resolve@5.18.3:
     dependencies:
       graceful-fs: 4.2.11
-      tapable: 2.2.2
+      tapable: 2.2.3
 
   enquirer@2.4.1:
     dependencies:
@@ -25259,11 +25265,11 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.27.6
 
-  i18next@25.1.2(typescript@5.8.3):
+  i18next@25.1.2(typescript@5.9.2):
     dependencies:
-      '@babel/runtime': 7.28.2
+      '@babel/runtime': 7.28.3
     optionalDependencies:
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   iconv-lite@0.4.24:
     dependencies:
@@ -28505,11 +28511,11 @@ snapshots:
     optionalDependencies:
       react-dom: 18.3.1(react@18.3.1)
 
-  react-i18next@15.2.0(i18next@25.1.2(typescript@5.8.3))(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-i18next@15.2.0(i18next@25.1.2(typescript@5.9.2))(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       '@babel/runtime': 7.28.2
       html-parse-stringify: 3.0.1
-      i18next: 25.1.2(typescript@5.8.3)
+      i18next: 25.1.2(typescript@5.9.2)
       react: 18.3.1
     optionalDependencies:
       react-dom: 18.3.1(react@18.3.1)
@@ -29026,7 +29032,7 @@ snapshots:
   rrweb-cssom@0.8.0:
     optional: true
 
-  rsbuild-plugin-dts@0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@rsbuild/core@1.4.12)(typescript@5.8.3):
+  rsbuild-plugin-dts@0.11.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@rsbuild/core@1.4.12)(typescript@5.9.2):
     dependencies:
       '@ast-grep/napi': 0.37.0
       '@rsbuild/core': 1.4.12
@@ -29036,7 +29042,7 @@ snapshots:
       tsconfig-paths: 4.2.0
     optionalDependencies:
       '@microsoft/api-extractor': 7.52.10(@types/node@20.17.10)
-      typescript: 5.8.3
+      typescript: 5.9.2
 
   rtl-css-js@1.16.1:
     dependencies:
@@ -29734,7 +29740,7 @@ snapshots:
 
   tabbable@6.2.0: {}
 
-  tapable@2.2.2: {}
+  tapable@2.2.3: {}
 
   tar-fs@2.1.3:
     dependencies:
@@ -29795,12 +29801,12 @@ snapshots:
       mkdirp: 3.0.1
       yallist: 5.0.0
 
-  tbox-nodejs-sdk@0.0.13(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.8.3)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)):
+  tbox-nodejs-sdk@0.0.13(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.9.2)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)):
     dependencies:
       axios: 1.11.0
       eventemitter3: 5.0.1
       eventsource-parser: 3.0.3
-      vite-plugin-dts: 4.5.4(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.8.3)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))
+      vite-plugin-dts: 4.5.4(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.9.2)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1))
     transitivePeerDependencies:
       - '@types/node'
       - debug
@@ -30059,7 +30065,7 @@ snapshots:
 
   tsscmp@1.0.6: {}
 
-  tsup@8.5.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(jiti@2.5.1)(postcss@8.5.6)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.1):
+  tsup@8.5.0(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(jiti@2.5.1)(postcss@8.5.6)(tsx@4.20.3)(typescript@5.9.2)(yaml@2.8.1):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.25.6)
       cac: 6.7.14
@@ -30081,7 +30087,7 @@ snapshots:
     optionalDependencies:
       '@microsoft/api-extractor': 7.52.10(@types/node@20.17.10)
       postcss: 8.5.6
-      typescript: 5.8.3
+      typescript: 5.9.2
     transitivePeerDependencies:
       - jiti
       - supports-color
@@ -30146,7 +30152,7 @@ snapshots:
 
   typescript@5.8.2: {}
 
-  typescript@5.8.3: {}
+  typescript@5.9.2: {}
 
   uc.micro@1.0.6: {}
 
@@ -30502,18 +30508,18 @@ snapshots:
     dependencies:
       vite: 7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)
 
-  vite-plugin-dts@4.5.4(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.8.3)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)):
+  vite-plugin-dts@4.5.4(@types/node@20.17.10)(rollup@4.44.2)(typescript@5.9.2)(vite@7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)):
     dependencies:
       '@microsoft/api-extractor': 7.52.10(@types/node@20.17.10)
       '@rollup/pluginutils': 5.2.0(rollup@4.44.2)
       '@volar/typescript': 2.4.23
-      '@vue/language-core': 2.2.0(typescript@5.8.3)
+      '@vue/language-core': 2.2.0(typescript@5.9.2)
       compare-versions: 6.1.1
       debug: 4.4.1(supports-color@5.5.0)
       kolorist: 1.8.0
       local-pkg: 1.1.1
       magic-string: 0.30.17
-      typescript: 5.8.3
+      typescript: 5.9.2
     optionalDependencies:
       vite: 7.0.3(@types/node@20.17.10)(jiti@2.5.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.1)
     transitivePeerDependencies:
@@ -30717,7 +30723,7 @@ snapshots:
       mime-types: 2.1.35
       neo-async: 2.6.2
       schema-utils: 4.3.2
-      tapable: 2.2.2
+      tapable: 2.2.3
       terser-webpack-plugin: 5.3.14(webpack@5.99.6)
       watchpack: 2.4.4
       webpack-sources: 3.3.3

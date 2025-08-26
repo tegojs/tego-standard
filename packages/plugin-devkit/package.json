@@ -6,7 +6,7 @@
     "@rsbuild/core": "^1.4.7",
     "@rsbuild/plugin-less": "1.3.2",
     "@rsbuild/plugin-node-polyfill": "1.4.1",
-    "@rsbuild/plugin-react": "1.3.2",
+    "@rsbuild/plugin-react": "1.3.5",
     "fast-glob": "^3.3.3"
   },
   "devDependencies": {

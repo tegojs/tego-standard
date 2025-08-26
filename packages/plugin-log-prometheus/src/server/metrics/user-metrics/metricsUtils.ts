@@ -21,6 +21,10 @@ export const metricsUtils = {
       method,
     });
   },
+  // 记录在线人数
+  recordOnlineUsers(count: number) {
+    userMetrics.onlineUsers.set(count);
+  },
 
   // 更新每日登录人次
   updateDailyLoginCount() {
@@ -42,24 +46,23 @@ export const metricsUtils = {
   },
 
   // 记录用户访问事件
-  recordUserVisit(sessionId: string, pageType: string, visitDate?: Date) {
+  recordUserVisit(pageType: string, visitDate?: Date) {
     const date = visitDate ? formatDateTime(visitDate, 'YYYY-MM-DD') : formatDateTime(new Date(), 'YYYY-MM-DD');
     userMetrics.userVisit.inc({
-      session_id: sessionId,
+      // session_id: sessionId,
       visit_date: date,
       page_type: pageType,
     });
   },
 
   // 记录用户注册事件
-  recordUserRegistration(userId: string, registrationDate: Date) {
+  recordUserRegistration(registrationDate: Date) {
     const date = formatDateTime(registrationDate, 'YYYY-MM-DD');
     userMetrics.userRegistration.inc({
-      user_id: userId,
       registration_date: date,
     });
 
-    console.log(`[UserMetrics] 记录用户注册事件: ${userId}, 日期: ${date}`);
+    console.log(`[UserMetrics] 记录用户注册事件日期: ${date}`);
   },
 
   // 记录注册流程步骤

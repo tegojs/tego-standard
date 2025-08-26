@@ -3,9 +3,13 @@ import { InjectedPlugin, Plugin } from '@tachybase/server';
 
 import { MetricsController } from './controllers/metricsController';
 import { TrackingController } from './controllers/trackingController';
-import { TrackingFilter } from './metrics/trackingFilter';
+import { TrackingFilter } from './metrics/tracking-metrics/trackingFilter';
 import { initializeUserMetrics } from './metrics/user-metrics/metricsManager';
-import { createTrackingMiddleware, initializeDefaultTrackingConfig } from './middlewares/tracking-middleware';
+import {
+  createTrackingMiddleware,
+  initializeDefaultTrackingConfig,
+  initializeDefaultTrackingMetrics,
+} from './middlewares/tracking-middleware';
 import { createUserMetricsMiddleware } from './middlewares/user-middlewares';
 
 // 注册控制器
@@ -31,6 +35,11 @@ export class PluginLogMetricsServer extends Plugin {
       // 只在主线程初始化
       await this.initializeTrackingSystem();
     }
+
+    this.app.acl.registerSnippet({
+      name: `pm.system-services.prometheus`,
+      actions: ['metricsConfig:*'],
+    });
   }
 
   async install() {}
@@ -71,7 +80,7 @@ export class PluginLogMetricsServer extends Plugin {
   // 初始化用户指标系统
   async initializeUserMetricsSystem() {
     try {
-      const { userMetrics } = await initializeUserMetrics(this.db, true);
+      const { userMetrics } = await initializeUserMetrics(this.db, this.app, true);
       // 添加用户指标中间件
       this.app.use(createUserMetricsMiddleware(userMetrics), {
         tag: 'userMetrics',
@@ -89,15 +98,14 @@ export class PluginLogMetricsServer extends Plugin {
 
       // 初始化默认追踪配置
       await initializeDefaultTrackingConfig(this.db);
-
+      await initializeDefaultTrackingMetrics(this.db);
       // 创建追踪过滤器
       this.trackingFilter = new TrackingFilter(this.db);
 
       // 等待追踪过滤器加载完成
       await this.trackingFilter.load();
-
       // 设置追踪控制器
-      const trackingController = this.app.controllers.find(
+      const trackingController = this.app.controllers?.find(
         (controller) => controller.constructor.name === 'TrackingController',
       );
       if (trackingController && 'setTrackingFilter' in trackingController) {

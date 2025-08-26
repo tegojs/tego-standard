@@ -16,6 +16,18 @@ export default defineCollection({
       required: true,
     },
     {
+      name: 'type',
+      type: 'string',
+      title: '记录类型',
+      required: true,
+    },
+    {
+      name: 'help',
+      type: 'string',
+      title: '描述',
+      required: true,
+    },
+    {
       name: 'resourceName',
       type: 'string',
       title: '资源名称',
@@ -44,13 +56,13 @@ export default defineCollection({
       },
     },
   ],
-  indexes: [
-    {
-      fields: ['resourceName', 'action'],
-      unique: true,
-    },
-    {
-      fields: ['enabled'],
-    },
-  ],
+  // indexes: [
+  //   {
+  //     fields: ['resourceName', 'action'],
+  //     unique: true,
+  //   },
+  //   {
+  //     fields: ['enabled'],
+  //   },
+  // ],
 } as CollectionOptions);

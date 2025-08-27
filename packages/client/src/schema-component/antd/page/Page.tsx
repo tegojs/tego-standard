@@ -1,13 +1,11 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { ISchema, Schema, SchemaOptionsContext, useFieldSchema } from '@tachybase/schema';
 import { FormLayout } from '@tego/client';
 
 import { PlusOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { PageHeader as AntdPageHeader } from '@ant-design/pro-layout';
-import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Button, Divider, Modal, Tabs, TabsProps } from 'antd';
+import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { Button, Divider, Modal, Tabs } from 'antd';
 import { cx } from 'antd-style';
 import classNames from 'classnames';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -23,6 +21,7 @@ import { FilterBlockProvider } from '../../../filter-provider/FilterProvider';
 import { Icon } from '../../../icon';
 import { useGetAriaLabelOfSchemaInitializer } from '../../../schema-initializer/hooks/useGetAriaLabelOfSchemaInitializer';
 import { useGlobalTheme } from '../../../style/theme';
+import { DndContext } from '../../common';
 import { SortableItem } from '../../common/sortable-item';
 import { DragHandleMenu } from '../../common/sortable-item/DragHandleMenu';
 import { DragHandlePageTab } from '../../common/sortable-item/DragHandlePageTab';
@@ -34,30 +33,6 @@ import { useStyles } from './Page.style';
 import { PageDesigner } from './PageDesigner';
 import { PageTabDesigner } from './PageTabDesigner';
 import { getStyles } from './style';
-
-interface DraggableTabPaneProps extends React.HTMLAttributes<HTMLDivElement> {
-  'data-node-key': string;
-}
-
-const DraggableTabNode: React.FC<Readonly<DraggableTabPaneProps>> = ({ className, ...props }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: props['data-node-key'],
-  });
-
-  const style: React.CSSProperties = {
-    ...props.style,
-    transform: CSS.Translate.toString(transform),
-    transition,
-    cursor: 'move',
-  };
-
-  return React.cloneElement(props.children as React.ReactElement<any>, {
-    ref: setNodeRef,
-    style,
-    ...attributes,
-    ...listeners,
-  });
-};
 
 export const Page = (props) => {
   const { children, ...others } = props;
@@ -213,13 +188,21 @@ const PageHeader = (props) => {
 };
 
 const TabComponent = (props) => {
-  const { activeKey, setLoading, setSearchParams, showScrollArea, options, theme, items: tabItems } = props;
-  const [items, setItems] = useState<NonNullable<TabsProps['items']>>(tabItems);
+  const { activeKey, setLoading, setSearchParams, showScrollArea, options, theme, items } = props;
 
   const { styles } = useStyles();
 
   // react18  tab 动画会卡顿，所以第一个 tab 时，动画禁用，后面的 tab 才启用
   const [hasMounted, setHasMounted] = useState(false);
+
+  // 配置传感器（确保拖拽行为正常）
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 移动 5px 后触发拖拽
+      },
+    }),
+  );
 
   const handleTabClick = (activeKey) => {
     setLoading(true);
@@ -235,42 +218,19 @@ const TabComponent = (props) => {
     });
   }, []);
 
-  const sensor = useSensor(PointerSensor, { activationConstraint: { distance: 10 } });
-
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    if (active.id !== over?.id) {
-      setItems((prev) => {
-        const activeIndex = prev.findIndex((i) => i.key === active.id);
-        const overIndex = prev.findIndex((i) => i.key === over?.id);
-        return arrayMove(prev, activeIndex, overIndex);
-      });
-    }
-  };
-
   return (
-    <Tabs
-      className={styles.tabComponentClass}
-      type="card"
-      size={'small'}
-      animated={hasMounted}
-      activeKey={activeKey}
-      items={items}
-      onTabClick={handleTabClick}
-      tabBarExtraContent={<TabBarExtraContent theme={theme} showScrollArea={showScrollArea} options={options} />}
-      renderTabBar={(tabBarProps, DefaultTabBar) => (
-        <DndContext sensors={[sensor]} onDragEnd={onDragEnd} collisionDetection={closestCenter}>
-          <SortableContext items={items.map((i) => i.key)} strategy={horizontalListSortingStrategy}>
-            <DefaultTabBar {...tabBarProps}>
-              {(node) => (
-                <DraggableTabNode {...(node as React.ReactElement<DraggableTabPaneProps>).props} key={node.key}>
-                  {node}
-                </DraggableTabNode>
-              )}
-            </DefaultTabBar>
-          </SortableContext>
-        </DndContext>
-      )}
-    />
+    <DndContext sensors={sensors}>
+      <Tabs
+        className={styles.tabComponentClass}
+        type="card"
+        size={'small'}
+        animated={hasMounted}
+        activeKey={activeKey}
+        items={items}
+        onTabClick={handleTabClick}
+        tabBarExtraContent={<TabBarExtraContent theme={theme} showScrollArea={showScrollArea} options={options} />}
+      />
+    </DndContext>
   );
 };
 

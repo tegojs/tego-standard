@@ -13,12 +13,6 @@ export const useStyles = createStyles(({ css, token }) => {
         border-radius: 5px;
         background: #f0f0f0;
       }
-
-      .wrapper {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-around;
-      }
     `,
   };
 });

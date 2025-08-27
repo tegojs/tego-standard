@@ -6,7 +6,8 @@ export const useStyles = createStyles(({ css, token }) => {
       .ant-tabs-nav-wrap.ant-tabs-nav-wrap {
         flex: none;
       }
-      .ant-tabs-tab.ant-tabs-tab {
+      .ant-tabs-tab.ant-tabs-tab.ant-tabs-tab {
+        padding: 0;
         border: none;
         background-color: #ffffff;
       }
@@ -38,6 +39,8 @@ export const useStyles = createStyles(({ css, token }) => {
 
     tabItemClass: css`
       position: relative;
+      padding: 6px 16px;
+      border-radius: 8px 8px 0 0;
       &:hover {
         .tab-designer-wrapper {
           display: block;

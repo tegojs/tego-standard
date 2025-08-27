@@ -1,5 +1,6 @@
 import { useContext } from 'react';
 
+import { CSS } from '@dnd-kit/utilities';
 import { cx } from 'antd-style';
 
 import { useDesignable } from '../../hooks';
@@ -10,12 +11,20 @@ export const DragHandlePageTab = (props) => {
   const { isSubMenu, children, className: overStyle, isAdminMenu } = props;
   const { draggable } = useContext(SortableContext);
   const { designable } = useDesignable();
-  const { attributes, listeners, setNodeRef, isDragging } = draggable;
+  const { attributes, listeners, setNodeRef, isDragging, transform, transition } = draggable;
   const { styles } = useStyles();
 
   if (!designable) {
     return children;
   }
+
+  const style: React.CSSProperties = {
+    ...props.style,
+    transform: CSS.Translate.toString(transform),
+    transition,
+    cursor: 'move',
+    zIndex: isDragging ? 999 : 'auto',
+  };
 
   return (
     <div

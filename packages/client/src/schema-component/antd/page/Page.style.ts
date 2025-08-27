@@ -27,9 +27,11 @@ export const useStyles = createStyles(({ css, token }) => {
       display: flex;
       flex-direction: row;
       justify-content: flex-end;
-
       &.designable {
         justify-content: space-between;
+      }
+      .add-tab-btn {
+        border-radius: 8px 8px 0 0;
       }
 
       .scroll-area-extra-content {
@@ -39,7 +41,6 @@ export const useStyles = createStyles(({ css, token }) => {
 
     tabItemClass: css`
       position: relative;
-      padding: 6px 16px;
       border-radius: 8px 8px 0 0;
       &:hover {
         .tab-designer-wrapper {

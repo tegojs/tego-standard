@@ -6,7 +6,8 @@ export const useStyles = createStyles(({ css, token }) => {
       position: relative;
       width: 100%;
       height: 100%;
-
+      padding: 6px 16px;
+      border-radius: 8px 8px 0 0;
       &.draggable {
         cursor: move;
         padding: 0 10px;

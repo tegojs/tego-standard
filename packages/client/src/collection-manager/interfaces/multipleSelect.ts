@@ -6,10 +6,10 @@ import { dataSource, defaultProps, operators } from './properties';
 export class MultipleSelectFieldInterface extends CollectionFieldInterface {
   name = 'multipleSelect';
   type = 'object';
+  icon = 'multipleSelectField';
   group = 'choices';
   order = 3;
   title = '{{t("Multiple select")}}';
-  icon = 'multipleSelectField';
   default = {
     type: 'array',
     defaultValue: [],

@@ -6,10 +6,10 @@ import { dataSource, defaultProps, operators } from './properties';
 export class SelectFieldInterface extends CollectionFieldInterface {
   name = 'select';
   type = 'object';
+  icon = 'selectField';
   group = 'choices';
   order = 2;
   title = '{{t("Single select")}}';
-  icon = 'SelectOutlined';
   sortable = true;
   default = {
     type: 'string',

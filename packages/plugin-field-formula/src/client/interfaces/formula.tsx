@@ -1,6 +1,6 @@
 import { CollectionFieldInterface, i18n, interfacesProperties } from '@tachybase/client';
-
 import { Evaluator, evaluators, Registry } from '@tego/client';
+
 import lodash from 'lodash';
 
 import { NAMESPACE } from '../locale';
@@ -59,10 +59,10 @@ const datetimeProperties = {
 export class FormulaFieldInterface extends CollectionFieldInterface {
   name = 'formula';
   type = 'object';
+  icon = 'FunctionOutlined';
   group = 'advanced';
   order = 1;
   title = `{{t("Formula", { ns: "${NAMESPACE}" })}}`;
-  icon = 'FunctionOutlined';
   description = `{{t("Configure and store the results of calculations between multiple field values in the same record, supporting both Math.js and Excel formula functions.", { ns: "${NAMESPACE}" })}}`;
   sortable = true;
   default = {

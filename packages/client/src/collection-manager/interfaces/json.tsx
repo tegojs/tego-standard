@@ -1,6 +1,5 @@
 import React from 'react';
 import { registerValidateRules } from '@tachybase/schema';
-
 import { FormItem, FormLayout } from '@tego/client';
 
 import { CollectionFieldInterface } from '../../data-source/collection-field-interface/CollectionFieldInterface';
@@ -23,10 +22,10 @@ registerValidateRules({
 export class JsonFieldInterface extends CollectionFieldInterface {
   name = 'json';
   type = 'object';
+  icon = 'CodeOutlined';
   group = 'advanced';
   order = 4;
   title = '{{t("JSON")}}';
-  icon = 'CodeOutlined';
   sortable = true;
   default = {
     type: 'json',

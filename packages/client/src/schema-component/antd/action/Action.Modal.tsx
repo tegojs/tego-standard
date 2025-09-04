@@ -11,14 +11,18 @@ import { useStyles } from './Action.Modal.style';
 import { useSetAriaLabelForModal } from './hooks/useSetAriaLabelForModal';
 import { ComposedActionDrawer } from './types';
 
+interface CustomModalProps extends ModalProps {
+  fullScreenButton?: boolean;
+}
+
 const openSizeWidthMap = new Map<OpenSize, string>([
   ['small', '40%'],
   ['middle', '60%'],
   ['large', '80%'],
 ]);
-export const ActionModal: ComposedActionDrawer<ModalProps> = observer(
+export const ActionModal: ComposedActionDrawer<CustomModalProps> = observer(
   (props) => {
-    const { footerNodeName = 'Action.Modal.Footer', width, ...others } = props;
+    const { footerNodeName = 'Action.Modal.Footer', width, fullScreenButton = true, ...others } = props;
     const { styles } = useStyles();
     const { visible, setVisible, openSize = 'middle', modalProps } = useActionContext();
     const actualWidth = width ?? openSizeWidthMap.get(openSize);
@@ -47,7 +51,7 @@ export const ActionModal: ComposedActionDrawer<ModalProps> = observer(
           <div style={{ display: 'flex' }}>
             <span style={{ flex: 1 }}>{field.title}</span>
             <>
-              <Amplifier />
+              {fullScreenButton && <Amplifier />}
               <Button
                 type="text"
                 icon={<CloseOutlined />}

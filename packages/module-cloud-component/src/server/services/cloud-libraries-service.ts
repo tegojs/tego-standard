@@ -1,9 +1,9 @@
 import { createContext, Script } from 'node:vm';
+import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import * as babelParser from '@babel/parser';
 import traverse from '@babel/traverse';
 import Topo from '@hapi/topo';
-import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import { CloudCompiler } from './cloud-compiler';
 
@@ -126,7 +126,7 @@ export class CloudLibrariesService {
       const contextRequire = function (moduleName: string) {
         // FIXME:
         if (moduleName === '@tachybase/utils/client') {
-          return require.call(this, '@tachybase/utils');
+          return require.call(this, '@tego/client');
         }
         if (moduleName === '@tachybase/module-pdf/client') {
           return require.call(this, '@tachybase/module-pdf');

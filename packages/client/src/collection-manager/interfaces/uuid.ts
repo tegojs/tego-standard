@@ -4,10 +4,10 @@ import { operators } from './properties';
 export class UUIDFieldInterface extends CollectionFieldInterface {
   name = 'uuid';
   type = 'object';
+  icon = 'FieldNumberOutlined';
   group = 'advanced';
   order = 0;
   title = '{{t("UUID")}}';
-  icon = 'FieldNumberOutlined';
   hidden = false;
   sortable = true;
   default = {

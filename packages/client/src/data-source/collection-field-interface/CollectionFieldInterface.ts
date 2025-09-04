@@ -18,8 +18,8 @@ export abstract class CollectionFieldInterface {
   constructor(public collectionFieldInterfaceManager: CollectionFieldInterfaceManager) {}
   name: string;
   group: string;
-  title?: string;
   icon?: string;
+  title?: string;
   description?: string;
   order?: number;
   default?: {

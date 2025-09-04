@@ -6,8 +6,8 @@ import { dataSource, defaultProps, operators } from './properties';
 export class CheckboxGroupFieldInterface extends CollectionFieldInterface {
   name = 'checkboxGroup';
   type = 'object';
-  group = 'choices';
   icon = 'UnorderedListOutlined';
+  group = 'choices';
   order = 5;
   title = '{{t("Checkbox group")}}';
   default = {

@@ -7,9 +7,9 @@ export class EmailFieldInterface extends CollectionFieldInterface {
   name = 'email';
   type = 'object';
   group = 'basic';
+  icon = 'CommentOutlined';
   order = 4;
   title = '{{t("Email")}}';
-  icon = 'CommentOutlined';
   sortable = true;
   default = {
     type: 'string',

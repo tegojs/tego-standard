@@ -13,9 +13,9 @@ export class IntegerFieldInterface extends CollectionFieldInterface {
   name = 'integer';
   type = 'object';
   group = 'basic';
+  icon = 'FieldBinaryOutlined';
   order = 6;
   title = '{{t("Integer")}}';
-  icon = 'FieldBinaryOutlined';
   sortable = true;
   default = {
     type: 'bigInt',

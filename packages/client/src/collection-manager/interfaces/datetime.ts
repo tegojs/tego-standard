@@ -4,10 +4,10 @@ import { dateTimeProps, defaultProps, operators } from './properties';
 export class DatetimeFieldInterface extends CollectionFieldInterface {
   name = 'datetime';
   type = 'object';
+  icon = 'dateTimeField';
   group = 'datetime';
   order = 1;
   title = '{{t("Datetime")}}';
-  icon = 'dateTimeField';
   sortable = true;
   default = {
     type: 'date',

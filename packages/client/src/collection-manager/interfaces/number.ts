@@ -5,10 +5,10 @@ import { defaultProps, operators, unique } from './properties';
 export class NumberFieldInterface extends CollectionFieldInterface {
   name = 'number';
   type = 'object';
+  icon = 'numberField';
   group = 'basic';
   order = 7;
   title = '{{t("Number")}}';
-  icon = 'numberField';
   sortable = true;
   default = {
     type: 'double',

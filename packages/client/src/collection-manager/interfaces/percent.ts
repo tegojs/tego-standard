@@ -50,10 +50,10 @@ registerValidateRules({
 export class PercentFieldInterface extends CollectionFieldInterface {
   name = 'percent';
   type = 'object';
+  icon = 'PercentageOutlined';
   group = 'basic';
   order = 8;
   title = '{{t("Percent")}}';
-  icon = 'PercentageOutlined';
   sortable = true;
   default = {
     type: 'float',

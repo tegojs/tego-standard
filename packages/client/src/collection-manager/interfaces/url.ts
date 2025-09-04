@@ -6,10 +6,10 @@ import { defaultProps, operators } from './properties';
 export class UrlFieldInterface extends CollectionFieldInterface {
   name = 'url';
   type = 'string';
+  icon = 'GlobalOutlined';
   group = 'basic';
   order = 5;
   title = '{{t("URL")}}';
-  icon = 'GlobalOutlined';
   default = {
     type: 'text',
     uiSchema: {

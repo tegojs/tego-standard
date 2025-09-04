@@ -4,10 +4,10 @@ import { dateTimeProps, defaultProps, operators } from './properties';
 export class UpdatedAtFieldInterface extends CollectionFieldInterface {
   name = 'updatedAt';
   type = 'object';
+  icon = 'FieldTimeOutlined';
   group = 'systemInfo';
   order = 2;
   title = '{{t("Last updated at")}}';
-  icon = 'FieldTimeOutlined';
   sortable = true;
   default = {
     type: 'date',

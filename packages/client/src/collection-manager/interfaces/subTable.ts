@@ -7,9 +7,9 @@ export class SubTableFieldInterface extends CollectionFieldInterface {
   name = 'subTable';
   type = 'object';
   group = 'relation';
+  icon = 'FolderOpenOutlined';
   order = 2;
   title = '{{t("Sub-table")}}';
-  icon = 'FolderOpenOutlined';
   isAssociation = true;
   default = {
     type: 'hasMany',

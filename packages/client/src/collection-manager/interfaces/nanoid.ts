@@ -3,13 +3,13 @@ import { operators } from './properties';
 
 export class NanoidFieldInterface extends CollectionFieldInterface {
   name = 'nanoid';
+  icon = 'FieldNumberOutlined';
   type = 'object';
   group = 'advanced';
   order = 0;
   title = '{{t("Nano ID")}}';
   hidden = false;
   sortable = true;
-  icon = 'FieldNumberOutlined';
   default = {
     type: 'nanoid',
     uiSchema: {

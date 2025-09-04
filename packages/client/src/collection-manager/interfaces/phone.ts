@@ -3,11 +3,11 @@ import { defaultProps, operators, unique } from './properties';
 
 export class PhoneFieldInterface extends CollectionFieldInterface {
   name = 'phone';
-  icon = 'phoneField';
   type = 'object';
   group = 'basic';
   order = 3;
   title = '{{t("Phone")}}';
+  icon = 'TabletOutlined';
   sortable = true;
   default = {
     type: 'string',

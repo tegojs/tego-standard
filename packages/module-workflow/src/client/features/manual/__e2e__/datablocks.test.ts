@@ -19,7 +19,7 @@ import {
 import { expect, test } from '@tachybase/test/e2e';
 
 import { faker } from '@faker-js/faker';
-import { dayjs } from '@tego/server';
+import dayjs from 'dayjs';
 
 test.describe('field data', () => {
   test('Collection event to add a data trigger, get a single line of text data for the trigger node', async ({

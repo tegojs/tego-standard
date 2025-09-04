@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-ocr-convert",
   "displayName": "OCR Conversion Plugin",
-  "version": "1.3.21",
+  "version": "1.3.25",
   "description": "OCR Conversion Plugin",
   "keywords": [
     "System management"
@@ -10,10 +10,10 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "^1.3.39",
-    "@tachybase/test": "^1.3.39",
-    "@tego/client": "^1.3.39",
-    "@tego/server": "^1.3.39",
+    "@tachybase/schema": "*",
+    "@tachybase/test": "*",
+    "@tego/client": "*",
+    "@tego/server": "*",
     "@vercel/ncc": "0.38.3",
     "antd": "5.22.5",
     "axios": "1.7.7",

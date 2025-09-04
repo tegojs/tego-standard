@@ -11,7 +11,7 @@ import {
 import { expect, test } from '@tachybase/test/e2e';
 
 import { faker } from '@faker-js/faker';
-import { dayjs } from '@tego/server';
+import dayjs from 'dayjs';
 
 test.describe('Configuration page to configure the Trigger node', () => {
   test('Triggered one minute after the current time of the customized time', async ({

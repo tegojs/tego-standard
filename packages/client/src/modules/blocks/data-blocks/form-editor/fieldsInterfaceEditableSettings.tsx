@@ -1,8 +1,8 @@
 import { useContext, useMemo, useState } from 'react';
 import { action, createForm, Field, ISchema, uid, useField, useFieldSchema, useForm } from '@tachybase/schema';
 import { ContextCleaner, SchemaOptionsContext } from '@tachybase/schema/lib/react';
-
 import { ArrayTable, FormItem } from '@tego/client';
+
 import { Button, Modal } from 'antd';
 import _, { cloneDeep } from 'lodash';
 import { useTranslation } from 'react-i18next';

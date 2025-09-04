@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ISchema, uid, useField, useForm } from '@tachybase/schema';
+import { ArrayTable } from '@tego/client';
 
 import { TableOutlined } from '@ant-design/icons';
-import { ArrayTable } from '@tego/client';
 import { Divider, Empty, Input, MenuProps, Spin } from 'antd';
 import { cloneDeep } from 'lodash';
 import { useTranslation } from 'react-i18next';

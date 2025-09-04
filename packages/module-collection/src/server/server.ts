@@ -156,9 +156,7 @@ export class CollectionManagerPlugin extends Plugin {
         model.set('sortBy', model.get('foreignKey') + 'Sort');
       }
     });
-
     this.app.db.on('fields.afterUpdate', afterUpdateForForeignKeyField(this.app.db));
-
     this.app.db.on('fields.afterUpdate', async (model: FieldModel, { context, transaction }) => {
       const prevOptions = model.previous('options');
       const currentOptions = model.get('options');

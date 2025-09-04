@@ -2,15 +2,12 @@ import React, { FC, useMemo } from 'react';
 
 import { Alert, Col, Modal, Row, Space, Spin, Table, Tabs, TabsProps, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { useTranslation } from 'react-i18next';
 
 import { useRequest } from '../../api-client';
 import { PluginDocument } from './PluginDocument';
 import { useStyles } from './style';
 import { IPluginData } from './types';
-
-dayjs.extend(relativeTime);
 
 type Author =
   | string

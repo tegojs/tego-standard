@@ -1,5 +1,7 @@
 import React from 'react';
 import * as tachybaseSchema from '@tachybase/schema';
+import * as tegoClient from '@tego/client';
+import type { RequireJS } from '@tego/client';
 
 import * as antdCssinjs from '@ant-design/cssinjs';
 import * as antdIcons from '@ant-design/icons';
@@ -10,13 +12,11 @@ import * as dndKitSortable from '@dnd-kit/sortable';
 import * as dndKitUtilities from '@dnd-kit/utilities';
 import * as emotionCss from '@emotion/css';
 import * as floatingUI from '@floating-ui/react';
-import * as tegoClient from '@tego/client';
-import type { RequireJS } from '@tego/client';
-import { dayjs } from '@tego/client';
 import * as ahooks from 'ahooks';
 import * as antd from 'antd';
 import * as antdStyle from 'antd-style';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import * as i18next from 'i18next';
 import lodash from 'lodash';
 import ReactDOM from 'react-dom';
@@ -54,6 +54,7 @@ export function defineGlobalDeps(requirejs: RequireJS) {
   requirejs.define('@tego/client', () => tegoClient);
   requirejs.define('@tachybase/client', () => tachybaseClient);
   requirejs.define('@tachybase/schema', () => tachybaseSchema);
+  requirejs.define('@tachybase/utils/client', () => tegoClient);
 
   // dnd-kit 相关
   requirejs.define('@dnd-kit/accessibility', () => dndKitAccessibility);

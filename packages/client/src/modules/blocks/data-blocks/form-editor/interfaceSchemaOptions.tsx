@@ -1,6 +1,5 @@
 import { useContext } from 'react';
 import { onFieldValueChange, SchemaOptionsContext, useForm, useFormEffects } from '@tachybase/schema';
-
 import {
   ArrayTable,
   error,
@@ -13,6 +12,7 @@ import {
   Registry,
   Submit,
 } from '@tego/client';
+
 import { Button, Select } from 'antd';
 import { useTranslation } from 'react-i18next';
 

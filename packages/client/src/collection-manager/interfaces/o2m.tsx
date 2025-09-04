@@ -9,8 +9,8 @@ export class O2MFieldInterface extends CollectionFieldInterface {
   type = 'object';
   group = 'relation';
   order = 4;
-  icon = 'DeploymentUnitOutlined';
   title = '{{t("One to many")}}';
+  icon = 'DeploymentUnitOutlined';
   description = '{{t("One to many description")}}';
   isAssociation = true;
   default = {

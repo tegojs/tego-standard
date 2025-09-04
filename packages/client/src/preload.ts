@@ -1,0 +1,53 @@
+// 初始化 dayjs
+import dayjs from 'dayjs';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
+import calendar from 'dayjs/plugin/calendar';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import IsBetween from 'dayjs/plugin/isBetween';
+import isoWeek from 'dayjs/plugin/isoWeek';
+import IsSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import localeData from 'dayjs/plugin/localeData';
+import quarterOfYear from 'dayjs/plugin/quarterOfYear';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import tz from 'dayjs/plugin/timezone';
+import updateLocale from 'dayjs/plugin/updateLocale';
+import utc from 'dayjs/plugin/utc';
+import weekday from 'dayjs/plugin/weekday';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import weekYear from 'dayjs/plugin/weekYear';
+
+// fix plugin type errors
+import 'dayjs/plugin/advancedFormat';
+import 'dayjs/plugin/calendar';
+import 'dayjs/plugin/customParseFormat';
+import 'dayjs/plugin/isBetween';
+import 'dayjs/plugin/isoWeek';
+import 'dayjs/plugin/isSameOrAfter';
+import 'dayjs/plugin/isSameOrBefore';
+import 'dayjs/plugin/localeData';
+import 'dayjs/plugin/quarterOfYear';
+import 'dayjs/plugin/relativeTime';
+import 'dayjs/plugin/timezone';
+import 'dayjs/plugin/updateLocale';
+import 'dayjs/plugin/utc';
+import 'dayjs/plugin/weekday';
+import 'dayjs/plugin/weekOfYear';
+import 'dayjs/plugin/weekYear';
+
+dayjs.extend(weekday);
+dayjs.extend(localeData);
+dayjs.extend(tz);
+dayjs.extend(utc);
+dayjs.extend(quarterOfYear);
+dayjs.extend(isoWeek);
+dayjs.extend(IsBetween);
+dayjs.extend(IsSameOrAfter);
+dayjs.extend(isSameOrBefore);
+dayjs.extend(weekOfYear);
+dayjs.extend(weekYear);
+dayjs.extend(customParseFormat);
+dayjs.extend(advancedFormat);
+dayjs.extend(calendar);
+dayjs.extend(relativeTime);
+dayjs.extend(updateLocale);

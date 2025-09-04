@@ -6,9 +6,9 @@ export class SortFieldInterface extends CollectionFieldInterface {
   name = 'sort';
   type = 'object';
   group = 'advanced';
-  icon = 'ProfileOutlined';
   order = 1;
   title = '{{t("Sort")}}';
+  icon = 'ProfileOutlined';
   sortable = true;
   titleUsable = true;
   description = '{{t("Used for drag and drop sorting scenarios, supporting grouping sorting")}}';

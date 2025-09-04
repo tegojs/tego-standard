@@ -1,9 +1,9 @@
 import { createContext, Script } from 'node:vm';
+import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import * as babelParser from '@babel/parser';
 import traverse from '@babel/traverse';
 import Topo from '@hapi/topo';
-import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import { CloudCompiler } from './cloud-compiler';
 

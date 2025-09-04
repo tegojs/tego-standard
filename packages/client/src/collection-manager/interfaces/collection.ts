@@ -6,8 +6,8 @@ import { collectionDataSource, defaultProps, operators } from './properties';
 export class CollectionSelectFieldInterface extends CollectionFieldInterface {
   name = 'collection';
   type = 'string';
-  icon = 'ClusterOutlined';
   group = 'advanced';
+  icon = 'ClusterOutlined';
   order = 5;
   title = '{{t("Collection selector")}}';
   description =

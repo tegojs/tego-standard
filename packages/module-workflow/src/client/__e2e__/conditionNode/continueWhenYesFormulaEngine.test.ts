@@ -17,7 +17,7 @@ import {
 import { expect, test } from '@tachybase/test/e2e';
 
 import { faker } from '@faker-js/faker';
-import { dayjs } from '@tego/server';
+import dayjs from 'dayjs';
 
 test('Collection event Add Data Trigger, Formula engine, determines that the trigger node single line text field variable is equal to an equal constant, passes.', async ({
   page,

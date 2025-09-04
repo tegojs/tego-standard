@@ -6,8 +6,8 @@ import { defaultProps, operators } from './properties';
 export class ChinaRegionFieldInterface extends CollectionFieldInterface {
   name = 'chinaRegion';
   type = 'object';
-  icon = 'chinaRegionField';
   group = 'choices';
+  icon = 'CompassOutlined';
   order = 7;
   title = '{{t("China region")}}';
   isAssociation = true;

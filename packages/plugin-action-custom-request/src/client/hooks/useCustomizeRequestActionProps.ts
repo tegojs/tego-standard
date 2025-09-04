@@ -9,8 +9,8 @@ import {
   useRecord,
 } from '@tachybase/client';
 import { useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { isURL, parse } from '@tego/client';
+
 import { App } from 'antd';
 import { saveAs } from 'file-saver';
 import { useNavigate } from 'react-router-dom';
@@ -116,7 +116,6 @@ export const useCustomizeRequestActionProps = () => {
 
         const headerContentType = res.headers.getContentType();
         let filename = getFilenameFromHeader(res.headers['content-disposition']);
-
         if (resultValues?.length) {
           const requestData = { ...JSON.parse(res?.data?.data || {}), ...form.values };
           const reqFormValues = {};

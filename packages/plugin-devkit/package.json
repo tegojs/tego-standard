@@ -1,18 +1,18 @@
 {
   "name": "@tachybase/plugin-devkit",
-  "version": "1.3.21",
+  "version": "1.3.25",
   "main": "dist/server/index.js",
   "dependencies": {
     "@rsbuild/core": "^1.4.7",
-    "@rsbuild/plugin-less": "1.2.5",
-    "@rsbuild/plugin-node-polyfill": "1.3.0",
+    "@rsbuild/plugin-less": "1.3.2",
+    "@rsbuild/plugin-node-polyfill": "1.4.1",
     "@rsbuild/plugin-react": "1.3.2",
-    "fast-glob": "^3.3.2"
+    "fast-glob": "^3.3.3"
   },
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "^1.3.39",
-    "@tego/client": "^1.3.39",
-    "@tego/server": "^1.3.39"
+    "@tachybase/test": "*",
+    "@tego/client": "*",
+    "@tego/server": "*"
   }
 }

@@ -7,9 +7,9 @@ import { defaultProps, operators } from './properties';
 export class MarkdownFieldInterface extends CollectionFieldInterface {
   name = 'markdown';
   type = 'object';
-  icon = 'CodeOutlined';
   title = '{{t("Markdown")}}';
   group = 'media';
+  icon = 'CodeOutlined';
   default = {
     type: 'text',
     // name,

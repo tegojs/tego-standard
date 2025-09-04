@@ -1,7 +1,7 @@
 import React, { ComponentType, ReactElement } from 'react';
 import { define, observable } from '@tachybase/schema';
-
 import { APIClientOptions, getRequireJs, getSubAppName, type RequireJS } from '@tego/client';
+
 import { i18n as i18next } from 'i18next';
 import { get, merge, set } from 'lodash';
 import { createRoot } from 'react-dom/client';

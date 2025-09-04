@@ -1,6 +1,5 @@
 import React from 'react';
 import { registerValidateRules } from '@tachybase/schema';
-
 import { FormItem, FormLayout } from '@tego/client';
 
 import { CollectionFieldInterface } from '../../data-source/collection-field-interface/CollectionFieldInterface';

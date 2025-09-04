@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-action-export",
   "displayName": "Action: Export records",
-  "version": "1.3.21",
+  "version": "1.3.25",
   "description": "Export filtered records to excel, you can configure which fields to export.",
   "keywords": [
     "Actions"
@@ -12,11 +12,12 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "^1.3.39",
-    "@tachybase/test": "^1.3.39",
-    "@tego/client": "^1.3.39",
-    "@tego/server": "^1.3.39",
+    "@tachybase/schema": "*",
+    "@tachybase/test": "*",
+    "@tego/client": "*",
+    "@tego/server": "*",
     "antd": "5.22.5",
+    "dayjs": "^1.11.13",
     "file-saver": "^2.0.5",
     "lodash": "4.17.21",
     "node-xlsx": "^0.24.0",

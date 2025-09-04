@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import { dayjs } from '@tego/server';
+import dayjs from 'dayjs';
 
 export const time = {
   options: () => ({

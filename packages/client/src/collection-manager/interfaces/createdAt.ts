@@ -4,11 +4,11 @@ import { dateTimeProps, defaultProps, operators } from './properties';
 export class CreatedAtFieldInterface extends CollectionFieldInterface {
   name = 'createdAt';
   type = 'object';
-  icon = 'FieldTimeOutlined';
   group = 'systemInfo';
   order = 1;
   title = '{{t("Created at")}}';
   sortable = true;
+  icon = 'FieldTimeOutlined';
   default = {
     type: 'date',
     field: 'createdAt',

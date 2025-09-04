@@ -4,12 +4,11 @@ import path from 'node:path';
 import * as process from 'node:process';
 import stream from 'node:stream';
 import util from 'node:util';
-
 import { Collection, CollectionGroupManager as DBCollectionGroupManager, DumpRulesGroupType } from '@tego/server';
+
 import archiver from 'archiver';
 import dayjs from 'dayjs';
 import { default as _, default as lodash } from 'lodash';
-import mkdirp from 'mkdirp';
 
 import { AppMigrator } from './app-migrator';
 import { FieldValueWriter } from './field-value-writer';
@@ -175,9 +174,9 @@ export class Dumper extends AppMigrator {
 
   backUpStorageDir(appName?: string) {
     if (appName && appName !== 'main') {
-      return path.resolve(process.cwd(), 'storage', 'backups', appName);
+      return path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'backups', appName);
     }
-    return path.resolve(process.cwd(), 'storage', 'backups');
+    return path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'backups');
   }
 
   async allBackUpFilePaths(options?: { includeInProgress?: boolean; dir?: string; appName?: string }) {
@@ -231,7 +230,7 @@ export class Dumper extends AppMigrator {
 
   async writeLockFile(fileName: string, appName?: string) {
     const dirname = this.backUpStorageDir(appName);
-    await mkdirp(dirname);
+    await fsPromises.mkdir(dirname, { recursive: true });
 
     const filePath = this.lockFilePath(fileName, appName);
     await fsPromises.writeFile(filePath, 'lock', 'utf8');
@@ -475,7 +474,7 @@ export class Dumper extends AppMigrator {
 
   async packDumpedDir(fileName: string, appName?: string) {
     const dirname = this.backUpStorageDir(appName);
-    await mkdirp(dirname);
+    await fsPromises.mkdir(dirname, { recursive: true });
 
     const filePath = path.resolve(dirname, fileName);
     const output = fs.createWriteStream(filePath);

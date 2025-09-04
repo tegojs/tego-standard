@@ -5,8 +5,8 @@ export class ColorFieldInterface extends CollectionFieldInterface {
   name = 'color';
   type = 'object';
   group = 'basic';
-  icon = 'BgColorsOutlined';
   order = 10;
+  icon = 'BgColorsOutlined';
   title = '{{t("Color")}}';
   default = {
     type: 'string',

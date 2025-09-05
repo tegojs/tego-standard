@@ -1,10 +1,10 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { ISchema, Schema, SchemaOptionsContext, useFieldSchema } from '@tachybase/schema';
+import { FormLayout } from '@tego/client';
 
 import { PlusOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { PageHeader as AntdPageHeader } from '@ant-design/pro-layout';
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { FormLayout } from '@tego/client';
 import { Button, Divider, Modal, Tabs } from 'antd';
 import { cx } from 'antd-style';
 import classNames from 'classnames';

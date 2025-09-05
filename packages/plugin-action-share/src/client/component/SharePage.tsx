@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AdminProvider,
   AdminTabs,
@@ -7,15 +7,18 @@ import {
   PinnedPluginList,
   useAPIClient,
   useApp,
+  useRequest,
   useSystemSettings,
 } from '@tachybase/client';
 
 import { css } from '@emotion/css';
 import { Layout } from 'antd';
-import { Navigate, useLocation } from 'react-router';
+import dayjs from 'dayjs';
+import { Navigate, useLocation, useParams } from 'react-router';
 import { Outlet } from 'react-router-dom';
 
 import { useStyles } from './style';
+import { VerifyModal } from './VerifyModal';
 
 export function useShareToken() {
   const url = new URL(window.location.href);
@@ -23,7 +26,6 @@ export function useShareToken() {
   const token = url.searchParams.get('token');
   return (token && api.auth.setToken(token), api.auth.getToken());
 }
-
 export const ShareLayout = () => {
   const { styles } = useStyles();
   const app = useApp();
@@ -81,12 +83,48 @@ export const ShareLayout = () => {
 
 export const SharePage = () => {
   const shareToken = useShareToken();
-
-  return !shareToken ? (
-    <NotAuthorityResult />
-  ) : (
+  const { id } = useParams();
+  const url = location.href;
+  const baseUrl = url.substring(0, url.lastIndexOf('/'));
+  const { data } = useRequest<any>({
+    resource: 'sharePageConfig',
+    action: 'get',
+    params: {
+      filter: {
+        id,
+        generateLink: baseUrl,
+      },
+      appends: ['createdBy'],
+    },
+  });
+  const [isVerify, setIsVerify] = useState(false);
+  const [modalVisible, setModalVisible] = useState(true);
+  const sharePassword = sessionStorage.getItem('sharePassword');
+  const sharePasswordId = sessionStorage.getItem('sharePassword-id');
+  if (
+    sharePassword &&
+    sharePasswordId === id &&
+    data?.data?.linkStatus &&
+    !isVerify &&
+    !dayjs().isAfter(data?.data?.shareTime)
+  ) {
+    setIsVerify(true);
+  } else if (data?.data?.linkStatus && !data?.data?.password && !isVerify && !dayjs().isAfter(data?.data?.shareTime)) {
+    setIsVerify(true);
+  }
+  return (
     <AdminProvider>
-      <ShareLayout />
+      {isVerify ? (
+        <ShareLayout />
+      ) : (
+        <VerifyModal
+          data={data}
+          isVerify={isVerify}
+          setIsVerify={setIsVerify}
+          modalVisible={modalVisible}
+          setModalVisible={setModalVisible}
+        />
+      )}
     </AdminProvider>
   );
 };

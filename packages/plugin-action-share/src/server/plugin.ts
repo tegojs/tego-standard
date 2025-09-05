@@ -1,5 +1,6 @@
-import { BaseAuth, Context, Plugin } from '@tego/server';
+import { ACL, BaseAuth, Context, InjectedPlugin, Plugin } from '@tego/server';
 
+import { verifyInAction } from './actions/share';
 import * as actions from './actions/users';
 import { banGuestActionMiddleware } from './middlewares/ban-guest-action';
 
@@ -28,6 +29,11 @@ export class PluginShareServer extends Plugin {
           'specialRole.$ne': 'guest',
         },
       };
+    });
+    const aclRoles = this.app.acl.snippetManager.snippets.get('pm.acl.roles');
+    this.app.acl.registerSnippet({
+      name: 'pm.acl.roles',
+      actions: [...aclRoles.actions, 'roles.menuShareUiSchemas:*'],
     });
   }
 
@@ -72,6 +78,22 @@ export class PluginShareServer extends Plugin {
         return null;
       }
     };
+    this.app.acl.allow('sharePageConfig', '*', 'public');
+
+    this.app.resourcer.registerActionHandler('sharePageConfig:verifyIn', verifyInAction);
+
+    this.app.use(async (ctx: Context, next) => {
+      if (ctx.action?.resourceName === 'roles' && ctx.action?.actionName === 'check') {
+        const url = new URL(ctx.headers.referer);
+        if (url.pathname.split('/').filter(Boolean)?.[0] === 'share') {
+          const lastSegment = url.pathname.split('/').pop();
+          const shareConfig = await ctx.db.getRepository('sharePageConfig').findOne({ filter: { id: lastSegment } });
+          if (shareConfig.permission === 'edit') {
+            ctx.body.strategy.actions = ['create', 'view', 'update', 'destroy'];
+          }
+        }
+      }
+    });
   }
 
   getInstallingData(options: any = {}) {
@@ -110,6 +132,7 @@ export class PluginShareServer extends Plugin {
           allowConfigure: false,
           allowNewMenu: false,
           snippets: ['!ui.*', '!pm', '!pm.*'],
+          strategy: { actions: ['view'] },
         },
       ],
     });

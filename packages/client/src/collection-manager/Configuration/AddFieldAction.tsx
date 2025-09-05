@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { uid, useField, useForm } from '@tachybase/schema';
+import { ArrayTable } from '@tego/client';
 
 import { PlusOutlined } from '@ant-design/icons';
-import { ArrayTable } from '@tego/client';
 import { Button, Dropdown, MenuProps } from 'antd';
 import { MenuItemGroupType, MenuItemType } from 'antd/es/menu/interface';
 import { cloneDeep } from 'lodash';
@@ -170,6 +170,7 @@ const useCreateCollectionField = () => {
       field.data = field.data || {};
       field.data.loading = true;
       const values = cloneDeep(form.values);
+      console.log('🚀 ~ run ~ values:', values);
       if (values.autoCreateReverseField) {
         /* empty */
       } else {

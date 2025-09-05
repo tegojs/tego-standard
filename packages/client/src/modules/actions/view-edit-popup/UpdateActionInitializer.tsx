@@ -50,5 +50,6 @@ export const UpdateActionInitializer = (props) => {
       },
     },
   };
+
   return <ActionInitializer {...props} schema={schema} />;
 };

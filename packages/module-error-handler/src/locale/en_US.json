@@ -1,4 +1,9 @@
 {
+  "ERR_DUPLICATE_KEY": "Duplicate data detected, please check and resubmit",
+  "ERR_INVALID_TIMESTAMP": "Invalid date format, please correct according to the instructions",
+  "ERR_MISSING_FILTER_UPDATE": "Cannot update: please try again later or contact the administrator",
+  "ERR_RELATION_NOT_EXIST": "The database table does not exist, please contact the administrator",
+  "ERR_VALUE_TOO_LONG": "Content length or quantity exceeds the limit, please adjust accordingly",
   "Validation error": "{{field}} validation error",
   "notNull Violation": "{{field}} cannot be null",
   "notNull violation": "notNull violation",

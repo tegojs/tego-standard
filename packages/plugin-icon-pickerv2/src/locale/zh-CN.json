@@ -1,0 +1,17 @@
+{
+  "Application": "应用程序图标",
+  "Brand": "品牌与LOGO",
+  "DataIcon": "数据图标",
+  "Directional": "定向图标",
+  "EditIcon": "编辑图标",
+  "Failed to save iconStorage:": "存储图标失败",
+  "IconV2": "图标V2",
+  "Large Rounded": "大圆角",
+  "Rotundity": "圆形",
+  "Select Icon": "选择图标",
+  "Select base color": "选择底色",
+  "Small Rounded": "小圆角",
+  "Suggested": "展示图标",
+  "The key in Antd, such as 'ApiOutlined', ignoring case": "Antd的key,例如'ApiOutlined',忽略大小写",
+  "iconStorage did not return an id": "图标库未返回id"
+}

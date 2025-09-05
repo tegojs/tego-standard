@@ -1,23 +1,36 @@
 import React from 'react';
-
 import { APIClient as APIClientSDK } from '@tego/client';
+
 import { Result } from 'ahooks/es/useRequest/src/types';
 import { notification } from 'antd';
 
+import { i18n } from '..';
 import { Application } from '../application';
+
+const TECH_PATTERNS: RegExp[] = [
+  /\bat\s+\S+\s+\(.+\)/i,
+  /(TypeError|ReferenceError|SyntaxError|RangeError)\b/i,
+  /(ENOENT|ECONNREFUSED|ECONNRESET|EPIPE|EAI_AGAIN)\b/i,
+  /(node_modules|webpack|react(-dom)?\.development\.js)/i,
+  /[/\\]\w+\.(js|ts|tsx|jsx):\d+:\d+/i,
+  /https?:\/\/\S+/i,
+];
 
 function notify(type, messages, instance) {
   if (!messages?.length) {
     return;
   }
+  const translatedMessages = messages.map((item) => {
+    const msg = typeof item === 'string' ? item : item.message;
+    const translated = i18n.t(msg);
+    if (TECH_PATTERNS.some((r) => r.test(msg))) {
+      console.error('[TechError]', msg);
+      return i18n.t('The current operation was not successful. You can wait a moment or contact technical support.');
+    }
+    return translated;
+  });
   instance[type]({
-    message: messages.map?.((item: any, index) => {
-      return React.createElement(
-        'div',
-        { key: `${index}_${item.message}` },
-        typeof item === 'string' ? item : item.message,
-      );
-    }),
+    message: translatedMessages.map((msg, index) => React.createElement('div', { key: `${index}_${msg}` }, msg)),
   });
 }
 

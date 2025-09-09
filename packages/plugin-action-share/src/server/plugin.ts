@@ -3,6 +3,7 @@ import { ACL, BaseAuth, Context, InjectedPlugin, Plugin } from '@tego/server';
 import { verifyInAction } from './actions/share';
 import * as actions from './actions/users';
 import { banGuestActionMiddleware } from './middlewares/ban-guest-action';
+import { shareAclAction } from './middlewares/share-acl-action';
 
 export class PluginShareServer extends Plugin {
   async beforeLoad() {
@@ -83,15 +84,10 @@ export class PluginShareServer extends Plugin {
     this.app.resourcer.registerActionHandler('sharePageConfig:verifyIn', verifyInAction);
 
     this.app.use(async (ctx: Context, next) => {
-      if (ctx.action?.resourceName === 'roles' && ctx.action?.actionName === 'check') {
-        const url = new URL(ctx.headers.referer);
-        if (url.pathname.split('/').filter(Boolean)?.[0] === 'share') {
-          const lastSegment = url.pathname.split('/').pop();
-          const shareConfig = await ctx.db.getRepository('sharePageConfig').findOne({ filter: { id: lastSegment } });
-          if (shareConfig.permission === 'edit') {
-            ctx.body.strategy.actions = ['create', 'view', 'update', 'destroy'];
-          }
-        }
+      try {
+        await shareAclAction(ctx, next);
+      } catch (error) {
+        ctx.logger.error(error);
       }
     });
   }

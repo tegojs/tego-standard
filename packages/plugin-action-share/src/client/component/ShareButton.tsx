@@ -37,12 +37,12 @@ export const ShareButton = connect((props) => {
   const pageCtx = usePageExtendComponentContext();
   const { fieldSchema } = pageCtx as any;
   const allTabs = useMemo(() => {
-    const tabs = Object.values(fieldSchema.properties || {}).map((item: any, index) => {
+    const tabs = Object.entries(fieldSchema.properties || {}).map(([key, item]: any, index) => {
       return {
         label: item.title || `${t('Tab')}${index + 1}`,
         value: item['x-uid'],
         xUid: item['x-uid'],
-        schemaName: item.name,
+        schemaName: key,
         title: item.title,
       };
     });
@@ -57,6 +57,7 @@ export const ShareButton = connect((props) => {
     }
     return tabs;
   }, [fieldSchema]);
+  console.log('🚀 ~ allTabs:', allTabs);
   const shareConfigValue = {
     linkStatus: true,
     password: null,

@@ -71,12 +71,13 @@ export const ShareConfigForm = (props) => {
           url: `/uiSchemas:getProperties/${schemaUid}`,
         })
         .then((res) => {
-          const tabs = Object.values(res?.data?.data?.properties || {}).map((item: any, index) => {
+          const properties = res?.data?.data?.bodyProperties || res?.data?.data?.properties;
+          const tabs = Object.entries(properties || {}).map(([key, item]: any, index) => {
             return {
               label: item.title || `${t('Tab')}${index + 1}`,
               value: item['x-uid'],
               xUid: item['x-uid'],
-              schemaName: item.name,
+              schemaName: key,
               title: item.title,
             };
           });

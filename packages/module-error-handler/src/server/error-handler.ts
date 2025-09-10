@@ -1,3 +1,5 @@
+import { DB_ERROR_MAP, NAMESPACE } from '../constants';
+
 export class ErrorHandler {
   handlers = [];
 
@@ -9,12 +11,26 @@ export class ErrorHandler {
   }
 
   defaultHandler(err, ctx) {
+    let code = err.code;
+
+    if (!code && err.message) {
+      for (const { pattern, code: mappedCode } of DB_ERROR_MAP) {
+        if (pattern.test(err.message)) {
+          code = mappedCode;
+          break;
+        }
+      }
+    }
+
     ctx.status = err.statusCode || err.status || 500;
     ctx.body = {
       errors: [
         {
-          message: err.message,
-          code: err.code,
+          message: ctx.i18n.t(`${code || 'unknown'}`, {
+            defaultValue: err.message,
+            ns: NAMESPACE,
+          }),
+          code: code,
         },
       ],
     };

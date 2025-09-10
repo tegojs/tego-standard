@@ -146,6 +146,7 @@ const useTableColumns = (props: {
   colChunkInitial?: number;
   colChunkSize?: number;
   colChunkIdle?: number;
+  scrolling?: boolean; // 滚动中：禁用 LazyCell，直接渲染
 }) => {
   const { t } = useTranslation();
   const { styles } = useStyles();
@@ -201,8 +202,8 @@ const useTableColumns = (props: {
           sorter: s['x-component-props']?.['sorter'],
           width: 200,
           ...s['x-component-props'],
-          render: (_v, record) => {
-            const rowIndex = record.__rIndex ?? record.__index ?? field.value?.indexOf(record) ?? 0;
+          render: (_v, record, index) => {
+            const rowIndex = index;
             if (record.__inactive) {
               return (
                 <span role="button" className={styles.toolbar} style={{ opacity: 0.25 }}>
@@ -683,7 +684,6 @@ export const Table: any = withDynamicSchemaProps(
         start: 0,
         end: dataSource.length - 1,
       });
-
       useEffect(() => {
         if (!virtualEnabled) return;
         const el = scrollContainerRef.current?.querySelector('.ant-table-body');

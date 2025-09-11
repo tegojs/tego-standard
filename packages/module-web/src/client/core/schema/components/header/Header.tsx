@@ -56,7 +56,7 @@ const InternalHeader = (props: HeaderProps) => {
       <NavBar backArrow={showBack} onBack={() => navigate(-1)} className={styles.mobileNav}>
         <div>{compiledTitle}</div>
         <>
-          {Object.values(extendComponents)?.map((item: any) => {
+          {Object.values(extendComponents || {})?.map((item: any) => {
             const schema = {
               type: 'void',
               name: item.name,

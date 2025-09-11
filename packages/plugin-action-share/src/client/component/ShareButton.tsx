@@ -57,7 +57,6 @@ export const ShareButton = connect((props) => {
     }
     return tabs;
   }, [fieldSchema]);
-  console.log('🚀 ~ allTabs:', allTabs);
   const shareConfigValue = {
     linkStatus: true,
     password: null,
@@ -161,7 +160,7 @@ export const ShareModal = (props) => {
   const [imageOpen, setImageOpen] = useState(false);
   return (
     <>
-      <div className={styles.secondmodal}>
+      <div className={`${styles.secondmodal} secondmodal`}>
         <div className="tb-header-modal-list" onClick={copyLink}>
           <Icon type="PaperClipOutlined" />
           {t('Copy link')}

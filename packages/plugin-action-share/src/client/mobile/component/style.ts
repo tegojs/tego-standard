@@ -41,63 +41,19 @@ export const useModalStyles = createStyles(({ css, token }) => {
           justify-items: center;
         }
       }
-    `,
-    secondmodal: css`
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      margin-top: 20px;
-      margin-bottom: 40px;
-      position: relative;
-      gap: 15%;
-      padding-left: 8%;
-      padding-right: 8%;
-      .tb-header-modal-list {
-        width: 50%;
-        gap: 10px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        text-align: center;
-        border: 1px solid transparent;
-        border-color: rgba(203, 227, 254, 0.62);
-        box-shadow: none;
-        border-radius: 12px;
-        padding: 16px;
-        transition:
-          box-shadow 0.2s ease,
-          transform 0.2s ease;
-        z-index: 1;
-        position: relative;
-        &:hover {
-          border-color: rgba(0, 120, 255, 0.3);
-          box-shadow: 0 4px 16px rgba(0, 120, 255, 0.15);
-        }
-        &:active {
-          box-shadow: none;
-          transform: translateY(2px);
-        }
-        .anticon {
-          width: 100%;
+      .ant-modal-body {
+        .secondmodal {
           display: flex;
           justify-content: center;
-          svg {
-            width: 30px;
-            height: 30px;
-          }
+          align-items: center;
+          width: 100%;
+          margin-top: 20px;
+          margin-bottom: 40px;
+          position: relative;
+          gap: 15%;
+          padding-left: 8%;
+          padding-right: 8%;
         }
-        .tb-header-modal-list-text {
-          text-align: center;
-        }
-      }
-    `,
-    imageModal: css`
-      display: flex;
-      justify-content: center;
-      .ant-modal-content {
-        width: 280px;
-        height: 360px;
       }
     `,
   };

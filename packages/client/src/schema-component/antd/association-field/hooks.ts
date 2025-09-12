@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { GeneralField, reaction, useField, useFieldSchema } from '@tachybase/schema';
-
 import { flatten, getValuesByPath } from '@tego/client';
+
 import _, { isString } from 'lodash';
 import cloneDeep from 'lodash/cloneDeep';
 
@@ -204,13 +204,14 @@ export const useSubFormValue = () => {
 };
 
 export const useCustomTitle = (record, schema, fieldNames) => {
+  if (schema) return { formulaRecord: {}, fieldNames };
   if (schema['x-component-props']?.mode === 'CustomTitle' && schema['x-component-props']?.fieldNames?.formula) {
-    if (Array.isArray(record[schema['name']])) {
-      record[schema['name']].forEach((recordItem) => {
+    if (Array.isArray(record[schema?.['name']])) {
+      record[schema?.['name']].forEach((recordItem) => {
         recordItem['customLabel'] = getCustomLabel(recordItem, schema);
       });
     } else {
-      record[schema['name']]['customLabel'] = getCustomLabel(record[schema['name']], schema);
+      record[schema?.['name']]['customLabel'] = getCustomLabel(record[schema?.['name']], schema);
     }
     return { formulaRecord: record, fieldNames: { ...fieldNames, label: 'customLabel' } };
   }

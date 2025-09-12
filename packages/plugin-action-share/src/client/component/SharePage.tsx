@@ -75,7 +75,9 @@ export const ShareLayout = () => {
             </div>
           </div>
         </Layout.Header>
-        <Outlet />
+        <div style={{ padding: '0px 5px' }}>
+          <Outlet />
+        </div>
       </Layout.Content>
     </Layout>
   );

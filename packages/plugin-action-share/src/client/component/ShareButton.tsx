@@ -190,7 +190,8 @@ export const ShareModal = (props) => {
   );
 };
 
-export const ShareHistory = () => {
+export const ShareHistory = (props) => {
+  const { style } = props;
   const [historyData, setHistoryData] = useState([]);
   const { currentUserCtx } = useCurrentUserVariable();
   const { styles } = useShareCollapseStyle();
@@ -228,7 +229,7 @@ export const ShareHistory = () => {
   }, [currentUserCtx]);
 
   return (
-    <div className={styles.collapse}>
+    <div className={`${styles.collapse} ${style}`}>
       <Collapse items={historyData} collapsible="icon" />
     </div>
   );
@@ -269,7 +270,7 @@ const ExtraItems = ({ item, run }) => {
   };
 
   return (
-    <div className={styles.collapseExtra}>
+    <div className={`${styles.collapseExtra} collapseExtra`}>
       <Icon
         type="deleteOutlined"
         onClick={() => {

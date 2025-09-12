@@ -28,13 +28,18 @@ export const shareAclAction = async (ctx, next) => {
         })
         .filter(Boolean);
       const bodyProperties = ctx.body.bodyProperties || ctx.body?.properties || {};
+      const tabsProperties = bodyProperties?.tabs?.properties || bodyProperties;
       const properties = {};
-      for (let key in bodyProperties) {
+      for (let key in tabsProperties) {
         if (shareTabs.includes(key)) {
-          properties[key] = bodyProperties[key];
+          properties[key] = tabsProperties[key];
         }
       }
-      ctx.body.properties = properties;
+      if (bodyProperties?.tabs?.properties) {
+        ctx.body.properties.tabs.properties = properties;
+      } else {
+        ctx.body.properties = properties;
+      }
       ctx.body.bodyProperties = bodyProperties;
     }
   }

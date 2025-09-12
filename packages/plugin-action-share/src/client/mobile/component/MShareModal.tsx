@@ -16,13 +16,10 @@ import { ShareModalContext } from '../../provider/shareModelProvider';
 import { useModalStyles } from './style';
 
 export const MShareModal = () => {
-  const { fieldSchema, isHeaderEnabled, title, enabledSharePage } = usePageExtendComponentContext() as any;
-  console.log('🚀 ~ MShareModal ~ fieldSchema:', fieldSchema);
+  const { fieldSchema, isHeaderEnabled, enabledSharePage } = usePageExtendComponentContext() as any;
   const uid = fieldSchema?.['x-uid'];
-  const [imageOpen, setImageOpen] = useState(false);
   const { styles: modalStyle } = useModalStyles();
   const { t } = useTranslation();
-  const { copyLink, imageAction } = useShareActions({ title, uid });
   const { currentUserCtx } = useCurrentUserVariable();
   const [open, setOpen] = useState(false);
   const compile = useCompile();
@@ -83,18 +80,43 @@ export const MShareModal = () => {
           />
         </div>
       )}
-      <Modal
-        open={open}
-        className={modalStyle.firstmodal}
-        title={t('Share')}
-        footer={null}
-        width={300}
-        onCancel={() => {
-          setOpen(false);
-        }}
-      >
+      <Modal open={open} className={modalStyle.firstmodal} footer={null} width={300} closable={false}>
+        <div className="modal-title">
+          <div className="title">
+            {historyVisible ? (
+              <div className="history-title">
+                <Icon
+                  type="LeftOutlined"
+                  onClick={() => {
+                    setHistoryVisible(false);
+                  }}
+                />
+                <div> {t('Historical records')}</div>
+              </div>
+            ) : (
+              <div className="share-title">{t('Share')}</div>
+            )}
+          </div>
+          <div className="modalIcon">
+            {!historyVisible && (
+              <Icon
+                type="clockCircleOutlined"
+                onClick={() => {
+                  setHistoryVisible(true);
+                }}
+              />
+            )}
+            <Icon
+              type="closeOutlined"
+              onClick={() => {
+                setOpen(false);
+                setShareValue(shareConfigValue);
+              }}
+            />
+          </div>
+        </div>
         <ShareModalContext.Provider value={{ shareValue, setShareValue }}>
-          {!historyVisible ? <ShareModal allTabs={allTabs} /> : <ShareHistory />}
+          {!historyVisible ? <ShareModal allTabs={allTabs} /> : <ShareHistory style={modalStyle.collapse} />}
         </ShareModalContext.Provider>
       </Modal>
     </>

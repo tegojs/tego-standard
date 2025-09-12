@@ -368,6 +368,11 @@ export const useShareCollapseStyle = createStyles(({ css, token }) => {
       padding: 20px;
       .ant-collapse {
         border-radius: ${token?.borderRadius || '0px'};
+        .ant-collapse-header {
+          display: flex;
+          justify-content: space-between;
+          flex-wrap: wrap;
+        }
       }
     `,
     collapseExtra: css`

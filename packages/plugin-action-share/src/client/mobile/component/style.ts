@@ -37,11 +37,50 @@ export const useModalStyles = createStyles(({ css, token }) => {
             font-weight: 400;
           }
         }
-        .ant-modal-body {
-          justify-items: center;
-        }
       }
       .ant-modal-body {
+        .modal-title {
+          width: 100%;
+          position: relative;
+          .title {
+            flex: 1;
+            text-align: center;
+            font-size: large;
+            font-weight: 400;
+            .history-title {
+              font-weight: normal;
+              text-align: left;
+              font-size: 1rem;
+              display: flex;
+              padding: 0 20px;
+              margin-bottom: 5px;
+              margin-top: 15px;
+              .anticon {
+                padding: 0 5px 0 5px;
+                &:hover {
+                  background-color: #ebebeb;
+                  cursor: pointer;
+                }
+              }
+            }
+            .share-title {
+              margin: 20px 0;
+            }
+          }
+          .modalIcon {
+            position: absolute;
+            top: -15px;
+            right: 7px;
+            .anticon {
+              font-size: 18px;
+              padding: 8px;
+              &:hover {
+                background-color: #ebebeb;
+                cursor: pointer;
+              }
+            }
+          }
+        }
         .secondmodal {
           display: flex;
           justify-content: center;
@@ -53,6 +92,17 @@ export const useModalStyles = createStyles(({ css, token }) => {
           gap: 15%;
           padding-left: 8%;
           padding-right: 8%;
+        }
+      }
+    `,
+
+    collapse: css`
+      .ant-collapse-extra {
+        width: 100%;
+        .collapseExtra {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
         }
       }
     `,

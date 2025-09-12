@@ -1,8 +1,8 @@
 import React from 'react';
 import { Input } from '@tachybase/client';
 import { useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { evaluators } from '@tego/client';
+
 import _ from 'lodash';
 
 import { FormulaProps } from './Formula.interface';
@@ -97,7 +97,7 @@ function getEvaluateArray(formulaArry, recordData): [string, object] {
 
 function getResultShowValue(formulaArray, { prefix, suffix, decimal }): string {
   const engine = evaluators.get('math.js');
-  const evaluate = engine.evaluate.bind(engine);
+  const evaluate = engine?.evaluate.bind(engine);
   const [code, scopes] = formulaArray;
 
   let resultShowValue;

@@ -95,16 +95,16 @@ const LocalPlugins = () => {
         align: 'center',
       },
       {
-        title: t('PackageName'),
-        dataIndex: 'packageName',
-        key: 'packageName',
-        render: (_, { packageName }) => <span>{packageName}</span>,
-      },
-      {
         title: t('Name'),
         dataIndex: 'name',
         key: 'name',
         render: (_, { displayName, name, packageName }) => <span>{displayName || name || packageName}</span>,
+      },
+      {
+        title: t('PackageName'),
+        dataIndex: 'packageName',
+        key: 'packageName',
+        render: (_, { packageName }) => <span>{packageName}</span>,
       },
       {
         title: t('Version'),

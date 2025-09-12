@@ -192,11 +192,15 @@ export const SubTable: any = observer(
       total: field.value.length,
     };
     const onChange = (props) => {
+      if (!subTableField?.componentProps || !fieldSchema?.['x-component-props']) return;
       subTableField.componentProps['pagination'] = {
-        ...subTableField.componentProps['pagination'],
+        ...subTableField.componentProps?.['pagination'],
         current: props.current,
       };
-      if (subTableField.componentProps.pagination.pageSize !== props.pageSize) {
+      if (
+        subTableField.componentProps?.pagination?.pageSize &&
+        subTableField.componentProps?.pagination?.pageSize !== props?.pageSize
+      ) {
         subTableField.componentProps.pagination.pageSize = props.pageSize;
         fieldSchema['x-component-props'] = {
           ...fieldSchema['x-component-props'],

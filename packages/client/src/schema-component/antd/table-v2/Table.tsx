@@ -476,7 +476,7 @@ export const Table: any = withDynamicSchemaProps(
               tableLayout="auto"
               {...others}
               {...restProps}
-              pagination={!!paginationProps}
+              pagination={paginationProps}
               components={components}
               onChange={(pagination, filters, sorter, extra) => {
                 onTableChange?.(pagination, filters, sorter, extra);

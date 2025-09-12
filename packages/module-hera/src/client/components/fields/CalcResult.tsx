@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Input } from '@tachybase/client';
 import { onFormValuesChange, useField, useFieldSchema, useForm, useFormEffects } from '@tachybase/schema';
-
 import { evaluators } from '@tego/client';
+
 import { Descriptions, DescriptionsProps } from 'antd';
 import _ from 'lodash';
 
@@ -21,7 +21,7 @@ export const CalcResult: any = (props) => {
   const path: any = field.path.entire;
   const fieldPath = path?.replace(`.${fieldSchema.name}`, '');
   const engine = evaluators.get('math.js');
-  const evaluate = engine.evaluate.bind(engine);
+  const evaluate = engine?.evaluate.bind(engine);
   const defaultValue = fieldSchema.name === 'subtotal' ? '￥0.00' : [];
   const [value, setValue] = useState<string | DescriptionsProps['items'] | React.ReactNode>(defaultValue);
   const transformFormulaArray = transformFormula(formula);

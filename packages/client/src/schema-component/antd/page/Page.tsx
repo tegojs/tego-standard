@@ -137,7 +137,7 @@ const PageHeader = (props) => {
           {...parentProps}
           extra={
             <>
-              {Object.values(extendComponents || {})?.map((item: any, index) => {
+              {Object.values(extendComponents)?.map((item: any, index) => {
                 const schema = {
                   type: 'void',
                   name: item.name,
@@ -169,7 +169,7 @@ const PageHeader = (props) => {
           }
         ></AntdPageHeader>
       )}
-      {Object.values(extendComponents || {})?.map((item: any, index) => {
+      {Object.values(extendComponents)?.map((item: any, index) => {
         const schema = {
           type: 'void',
           name: 'icon' + item.name,

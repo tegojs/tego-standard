@@ -9,7 +9,6 @@ export const MDatePicker = connect(
   (props) => {
     const { t } = useTranslation();
     const { value, onChange } = props;
-    console.log('🚀 ~ value:', value);
     const [visible, setVisible] = useState(false);
 
     const dateValueShow = useMemo(() => {

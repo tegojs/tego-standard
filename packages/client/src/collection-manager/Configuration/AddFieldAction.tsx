@@ -170,7 +170,6 @@ const useCreateCollectionField = () => {
       field.data = field.data || {};
       field.data.loading = true;
       const values = cloneDeep(form.values);
-      console.log('🚀 ~ run ~ values:', values);
       if (values.autoCreateReverseField) {
         /* empty */
       } else {

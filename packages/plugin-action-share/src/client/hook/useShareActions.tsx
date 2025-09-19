@@ -1,12 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { useCompile, useCurrentUserVariable, useIsMobile, useTranslation } from '@tachybase/client';
-import { useFieldSchema } from '@tachybase/schema';
+import {
+  useAPIClient,
+  useCollectionManager,
+  useCompile,
+  useCurrentUserVariable,
+  useIsMobile,
+  useRequest,
+  useTranslation,
+} from '@tachybase/client';
+import { uid, useFieldSchema } from '@tachybase/schema';
 
 import { Button, message } from 'antd';
 import QRCode from 'qrcode';
 import { useMatch } from 'react-router';
 
-export const useShareActions = ({ title, uid }) => {
+import { useShareModal } from '../provider/shareModelProvider';
+
+export const useShareActions = (props) => {
+  const { title, uid: xUid } = props;
   const fieldSchema = useFieldSchema();
   const isAdmin = useMatch('/admin/:name');
   const isShare = useMatch('/share/:name');
@@ -16,38 +27,41 @@ export const useShareActions = ({ title, uid }) => {
   const replaceLink = isMobilePage
     ? window.location.href.replace('/mobile', '/share')
     : window.location.href.replace('/admin', '/share');
-  const link = replaceLink
-    .replace(currentRoute?.params?.name, uid || fieldSchema['x-uid'])
-    .replace(window.location.search || '', '');
   const { t } = useTranslation();
-  const [qrLink, setQrLink] = useState<string | undefined>();
+  const { shareValue } = useShareModal();
   const compile = useCompile();
-  QRCode.toDataURL(link, { width: 170 }, (err, url) => {
-    if (err) {
-      console.error(err);
-      return;
+  const api = useAPIClient();
+  const [shareLink, setShareLink] = useState('');
+  const link = replaceLink
+    .replace(currentRoute?.params?.name, xUid || fieldSchema['x-uid'])
+    .replace(window.location.search || '', '');
+  useEffect(() => {
+    setShareLink('');
+  }, [shareValue]);
+  const copyLink = (copyLink?) => {
+    const modalLink = typeof copyLink === 'string' ? copyLink : shareLink;
+    if (!modalLink) {
+      api
+        .resource('sharePageConfig')
+        .create({
+          values: {
+            ...shareValue,
+            generateLink: link,
+          },
+        })
+        .then((res) => {
+          const resLink = link + '/' + res?.data.data.id;
+          setShareLink(resLink);
+          copyMessage(resLink, title, compile, t);
+        });
+    } else {
+      copyMessage(modalLink, title, compile, t);
     }
-    if (!qrLink) {
-      setQrLink(url);
-    }
-  });
-  const copyLink = () => {
-    navigator.clipboard.writeText(link).then((res) => {
-      message.open({
-        type: 'success',
-        content: (
-          <>
-            {t('Replicated')}
-            <span style={{ color: '#3279FE' }}>{compile(title || '')}</span>
-            {t('page link')}
-          </>
-        ),
-      });
-    });
   };
 
-  const imageAction = () => {
-    return <ImageModal link={qrLink} title={title} />;
+  const imageAction = (copyLink?) => {
+    const modalLink = typeof copyLink === 'string' ? copyLink : shareLink;
+    return <ImageModal link={link} title={title} shareLink={modalLink} setShareLink={setShareLink} />;
   };
   return {
     copyLink,
@@ -56,14 +70,38 @@ export const useShareActions = ({ title, uid }) => {
 };
 
 const ImageModal = (props) => {
-  const { link, title } = props;
+  const { link, title, shareLink, setShareLink } = props;
   const canvasRef = useRef(null);
   const { t } = useTranslation();
   const { currentUserCtx } = useCurrentUserVariable();
   const compile = useCompile();
+  const { shareValue } = useShareModal();
+  const api = useAPIClient();
   useEffect(() => {
-    canvasContent(canvasRef, link, currentUserCtx, t);
-  }, []);
+    if (!shareLink) {
+      api
+        .resource('sharePageConfig')
+        .create({
+          values: {
+            ...shareValue,
+            generateLink: link,
+          },
+        })
+        .then((res) => {
+          setShareLink(link + '/' + res?.data.data.id);
+        });
+    } else {
+      QRCode.toDataURL(shareLink, { width: 170 }, (err, url) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        if (url) {
+          canvasContent(canvasRef, url, currentUserCtx, t);
+        }
+      });
+    }
+  }, [shareLink]);
 
   const saveImage = () => {
     const canvas = canvasRef.current;
@@ -231,4 +269,19 @@ const canvasContent = (canvasRef, link, currentUserCtx, t) => {
   ctx.font = '14px Arial';
   ctx.textAlign = 'center';
   ctx.fillText('灵矶(Tachybase)', canvas.width / 4, 250);
+};
+
+const copyMessage = (shareLink, title, compile, t) => {
+  navigator.clipboard.writeText(shareLink).then((res) => {
+    message.open({
+      type: 'success',
+      content: (
+        <>
+          {t('Replicated')}
+          <span style={{ color: '#3279FE' }}>{compile(title || '')}</span>
+          {t('page link')}
+        </>
+      ),
+    });
+  });
 };

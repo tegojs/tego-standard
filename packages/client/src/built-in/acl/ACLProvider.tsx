@@ -164,6 +164,7 @@ export function useACLRoleContext() {
     }
     return allowedActions[actionAlias].includes(recordPkValue);
   };
+
   return {
     ...data,
     parseAction: (actionPath: string, options: any = {}) => {
@@ -205,7 +206,7 @@ export const ACLCollectionProvider = (props) => {
   }
   const [_, actionName] = actionPath.split(':');
   params.actionName = actionName;
-  return <ACLActionParamsContext.Provider value={params}>{props.children}</ACLActionParamsContext.Provider>;
+  return <ACLActionParamsContext.Provider value={{ params }}>{props.children}</ACLActionParamsContext.Provider>;
 };
 
 export const useACLActionParamsContext = () => {

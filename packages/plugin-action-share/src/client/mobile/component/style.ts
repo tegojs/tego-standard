@@ -37,67 +37,73 @@ export const useModalStyles = createStyles(({ css, token }) => {
             font-weight: 400;
           }
         }
-        .ant-modal-body {
-          justify-items: center;
-        }
       }
-    `,
-    secondmodal: css`
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      margin-top: 20px;
-      margin-bottom: 40px;
-      position: relative;
-      gap: 15%;
-      padding-left: 8%;
-      padding-right: 8%;
-      .tb-header-modal-list {
-        width: 50%;
-        gap: 10px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        text-align: center;
-        border: 1px solid transparent;
-        border-color: rgba(203, 227, 254, 0.62);
-        box-shadow: none;
-        border-radius: 12px;
-        padding: 16px;
-        transition:
-          box-shadow 0.2s ease,
-          transform 0.2s ease;
-        z-index: 1;
-        position: relative;
-        &:hover {
-          border-color: rgba(0, 120, 255, 0.3);
-          box-shadow: 0 4px 16px rgba(0, 120, 255, 0.15);
-        }
-        &:active {
-          box-shadow: none;
-          transform: translateY(2px);
-        }
-        .anticon {
+      .ant-modal-body {
+        .modal-title {
           width: 100%;
-          display: flex;
-          justify-content: center;
-          svg {
-            width: 30px;
-            height: 30px;
+          position: relative;
+          .title {
+            flex: 1;
+            text-align: center;
+            font-size: large;
+            font-weight: 400;
+            .history-title {
+              font-weight: normal;
+              text-align: left;
+              font-size: 1rem;
+              display: flex;
+              padding: 0 20px;
+              margin-bottom: 5px;
+              margin-top: 15px;
+              .anticon {
+                padding: 0 5px 0 5px;
+                &:hover {
+                  background-color: #ebebeb;
+                  cursor: pointer;
+                }
+              }
+            }
+            .share-title {
+              margin: 20px 0;
+            }
+          }
+          .modalIcon {
+            position: absolute;
+            top: -15px;
+            right: 7px;
+            .anticon {
+              font-size: 18px;
+              padding: 8px;
+              &:hover {
+                background-color: #ebebeb;
+                cursor: pointer;
+              }
+            }
           }
         }
-        .tb-header-modal-list-text {
-          text-align: center;
+        .secondmodal {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 100%;
+          margin-top: 20px;
+          margin-bottom: 40px;
+          position: relative;
+          gap: 15%;
+          padding-left: 8%;
+          padding-right: 8%;
         }
       }
     `,
-    imageModal: css`
-      display: flex;
-      justify-content: center;
-      .ant-modal-content {
-        width: 280px;
-        height: 360px;
+
+    collapse: css`
+      .ant-collapse-extra {
+        width: 100%;
+        .collapseExtra {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+        }
       }
     `,
   };

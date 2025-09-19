@@ -147,9 +147,10 @@ export const useTableBlockProps = () => {
           ) {
             const prevFlatItems = flat(prevMergedFilter);
             Object.entries(prevFlatItems).forEach(([key, prevItem]) => {
-              if (key.split('.').includes(target.field)) {
+              if (key.split('.').includes(target.field) || key.includes(target.field)) {
                 delete prevFlatItems[key];
               }
+              if (!prevFlatItems[key]) delete prevFlatItems[key];
             });
             prevMergedFilter = flat.unflatten(prevFlatItems);
           }

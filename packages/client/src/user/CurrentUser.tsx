@@ -1,10 +1,11 @@
 import React, { createContext, useCallback, useMemo as useEffect, useState } from 'react';
+import { error } from '@tego/client';
 
 import { UserOutlined } from '@ant-design/icons';
-import { error } from '@tego/client';
 import { App, Dropdown, Menu, MenuProps } from 'antd';
 import { createStyles } from 'antd-style';
 import { ItemType } from 'antd/es/menu/interface';
+import { method } from 'lodash';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -133,8 +134,18 @@ export const SettingsMenu: React.FC<{
         key: 'signout',
         label: t('Sign out'),
         onClick: async () => {
-          await api.auth.signOut();
-          navigate(`/signin?redirect=${encodeURIComponent(redirectUrl)}`);
+          try {
+            const loginMethods = await api.resource('authenticators').publicList();
+            const methods = loginMethods?.data?.data || [];
+            await api.auth.signOut();
+            if (methods.length === 1 && methods[0].authType === 'mainApp') {
+              window.location.href = '/';
+            } else {
+              navigate(`/signin?redirect=${encodeURIComponent(redirectUrl)}`);
+            }
+          } catch (err) {
+            console.error('Sign out error:', err);
+          }
         },
       },
     ];

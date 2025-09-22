@@ -1,21 +1,64 @@
-import { useState } from 'react';
-import { Icon, usePageExtendComponentContext, useTranslation } from '@tachybase/client';
+import { useMemo, useState } from 'react';
+import {
+  Icon,
+  useCompile,
+  useCurrentUserVariable,
+  usePageExtendComponentContext,
+  useTranslation,
+} from '@tachybase/client';
 
 import { ShareAltOutlined } from '@ant-design/icons';
 import { Button, Modal } from 'antd';
 
+import { ShareHistory, ShareModal } from '../../component/ShareButton';
 import { useShareActions } from '../../hook/useShareActions';
+import { ShareModalContext } from '../../provider/shareModelProvider';
 import { useModalStyles } from './style';
 
 export const MShareModal = () => {
-  const { fieldSchema, isHeaderEnabled, title, enabledSharePage } = usePageExtendComponentContext() as any;
+  const { fieldSchema, isHeaderEnabled, enabledSharePage } = usePageExtendComponentContext() as any;
   const uid = fieldSchema?.['x-uid'];
-  const [imageOpen, setImageOpen] = useState(false);
   const { styles: modalStyle } = useModalStyles();
   const { t } = useTranslation();
-  const { copyLink, imageAction } = useShareActions({ title, uid });
+  const { currentUserCtx } = useCurrentUserVariable();
   const [open, setOpen] = useState(false);
-
+  const compile = useCompile();
+  const allTabs = useMemo(() => {
+    const tabs = Object.entries(fieldSchema.properties?.tabs?.properties || fieldSchema.properties || {}).map(
+      ([key, item]: any, index) => {
+        return {
+          label: compile(item.title) || `${t('Tab')}${index + 1}`,
+          value: item['x-uid'],
+          xUid: item['x-uid'],
+          schemaName: key,
+          title: item.title,
+        };
+      },
+    );
+    if (tabs.length > 1) {
+      tabs.unshift({
+        label: t('Select all'),
+        value: 'all',
+        xUid: '',
+        schemaName: '',
+        title: '',
+      });
+    }
+    return tabs;
+  }, [fieldSchema]);
+  const shareConfigValue = {
+    linkStatus: true,
+    password: null,
+    permanent: false,
+    shareTime: null,
+    permission: 'view',
+    generateLink: null,
+    createdBy: currentUserCtx,
+    updatedBy: currentUserCtx,
+    tabs: allTabs,
+  };
+  const [shareValue, setShareValue] = useState(shareConfigValue);
+  const [historyVisible, setHistoryVisible] = useState(false);
   return (
     <>
       {isHeaderEnabled && enabledSharePage && (
@@ -37,41 +80,44 @@ export const MShareModal = () => {
           />
         </div>
       )}
-      <Modal
-        open={open}
-        className={modalStyle.firstmodal}
-        title={t('Share')}
-        footer={null}
-        width={300}
-        onCancel={() => {
-          setOpen(false);
-        }}
-      >
-        <div className={modalStyle.secondmodal}>
-          <div className="tb-header-modal-list" onClick={copyLink}>
-            <Icon type="PaperClipOutlined" />
-            {t('Copy link')}
+      <Modal open={open} className={modalStyle.firstmodal} footer={null} width={300} closable={false}>
+        <div className="modal-title">
+          <div className="title">
+            {historyVisible ? (
+              <div className="history-title">
+                <Icon
+                  type="LeftOutlined"
+                  onClick={() => {
+                    setHistoryVisible(false);
+                  }}
+                />
+                <div> {t('Historical records')}</div>
+              </div>
+            ) : (
+              <div className="share-title">{t('Share')}</div>
+            )}
           </div>
-          <div
-            className="tb-header-modal-list"
-            onClick={() => {
-              setImageOpen(true);
-            }}
-          >
-            <Icon type="QrcodeOutlined" />
-            {t('Generate QR code')}
+          <div className="modalIcon">
+            {!historyVisible && (
+              <Icon
+                type="clockCircleOutlined"
+                onClick={() => {
+                  setHistoryVisible(true);
+                }}
+              />
+            )}
+            <Icon
+              type="closeOutlined"
+              onClick={() => {
+                setOpen(false);
+                setShareValue(shareConfigValue);
+              }}
+            />
           </div>
         </div>
-        <Modal
-          className={modalStyle.imageModal}
-          open={imageOpen}
-          footer={null}
-          onCancel={() => {
-            setImageOpen(false);
-          }}
-        >
-          {imageAction()}
-        </Modal>
+        <ShareModalContext.Provider value={{ shareValue, setShareValue }}>
+          {!historyVisible ? <ShareModal allTabs={allTabs} /> : <ShareHistory style={modalStyle.collapse} />}
+        </ShareModalContext.Provider>
       </Modal>
     </>
   );

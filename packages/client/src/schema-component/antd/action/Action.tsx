@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { observer, RecursionField, useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { isPortalInBody } from '@tego/client';
+
 import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
@@ -158,7 +158,6 @@ export const Action: ComposedAction = withDynamicSchemaProps(
       if (!designable && (field?.data?.hidden || !aclCtx)) {
         return null;
       }
-
       return (
         <SortableItem
           role="button"

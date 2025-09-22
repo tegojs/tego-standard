@@ -10,10 +10,10 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
+import { isPortalInBody } from '@tego/client';
 
 import { CopyOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons';
 import { SortableContext, SortableContextProps, useSortable } from '@dnd-kit/sortable';
-import { isPortalInBody } from '@tego/client';
 import { useMemoizedFn } from 'ahooks';
 import { Table as AntdTable, TableColumnProps } from 'antd';
 import { default as classNames, default as cls } from 'classnames';
@@ -222,13 +222,6 @@ const pageSizeOptions = [5, 10, 20, 50, 100, 200];
 const usePaginationProps = (pagination1, pagination2) => {
   const { t } = useTranslation();
   const showTotal = useCallback((total) => t('Total {{count}} items', { count: total }), [t]);
-
-  if (pagination2 === false) {
-    return false;
-  }
-  if (!pagination2 && pagination1 === false) {
-    return false;
-  }
   const result = {
     showTotal,
     showSizeChanger: true,
@@ -236,7 +229,7 @@ const usePaginationProps = (pagination1, pagination2) => {
     ...pagination1,
     ...pagination2,
   };
-  return result.total ? result : false;
+  return result.total ? result : pagination1 || pagination2;
 };
 
 export const Table: any = withDynamicSchemaProps(

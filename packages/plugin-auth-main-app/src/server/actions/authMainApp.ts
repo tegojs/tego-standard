@@ -21,6 +21,9 @@ export class AuthMainAppController {
     } catch (err) {
       ctx.throw(401, ctx.t('Please log in to the main application first', { ns: NAMESPACE }));
     }
+    if (!user || !user.userId) {
+      ctx.throw(401, ctx.t('Invalid token or user not found', { ns: NAMESPACE }));
+    }
 
     // 拥有管理权限
     const multiAppRepo = mainApp.db.getRepository('applications');
@@ -38,17 +41,43 @@ export class AuthMainAppController {
       );
     }
 
-    const repo = ctx.db.getRepository('users');
-    const root = await repo.findOne({
+    const mainUserRepo = mainApp.db.getRepository('users');
+    const userInfo = await mainUserRepo.findOne({
+      fields: ['username', 'nickname', 'phone'],
       filter: {
-        specialRole: 'root',
+        id: user.userId,
+      },
+      raw: true,
+    });
+    const repo = ctx.db.getRepository('users');
+    let currentUser;
+    if (!userInfo) {
+      ctx.throw(403, ctx.t('User info not found in main application', { ns: NAMESPACE }));
+    }
+    currentUser = await repo.findOne({
+      filter: {
+        $or: [
+          ...(userInfo.username ? [{ username: userInfo.username }] : []),
+          ...(userInfo.phone ? [{ phone: userInfo.phone }] : []),
+        ],
       },
     });
-    const tokenInfo = await mainApp.authManager.tokenController.add({ userId: root.id });
+    if (!currentUser) {
+      const newUserData: any = {};
+      if (userInfo.username) newUserData.username = userInfo.username;
+      if (userInfo.nickname) newUserData.nickname = userInfo.nickname;
+      if (userInfo.phone) newUserData.phone = userInfo.phone;
+      currentUser = await repo.create({ values: newUserData });
+    }
+    if (!currentUser) {
+      ctx.throw(500, ctx.t('Failed to create or find current user', { ns: NAMESPACE }));
+    }
+    const currentUserData = currentUser?.dataValues;
+    const tokenInfo = await mainApp.authManager.tokenController.add({ userId: currentUserData.id });
     const expiresIn = Math.floor((await mainApp.authManager.tokenController.getConfig()).tokenExpirationTime / 1000);
     const newToken = ctx.app.authManager.jwt.sign(
       {
-        userId: root.id,
+        userId: currentUserData.id,
         temp: true,
         iat: Math.floor(tokenInfo.issuedTime / 1000),
         signInTime: tokenInfo.signInTime,
@@ -58,18 +87,16 @@ export class AuthMainAppController {
         expiresIn,
       },
     );
-    const mainUserRepo = mainApp.db.getRepository('users');
-    const userInfo = await mainUserRepo.findOne({
-      fields: ['username', 'nickname', 'phone'],
-      filter: {
-        id: user.userId,
-      },
-      raw: true,
-    });
+
     ctx.body = {
       ...userInfo,
       token: newToken,
     };
+    if (userInfo.username && !userInfo.phone) {
+      console.log(
+        'The user only has a username. Please enter the application to complete the password and other information.',
+      );
+    }
     return next();
   }
 

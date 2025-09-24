@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-
 import { fuzzysearch } from '@tego/client';
+
 import { useDebounce } from 'ahooks';
 import {
   Button,
@@ -80,7 +80,6 @@ const LocalPlugins = () => {
   const { data, loading, refresh } = useRequest<TData>({
     url: 'pm:list',
   });
-
   const [searchValue, setSearchValue] = useState('');
   const [enabled, setEnabled] = useState('all');
   const [keywords, setKeywords] = useState([]);
@@ -88,10 +87,30 @@ const LocalPlugins = () => {
   const columns: TableProps<IPluginData>['columns'] = useMemo(() => {
     return [
       {
+        title: t('Index'),
+        dataIndex: 'index',
+        key: 'index',
+        render: (_, __, index) => <span>{index + 1}</span>,
+        width: 80,
+        align: 'center',
+      },
+      {
         title: t('Name'),
         dataIndex: 'name',
         key: 'name',
         render: (_, { displayName, name, packageName }) => <span>{displayName || name || packageName}</span>,
+      },
+      {
+        title: t('PackageName'),
+        dataIndex: 'packageName',
+        key: 'packageName',
+        render: (_, { packageName }) => <span>{packageName}</span>,
+      },
+      {
+        title: t('Version'),
+        dataIndex: 'version',
+        key: 'version',
+        render: (_, { version }) => <span>{version}</span>,
       },
       {
         title: t('Keywords'),
@@ -124,19 +143,30 @@ const LocalPlugins = () => {
     ];
   }, []);
 
-  const filteredList = (data?.data || [])
-    .filter(
-      (data) =>
-        fuzzysearch(searchValue, data.name) ||
-        fuzzysearch(searchValue, data.packageName) ||
-        fuzzysearch(searchValue, data.description ?? '') ||
-        fuzzysearch(searchValue, data.displayName),
-    )
-    .filter(
-      (data) =>
-        enabled === 'all' || (enabled === 'enabled' && data.enabled) || (enabled === 'disabled' && !data.enabled),
-    )
-    .filter((data) => keywords.length === 0 || keywords.some((keyword) => data.keywords?.includes(keyword)));
+  const filteredList = useMemo(
+    () =>
+      (data?.data || [])
+        .filter(
+          (data) =>
+            fuzzysearch(searchValue, data.name) ||
+            fuzzysearch(searchValue, data.packageName) ||
+            fuzzysearch(searchValue, data.description ?? '') ||
+            fuzzysearch(searchValue, data.displayName),
+        )
+        .filter(
+          (data) =>
+            enabled === 'all' || (enabled === 'enabled' && data.enabled) || (enabled === 'disabled' && !data.enabled),
+        )
+        .filter((data) => keywords.length === 0 || keywords.some((keyword) => data.keywords?.includes(keyword)))
+        .sort((a, b) => {
+          if (a.builtIn === b.builtIn) {
+            return a.id - b.id;
+          }
+          return a.builtIn ? -1 : 1;
+        }),
+    [data?.data, enabled, keywords, searchValue],
+  );
+
   const filterList = useMemo(() => {
     let list = data?.data || [];
     list = list.reverse();

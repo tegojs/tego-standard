@@ -1,7 +1,7 @@
 import React from 'react';
 import { Field, ISchema, useField, useFieldSchema } from '@tachybase/schema';
-
 import { ArrayCollapse, FormLayout } from '@tego/client';
+
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
@@ -29,6 +29,7 @@ import { SchemaSettingsSortingRule } from '../../../schema-settings/SchemaSettin
 import { getShouldChange, VariableInput } from '../../../schema-settings/VariableInput/VariableInput';
 import { useLocalVariables, useVariables } from '../../../variables';
 import { useCompile, useDesignable, useFieldModeOptions } from '../../hooks';
+import { OpenMode } from '../action';
 import { isSubMode } from '../association-field/util';
 import { removeNullCondition } from '../filter';
 import { DynamicComponentProps } from '../filter/DynamicComponent';
@@ -742,7 +743,7 @@ export const formItemSettings = new SchemaSettings({
                 'x-component': 'Action',
                 'x-decorator': 'ACLActionProvider',
                 'x-component-props': {
-                  openMode: 'drawer',
+                  openMode: OpenMode.DRAWER_MODE,
                   type: 'default',
                   component: 'CreateRecordAction',
                 },
@@ -804,7 +805,7 @@ export const formItemSettings = new SchemaSettings({
                   'x-component': 'Action',
                   'x-decorator': 'ACLActionProvider',
                   'x-component-props': {
-                    openMode: 'drawer',
+                    openMode: OpenMode.DRAWER_MODE,
                     type: 'default',
                     component: 'CreateRecordAction',
                   },

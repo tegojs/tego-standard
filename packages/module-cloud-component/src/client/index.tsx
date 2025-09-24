@@ -1,8 +1,8 @@
 import { Plugin, useApp, useDesignable } from '@tachybase/client';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
+import * as tegoClient from '@tego/client';
 
 import * as antv from '@antv/g6';
-import { uid } from '@tego/client';
 import exceljs from 'exceljs';
 import * as fileSaver from 'file-saver';
 import * as qrcode from 'qrcode';
@@ -30,6 +30,7 @@ export class ModuleCloudComponentClient extends Plugin {
     this.app.requirejs.define('file-saver', () => fileSaver);
     this.app.requirejs.define('recharts', () => recharts);
     this.app.requirejs.define('@antv/g6', () => antv);
+    this.app.requirejs.define('@tachybase/utils/client', () => tegoClient);
     await this.initLibraries();
   }
 
@@ -80,7 +81,7 @@ export class ModuleCloudComponentClient extends Plugin {
       Component: 'BlockItemInitializer',
       schema: {
         type: 'void',
-        name: uid(),
+        name: tegoClient.uid(),
         'x-component': 'CloudComponentBlock',
         'x-component-props': {
           element: 'CloudComponentVoid',

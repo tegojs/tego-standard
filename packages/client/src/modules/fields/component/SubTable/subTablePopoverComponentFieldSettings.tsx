@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Field, ISchema, useField, useFieldSchema } from '@tachybase/schema';
-
 import { ArrayItems, Switch } from '@tego/client';
+
 import { useTranslation } from 'react-i18next';
 
 import { SchemaSettings } from '../../../../application/schema-settings/SchemaSettings';
@@ -438,7 +438,48 @@ export const clickToSelect = {
   },
 };
 
+export const tablePagination = {
+  name: 'tablePagination',
+  type: 'switch',
+  useComponentProps() {
+    const { dn } = useDesignable();
+    const fieldSchema = useFieldSchema();
+    const { t } = useTranslation();
+    const field = useField();
+    return {
+      title: t('Pagination'),
+      checked: fieldSchema['x-component-props']?.pagination !== (false as boolean),
+      onChange(v) {
+        if (!fieldSchema['x-component-props'].pagination) {
+          fieldSchema['x-component-props'] = {
+            ...fieldSchema['x-component-props'],
+            pagination: false,
+          };
+        }
+        fieldSchema['x-component-props'].pagination = v;
+        field.componentProps['pagination'] = v;
+        dn.emit('patch', {
+          schema: {
+            'x-uid': fieldSchema['x-uid'],
+            'x-component-props': {
+              ...fieldSchema?.['x-component-props'],
+            },
+          },
+        });
+        dn.refresh();
+      },
+    };
+  },
+};
+
 export const subTablePopoverComponentFieldSettings = new SchemaSettings({
   name: 'fieldSettings:component:SubTable',
-  items: [fieldComponent, allowAddNewData, allowSelectExistingRecord, setDefaultSortingRules, clickToSelect],
+  items: [
+    fieldComponent,
+    allowAddNewData,
+    allowSelectExistingRecord,
+    setDefaultSortingRules,
+    clickToSelect,
+    tablePagination,
+  ],
 });

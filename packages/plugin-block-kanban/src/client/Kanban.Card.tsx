@@ -4,13 +4,14 @@ import {
   css,
   cx,
   DndContext,
+  OpenMode,
   RecordProvider,
   SchemaComponentOptions,
   useCollectionParentRecordData,
 } from '@tachybase/client';
 import { observer, RecursionField, useFieldSchema } from '@tachybase/schema';
-
 import { FormLayout } from '@tego/client';
+
 import { Card } from 'antd';
 
 import { KanbanCardContext } from './context';
@@ -103,7 +104,7 @@ export const KanbanCard: any = observer(
         {cardViewerSchema && (
           <ActionContextProvider
             value={{
-              openMode: fieldSchema['x-component-props']?.['openMode'] || 'drawer',
+              openMode: fieldSchema['x-component-props']?.['openMode'] || OpenMode.DRAWER_MODE,
               openSize: fieldSchema['x-component-props']?.['openSize'],
               visible,
               setVisible,

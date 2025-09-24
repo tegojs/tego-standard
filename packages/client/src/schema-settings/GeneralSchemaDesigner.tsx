@@ -17,6 +17,7 @@ import { useStyles } from './styles';
 
 export interface GeneralSchemaDesignerProps {
   disableInitializer?: boolean;
+  disableSettings?: boolean;
   title?: string;
   template?: any;
   schemaSettings?: string;
@@ -35,6 +36,7 @@ export interface GeneralSchemaDesignerProps {
 export const GeneralSchemaDesigner: FC<PropsWithChildren<GeneralSchemaDesignerProps>> = (props: any) => {
   const {
     disableInitializer,
+    disableSettings,
     title,
     template,
     schemaSettings,
@@ -126,22 +128,23 @@ export const GeneralSchemaDesigner: FC<PropsWithChildren<GeneralSchemaDesignerPr
               ) : (
                 ctx?.renderSchemaInitializer?.(initializerProps)
               ))}
-            {schemaSettingsExists ? (
-              schemaSettingsRender(contextValue)
-            ) : (
-              <SchemaSettingsDropdown
-                title={
-                  <MenuOutlined
-                    role="button"
-                    aria-label={getAriaLabel('schema-settings')}
-                    style={{ cursor: 'pointer', fontSize: 12 }}
-                  />
-                }
-                {...schemaSettingsProps}
-              >
-                {props.children}
-              </SchemaSettingsDropdown>
-            )}
+            {!disableSettings &&
+              (schemaSettingsExists ? (
+                schemaSettingsRender(contextValue)
+              ) : (
+                <SchemaSettingsDropdown
+                  title={
+                    <MenuOutlined
+                      role="button"
+                      aria-label={getAriaLabel('schema-settings')}
+                      style={{ cursor: 'pointer', fontSize: 12 }}
+                    />
+                  }
+                  {...schemaSettingsProps}
+                >
+                  {props.children}
+                </SchemaSettingsDropdown>
+              ))}
           </Space>
         </div>
       </div>
@@ -154,6 +157,7 @@ export interface SchemaToolbarProps {
   draggable?: boolean;
   initializer?: string | false;
   settings?: string | false;
+  disableSettings?: boolean;
   /**
    * @default true
    */
@@ -162,7 +166,7 @@ export interface SchemaToolbarProps {
 }
 
 const InternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
-  const { title, initializer, settings, showBackground, showBorder = true, draggable = true } = props;
+  const { title, initializer, settings, disableSettings, showBackground, showBorder = true, draggable = true } = props;
   const { designable } = useDesignable();
   const fieldSchema = useFieldSchema();
   const compile = useCompile();
@@ -227,8 +231,8 @@ const InternalSchemaToolbar: FC<SchemaToolbarProps> = (props) => {
   }, [gridContext, initializer, initializerProps, schemaInitializerExists, schemaInitializerRender]);
 
   const settingsElement = useMemo(() => {
-    return settings !== false && schemaSettingsExists ? schemaSettingsRender() : null;
-  }, [schemaSettingsExists, schemaSettingsRender, settings]);
+    return !disableSettings && settings !== false && schemaSettingsExists ? schemaSettingsRender() : null;
+  }, [disableSettings, schemaSettingsExists, schemaSettingsRender, settings]);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 

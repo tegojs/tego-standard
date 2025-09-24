@@ -4,6 +4,7 @@ import {
   CollectionProvider_deprecated,
   FormBlockContext,
   gridRowColWrap,
+  OpenMode,
   RecordProvider,
   SchemaComponent,
   SchemaInitializer,
@@ -17,8 +18,8 @@ import {
   useSchemaInitializerItem,
 } from '@tachybase/client';
 import { createForm, Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { ArrayTable, merge, uid } from '@tego/client';
+
 import { cloneDeep, pick, set } from 'lodash';
 
 import { JOB_STATUS } from '../../../..';
@@ -241,7 +242,7 @@ const CustomItemsComponent = (props) => {
           <SchemaComponent
             schema={{
               type: 'void',
-              name: 'drawer',
+              name: OpenMode.DRAWER_MODE,
               title: '{{t("Configure field")}}',
               'x-decorator': 'FormV2',
               'x-decorator-props': {

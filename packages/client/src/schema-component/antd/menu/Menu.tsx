@@ -9,9 +9,9 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
+import { error } from '@tego/client';
 
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { error } from '@tego/client';
 import { Menu as AntdMenu, Button, MenuProps, Popover } from 'antd';
 import { createPortal } from 'react-dom';
 

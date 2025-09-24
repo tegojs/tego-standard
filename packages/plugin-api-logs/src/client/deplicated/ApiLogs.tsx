@@ -9,7 +9,6 @@ import {
   useRecord,
 } from '@tachybase/client';
 import { observer, useField } from '@tachybase/schema';
-
 import { ArrayTable } from '@tego/client';
 
 import { tval } from '../locale';

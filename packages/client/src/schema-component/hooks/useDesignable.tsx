@@ -1,4 +1,4 @@
-import React, { ComponentType, useCallback, useContext, useEffect, useMemo } from 'react';
+import React, { ComponentType, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   GeneralField,
   ISchema,
@@ -14,6 +14,8 @@ import { cloneDeep, get, set } from 'lodash';
 import { useTranslation } from 'react-i18next';
 
 import { APIClient, useAPIClient } from '../../api-client';
+import { useTabContent } from '../../built-in/page-style/TabContent';
+import { useCardItem } from '../antd';
 import { SchemaComponentContext } from '../context';
 
 interface CreateDesignableProps {
@@ -24,6 +26,9 @@ interface CreateDesignableProps {
   refresh?: () => void;
   onSuccess?: any;
   t?: any;
+  setSchemaUid?: any;
+  cardItemUid?: string;
+  schemaId?: string;
 }
 
 export function createDesignable(options: CreateDesignableProps) {
@@ -256,7 +261,12 @@ export class Designable {
       return;
     }
     const [opts, ...others] = args;
-    return Promise.all(this.events[name].map((fn) => fn.bind(this)({ current: this.current, ...opts }, ...others)));
+
+    return Promise.all(
+      this.events[name].map((fn) => fn.bind(this)({ current: this.current, ...opts }, ...others)),
+    ).then(() => {
+      postTabMessage(this.options);
+    });
   }
 
   parentsIn(schema: Schema) {
@@ -718,8 +728,19 @@ export function useDesignable() {
   const fieldSchema = useFieldSchema();
   const api = useAPIClient();
   const { t } = useTranslation();
+  const { cardItemUid, setSchemaUid } = useCardItem();
+  const schemaId = uid();
   const dn = useMemo(() => {
-    return createDesignable({ t, api, refresh, current: fieldSchema, model: field });
+    return createDesignable({
+      t,
+      api,
+      refresh,
+      current: fieldSchema,
+      model: field,
+      setSchemaUid,
+      cardItemUid,
+      schemaId,
+    });
   }, [t, api, refresh, fieldSchema, field]);
 
   useEffect(() => {
@@ -842,3 +863,8 @@ export function useDesignable() {
     ),
   };
 }
+
+const postTabMessage = (options) => {
+  const { setSchemaUid, cardItemUid, schemaId } = options;
+  setSchemaUid(cardItemUid + '/' + schemaId);
+};

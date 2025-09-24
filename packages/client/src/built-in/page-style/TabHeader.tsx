@@ -1,5 +1,3 @@
-import { useContext } from 'react';
-
 import { css } from '@emotion/css';
 import { Button } from 'antd';
 import cx from 'classnames';
@@ -7,8 +5,9 @@ import { useNavigate } from 'react-router';
 import { useLocation } from 'react-router-dom';
 
 import { Icon } from '../../icon';
-import { PageStyleContext } from './PageStyle.provider';
 import { useStyles } from './TabHeader.style';
+import { useCloseTab } from './useCloseTab';
+import { usePageTabItems } from './usePageTabItems';
 
 export const Tag = ({ onClick, onClose, children, active }) => {
   const { styles } = useStyles();
@@ -30,25 +29,23 @@ export const Tag = ({ onClick, onClose, children, active }) => {
 export const TabHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { items, setItems } = useContext(PageStyleContext);
   const targetKey = location.pathname;
   const { styles } = useStyles();
 
+  const { handleCloseTab } = useCloseTab();
+
+  const { tabItems } = usePageTabItems();
+
   return (
     <div className={styles.tabWrapper}>
-      {items.map((item) => (
+      {tabItems.map((item) => (
         <Tag
           key={item.key}
           active={item.key === targetKey}
           onClick={() => {
             navigate(item.key);
           }}
-          onClose={(e) => {
-            e.stopPropagation();
-            setItems((items) => {
-              return items.filter((i) => i.key !== item.key);
-            });
-          }}
+          onClose={(e) => handleCloseTab(e, item)}
         >
           {item.label}
         </Tag>

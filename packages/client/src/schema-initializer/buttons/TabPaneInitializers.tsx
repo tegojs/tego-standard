@@ -102,6 +102,7 @@ export const TabPaneInitializers = (props?: any) => {
                 },
                 type: 'dashed',
                 'aria-label': getAriaLabel(),
+                openMode: 'modal',
               },
               title: '{{t("Add tab")}}',
               properties: {

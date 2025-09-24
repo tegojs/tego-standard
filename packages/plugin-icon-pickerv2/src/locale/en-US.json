@@ -1,0 +1,17 @@
+{
+  "Application": "Application",
+  "Brand": "Brand & Logo",
+  "DataIcon": "Data Icon",
+  "Directional": "Directional Icon",
+  "EditIcon": "Edit Icon",
+  "Failed to save iconStorage:": "Failed to save iconStorage",
+  "IconV2": "Icon V2",
+  "Large Rounded": "Large Rounded",
+  "Rotundity": "Round",
+  "Select Icon": "Select Icon",
+  "Select base color": "Select Base Color",
+  "Small Rounded": "Small Rounded",
+  "Suggested": "Suggested Icons",
+  "The key in Antd, such as 'ApiOutlined', ignoring case": "The key in Antd, e.g., 'ApiOutlined', ignoring case",
+  "iconStorage did not return an id": "iconStorage did not return an ID"
+}

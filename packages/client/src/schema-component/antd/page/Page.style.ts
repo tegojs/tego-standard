@@ -6,7 +6,8 @@ export const useStyles = createStyles(({ css, token }) => {
       .ant-tabs-nav-wrap.ant-tabs-nav-wrap {
         flex: none;
       }
-      .ant-tabs-tab.ant-tabs-tab {
+      .ant-tabs-tab.ant-tabs-tab.ant-tabs-tab {
+        padding: 0;
         border: none;
         background-color: #ffffff;
       }
@@ -26,9 +27,11 @@ export const useStyles = createStyles(({ css, token }) => {
       display: flex;
       flex-direction: row;
       justify-content: flex-end;
-
       &.designable {
         justify-content: space-between;
+      }
+      .add-tab-btn {
+        border-radius: 8px 8px 0 0;
       }
 
       .scroll-area-extra-content {
@@ -38,6 +41,7 @@ export const useStyles = createStyles(({ css, token }) => {
 
     tabItemClass: css`
       position: relative;
+      border-radius: 8px 8px 0 0;
       &:hover {
         .tab-designer-wrapper {
           display: block;

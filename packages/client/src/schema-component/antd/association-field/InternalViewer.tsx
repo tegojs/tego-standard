@@ -1,4 +1,4 @@
-import React, { Fragment, useRef, useState } from 'react';
+import React, { Fragment, useMemo, useRef, useState } from 'react';
 import { observer, RecursionField, toArr, useField, useFieldSchema } from '@tachybase/schema';
 
 import { useTranslation } from 'react-i18next';
@@ -11,9 +11,9 @@ import { DeclareVariable } from '../../../modules/variable/DeclareVariable';
 import { RecordProvider, useRecord } from '../../../record-provider';
 import { FormProvider } from '../../core';
 import { useCompile } from '../../hooks';
-import { ActionContextProvider, useActionContext } from '../action';
+import { ActionContextProvider, OpenMode, useActionContext } from '../action';
 import { EllipsisWithTooltip } from '../input/EllipsisWithTooltip';
-import { useAssociationFieldContext, useCustomTitle, useFieldNames, useInsertSchema } from './hooks';
+import { getCustomTitle, useAssociationFieldContext, useFieldNames, useInsertSchema } from './hooks';
 import { transformNestedData } from './InternalCascadeSelect';
 import schema from './schema';
 import { getLabelFormatValue, useLabelUiSchemaV2 } from './util';
@@ -52,7 +52,10 @@ export const ReadPrettyInternalViewer = observer(
     const isTreeCollection = targetCollection?.template === 'tree';
     const ellipsisWithTooltipRef = useRef<IEllipsisWithTooltipRef>();
     const getLabelUiSchema = useLabelUiSchemaV2();
-    const { formulaRecord, fieldNames } = useCustomTitle(recordCtx, fieldSchema, defFieldNames);
+    const { formulaRecord, fieldNames } = useMemo(
+      () => getCustomTitle(recordCtx, fieldSchema, defFieldNames),
+      [recordCtx, fieldSchema, defFieldNames],
+    );
     const renderRecords = () =>
       toArr(formulaRecord[fieldSchema['name']] || props.value).map((record, index, arr) => {
         const value = record?.[fieldNames?.label || 'label'];
@@ -149,7 +152,7 @@ export const ReadPrettyInternalViewer = observer(
               value={{
                 visible,
                 setVisible,
-                openMode: 'drawer',
+                openMode: OpenMode.DEFAULT,
                 snapshot: collectionField?.interface === 'snapshot',
                 fieldSchema: fieldSchema,
               }}

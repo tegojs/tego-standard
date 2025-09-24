@@ -1,10 +1,10 @@
 import path from 'node:path';
+import { getUmiConfig, IndexGenerator } from '@tego/devkit';
 
 import { defineConfig } from '@rsbuild/core';
 import { pluginLess } from '@rsbuild/plugin-less';
 import { pluginNodePolyfill } from '@rsbuild/plugin-node-polyfill';
 import { pluginReact } from '@rsbuild/plugin-react';
-import { getUmiConfig, IndexGenerator } from '@tego/devkit';
 
 const config = getUmiConfig();
 
@@ -51,6 +51,9 @@ export default defineConfig({
     define: {
       ...rsDefined,
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+      'process.env.REACT_APP_CLICK_TO_COMPONENT_EDITOR': JSON.stringify(
+        process.env.REACT_APP_CLICK_TO_COMPONENT_EDITOR,
+      ),
     },
   },
   dev: {

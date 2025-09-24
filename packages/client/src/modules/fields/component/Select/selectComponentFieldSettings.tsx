@@ -11,6 +11,7 @@ import { useFieldComponentName } from '../../../../common/useFieldComponentName'
 import { useCollectionField, useDataSourceManager } from '../../../../data-source';
 import { useRecord } from '../../../../record-provider';
 import {
+  OpenMode,
   removeNullCondition,
   useCompile,
   useDesignable,
@@ -211,7 +212,7 @@ export const quickCreate: any = {
               'x-component': 'Action',
               'x-decorator': 'ACLActionProvider',
               'x-component-props': {
-                openMode: 'drawer',
+                openMode: OpenMode.DRAWER_MODE,
                 type: 'default',
                 component: 'CreateRecordAction',
               },

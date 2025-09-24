@@ -62,6 +62,7 @@ export const SchemaInitializerActionModal: FC<SchemaInitializerActionModalProps>
                 },
                 title: buttonText,
                 type: 'dashed',
+                openMode: 'modal',
               },
           properties: {
             drawer1: {

@@ -203,7 +203,7 @@ export const useSubFormValue = () => {
   };
 };
 
-export const useCustomTitle = (record, schema, fieldNames) => {
+export const getCustomTitle = (record, schema, fieldNames) => {
   if (schema) return { formulaRecord: {}, fieldNames };
   if (schema['x-component-props']?.mode === 'CustomTitle' && schema['x-component-props']?.fieldNames?.formula) {
     if (Array.isArray(record[schema?.['name']])) {
@@ -238,7 +238,7 @@ const getCustomLabel = (record, schema) => {
       });
       valueOject[match[1]] = result.value ?? '';
     } else {
-      valueOject[match[1]] = record[match[1]] || '';
+      valueOject[match[1]] = record?.[match[1]] || '';
     }
   }
   outputStr = replacePlaceholders(formula, valueOject);

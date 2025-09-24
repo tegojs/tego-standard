@@ -40,10 +40,14 @@ export const cloudComponentBlockSettings = new SchemaSettings({
               ['x-uid']: fieldSchema['x-uid'],
             };
             fieldSchema['x-component-props']['element'] = element;
+            fieldSchema['x-component-props']['elementLabel'] = t(
+              CloudComponentVoid[element][CloudComponentNameKey] || element,
+            );
             fieldSchema['x-acl-ignore'] = true;
             schema['x-component-props'] = fieldSchema['x-component-props'];
             schema['x-acl-ignore'] = true;
             field.componentProps.element = element;
+            field.componentProps.elementLabel = t(CloudComponentVoid[element][CloudComponentNameKey] || element);
             dn.emit('patch', {
               schema,
             });

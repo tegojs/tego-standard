@@ -216,6 +216,7 @@ const edit = {
                         clientPlugin: fieldsets.clientPlugin,
                         serverPlugin: fieldsets.serverPlugin,
                         component: fieldsets.component,
+                        extendFunction: fieldsets.extendFunction,
                       },
                     },
                     code: {

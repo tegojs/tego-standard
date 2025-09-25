@@ -1,9 +1,9 @@
 import { observer } from '@tachybase/schema';
+import { getSubAppName } from '@tego/client';
 
 import { DisconnectOutlined, LoadingOutlined } from '@ant-design/icons';
 import { css } from '@emotion/css';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-import { getSubAppName } from '@tego/client';
 import { Button, Result } from 'antd';
 import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
@@ -329,7 +329,7 @@ export class BuiltInPlugin extends Plugin {
       sort: -40,
     });
     this.app.systemSettingsManager.add('business-components', {
-      title: this.t('Business Components'),
+      title: this.t('Business Features'),
       icon: 'BlockOutlined',
       sort: -30,
     });

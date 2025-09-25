@@ -349,7 +349,7 @@ const LocalPlugins = () => {
           <Form.Item label={t('Keywords')}>
             <Select
               mode="multiple"
-              style={{ minWidth: '20em' }}
+              style={{ minWidth: '10em' }}
               allowClear
               value={keywords}
               placeholder={t('Please select')}
@@ -359,6 +359,7 @@ const LocalPlugins = () => {
           </Form.Item>
           <Form.Item label={t('Search')}>
             <Input
+              style={{ minWidth: '20em' }}
               value={searchValue}
               placeholder={t('Name or descriptions')}
               onChange={(e) => setSearchValue(e.target.value)}

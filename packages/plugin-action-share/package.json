@@ -19,6 +19,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "antd-style": "3.7.1",
+    "dayjs": "1.11.13",
     "qrcode": "^1.5.4",
     "react-i18next": "15.2.0",
     "react-router": "6.28.1",

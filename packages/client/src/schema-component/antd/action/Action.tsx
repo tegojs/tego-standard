@@ -158,7 +158,6 @@ export const Action: ComposedAction = withDynamicSchemaProps(
       if (!designable && (field?.data?.hidden || !aclCtx)) {
         return null;
       }
-
       return (
         <SortableItem
           role="button"

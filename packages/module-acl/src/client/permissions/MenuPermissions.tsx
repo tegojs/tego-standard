@@ -83,7 +83,7 @@ export const MenuPermissions: React.FC<{
       },
     },
     {
-      ready: !!role && active,
+      ready: !!role && active && shareEnabled,
       refreshDeps: [role?.name],
       onSuccess(data) {
         setShareUids(data?.data?.map((schema) => schema['x-uid']) || []);

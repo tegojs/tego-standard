@@ -85,10 +85,11 @@ export const usePageMode = () => {
       return findMPageSchema(schema?.parent);
     };
     const MPageUID = findMPageSchema(fieldSchema);
+    const url = window.location.href;
+    const base = url.substring(0, url.indexOf('/mobile') + '/mobile'.length);
 
-    const pathArray = ['.', isMobile ? MPageUID : '', subPath, target];
+    const pathArray = [isMobile ? base : '.', isMobile ? MPageUID : '', subPath, target];
     const finalPath = pathArray.filter(Boolean).join('/');
-
     navigate(finalPath);
   }, [fieldSchema, record, collectionKey, collection?.name, navigate]);
 

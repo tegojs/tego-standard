@@ -16,6 +16,15 @@ export const getSchemaNodeConfig = (params) => {
     type: 'void',
     properties: {
       ...(instruction.view ? { view: instruction.view } : {}),
+      button: {
+        type: 'void',
+        'x-content': detailText,
+        'x-component': 'Button',
+        'x-component-props': {
+          type: 'link',
+          className: 'workflow-node-config-button',
+        },
+      },
       [data.id]: {
         type: 'void',
         title: renderNodeConfigTitle(data, instruction),
@@ -26,15 +35,6 @@ export const getSchemaNodeConfig = (params) => {
           stickyFooter: true,
         },
         properties: {
-          button: {
-            type: 'void',
-            'x-content': detailText,
-            'x-component': 'Button',
-            'x-component-props': {
-              type: 'link',
-              className: 'workflow-node-config-button',
-            },
-          },
           actions: workflow.executed
             ? null
             : {

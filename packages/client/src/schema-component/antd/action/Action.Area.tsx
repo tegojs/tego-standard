@@ -70,7 +70,7 @@ export const ActionArea: ComposedActionDrawer = observer(
           />
         </div>
 
-        <div className={`${styles.container} ${stickyFooter ? styles.stickyContainer : ''}`}>
+        <div className={styles.container}>
           <RecursionField
             basePath={field.address}
             schema={schema}

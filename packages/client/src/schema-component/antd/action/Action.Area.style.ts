@@ -5,9 +5,6 @@ export const useStyles = createStyles(({ css, token }) => {
     container: css`
       padding-top: ${token.padding}px;
     `,
-    stickyContainer: css`
-      padding-top: 80px; /* 为固定元素留出空间 */
-    `,
     footer: css`
       display: flex;
       justify-content: flex-end;
@@ -30,17 +27,17 @@ export const useStyles = createStyles(({ css, token }) => {
       }
     `,
     stickyFooter: css`
-      position: fixed !important;
+      position: sticky !important;
       top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      z-index: 1000 !important;
+      z-index: 100 !important;
       background: #fff !important;
       background-color: #fff !important;
-      padding: ${token.padding}px 16px;
+      padding: ${token.padding}px 0;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       border-bottom: 1px solid rgba(5, 5, 5, 0.06);
-      width: 100% !important;
+      margin: 0 -16px;
+      padding-left: 16px;
+      padding-right: 16px;
 
       /* 确保完全遮挡 */
       &::before {

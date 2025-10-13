@@ -31,40 +31,10 @@ export const getSchemaNodeConfig = (params) => {
         'x-decorator': 'FormV2',
         'x-use-decorator-props': 'useFormProviderProps',
         'x-component': 'Action.Area',
+        'x-component-props': {
+          stickyFooter: true,
+        },
         properties: {
-          ...(instruction.description
-            ? {
-                description: {
-                  type: 'void',
-                  'x-component': DrawerDescription,
-                  'x-component-props': {
-                    label: lang('Node type'),
-                    title: instruction.title,
-                    description: instruction.description,
-                  },
-                },
-              }
-            : {}),
-          fieldset: {
-            type: 'void',
-            'x-component': 'fieldset',
-            'x-component-props': {
-              className: css`
-                .ant-input,
-                .ant-select,
-                .ant-cascader-picker,
-                .ant-picker,
-                .ant-input-number,
-                .ant-input-affix-wrapper {
-                  &.auto-width {
-                    width: auto;
-                    min-width: 6em;
-                  }
-                }
-              `,
-            },
-            properties: instruction.fieldset,
-          },
           actions: workflow.executed
             ? null
             : {
@@ -119,6 +89,39 @@ export const getSchemaNodeConfig = (params) => {
                   },
                 },
               },
+          ...(instruction.description
+            ? {
+                description: {
+                  type: 'void',
+                  'x-component': DrawerDescription,
+                  'x-component-props': {
+                    label: lang('Node type'),
+                    title: instruction.title,
+                    description: instruction.description,
+                  },
+                },
+              }
+            : {}),
+          fieldset: {
+            type: 'void',
+            'x-component': 'fieldset',
+            'x-component-props': {
+              className: css`
+                .ant-input,
+                .ant-select,
+                .ant-cascader-picker,
+                .ant-picker,
+                .ant-input-number,
+                .ant-input-affix-wrapper {
+                  &.auto-width {
+                    width: auto;
+                    min-width: 6em;
+                  }
+                }
+              `,
+            },
+            properties: instruction.fieldset,
+          },
         },
       },
     },

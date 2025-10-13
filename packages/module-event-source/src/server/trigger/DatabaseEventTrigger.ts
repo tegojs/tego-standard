@@ -55,7 +55,29 @@ export class DatabaseEventTrigger extends EventSourceTrigger {
         { dbModel: model, dbOptions: options, ...options },
       )) as Processor;
       if (result?.lastSavedJob.status === JOB_STATUS.ERROR) {
-        throw new Error(result.lastSavedJob?.result);
+        const errorResult = result.lastSavedJob?.result;
+        // 安全地处理错误结果，避免解构赋值问题
+        let errorMessage = 'Workflow execution failed';
+
+        if (typeof errorResult === 'string') {
+          errorMessage = errorResult;
+        } else if (errorResult && typeof errorResult === 'object') {
+          if (errorResult.message) {
+            errorMessage = errorResult.message;
+            if (errorResult.stack) {
+              errorMessage += '\nStack: ' + errorResult.stack;
+            }
+          } else {
+            // 避免直接使用 JSON.stringify，可能包含循环引用
+            try {
+              errorMessage = JSON.stringify(errorResult, null, 2);
+            } catch (e) {
+              errorMessage = `Workflow error: ${Object.prototype.toString.call(errorResult)}`;
+            }
+          }
+        }
+
+        throw new Error(errorMessage);
       }
     };
   }

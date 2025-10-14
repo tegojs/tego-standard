@@ -126,7 +126,6 @@ export const SubTable: any = observer(
       });
     };
     const { dn } = useDesignable();
-
     field.move = move;
 
     const options = useMemo(() => {
@@ -182,6 +181,7 @@ export const SubTable: any = observer(
       fieldValue,
       setFieldValue,
     };
+
     const paginationProps = {
       pageSize: subTableField.componentProps?.pagination?.pageSize || 5,
       current: subTableField.componentProps?.pagination?.current || 1,

@@ -4,10 +4,14 @@ on:
     branches:
       - main
       - dev
+      - 'next/**'
+      - 'release/**'
   pull_request:
     branches:
       - main
       - dev
+      - 'next/**'
+      - 'release/**'
 
 permissions:
   contents: write

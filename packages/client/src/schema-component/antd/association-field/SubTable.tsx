@@ -29,7 +29,7 @@ import { CollectionProvider_deprecated } from '../../../collection-manager';
 import { CollectionRecordProvider, useCollectionRecord } from '../../../data-source';
 import { markRecordAsNew } from '../../../data-source/collection-record/isNewRecord';
 import { FlagProvider } from '../../../flag-provider';
-import { useCompile } from '../../hooks';
+import { useCompile, useDesignable } from '../../hooks';
 import { ActionContextProvider, OpenMode } from '../action';
 import { Table } from '../table-v2/Table';
 import { useAssociationFieldContext, useFieldNames } from './hooks';
@@ -125,7 +125,7 @@ export const SubTable: any = observer(
         return field.onInput(field.value);
       });
     };
-
+    const { dn } = useDesignable();
     field.move = move;
 
     const options = useMemo(() => {
@@ -228,14 +228,12 @@ export const SubTable: any = observer(
                 className={styles.table}
                 bordered
                 onChange={onChange}
-                onChange={onChange}
                 size={'small'}
                 field={field}
                 showIndex
                 dragSort={field.editable}
                 showDel={field.editable}
                 setFieldValue={setFieldValue}
-                pagination={!!field.componentProps.pagination ? paginationProps : false}
                 pagination={!!field.componentProps.pagination ? paginationProps : false}
                 rowSelection={{ type: 'none', hideSelectAll: true }}
                 footer={() =>

@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { SchemaComponent, useAPIClient, useRequest } from '@tachybase/client';
+import { SchemaComponent, useAPIClient, useApp, useRequest } from '@tachybase/client';
 import { createForm, Form, onFormValuesChange, uid } from '@tachybase/schema';
 
 import { useMemoizedFn } from 'ahooks';
@@ -49,10 +49,13 @@ export const MenuPermissions: React.FC<{
   const { styles } = useStyles();
   const { role, setRole } = useContext(RolesManagerContext);
   const api = useAPIClient();
+  const app = useApp();
+  const shareEnabled = app.pm.get('@tachybase/plugin-action-share')?.['app'].ws?.enabled || false;
   const { items } = useMenuItems();
   const { t } = useTranslation();
   const allUids = findUids(items);
   const [uids, setUids] = useState([]);
+  const [shareUids, setShareUids] = useState([]);
   const { loading, refresh } = useRequest(
     {
       resource: 'roles.menuUiSchemas',
@@ -70,10 +73,29 @@ export const MenuPermissions: React.FC<{
       },
     },
   );
+  const { loading: shareLoading, refresh: shareRefresh } = useRequest(
+    {
+      resource: 'roles.menuShareUiSchemas',
+      action: 'list',
+      resourceOf: role.name,
+      params: {
+        paginate: false,
+      },
+    },
+    {
+      ready: !!role && active && shareEnabled,
+      refreshDeps: [role?.name],
+      onSuccess(data) {
+        setShareUids(data?.data?.map((schema) => schema['x-uid']) || []);
+      },
+    },
+  );
   const resource = api.resource('roles.menuUiSchemas', role.name);
+  const shareResource = api.resource('roles.menuShareUiSchemas', role.name);
   const allChecked = allUids.length === uids.length;
+  const allShareChecked = allUids.length === shareUids.length;
 
-  const handleChange = async (checked, schema) => {
+  const handleChange = async (checked, schema, uids, setUids, resource) => {
     const parentUids = getParentUids(items, (data) => data.uid === schema.uid);
     const childrenUids = getChildrenUids(schema?.children, []);
     if (checked) {
@@ -152,7 +174,7 @@ export const MenuPermissions: React.FC<{
       {/* FIXME 为什么表格没有正确推倒出类型 */}
       <Table<any>
         className={styles}
-        loading={loading}
+        loading={loading || shareLoading}
         rowKey={'uid'}
         pagination={false}
         expandable={{
@@ -188,7 +210,43 @@ export const MenuPermissions: React.FC<{
             ),
             render: (_, schema) => {
               const checked = uids.includes(schema.uid);
-              return <Checkbox checked={checked} onChange={() => handleChange(checked, schema)} />;
+              return (
+                <Checkbox checked={checked} onChange={() => handleChange(checked, schema, uids, setUids, resource)} />
+              );
+            },
+          },
+          {
+            dataIndex: 'sharePage',
+            hidden: !shareEnabled,
+            title: (
+              <>
+                <Checkbox
+                  checked={allShareChecked}
+                  onChange={async (value) => {
+                    if (allShareChecked) {
+                      await shareResource.set({
+                        values: [],
+                      });
+                    } else {
+                      await shareResource.set({
+                        values: allUids,
+                      });
+                    }
+                    shareRefresh();
+                    message.success(t('Saved successfully'));
+                  }}
+                />
+                {t('Share')}
+              </>
+            ),
+            render: (_, schema) => {
+              const checked = shareUids.includes(schema.uid);
+              return (
+                <Checkbox
+                  checked={checked}
+                  onChange={() => handleChange(checked, schema, shareUids, setShareUids, shareResource)}
+                />
+              );
             },
           },
         ]}

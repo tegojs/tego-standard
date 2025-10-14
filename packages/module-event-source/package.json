@@ -18,7 +18,7 @@
     "@tego/server": "*",
     "@types/lodash": "^4.17.20",
     "antd": "5.22.5",
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.18",
     "lodash": "4.17.21",
     "sequelize": "^6.37.5"
   },

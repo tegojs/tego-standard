@@ -16,7 +16,7 @@
     "@tego/client": "*",
     "@tego/server": "*",
     "antd": "5.22.5",
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.18",
     "lodash": "4.17.21"
   },
   "description.zh-CN": "Tachybase 应用的追踪和埋点模块",

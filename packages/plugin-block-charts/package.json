@@ -20,7 +20,7 @@
     "@tego/server": "*",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.18",
     "deepmerge": "^4.3.1",
     "fs-extra": "^11.3.0",
     "koa-compose": "^4.1.0",

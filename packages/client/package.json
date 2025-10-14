@@ -32,7 +32,7 @@
     "click-to-react-component": "1.1.2",
     "cronstrue": "^3.2.0",
     "d3-format": "^3.1.0",
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.18",
     "deepmerge": "^4.3.1",
     "file-saver": "^2.0.5",
     "flat": "^5.0.2",

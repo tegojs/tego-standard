@@ -19,20 +19,22 @@ export const ActionContextProvider = (props: ActionContextProps & { value?: Acti
 
 export type OpenSize = 'small' | 'middle' | 'large';
 
-export enum OpenMode {
+export const OpenMode = {
   // 默认模式 DEFAULT，在经典模式默认行为为 PAGE,在多标签页状态默认行为为 PAGE，在手机状态默认行为为 PAGE
-  DEFAULT = 'default',
+  DEFAULT: 'default',
   // 旧版抽屉模式 DRAWER，表现行为同 DEFAULT,是为了兼容旧版,旧版没有 DEFAULT 概念.
-  DRAWER = 'drawer',
+  DRAWER: 'drawer',
   // 模态模式 MODAL
-  MODAL = 'modal',
+  MODAL: 'modal',
   // 页面模式 PAGE
-  PAGE = 'page',
+  PAGE: 'page',
   // 弹窗模式 SHEET
-  SHEET = 'sheet',
+  SHEET: 'sheet',
   // 新版抽屉模式 DRAWER_MODE, 新版 DRAWER
-  DRAWER_MODE = 'drawer-mode',
-}
+  DRAWER_MODE: 'drawer-mode',
+} as const;
+
+export type OpenMode = (typeof OpenMode)[keyof typeof OpenMode];
 
 export interface ActionContextProps {
   button?: any;

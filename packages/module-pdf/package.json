@@ -23,7 +23,7 @@
     "@tego/server": "*",
     "@types/babel__core": "7.20.5",
     "@types/lodash": "^4.17.20",
-    "axios": "1.7.7",
+    "axios": "1.12.2",
     "fs-extra": "^11.3.0",
     "lodash": "4.17.21",
     "react-use": "17.6.0"

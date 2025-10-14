@@ -14,7 +14,7 @@ export const pageTabSettings = new SchemaSettings({
   name: 'PageTabSettings',
   items: [
     {
-      name: 'edit',
+      name: 'editTab',
       type: 'modal',
       useComponentProps() {
         const { t } = useTranslation();

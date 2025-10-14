@@ -1,4 +1,4 @@
-import React, { createRef, forwardRef, useEffect, useMemo, useState } from 'react';
+import React, { createRef, forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { observer, RecursionField, useField, useFieldSchema, useForm } from '@tachybase/schema';
 
 import { DownOutlined } from '@ant-design/icons';
@@ -12,6 +12,7 @@ import {
   useCollection_deprecated,
   useCollectionManager_deprecated,
 } from '../../collection-manager';
+import { usePageMode } from '../../hooks/usePageMode';
 import { useRecord } from '../../record-provider';
 import { ActionContextProvider, useActionContext, useCompile } from '../../schema-component';
 import { linkageAction } from '../../schema-component/antd/action/utils';
@@ -138,7 +139,6 @@ function useAclCheckFn() {
 }
 
 const InternalCreateRecordAction = (props: any, ref) => {
-  const [visible, setVisible] = useState(false);
   const collection = useCollection_deprecated();
   const fieldSchema = useFieldSchema();
   const field: any = useField();
@@ -150,6 +150,25 @@ const InternalCreateRecordAction = (props: any, ref) => {
   const variables = useVariables();
   const { styles } = useStyles();
   const localVariables = useLocalVariables({ currentForm: { values } as any });
+  const internalRef = createRef<HTMLButtonElement | HTMLAnchorElement>();
+  const buttonRef = composeRef(ref, internalRef);
+  // 页面模式控制逻辑，包括打开抽屉、弹窗、页面等
+  const { isPageMode, visible, setVisible, openModal, openPage } = usePageMode();
+
+  const handleClick = useCallback(
+    (collectionData) => {
+      setCurrentCollection(collectionData.name);
+      setCurrentCollectionDataSource(collectionData.dataSource);
+
+      if (isPageMode) {
+        openPage();
+      } else {
+        openModal();
+      }
+    },
+    [isPageMode, openModal, openPage],
+  );
+
   useEffect(() => {
     field.stateOfLinkageRules = {};
     linkageRules
@@ -166,20 +185,12 @@ const InternalCreateRecordAction = (props: any, ref) => {
         });
       });
   }, [field, linkageRules, localVariables, variables]);
-  const internalRef = createRef<HTMLButtonElement | HTMLAnchorElement>();
-  const buttonRef = composeRef(ref, internalRef);
+
   return (
     //@ts-ignore
     <div className={styles.actionDesignerCss} ref={buttonRef as React.Ref<HTMLButtonElement>}>
       <ActionContextProvider value={{ ...ctx, visible, setVisible }}>
-        <CreateAction
-          {...props}
-          onClick={(collectionData) => {
-            setVisible(true);
-            setCurrentCollection(collectionData.name);
-            setCurrentCollectionDataSource(collectionData.dataSource);
-          }}
-        />
+        <CreateAction {...props} onClick={handleClick} />
         <CollectionProvider_deprecated name={currentCollection} dataSource={currentCollectionDataSource}>
           <RecursionField schema={fieldSchema} basePath={field.address} onlyRenderProperties />
         </CollectionProvider_deprecated>
@@ -400,7 +411,7 @@ function FinallyButton({
       disabled={field.disabled}
       danger={props.danger}
       icon={icon}
-      onClick={(info) => {
+      onClick={() => {
         onClick?.(collection);
       }}
       style={{

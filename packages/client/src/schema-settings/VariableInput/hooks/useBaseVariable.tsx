@@ -1,6 +1,7 @@
 import React, { useContext, useMemo } from 'react';
-import { ISchema, Schema } from '@tachybase/schema';
+import { Form, ISchema, Schema, useFieldSchema } from '@tachybase/schema';
 
+import { useApp } from '../../../application';
 import { CollectionFieldOptions_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
 import { useCompile, useGetFilterOptions } from '../../../schema-component';
 import { isSpecialCaseField } from '../../../schema-component/antd/form-item/hooks/useSpecialCase';
@@ -61,6 +62,7 @@ interface BaseProps {
    */
   returnFields?(fields: FieldOption[], option: Option): FieldOption[];
   dataSource?: string;
+  formInstance?: Form;
 }
 
 interface BaseVariableProviderProps {
@@ -129,30 +131,33 @@ const getChildren = (
   return result;
 };
 
-export const useBaseVariable = ({
-  collectionField,
-  uiSchema,
-  targetFieldSchema,
-  maxDepth = 3,
-  name,
-  title,
-  collectionName,
-  noChildren = false,
-  // TODO: 等整理完完整测试用例后，再开启该功能
-  noDisabled = true,
-  dataSource,
-  returnFields = (fields) => fields,
-}: BaseProps) => {
+export const useBaseVariable = (props: BaseProps) => {
+  const {
+    collectionField,
+    uiSchema,
+    targetFieldSchema,
+    maxDepth = 3,
+    name,
+    title,
+    collectionName,
+    noChildren = false,
+    // TODO: 等整理完完整测试用例后，再开启该功能
+    noDisabled = true,
+    dataSource,
+    formInstance,
+    returnFields = (fields) => fields,
+  } = props;
   const compile = useCompile();
   const getFilterOptions = useGetFilterOptions();
   const { isDisabled } = useContext(BaseVariableContext) || {};
   const { getCollectionField } = useCollectionManager_deprecated(dataSource);
+  const app = useApp();
+  const addOptions = app.VariableManager.variableOptions();
 
   const loadChildren = (option: Option): Promise<void> => {
     if (!option.field?.target) {
       return Promise.resolve(void 0);
     }
-
     const target = option.field.target;
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -197,9 +202,16 @@ export const useBaseVariable = ({
           resolve();
           return;
         }
+        Object.entries(addOptions).forEach(([key, item]) => {
+          const addOptions = item.addOptions({ option, ...props }) || [];
+          addOptions.forEach((item) => {
+            if (!children.find((childrenItem) => childrenItem.key === item.key)) {
+              children.push(item);
+            }
+          });
+        });
         option.children = children;
         resolve();
-
         // 延迟 5 毫秒，防止阻塞主线程，导致 UI 卡顿
       }, 5);
     });

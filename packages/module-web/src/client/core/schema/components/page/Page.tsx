@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActionBarProvider,
   css,
@@ -12,9 +12,8 @@ import {
 } from '@tachybase/client';
 import { RecursionField, useField, useFieldSchema } from '@tachybase/schema';
 
-import { ShareAltOutlined } from '@ant-design/icons';
-import { Button, TabsProps } from 'antd';
-import { useSearchParams } from 'react-router-dom';
+import { TabsProps } from 'antd';
+import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { countGridCol, findSchema } from '../../helpers';
 import { PageDesigner } from './Page.Designer';
@@ -25,7 +24,24 @@ const InternalPage: React.FC = (props) => {
   const Designer = useDesigner();
   const field = useField();
   const fieldSchema = useFieldSchema();
-  const [searchParams, setSearchParams] = useSearchParams();
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const match = useMatch('/:entry/:entryId/page-tab/:pageTabId/*');
+  const pageTabActiveKey = useMemo(() => {
+    return match?.params?.pageTabId || Object.keys(fieldSchema.properties || {}).shift();
+  }, [match?.params?.pageTabId, fieldSchema.properties]);
+
+  const setPageTabUrl = (pageTabId) => {
+    const currentPath = location.pathname;
+    const newPath = currentPath.replace(/\/page-tab\/[^/]*/, `/page-tab/${pageTabId}`);
+    if (!newPath.includes('/page-tab/')) {
+      navigate(`${currentPath}/page-tab/${pageTabId}`, { replace: true });
+    } else {
+      navigate(newPath, { replace: true });
+    }
+  };
+
   const tabsSchema = fieldSchema.properties?.['tabs'];
   const isHeaderEnabled = field.componentProps.headerEnabled;
   const isTabsEnabled = field.componentProps.tabsEnabled !== false && tabsSchema;
@@ -47,26 +63,22 @@ const InternalPage: React.FC = (props) => {
   let hasGlobalActions = false;
   if (!tabsSchema && fieldSchema.properties) {
     hasGlobalActions = countGridCol(fieldSchema.properties['grid'], 2) === 1;
-  } else if (searchParams.has('tab') && tabsSchema?.properties?.[searchParams.get('tab')]) {
-    hasGlobalActions = countGridCol(tabsSchema.properties[searchParams.get('tab')]?.properties?.['grid'], 2) === 1;
+  } else if (pageTabActiveKey && tabsSchema?.properties?.[pageTabActiveKey]) {
+    hasGlobalActions = countGridCol(tabsSchema.properties[pageTabActiveKey]?.properties?.['grid'], 2) === 1;
   } else if (tabsSchema?.properties) {
     const schema = Object.values(tabsSchema.properties).sort((t1, t2) => t1['x-index'] - t2['x-index'])[0];
     if (schema) {
       setTimeout(() => {
-        setSearchParams([['tab', schema.name.toString()]], {
-          replace: true,
-        });
+        setPageTabUrl(schema.name.toString());
       });
     }
   }
 
   const onTabsChange = useCallback<TabsProps['onChange']>(
     (key) => {
-      setSearchParams([['tab', key]], {
-        replace: true,
-      });
+      setPageTabUrl(key);
     },
-    [setSearchParams],
+    [setPageTabUrl],
   );
 
   const GlobalActionProvider = useCallback(
@@ -136,11 +148,7 @@ const InternalPage: React.FC = (props) => {
             })}
           </>
         )}
-        <TabsContextProvider
-          PaneRoot={GlobalActionProvider}
-          activeKey={searchParams.get('tab')}
-          onChange={onTabsChange}
-        >
+        <TabsContextProvider PaneRoot={GlobalActionProvider} activeKey={pageTabActiveKey} onChange={onTabsChange}>
           <RecursionField
             schema={isTabsEnabled ? fieldSchema : pageSchema}
             filterProperties={(s) => {

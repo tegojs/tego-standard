@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import {
   action,
   ArrayField,
@@ -8,13 +8,11 @@ import {
   RecursionField,
   useField,
   useFieldSchema,
-  useForm,
 } from '@tachybase/schema';
 
-import { useAsyncEffect } from 'ahooks';
-import { Button, Tabs } from 'antd';
+import { Button } from 'antd';
 import { createStyles } from 'antd-style';
-import { set, unionBy, uniqBy } from 'lodash';
+import { unionBy, uniqBy } from 'lodash';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -24,16 +22,15 @@ import {
   SchemaComponentOptions,
   useActionContext,
 } from '../..';
-import { useAPIClient, useRequest } from '../../../api-client';
 import { useCreateActionProps } from '../../../block-provider/hooks';
 import { FormActiveFieldsProvider } from '../../../block-provider/hooks/useFormActiveFields';
 import { TableSelectorParamsProvider } from '../../../block-provider/TableSelectorProvider';
 import { CollectionProvider_deprecated } from '../../../collection-manager';
-import { CollectionRecordProvider, useCollectionManager, useCollectionRecord } from '../../../data-source';
+import { CollectionRecordProvider, useCollectionRecord } from '../../../data-source';
 import { markRecordAsNew } from '../../../data-source/collection-record/isNewRecord';
 import { FlagProvider } from '../../../flag-provider';
-import { useCompile, useDesignable } from '../../hooks';
-import { ActionContextProvider } from '../action';
+import { useCompile } from '../../hooks';
+import { ActionContextProvider, OpenMode } from '../action';
 import { Table } from '../table-v2/Table';
 import { useAssociationFieldContext, useFieldNames } from './hooks';
 import { useTableSelectorProps } from './InternalPicker';
@@ -128,7 +125,6 @@ export const SubTable: any = observer(
         return field.onInput(field.value);
       });
     };
-    const { dn } = useDesignable();
 
     field.move = move;
 
@@ -232,12 +228,14 @@ export const SubTable: any = observer(
                 className={styles.table}
                 bordered
                 onChange={onChange}
+                onChange={onChange}
                 size={'small'}
                 field={field}
                 showIndex
                 dragSort={field.editable}
                 showDel={field.editable}
                 setFieldValue={setFieldValue}
+                pagination={!!field.componentProps.pagination ? paginationProps : false}
                 pagination={!!field.componentProps.pagination ? paginationProps : false}
                 rowSelection={{ type: 'none', hideSelectAll: true }}
                 footer={() =>
@@ -280,7 +278,7 @@ export const SubTable: any = observer(
         <ActionContextProvider
           value={{
             openSize,
-            openMode: 'drawer',
+            openMode: OpenMode.DEFAULT,
             visible: visibleSelector,
             setVisible: setVisibleSelector,
           }}

@@ -1,4 +1,4 @@
-import { ActionInitializer } from '@tachybase/client';
+import { ActionInitializer, OpenMode } from '@tachybase/client';
 import { uid } from '@tego/client';
 
 import { tval } from '../locale';
@@ -80,7 +80,7 @@ export const AuditLogsViewActionInitializer = () => {
     'x-settings': 'actionSettings:view',
     'x-component': 'Action',
     'x-component-props': {
-      openMode: 'drawer',
+      openMode: OpenMode.DRAWER_MODE,
     },
     properties: {
       drawer: {

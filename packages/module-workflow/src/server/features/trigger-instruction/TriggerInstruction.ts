@@ -1,4 +1,3 @@
-import Jobs from '../../collections/2-jobs';
 import { JOB_STATUS } from '../../constants';
 import Instruction from '../../instructions';
 import Processor from '../../Processor';

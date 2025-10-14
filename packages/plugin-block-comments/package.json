@@ -19,7 +19,7 @@
     "antd": "5.22.5",
     "dayjs": "1.11.13",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0"
+    "react-i18next": "16.0.1"
   },
   "description.zh-CN": "评论",
   "displayName.zh-CN": "评论"

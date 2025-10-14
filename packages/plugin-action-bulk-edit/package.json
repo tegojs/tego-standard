@@ -19,7 +19,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.0.1",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "对全部数据或选中的数据进行批量编辑。",

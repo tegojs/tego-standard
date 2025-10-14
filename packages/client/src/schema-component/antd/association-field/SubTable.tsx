@@ -209,17 +209,6 @@ export const SubTable: any = observer(
             pageSize: props.pageSize,
           },
         };
-        dn.emit('patch', {
-          schema: {
-            'x-uid': fieldSchema['x-uid'],
-            'x-component-props': {
-              ...fieldSchema['x-component-props'],
-              pagination: {
-                pageSize: props.pageSize,
-              },
-            },
-          },
-        });
       }
     };
     return (

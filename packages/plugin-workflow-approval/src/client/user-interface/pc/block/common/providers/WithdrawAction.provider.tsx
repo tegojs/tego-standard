@@ -13,7 +13,8 @@ export function WithdrawActionProvider({ children }) {
   const { isResubmit } = useResubmit();
 
   const isSameId = data.data.id === createdById;
-  const isEnabledWithdraw = workflow.enabled && workflow.config.withdrawable;
+  // 旧版本的 workflow 的 enabled 字段是 false,但是实际运行过程里也允许撤回.所以这里不再检查 enabled 字段.
+  const isEnabledWithdraw = workflow.config.withdrawable;
   const isStatusSubmitted = APPROVAL_INITIATION_STATUS.SUBMITTED === status;
 
   if (isSameId && isEnabledWithdraw && isStatusSubmitted && !isResubmit) {

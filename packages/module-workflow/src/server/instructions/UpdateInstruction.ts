@@ -1,4 +1,5 @@
 import { Gateway, parseCollectionName, uid } from '@tego/server';
+
 import axios, { AxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
 import _ from 'lodash';
@@ -57,7 +58,7 @@ export class UpdateInstruction extends Instruction {
           createById,
           updatedById,
           storageId,
-        } = resource;
+        } = resource || {};
 
         return {
           id,

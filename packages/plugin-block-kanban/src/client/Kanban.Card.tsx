@@ -9,8 +9,8 @@ import {
   useCollectionParentRecordData,
 } from '@tachybase/client';
 import { observer, RecursionField, useFieldSchema } from '@tachybase/schema';
-
 import { FormLayout } from '@tego/client';
+
 import { Card } from 'antd';
 
 import { KanbanCardContext } from './context';

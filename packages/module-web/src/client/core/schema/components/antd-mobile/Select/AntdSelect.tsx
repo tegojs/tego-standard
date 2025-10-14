@@ -16,8 +16,8 @@ import {
   useFieldServiceFilter,
   useRequest,
 } from '@tachybase/client';
-
 import { isArray } from '@tego/client';
+
 import _ from 'lodash';
 
 import { lang } from '../../../../../locale';
@@ -151,7 +151,8 @@ export const AntdSelect = observer((props) => {
     }
 
     const selectedValueList = options.filter((item) => selectValue.includes(item.value));
-    onChange(selectedValueList);
+    const selectedValue = multiple ? selectedValueList : selectedValueList[0];
+    onChange(selectedValue);
 
     setPopupVisible(false);
     setSearchValue('');

@@ -9,9 +9,9 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
+import { error } from '@tego/client';
 
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { error } from '@tego/client';
 import { Menu as AntdMenu, Button, MenuProps, Popover } from 'antd';
 import { createPortal } from 'react-dom';
 
@@ -302,7 +302,6 @@ export const Menu: ComposedMenu = observer(
       } else {
         key = defaultSelectedKeys?.[0] || null;
       }
-
       if (mode === 'mix' && key) {
         const s = schema.properties?.[key];
         if (s?.['x-component'] === 'Menu.SubMenu') {
@@ -311,7 +310,6 @@ export const Menu: ComposedMenu = observer(
       }
       return null;
     }, [defaultSelectedKeys, mode, schema, selectedUid]);
-
     useEffect(() => {
       if (!selectedUid) {
         setSelectedKeys(undefined);

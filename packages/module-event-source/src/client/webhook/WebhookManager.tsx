@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
   ExtendCollectionsProvider,
+  OpenMode,
   SchemaComponent,
   TableBlockProvider,
   useBlockRequestContext,
@@ -24,8 +25,8 @@ import {
   OpenDrawer,
 } from '@tachybase/module-workflow/client';
 import { ISchema, useField, useForm } from '@tachybase/schema';
-
 import { CodeMirror } from '@tego/client';
+
 import { Alert as AntdAlert, Button, Space, Tag, Typography } from 'antd';
 
 import ModuleEventSourceClient from '..';
@@ -188,7 +189,7 @@ const editAction: ISchema = {
   'x-action': 'update',
   'x-component': 'Action.Link',
   'x-component-props': {
-    openMode: 'drawer',
+    openMode: OpenMode.DRAWER_MODE,
     icon: 'EditOutlined',
   },
   'x-decorator': 'ACLActionProvider',
@@ -287,7 +288,7 @@ const testAction: ISchema = {
   'x-action': 'update',
   'x-component': 'Action.Link',
   'x-component-props': {
-    openMode: 'drawer',
+    openMode: OpenMode.DRAWER_MODE,
     icon: 'EditOutlined',
   },
   'x-decorator': 'ACLActionProvider',
@@ -449,7 +450,7 @@ const schema: ISchema = {
               'x-component': 'Action',
               'x-decorator': 'ACLActionProvider',
               'x-component-props': {
-                openMode: 'drawer',
+                openMode: OpenMode.DRAWER_MODE,
                 type: 'primary',
                 component: 'CreateRecordAction',
                 icon: 'PlusOutlined',

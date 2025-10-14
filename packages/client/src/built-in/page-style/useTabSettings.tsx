@@ -1,16 +1,17 @@
-import React, { useCallback } from 'react';
-
+import { useCallback } from 'react';
 import { error } from '@tego/client';
+
 import { useTranslation } from 'react-i18next';
 
 import { useAPIClient } from '../../api-client';
 import { SelectWithTitle } from '../../common';
 import { useCurrentUserContext } from '../../user';
+import { PageStyle } from './PageStyle.provider';
 
 export const useTabSettings = () => {
   return {
-    key: 'tab',
-    eventKey: 'tab',
+    key: PageStyle.TAB_STYLE,
+    eventKey: PageStyle.TAB_STYLE,
     label: <Label />,
   };
 };
@@ -20,18 +21,25 @@ export function Label() {
   const { updateUserPageStyle } = useUpdatePageStyleSettings();
   const currentUser = useCurrentUserContext();
 
+  let pageStyle = currentUser.data.data.systemSettings?.pageStyle;
+
+  // 兼容旧版，tab 和 tab-style 都表示多标签页, tab 是旧版字段
+  if (pageStyle === 'tab') {
+    pageStyle = PageStyle.TAB_STYLE;
+  }
+
   return (
     <SelectWithTitle
       title={t('Page style')}
-      defaultValue={currentUser.data.data.systemSettings?.pageStyle || 'classical'}
+      defaultValue={pageStyle || PageStyle.CLASSICAL}
       options={[
         {
           label: t('classical'),
-          value: 'classical',
+          value: PageStyle.CLASSICAL,
         },
         {
           label: t('tabs'),
-          value: 'tab',
+          value: PageStyle.TAB_STYLE,
         },
       ]}
       onChange={updateUserPageStyle}
@@ -44,7 +52,7 @@ export function useUpdatePageStyleSettings() {
   const currentUser = useCurrentUserContext();
 
   const updateUserPageStyle = useCallback(
-    async (pageStyle: string | null) => {
+    async (pageStyle: PageStyle | null) => {
       if (pageStyle === currentUser.data.data.systemSettings?.pageStyle) {
         return;
       }

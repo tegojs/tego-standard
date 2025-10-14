@@ -4,7 +4,7 @@ import { GeneralSchemaDesigner, SchemaSettingsRemove } from '../../../schema-set
 
 export const TableArrayDesigner = () => {
   return (
-    <GeneralSchemaDesigner>
+    <GeneralSchemaDesigner disableSettings>
       <SchemaSettingsRemove
         removeParentsIfNoChildren
         breakRemoveOn={{

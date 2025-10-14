@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import {
   action,
   ArrayField,
@@ -6,14 +6,13 @@ import {
   isArr,
   observer,
   RecursionField,
+  useField,
   useFieldSchema,
-  useForm,
 } from '@tachybase/schema';
 
-import { useAsyncEffect } from 'ahooks';
-import { Button, Tabs } from 'antd';
+import { Button } from 'antd';
 import { createStyles } from 'antd-style';
-import { set, unionBy, uniqBy } from 'lodash';
+import { unionBy, uniqBy } from 'lodash';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -23,16 +22,15 @@ import {
   SchemaComponentOptions,
   useActionContext,
 } from '../..';
-import { useAPIClient, useRequest } from '../../../api-client';
 import { useCreateActionProps } from '../../../block-provider/hooks';
 import { FormActiveFieldsProvider } from '../../../block-provider/hooks/useFormActiveFields';
 import { TableSelectorParamsProvider } from '../../../block-provider/TableSelectorProvider';
 import { CollectionProvider_deprecated } from '../../../collection-manager';
-import { CollectionRecordProvider, useCollectionManager, useCollectionRecord } from '../../../data-source';
+import { CollectionRecordProvider, useCollectionRecord } from '../../../data-source';
 import { markRecordAsNew } from '../../../data-source/collection-record/isNewRecord';
 import { FlagProvider } from '../../../flag-provider';
-import { useCompile } from '../../hooks';
-import { ActionContextProvider } from '../action';
+import { useCompile, useDesignable } from '../../hooks';
+import { ActionContextProvider, OpenMode } from '../action';
 import { Table } from '../table-v2/Table';
 import { useAssociationFieldContext, useFieldNames } from './hooks';
 import { useTableSelectorProps } from './InternalPicker';
@@ -102,6 +100,7 @@ export const SubTable: any = observer(
     const { openSize } = props;
     const { styles } = useStyles();
     const { field, options: collectionField } = useAssociationFieldContext<ArrayField>();
+    const subTableField = useField();
     const { t } = useTranslation();
     const [visibleSelector, setVisibleSelector] = useState(false);
     const [selectedRows, setSelectedRows] = useState([]);
@@ -126,6 +125,7 @@ export const SubTable: any = observer(
         return field.onInput(field.value);
       });
     };
+    const { dn } = useDesignable();
 
     field.move = move;
 
@@ -182,6 +182,42 @@ export const SubTable: any = observer(
       fieldValue,
       setFieldValue,
     };
+    const paginationProps = {
+      pageSize: subTableField.componentProps?.pagination?.pageSize || 5,
+      current: subTableField.componentProps?.pagination?.current || 1,
+      total: field.value?.length || 0,
+    };
+    const onChange = (props) => {
+      if (!subTableField?.componentProps || !fieldSchema?.['x-component-props']) return;
+      subTableField.componentProps['pagination'] = {
+        ...subTableField.componentProps?.['pagination'],
+        current: props.current,
+      };
+      if (
+        subTableField.componentProps?.pagination?.pageSize &&
+        subTableField.componentProps?.pagination?.pageSize !== props?.pageSize
+      ) {
+        subTableField.componentProps.pagination.pageSize = props.pageSize;
+        fieldSchema['x-component-props'] = {
+          ...fieldSchema['x-component-props'],
+          pagination: {
+            ...fieldSchema['x-component-props']?.['pagination'],
+            pageSize: props.pageSize,
+          },
+        };
+        dn.emit('patch', {
+          schema: {
+            'x-uid': fieldSchema['x-uid'],
+            'x-component-props': {
+              ...fieldSchema['x-component-props'],
+              pagination: {
+                pageSize: props.pageSize,
+              },
+            },
+          },
+        });
+      }
+    };
     return (
       <div className={styles.container}>
         <FlagProvider isInSubTable>
@@ -191,13 +227,14 @@ export const SubTable: any = observer(
               <Table
                 className={styles.table}
                 bordered
+                onChange={onChange}
                 size={'small'}
                 field={field}
                 showIndex
                 dragSort={field.editable}
                 showDel={field.editable}
                 setFieldValue={setFieldValue}
-                pagination={!!field.componentProps.pagination}
+                pagination={!!field.componentProps.pagination ? paginationProps : false}
                 rowSelection={{ type: 'none', hideSelectAll: true }}
                 footer={() =>
                   field.editable && (
@@ -239,7 +276,7 @@ export const SubTable: any = observer(
         <ActionContextProvider
           value={{
             openSize,
-            openMode: 'drawer',
+            openMode: OpenMode.DEFAULT,
             visible: visibleSelector,
             setVisible: setVisibleSelector,
           }}

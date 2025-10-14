@@ -1,6 +1,5 @@
-import React from 'react';
-
 import { useSchemaInitializerItem } from '../../../application';
+import { OpenMode } from '../../../schema-component';
 import { ActionInitializer } from '../../../schema-initializer/items/ActionInitializer';
 
 export const CreateActionInitializer = () => {
@@ -14,13 +13,13 @@ export const CreateActionInitializer = () => {
     'x-component': 'Action',
     'x-decorator': 'ACLActionProvider',
     'x-component-props': {
-      openMode: 'drawer',
+      openMode: OpenMode.DEFAULT,
       type: 'primary',
       component: 'CreateRecordAction',
       icon: 'PlusOutlined',
     },
     properties: {
-      drawer: {
+      pageModeContainer: {
         type: 'void',
         title: '{{ t("Add record") }}',
         'x-component': 'Action.Container',
@@ -28,29 +27,15 @@ export const CreateActionInitializer = () => {
           className: 'tb-action-popup',
         },
         properties: {
-          tabs: {
+          page: {
             type: 'void',
-            'x-component': 'Tabs',
-            'x-component-props': {},
-            'x-initializer': 'popup:addTab',
-            'x-initializer-props': {
-              gridInitializer: 'popup:addNew:addBlock',
-            },
+            title: '{{t("Add new")}}',
+            'x-component': 'Page',
             properties: {
-              tab1: {
+              grid: {
                 type: 'void',
-                title: '{{t("Add new")}}',
-                'x-component': 'Tabs.TabPane',
-                'x-designer': 'Tabs.Designer',
-                'x-component-props': {},
-                properties: {
-                  grid: {
-                    type: 'void',
-                    'x-component': 'Grid',
-                    'x-initializer': 'popup:addNew:addBlock',
-                    properties: {},
-                  },
-                },
+                'x-component': 'Grid',
+                'x-initializer': 'popup:common:addBlock',
               },
             },
           },

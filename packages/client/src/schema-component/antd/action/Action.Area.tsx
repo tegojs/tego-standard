@@ -48,15 +48,15 @@ export const ActionAreaPlayer = ({ children }) => {
 };
 
 export const ActionArea: ComposedActionDrawer = observer(
-  (props) => {
-    const { footerNodeName = 'ActionArea.Footer' } = props;
+  (props: any) => {
+    const { footerNodeName = 'ActionArea.Footer', stickyFooter = false } = props;
     const schema = useFieldSchema();
     const field = useField();
     const { styles } = useStyles();
 
     const Current = () => (
       <>
-        <div className={styles.footer}>
+        <div className={`${styles.footer} ${stickyFooter ? styles.stickyFooter : ''}`}>
           <div className="title">
             <strong>{field.title}</strong>
           </div>

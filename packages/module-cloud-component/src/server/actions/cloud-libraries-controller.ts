@@ -9,7 +9,7 @@ export class CloudLibrariesController {
 
   @Action('update')
   async update(ctx: Context, next: Next) {
-    const { name, code, module, isClient, isServer, serverPlugin, clientPlugin, enabled, component } =
+    const { name, code, module, isClient, isServer, serverPlugin, clientPlugin, enabled, component, extendFunction } =
       ctx.action.params.values;
     if (code) {
       const clientCode = this.compiler.toAmd(code);
@@ -30,6 +30,7 @@ export class CloudLibrariesController {
           serverPlugin,
           clientPlugin,
           component,
+          extendFunction,
         },
       });
     }
@@ -39,7 +40,7 @@ export class CloudLibrariesController {
 
   @Action('publish')
   async publish(ctx: Context, next: Next) {
-    const { code, module, isClient, isServer, serverPlugin, clientPlugin, enabled, component } =
+    const { code, module, isClient, isServer, serverPlugin, clientPlugin, enabled, component, extendFunction } =
       ctx.action.params.values;
     if (code) {
       const clientCode = this.compiler.toAmd(code);
@@ -59,6 +60,7 @@ export class CloudLibrariesController {
           serverPlugin,
           clientPlugin,
           component,
+          extendFunction,
         },
       });
     }

@@ -212,9 +212,9 @@ const SortHandle = (props) => {
 const TableIndex = (props) => {
   const { index, ...otherProps } = props;
   return (
-    <div className={classNames('tb-table-index')} style={{ padding: '0 8px 0 16px' }} {...otherProps}>
+    <span className={classNames('tb-table-index')} style={{ padding: '0 8px 0 16px' }} {...otherProps}>
       {index}
-    </div>
+    </span>
   );
 };
 
@@ -222,6 +222,12 @@ const pageSizeOptions = [5, 10, 20, 50, 100, 200];
 const usePaginationProps = (pagination1, pagination2) => {
   const { t } = useTranslation();
   const showTotal = useCallback((total) => t('Total {{count}} items', { count: total }), [t]);
+  if (pagination2 === false) {
+    return false;
+  }
+  if (!pagination2 && pagination1 === false) {
+    return false;
+  }
   const result = {
     showTotal,
     showSizeChanger: true,
@@ -229,7 +235,7 @@ const usePaginationProps = (pagination1, pagination2) => {
     ...pagination1,
     ...pagination2,
   };
-  return result.total ? result : pagination1 || pagination2;
+  return result.total ? result : false;
 };
 
 export const Table: any = withDynamicSchemaProps(
@@ -312,10 +318,12 @@ export const Table: any = withDynamicSchemaProps(
         return {
           header: {
             wrapper: (props) => {
-              return (
+              return dragSort ? (
                 <DndContext>
                   <thead {...props} />
                 </DndContext>
+              ) : (
+                <thead {...props} />
               );
             },
             cell: (props) => {
@@ -324,7 +332,7 @@ export const Table: any = withDynamicSchemaProps(
           },
           body: {
             wrapper: (props) => {
-              return (
+              return dragSort ? (
                 <DndContext
                   onDragEnd={(e) => {
                     if (!e.active || !e.over) {
@@ -341,10 +349,12 @@ export const Table: any = withDynamicSchemaProps(
                 >
                   <tbody {...props} />
                 </DndContext>
+              ) : (
+                <tbody {...props} />
               );
             },
             row: (props) => {
-              return <SortableRow {...props}></SortableRow>;
+              return dragSort ? <SortableRow {...props}></SortableRow> : <tr {...props} />;
             },
             cell: (props) => <td {...props} className={classNames(props.className, styles.bodyCell)} />,
           },
@@ -415,23 +425,25 @@ export const Table: any = withDynamicSchemaProps(
                   index = extractIndex(record.__index);
                 }
                 return (
-                  <div
+                  <span
                     role="button"
                     aria-label={`table-index-${index}`}
                     className={classNames(checked ? 'checked' : null, styles.rowSelect, {
                       [styles.rowSelectHover]: isRowSelect,
                     })}
                   >
-                    <div className={classNames(checked ? 'checked' : null, styles.cellChecked)}>
+                    <span className={classNames(checked ? 'checked' : null, styles.cellChecked)}>
                       {dragSort && <SortHandle id={getRowKey(record)} />}
                       {showIndex && <TableIndex index={index} />}
-                    </div>
+                    </span>
                     {isRowSelect && (
-                      <div className={classNames('tb-origin-node', checked ? 'checked' : null, styles.cellCheckedNode)}>
+                      <span
+                        className={classNames('tb-origin-node', checked ? 'checked' : null, styles.cellCheckedNode)}
+                      >
                         {originNode}
-                      </div>
+                      </span>
                     )}
-                  </div>
+                  </span>
                 );
               },
               ...rowSelection,

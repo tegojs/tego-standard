@@ -201,14 +201,6 @@ export const SubTable: any = observer(
           ...fieldSchema['x-component-props'],
           pagination: props,
         };
-        dn.emit('patch', {
-          schema: {
-            'x-uid': fieldSchema['x-uid'],
-            'x-component-props': fieldSchema['x-component-props'],
-          },
-        });
-      } else {
-        return;
       }
     };
     return (

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
 import { Gateway, uid } from '@tego/server';
+
 import axios, { AxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
 import _ from 'lodash';
@@ -135,7 +135,13 @@ export default class extends Instruction {
 
     const { workflow } = processor.execution;
     const sync = this.workflow.isWorkflowSync(workflow);
-
+    const loopData = prevJob.result;
+    if (loopData['length']) {
+      config.params.push(
+        { name: 'loopLength', value: loopData['length'] },
+        { name: 'loopIndex', value: loopData['index'] },
+      );
+    }
     if (sync) {
       try {
         const response = await request(config, context);

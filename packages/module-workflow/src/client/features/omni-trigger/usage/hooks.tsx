@@ -58,9 +58,10 @@ export const usePropsAPIRegular = () => {
     } else if (event.msg === 'progress') {
       const current = event.current + 1;
       const time = Math.floor((current / event.total) * 100) === 100 ? 3 : 0;
+      const loopText = `[${event.loopData?.loopIndex || ''}/${event.loopData?.loopLength || ''}]`;
       notification.info({
         key: 'workflow:regular',
-        message: `${t('Processing')}...`,
+        message: `${t('Processing')}${event.loopData ? loopText : ''}...`,
         description: <Progress percent={Math.floor((current / event.total) * 100)} />,
         duration: time,
       });

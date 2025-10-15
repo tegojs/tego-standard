@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { observer, RecursionField, useField, useFieldSchema } from '@tachybase/schema';
-
 import { FormLayout } from '@tego/client';
+
 import { createStyles } from 'antd-style';
 import cx from 'classnames';
 
@@ -41,7 +41,7 @@ export const InternalNester = observer(
     const insertNester = useInsertSchema('Nester');
     const { options: collectionField } = useAssociationFieldContext();
     const showTitle = fieldSchema['x-decorator-props']?.showTitle ?? true;
-    const { actionName } = useACLActionParamsContext();
+    const { params } = useACLActionParamsContext();
     const { styles } = useStyles();
 
     useEffect(() => {
@@ -49,7 +49,7 @@ export const InternalNester = observer(
     }, []);
     return (
       <CollectionProvider_deprecated name={collectionField.target}>
-        <ACLCollectionProvider actionPath={`${collectionField.target}:${actionName}`}>
+        <ACLCollectionProvider actionPath={`${collectionField.target}:${params?.actionName}`}>
           <FormLayout layout={'vertical'}>
             <div
               className={cx(styles.body, {

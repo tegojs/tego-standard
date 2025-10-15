@@ -192,34 +192,23 @@ export const SubTable: any = observer(
       total: field.value?.length || 0,
     };
     const onChange = (props) => {
-      if (!subTableField?.componentProps || !fieldSchema?.['x-component-props']) return;
-      subTableField.componentProps['pagination'] = {
-        ...subTableField.componentProps?.['pagination'],
-        current: props.current,
-      };
-      if (
-        subTableField.componentProps?.pagination?.pageSize &&
-        subTableField.componentProps?.pagination?.pageSize !== props?.pageSize
-      ) {
-        subTableField.componentProps.pagination.pageSize = props.pageSize;
+      if (subTableField && fieldSchema) {
+        subTableField['componentProps'] = {
+          ...subTableField.componentProps,
+          pagination: props,
+        };
         fieldSchema['x-component-props'] = {
           ...fieldSchema['x-component-props'],
-          pagination: {
-            ...fieldSchema['x-component-props']?.['pagination'],
-            pageSize: props.pageSize,
-          },
+          pagination: props,
         };
         dn.emit('patch', {
           schema: {
             'x-uid': fieldSchema['x-uid'],
-            'x-component-props': {
-              ...fieldSchema['x-component-props'],
-              pagination: {
-                pageSize: props.pageSize,
-              },
-            },
+            'x-component-props': fieldSchema['x-component-props'],
           },
         });
+      } else {
+        return;
       }
     };
     return (

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { observer, RecursionField, SchemaOptionsContext, useField, useFieldSchema } from '@tachybase/schema';
-
 import { FormLayout } from '@tego/client';
+
 import { createStyles } from 'antd-style';
 
 import { ACLCollectionProvider, useACLActionParamsContext } from '../../../built-in/acl';
@@ -38,7 +38,7 @@ export const InternalSubTable = observer(
     const insert = useInsertSchema('SubTable');
     const insertSelector = useInsertSchema('Selector');
     const { options } = useAssociationFieldContext();
-    const { actionName } = useACLActionParamsContext();
+    const { params, actionName } = useACLActionParamsContext();
     useEffect(() => {
       insert(schema.SubTable);
       field.required = fieldSchema['required'];
@@ -57,7 +57,7 @@ export const InternalSubTable = observer(
     };
     return (
       <CollectionProvider_deprecated name={options.target}>
-        <ACLCollectionProvider actionPath={`${options.target}:${actionName || 'view'}`}>
+        <ACLCollectionProvider actionPath={`${options.target}:${actionName || params?.actionName || 'view'}`}>
           <FormLayout className={styles.container} layout={'vertical'} bordered={false}>
             <SchemaOptionsContext.Provider
               value={{

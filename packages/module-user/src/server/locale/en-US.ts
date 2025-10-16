@@ -7,4 +7,9 @@ export default {
     'The phone number has been registered, please login directly',
   'The phone number is not registered, please register first':
     'The phone number is not registered, please register first',
+  'User status does not allow login': 'User status does not allow login',
+  'Invalid user status': 'Invalid user status',
+  'Status expired, auto restored': 'Status expired, auto restored',
+  'User not found': 'User not found',
+  'User status changed successfully': 'User status changed successfully',
 };

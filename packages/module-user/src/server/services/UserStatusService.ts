@@ -97,7 +97,7 @@ export class UserStatusService {
   private async setUserStatusCache(userId: number, data: UserStatusCache): Promise<void> {
     try {
       const cacheKey = this.getUserStatusCacheKey(userId);
-      await this.cache.set(cacheKey, JSON.stringify(data), 300); // 5分钟过期
+      await this.cache.set(cacheKey, JSON.stringify(data), 300 * 1000); // 5分钟过期
     } catch (error) {
       this.logger.error('Error setting user status cache:', error);
     }
@@ -112,6 +112,369 @@ export class UserStatusService {
       await this.cache.del(cacheKey);
     } catch (error) {
       this.logger.error('Error clearing user status cache:', error);
+    }
+  }
+
+  /**
+   * 检查用户状态是否允许登录
+   * @param userId 用户ID
+   * @returns 检查结果
+   */
+  async checkUserStatus(userId: number): Promise<UserStatusCheckResult> {
+    try {
+      // 步骤1: 尝试从缓存获取
+      let cached = await this.getUserStatusFromCache(userId);
+
+      // 步骤2: 缓存不存在,从数据库查询
+      if (!cached) {
+        const userRepo = this.db.getRepository('users');
+        const user = await userRepo.findOne({
+          filterByTk: userId,
+          fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
+        });
+
+        if (!user) {
+          return {
+            allowed: false,
+            status: 'unknown',
+            errorMessage: this.app.i18n.t('User not found'),
+          };
+        }
+
+        // 构建缓存数据
+        cached = {
+          userId: user.id,
+          status: user.status || 'active',
+          expireAt: user.statusExpireAt,
+          previousStatus: user.previousStatus,
+          lastChecked: new Date(),
+        };
+
+        // 写入缓存
+        await this.setUserStatusCache(userId, cached);
+      }
+
+      // 步骤3: 检查状态是否过期
+      if (cached.expireAt && new Date(cached.expireAt) <= new Date()) {
+        // 状态已过期,自动恢复
+        await this.restoreUserStatus(userId);
+
+        // 重新获取恢复后的状态
+        const userRepo = this.db.getRepository('users');
+        const user = await userRepo.findOne({
+          filterByTk: userId,
+          fields: ['status'],
+        });
+
+        cached.status = user.status || 'active';
+        cached.expireAt = null;
+        cached.previousStatus = null;
+
+        // 更新缓存
+        await this.setUserStatusCache(userId, cached);
+      }
+
+      // 步骤4: 查询状态定义
+      const statusRepo = this.db.getRepository('userStatuses');
+      const statusInfo = await statusRepo.findOne({
+        filterByTk: cached.status,
+      });
+
+      if (!statusInfo) {
+        this.logger.warn(`Status definition not found: ${cached.status}`);
+        // 状态定义不存在,默认允许登录
+        return {
+          allowed: true,
+          status: cached.status,
+        };
+      }
+
+      // 步骤5: 返回检查结果
+      return {
+        allowed: statusInfo.allowLogin,
+        status: cached.status,
+        statusInfo: {
+          title: statusInfo.title,
+          color: statusInfo.color,
+          allowLogin: statusInfo.allowLogin,
+          loginErrorMessage: statusInfo.loginErrorMessage,
+        },
+        errorMessage: !statusInfo.allowLogin
+          ? statusInfo.loginErrorMessage || this.app.i18n.t('User status does not allow login')
+          : undefined,
+      };
+    } catch (error) {
+      this.logger.error('Error checking user status:', error);
+      // 发生错误时默认允许登录(避免影响正常用户)
+      return {
+        allowed: true,
+        status: 'active',
+      };
+    }
+  }
+
+  /**
+   * 修改用户状态
+   * @param userId 用户ID
+   * @param newStatus 新状态
+   * @param options 选项
+   */
+  async changeUserStatus(userId: number, newStatus: string, options: ChangeUserStatusOptions): Promise<void> {
+    const { expireAt, reason, operationType, operatorId } = options;
+
+    try {
+      // 步骤1: 查询当前用户状态
+      const userRepo = this.db.getRepository('users');
+      const user = await userRepo.findOne({
+        filterByTk: userId,
+        fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
+      });
+
+      if (!user) {
+        throw new Error(this.app.i18n.t('User not found'));
+      }
+
+      const oldStatus = user.status || 'active';
+
+      // 步骤2: 验证新状态是否存在
+      const statusRepo = this.db.getRepository('userStatuses');
+      const statusExists = await statusRepo.findOne({
+        filterByTk: newStatus,
+      });
+
+      if (!statusExists) {
+        throw new Error(this.app.i18n.t('Invalid user status'));
+      }
+
+      // 步骤3: 开启数据库事务
+      await this.db.sequelize.transaction(async (transaction) => {
+        // 更新 users 表
+        await userRepo.update({
+          filterByTk: userId,
+          values: {
+            status: newStatus,
+            statusExpireAt: expireAt || null,
+            previousStatus: oldStatus, // 保存当前状态用于恢复
+            statusReason: reason || null,
+          },
+          transaction,
+        });
+
+        // 插入历史记录
+        const historyRepo = this.db.getRepository('userStatusHistories');
+        await historyRepo.create({
+          values: {
+            userId: userId,
+            fromStatus: oldStatus,
+            toStatus: newStatus,
+            reason: reason || null,
+            expireAt: expireAt || null,
+            operationType: operationType,
+            createdBy: operatorId || null,
+          },
+          transaction,
+        });
+      });
+
+      // 步骤4: 清除缓存
+      await this.clearUserStatusCache(userId);
+
+      // 步骤5: 触发事件
+      this.app.emitAsync('user:statusChanged', {
+        userId,
+        fromStatus: oldStatus,
+        toStatus: newStatus,
+        reason,
+        operationType,
+      });
+
+      // 步骤6: 记录日志
+      this.logger.info(`User status changed: userId=${userId}, ${oldStatus} → ${newStatus}, type=${operationType}`);
+    } catch (error) {
+      this.logger.error('Error changing user status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 恢复过期的用户状态
+   * @param userId 用户ID
+   */
+  async restoreUserStatus(userId: number): Promise<void> {
+    try {
+      // 步骤1: 查询用户信息
+      const userRepo = this.db.getRepository('users');
+      const user = await userRepo.findOne({
+        filterByTk: userId,
+        fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
+      });
+
+      if (!user) {
+        throw new Error(this.app.i18n.t('User not found'));
+      }
+
+      // 步骤2: 检查是否需要恢复
+      if (!user.statusExpireAt || new Date(user.statusExpireAt) > new Date()) {
+        // 未过期或没有设置过期时间
+        return;
+      }
+
+      const oldStatus = user.status;
+      const restoreToStatus = user.previousStatus || 'active'; // 默认恢复为 active
+
+      // 步骤3: 开启事务执行恢复
+      await this.db.sequelize.transaction(async (transaction) => {
+        // 更新 users 表
+        await userRepo.update({
+          filterByTk: userId,
+          values: {
+            status: restoreToStatus,
+            statusExpireAt: null,
+            previousStatus: null,
+            statusReason: this.app.i18n.t('Status expired, auto restored'),
+          },
+          transaction,
+        });
+
+        // 插入历史记录
+        const historyRepo = this.db.getRepository('userStatusHistories');
+        await historyRepo.create({
+          values: {
+            userId: userId,
+            fromStatus: oldStatus,
+            toStatus: restoreToStatus,
+            reason: this.app.i18n.t('Status expired, auto restored'),
+            operationType: 'auto',
+            createdBy: null,
+          },
+          transaction,
+        });
+      });
+
+      // 步骤4: 清除缓存
+      await this.clearUserStatusCache(userId);
+
+      // 步骤5: 触发事件
+      this.app.emitAsync('user:statusRestored', {
+        userId,
+        fromStatus: oldStatus,
+        toStatus: restoreToStatus,
+      });
+
+      // 步骤6: 记录日志
+      this.logger.info(`User status auto restored: userId=${userId}, ${oldStatus} → ${restoreToStatus}`);
+    } catch (error) {
+      this.logger.error('Error restoring user status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 注册新的用户状态(供插件使用)
+   * @param config 状态配置
+   */
+  async registerStatus(config: StatusConfig): Promise<void> {
+    try {
+      const statusRepo = this.db.getRepository('userStatuses');
+
+      // 步骤1: 检查状态是否已存在
+      const existing = await statusRepo.findOne({
+        filterByTk: config.key,
+      });
+
+      if (existing) {
+        // 如果是同一个插件,更新配置
+        if (existing.packageName === config.packageName) {
+          await statusRepo.update({
+            filterByTk: config.key,
+            values: {
+              title: config.title,
+              color: config.color || 'default',
+              allowLogin: config.allowLogin,
+              loginErrorMessage: config.loginErrorMessage || null,
+              description: config.description || null,
+              sort: config.sort || 0,
+              config: config.config || {},
+            },
+          });
+          this.logger.info(`Updated status: ${config.key} by ${config.packageName}`);
+        } else {
+          this.logger.warn(`Status ${config.key} already registered by ${existing.packageName}, skipping`);
+        }
+        return;
+      }
+
+      // 步骤2: 插入新状态
+      await statusRepo.create({
+        values: {
+          key: config.key,
+          title: config.title,
+          color: config.color || 'default',
+          allowLogin: config.allowLogin,
+          loginErrorMessage: config.loginErrorMessage || null,
+          systemDefined: false, // 插件注册的状态不是系统内置
+          packageName: config.packageName,
+          description: config.description || null,
+          sort: config.sort || 0,
+          config: config.config || {},
+        },
+      });
+
+      this.logger.info(`Registered new status: ${config.key} by ${config.packageName}`);
+    } catch (error) {
+      this.logger.error('Error registering status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量修改用户状态
+   * @param userIds 用户ID数组
+   * @param newStatus 新状态
+   * @param options 选项
+   */
+  async batchChangeUserStatus(
+    userIds: number[],
+    newStatus: string,
+    options: ChangeUserStatusOptions,
+  ): Promise<{ success: number[]; failed: number[] }> {
+    const success: number[] = [];
+    const failed: number[] = [];
+
+    for (const userId of userIds) {
+      try {
+        await this.changeUserStatus(userId, newStatus, options);
+        success.push(userId);
+      } catch (error) {
+        this.logger.error(`Failed to change status for user ${userId}:`, error);
+        failed.push(userId);
+      }
+    }
+
+    return { success, failed };
+  }
+
+  /**
+   * 获取每个状态的用户数量统计
+   */
+  async getStatusStatistics(): Promise<Record<string, number>> {
+    try {
+      const userRepo = this.db.getRepository('users');
+      const result = await userRepo.find({
+        attributes: ['status', [this.db.sequelize.fn('COUNT', 'id'), 'count']],
+        group: ['status'],
+        raw: true,
+      });
+
+      const statistics: Record<string, number> = {};
+      for (const row of result as any[]) {
+        statistics[row.status] = parseInt(row.count, 10);
+      }
+
+      return statistics;
+    } catch (error) {
+      this.logger.error('Error getting status statistics:', error);
+      return {};
     }
   }
 }

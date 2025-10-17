@@ -1,5 +1,4 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
-
 import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
 
 import { NAMESPACE } from '../../common/constants';
@@ -158,6 +157,11 @@ export const approvals = {
       },
       limit: 1,
     });
+
+    if (!execution) {
+      return context.throw(404, 'Execution not found! Please contact the administrator.');
+    }
+
     execution.workflow = approval.workflow;
     await context.db.sequelize.transaction(async (transaction) => {
       const records = await approval.getRecords({

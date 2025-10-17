@@ -1,7 +1,7 @@
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
 import { EXECUTION_STATUS, JOB_STATUS, toJSON, Trigger } from '@tachybase/module-workflow';
-
 import { modelAssociationByKey, parseCollectionName } from '@tego/server';
+
 import { get } from 'lodash';
 import { BelongsTo, HasOne, Op } from 'sequelize';
 
@@ -15,7 +15,8 @@ export default class ApprovalTrigger extends Trigger {
   triggerHandler = async (approval, { transaction }) => {
     const workflow = await approval.getWorkflow({
       where: {
-        id: approval.get('workflowId'),
+        // id: approval.get('workflowId'),
+        key: approval.get('workflowKey'),
         type: ApprovalTrigger.TYPE,
         enabled: true,
         'config.collection': approval.collectionName,

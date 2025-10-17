@@ -23,7 +23,7 @@
     "nanoid": "^3.3.8",
     "openid-client": "^5.7.1",
     "react": "18.3.1",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.1.0",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "通过 OIDC (OpenID Connect) 协议认证身份。",

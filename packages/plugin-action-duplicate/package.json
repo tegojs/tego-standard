@@ -18,7 +18,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0"
+    "react-i18next": "16.1.0"
   },
   "description.zh-CN": "复制一条记录，可以复制到表单中编辑后再提交，也可以直接复制并生成一条新记录。",
   "displayName.zh-CN": "操作：复制记录"

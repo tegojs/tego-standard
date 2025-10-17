@@ -22,7 +22,7 @@
     "dayjs": "1.11.13",
     "lodash": "4.17.21",
     "react": "18.3.1",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.1.0",
     "react-js-cron": "^3.2.0"
   },
   "description.zh-CN": "根据配置的规则自动生成编码，支持日期、数字、文本的组合。",

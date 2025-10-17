@@ -24,7 +24,7 @@
     "lodash": "4.17.21",
     "mysql2": "^3.14.3",
     "pg": "^8.16.3",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.1.0",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "支持更多的数据源",

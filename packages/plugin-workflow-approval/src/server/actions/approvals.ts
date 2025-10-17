@@ -162,6 +162,28 @@ export const approvals = {
       return context.throw(404, 'Execution not found! Please contact the administrator.');
     }
 
+    // 如果当前 workflow 未启用，则查找同 workflowKey 且 enable 为 true 的最新 workflow，并挂到 approval 上，同时存到数据库
+    if (!approval.workflow.enabled && approval.workflow?.key) {
+      const latestWorkflow = await context.db.getRepository('workflows').findOne({
+        filter: {
+          key: approval.workflow.key,
+          enabled: true,
+        },
+        order: [['updatedAt', 'DESC']],
+      });
+      if (latestWorkflow && approval.workflow.id !== latestWorkflow.id) {
+        approval.workflow = latestWorkflow;
+        await approval.update(
+          {
+            workflowId: latestWorkflow.id,
+          },
+          {
+            transaction: context.transaction,
+          },
+        );
+      }
+    }
+
     execution.workflow = approval.workflow;
     await context.db.sequelize.transaction(async (transaction) => {
       const records = await approval.getRecords({

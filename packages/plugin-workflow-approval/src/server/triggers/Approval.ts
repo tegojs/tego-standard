@@ -15,8 +15,7 @@ export default class ApprovalTrigger extends Trigger {
   triggerHandler = async (approval, { transaction }) => {
     const workflow = await approval.getWorkflow({
       where: {
-        // id: approval.get('workflowId'),
-        key: approval.get('workflowKey'),
+        id: approval.get('workflowId'),
         type: ApprovalTrigger.TYPE,
         enabled: true,
         'config.collection': approval.collectionName,

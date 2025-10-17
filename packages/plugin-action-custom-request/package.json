@@ -20,7 +20,7 @@
     "axios": "1.7.7",
     "file-saver": "^2.0.5",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.1.0",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "向任意 HTTP 服务发送请求，支持将上下文数据发送给目标服务。",

@@ -16,7 +16,7 @@
     "@tego/client": "*",
     "@tego/server": "*",
     "antd": "5.22.5",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.1.2",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "工作流分析工具：用于时间消耗和错误分析",

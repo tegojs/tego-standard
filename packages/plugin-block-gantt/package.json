@@ -20,7 +20,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0"
+    "react-i18next": "16.1.2"
   },
   "description.zh-CN": "提供甘特图卡片。",
   "displayName.zh-CN": "卡片：甘特图"

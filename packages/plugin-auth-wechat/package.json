@@ -19,7 +19,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "dayjs": "^1.11.13",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.1.2",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "通过微信扫码认证身份。",

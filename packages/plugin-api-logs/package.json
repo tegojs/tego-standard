@@ -16,7 +16,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.1.2",
     "react-router-dom": "6.28.1"
   },
   "description.zh-CN": "Api Logs通过增强的用户界面组件、配置面板和仪表板提供对 API 操作的无缝跟踪",

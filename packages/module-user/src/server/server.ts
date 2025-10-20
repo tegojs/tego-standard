@@ -187,6 +187,10 @@ export default class PluginUsersServer extends Plugin {
 
   async install(options) {
     const { rootNickname, rootPassword, rootEmail, rootUsername } = this.getInstallingData(options);
+
+    // 初始化系统状态
+    await this.initSystemStatuses();
+
     const User = this.db.getCollection('users');
     if (await User.repository.findOne({ filter: { email: rootEmail } })) {
       return;
@@ -205,6 +209,74 @@ export default class PluginUsersServer extends Plugin {
     const repo = this.db.getRepository<any>('collections');
     if (repo) {
       await repo.db2cm('users');
+    }
+  }
+
+  /**
+   * 初始化系统内置状态
+   */
+  async initSystemStatuses() {
+    const systemStatuses = [
+      {
+        key: 'active',
+        title: '{{t("Active")}}',
+        color: 'green',
+        allowLogin: true,
+        loginErrorMessage: null,
+        systemDefined: true,
+        packageName: '@tachybase/module-user',
+        description: '{{t("Normal active user")}}',
+        sort: 1,
+        config: {},
+      },
+      {
+        key: 'pending',
+        title: '{{t("Pending")}}',
+        color: 'orange',
+        allowLogin: false,
+        loginErrorMessage: '{{t("Your account is under review, please wait for administrator approval")}}',
+        systemDefined: true,
+        packageName: '@tachybase/module-user',
+        description: '{{t("User waiting for approval")}}',
+        sort: 2,
+        config: {},
+      },
+      {
+        key: 'disabled',
+        title: '{{t("Disabled")}}',
+        color: 'gray',
+        allowLogin: false,
+        loginErrorMessage:
+          '{{t("Your account has been disabled, please contact administrator if you have any questions")}}',
+        systemDefined: true,
+        packageName: '@tachybase/module-user',
+        description: '{{t("Manually disabled by administrator")}}',
+        sort: 3,
+        config: {},
+      },
+    ];
+
+    const statusRepo = this.db.getRepository('userStatuses');
+    if (!statusRepo) {
+      this.app.logger.warn('userStatuses repository not found');
+      return;
+    }
+
+    for (const status of systemStatuses) {
+      try {
+        const existing = await statusRepo.findOne({
+          filter: { key: status.key },
+        });
+
+        if (!existing) {
+          await statusRepo.create({
+            values: status,
+          });
+          this.app.logger.info(`Created system status: ${status.key}`);
+        }
+      } catch (error) {
+        this.app.logger.error(`Failed to create system status ${status.key}:`, error);
+      }
     }
   }
 }

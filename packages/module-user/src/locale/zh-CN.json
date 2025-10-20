@@ -38,8 +38,5 @@
   "User Status History": "用户状态历史",
   "User Statuses": "用户状态",
   "Users & Permissions": "用户和权限",
-  "Users Settings": "用户设置",
-  "Your account has been disabled, please contact administrator if you have any questions": "您的账户已被停用，如有疑问请联系管理员",
-  "Your account has been locked due to multiple failed login attempts. Please try again later.": "您的账户因多次登录失败已被锁定，请稍后再试",
-  "Your account is under review, please wait for administrator approval": "您的账户正在审核中，请等待管理员审核通过"
+  "Users Settings": "用户设置"
 }

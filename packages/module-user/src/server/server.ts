@@ -1,13 +1,14 @@
 import { resolve } from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-
 // import VerificationPlugin from '@tachybase/plugin-otp';
 import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 
 import * as actions from './actions/users';
 import { UserModel } from './models/UserModel';
+import UserStatusService from './services/UserStatusService';
 
 export default class PluginUsersServer extends Plugin {
+  userStatusService: UserStatusService;
   async beforeLoad() {
     this.db.registerModels({
       UserModel,
@@ -127,6 +128,16 @@ export default class PluginUsersServer extends Plugin {
         plugin: this,
       },
     });
+
+    // 初始化 UserStatusService
+    this.userStatusService = new UserStatusService(this.app);
+    // 将服务暴露到 app 上,方便其他插件调用
+    (this.app as any).userStatusService = this.userStatusService;
+
+    // 注入登录检查方法, 注册状态变更拦截器
+    this.userStatusService.injectLoginCheck();
+    this.userStatusService.registerStatusChangeInterceptor();
+
     if (!isMainThread) {
       return;
     }

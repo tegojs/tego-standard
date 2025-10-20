@@ -1,4 +1,4 @@
-import { Application, Cache, Database } from '@tego/server';
+import { Application, AuthErrorCode, BaseAuth, Cache, Database, Model } from '@tego/server';
 
 /**
  * 用户状态检查结果
@@ -476,6 +476,91 @@ export class UserStatusService {
       this.logger.error('Error getting status statistics:', error);
       return {};
     }
+  }
+
+  /**
+   * 注入登录检查
+   */
+  injectLoginCheck() {
+    // TODO: 主仓库可以发版后, 对 BaseAuth.signIn 的修改应该移动到主仓库中, 并在用户不可登录的错误中使用新的 AuthErrorCode
+    BaseAuth.prototype.signIn = async function () {
+      let localeNamespace = 'auth';
+      let user: Model;
+      try {
+        user = await this.validate();
+      } catch (err) {
+        this.ctx.throw(err.status || 401, err.message, {
+          ...err,
+        });
+      }
+      if (!user) {
+        this.ctx.throw(401, {
+          message: this.ctx.t('User not found. Please sign in again to continue.', { ns: localeNamespace }),
+          code: AuthErrorCode.NOT_EXIST_USER,
+        });
+      }
+
+      // 检查用户状态是否允许登录
+      if (user.status) {
+        const userStatusRepo = this.ctx.db.getRepository('userStatuses');
+        const userStatus = await userStatusRepo.findOne({
+          filter: {
+            key: user.status,
+          },
+        });
+
+        if (userStatus && !userStatus.allowLogin) {
+          const errorMessage = userStatus.loginErrorMessage || 'Login is not allowed for this user status.';
+          this.ctx.throw(401, {
+            message: this.ctx.t(errorMessage, { ns: localeNamespace }),
+            code: AuthErrorCode.INVALID_TOKEN,
+          });
+        }
+      }
+
+      const token = await this.signNewToken(user.id);
+      return {
+        user,
+        token,
+      };
+    };
+
+    this.logger.info('signIn method injected');
+  }
+
+  /**
+   * 注册用户状态变更拦截器
+   * 拦截 users:update 请求,自动记录状态变更历史
+   */
+  registerStatusChangeInterceptor() {
+    // 监听 users 表的更新操作
+    this.db.on('users.beforeUpdate', async (model: any, options: any) => {
+      // 检查是否有 status 字段变更
+      if (model.changed('status')) {
+        const oldStatus = model._previousDataValues.status || 'active';
+        const newStatus = model.status;
+
+        // 如果状态确实发生了变化
+        if (oldStatus !== newStatus) {
+          this.logger.info(`User status change detected: userId=${model.id}, ${oldStatus} → ${newStatus}`);
+        }
+      }
+    });
+
+    // 监听 users 表的更新完成
+    this.db.on('users.afterUpdate', async (model: any, options: any) => {
+      // 检查是否有 status 字段变更
+      if (model._changed && model._changed.has && model._changed.has('status')) {
+        const userId = model.id;
+
+        // 清除用户状态缓存
+        await this.clearUserStatusCache(userId);
+
+        this.logger.info(`User status cache cleared for userId=${userId}`);
+      }
+    });
+
+    this.logger.info('User status change interceptor registered');
   }
 }
 

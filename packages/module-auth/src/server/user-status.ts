@@ -1,5 +1,7 @@
 import { Application, AuthErrorCode, BaseAuth, Cache, Database, Model } from '@tego/server';
 
+import { namespace } from '../preset';
+
 /**
  * 用户状态检查结果
  */
@@ -483,8 +485,9 @@ export class UserStatusService {
    */
   injectLoginCheck() {
     // TODO: 主仓库可以发版后, 对 BaseAuth.signIn 的修改应该移动到主仓库中, 并在用户不可登录的错误中使用新的 AuthErrorCode
+    const userStatusService = this; // 保存 UserStatusService 实例的引用
+
     BaseAuth.prototype.signIn = async function () {
-      let localeNamespace = 'auth';
       let user: Model;
       try {
         user = await this.validate();
@@ -495,27 +498,19 @@ export class UserStatusService {
       }
       if (!user) {
         this.ctx.throw(401, {
-          message: this.ctx.t('User not found. Please sign in again to continue.', { ns: localeNamespace }),
+          message: this.ctx.t('User not found. Please sign in again to continue.', { ns: namespace }),
           code: AuthErrorCode.NOT_EXIST_USER,
         });
       }
 
-      // 检查用户状态是否允许登录
-      if (user.status) {
-        const userStatusRepo = this.ctx.db.getRepository('userStatuses');
-        const userStatus = await userStatusRepo.findOne({
-          filter: {
-            key: user.status,
-          },
-        });
+      // 使用 UserStatusService 检查用户状态是否允许登录
+      const statusCheckResult: UserStatusCheckResult = await userStatusService.checkUserStatus(user.id);
 
-        if (userStatus && !userStatus.allowLogin) {
-          const errorMessage = userStatus.loginErrorMessage || 'Login is not allowed for this user status.';
-          this.ctx.throw(401, {
-            message: this.ctx.t(errorMessage, { ns: localeNamespace }),
-            code: AuthErrorCode.INVALID_TOKEN,
-          });
-        }
+      if (!statusCheckResult.allowed) {
+        this.ctx.throw(403, {
+          message: this.ctx.t(statusCheckResult.statusInfo.loginErrorMessage, { ns: namespace }),
+          code: AuthErrorCode.INVALID_TOKEN,
+        });
       }
 
       const token = await this.signNewToken(user.id);
@@ -525,7 +520,7 @@ export class UserStatusService {
       };
     };
 
-    this.logger.info('signIn method injected');
+    this.logger.info('signIn method injected with UserStatusService integration');
   }
 
   /**

@@ -59,7 +59,7 @@ export default class AddUserStatusFieldsMigration extends Migration {
         { type: 'SELECT' },
       );
 
-      const count = hasData[0]?.count || 0;
+      const count = (hasData[0] as any)?.count || 0;
       if (count > 0) {
         await db.sequelize.query(`UPDATE users SET status = 'active' WHERE status IS NULL OR status = ''`);
         this.app.logger.info(`Set default status 'active' for ${count} existing users`);

@@ -6,6 +6,7 @@ import {
   isArr,
   observer,
   RecursionField,
+  useField,
   useFieldSchema,
   useForm,
 } from '@tachybase/schema';
@@ -110,6 +111,7 @@ export const SubTable: any = observer(
     const { styles } = useStyles();
     const { field, options: collectionField } = useAssociationFieldContext<ArrayField>();
     const { t } = useTranslation();
+    const subTableField = useField();
     const fieldNames = useFieldNames(props);
     const fieldSchema = useFieldSchema();
     const compile = useCompile();
@@ -337,6 +339,24 @@ export const SubTable: any = observer(
       styles.select,
     ]);
 
+    const paginationProps = {
+      pageSize: subTableField.componentProps?.pagination?.pageSize || 5,
+      current: subTableField.componentProps?.pagination?.current || 1,
+      total: field.value?.length || 0,
+    };
+    const onChange = (props) => {
+      if (subTableField && fieldSchema) {
+        subTableField['componentProps'] = {
+          ...subTableField.componentProps,
+          pagination: props,
+        };
+        fieldSchema['x-component-props'] = {
+          ...fieldSchema['x-component-props'],
+          pagination: props,
+        };
+      }
+    };
+
     // -------- 主体 --------
     const core = (
       <div className={styles.container}>
@@ -349,13 +369,14 @@ export const SubTable: any = observer(
                 <Table
                   className={styles.table}
                   bordered
+                  onChange={onChange}
                   size="small"
                   field={field}
                   showIndex
                   dragSort={field.editable}
                   showDel={field.editable}
                   setFieldValue={setFieldValueShadow}
-                  pagination={paginationProp}
+                  pagination={!!field.componentProps.pagination ? paginationProps : false}
                   rowSelection={{ type: 'none', hideSelectAll: true }}
                   footer={renderFooter}
                   isSubTable

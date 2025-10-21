@@ -115,6 +115,11 @@ export default class PluginUsersServer extends Plugin {
       name: `pm.${this.name}.*`,
       actions: ['users:listExcludeRole', 'users:list'],
     });
+
+    this.app.acl.registerSnippet({
+      name: `pm.users.statuses`,
+      actions: ['userStatuses:*', 'userStatusHistories:*'],
+    });
   }
 
   async load() {

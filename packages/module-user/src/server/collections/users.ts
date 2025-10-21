@@ -161,7 +161,7 @@ export default defineCollection({
       targetKey: 'key',
       uiSchema: {
         type: 'object',
-        title: '{{t("Status Info")}}',
+        title: '{{t("Status")}}',
         'x-component': 'AssociationField',
         'x-component-props': {
           fieldNames: {

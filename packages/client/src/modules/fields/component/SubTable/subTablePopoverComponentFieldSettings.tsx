@@ -448,7 +448,7 @@ export const tablePagination = {
     const field = useField();
     return {
       title: t('Pagination'),
-      checked: fieldSchema['x-component-props']?.pagination !== (false as boolean),
+      checked: fieldSchema['x-component-props']?.pagination || false,
       onChange(v) {
         if (!fieldSchema['x-component-props'].pagination) {
           fieldSchema['x-component-props'] = {

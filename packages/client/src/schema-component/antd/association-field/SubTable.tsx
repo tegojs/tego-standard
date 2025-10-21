@@ -30,7 +30,7 @@ import { CollectionProvider_deprecated } from '../../../collection-manager';
 import { CollectionRecordProvider, useCollectionRecord } from '../../../data-source';
 import { markRecordAsNew } from '../../../data-source/collection-record/isNewRecord';
 import { FlagProvider } from '../../../flag-provider';
-import { useCompile } from '../../hooks';
+import { useCompile, useDesignable } from '../../hooks';
 import { ActionContextProvider } from '../action';
 import { Table } from '../table-v2/Table';
 import { useAssociationFieldContext, useFieldNames } from './hooks';
@@ -110,8 +110,8 @@ export const SubTable: any = observer(
     const { openSize, onDataChange } = props;
     const { styles } = useStyles();
     const { field, options: collectionField } = useAssociationFieldContext<ArrayField>();
-    const { t } = useTranslation();
     const subTableField = useField();
+    const { t } = useTranslation();
     const fieldNames = useFieldNames(props);
     const fieldSchema = useFieldSchema();
     const compile = useCompile();

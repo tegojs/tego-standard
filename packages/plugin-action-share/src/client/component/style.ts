@@ -127,7 +127,7 @@ export const useModalStyles = createStyles(({ css, token }) => {
       .ant-modal-content {
         position: relative;
         overflow: hidden;
-        border-radius: 16px;
+        border-radius: ${token.borderRadius};
         &::before,
         &::after {
           content: '';
@@ -148,17 +148,52 @@ export const useModalStyles = createStyles(({ css, token }) => {
           bottom: -160px;
           right: -150px;
         }
-        .ant-modal-header {
-          text-align: center;
-          margin-bottom: 20px;
-          margin-top: 15px;
-          .ant-modal-title {
-            font-size: x-large;
-            font-weight: 400;
-          }
-        }
         .ant-modal-body {
           justify-items: center;
+          .modal-title {
+            width: 100%;
+            position: relative;
+            .title {
+              flex: 1;
+              text-align: center;
+              font-size: x-large;
+              font-weight: 400;
+
+              .history-title {
+                font-weight: normal;
+                text-align: left;
+                font-size: 1rem;
+                display: flex;
+                padding: 0 20px;
+                margin-bottom: 5px;
+                margin-top: 15px;
+                .anticon {
+                  padding: 0 5px 0 5px;
+                  &:hover {
+                    background-color: #ebebeb;
+                    cursor: pointer;
+                  }
+                }
+              }
+              .share-title {
+                margin-bottom: 20px;
+                margin-top: 15px;
+              }
+            }
+            .modalIcon {
+              position: absolute;
+              top: -20px;
+              right: 0;
+              .anticon {
+                font-size: 18px;
+                padding: 8px;
+                &:hover {
+                  background-color: #ebebeb;
+                  cursor: pointer;
+                }
+              }
+            }
+          }
         }
       }
     `,
@@ -218,6 +253,135 @@ export const useModalStyles = createStyles(({ css, token }) => {
       .ant-modal-content {
         width: 280px;
         height: 360px;
+      }
+    `,
+    historyModal: css`
+      .ant-modal-content {
+        padding-left: 0;
+        padding-right: 0;
+        &::before,
+        &::after {
+          background: none;
+        }
+      }
+    `,
+  };
+});
+
+export const useShareConfigStyles = createStyles(({ css, token }) => {
+  return {
+    form: css`
+      margin: 0;
+      .ant-picker {
+        width: 100%;
+      }
+      .setPassWord {
+        width: 100%;
+      }
+      .password {
+        display: flex;
+        .ant-btn {
+          border: none;
+          color: #2196f4;
+          box-shadow: none;
+          background-color: rgb(0 0 0 / 0%);
+        }
+        .pw-cancel {
+          color: #c1c1c1;
+        }
+      }
+    `,
+    collapse: css`
+      width: 100%;
+      background-color: rgb(0 0 0 / 0%);
+      .ant-collapse-header-text {
+        text-align: right;
+      }
+      .submit {
+        width: 100%;
+      }
+    `,
+    datePickFooter: css`
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    `,
+  };
+});
+
+export const useSharePageModelStyle = createStyles(({ css, token }) => {
+  return {
+    modal: css`
+      .ant-modal-content {
+        position: relative;
+        overflow: hidden;
+        border-radius: ${token?.borderRadius || '0px'};
+        &::before,
+        &::after {
+          content: '';
+          position: absolute;
+          width: 300px;
+          height: 300px;
+          background: radial-gradient(circle, rgba(0, 149, 255, 0.11) 0%, transparent 70%);
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        &::before {
+          top: -165px;
+          left: -10px;
+        }
+
+        &::after {
+          bottom: -160px;
+          right: -150px;
+        }
+        .ant-modal-body {
+          color: #747474;
+          padding: 30px 0 10px 0;
+          .ant-input {
+            border-radius: ${token?.borderRadius || '0px'};
+          }
+          .error {
+            color: red;
+            margin-top: 5px;
+            .anticon {
+              margin-right: 5px;
+            }
+          }
+          .shareTime {
+            margin-top: 30px;
+            text-align: right;
+          }
+        }
+      }
+    `,
+  };
+});
+
+export const useShareCollapseStyle = createStyles(({ css, token }) => {
+  return {
+    collapse: css`
+      width: 100%;
+      max-height: 70vh;
+      overflow-y: scroll;
+      padding: 20px;
+      .ant-collapse {
+        border-radius: ${token?.borderRadius || '0px'};
+        .ant-collapse-header {
+          display: flex;
+          justify-content: space-between;
+          flex-wrap: wrap;
+        }
+      }
+    `,
+    collapseExtra: css`
+      .anticon {
+        padding: 5px;
+        &:hover {
+          background-color: #ebebeb;
+          cursor: pointer;
+        }
       }
     `,
   };

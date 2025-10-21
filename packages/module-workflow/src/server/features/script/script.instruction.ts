@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import { createContext, Script } from 'node:vm';
+import { Context } from '@tego/server';
 
 import { transform } from '@babel/core';
-import { Context } from '@tego/server';
 import dayjs from 'dayjs';
 import jsonata from 'jsonata';
 import _ from 'lodash';
@@ -183,7 +183,7 @@ async function convertByTsCode(code, data, processor: Processor) {
   // 执行默认导出的函数
   const func = sandbox.exports.default;
 
-  const result = await func(data, {
+  const result = await func(data || {}, {
     ...options,
   });
 

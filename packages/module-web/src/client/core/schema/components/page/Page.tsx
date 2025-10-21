@@ -27,9 +27,9 @@ const InternalPage: React.FC = (props) => {
   const fieldSchema = useFieldSchema();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabsSchema = fieldSchema.properties?.['tabs'];
-  const isHeaderEnabled = field.componentProps.headerEnabled !== false;
+  const isHeaderEnabled = field.componentProps.headerEnabled;
   const isTabsEnabled = field.componentProps.tabsEnabled !== false && tabsSchema;
-  const extendComponents = fieldSchema['x-extend-components'];
+  const extendComponents = fieldSchema['x-extend-components'] || {};
   const enabledSharePage = fieldSchema['x-component-props']?.['enableSharePage'];
 
   let pageSchema = findSchema(fieldSchema, 'MPage');

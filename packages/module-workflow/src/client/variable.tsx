@@ -64,13 +64,16 @@ export const nodesOptions = {
   label: `{{t("Node result", { ns: "${NAMESPACE}" })}}`,
   value: '$jobsMapByNodeKey',
   useOptions(options: UseVariableOptions) {
+    const compile = useCompile();
     const { instructions } = usePlugin(WorkflowPlugin);
     const current = useContextNode();
     const upstreams = useAvailableUpstreams(current);
     const result: VariableOption[] = [];
     upstreams.forEach((node) => {
       const instruction = instructions.get(node.type);
-      const subOption = instruction.useVariables?.(node, options);
+      // 优化节点标题，显示节点类型和节点名称.优化用户使用体验,快速找到对应节点
+      const title = `<${compile(instruction.title)}>${node.title}`;
+      const subOption = instruction.useVariables?.({ ...node, title }, options);
       if (subOption) {
         result.push(subOption);
       }

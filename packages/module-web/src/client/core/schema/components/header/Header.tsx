@@ -37,7 +37,7 @@ const InternalHeader = (props: HeaderProps) => {
   const { styles } = useStyles();
   const fieldSchema = useFieldSchema();
   const parentFieldSchema = fieldSchema.parent;
-  const extendComponents = parentFieldSchema['x-extend-components'];
+  const extendComponents = parentFieldSchema['x-extend-components'] || {};
   const enabledSharePage = parentFieldSchema['x-component-props']?.['enableSharePage'];
   useEffect(() => {
     // sync title

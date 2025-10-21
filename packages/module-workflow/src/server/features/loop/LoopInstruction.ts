@@ -85,17 +85,26 @@ export default class extends Instruction {
     const targets = (Array.isArray(target) ? target : [target]).filter((t) => t != null);
     const length = getTargetLength(target);
     const item = typeof target === 'number' ? index : targets[index];
+    const params = processor.options?.httpContext?.action?.params;
+    const loopData = params?.loopLength
+      ? {
+          loopLength: params.loopLength,
+          loopIndex: Number(params.loopIndex) + 1,
+        }
+      : null;
 
     const result = {
       item,
       index,
       length,
+      loopData,
     };
 
     this.workflow.noticeManager.notify('workflow:regular', {
       msg: 'progress',
       current: index,
       total: length,
+      loopData,
     });
 
     return result;

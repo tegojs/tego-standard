@@ -6,7 +6,7 @@ export default defineCollection({
     group: 'user',
   },
   name: 'userStatusHistories',
-  title: '{{t("User Status History")}}',
+  title: '{{t("User Status Histories")}}',
   createdAt: true,
   createdBy: true,
   fields: [

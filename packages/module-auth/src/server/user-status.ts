@@ -184,10 +184,19 @@ export class UserStatusService {
 
       if (!statusInfo) {
         this.logger.warn(`Status definition not found: ${cached.status}`);
-        // 状态定义不存在,默认允许登录
+        // 状态定义不存在,阻止登录(状态异常)
         return {
-          allowed: true,
+          allowed: false,
           status: cached.status,
+          statusInfo: {
+            title: this.app.i18n.t('Invalid status', { ns: namespace }),
+            color: 'red',
+            allowLogin: false,
+            loginErrorMessage: this.app.i18n.t('User status is invalid, please contact administrator', {
+              ns: namespace,
+            }),
+          },
+          errorMessage: this.app.i18n.t('User status is invalid, please contact administrator', { ns: namespace }),
         };
       }
 
@@ -206,11 +215,18 @@ export class UserStatusService {
           : undefined,
       };
     } catch (error) {
-      this.logger.error('Error checking user status:', error);
-      // 发生错误时默认允许登录(避免影响正常用户)
+      this.logger.error(`Error checking user status for userId=${userId}: ${error}`);
+      // 安全起见, 发生错误时阻止登录
       return {
-        allowed: true,
-        status: 'active',
+        allowed: false,
+        status: 'unknown',
+        statusInfo: {
+          title: this.app.i18n.t('Unknown status', { ns: namespace }),
+          color: 'red',
+          allowLogin: false,
+          loginErrorMessage: this.app.i18n.t('System error, please contact administrator', { ns: namespace }),
+        },
+        errorMessage: this.app.i18n.t('System error, please contact administrator', { ns: namespace }),
       };
     }
   }

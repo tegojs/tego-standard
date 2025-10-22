@@ -8,4 +8,8 @@ export default {
   'Please enter your username or email': '请输入用户名或邮箱',
   'Please enter a valid username': '请输入有效的用户名',
   'The username, email or password is incorrect, please re-enter': '用户名邮箱或者密码有误,请重新输入',
+  'Invalid status': '状态异常',
+  'User status is invalid, please contact administrator': '用户状态异常，请联系管理员',
+  'Unknown status': '未知状态',
+  'System error, please contact administrator': '系统错误，请联系管理员',
 };

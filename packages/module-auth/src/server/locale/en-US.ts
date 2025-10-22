@@ -9,4 +9,8 @@ export default {
     'The phone number is not registered, please register first',
   'The username, email or password is incorrect, please re-enter':
     'The username, email or password is incorrect, please re-enter',
+  'Invalid status': 'Invalid status',
+  'User status is invalid, please contact administrator': 'User status is invalid, please contact administrator',
+  'Unknown status': 'Unknown status',
+  'System error, please contact administrator': 'System error, please contact administrator',
 };

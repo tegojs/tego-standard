@@ -528,6 +528,8 @@ export class UserStatusService {
    * 拦截 users:update 请求,自动记录状态变更历史
    */
   registerStatusChangeInterceptor() {
+    const userStatusService = this;
+
     // 监听 users 表的更新操作
     this.db.on('users.beforeUpdate', async (model: any, options: any) => {
       // 检查是否有 status 字段变更
@@ -537,21 +539,64 @@ export class UserStatusService {
 
         // 如果状态确实发生了变化
         if (oldStatus !== newStatus) {
-          this.logger.info(`User status change detected: userId=${model.id}, ${oldStatus} → ${newStatus}`);
+          userStatusService.logger.info(`User status change detected: userId=${model.id}, ${oldStatus} → ${newStatus}`);
+
+          // 强制设置 previousStatus 为数据库中的旧状态
+          model.set('previousStatus', oldStatus);
+
+          // 存储变更信息到 transaction 上下文，供 afterUpdate 使用
+          if (!options.transaction) {
+            options.transaction = {};
+          }
+          if (!options.transaction.__statusChange) {
+            options.transaction.__statusChange = {};
+          }
+          options.transaction.__statusChange[model.id] = {
+            userId: model.id,
+            fromStatus: oldStatus,
+            toStatus: newStatus,
+            reason: model.statusReason || null,
+            expireAt: model.statusExpireAt || null,
+          };
         }
       }
     });
 
     // 监听 users 表的更新完成
     this.db.on('users.afterUpdate', async (model: any, options: any) => {
-      // 检查是否有 status 字段变更
-      if (model._changed && model._changed.has && model._changed.has('status')) {
-        const userId = model.id;
+      // 检查是否有状态变更记录
+      const statusChange = options?.transaction?.__statusChange?.[model.id];
+
+      if (statusChange) {
+        try {
+          // 获取当前操作用户ID
+          const currentUserId = options?.context?.state?.currentUser?.id;
+
+          // 记录状态变更历史
+          const userStatusHistoriesRepo = userStatusService.db.getRepository('userStatusHistories');
+          await userStatusHistoriesRepo.create({
+            values: {
+              userId: statusChange.userId,
+              fromStatus: statusChange.fromStatus,
+              toStatus: statusChange.toStatus,
+              reason: statusChange.reason,
+              expireAt: statusChange.expireAt,
+              operationType: 'manual', // 通过 API 修改的都是手动操作
+              createdById: currentUserId,
+            },
+            context: options.context,
+          });
+
+          userStatusService.logger.info(
+            `User status history recorded: userId=${statusChange.userId}, ${statusChange.fromStatus} → ${statusChange.toStatus}`,
+          );
+        } catch (error) {
+          userStatusService.logger.error('Failed to record user status history:', error);
+        }
 
         // 清除用户状态缓存
-        await this.clearUserStatusCache(userId);
-
-        this.logger.info(`User status cache cleared for userId=${userId}`);
+        await userStatusService.clearUserStatusCache(statusChange.userId);
+        userStatusService.logger.info(`User status cache cleared for userId=${statusChange.userId}`);
       }
     });
 

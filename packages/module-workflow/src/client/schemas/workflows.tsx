@@ -1015,6 +1015,18 @@ export const workflowSchema: ISchema = {
                 },
               },
             },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-read-pretty': true,
+                },
+              },
+            },
             showCollection: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',

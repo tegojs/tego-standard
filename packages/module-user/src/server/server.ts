@@ -135,6 +135,11 @@ export default class PluginUsersServer extends Plugin {
       return;
     }
 
+    // 初始化系统状态
+    this.app.on('afterLoad', async () => {
+      await this.initSystemStatuses();
+    });
+
     this.app.resourcer.use(
       async (ctx, next) => {
         await next();
@@ -192,9 +197,6 @@ export default class PluginUsersServer extends Plugin {
 
   async install(options) {
     const { rootNickname, rootPassword, rootEmail, rootUsername } = this.getInstallingData(options);
-
-    // 初始化系统状态
-    await this.initSystemStatuses();
 
     const User = this.db.getCollection('users');
     if (await User.repository.findOne({ filter: { email: rootEmail } })) {

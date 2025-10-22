@@ -10,6 +10,10 @@ export default {
   'The username, email or password is incorrect, please re-enter': '用户名邮箱或者密码有误,请重新输入',
   'Invalid status': '状态异常',
   'User status is invalid, please contact administrator': '用户状态异常，请联系管理员',
+  'User status does not allow login': '用户状态不允许登录',
+  'Your account is under review, please wait for administrator approval': '您的账号正在审核中，请等待管理员批准',
+  'Your account has been disabled, please contact administrator if you have any questions':
+    '您的账号已被禁用，如有疑问请联系管理员',
   'Unknown status': '未知状态',
   'System error, please contact administrator': '系统错误，请联系管理员',
 };

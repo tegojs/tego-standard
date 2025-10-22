@@ -16,6 +16,8 @@
   "From Status": "变更前状态",
   "Login Error Message": "登录错误提示",
   "Manual": "手动",
+  "Manually disabled by administrator": "管理员手动禁用",
+  "Normal active user": "正常活跃用户",
   "Operation Type": "操作类型",
   "Package Name": "包名",
   "Pending": "待审核",
@@ -38,6 +40,9 @@
   "User ID": "用户ID",
   "User Status Histories": "用户状态历史",
   "User Statuses": "用户状态",
+  "User waiting for approval": "用户等待审核",
   "Users & Permissions": "用户和权限",
-  "Users Settings": "用户设置"
+  "Users Settings": "用户设置",
+  "Your account has been disabled, please contact administrator if you have any questions": "您的账号已被禁用，如有疑问请联系管理员",
+  "Your account is under review, please wait for administrator approval": "您的账号正在审核中，请等待管理员批准"
 }

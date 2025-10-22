@@ -16,6 +16,8 @@
   "From Status": "From Status",
   "Login Error Message": "Login Error Message",
   "Manual": "Manual",
+  "Manually disabled by administrator": "Manually disabled by administrator",
+  "Normal active user": "Normal active user",
   "Operation Type": "Operation Type",
   "Package Name": "Package Name",
   "Pending": "Pending",
@@ -36,6 +38,9 @@
   "User ID": "User ID",
   "User Status Histories": "User Status Histories",
   "User Statuses": "User Statuses",
+  "User waiting for approval": "User waiting for approval",
   "Users & Permissions": "Users & Permissions",
-  "Users Settings": "Users Settings"
+  "Users Settings": "Users Settings",
+  "Your account has been disabled, please contact administrator if you have any questions": "Your account has been disabled, please contact administrator if you have any questions",
+  "Your account is under review, please wait for administrator approval": "Your account is under review, please wait for administrator approval"
 }

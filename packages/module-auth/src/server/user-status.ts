@@ -200,18 +200,36 @@ export class UserStatusService {
         };
       }
 
-      // 步骤5: 返回检查结果
+      // 步骤5: 翻译 title 和 loginErrorMessage
+      // 数据库中存储的是 {{t("...")}} 格式，需要解析并翻译
+      const translateMessage = (message: string): string => {
+        if (!message) return '';
+
+        // 匹配 {{t("...")}} 格式
+        const match = message.match(/\{\{t\("([^"]+)"\)\}\}/);
+        if (match && match[1]) {
+          return this.app.i18n.t(match[1], { ns: namespace });
+        }
+
+        // 如果不是模板格式，直接返回
+        return message;
+      };
+
+      const translatedTitle = translateMessage(statusInfo.title);
+      const translatedLoginErrorMessage = translateMessage(statusInfo.loginErrorMessage);
+
+      // 步骤6: 返回检查结果
       return {
         allowed: statusInfo.allowLogin,
         status: cached.status,
         statusInfo: {
-          title: statusInfo.title,
+          title: translatedTitle,
           color: statusInfo.color,
           allowLogin: statusInfo.allowLogin,
-          loginErrorMessage: statusInfo.loginErrorMessage,
+          loginErrorMessage: translatedLoginErrorMessage,
         },
         errorMessage: !statusInfo.allowLogin
-          ? statusInfo.loginErrorMessage || this.app.i18n.t('User status does not allow login')
+          ? translatedLoginErrorMessage || this.app.i18n.t('User status does not allow login', { ns: namespace })
           : undefined,
       };
     } catch (error) {

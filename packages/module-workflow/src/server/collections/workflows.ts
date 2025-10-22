@@ -9,6 +9,7 @@ export default function () {
     updatedAt: true,
     createdBy: true,
     updatedBy: true,
+    sortable: 'sort',
     fields: [
       {
         name: 'key',
@@ -108,6 +109,11 @@ export default function () {
         type: 'date',
         name: 'initAt',
         defaultValue: () => new Date(),
+      },
+      {
+        name: 'sort',
+        type: 'bigInt',
+        interface: 'sort',
       },
     ],
     // NOTE: use unique index for avoiding deadlock in mysql when setCurrent

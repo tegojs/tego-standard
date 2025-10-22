@@ -1,7 +1,7 @@
 import React from 'react';
 import { RecursionField } from '@tachybase/schema';
 
-import { ActionContextProvider, FormProvider, RecordPickerProvider, SchemaComponentOptions } from '../..';
+import { ActionContextProvider, FormProvider, OpenSize, RecordPickerProvider, SchemaComponentOptions } from '../..';
 import { TableSelectorParamsProvider } from '../../../block-provider/TableSelectorProvider';
 import { CollectionProvider_deprecated } from '../../../collection-manager';
 import { useTableSelectorProps } from './InternalPicker';
@@ -15,7 +15,7 @@ interface SelectorProps {
   pickerProps: any;
   getFilter: () => any;
   usePickActionProps: () => any;
-  openSize?: string;
+  openSize?: OpenSize;
 }
 
 const SubTableSelector: React.FC<SelectorProps> = ({

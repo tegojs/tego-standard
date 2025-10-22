@@ -56,7 +56,7 @@ export const userStatusCollection = {
       },
     },
     {
-      name: 'systemDefined',
+      name: 'isSystemDefined',
       type: 'boolean',
       defaultValue: false,
       uiSchema: {
@@ -329,7 +329,7 @@ export const userStatusesSchema: ISchema = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               properties: {
-                systemDefined: {
+                isSystemDefined: {
                   type: 'boolean',
                   'x-component': 'CollectionField',
                   'x-read-pretty': true,

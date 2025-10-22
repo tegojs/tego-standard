@@ -120,6 +120,48 @@ export default class PluginUsersServer extends Plugin {
       name: `pm.users.statuses`,
       actions: ['userStatuses:*', 'userStatusHistories:*'],
     });
+
+    // 限制系统内置状态的删除和更新
+    this.app.acl.addFixedParams('userStatuses', 'destroy', () => {
+      return {
+        filter: {
+          'isSystemDefined.$ne': true,
+        },
+      };
+    });
+
+    this.app.acl.addFixedParams('userStatuses', 'update', () => {
+      return {
+        filter: {
+          'isSystemDefined.$ne': true,
+        },
+      };
+    });
+
+    // 禁止对 userStatusHistories 的所有写操作（只允许读取）
+    this.app.acl.addFixedParams('userStatusHistories', 'destroy', () => {
+      return {
+        filter: {
+          id: -1, // 永远不匹配任何记录
+        },
+      };
+    });
+
+    this.app.acl.addFixedParams('userStatusHistories', 'update', () => {
+      return {
+        filter: {
+          id: -1, // 永远不匹配任何记录
+        },
+      };
+    });
+
+    this.app.acl.addFixedParams('userStatusHistories', 'create', () => {
+      return {
+        filter: {
+          id: -1, // 永远不匹配任何记录
+        },
+      };
+    });
   }
 
   async load() {
@@ -230,7 +272,7 @@ export default class PluginUsersServer extends Plugin {
         color: 'green',
         allowLogin: true,
         loginErrorMessage: null,
-        systemDefined: true,
+        isSystemDefined: true,
         packageName: '@tachybase/module-user',
         description: '{{t("Normal active user")}}',
         sort: 1,
@@ -242,7 +284,7 @@ export default class PluginUsersServer extends Plugin {
         color: 'orange',
         allowLogin: false,
         loginErrorMessage: '{{t("Your account is under review, please wait for administrator approval")}}',
-        systemDefined: true,
+        isSystemDefined: true,
         packageName: '@tachybase/module-user',
         description: '{{t("User waiting for approval")}}',
         sort: 2,
@@ -255,7 +297,7 @@ export default class PluginUsersServer extends Plugin {
         allowLogin: false,
         loginErrorMessage:
           '{{t("Your account has been disabled, please contact administrator if you have any questions")}}',
-        systemDefined: true,
+        isSystemDefined: true,
         packageName: '@tachybase/module-user',
         description: '{{t("Manually disabled by administrator")}}',
         sort: 3,

@@ -448,7 +448,7 @@ export class UserStatusService {
           color: config.color || 'default',
           allowLogin: config.allowLogin,
           loginErrorMessage: config.loginErrorMessage || null,
-          systemDefined: false, // 插件注册的状态不是系统内置
+          isSystemDefined: false, // 插件注册的状态不是系统内置
           packageName: config.packageName,
           description: config.description || null,
           sort: config.sort || 0,

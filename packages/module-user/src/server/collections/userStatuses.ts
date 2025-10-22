@@ -70,7 +70,7 @@ export default defineCollection({
     },
     {
       type: 'boolean',
-      name: 'systemDefined',
+      name: 'isSystemDefined',
       defaultValue: false,
       allowNull: false,
       comment: '是否系统内置（不可删除）',

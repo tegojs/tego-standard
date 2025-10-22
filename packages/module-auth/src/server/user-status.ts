@@ -518,8 +518,41 @@ export class UserStatusService {
    * 注入登录检查
    */
   injectLoginCheck() {
-    // TODO: 主仓库可以发版后, 对 BaseAuth.signIn 的修改应该移动到主仓库中, 并在用户不可登录的错误中使用新的 AuthErrorCode
+    // TODO: 主仓库可以发版后, 对 BaseAuth.signIn, signNewToken 和 check 的修改应该移动到主仓库中, 并在用户不可登录的错误中使用新的 AuthErrorCode
     const userStatusService = this; // 保存 UserStatusService 实例的引用
+
+    // 注入 signNewToken 方法，在 JWT payload 中添加用户状态
+    BaseAuth.prototype.signNewToken = async function (userId: number, options?: any) {
+      // 获取用户当前状态
+      const user = await this.userRepository.findOne({
+        filter: { id: userId },
+        fields: ['id', 'status'],
+      });
+
+      const userStatus = user?.status || 'active';
+
+      // 基于原始实现，添加用户状态到 payload
+      const tokenInfo = await this.tokenController.add({ userId });
+      const expiresIn = Math.floor((await this.tokenController.getConfig()).tokenExpirationTime / 1000);
+
+      const token = this.jwt.sign(
+        {
+          userId,
+          userStatus, // 将用户状态写入 JWT payload
+          temp: true,
+          iat: Math.floor(tokenInfo.issuedTime / 1000),
+          signInTime: tokenInfo.signInTime,
+        },
+        {
+          jwtid: tokenInfo.jti,
+          expiresIn,
+        },
+      );
+
+      userStatusService.logger.debug(`[signNewToken] userId=${userId}, userStatus=${userStatus}, jti=${tokenInfo.jti}`);
+
+      return token;
+    };
 
     BaseAuth.prototype.signIn = async function () {
       let user: Model;
@@ -554,7 +587,70 @@ export class UserStatusService {
       };
     };
 
-    this.logger.info('signIn method injected with UserStatusService integration');
+    // 注入 check 方法，在验证 JWT 时检查用户状态是否与 token 中的一致
+    const originalCheck = BaseAuth.prototype.check;
+
+    BaseAuth.prototype.check = async function () {
+      const user = await originalCheck.call(this);
+
+      if (!user) {
+        return null;
+      }
+
+      const token = this.ctx.getBearerToken();
+      if (!token) {
+        return user;
+      }
+
+      try {
+        const decoded = await this.jwt.decode(token);
+        const tokenUserStatus = decoded.userStatus;
+        const currentUserStatus = user.status || 'active';
+
+        // 如果 token 中没有状态信息，强制重新登录
+        if (!tokenUserStatus) {
+          userStatusService.logger.warn(`[check] Token missing userStatus, userId=${user.id}, forcing re-login`);
+          this.ctx.throw(401, {
+            message: this.ctx.t('Your account status has changed. Please sign in again.', { ns: namespace }),
+            code: AuthErrorCode.INVALID_TOKEN,
+          });
+        }
+
+        // 如果状态不一致，强制重新登录
+        if (tokenUserStatus !== currentUserStatus) {
+          userStatusService.logger.warn(
+            `[check] Status mismatch, userId=${user.id}, token=${tokenUserStatus}, current=${currentUserStatus}`,
+          );
+          this.ctx.throw(401, {
+            message: this.ctx.t('Your account status has changed. Please sign in again.', { ns: namespace }),
+            code: AuthErrorCode.INVALID_TOKEN,
+          });
+        }
+
+        // 检查当前状态是否允许登录
+        const statusCheckResult: UserStatusCheckResult = await userStatusService.checkUserStatus(user.id);
+
+        if (!statusCheckResult.allowed) {
+          userStatusService.logger.warn(`[check] Status not allowed, userId=${user.id}, status=${currentUserStatus}`);
+          this.ctx.throw(403, {
+            message: this.ctx.t(statusCheckResult.statusInfo.loginErrorMessage, { ns: namespace }),
+            code: AuthErrorCode.INVALID_TOKEN,
+          });
+        }
+
+        userStatusService.logger.debug(`[check] Passed, userId=${user.id}, status=${currentUserStatus}`);
+      } catch (err) {
+        if (err.status) {
+          throw err;
+        }
+        userStatusService.logger.error('[check] Token validation error:', err);
+        throw err;
+      }
+
+      return user;
+    };
+
+    this.logger.info('signIn, signNewToken and check methods injected with UserStatusService integration');
   }
 
   /**
@@ -573,8 +669,6 @@ export class UserStatusService {
 
         // 如果状态确实发生了变化
         if (oldStatus !== newStatus) {
-          userStatusService.logger.info(`User status change detected: userId=${model.id}, ${oldStatus} → ${newStatus}`);
-
           // 强制设置 previousStatus 为数据库中的旧状态
           model.set('previousStatus', oldStatus);
 
@@ -592,6 +686,8 @@ export class UserStatusService {
             reason: model.statusReason || null,
             expireAt: model.statusExpireAt || null,
           };
+
+          userStatusService.logger.debug(`Status change: userId=${model.id}, ${oldStatus} → ${newStatus}`);
         }
       }
     });
@@ -621,16 +717,16 @@ export class UserStatusService {
             context: options.context,
           });
 
-          userStatusService.logger.info(
-            `User status history recorded: userId=${statusChange.userId}, ${statusChange.fromStatus} → ${statusChange.toStatus}`,
+          userStatusService.logger.debug(
+            `History recorded: userId=${statusChange.userId}, ${statusChange.fromStatus} → ${statusChange.toStatus}`,
           );
         } catch (error) {
-          userStatusService.logger.error('Failed to record user status history:', error);
+          userStatusService.logger.error('Failed to record status history:', error);
         }
 
         // 清除用户状态缓存
         await userStatusService.clearUserStatusCache(statusChange.userId);
-        userStatusService.logger.info(`User status cache cleared for userId=${statusChange.userId}`);
+        userStatusService.logger.debug(`Cache cleared for userId=${statusChange.userId}`);
       }
     });
 

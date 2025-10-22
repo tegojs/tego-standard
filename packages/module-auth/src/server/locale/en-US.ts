@@ -18,4 +18,5 @@ export default {
     'Your account has been disabled, please contact administrator if you have any questions',
   'Unknown status': 'Unknown status',
   'System error, please contact administrator': 'System error, please contact administrator',
+  'Your account status has changed. Please sign in again.': 'Your account status has changed. Please sign in again.',
 };

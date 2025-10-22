@@ -16,4 +16,5 @@ export default {
     '您的账号已被禁用，如有疑问请联系管理员',
   'Unknown status': '未知状态',
   'System error, please contact administrator': '系统错误，请联系管理员',
+  'Your account status has changed. Please sign in again.': '您的账号状态已变更，请重新登录',
 };

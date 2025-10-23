@@ -1,11 +1,18 @@
 {
   "name": "@tachybase/plugin-field-bank-card-number",
+  "displayName": "Collection field: Bank Card Number",
   "version": "1.3.25",
+  "description": "Bank card number field",
+  "keywords": [
+    "Collection fields"
+  ],
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
     "@tachybase/test": "1.3.52",
     "@tego/client": "1.3.52",
     "@tego/server": "1.3.52"
-  }
+  },
+  "description.zh-CN": "银行卡号字段",
+  "displayName.zh-CN": "数据表字段：银行卡号"
 }

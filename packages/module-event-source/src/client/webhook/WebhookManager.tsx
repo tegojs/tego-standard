@@ -1,8 +1,10 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
+  CardItem,
   ExtendCollectionsProvider,
   SchemaComponent,
   TableBlockProvider,
+  useAPIClient,
   useBlockRequestContext,
   useCollectionRecord,
   useCollectionRecordData,
@@ -13,6 +15,7 @@ import {
   useDataBlockResource,
   usePlugin,
   useTableBlockContext,
+  useTranslation,
   withDynamicSchemaProps,
   WorkflowSelect,
 } from '@tachybase/client';
@@ -23,15 +26,33 @@ import {
   ExecutionStatusColumn,
   OpenDrawer,
 } from '@tachybase/module-workflow/client';
-import { ISchema, useField, useForm } from '@tachybase/schema';
+import { action, ISchema, observable, observer, uid, useField, useForm } from '@tachybase/schema';
 import { CodeMirror } from '@tego/client';
 
-import { Alert as AntdAlert, Button, Space, Tag, Typography } from 'antd';
+import { MenuOutlined } from '@ant-design/icons';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  MouseSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { Alert as AntdAlert, App, Badge, Button, Dropdown, Space, Tabs, Tag, Typography } from 'antd';
+import _ from 'lodash';
 
 import ModuleEventSourceClient from '..';
 import { lang, tval } from '../locale';
+import { useWebhookCategoryContext, WebhookCategoryContext } from '../provider/WebhookCategoriesProvider';
 import { dispatchers } from './collections/dispatchers';
+import { webhookCategories } from './collections/webhookCategories';
+import { AddWebhookCategory } from './components/AddWebhookCategory';
+import { EditWebhookCategory } from './components/EditWebookCategory';
 import { TypeContainer } from './components/TypeContainer';
+
+const tag = observable({ value: '' });
 
 // TODO
 export const ExecutionResourceProvider = ({ params, filter = {}, ...others }) => {
@@ -75,6 +96,15 @@ const properties = {
     'x-decorator': 'FormItem',
     'x-collection-field': 'webhooks.name',
     'x-component-props': {},
+  },
+  category: {
+    type: 'array',
+    'x-component': 'CollectionField',
+    'x-decorator': 'FormItem',
+    'x-collection-field': 'webhooks.category',
+    'x-component-props': {
+      multiple: true,
+    },
   },
   enabled: {
     type: 'string',
@@ -380,29 +410,280 @@ const testAction: ISchema = {
   },
 };
 
+function Droppable(props) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: props.id,
+    data: props.data,
+  });
+  const style = isOver
+    ? {
+        color: 'green',
+      }
+    : undefined;
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {props.children}
+    </div>
+  );
+}
+
+function Draggable(props) {
+  const { attributes, listeners, setNodeRef } = useDraggable({
+    id: props.id,
+    data: props.data,
+  });
+  return (
+    <div ref={setNodeRef} {...listeners} {...attributes}>
+      <div>{props.children}</div>
+    </div>
+  );
+}
+
+const TabTitle = observer(
+  ({ item }: { item: any }) => {
+    return (
+      <Droppable id={item.id.toString()} data={item}>
+        <div>
+          <Draggable id={item.id.toString()} data={item}>
+            <TabBar item={item} />
+          </Draggable>
+        </div>
+      </Droppable>
+    );
+  },
+  { displayName: 'TabTitle' },
+);
+
+const WebhooksTabTableBlockProvider = observer((props) => {
+  const requestProps = {
+    collection: dispatchers,
+    dataSource: 'main',
+    action: 'list',
+    params: {
+      pageSize: 20,
+      appends: ['updatedBy', 'category'],
+      sort: ['-createdAt'],
+      filter: {},
+    },
+    rowKey: 'id',
+    showIndex: true,
+    dragSort: false,
+  };
+  if (tag.value) {
+    requestProps.params.filter['category.id'] = [tag.value];
+  }
+  return <TableBlockProvider {...props} {...requestProps} />;
+});
+
+const TabBar = ({ item }) => {
+  const { t } = useTranslation();
+  const compile = useCompile();
+  return (
+    <Space>
+      <Badge color={item.color} />
+      {t(compile(item.name))}
+    </Space>
+  );
+};
+
+const DndProvider = observer(
+  (props) => {
+    const [activeTab, setActiveId] = useState(null);
+    const { refresh } = useWebhookCategoryContext();
+    const api = useAPIClient();
+    const onDragEnd = async (props: DragEndEvent) => {
+      const { active, over } = props;
+      setTimeout(() => {
+        setActiveId(null);
+      });
+      if (over && over.id !== active.id) {
+        await api.resource('webhookCategories').move({
+          sourceId: active.id,
+          targetId: over.id,
+        });
+        refresh();
+      }
+    };
+
+    function onDragStart(event) {
+      setActiveId(event.active?.data.current);
+    }
+
+    const mouseSensor = useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    });
+    const sensors = useSensors(mouseSensor);
+    return (
+      <DndContext sensors={sensors} onDragEnd={onDragEnd} onDragStart={onDragStart}>
+        {props.children}
+        <DragOverlay>
+          {activeTab ? <span style={{ whiteSpace: 'nowrap' }}>{<TabBar item={activeTab} />}</span> : null}
+        </DragOverlay>
+      </DndContext>
+    );
+  },
+  { displayName: 'DndProvider' },
+);
+
+const WebhooksTabaCardItem = ({ children }) => {
+  const api = useAPIClient();
+  const [dataSource, setDataSource] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeKey, setActiveKey] = useState({ tab: tag.value });
+  const compile = useCompile();
+  const { modal } = App.useApp();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const { data } = await api.request({
+      url: 'webhookCategories:list',
+      params: {
+        paginate: false,
+        sort: 'sort',
+      },
+    });
+    setDataSource(data.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const remove = (key: any) => {
+    modal.confirm({
+      title: compile("{{t('Delete category')}}"),
+      content: compile("{{t('Are you sure you want to delete it?')}}"),
+      onOk: async () => {
+        await api.resource('webhookCategories').destroy({
+          filter: {
+            id: key,
+          },
+        });
+        setActiveKey({ tab: '' });
+        tag.value = '';
+        fetchData();
+      },
+    });
+  };
+
+  const menu = _.memoize((item) => {
+    return {
+      items: [
+        {
+          key: 'edit',
+          label: (
+            <SchemaComponent
+              schema={{
+                type: 'void',
+                properties: {
+                  [uid()]: {
+                    'x-component': 'EditWebhookCategory',
+                    'x-component-props': {
+                      item: item,
+                    },
+                  },
+                },
+              }}
+            />
+          ),
+        },
+        {
+          key: 'delete',
+          label: compile("{{t('Delete category')}}"),
+          onClick: () => remove(item.id),
+        },
+      ],
+    };
+  });
+  return (
+    <WebhookCategoryContext.Provider
+      value={{
+        refresh: fetchData,
+        activeKey: activeKey.tab,
+        setActiveKey: (key: string) => setActiveKey({ tab: key }),
+      }}
+    >
+      <DndProvider>
+        <Tabs
+          addIcon={
+            <SchemaComponent
+              schema={{
+                type: 'void',
+                properties: {
+                  addCategories: {
+                    type: 'void',
+                    title: '{{ t("Add category") }}',
+                    'x-component': 'AddWebhookCategory',
+                    'x-component-props': {
+                      type: 'primary',
+                    },
+                  },
+                },
+              }}
+            />
+          }
+          type="editable-card"
+          activeKey={activeKey.tab}
+          onChange={(value) => {
+            setActiveKey({ tab: value });
+            tag.value = value;
+            if (value === '') {
+              fetchData();
+            }
+          }}
+          defaultActiveKey={activeKey.tab || ''}
+          destroyInactiveTabPane={true}
+          tabBarStyle={{ marginBottom: '0px' }}
+          items={[
+            {
+              id: '',
+              name: lang('All'),
+              closable: false,
+            },
+          ]
+            .concat(dataSource)
+            .filter((item) => item && item.name != null && item.id != null)
+            .map((item) => {
+              return {
+                label:
+                  item.id !== '' ? (
+                    <div data-no-dnd="true">
+                      <TabTitle item={item} />
+                    </div>
+                  ) : (
+                    compile(item.name)
+                  ),
+                key: item.id,
+                closable: item.closable,
+                closeIcon: (
+                  <Dropdown menu={menu(item)}>
+                    <MenuOutlined
+                      role="button"
+                      aria-label={compile(item.name)}
+                      style={{ padding: 8, margin: '-8px' }}
+                    />
+                  </Dropdown>
+                ),
+                children: <CardItem>{children}</CardItem>,
+              };
+            })}
+        />
+      </DndProvider>
+    </WebhookCategoryContext.Provider>
+  );
+};
+
 const schema: ISchema = {
   type: 'void',
   properties: {
-    table: {
+    provider: {
       type: 'void',
-      'x-decorator': 'TableBlockProvider',
-      'x-acl-action': 'webhooks:list',
-      'x-use-decorator-props': 'useTableBlockDecoratorProps',
-      'x-decorator-props': {
-        collection: dispatchers,
-        dataSource: 'main',
-        action: 'list',
-        params: {
-          pageSize: 20,
-          appends: ['updatedBy'],
-          sort: ['-createdAt'],
-        },
-        rowKey: 'id',
-        showIndex: true,
-        dragSort: false,
-      },
-      'x-component': 'CardItem',
-      'x-filter-targets': [],
+      'x-decorator': WebhooksTabTableBlockProvider,
+      'x-component': WebhooksTabaCardItem,
       properties: {
         actions: {
           type: 'void',
@@ -745,7 +1026,7 @@ export const WebhookManager = () => {
   };
 
   return (
-    <ExtendCollectionsProvider collections={[dispatchers]}>
+    <ExtendCollectionsProvider collections={[dispatchers, webhookCategories]}>
       <SchemaComponent
         name="eventSource"
         schema={schema}
@@ -755,6 +1036,7 @@ export const WebhookManager = () => {
           useTypeOptions,
           ExecutionRetryAction,
           useShowAlertProps,
+          useWebhookCategoryContext,
         }}
         components={{
           Alert: withDynamicSchemaProps(AntdAlert),
@@ -765,6 +1047,8 @@ export const WebhookManager = () => {
           WorkflowSelect,
           CodeMirror,
           TypeContainer,
+          AddWebhookCategory,
+          EditWebhookCategory,
         }}
       />
     </ExtendCollectionsProvider>

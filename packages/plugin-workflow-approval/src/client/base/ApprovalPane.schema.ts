@@ -243,7 +243,7 @@ export const schemaApprovalPanne = {
             current: true,
             type: 'approval',
           },
-          sort: ['-initAt'],
+          sort: ['-sort'],
           except: ['config'],
         },
         rowKey: 'id',
@@ -392,6 +392,7 @@ export const schemaApprovalPanne = {
             rowSelection: {
               type: 'checkbox',
             },
+            dragSort: 'sort',
           },
           properties: {
             title: {

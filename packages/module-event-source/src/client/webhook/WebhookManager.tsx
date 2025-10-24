@@ -4,6 +4,7 @@ import {
   ExtendCollectionsProvider,
   SchemaComponent,
   TableBlockProvider,
+  useActionContext,
   useAPIClient,
   useBlockRequestContext,
   useCollectionRecord,
@@ -13,7 +14,10 @@ import {
   useDataBlock,
   useDataBlockRequest,
   useDataBlockResource,
+  useFormBlockContext,
+  useFormBlockProps,
   usePlugin,
+  useRecord,
   useTableBlockContext,
   useTranslation,
   withDynamicSchemaProps,
@@ -52,7 +56,7 @@ import { AddWebhookCategory } from './components/AddWebhookCategory';
 import { EditWebhookCategory } from './components/EditWebookCategory';
 import { TypeContainer } from './components/TypeContainer';
 
-const tag = observable({ value: '' });
+const tag = observable({ value: '', item: {} });
 
 // TODO
 export const ExecutionResourceProvider = ({ params, filter = {}, ...others }) => {
@@ -86,6 +90,16 @@ export const useTestActionProps = () => {
       });
       alert(JSON.stringify(res.data));
     },
+  };
+};
+
+export const useCreateFormBlockProps = () => {
+  const { form } = useFormBlockProps();
+  if (tag.value) {
+    form.values.category = [tag.item];
+  }
+  return {
+    form,
   };
 };
 
@@ -243,6 +257,9 @@ const editAction: ISchema = {
             action: 'get',
             dataSource: 'main',
             collection: dispatchers,
+            params: {
+              appends: ['category'],
+            },
           },
           'x-component': 'CardItem',
           properties: {
@@ -532,7 +549,7 @@ const WebhooksTabaCardItem = ({ children }) => {
   const api = useAPIClient();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeKey, setActiveKey] = useState({ tab: tag.value });
+  const [activeKey, setActiveKey] = useState({ tab: tag.value, item: tag.item });
   const compile = useCompile();
   const { modal } = App.useApp();
 
@@ -563,8 +580,9 @@ const WebhooksTabaCardItem = ({ children }) => {
             id: key,
           },
         });
-        setActiveKey({ tab: '' });
+        setActiveKey({ tab: '', item: {} });
         tag.value = '';
+        tag.item = {};
         fetchData();
       },
     });
@@ -604,7 +622,7 @@ const WebhooksTabaCardItem = ({ children }) => {
       value={{
         refresh: fetchData,
         activeKey: activeKey.tab,
-        setActiveKey: (key: string) => setActiveKey({ tab: key }),
+        setActiveKey: (key: string) => setActiveKey({ tab: key, item: dataSource.find((value) => value.id === key) }),
       }}
     >
       <DndProvider>
@@ -629,8 +647,10 @@ const WebhooksTabaCardItem = ({ children }) => {
           type="editable-card"
           activeKey={activeKey.tab}
           onChange={(value) => {
-            setActiveKey({ tab: value });
+            const item = dataSource.find((data) => data.id === value);
+            setActiveKey({ tab: value, item });
             tag.value = value;
+            tag.item = item;
             if (value === '') {
               fetchData();
             }
@@ -800,6 +820,28 @@ const schema: ISchema = {
                       display: 'none',
                     },
                   },
+                },
+              },
+            },
+            category: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+              },
+              properties: {
+                category: {
+                  type: 'array',
+                  'x-collection-field': 'webhooks.category',
+                  'x-component': 'CollectionField',
+                  'x-component-props': {
+                    multiple: true,
+                    mode: 'Tag',
+                  },
+                  'x-read-pretty': true,
                 },
               },
             },
@@ -1037,6 +1079,7 @@ export const WebhookManager = () => {
           ExecutionRetryAction,
           useShowAlertProps,
           useWebhookCategoryContext,
+          useCreateFormBlockProps,
         }}
         components={{
           Alert: withDynamicSchemaProps(AntdAlert),

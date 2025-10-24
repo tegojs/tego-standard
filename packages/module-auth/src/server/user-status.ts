@@ -55,6 +55,13 @@ interface UserStatusCache {
   lastChecked: Date;
 }
 
+// 扩展 BaseAuth 类型以包含新添加的方法
+declare module '@tego/server' {
+  interface BaseAuth {
+    checkUserStatusInContext?(userId: number): Promise<UserStatusCheckResult>;
+  }
+}
+
 /**
  * 用户状态管理服务
  * 负责用户状态的检查、变更、恢复等核心业务逻辑
@@ -627,8 +634,8 @@ export class UserStatusService {
           });
         }
 
-        // 检查当前状态是否允许登录
-        const statusCheckResult: UserStatusCheckResult = await userStatusService.checkUserStatus(user.id);
+        // 直接在这里检查用户状态，避免额外的方法调用
+        const statusCheckResult = await this.checkUserStatusInContext(user.id);
 
         if (!statusCheckResult.allowed) {
           userStatusService.logger.warn(`[check] Status not allowed, userId=${user.id}, status=${currentUserStatus}`);
@@ -648,6 +655,227 @@ export class UserStatusService {
       }
 
       return user;
+    };
+
+    // 添加在当前上下文中检查用户状态的方法 - 直接复制原 checkUserStatus 逻辑
+    BaseAuth.prototype.checkUserStatusInContext = async function (userId: number): Promise<UserStatusCheckResult> {
+      try {
+        // 检查 userStatusService 是否可用
+        if (!userStatusService) {
+          throw new Error('userStatusService is undefined');
+        }
+        if (!userStatusService.app) {
+          throw new Error('userStatusService.app is undefined');
+        }
+        if (!userStatusService.app.db) {
+          throw new Error('userStatusService.app.db is undefined');
+        }
+        if (!userStatusService.app.cache) {
+          throw new Error('userStatusService.app.cache is undefined');
+        }
+
+        // 使用当前请求上下文的数据库和缓存连接，而不是注入时的连接
+        const contextDb = userStatusService.app.db;
+        const contextCache = userStatusService.app.cache;
+
+        // 步骤1: 尝试从缓存获取（使用当前上下文的缓存）
+        let cached: UserStatusCache | null = null;
+        try {
+          const cacheKey = `userStatus:${userId}`;
+          const cachedData = await contextCache.get(cacheKey);
+          cached = cachedData ? (JSON.parse(cachedData as unknown as string) as UserStatusCache) : null;
+        } catch (error) {
+          userStatusService.logger.error('Error getting user status from cache:', error);
+          cached = null;
+        }
+
+        // 步骤2: 缓存不存在,从数据库查询
+        if (!cached) {
+          const userRepo = contextDb.getRepository('users');
+          const user = await userRepo.findOne({
+            filterByTk: userId,
+            fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
+          });
+
+          if (!user) {
+            return {
+              allowed: false,
+              status: 'unknown',
+              errorMessage: userStatusService.app.i18n.t('User not found'),
+            };
+          }
+
+          // 构建缓存数据
+          cached = {
+            userId: user.id,
+            status: user.status || 'active',
+            expireAt: user.statusExpireAt,
+            previousStatus: user.previousStatus,
+            lastChecked: new Date(),
+          };
+
+          // 写入缓存（使用当前上下文的缓存）
+          try {
+            const cacheKey = `userStatus:${userId}`;
+            await contextCache.set(cacheKey, JSON.stringify(cached), 300 * 1000); // 5分钟过期
+          } catch (error) {
+            userStatusService.logger.error('Error setting user status cache:', error);
+          }
+        }
+
+        // 步骤3: 检查状态是否过期
+        if (cached.expireAt && new Date(cached.expireAt) <= new Date()) {
+          // 状态已过期,自动恢复 - 使用当前上下文的数据库连接
+          const userRepo = contextDb.getRepository('users');
+          const user = await userRepo.findOne({
+            filterByTk: userId,
+            fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
+          });
+
+          if (!user) {
+            return {
+              allowed: false,
+              status: 'unknown',
+              errorMessage: userStatusService.app.i18n.t('User not found'),
+            };
+          }
+
+          // 检查是否需要恢复
+          if (!user.statusExpireAt || new Date(user.statusExpireAt) > new Date()) {
+            // 未过期或没有设置过期时间
+            return userStatusService.checkUserStatus(userId);
+          }
+
+          const oldStatus = user.status;
+          const restoreToStatus = user.previousStatus || 'active'; // 默认恢复为 active
+
+          // 开启事务执行恢复
+          if (!contextDb.sequelize) {
+            throw new Error('contextDb.sequelize is undefined');
+          }
+          await contextDb.sequelize.transaction(async (transaction) => {
+            // 更新 users 表
+            await userRepo.update({
+              filterByTk: userId,
+              values: {
+                status: restoreToStatus,
+                statusExpireAt: null,
+                previousStatus: null,
+                statusReason: userStatusService.app.i18n.t('Status expired, auto restored'),
+              },
+              transaction,
+            });
+
+            // 插入历史记录
+            const historyRepo = contextDb.getRepository('userStatusHistories');
+            await historyRepo.create({
+              values: {
+                userId: userId,
+                fromStatus: oldStatus,
+                toStatus: restoreToStatus,
+                reason: userStatusService.app.i18n.t('Status expired, auto restored'),
+                operationType: 'auto',
+                createdBy: null,
+              },
+              transaction,
+            });
+          });
+
+          // 重新获取恢复后的状态
+          const restoredUser = await userRepo.findOne({
+            filterByTk: userId,
+            fields: ['status'],
+          });
+
+          cached.status = restoredUser.status || 'active';
+          cached.expireAt = null;
+          cached.previousStatus = null;
+
+          // 更新缓存
+          try {
+            const cacheKey = `userStatus:${userId}`;
+            await contextCache.set(cacheKey, JSON.stringify(cached), 300 * 1000); // 5分钟过期
+          } catch (error) {
+            userStatusService.logger.error('Error setting user status cache:', error);
+          }
+        }
+
+        // 步骤4: 查询状态定义
+        const statusRepo = contextDb.getRepository('userStatuses');
+        const statusInfo = await statusRepo.findOne({
+          filterByTk: cached.status,
+        });
+
+        if (!statusInfo) {
+          userStatusService.logger.warn(`Status definition not found: ${cached.status}`);
+          // 状态定义不存在,阻止登录(状态异常)
+          return {
+            allowed: false,
+            status: cached.status,
+            statusInfo: {
+              title: userStatusService.app.i18n.t('Invalid status', { ns: namespace }),
+              color: 'red',
+              allowLogin: false,
+              loginErrorMessage: userStatusService.app.i18n.t('User status is invalid, please contact administrator', {
+                ns: namespace,
+              }),
+            },
+            errorMessage: userStatusService.app.i18n.t('User status is invalid, please contact administrator', {
+              ns: namespace,
+            }),
+          };
+        }
+
+        // 步骤5: 翻译 title 和 loginErrorMessage
+        // 数据库中存储的是 {{t("...")}} 格式，需要解析并翻译
+        const translateMessage = (message: string): string => {
+          if (!message) return '';
+
+          // 匹配 {{t("...")}} 格式
+          const match = message.match(/\{\{t\("([^"]+)"\)\}\}/);
+          if (match && match[1]) {
+            return userStatusService.app.i18n.t(match[1], { ns: namespace });
+          }
+
+          // 如果不是模板格式，直接返回
+          return message;
+        };
+
+        const translatedTitle = translateMessage(statusInfo.title);
+        const translatedLoginErrorMessage = translateMessage(statusInfo.loginErrorMessage);
+
+        // 步骤6: 返回检查结果
+        return {
+          allowed: statusInfo.allowLogin,
+          status: cached.status,
+          statusInfo: {
+            title: translatedTitle,
+            color: statusInfo.color,
+            allowLogin: statusInfo.allowLogin,
+            loginErrorMessage: translatedLoginErrorMessage,
+          },
+          errorMessage: !statusInfo.allowLogin
+            ? translatedLoginErrorMessage ||
+              userStatusService.app.i18n.t('User status does not allow login', { ns: namespace })
+            : undefined,
+        };
+      } catch (error) {
+        userStatusService.logger.error(`Error checking user status for userId=${userId}: ${error}`);
+        // 安全起见, 发生错误时阻止登录
+        return {
+          allowed: false,
+          status: 'unknown',
+          statusInfo: {
+            title: userStatusService.app.i18n.t('Unknown status', { ns: namespace }),
+            color: 'red',
+            allowLogin: false,
+            loginErrorMessage: userStatusService.app.i18n.t('System error, please contact administrator', {
+              ns: namespace,
+            }),
+          },
+          errorMessage: userStatusService.app.i18n.t('System error, please contact administrator', { ns: namespace }),
+        };
+      }
     };
 
     this.logger.info('signIn, signNewToken and check methods injected with UserStatusService integration');

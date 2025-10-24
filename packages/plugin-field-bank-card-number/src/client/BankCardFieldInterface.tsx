@@ -4,7 +4,7 @@ import { tval } from './locale';
 
 export class BankCardFieldInterface extends CollectionFieldInterface {
   name = 'bankCard';
-  type = 'object';
+  type = 'string';
   group = 'basic';
   order = 6;
   title = tval('Bank Card Number');

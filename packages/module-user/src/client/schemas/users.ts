@@ -96,6 +96,59 @@ export const userCollection = {
         },
       },
     },
+    {
+      interface: 'm2o',
+      type: 'belongsTo',
+      name: 'statusInfo',
+      target: 'userStatuses',
+      foreignKey: 'status',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      interface: 'datetime',
+      type: 'date',
+      name: 'statusExpireAt',
+      uiSchema: {
+        type: 'datetime',
+        title: '{{t("Status Expire At")}}',
+        'x-component': 'DatePicker',
+        'x-component-props': {
+          showTime: true,
+        },
+      },
+    },
+    {
+      interface: 'input',
+      type: 'string',
+      name: 'previousStatus',
+      uiSchema: {
+        type: 'string',
+        title: '{{t("Previous Status")}}',
+        'x-component': 'Input',
+        'x-read-pretty': true,
+      },
+    },
+    {
+      interface: 'textarea',
+      type: 'text',
+      name: 'statusReason',
+      uiSchema: {
+        type: 'string',
+        title: '{{t("Status Reason")}}',
+        'x-component': 'Input.TextArea',
+      },
+    },
     // {
     //   name: 'departments',
     //   type: 'belongsToMany',
@@ -230,6 +283,21 @@ const create: ISchema = {
                   'x-collection-field': 'users.roles',
                   'x-decorator': 'FormItem',
                 },
+                statusInfo: {
+                  'x-component': 'CollectionField',
+                  'x-collection-field': 'users.statusInfo',
+                  'x-decorator': 'FormItem',
+                },
+                statusExpireAt: {
+                  'x-component': 'CollectionField',
+                  'x-collection-field': 'users.statusExpireAt',
+                  'x-decorator': 'FormItem',
+                },
+                statusReason: {
+                  'x-component': 'CollectionField',
+                  'x-collection-field': 'users.statusReason',
+                  'x-decorator': 'FormItem',
+                },
               },
             },
           },
@@ -333,7 +401,7 @@ export const usersSchema: ISchema = {
         action: 'list',
         params: {
           pageSize: 50,
-          appends: ['roles'],
+          appends: ['roles', 'statusInfo'],
         },
       },
       properties: {
@@ -433,6 +501,18 @@ export const usersSchema: ISchema = {
                 },
               },
             },
+            column4_5: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: '{{t("Status")}}',
+              properties: {
+                statusInfo: {
+                  type: 'object',
+                  'x-component': 'UserStatusField',
+                },
+              },
+            },
             column5: {
               type: 'void',
               title: '{{t("Actions")}}',
@@ -518,6 +598,28 @@ export const usersSchema: ISchema = {
                               'x-component': 'CollectionField',
                               'x-decorator': 'FormItem',
                               'x-collection-field': 'users.roles',
+                            },
+                            statusInfo: {
+                              'x-component': 'CollectionField',
+                              'x-collection-field': 'users.statusInfo',
+                              'x-decorator': 'FormItem',
+                            },
+                            statusExpireAt: {
+                              'x-component': 'CollectionField',
+                              'x-collection-field': 'users.statusExpireAt',
+                              'x-decorator': 'FormItem',
+                            },
+                            previousStatus: {
+                              title: '{{t("Previous Status")}}',
+                              'x-component': 'Input',
+                              'x-decorator': 'FormItem',
+                              'x-read-pretty': true,
+                              'x-disabled': true,
+                            },
+                            statusReason: {
+                              'x-component': 'CollectionField',
+                              'x-collection-field': 'users.statusReason',
+                              'x-decorator': 'FormItem',
                             },
                           },
                         },

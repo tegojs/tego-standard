@@ -9,4 +9,14 @@ export default {
     'The phone number is not registered, please register first',
   'The username, email or password is incorrect, please re-enter':
     'The username, email or password is incorrect, please re-enter',
+  'Invalid status': 'Invalid status',
+  'User status is invalid, please contact administrator': 'User status is invalid, please contact administrator',
+  'User status does not allow login': 'User status does not allow login',
+  'Your account is under review, please wait for administrator approval':
+    'Your account is under review, please wait for administrator approval',
+  'Your account has been disabled, please contact administrator if you have any questions':
+    'Your account has been disabled, please contact administrator if you have any questions',
+  'Unknown status': 'Unknown status',
+  'System error, please contact administrator': 'System error, please contact administrator',
+  'Your account status has changed. Please sign in again.': 'Your account status has changed. Please sign in again.',
 };

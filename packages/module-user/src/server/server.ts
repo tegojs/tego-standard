@@ -1,6 +1,5 @@
 import { resolve } from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-
 // import VerificationPlugin from '@tachybase/plugin-otp';
 import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 
@@ -116,6 +115,53 @@ export default class PluginUsersServer extends Plugin {
       name: `pm.${this.name}.*`,
       actions: ['users:listExcludeRole', 'users:list'],
     });
+
+    this.app.acl.registerSnippet({
+      name: `pm.users.statuses`,
+      actions: ['userStatuses:*', 'userStatusHistories:*'],
+    });
+
+    // 限制系统内置状态的删除和更新
+    this.app.acl.addFixedParams('userStatuses', 'destroy', () => {
+      return {
+        filter: {
+          'isSystemDefined.$ne': true,
+        },
+      };
+    });
+
+    this.app.acl.addFixedParams('userStatuses', 'update', () => {
+      return {
+        filter: {
+          'isSystemDefined.$ne': true,
+        },
+      };
+    });
+
+    // 禁止对 userStatusHistories 的所有写操作（只允许读取）
+    this.app.acl.addFixedParams('userStatusHistories', 'destroy', () => {
+      return {
+        filter: {
+          id: -1, // 永远不匹配任何记录
+        },
+      };
+    });
+
+    this.app.acl.addFixedParams('userStatusHistories', 'update', () => {
+      return {
+        filter: {
+          id: -1, // 永远不匹配任何记录
+        },
+      };
+    });
+
+    this.app.acl.addFixedParams('userStatusHistories', 'create', () => {
+      return {
+        filter: {
+          id: -1, // 永远不匹配任何记录
+        },
+      };
+    });
   }
 
   async load() {
@@ -130,6 +176,11 @@ export default class PluginUsersServer extends Plugin {
     if (!isMainThread) {
       return;
     }
+
+    // 初始化系统状态
+    this.app.on('afterLoad', async () => {
+      await this.initSystemStatuses();
+    });
 
     this.app.resourcer.use(
       async (ctx, next) => {
@@ -188,6 +239,7 @@ export default class PluginUsersServer extends Plugin {
 
   async install(options) {
     const { rootNickname, rootPassword, rootEmail, rootUsername } = this.getInstallingData(options);
+
     const User = this.db.getCollection('users');
     if (await User.repository.findOne({ filter: { email: rootEmail } })) {
       return;
@@ -206,6 +258,74 @@ export default class PluginUsersServer extends Plugin {
     const repo = this.db.getRepository<any>('collections');
     if (repo) {
       await repo.db2cm('users');
+    }
+  }
+
+  /**
+   * 初始化系统内置状态
+   */
+  async initSystemStatuses() {
+    const systemStatuses = [
+      {
+        key: 'active',
+        title: '{{t("Active")}}',
+        color: 'green',
+        allowLogin: true,
+        loginErrorMessage: null,
+        isSystemDefined: true,
+        packageName: '@tachybase/module-user',
+        description: '{{t("Normal active user")}}',
+        sort: 1,
+        config: {},
+      },
+      {
+        key: 'pending',
+        title: '{{t("Pending")}}',
+        color: 'orange',
+        allowLogin: false,
+        loginErrorMessage: '{{t("Your account is under review, please wait for administrator approval")}}',
+        isSystemDefined: true,
+        packageName: '@tachybase/module-user',
+        description: '{{t("User waiting for approval")}}',
+        sort: 2,
+        config: {},
+      },
+      {
+        key: 'disabled',
+        title: '{{t("Disabled")}}',
+        color: 'gray',
+        allowLogin: false,
+        loginErrorMessage:
+          '{{t("Your account has been disabled, please contact administrator if you have any questions")}}',
+        isSystemDefined: true,
+        packageName: '@tachybase/module-user',
+        description: '{{t("Manually disabled by administrator")}}',
+        sort: 3,
+        config: {},
+      },
+    ];
+
+    const statusRepo = this.db.getRepository('userStatuses');
+    if (!statusRepo) {
+      this.app.logger.warn('userStatuses repository not found');
+      return;
+    }
+
+    for (const status of systemStatuses) {
+      try {
+        const existing = await statusRepo.findOne({
+          filter: { key: status.key },
+        });
+
+        if (!existing) {
+          await statusRepo.create({
+            values: status,
+          });
+          this.app.logger.info(`Created system status: ${status.key}`);
+        }
+      } catch (error) {
+        this.app.logger.error(`Failed to create system status ${status.key}:`, error);
+      }
     }
   }
 }

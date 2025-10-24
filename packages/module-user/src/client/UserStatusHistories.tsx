@@ -2,21 +2,14 @@ import React from 'react';
 import { SchemaComponent, SchemaComponentContext, useSchemaComponentContext } from '@tachybase/client';
 
 import { useUsersTranslation } from './locale';
-import { PasswordField } from './PasswordField';
-import { usersSchema } from './schemas/users';
-import { UserRolesField } from './UserRolesField';
-import { UserStatusField } from './UserStatusField';
+import { userStatusHistoriesSchema } from './schemas/userStatusHistories';
 
-export const UsersManagement = () => {
+export const UserStatusHistories = () => {
   const { t } = useUsersTranslation();
   const scCtx = useSchemaComponentContext();
   return (
     <SchemaComponentContext.Provider value={{ ...scCtx, designable: false }}>
-      <SchemaComponent
-        schema={usersSchema}
-        scope={{ t }}
-        components={{ UserRolesField, PasswordField, UserStatusField }}
-      />
+      <SchemaComponent schema={userStatusHistoriesSchema} scope={{ t }} />
     </SchemaComponentContext.Provider>
   );
 };

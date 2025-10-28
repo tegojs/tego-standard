@@ -257,84 +257,69 @@ export class UserStatusService {
   }
 
   /**
-   * 修改用户状态
-   * @param userId 用户ID
-   * @param newStatus 新状态
-   * @param options 选项
+   * 记录状态变更历史（如果不存在相同记录）
+   * @param params 状态变更参数
    */
-  async changeUserStatus(userId: number, newStatus: string, options: ChangeUserStatusOptions): Promise<void> {
-    const { expireAt, reason, operationType, operatorId } = options;
+  private async recordStatusHistoryIfNotExists(params: {
+    userId: number;
+    fromStatus: string;
+    toStatus: string;
+    reason: string | null;
+    expireAt: Date | null;
+    operationType: 'manual' | 'auto' | 'system';
+    createdBy: number | null;
+    transaction?: any;
+  }): Promise<void> {
+    const { userId, fromStatus, toStatus, reason, expireAt, operationType, createdBy, transaction } = params;
 
     try {
-      // 步骤1: 查询当前用户状态
-      const userRepo = this.db.getRepository('users');
-      const user = await userRepo.findOne({
-        filterByTk: userId,
-        fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
+      // 查询是否已存在相同的记录（最近5秒内）
+      const historyRepo = this.db.getRepository('userStatusHistories');
+      const fiveSecondsAgo = new Date(Date.now() - 5000);
+      const existing = await historyRepo.findOne({
+        filter: {
+          userId,
+          fromStatus,
+          toStatus,
+          createdAt: {
+            $gte: fiveSecondsAgo,
+          },
+        },
+        sort: ['-createdAt'],
+        transaction,
       });
 
-      if (!user) {
-        throw new Error(this.app.i18n.t('User not found'));
+      // 如果最近5秒内有相同记录，跳过插入
+      if (existing) {
+        this.logger.warn(
+          `Skipping duplicate history record: userId=${userId}, ${fromStatus} → ${toStatus}, operationType=${operationType}`,
+        );
+        return;
       }
 
-      const oldStatus = user.status || 'active';
-
-      // 步骤2: 验证新状态是否存在
-      const statusRepo = this.db.getRepository('userStatuses');
-      const statusExists = await statusRepo.findOne({
-        filterByTk: newStatus,
+      // 插入历史记录
+      await historyRepo.create({
+        values: {
+          userId,
+          fromStatus,
+          toStatus,
+          reason,
+          expireAt,
+          operationType,
+          createdBy,
+        },
+        transaction,
       });
 
-      if (!statusExists) {
-        throw new Error(this.app.i18n.t('Invalid user status'));
-      }
+      this.logger.debug(
+        `History recorded: userId=${userId}, ${fromStatus} → ${toStatus}, operationType=${operationType}`,
+      );
 
-      // 步骤3: 开启数据库事务
-      await this.db.sequelize.transaction(async (transaction) => {
-        // 更新 users 表
-        await userRepo.update({
-          filterByTk: userId,
-          values: {
-            status: newStatus,
-            statusExpireAt: expireAt || null,
-            previousStatus: oldStatus, // 保存当前状态用于恢复
-            statusReason: reason || null,
-          },
-          transaction,
-        });
-
-        // 插入历史记录
-        const historyRepo = this.db.getRepository('userStatusHistories');
-        await historyRepo.create({
-          values: {
-            userId: userId,
-            fromStatus: oldStatus,
-            toStatus: newStatus,
-            reason: reason || null,
-            expireAt: expireAt || null,
-            operationType: operationType,
-            createdBy: operatorId || null,
-          },
-          transaction,
-        });
-      });
-
-      // 步骤4: 清除缓存
+      // 清除用户状态缓存（仅在成功插入记录后）
       await this.clearUserStatusCache(userId);
-
-      // 步骤5: 触发事件
-      this.app.emitAsync('user:statusChanged', {
-        userId,
-        fromStatus: oldStatus,
-        toStatus: newStatus,
-        reason,
-        operationType,
-      });
-
-      // 步骤6: 记录日志
-      this.logger.info(`User status changed: userId=${userId}, ${oldStatus} → ${newStatus}, type=${operationType}`);
+      this.logger.debug(`Cache cleared for userId=${userId}`);
     } catch (error) {
-      this.logger.error('Error changing user status:', error);
+      this.logger.error('Failed to record status history:', error);
       throw error;
     }
   }
@@ -367,6 +352,17 @@ export class UserStatusService {
 
       // 步骤3: 开启事务执行恢复
       await this.db.sequelize.transaction(async (transaction) => {
+        // 先插入历史记录, 不然会被记录为手动
+        await this.recordStatusHistoryIfNotExists({
+          userId: userId,
+          fromStatus: oldStatus,
+          toStatus: restoreToStatus,
+          reason: this.app.i18n.t('Status expired, auto restored'),
+          operationType: 'auto',
+          createdBy: null,
+          expireAt: null,
+          transaction,
+        });
         // 更新 users 表
         await userRepo.update({
           filterByTk: userId,
@@ -378,26 +374,9 @@ export class UserStatusService {
           },
           transaction,
         });
-
-        // 插入历史记录
-        const historyRepo = this.db.getRepository('userStatusHistories');
-        await historyRepo.create({
-          values: {
-            userId: userId,
-            fromStatus: oldStatus,
-            toStatus: restoreToStatus,
-            reason: this.app.i18n.t('Status expired, auto restored'),
-            operationType: 'auto',
-            createdBy: null,
-          },
-          transaction,
-        });
       });
 
-      // 步骤4: 清除缓存
-      await this.clearUserStatusCache(userId);
-
-      // 步骤5: 触发事件
+      // 步骤4: 触发事件
       this.app.emitAsync('user:statusRestored', {
         userId,
         fromStatus: oldStatus,
@@ -468,33 +447,6 @@ export class UserStatusService {
       this.logger.error('Error registering status:', error);
       throw error;
     }
-  }
-
-  /**
-   * 批量修改用户状态
-   * @param userIds 用户ID数组
-   * @param newStatus 新状态
-   * @param options 选项
-   */
-  async batchChangeUserStatus(
-    userIds: number[],
-    newStatus: string,
-    options: ChangeUserStatusOptions,
-  ): Promise<{ success: number[]; failed: number[] }> {
-    const success: number[] = [];
-    const failed: number[] = [];
-
-    for (const userId of userIds) {
-      try {
-        await this.changeUserStatus(userId, newStatus, options);
-        success.push(userId);
-      } catch (error) {
-        this.logger.error(`Failed to change status for user ${userId}:`, error);
-        failed.push(userId);
-      }
-    }
-
-    return { success, failed };
   }
 
   /**
@@ -742,44 +694,12 @@ export class UserStatusService {
 
           // 检查是否需要恢复
           if (!user.statusExpireAt || new Date(user.statusExpireAt) > new Date()) {
-            // 未过期或没有设置过期时间
+            // 未过期或没有设置过期时间（可能是其他进程已经恢复了），直接调用 checkUserStatus 重新检查
             return userStatusService.checkUserStatus(userId);
           }
 
-          const oldStatus = user.status;
-          const restoreToStatus = user.previousStatus || 'active'; // 默认恢复为 active
-
-          // 开启事务执行恢复
-          if (!contextDb.sequelize) {
-            throw new Error('contextDb.sequelize is undefined');
-          }
-          await contextDb.sequelize.transaction(async (transaction) => {
-            // 更新 users 表
-            await userRepo.update({
-              filterByTk: userId,
-              values: {
-                status: restoreToStatus,
-                statusExpireAt: null,
-                previousStatus: null,
-                statusReason: userStatusService.app.i18n.t('Status expired, auto restored'),
-              },
-              transaction,
-            });
-
-            // 插入历史记录
-            const historyRepo = contextDb.getRepository('userStatusHistories');
-            await historyRepo.create({
-              values: {
-                userId: userId,
-                fromStatus: oldStatus,
-                toStatus: restoreToStatus,
-                reason: userStatusService.app.i18n.t('Status expired, auto restored'),
-                operationType: 'auto',
-                createdBy: null,
-              },
-              transaction,
-            });
-          });
+          // 状态已过期，调用 restoreUserStatus 执行恢复（避免重复逻辑）
+          await userStatusService.restoreUserStatus(userId);
 
           // 重新获取恢复后的状态
           const restoredUser = await userRepo.findOne({
@@ -931,30 +851,19 @@ export class UserStatusService {
           const currentUserId = options?.context?.state?.currentUser?.id;
 
           // 记录状态变更历史
-          const userStatusHistoriesRepo = userStatusService.db.getRepository('userStatusHistories');
-          await userStatusHistoriesRepo.create({
-            values: {
-              userId: statusChange.userId,
-              fromStatus: statusChange.fromStatus,
-              toStatus: statusChange.toStatus,
-              reason: statusChange.reason,
-              expireAt: statusChange.expireAt,
-              operationType: 'manual', // 通过 API 修改的都是手动操作
-              createdById: currentUserId,
-            },
-            context: options.context,
+          await userStatusService.recordStatusHistoryIfNotExists({
+            userId: statusChange.userId,
+            fromStatus: statusChange.fromStatus,
+            toStatus: statusChange.toStatus,
+            reason: statusChange.reason,
+            expireAt: statusChange.expireAt,
+            operationType: 'manual', // 通过 API 修改的都是手动操作
+            createdBy: currentUserId,
+            transaction: options.transaction,
           });
-
-          userStatusService.logger.debug(
-            `History recorded: userId=${statusChange.userId}, ${statusChange.fromStatus} → ${statusChange.toStatus}`,
-          );
         } catch (error) {
           userStatusService.logger.error('Failed to record status history:', error);
         }
-
-        // 清除用户状态缓存
-        await userStatusService.clearUserStatusCache(statusChange.userId);
-        userStatusService.logger.debug(`Cache cleared for userId=${statusChange.userId}`);
       }
     });
 

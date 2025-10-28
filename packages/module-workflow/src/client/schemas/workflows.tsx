@@ -12,6 +12,7 @@ import {
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
+  useFormBlockProps,
   useResourceActionContext,
 } from '@tachybase/client';
 import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
@@ -36,7 +37,7 @@ import { lang, NAMESPACE, tval } from '../locale';
 import { useWorkflowCategory, WorkflowCategoryContext } from '../WorkflowCategoriesProvider';
 import { executionSchema } from './executions';
 
-const tag = observable({ value: '' });
+const tag = observable({ value: '', item: {} });
 
 export const collectionWorkflows = {
   name: 'workflows',
@@ -249,6 +250,16 @@ export const workflowFieldset: Record<string, ISchema> = {
       },
     },
   },
+};
+
+export const useCreateFormBlockProps = () => {
+  const { form } = useFormBlockProps();
+  if (tag.value) {
+    form.values.category = [tag.item];
+  }
+  return {
+    form,
+  };
 };
 
 export const createWorkflow: ISchema = {
@@ -655,7 +666,7 @@ const WorkflowTabCardItem = ({ children }) => {
   const api = useAPIClient();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeKey, setActiveKey] = useState({ tab: '' });
+  const [activeKey, setActiveKey] = useState({ tab: tag.value, item: tag.item });
   const compile = useCompile();
   const { modal } = App.useApp();
 
@@ -686,8 +697,9 @@ const WorkflowTabCardItem = ({ children }) => {
             id: key,
           },
         });
-        setActiveKey({ tab: '' });
+        setActiveKey({ tab: '', item: {} });
         tag.value = '';
+        tag.item = {};
         fetchData();
       },
     });
@@ -728,7 +740,7 @@ const WorkflowTabCardItem = ({ children }) => {
       value={{
         refresh: fetchData,
         activeKey: activeKey.tab,
-        setActiveKey: (key: string) => setActiveKey({ tab: key }),
+        setActiveKey: (key: string) => setActiveKey({ tab: key, item: dataSource.find((value) => value.id === key) }),
       }}
     >
       <DndProvider>
@@ -753,8 +765,10 @@ const WorkflowTabCardItem = ({ children }) => {
           type="editable-card"
           activeKey={activeKey.tab}
           onChange={(value) => {
-            setActiveKey({ tab: value });
+            const item = dataSource.find((data) => data.id === value);
+            setActiveKey({ tab: value, item });
             tag.value = value;
+            tag.item = item;
             if (value === '') {
               fetchData();
             }
@@ -1011,6 +1025,18 @@ export const workflowSchema: ISchema = {
                     multiple: true,
                     mode: 'Tag',
                   },
+                  'x-read-pretty': true,
+                },
+              },
+            },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
                   'x-read-pretty': true,
                 },
               },

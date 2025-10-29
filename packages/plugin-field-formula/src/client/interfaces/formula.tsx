@@ -1,6 +1,6 @@
 import { CollectionFieldInterface, i18n, interfacesProperties } from '@tachybase/client';
-
 import { Evaluator, evaluators, Registry } from '@tego/client';
+
 import lodash from 'lodash';
 
 import { NAMESPACE } from '../locale';
@@ -164,6 +164,7 @@ export class FormulaFieldInterface extends CollectionFieldInterface {
           'textarea',
           'email',
           'phone',
+          'bankCard',
 
           'datetime',
           'createdAt',

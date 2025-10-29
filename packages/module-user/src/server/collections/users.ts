@@ -139,8 +139,13 @@ export default defineCollection({
       uiSchema: {
         type: 'string',
         title: '{{t("Previous Status")}}',
-        'x-component': 'Input',
-        'x-read-pretty': true,
+        'x-component': 'Select',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
       },
     },
     {
@@ -162,6 +167,24 @@ export default defineCollection({
       uiSchema: {
         type: 'object',
         title: '{{t("Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      type: 'belongsTo',
+      name: 'previousStatusInfo',
+      target: 'userStatuses',
+      foreignKey: 'previousStatus',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("Previous Status")}}',
         'x-component': 'AssociationField',
         'x-component-props': {
           fieldNames: {

@@ -79,8 +79,13 @@ export default class AddUserStatusFieldsMigration extends Migration {
           uiSchema: {
             type: 'string',
             title: '{{t("Previous Status")}}',
-            'x-component': 'Input',
-            'x-read-pretty': true,
+            'x-component': 'Select',
+            'x-component-props': {
+              fieldNames: {
+                label: 'title',
+                value: 'key',
+              },
+            },
           },
         },
       });
@@ -140,6 +145,37 @@ export default class AddUserStatusFieldsMigration extends Migration {
       });
     }
 
+    // 添加原状态信息关联字段 (belongsTo userStatuses)
+    const previousStatusInfoFieldExists = await Field.count({
+      filter: {
+        name: 'previousStatusInfo',
+        collectionName: 'users',
+      },
+    });
+    if (!previousStatusInfoFieldExists) {
+      await Field.create({
+        values: {
+          name: 'previousStatusInfo',
+          collectionName: 'users',
+          type: 'belongsTo',
+          target: 'userStatuses',
+          foreignKey: 'previousStatus',
+          targetKey: 'key',
+          uiSchema: {
+            type: 'object',
+            title: '{{t("Previous Status")}}',
+            'x-component': 'AssociationField',
+            'x-component-props': {
+              fieldNames: {
+                label: 'title',
+                value: 'key',
+              },
+            },
+          },
+        },
+      });
+    }
+
     // 添加状态历史关联字段 (hasMany userStatusHistories)
     const statusHistoriesFieldExists = await Field.count({
       filter: {
@@ -175,6 +211,7 @@ export default class AddUserStatusFieldsMigration extends Migration {
       'previousStatus',
       'statusReason',
       'statusInfo',
+      'previousStatusInfo',
       'statusHistories',
     ];
 

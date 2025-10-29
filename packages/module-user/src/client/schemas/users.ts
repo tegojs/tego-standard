@@ -116,6 +116,25 @@ export const userCollection = {
       },
     },
     {
+      interface: 'm2o',
+      type: 'belongsTo',
+      name: 'previousStatusInfo',
+      target: 'userStatuses',
+      foreignKey: 'previousStatus',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("Previous Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
       interface: 'datetime',
       type: 'date',
       name: 'statusExpireAt',
@@ -129,14 +148,19 @@ export const userCollection = {
       },
     },
     {
-      interface: 'input',
+      interface: 'select',
       type: 'string',
       name: 'previousStatus',
       uiSchema: {
         type: 'string',
         title: '{{t("Previous Status")}}',
-        'x-component': 'Input',
-        'x-read-pretty': true,
+        'x-component': 'Select',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
       },
     },
     {
@@ -401,7 +425,7 @@ export const usersSchema: ISchema = {
         action: 'list',
         params: {
           pageSize: 50,
-          appends: ['roles', 'statusInfo'],
+          appends: ['roles', 'statusInfo', 'previousStatusInfo'],
         },
       },
       properties: {
@@ -535,6 +559,9 @@ export const usersSchema: ISchema = {
                         action: 'get',
                         dataSource: 'main',
                         collection: 'users',
+                        params: {
+                          appends: ['statusInfo', 'previousStatusInfo'],
+                        },
                       },
                       'x-component': 'Action.Link',
                       'x-component-props': {
@@ -609,11 +636,10 @@ export const usersSchema: ISchema = {
                               'x-collection-field': 'users.statusExpireAt',
                               'x-decorator': 'FormItem',
                             },
-                            previousStatus: {
-                              title: '{{t("Previous Status")}}',
-                              'x-component': 'Input',
+                            previousStatusInfo: {
+                              'x-component': 'CollectionField',
+                              'x-collection-field': 'users.previousStatusInfo',
                               'x-decorator': 'FormItem',
-                              'x-read-pretty': true,
                               'x-disabled': true,
                             },
                             statusReason: {

@@ -311,6 +311,7 @@ const create: ISchema = {
                   'x-component': 'CollectionField',
                   'x-collection-field': 'users.statusInfo',
                   'x-decorator': 'FormItem',
+                  required: true,
                 },
                 statusExpireAt: {
                   'x-component': 'CollectionField',
@@ -630,6 +631,7 @@ export const usersSchema: ISchema = {
                               'x-component': 'CollectionField',
                               'x-collection-field': 'users.statusInfo',
                               'x-decorator': 'FormItem',
+                              required: true,
                             },
                             statusExpireAt: {
                               'x-component': 'CollectionField',

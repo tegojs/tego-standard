@@ -23,7 +23,7 @@
     "antd": "5.22.5",
     "axios": "1.13.0",
     "copy-to-clipboard": "^3.3.3",
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.18",
     "file-saver": "^2.0.5",
     "fs-extra": "^11.3.0",
     "lodash": "4.17.21",

@@ -17,7 +17,7 @@
     "@vercel/ncc": "0.38.3",
     "antd": "5.22.5",
     "axios": "1.13.0",
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.18",
     "docxtemplater": "^3.55.8",
     "exceljs": "^4.4.0",
     "fs-extra": "^11.3.0",

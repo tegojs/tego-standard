@@ -19,7 +19,7 @@
     "@tego/client": "*",
     "@tego/server": "*",
     "antd": "5.22.5",
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.18",
     "tsx": "4.20.3"
   },
   "description.zh-CN": "工作线程,用于执行耗时任务",

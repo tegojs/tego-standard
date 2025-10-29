@@ -20,7 +20,7 @@
     "axios": "1.13.0",
     "lodash": "4.17.21",
     "openai": "^5.10.1",
-    "react-i18next": "15.2.0"
+    "react-i18next": "16.2.1"
   },
   "description.zh-CN": "AI聊天机器人,提供操作帮助,智能问答",
   "displayName.zh-CN": "AI聊天"

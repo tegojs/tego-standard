@@ -33,6 +33,44 @@ export const userStatusHistoriesCollection = {
       },
     },
     {
+      interface: 'm2o',
+      type: 'belongsTo',
+      name: 'fromStatusInfo',
+      target: 'userStatuses',
+      foreignKey: 'fromStatus',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("From Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      interface: 'm2o',
+      type: 'belongsTo',
+      name: 'toStatusInfo',
+      target: 'userStatuses',
+      foreignKey: 'toStatus',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("To Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
       interface: 'input',
       type: 'string',
       name: 'fromStatus',
@@ -100,6 +138,7 @@ export const userStatusHistoriesCollection = {
       type: 'belongsTo',
       name: 'createdBy',
       target: 'users',
+      foreignKey: 'createdById',
       uiSchema: {
         type: 'object',
         title: '{{t("Created By")}}',
@@ -142,7 +181,7 @@ export const userStatusHistoriesSchema: ISchema = {
         params: {
           pageSize: 50,
           sort: ['-createdAt'],
-          appends: ['user', 'createdBy'],
+          appends: ['user', 'createdBy', 'fromStatusInfo', 'toStatusInfo'],
         },
       },
       properties: {
@@ -181,11 +220,11 @@ export const userStatusHistoriesSchema: ISchema = {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
+              title: '{{t("User")}}',
               properties: {
                 user: {
                   type: 'object',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
+                  'x-component': 'UserNicknameField',
                 },
               },
             },
@@ -193,11 +232,11 @@ export const userStatusHistoriesSchema: ISchema = {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
+              title: '{{t("From Status")}}',
               properties: {
-                fromStatus: {
-                  type: 'string',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
+                fromStatusInfo: {
+                  type: 'object',
+                  'x-component': 'UserStatusField',
                 },
               },
             },
@@ -205,11 +244,11 @@ export const userStatusHistoriesSchema: ISchema = {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
+              title: '{{t("To Status")}}',
               properties: {
-                toStatus: {
-                  type: 'string',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
+                toStatusInfo: {
+                  type: 'object',
+                  'x-component': 'UserStatusField',
                 },
               },
             },
@@ -253,11 +292,11 @@ export const userStatusHistoriesSchema: ISchema = {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
+              title: '{{t("Created By")}}',
               properties: {
                 createdBy: {
                   type: 'object',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
+                  'x-component': 'UserNicknameField',
                 },
               },
             },

@@ -119,5 +119,41 @@ export default defineCollection({
         },
       },
     },
+    {
+      type: 'belongsTo',
+      name: 'fromStatusInfo',
+      target: 'userStatuses',
+      foreignKey: 'fromStatus',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("From Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      type: 'belongsTo',
+      name: 'toStatusInfo',
+      target: 'userStatuses',
+      foreignKey: 'toStatus',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("To Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
   ],
 });

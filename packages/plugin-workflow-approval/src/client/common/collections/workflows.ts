@@ -3,6 +3,7 @@ import { NAMESPACE } from '../../locale';
 export const collectionWorkflows = {
   title: `{{t("Approval Launch", { ns: "${NAMESPACE}" })}}`,
   name: 'workflows',
+  sortable: true,
   fields: [
     {
       type: 'string',
@@ -43,6 +44,21 @@ export const collectionWorkflows = {
             value: false,
           },
         ],
+      },
+    },
+    {
+      type: 'sort',
+      interface: 'sort',
+      name: 'sort',
+      uiSchema: {
+        title: '{{t("Sort")}}',
+        type: 'number',
+        'x-component': 'InputNumber',
+        'x-component-props': {
+          stringMode: true,
+          step: 1,
+        },
+        'x-validator': 'integer',
       },
     },
   ],

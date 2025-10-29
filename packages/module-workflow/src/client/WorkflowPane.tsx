@@ -13,7 +13,12 @@ import { ExecutionStatusColumn, ExecutionStatusSelect } from './components/Execu
 import OpenDrawer from './components/OpenDrawer';
 import { ExecutionResourceProvider } from './ExecutionResourceProvider';
 import { executionCollection } from './schemas/executions';
-import { collectionWorkflowCategories, collectionWorkflows, workflowSchema } from './schemas/workflows';
+import {
+  collectionWorkflowCategories,
+  collectionWorkflows,
+  useCreateFormBlockProps,
+  workflowSchema,
+} from './schemas/workflows';
 import { WorkflowLink } from './WorkflowLink';
 
 function SyncOptionSelect(props) {
@@ -66,6 +71,7 @@ export function WorkflowPane(props) {
           scope={{
             getTriggersOptions,
             ExecutionRetryAction,
+            useCreateFormBlockProps,
             ...scopes,
           }}
         />

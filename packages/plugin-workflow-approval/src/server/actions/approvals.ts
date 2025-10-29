@@ -1,5 +1,4 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
-
 import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
 
 import { NAMESPACE } from '../../common/constants';
@@ -56,9 +55,48 @@ export const approvals = {
       });
     }
     const { repository, model } = collection;
+    // 如果是复制操作,要将repository的关联字段的 id 排除掉,以防认为是修改,而不是新建;
+    // 背景是复制操作, 前端传过来的是一个完整的对象, 如果直接创建, 会导致关联字段的 id 被认为是已有数据, 从而认为是修改,而不是新建. 特别是多对多的字段.
+    let dataToCreate = traverseJSON(data, { collection });
+    if (workflowKey) {
+      // 找出所有关联字段的 key（这些一般是 model.associations 的 key）
+      // 遍历 model.associations，按 Sequelize 约定，关联 id 字段一般形如 xxxId 或 array 形
+      Object.values(collection.model.associations || {}).forEach((assocUnknown) => {
+        // 显式类型断言
+        const assoc = assocUnknown as {
+          foreignKey?: string;
+          as?: string;
+          associationType?: string;
+          targetKey?: string;
+          target?: { primaryKeyAttribute?: string; primaryKey?: string };
+        };
+
+        // 只处理属于本数据的外键字段
+        if (assoc.foreignKey && Object.prototype.hasOwnProperty.call(dataToCreate, assoc.foreignKey)) {
+          // 移除外键 id，避免被认为是已有数据
+          delete dataToCreate[assoc.foreignKey];
+        }
+        // 处理 BelongsToMany（多对多），应删除的是 source 关联的 targetKey（目标表主键、如 targetId），而不是中间表的 id
+        if (assoc.associationType === 'BelongsToMany' && assoc.as && Array.isArray(dataToCreate[assoc.as])) {
+          // 这里 assoc.as 是关联在 dataToCreate 上的字段名（一般为模型名的复数，如 tags）
+          // 将每个对象里的 target 主键 id 字段删除，目标字段通常是 targetKey 或 target主键，如 targetId 等
+          const targetKey =
+            assoc.targetKey && typeof assoc.targetKey === 'string'
+              ? assoc.targetKey
+              : // fallback: 一般为 target model 的主键
+                assoc.target?.primaryKeyAttribute || assoc.target?.primaryKey || 'id';
+          (dataToCreate[assoc.as] as Array<any>).forEach((item: any) => {
+            if (item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, targetKey)) {
+              delete item[targetKey];
+            }
+          });
+        }
+      });
+    }
+
     const values = await repository.create({
       values: {
-        ...traverseJSON(data, { collection }),
+        ...dataToCreate,
         createdBy: context.state.currentUser.id,
         updatedBy: context.state.currentUser.id,
       },
@@ -158,6 +196,33 @@ export const approvals = {
       },
       limit: 1,
     });
+
+    if (!execution) {
+      return context.throw(404, 'Execution not found! Please contact the administrator.');
+    }
+
+    // 如果当前 workflow 未启用，则查找同 workflowKey 且 enable 为 true 的最新 workflow，并挂到 approval 上，同时存到数据库
+    if (!approval.workflow.enabled && approval.workflow?.key) {
+      const latestWorkflow = await context.db.getRepository('workflows').findOne({
+        filter: {
+          key: approval.workflow.key,
+          enabled: true,
+        },
+        order: [['updatedAt', 'DESC']],
+      });
+      if (latestWorkflow && approval.workflow.id !== latestWorkflow.id) {
+        approval.workflow = latestWorkflow;
+        await approval.update(
+          {
+            workflowId: latestWorkflow.id,
+          },
+          {
+            transaction: context.transaction,
+          },
+        );
+      }
+    }
+
     execution.workflow = approval.workflow;
     await context.db.sequelize.transaction(async (transaction) => {
       const records = await approval.getRecords({

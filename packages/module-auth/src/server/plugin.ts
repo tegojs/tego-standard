@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { Cache, InstallOptions, Model, Plugin, tval } from '@tego/server';
 
 import { tokenPolicyCollectionName, tokenPolicyRecordKey } from '../constants';
@@ -12,9 +11,11 @@ import { AuthModel } from './model/authenticator';
 import { Storer } from './storer';
 import { TokenBlacklistService } from './token-blacklist';
 import { TokenController } from './token-controller';
+import { UserStatusService } from './user-status';
 
 export class PluginAuthServer extends Plugin {
   cache: Cache;
+  userStatusService: UserStatusService;
 
   afterAdd() {
     this.app.on('afterLoad', async () => {
@@ -48,6 +49,15 @@ export class PluginAuthServer extends Plugin {
   }
 
   async load() {
+    // 初始化 UserStatusService
+    this.userStatusService = new UserStatusService(this.app);
+    // 将服务暴露到 app 上,方便其他插件调用
+    (this.app as any).userStatusService = this.userStatusService;
+
+    // 注入登录检查方法, 注册状态变更拦截器
+    this.userStatusService.injectLoginCheck();
+    this.userStatusService.registerStatusChangeInterceptor();
+
     this.cache = await this.app.cacheManager.createCache({
       name: 'auth',
       prefix: 'auth',

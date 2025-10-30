@@ -185,6 +185,16 @@ export const collectionWorkflowCategories = {
         'x-component': 'Input',
       } as ISchema,
     },
+    {
+      type: 'string',
+      name: 'type',
+      interface: 'input',
+      uiSchema: {
+        title: '{{t("Type")}}',
+        type: 'string',
+        'x-component': 'Input',
+      } as ISchema,
+    },
   ],
 };
 
@@ -662,7 +672,8 @@ const DndProvider = observer(
   { displayName: 'DndProvider' },
 );
 
-const WorkflowTabCardItem = ({ children }) => {
+export const WorkflowTabCardItem = (props) => {
+  const { children, params, type } = props;
   const api = useAPIClient();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -674,10 +685,7 @@ const WorkflowTabCardItem = ({ children }) => {
     setLoading(true);
     const { data } = await api.request({
       url: 'workflowCategories:list',
-      params: {
-        paginate: false,
-        sort: ['sort'],
-      },
+      params,
     });
     setDataSource(data.data);
     setLoading(false);
@@ -756,6 +764,7 @@ const WorkflowTabCardItem = ({ children }) => {
                     'x-component': 'AddWorkflowCategory',
                     'x-component-props': {
                       type: 'primary',
+                      categoryType: type,
                     },
                   },
                 },
@@ -815,20 +824,12 @@ const WorkflowTabCardItem = ({ children }) => {
   );
 };
 
-const TabTableBlockProvider = observer((props) => {
+export const TabTableBlockProvider = observer((props: { params }) => {
+  const { params } = props;
   const requestProps = {
     collection: collectionWorkflows,
     action: 'list',
-    params: {
-      filter: {
-        current: true,
-        type: {
-          // TODO: 等工作流整理完成后, 去除这里的依赖审批 "approval" 字段
-          $not: 'approval',
-        },
-      },
-      sort: ['-initAt'],
-    },
+    params,
     rowKey: 'id',
   };
 
@@ -845,7 +846,29 @@ export const workflowSchema: ISchema = {
     provider: {
       type: 'void',
       'x-decorator': TabTableBlockProvider,
+      'x-decorator-props': {
+        params: {
+          filter: {
+            current: true,
+            type: {
+              // TODO: 等工作流整理完成后, 去除这里的依赖审批 "approval" 字段
+              $not: 'approval',
+            },
+          },
+          sort: ['-initAt'],
+        },
+      },
       'x-component': WorkflowTabCardItem,
+      'x-component-props': {
+        params: {
+          paginate: false,
+          sort: ['sort'],
+          filter: {
+            type: { $ne: 'approval' },
+          },
+        },
+        type: 'workflow',
+      },
       properties: {
         actions: {
           type: 'void',

@@ -15,10 +15,12 @@ export default {
   Plugin: 'プラグイン',
   'file uploaded successfully': 'ファイルのアップロードに成功しました',
   Download: 'ダウンロード',
-  'Restore backup from local':'ローカルからバックアップに返信',
-  'Backup instructions':'バックアップの説明',
-  'File size':'ファイルサイズ',
-  'New backup':'新規バックアップ',
-  'Origin':'ソース',
-  'Backing up':'バックアップ中'
+  'Restore backup from local': 'ローカルからバックアップに返信',
+  'Backup instructions': 'バックアップの説明',
+  'File size': 'ファイルサイズ',
+  'New backup': '新規バックアップ',
+  Origin: 'ソース',
+  'Backing up': 'バックアップ中',
+  'workflow.title': 'ワークフローデータ',
+  'workflow.description': 'ワークフローデータ',
 };

@@ -3,7 +3,7 @@ import { defineCollection } from '@tego/server';
 export default defineCollection({
   origin: '@tachybase/module-user',
   dumpRules: {
-    group: 'user',
+    group: 'logs',
   },
   name: 'userStatusHistories',
   title: '{{t("User Status Histories")}}',

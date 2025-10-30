@@ -89,6 +89,7 @@
   "Canceled": "取消",
   "Carbon Copy me": "抄送我的",
   "CarbonCopy": "抄送",
+  "Category": "分类",
   "Changed fields": "发生变动的字段",
   "Clear all executions": "清除所有执行记录",
   "Clear executions will not reset executed count, and started executions will not be deleted, are you sure you want to delete them all?": "清空执行记录不会重置执行次数，且执行中的也不会被删除，确定要删除所有执行记录吗？",

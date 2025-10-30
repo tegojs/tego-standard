@@ -5,13 +5,14 @@ import { onFieldChange, useField, useFormEffects } from '@tachybase/schema';
 import WorkflowPlugin, { RadioWithTooltip } from '.';
 import { AddWorkflowCategory, AddWorkflowCategoryAction } from './components/AddWorkflowCategory';
 import { ColumnShowCollection } from './components/ColumnShowCollection';
+import { ColumnShowEventSource } from './components/ColumnShowEventSource';
 import { ColumnShowTitle } from './components/ColumnShowTitle';
 import { EditWorkflowCategory, EditWorkflowCategoryAction } from './components/EditWorkflowCategory';
 import { ExecutionLink } from './components/ExecutionLink';
 import { ExecutionRetryAction } from './components/ExecutionRetryAction';
 import { ExecutionStatusColumn, ExecutionStatusSelect } from './components/ExecutionStatus';
 import OpenDrawer from './components/OpenDrawer';
-import { ExecutionResourceProvider } from './ExecutionResourceProvider';
+import { ExecutionResourceProvider } from './provider/ExecutionResourceProvider';
 import { executionCollection } from './schemas/executions';
 import {
   collectionWorkflowCategories,
@@ -66,6 +67,7 @@ export function WorkflowPane(props) {
             AddWorkflowCategoryAction,
             EditWorkflowCategory,
             EditWorkflowCategoryAction,
+            ColumnShowEventSource,
             ...components,
           }}
           scope={{

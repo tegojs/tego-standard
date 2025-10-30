@@ -32,6 +32,21 @@ export const approvalFieldset: Record<string, ISchema> = {
     default: 'approval',
     'x-hidden': true,
   },
+  category: {
+    'x-collection-field': 'workflows.category',
+    'x-component': 'CollectionField',
+    'x-decorator': 'FormItem',
+    'x-component-props': {
+      multiple: true,
+      service: {
+        params: {
+          filter: {
+            $and: [{ type: { $eq: 'approval' } }],
+          },
+        },
+      },
+    },
+  },
   sync: {
     type: 'boolean',
     title: tval('Execute mode'),
@@ -142,6 +157,7 @@ const createApproval: ISchema = {
                 },
                 title: approvalFieldset.title,
                 type: approvalFieldset.type,
+                category: approvalFieldset.category,
                 sync: approvalFieldset.sync,
                 description: approvalFieldset.description,
                 color: approvalFieldset.color,
@@ -219,6 +235,7 @@ const updateApproval: ISchema = {
                 },
                 title: approvalFieldset.title,
                 type: approvalFieldset.type,
+                category: approvalFieldset.category,
                 sync: approvalFieldset.sync,
                 description: approvalFieldset.description,
                 color: approvalFieldset.color,

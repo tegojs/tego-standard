@@ -23,7 +23,7 @@
     "fs-extra": "^11.3.0",
     "pizzip": "^3.1.7",
     "react": "18.3.1",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.2.1",
     "tencentcloud-sdk-nodejs": "^4.0.996"
   },
   "description.zh-CN": "OCR 转换插件",

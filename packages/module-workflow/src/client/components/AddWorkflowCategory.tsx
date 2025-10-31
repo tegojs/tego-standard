@@ -48,6 +48,7 @@ const useCreateworkflowCategry = () => {
       await api.resource('workflowCategories').create({
         values: {
           ...values,
+          type: ctx?.['categoryType'],
         },
       });
       ctx.setVisible(false);
@@ -62,11 +63,13 @@ export const AddWorkflowCategory = (props) => {
 };
 
 export const AddWorkflowCategoryAction = (props) => {
-  const { scope, getContainer, children } = props;
+  const { scope, getContainer, children, categoryType } = props;
   const [visible, setVisible] = useState(false);
   const { t } = useTranslation();
+  const workflowCategorySchema = getWorkflowCategorySchema(categoryType);
+  const actionValue = { visible, setVisible, categoryType };
   return (
-    <ActionContextProvider value={{ visible, setVisible }}>
+    <ActionContextProvider value={actionValue}>
       <div onClick={() => setVisible(true)} title={t('Add category')}>
         {children || <PlusOutlined />}
       </div>
@@ -88,53 +91,56 @@ export const AddWorkflowCategoryAction = (props) => {
   );
 };
 
-const workflowCategorySchema: ISchema = {
-  type: 'object',
-  properties: {
-    form: {
-      type: 'void',
-      'x-decorator': 'Form',
-      'x-component': 'Action.Modal',
-      title: '{{ t("Add category") }}',
-      'x-component-props': {
-        width: 520,
-        getContainer: '{{ getContainer }}',
-      },
-      properties: {
-        name: {
-          type: 'string',
-          title: '{{t("Category name")}}',
-          required: true,
-          'x-disabled': '{{ !createOnly }}',
-          'x-decorator': 'FormItem',
-          'x-component': 'Input',
+const getWorkflowCategorySchema = (categoryType) => {
+  const workflowCategorySchema: ISchema = {
+    type: 'object',
+    properties: {
+      form: {
+        type: 'void',
+        'x-decorator': 'Form',
+        'x-component': 'Action.Modal',
+        title: '{{ t("Add category") }}',
+        'x-component-props': {
+          width: 520,
+          getContainer: '{{ getContainer }}',
         },
-        color: {
-          type: 'string',
-          title: '{{t("Color")}}',
-          required: false,
-          'x-decorator': 'FormItem',
-          'x-component': 'ColorSelect',
-        },
-        footer: {
-          type: 'void',
-          'x-component': 'Action.Modal.Footer',
-          properties: {
-            action1: {
-              title: '{{ t("Cancel") }}',
-              'x-component': 'Action',
-              'x-component-props': {
-                useAction: '{{ useCancelAction }}',
+        properties: {
+          name: {
+            type: 'string',
+            title: '{{t("Category name")}}',
+            required: true,
+            'x-disabled': '{{ !createOnly }}',
+            'x-decorator': 'FormItem',
+            'x-component': 'Input',
+          },
+          color: {
+            type: 'string',
+            title: '{{t("Color")}}',
+            required: false,
+            'x-decorator': 'FormItem',
+            'x-component': 'ColorSelect',
+          },
+          footer: {
+            type: 'void',
+            'x-component': 'Action.Modal.Footer',
+            properties: {
+              action1: {
+                title: '{{ t("Cancel") }}',
+                'x-component': 'Action',
+                'x-component-props': {
+                  useAction: '{{ useCancelAction }}',
+                },
               },
-            },
-            action2: {
-              title: '{{ t("Submit") }}',
-              'x-component': 'Action',
-              'x-component-props': {
-                type: 'primary',
-                useAction: '{{ useCreateworkflowCategry }}',
-                style: {
-                  marginLeft: '8px',
+              action2: {
+                title: '{{ t("Submit") }}',
+                'x-component': 'Action',
+                'x-component-props': {
+                  type: 'primary',
+                  categoryType,
+                  useAction: '{{ useCreateworkflowCategry }}',
+                  style: {
+                    marginLeft: '8px',
+                  },
                 },
               },
             },
@@ -142,5 +148,7 @@ const workflowCategorySchema: ISchema = {
         },
       },
     },
-  },
+  };
+
+  return workflowCategorySchema;
 };

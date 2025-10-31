@@ -8,7 +8,7 @@ import {
 
 import { Result, Spin } from 'antd';
 
-import { ExecutionContextProvider } from '../../../../ExecutionContextProvider';
+import { ExecutionContextProvider } from '../../../../provider/ExecutionContextProvider';
 import { COLLECTION_NOTICE_NAME } from '../../../common/constants';
 import { useTranslation } from '../../locale';
 import { ProviderContextMyComponent } from './contexts/MyComponent.context';

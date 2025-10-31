@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  SchemaComponent,
+  TableBlockProvider,
   useActionContext,
   useAPIClient,
   useCollectionRecordData,
+  useCompile,
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
 } from '@tachybase/client';
-import { collectionWorkflows } from '@tachybase/module-workflow/client';
-import { ISchema, useForm } from '@tachybase/schema';
+import { collectionWorkflows, TabTableBlockProvider, WorkflowTabCardItem } from '@tachybase/module-workflow/client';
+import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
 
-import { message } from 'antd';
+import { App, message } from 'antd';
 import { saveAs } from 'file-saver';
+import _ from 'lodash';
 
 import { NAMESPACE, tval, useTranslation } from '../locale';
 import { schemaExecution } from './Execution.schema';
@@ -27,6 +31,21 @@ export const approvalFieldset: Record<string, ISchema> = {
     // TODO: use constant
     default: 'approval',
     'x-hidden': true,
+  },
+  category: {
+    'x-collection-field': 'workflows.category',
+    'x-component': 'CollectionField',
+    'x-decorator': 'FormItem',
+    'x-component-props': {
+      multiple: true,
+      service: {
+        params: {
+          filter: {
+            $and: [{ type: { $eq: 'approval' } }],
+          },
+        },
+      },
+    },
   },
   sync: {
     type: 'boolean',
@@ -138,6 +157,7 @@ const createApproval: ISchema = {
                 },
                 title: approvalFieldset.title,
                 type: approvalFieldset.type,
+                category: approvalFieldset.category,
                 sync: approvalFieldset.sync,
                 description: approvalFieldset.description,
                 color: approvalFieldset.color,
@@ -215,6 +235,7 @@ const updateApproval: ISchema = {
                 },
                 title: approvalFieldset.title,
                 type: approvalFieldset.type,
+                category: approvalFieldset.category,
                 sync: approvalFieldset.sync,
                 description: approvalFieldset.description,
                 color: approvalFieldset.color,
@@ -233,11 +254,8 @@ export const schemaApprovalPanne = {
   properties: {
     approvalProvider: {
       type: 'void',
-      'x-decorator': 'TableBlockProvider',
-      'x-component': 'CardItem',
+      'x-decorator': TabTableBlockProvider,
       'x-decorator-props': {
-        collection: collectionWorkflows,
-        action: 'list',
         params: {
           filter: {
             current: true,
@@ -246,7 +264,16 @@ export const schemaApprovalPanne = {
           sort: ['-sort'],
           except: ['config'],
         },
-        rowKey: 'id',
+      },
+      'x-component': WorkflowTabCardItem,
+      'x-component-props': {
+        type: 'approval',
+        params: {
+          filter: {
+            type: 'approval',
+          },
+          sort: ['sort'],
+        },
       },
       properties: {
         actions: {

@@ -20,6 +20,10 @@ export default {
       defaultValue: 'default',
     },
     {
+      type: 'string',
+      name: 'type',
+    },
+    {
       type: 'belongsToMany',
       name: 'workflows',
       target: 'workflows',

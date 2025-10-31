@@ -3,6 +3,9 @@ import { defineCollection } from '@tego/server';
 import { tokenPolicyCollectionName } from '../../constants';
 
 export default defineCollection({
+  dumpRules: {
+    group: 'required',
+  },
   name: tokenPolicyCollectionName,
   autoGenId: false,
   createdAt: true,

@@ -3,7 +3,7 @@ import { defineCollection } from '@tego/server';
 export default defineCollection({
   name: 'users_jobs',
   dumpRules: {
-    group: 'log',
+    group: 'workflow',
   },
   shared: true,
   fields: [

@@ -1,6 +1,9 @@
 import { defineCollection } from '@tego/server';
 
 export default defineCollection({
+  dumpRules: {
+    group: 'required',
+  },
   name: 'environmentVariables',
   autoGenId: false,
   fields: [

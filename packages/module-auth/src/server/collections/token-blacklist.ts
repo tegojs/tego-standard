@@ -2,7 +2,7 @@ import { defineCollection } from '@tego/server';
 
 export default defineCollection({
   dumpRules: {
-    group: 'log',
+    group: 'user',
   },
   shared: true,
   name: 'tokenBlacklist',

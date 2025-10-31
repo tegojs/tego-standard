@@ -7,6 +7,7 @@ export default defineCollection({
   namespace: 'workflow.approvalCarbonCopy',
   dumpRules: 'required',
   name: COLLECTION_NAME_APPROVAL_CARBON_COPY,
+  origin: '@tachybase/plugin-workflow-approval',
   createdBy: true,
   updatedBy: true,
   fields: [

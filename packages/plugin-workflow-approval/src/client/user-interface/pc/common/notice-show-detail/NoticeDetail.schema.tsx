@@ -1,3 +1,4 @@
+import { useContext } from 'react';
 import {
   RemoteSchemaComponent,
   SchemaComponent,
@@ -7,19 +8,22 @@ import {
 import { DetailsBlockProvider } from '@tachybase/module-workflow/client';
 
 import { tval } from '../../../../locale';
+import { ApprovalContext } from '../ApprovalData.provider';
 import { useContextMyComponent } from './contexts/MyComponent.context';
 import { usePropsNoticeDetail } from './hooks/usePropsNoticeDetail';
 import { NoticeDetailProvider } from './NoticeDetail.provider';
 
-export const NoticeDetailContent = () => {
+export const NoticeDetailContent = (props) => {
+  const { record } = props;
   return (
     <NoticeDetailProvider>
-      <NoticeDetail />
+      <NoticeDetail approval={record.approval} />
     </NoticeDetailProvider>
   );
 };
 
 const NoticeDetail = (props) => {
+  const { approval } = props;
   const { id, schemaId } = useContextMyComponent();
 
   return (
@@ -44,6 +48,11 @@ const NoticeDetail = (props) => {
             title: tval('Content Detail'),
             'x-component': 'Tabs.TabPane',
             properties: {
+              approvalInfo: {
+                type: 'void',
+                'x-component': 'ApprovalCommon.ViewComponent.ApprovalInfo',
+                'x-component-props': { approval },
+              },
               detail: {
                 type: 'void',
                 'x-decorator': 'NoticeDetailProvider',

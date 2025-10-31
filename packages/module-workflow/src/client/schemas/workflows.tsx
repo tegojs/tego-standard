@@ -1101,6 +1101,27 @@ export const workflowSchema: ISchema = {
                     },
                   },
                 },
+                executedTime: {
+                  type: 'void',
+                  'x-decorator': 'TableV2.Column.Decorator',
+                  'x-component': 'TableV2.Column',
+                  title: tval('Finally executed on'),
+                  'x-component-props': {
+                    sorter: true,
+                    width: 20,
+                    align: 'center',
+                    style: {
+                      display: 'grid',
+                      placeItems: 'center',
+                    },
+                  },
+                  properties: {
+                    executedTime: {
+                      type: 'string',
+                      'x-component': 'ColumnExecutedTime',
+                    },
+                  },
+                },
                 showCollection: {
                   type: 'void',
                   'x-decorator': 'TableV2.Column.Decorator',

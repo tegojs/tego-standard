@@ -4,6 +4,7 @@ import { onFieldChange, useField, useFormEffects } from '@tachybase/schema';
 
 import WorkflowPlugin, { RadioWithTooltip } from '.';
 import { AddWorkflowCategory, AddWorkflowCategoryAction } from './components/AddWorkflowCategory';
+import { ColumnExecutedTime } from './components/ColumnExecutedTime';
 import { ColumnShowCollection } from './components/ColumnShowCollection';
 import { ColumnShowEventSource } from './components/ColumnShowEventSource';
 import { ColumnShowTitle } from './components/ColumnShowTitle';
@@ -68,6 +69,7 @@ export function WorkflowPane(props) {
             EditWorkflowCategory,
             EditWorkflowCategoryAction,
             ColumnShowEventSource,
+            ColumnExecutedTime,
             ...components,
           }}
           scope={{

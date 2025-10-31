@@ -22,7 +22,7 @@
     "@tego/server": "*",
     "ahooks": "^3.9.0",
     "antd": "5.22.5",
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.18",
     "jsonwebtoken": "^8.5.1",
     "lodash": "4.17.21",
     "react-i18next": "16.2.1",

@@ -999,8 +999,8 @@ importers:
         specifier: ^4.7.0
         version: 4.7.0
       signature_pad:
-        specifier: 4.2.0
-        version: 4.2.0
+        specifier: 5.1.1
+        version: 5.1.1
       throttle-debounce:
         specifier: ^5.0.2
         version: 5.0.2
@@ -14404,8 +14404,8 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
-  signature_pad@4.2.0:
-    resolution: {integrity: sha512-YLWysmaUBaC5wosAKkgbX7XI+LBv2w5L0QUcI6Jc4moHYzv9BUBJtAyNLpWzHjtjKTeWOH6bfP4a4pzf0UinfQ==}
+  signature_pad@5.1.1:
+    resolution: {integrity: sha512-BT5JJygS5BS0oV+tffPRorIud6q17bM7v/1LdQwd0o6mTqGoI25yY1NjSL99OqkekWltS4uon6p52Y8j1Zqu7g==}
 
   sigstore@3.1.0:
     resolution: {integrity: sha512-ZpzWAFHIFqyFE56dXqgX/DkDRZdz+rRcjoIk/RQU4IX0wiCv1l8S7ZrXDHcCc+uaf+6o7w3h2l3g6GYG5TKN9Q==}
@@ -29534,7 +29534,7 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  signature_pad@4.2.0: {}
+  signature_pad@5.1.1: {}
 
   sigstore@3.1.0:
     dependencies:

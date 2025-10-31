@@ -1029,30 +1029,6 @@ export const workflowSchema: ISchema = {
                 },
               },
             },
-            description: {
-              type: 'void',
-              'x-decorator': 'TableV2.Column.Decorator',
-              'x-component': 'TableV2.Column',
-              properties: {
-                description: {
-                  type: 'string',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
-                },
-              },
-            },
-            showCollection: {
-              type: 'void',
-              'x-decorator': 'TableV2.Column.Decorator',
-              'x-component': 'TableV2.Column',
-              title: tval('Collection'),
-              properties: {
-                showCollection: {
-                  type: 'string',
-                  'x-component': 'ColumnShowCollection',
-                },
-              },
-            },
             enabled: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
@@ -1102,6 +1078,30 @@ export const workflowSchema: ISchema = {
                   properties: {
                     drawer: executionSchema,
                   },
+                },
+              },
+            },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-read-pretty': true,
+                },
+              },
+            },
+            showCollection: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Collection'),
+              properties: {
+                showCollection: {
+                  type: 'string',
+                  'x-component': 'ColumnShowCollection',
                 },
               },
             },

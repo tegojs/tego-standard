@@ -4,7 +4,9 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
+    "prebuild": "node scripts/update-version-with-hash.mjs",
     "build": "tachybase build",
+    "prebuild:p": "node scripts/update-version-with-hash.mjs",
     "build:p": "tachybase build -s --no-dts",
     "clean": "tachybase clean",
     "dev": "tachybase dev",

@@ -42,5 +42,7 @@
   "unknown.description": "Data without configured dump rules",
   "unknown.title": "Unknown",
   "user.description": "User data",
-  "user.title": "User data"
+  "user.title": "User data",
+  "workflow.description": "Workflow data",
+  "workflow.title": "Workflow data"
 }

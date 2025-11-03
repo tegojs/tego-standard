@@ -80,5 +80,7 @@
   "unknown.description": "没有配置备份规则的数据",
   "unknown.title": "未知数据",
   "user.description": "用户数据",
-  "user.title": "用户数据"
+  "user.title": "用户数据",
+  "workflow.description": "工作流数据",
+  "workflow.title": "工作流数据"
 }

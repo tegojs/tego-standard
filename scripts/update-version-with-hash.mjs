@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 构建时自动更新版本号脚本
- * 版本号格式：1.0.0-hash@branch（分支不是 以 release- 开头 或 main 或 master 时带分支名）
+ * 版本号格式：1.0.0-hash@branch（分支不是 以 release 开头 或 main 或 master 时带分支名）
  * 
  * 使用方法：
  *   node scripts/update-version-with-hash.mjs
@@ -72,8 +72,8 @@ function updateVersion() {
     // 构建新版本号
     let newVersion = `${baseVersion}-${hash}`;
     
-    // 只有当分支不是 以 release- 开头 或 main 或 master 时才添加 @branch
-    if (branch && branch !== 'main' && branch !== 'master' && !branch.startsWith('release-')) {
+    // 只有当分支不是 以 release 开头 或 main 或 master 时才添加 @branch
+    if (branch && branch !== 'main' && branch !== 'master' && !branch.startsWith('release')) {
       newVersion = `${newVersion}@${branch}`;
     }
     

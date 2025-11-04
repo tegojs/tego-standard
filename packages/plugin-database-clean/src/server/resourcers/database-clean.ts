@@ -6,7 +6,7 @@ import { Context, DEFAULT_PAGE, DEFAULT_PER_PAGE, Next } from '@tego/server';
 import { WHITELIST_TABLES } from '../constants';
 import { DatabaseService } from '../services/database-service';
 import { BackupFilter, FilteredBackupService } from '../services/filtered-backup-service';
-import { FileLock } from '../utils/lock';
+import { DatabaseCleanLock } from '../utils/lock';
 
 export default {
   name: 'databaseClean',
@@ -150,7 +150,7 @@ export default {
         return;
       }
 
-      const lock = new FileLock(ctx.app.db);
+      const lock = new DatabaseCleanLock(ctx.app);
       const locked = await lock.acquire(collectionName);
 
       if (!locked) {
@@ -205,7 +205,7 @@ export default {
         return;
       }
 
-      const lock = new FileLock(ctx.app.db);
+      const lock = new DatabaseCleanLock(ctx.app);
       const locked = await lock.acquire(collectionName);
 
       if (!locked) {

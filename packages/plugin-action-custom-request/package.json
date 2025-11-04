@@ -16,7 +16,6 @@
     "@tachybase/test": "*",
     "@tego/client": "*",
     "@tego/server": "*",
-    "@types/file-saver": "^2.0.7",
     "antd": "5.22.5",
     "axios": "1.13.0",
     "file-saver": "^2.0.5",

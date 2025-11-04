@@ -53,7 +53,7 @@ import { useWebhookCategoryContext, WebhookCategoryContext } from '../provider/W
 import { dispatchers } from './collections/dispatchers';
 import { webhookCategories } from './collections/webhookCategories';
 import { AddWebhookCategory } from './components/AddWebhookCategory';
-import { ColumnExecutedTime } from './components/columnExecutedTime';
+import { ColumnExecutedTime } from './components/ColumnExecutedTime';
 import { EditWebhookCategory } from './components/EditWebookCategory';
 import { TypeContainer } from './components/TypeContainer';
 

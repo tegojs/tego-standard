@@ -249,7 +249,7 @@ export const TableDetail = () => {
       key,
       render: (value: any) => {
         if (value instanceof Date || (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/))) {
-          return <DatePicker.ReadPretty value={value} showTime />;
+          return <DatePicker.ReadPretty value={dayjs(value)} showTime />;
         }
         if (typeof value === 'object' && value !== null) {
           return <pre style={{ margin: 0 }}>{JSON.stringify(value, null, 2)}</pre>;

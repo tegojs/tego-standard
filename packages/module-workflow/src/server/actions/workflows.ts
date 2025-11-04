@@ -205,7 +205,9 @@ export async function test(context: Context, next: Next) {
 
   context.app.logger.info(result);
 
-  context.state.messages.push({ message: 'testing' });
+  context.state.messages.push({
+    message: context.t('Test execution ended', { ns: 'workflow' }),
+  });
 
   context.body = result.execution;
 }

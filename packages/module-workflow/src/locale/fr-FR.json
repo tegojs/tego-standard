@@ -110,6 +110,7 @@
   "String operation": "Opération sur les chaînes de caractères",
   "Succeed and continue": "Réussir et continuer",
   "Succeeded": "Réussi",
+  "Test execution ended": "Test d'exécution terminé",
   "The result of this node has been referenced by other nodes ({{nodes}}), please remove the usage before deleting.": "Le résultat de ce nœud a été référencé par d'autres nœuds ({{nodes}}), veuillez supprimer son utilisation avant de le supprimer.",
   "This node contains branches, deleting will also be preformed to them, are you sure?": "Ce nœud contient des branches, leur suppression sera également effectuée, êtes-vous sûr(e) ?",
   "Timeout config": "Configuration du délai d'expiration",

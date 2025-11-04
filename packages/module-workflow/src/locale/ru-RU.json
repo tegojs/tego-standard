@@ -77,6 +77,7 @@
   "String": "Строка",
   "String operation": "Операция со строкой",
   "Succeeded": "Успешный",
+  "Test execution ended": "Тест выполнения завершен",
   "This node contains branches, deleting will also be preformed to them, are you sure?": "Этот узел содержит ветки, к ним тоже будет произведено удаление, вы уверены?",
   "Trigger": "Триггер",
   "Trigger in executed workflow cannot be modified": "Триггер в выполняемом рабочем процессе не может быть изменен",

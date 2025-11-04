@@ -110,6 +110,7 @@
   "String operation": "Operación de Cadena",
   "Succeed and continue": "Éxito y continuar",
   "Succeeded": "Logrado",
+  "Test execution ended": "Prueba de ejecución terminada",
   "The result of this node has been referenced by other nodes ({{nodes}}), please remove the usage before deleting.": "El resultado de este nodo ha sido referenciado por otros nodos ({{nodes}}",
   "This node contains branches, deleting will also be preformed to them, are you sure?": "Este nodo contiene ramas, el borrado también se preformará a ellas, ¿estás seguro?",
   "Timeout config": "Tiempo de espera config",

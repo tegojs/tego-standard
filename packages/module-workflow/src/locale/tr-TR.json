@@ -77,6 +77,7 @@
   "String": "String",
   "String operation": "String operation",
   "Succeeded": "Başarılı",
+  "Test execution ended": "Test yürütme tamamlandı",
   "This node contains branches, deleting will also be preformed to them, are you sure?": "Bu düğüm başka içeriklerle bağlantı içeriyor, silme işlemini onaylarsanız o bağlantılarda silinecek, emin misiniz?",
   "Trigger": "Tetikle",
   "Trigger in executed workflow cannot be modified": "Yürütülen iş akışındaki tetikleyici değiştirilemez",

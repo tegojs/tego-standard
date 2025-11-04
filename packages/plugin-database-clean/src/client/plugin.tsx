@@ -1,4 +1,4 @@
-import { Plugin } from '@tego/client';
+import { Plugin } from '@tachybase/client';
 
 class PluginPluginDatabaseClean extends Plugin {
   async afterAdd() {}

@@ -1,5 +1,7 @@
 import { Application } from '@tego/server';
 
+import { QueryTypes } from 'sequelize';
+
 import { WHITELIST_TABLES } from '../constants';
 
 export interface TableInfo {
@@ -11,7 +13,12 @@ export interface TableInfo {
   updatedAt: Date | null;
 }
 
-export class DatabaseCleanService {
+export interface CleanOptions {
+  collectionName: string;
+  filter?: any; // Sequelize filter 格式
+}
+
+export class DatabaseService {
   constructor(private app: Application) {}
 
   /**
@@ -71,18 +78,18 @@ export class DatabaseCleanService {
     const tableName = collection.model.tableName;
 
     // 获取表大小（包括索引）
-    const [sizeResult] = await this.app.db.sequelize.query<[{ pg_total_relation_size: string }]>(
+    const [sizeResults] = (await this.app.db.sequelize.query(
       `SELECT pg_total_relation_size('${schema}."${tableName}"') as pg_total_relation_size`,
-      { type: 'SELECT' },
-    );
-    const size = parseInt(sizeResult.pg_total_relation_size, 10);
+      { type: QueryTypes.SELECT },
+    )) as unknown as [Array<{ pg_total_relation_size: string }>, unknown];
+    const size = parseInt(sizeResults[0].pg_total_relation_size, 10);
 
     // 获取行数
-    const [countResult] = await this.app.db.sequelize.query<[{ count: string }]>(
+    const [countResults] = (await this.app.db.sequelize.query(
       `SELECT COUNT(*) as count FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-      { type: 'SELECT' },
-    );
-    const rowCount = parseInt(countResult.count, 10);
+      { type: QueryTypes.SELECT },
+    )) as unknown as [Array<{ count: string }>, unknown];
+    const rowCount = parseInt(countResults[0].count, 10);
 
     // 获取创建时间和更新时间
     let createdAt: Date | null = null;
@@ -93,26 +100,26 @@ export class DatabaseCleanService {
       const hasUpdatedAt = collection.hasField('updatedAt');
 
       if (hasCreatedAt) {
-        const [createdAtResult] = await this.app.db.sequelize.query<[{ min: Date }]>(
+        const [createdAtResults] = (await this.app.db.sequelize.query(
           `SELECT MIN("createdAt") as min FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-          { type: 'SELECT' },
-        );
-        createdAt = createdAtResult.min;
+          { type: QueryTypes.SELECT },
+        )) as unknown as [Array<{ min: Date }>, unknown];
+        createdAt = createdAtResults[0].min;
       }
 
       if (hasUpdatedAt) {
-        const [updatedAtResult] = await this.app.db.sequelize.query<[{ max: Date }]>(
+        const [updatedAtResults] = (await this.app.db.sequelize.query(
           `SELECT MAX("updatedAt") as max FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-          { type: 'SELECT' },
-        );
-        updatedAt = updatedAtResult.max;
+          { type: QueryTypes.SELECT },
+        )) as unknown as [Array<{ max: Date }>, unknown];
+        updatedAt = updatedAtResults[0].max;
       } else if (hasCreatedAt) {
         // 如果没有 updatedAt，使用 createdAt 的最大值
-        const [maxCreatedAtResult] = await this.app.db.sequelize.query<[{ max: Date }]>(
+        const [maxCreatedAtResults] = (await this.app.db.sequelize.query(
           `SELECT MAX("createdAt") as max FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-          { type: 'SELECT' },
-        );
-        updatedAt = maxCreatedAtResult.max;
+          { type: QueryTypes.SELECT },
+        )) as unknown as [Array<{ max: Date }>, unknown];
+        updatedAt = maxCreatedAtResults[0].max;
       }
     }
 
@@ -123,6 +130,33 @@ export class DatabaseCleanService {
       rowCount,
       createdAt,
       updatedAt,
+    };
+  }
+
+  /**
+   * 清理符合筛选条件的数据
+   */
+  async cleanData(options: CleanOptions): Promise<{ deletedCount: number }> {
+    const { collectionName, filter } = options;
+
+    const collection = this.app.db.getCollection(collectionName);
+    if (!collection) {
+      throw new Error(`Collection ${collectionName} not found`);
+    }
+
+    if (!WHITELIST_TABLES.includes(collectionName)) {
+      throw new Error(`Collection ${collectionName} is not in whitelist`);
+    }
+
+    const repository = this.app.db.getRepository(collectionName);
+
+    // 使用 repository.destroy 进行删除
+    const result = await repository.destroy({
+      filter: filter || {},
+    });
+
+    return {
+      deletedCount: result,
     };
   }
 }

@@ -81,7 +81,7 @@ export class FilteredBackupService {
 
     // @ts-ignore
     const attributes = collection.model.tableAttributes;
-    const columns: string[] = [...new Set(lodash.map(attributes, 'field'))];
+    const columns: string[] = [...new Set(lodash.map(attributes, 'field') as string[])];
 
     // 构建 WHERE 条件
     const whereConditions: string[] = [];

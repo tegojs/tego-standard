@@ -4,8 +4,7 @@ import path from 'node:path';
 import { Context, DEFAULT_PAGE, DEFAULT_PER_PAGE, Next } from '@tego/server';
 
 import { WHITELIST_TABLES } from '../constants';
-import { CleanService } from '../services/clean-service';
-import { DatabaseCleanService } from '../services/database-clean-service';
+import { DatabaseService } from '../services/database-service';
 import { BackupFilter, FilteredBackupService } from '../services/filtered-backup-service';
 import { FileLock } from '../utils/lock';
 
@@ -18,7 +17,7 @@ export default {
     async list(ctx: Context, next: Next) {
       const { page = DEFAULT_PAGE, pageSize = DEFAULT_PER_PAGE, sort } = ctx.action.params;
 
-      const service = new DatabaseCleanService(ctx.app);
+      const service = new DatabaseService(ctx.app);
       const tables = await service.getWhitelistTables();
 
       // 排序（默认按 updatedAt 倒序，如果没有则按 createdAt）
@@ -70,7 +69,7 @@ export default {
         return;
       }
 
-      const service = new DatabaseCleanService(ctx.app);
+      const service = new DatabaseService(ctx.app);
       const tableInfo = await service.getTableInfo(filterByTk);
 
       ctx.body = {
@@ -130,7 +129,7 @@ export default {
      * 备份数据
      */
     async backup(ctx: Context, next: Next) {
-      const { collectionName, filter } = ctx.request.body as {
+      const { collectionName, filter } = ctx.action.params.values as {
         collectionName: string;
         filter?: BackupFilter;
       };
@@ -185,7 +184,7 @@ export default {
      * 清理数据
      */
     async clean(ctx: Context, next: Next) {
-      const { collectionName, filter } = ctx.request.body as {
+      const { collectionName, filter } = ctx.action.params.values as {
         collectionName: string;
         filter?: any;
       };
@@ -215,7 +214,7 @@ export default {
       }
 
       try {
-        const cleanService = new CleanService(ctx.app);
+        const cleanService = new DatabaseService(ctx.app);
         const result = await cleanService.cleanData({
           collectionName,
           filter,

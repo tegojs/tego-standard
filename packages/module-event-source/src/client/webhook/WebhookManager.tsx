@@ -53,6 +53,7 @@ import { useWebhookCategoryContext, WebhookCategoryContext } from '../provider/W
 import { dispatchers } from './collections/dispatchers';
 import { webhookCategories } from './collections/webhookCategories';
 import { AddWebhookCategory } from './components/AddWebhookCategory';
+import { ColumnExecutedTime } from './components/ColumnExecutedTime';
 import { EditWebhookCategory } from './components/EditWebookCategory';
 import { TypeContainer } from './components/TypeContainer';
 
@@ -927,6 +928,27 @@ const schema: ISchema = {
                 },
               },
             },
+            executedTime: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Finally executed on'),
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                executedTime: {
+                  type: 'string',
+                  'x-component': 'ColumnExecutedTime',
+                },
+              },
+            },
             effectColumn: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
@@ -1092,6 +1114,7 @@ export const WebhookManager = () => {
           TypeContainer,
           AddWebhookCategory,
           EditWebhookCategory,
+          ColumnExecutedTime,
         }}
       />
     </ExtendCollectionsProvider>

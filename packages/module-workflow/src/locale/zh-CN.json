@@ -165,6 +165,8 @@
   "Everyone should pass": "每个人通过才通过",
   "Exactly at": "当时",
   "Execute a SQL statement in database.": "在数据库中执行一个 SQL 语句",
+  "Execute empty test": "执行空测试",
+  "Execute ended": "执行结束",
   "Execute mode": "执行模式",
   "Execute successfully": "执行成功",
   "Execute workflow asynchronously or synchronously based on trigger type, and could not be changed after created.": "基于触发类型异步或同步执行工作流，创建后不可更改。",
@@ -321,6 +323,8 @@
   "Separately": "分别处理",
   "Sequentially": "顺序",
   "Show Notice Detail": "显示通知详情",
+  "Show execution history": "显示执行历史",
+
   "Some node meets error.": "某个节点出错。",
   "Start": "开始",
   "Started and executing, maybe waiting for an async callback (manual, delay etc.).": "已开始执行，可能在等待异步回调（人工、延时等）。",

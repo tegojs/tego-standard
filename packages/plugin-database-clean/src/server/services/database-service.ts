@@ -78,18 +78,26 @@ export class DatabaseService {
     const tableName = collection.model.tableName;
 
     // 获取表大小（包括索引）
-    const [sizeResults] = (await this.app.db.sequelize.query(
+    const sizeResults = (await this.app.db.sequelize.query(
       `SELECT pg_total_relation_size('${schema}."${tableName}"') as pg_total_relation_size`,
       { type: QueryTypes.SELECT },
-    )) as unknown as [Array<{ pg_total_relation_size: string }>, unknown];
-    const size = parseInt(sizeResults[0].pg_total_relation_size, 10);
+    )) as Array<{ pg_total_relation_size: string | number }>;
+
+    if (!sizeResults || sizeResults.length === 0 || !sizeResults[0]) {
+      throw new Error(`Failed to get table size for ${tableName}`);
+    }
+    const size = parseInt(String(sizeResults[0].pg_total_relation_size), 10) || 0;
 
     // 获取行数
-    const [countResults] = (await this.app.db.sequelize.query(
+    const countResults = (await this.app.db.sequelize.query(
       `SELECT COUNT(*) as count FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
       { type: QueryTypes.SELECT },
-    )) as unknown as [Array<{ count: string }>, unknown];
-    const rowCount = parseInt(countResults[0].count, 10);
+    )) as Array<{ count: string | number }>;
+
+    if (!countResults || countResults.length === 0 || !countResults[0]) {
+      throw new Error(`Failed to get row count for ${tableName}`);
+    }
+    const rowCount = parseInt(String(countResults[0].count), 10) || 0;
 
     // 获取创建时间和更新时间
     let createdAt: Date | null = null;
@@ -100,26 +108,32 @@ export class DatabaseService {
       const hasUpdatedAt = collection.hasField('updatedAt');
 
       if (hasCreatedAt) {
-        const [createdAtResults] = (await this.app.db.sequelize.query(
+        const createdAtResults = (await this.app.db.sequelize.query(
           `SELECT MIN("createdAt") as min FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
           { type: QueryTypes.SELECT },
-        )) as unknown as [Array<{ min: Date }>, unknown];
-        createdAt = createdAtResults[0].min;
+        )) as Array<{ min: Date | null }>;
+        if (createdAtResults && createdAtResults.length > 0 && createdAtResults[0]) {
+          createdAt = createdAtResults[0].min;
+        }
       }
 
       if (hasUpdatedAt) {
-        const [updatedAtResults] = (await this.app.db.sequelize.query(
+        const updatedAtResults = (await this.app.db.sequelize.query(
           `SELECT MAX("updatedAt") as max FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
           { type: QueryTypes.SELECT },
-        )) as unknown as [Array<{ max: Date }>, unknown];
-        updatedAt = updatedAtResults[0].max;
+        )) as Array<{ max: Date | null }>;
+        if (updatedAtResults && updatedAtResults.length > 0 && updatedAtResults[0]) {
+          updatedAt = updatedAtResults[0].max;
+        }
       } else if (hasCreatedAt) {
         // 如果没有 updatedAt，使用 createdAt 的最大值
-        const [maxCreatedAtResults] = (await this.app.db.sequelize.query(
+        const maxCreatedAtResults = (await this.app.db.sequelize.query(
           `SELECT MAX("createdAt") as max FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
           { type: QueryTypes.SELECT },
-        )) as unknown as [Array<{ max: Date }>, unknown];
-        updatedAt = maxCreatedAtResults[0].max;
+        )) as Array<{ max: Date | null }>;
+        if (maxCreatedAtResults && maxCreatedAtResults.length > 0 && maxCreatedAtResults[0]) {
+          updatedAt = maxCreatedAtResults[0].max;
+        }
       }
     }
 

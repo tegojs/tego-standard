@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import { saveAs } from 'file-saver';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { useDatabaseCleanTranslation } from './locale';
+import { useTranslation } from '../locale';
 
 interface TableInfo {
   name: string;
@@ -26,7 +26,7 @@ interface FilterState {
 }
 
 export const TableDetail = () => {
-  const { t } = useDatabaseCleanTranslation();
+  const { t } = useTranslation();
   const apiClient = useAPIClient();
   const navigate = useNavigate();
   const location = useLocation();

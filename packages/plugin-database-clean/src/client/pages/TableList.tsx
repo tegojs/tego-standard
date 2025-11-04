@@ -3,9 +3,10 @@ import { DatePicker, useAPIClient } from '@tachybase/client';
 
 import { ReloadOutlined } from '@ant-design/icons';
 import { App, Button, Card, message, Space, Table } from 'antd';
+import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
-import { useDatabaseCleanTranslation } from './locale';
+import { useTranslation } from '../locale';
 
 interface TableInfo {
   name: string;
@@ -28,7 +29,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export const TableList = () => {
-  const { t } = useDatabaseCleanTranslation();
+  const { t } = useTranslation();
   const apiClient = useAPIClient();
   const navigate = useNavigate();
   const [dataSource, setDataSource] = useState<TableInfo[]>([]);
@@ -116,13 +117,13 @@ export const TableList = () => {
       title: t('Created At'),
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (value: Date | null) => (value ? <DatePicker.ReadPretty value={value} showTime /> : '-'),
+      render: (value: Date | null) => (value ? <DatePicker.ReadPretty value={dayjs(value)} showTime /> : '-'),
     },
     {
       title: t('Updated At'),
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      render: (value: Date | null) => (value ? <DatePicker.ReadPretty value={value} showTime /> : '-'),
+      render: (value: Date | null) => (value ? <DatePicker.ReadPretty value={dayjs(value)} showTime /> : '-'),
     },
   ];
 

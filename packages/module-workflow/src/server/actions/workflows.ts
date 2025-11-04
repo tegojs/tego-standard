@@ -1,6 +1,5 @@
 import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 
-import { execution } from '../../../../plugin-workflow-approval/src/client/user-interface/h5/todos/interface/interface';
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
 

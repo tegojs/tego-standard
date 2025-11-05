@@ -19,8 +19,13 @@ export const ApprovalsSummary = (props) => {
   const results = Object.entries(value).map(([key, objValue]) => {
     const field = cm.getCollectionField(`${collectionName}.${key}`);
     const realValue = Object.prototype.toString.call(objValue) === '[object Object]' ? objValue?.['name'] : objValue;
-    // 如果是UTC时间字符串, 则转换为本地时区时间
-    if (isUTCString(realValue)) {
+    if (Array.isArray(realValue)) {
+      return {
+        label: compile(field?.uiSchema?.title || key),
+        value: realValue.map((item) => item.value),
+      };
+    } else if (isUTCString(realValue)) {
+      // 如果是UTC时间字符串, 则转换为本地时区时间
       return {
         label: compile(field?.uiSchema?.title || key),
         value: convertUTCToLocal(realValue),

@@ -7,3 +7,9 @@ export const NAMESPACE = 'workflow-approval';
 
 export const PLUGIN_NAME_APPROVAL = 'approval';
 export const INSTRUCTION_TYPE_NAME_APPROVAL = 'approval';
+
+export const SUMMARY_TYPE = {
+  STRING: 'string',
+  DATE: 'date',
+  ARRAY: 'array',
+} as const;

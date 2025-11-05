@@ -1,8 +1,8 @@
 import { useCollectionManager, useCollectionRecordData, useCompile } from '@tachybase/client';
 import { convertUTCToLocal } from '@tego/client';
 
+import { isUTCString } from '../../../../../common/utils';
 import useStyles from '../style';
-import { isUTCString } from '../utils';
 
 export const ApprovalsSummary = (props) => {
   const record = useCollectionRecordData();

@@ -41,9 +41,9 @@ export default class ApprovalTrigger extends Trigger {
       return;
     }
     const [dataSourceName, collectionName] = parseCollectionName(approval.collectionName);
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
+    const { repository } = collection;
     const data = await repository.findOne({
       filterByTk: approval.get('dataKey'),
       appends: workflow.config.appends,
@@ -58,6 +58,8 @@ export default class ApprovalTrigger extends Trigger {
         summary: getSummary({
           summaryConfig: workflow.config.summary,
           data,
+          collection: collection as any, // Fix: type assertion to bypass typing error
+          app: this.workflow.app,
         }),
         collectionName: approval.collectionName,
       },
@@ -223,6 +225,8 @@ export default class ApprovalTrigger extends Trigger {
           summary: getSummary({
             summaryConfig: workflow.config.summary,
             data,
+            collection: collecton as any, // Fix: type assertion to bypass typing error
+            app: this.workflow.app,
           }),
         },
         context,
@@ -294,6 +298,8 @@ export default class ApprovalTrigger extends Trigger {
             summary: getSummary({
               summaryConfig: workflow.config.summary,
               data: dataCurrent,
+              collection,
+              app: context.app,
             }),
           },
           context,

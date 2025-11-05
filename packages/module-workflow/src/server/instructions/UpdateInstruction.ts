@@ -9,6 +9,7 @@ import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
+import { toJSON } from '../utils';
 
 export class UpdateInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
@@ -193,7 +194,10 @@ export class UpdateInstruction extends Instruction {
     });
 
     return {
-      result: result.length ?? result,
+      result: {
+        length: result?.length ?? result,
+        data: toJSON(result) ?? [],
+      },
       status: JOB_STATUS.RESOLVED,
     };
   }

@@ -90,11 +90,11 @@ export async function retry(context: Context, next: Next) {
   try {
     const result = await plugin.trigger(workflow, execution.context, { httpContext: context });
     context.app.logger.info(result);
-    context.state.messages.push({ message: 'Execute successfully' });
+    context.state.messages.push({ message: context.t('Execute ended', { ns: 'workflow' }) });
     context.body = { executionId: execution.id };
   } catch (error) {
     context.app.logger.error(`Failed to retry execution ${execution.id}: ${error.message}`);
-    context.throw(500, 'Failed to retry execution');
+    context.throw(500, context.t('Failed to retry execution', { ns: 'workflow' }));
   }
 
   await next();

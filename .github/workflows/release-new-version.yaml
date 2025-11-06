@@ -77,11 +77,32 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - name: Checkout with tag
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          ref: v${{ needs.release.outputs.version }}  # 直接检出发布标签
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Checkout release tag
+        run: |
+          version="${{ needs.release.outputs.version }}"
+          tag="v${version}"
+          echo "Checking out tag: $tag"
+
+          # 配置 git 使用 token 进行认证
+          token="${{ secrets.PAT || secrets.GITHUB_TOKEN }}"
+          git config --global url."https://${token}@github.com/".insteadOf "https://github.com/"
+
+          # 先 fetch 特定的 tag，避免 fetch 所有 tags
+          git fetch origin "refs/tags/${tag}:refs/tags/${tag}" || {
+            echo "Tag ${tag} not found, waiting a moment and retrying..."
+            sleep 5
+            git fetch origin "refs/tags/${tag}:refs/tags/${tag}"
+          }
+          git checkout "refs/tags/${tag}"
+          echo "Successfully checked out tag: $tag"
 
       - uses: MOZGIII/install-ldid-action@v1
         with:

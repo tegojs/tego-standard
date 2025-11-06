@@ -6,6 +6,7 @@
   "scripts": {
     "prebuild": "node scripts/update-version-with-hash.mjs",
     "build": "tachybase build",
+    "postbuild": "node scripts/fix-esm-imports.mjs",
     "prebuild:p": "node scripts/update-version-with-hash.mjs",
     "build:p": "tachybase build -s --no-dts",
     "clean": "tachybase clean",

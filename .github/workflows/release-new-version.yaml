@@ -82,7 +82,7 @@ jobs:
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           ref: main
-          fetch-depth: 0
+          fetch-tags: false
           persist-credentials: true
 
       - name: Checkout release tag
@@ -96,11 +96,25 @@ jobs:
           git config --global url."https://${token}@github.com/".insteadOf "https://github.com/"
 
           # 先 fetch 特定的 tag，避免 fetch 所有 tags
-          git fetch origin "refs/tags/${tag}:refs/tags/${tag}" || {
-            echo "Tag ${tag} not found, waiting a moment and retrying..."
-            sleep 5
-            git fetch origin "refs/tags/${tag}:refs/tags/${tag}"
-          }
+          max_retries=3
+          retry_count=0
+
+          while [ $retry_count -lt $max_retries ]; do
+            if git fetch origin "refs/tags/${tag}:refs/tags/${tag}"; then
+              echo "Successfully fetched tag: $tag"
+              break
+            else
+              retry_count=$((retry_count + 1))
+              if [ $retry_count -lt $max_retries ]; then
+                echo "Tag ${tag} not found, waiting 5 seconds before retry ($retry_count/$max_retries)..."
+                sleep 5
+              else
+                echo "Failed to fetch tag ${tag} after $max_retries attempts"
+                exit 1
+              fi
+            fi
+          done
+
           git checkout "refs/tags/${tag}"
           echo "Successfully checked out tag: $tag"
 

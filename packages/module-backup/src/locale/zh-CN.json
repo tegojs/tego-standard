@@ -18,6 +18,7 @@
   "By week": "按周",
   "Cancel": "取消",
   "Check all": "全选",
+  "Check common": "选择常用",
   "Click or drag file to this area to upload": "点击或拖拽文件至此区域即可上传",
   "Configuration": "配置",
   "Days": "天",
@@ -81,6 +82,6 @@
   "unknown.title": "未知数据",
   "user.description": "用户数据",
   "user.title": "用户数据",
-  "workflow.description": "工作流数据",
-  "workflow.title": "工作流数据"
+  "workflow.description": "工作流执行记录",
+  "workflow.title": "工作流执行记录"
 }

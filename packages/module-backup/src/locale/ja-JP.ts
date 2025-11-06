@@ -9,6 +9,7 @@ export default {
   'Select the data to be backed up': 'バックアップされたデータの選択',
   'Select the data to be restored': 'リストアされたデータの選択',
   'Learn more': '詳細',
+  'Check common': '共通データの選択',
   'Start backup': 'バックアップの開始',
   'Start restore': 'リストアを開始',
   'Backed up successfully': 'バックアップ成功',
@@ -21,6 +22,6 @@ export default {
   'New backup': '新規バックアップ',
   Origin: 'ソース',
   'Backing up': 'バックアップ中',
-  'workflow.title': 'ワークフローデータ',
-  'workflow.description': 'ワークフローデータ',
+  'workflow.title': 'ワークフロー実行レコード',
+  'workflow.description': 'ワークフロー実行レコード',
 };

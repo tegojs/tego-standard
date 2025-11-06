@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Checkbox, DatePicker, useAPIClient, useCompile, useNoticeSub } from '@tachybase/client';
+import { FormItem } from '@tego/client';
 
 import { InboxOutlined, LoadingOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
-import { FormItem } from '@tego/client';
 import {
   Alert,
   App,
@@ -270,6 +270,7 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
   const apiClient = useAPIClient();
   const { notification } = App.useApp();
   const [dataSource, setDataSource] = useState([]);
+  const commonTypes = ['required', 'user', 'third-party', 'custom'];
 
   const indeterminate =
     dataTypes.length > 0 && dataTypes.length < dataSource.filter((item) => item.value !== 'skipped').length;
@@ -281,6 +282,42 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
       e.target.checked ? dataSource.filter((item) => item.value !== 'skipped').map((item) => item.value) : ['required'],
     );
   };
+
+  const onCheckCommonChange: CheckboxProps['onChange'] = (e) => {
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    if (e.target.checked) {
+      // 选择常用时，保留 required，并添加常用类型
+      const newDataTypes = [...new Set([...dataTypes.filter((type) => type === 'required'), ...availableCommonTypes])];
+      setBackupData(newDataTypes);
+    } else {
+      // 取消选择常用时，只保留 required
+      setBackupData(['required']);
+    }
+  };
+
+  const isCommonChecked = useMemo(() => {
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    const selectedCommonTypes = availableCommonTypes.filter((type) => dataTypes.includes(type));
+    // 检查：所有常用类型都被选中，且没有其他非常用类型（除了 required）被选中
+    const otherTypes = dataTypes.filter((type) => type !== 'required' && !availableCommonTypes.includes(type));
+    return (
+      availableCommonTypes.length > 0 &&
+      selectedCommonTypes.length === availableCommonTypes.length &&
+      otherTypes.length === 0
+    );
+  }, [dataTypes, dataSource]);
+
+  const isCommonIndeterminate = useMemo(() => {
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    const selectedCommonTypes = availableCommonTypes.filter((type) => dataTypes.includes(type));
+    return selectedCommonTypes.length > 0 && selectedCommonTypes.length < availableCommonTypes.length;
+  }, [dataTypes, dataSource]);
 
   const showModal = async () => {
     const { data } = await apiClient.resource('backupFiles').dumpableCollections();
@@ -378,9 +415,14 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
             value={dataTypes}
           />
           <Divider />
-          <Checkbox indeterminate={indeterminate} onChange={onCheckAllChange} checked={checkAll}>
-            {t('Check all')}
-          </Checkbox>
+          <Space>
+            <Checkbox indeterminate={isCommonIndeterminate} onChange={onCheckCommonChange} checked={isCommonChecked}>
+              {t('Check common')}
+            </Checkbox>
+            <Checkbox indeterminate={indeterminate} onChange={onCheckAllChange} checked={checkAll}>
+              {t('Check all')}
+            </Checkbox>
+          </Space>
         </div>
       </Modal>
     </>

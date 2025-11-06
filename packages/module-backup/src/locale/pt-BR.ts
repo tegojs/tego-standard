@@ -13,6 +13,7 @@ const locale = {
   'Start backup': 'Iniciar a cópia de segurança',
   'Backed up successfully': 'Cópia de segurança bem sucedida',
   Plugin: 'Plugins',
+  'Check common': 'Selecionar dados comuns',
   'file uploaded successfully': 'O ficheiro foi enviado com sucesso',
   'file upload failed': 'O envio do ficheiro falhou',
   Download: 'download',
@@ -22,8 +23,8 @@ const locale = {
   'New backup': 'Nova Cópia de Segurança',
   Origin: 'fonte',
   'Backing up': 'Cópia de segurança em curso',
-  'workflow.title': 'Dados do fluxo de trabalho',
-  'workflow.description': 'Dados do fluxo de trabalho',
+  'workflow.title': 'Registros de execução do fluxo de trabalho',
+  'workflow.description': 'Registros de execução do fluxo de trabalho',
 };
 
 export default locale;

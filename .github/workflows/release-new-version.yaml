@@ -13,7 +13,6 @@ on:
           - minor
           - major
 
-# TODO：去除统一的版本更新逻辑
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -28,33 +27,48 @@ jobs:
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           ref: main
+          fetch-depth: 0  # 获取完整历史，便于标签操作
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20.18.0
-      - name: Do major version release
+          cache: 'pnpm'
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Do version release
         id: do_version
         run: |
           bump="${{ github.event.inputs.bump }}"
-          if [ "$bump" = "major" ]; then
-            pnpm -r exec -- npm version major
-            version=$(npm version major --no-git-tag-version)
-          elif [ "$bump" = "minor" ]; then
-            pnpm -r exec -- npm version minor
-            version=$(npm version minor --no-git-tag-version)
-          else
-            pnpm -r exec -- npm version patch
-            version=$(npm version patch --no-git-tag-version)
-          fi
-          echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Commit
+          if [ "$bump" = "major" ]; then
+            pnpm -r version major --no-git-tag-version
+            version=$(node -p "require('./package.json').version")
+          elif [ "$bump" = "minor" ]; then
+            pnpm -r version minor --no-git-tag-version
+            version=$(node -p "require('./package.json').version")
+          else
+            pnpm -r version patch --no-git-tag-version
+            version=$(node -p "require('./package.json').version")
+          fi
+
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "New version: $version"
+
+      - name: Commit version changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          tagging_message: ${{ steps.do_version.outputs.version }}
-          commit_message: "chore(version): release ${{ steps.do_version.outputs.version }}"
+          commit_message: "chore(release): v${{ steps.do_version.outputs.version }}"
+          tagging_message: "v${{ steps.do_version.outputs.version }}"
+          tag: "v${{ steps.do_version.outputs.version }}"
+          push_options: "--follow-tags"
 
   publish:
     needs: release
@@ -63,30 +77,39 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - name: Checkout
+      - name: Checkout with tag
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          ref: main
+          ref: v${{ needs.release.outputs.version }}  # 直接检出发布标签
+
       - uses: MOZGIII/install-ldid-action@v1
         with:
           tag: v2.1.5-procursus7
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Install deps
         run: pnpm install
+
       - name: Build
         run: pnpm build
-      - name: Publish
+
+      - name: Verify version
+        run: |
+          echo "Publishing version: $(node -p "require('./package.json').version")"
+          echo "Expected version: ${{ needs.release.outputs.version }}"
+
+      - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
           pnpm -r publish --provenance --access public --no-git-checks
-

@@ -178,6 +178,10 @@ const properties = {
     },
     'x-collection-field': 'webhooks.effectConfig',
   },
+  description: {
+    'x-component': 'CollectionField',
+    'x-decorator': 'FormItem',
+  },
 };
 
 const createForm: ISchema = {
@@ -972,6 +976,18 @@ const schema: ISchema = {
                       display: 'none',
                     },
                   },
+                },
+              },
+            },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-read-pretty': true,
                 },
               },
             },

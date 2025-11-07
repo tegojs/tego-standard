@@ -9,7 +9,8 @@ export const PLUGIN_NAME_APPROVAL = 'approval';
 export const INSTRUCTION_TYPE_NAME_APPROVAL = 'approval';
 
 export const SUMMARY_TYPE = {
-  STRING: 'string',
-  DATE: 'date',
-  ARRAY: 'array',
+  LITERAL: 'literal', // 单个值
+  TABLE: 'table', // 表格
+  DATE: 'date', // 日期
+  ARRAY: 'array', // 数组
 } as const;

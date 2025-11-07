@@ -88,4 +88,16 @@ export default defineConfig({
       'react-i18next': require.resolve('react-i18next'),
     },
   },
+  tools: {
+    rspack: (config) => {
+      if (!config.resolve) {
+        config.resolve = {};
+      }
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        worker_threads: false,
+      };
+      return config;
+    },
+  },
 });

@@ -1,8 +1,38 @@
 import { useCollectionManager, useCollectionRecordData, useCompile } from '@tachybase/client';
 import { convertUTCToLocal } from '@tego/client';
 
+import { SUMMARY_TYPE } from '../../../../../common/constants';
+import { type SummaryDataSourceItem } from '../../../../../common/interface';
 import { isUTCString } from '../../../../../common/utils';
 import useStyles from '../style';
+
+const demoValueList: SummaryDataSourceItem[] = [
+  {
+    key: 'name',
+    label: 'Name',
+    type: SUMMARY_TYPE.STRING,
+    value: 'John Doe',
+  },
+  {
+    key: 'age',
+    label: 'Age',
+    type: SUMMARY_TYPE.ARRAY,
+    value: [
+      {
+        key: 'name',
+        label: 'Name',
+        type: SUMMARY_TYPE.STRING,
+        value: 'John Doe',
+      },
+      {
+        key: 'name',
+        label: 'Name',
+        type: SUMMARY_TYPE.STRING,
+        value: 'John Doe',
+      },
+    ],
+  },
+];
 
 export const ApprovalsSummary = (props) => {
   const record = useCollectionRecordData();
@@ -10,7 +40,7 @@ export const ApprovalsSummary = (props) => {
   const compile = useCompile();
   const { styles } = useStyles();
 
-  const { value = {} } = props;
+  const { value = [] as SummaryDataSourceItem[] | object } = props;
   console.log('%c Line:14 🥐 value', 'font-size:18px;color:#42b983;background:#f5ce50', value);
   const isArrayValue = Array.isArray(value);
 

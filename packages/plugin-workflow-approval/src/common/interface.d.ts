@@ -6,6 +6,7 @@ export type SummaryType = (typeof SUMMARY_TYPE)[keyof typeof SUMMARY_TYPE];
 
 export interface SummaryDataSourceItem {
   key: string;
+  label: string;
   type: SummaryType;
   value: string | Array<SummaryDataSourceItem>;
 }

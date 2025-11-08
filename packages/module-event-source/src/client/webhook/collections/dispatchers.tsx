@@ -3,7 +3,7 @@ import { ISchema } from '@tachybase/schema';
 
 import { Tag, Typography } from 'antd';
 
-import { tval } from '../../locale';
+import { NAMESPACE, tval } from '../../locale';
 
 export function TriggerOptionRender({ data }) {
   const { label, color, options } = data;
@@ -48,6 +48,40 @@ export const dispatchers: CollectionOptions = {
         'x-component': 'Radio.Group',
         'x-decorator': 'FormItem',
         default: false,
+      } as ISchema,
+    },
+    {
+      type: 'belongsToMany',
+      name: 'category',
+      target: 'webhookCategories',
+      sourceKey: 'id',
+      foreignKey: 'webhookId',
+      otherKey: 'categoryId',
+      targetKey: 'id',
+      sortBy: 'sort',
+      through: 'webhookCategory',
+      collectionName: 'webhooks',
+      interface: 'm2m',
+      uiSchema: {
+        title: `{{t("webhook Category", { ns: "${NAMESPACE}" })}}`,
+        type: 'array',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            value: 'id',
+            label: 'name',
+          },
+        },
+      } as ISchema,
+    },
+    {
+      type: 'string',
+      name: 'description',
+      interface: 'textarea',
+      uiSchema: {
+        title: '{{t("Description")}}',
+        type: 'string',
+        'x-component': 'Input.TextArea',
       } as ISchema,
     },
     {

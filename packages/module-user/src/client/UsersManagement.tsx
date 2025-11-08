@@ -5,13 +5,18 @@ import { useUsersTranslation } from './locale';
 import { PasswordField } from './PasswordField';
 import { usersSchema } from './schemas/users';
 import { UserRolesField } from './UserRolesField';
+import { UserStatusField } from './UserStatusField';
 
 export const UsersManagement = () => {
   const { t } = useUsersTranslation();
   const scCtx = useSchemaComponentContext();
   return (
     <SchemaComponentContext.Provider value={{ ...scCtx, designable: false }}>
-      <SchemaComponent schema={usersSchema} scope={{ t }} components={{ UserRolesField, PasswordField }} />
+      <SchemaComponent
+        schema={usersSchema}
+        scope={{ t }}
+        components={{ UserRolesField, PasswordField, UserStatusField }}
+      />
     </SchemaComponentContext.Provider>
   );
 };

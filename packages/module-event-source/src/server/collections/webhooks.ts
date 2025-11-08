@@ -25,6 +25,21 @@ export default defineCollection({
       type: 'string',
     },
     {
+      type: 'belongsToMany',
+      name: 'category',
+      target: 'webhookCategories',
+      sourceKey: 'id',
+      foreignKey: 'webhookId',
+      otherKey: 'categoryId',
+      targetKey: 'id',
+      sortBy: 'sort',
+      through: 'webhookCategory',
+    },
+    {
+      type: 'text',
+      name: 'description',
+    },
+    {
       name: 'type', // code/plugin
       type: 'string',
     },

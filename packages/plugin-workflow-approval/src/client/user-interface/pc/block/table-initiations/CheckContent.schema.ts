@@ -2,6 +2,7 @@ import { NAMESPACE } from '../../../../locale';
 
 export const getSchemaCheckContent = (params) => {
   const { approval, workflow, needHideProcess } = params;
+
   return {
     name: `view-${approval?.id}`,
     type: 'void',
@@ -16,6 +17,11 @@ export const getSchemaCheckContent = (params) => {
               title: `{{t('Application content', { ns: '${NAMESPACE}' })}}`,
               'x-component': 'Tabs.TabPane',
               properties: {
+                approvalInfo: {
+                  type: 'void',
+                  'x-component': 'ApprovalCommon.ViewComponent.ApprovalInfo',
+                  'x-component-props': { approval },
+                },
                 detail: {
                   type: 'void',
                   'x-decorator': 'SchemaComponentContextProvider',

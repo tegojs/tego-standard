@@ -20,6 +20,7 @@ const createSchema = ({ record }) => {
           content: {
             type: 'void',
             'x-component': 'NoticeDetailContent',
+            'x-component-props': { record },
           },
         },
       },

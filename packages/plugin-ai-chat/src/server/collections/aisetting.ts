@@ -1,6 +1,9 @@
 import { CollectionOptions } from '@tego/server';
 
 export default {
+  dumpRules: {
+    group: 'required',
+  },
   name: 'aisettings',
   shared: true,
   createdAt: false,

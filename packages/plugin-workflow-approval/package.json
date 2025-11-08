@@ -27,7 +27,7 @@
     "file-saver": "^2.0.5",
     "jsonata": "^2.0.6",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0",
+    "react-i18next": "16.2.1",
     "react-router-dom": "6.28.1",
     "sequelize": "^6.37.5"
   },

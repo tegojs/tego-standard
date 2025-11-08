@@ -12,7 +12,7 @@
   "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
-    "@ctrl/tinycolor": "^3.6.1",
+    "@ctrl/tinycolor": "^4.2.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "*",
     "@tachybase/test": "*",
@@ -20,7 +20,7 @@
     "@tego/server": "*",
     "antd": "5.22.5",
     "lodash": "4.17.21",
-    "react-i18next": "15.2.0"
+    "react-i18next": "16.2.1"
   },
   "description.zh-CN": "提供甘特图卡片。",
   "displayName.zh-CN": "卡片：甘特图"

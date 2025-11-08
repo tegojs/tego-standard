@@ -41,12 +41,12 @@ import { ColumnFieldProvider } from './components/ColumnFieldProvider';
 import { useStyles } from './Table.styles';
 import { extractIndex, isCollectionFieldComponent, isColumnComponent } from './utils';
 
-const useArrayField = (props) => {
+export const useArrayField = (props) => {
   const field = useField<ArrayField>();
   return (props.field || field) as ArrayField;
 };
 
-const useTableColumns = (props: { showDel?: boolean; isSubTable?: boolean; setFieldValue?: any }) => {
+export const useTableColumns = (props: { showDel?: boolean; isSubTable?: boolean; setFieldValue?: any }) => {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const field = useArrayField(props);
@@ -263,7 +263,7 @@ export const Table: any = withDynamicSchemaProps(
       const { pagination: pagination2, ...others2 } = useProps?.() || {};
 
       const {
-        dragSort = false,
+        dragSort: tableDragSort,
         showIndex = true,
         onRowSelectionChange,
         onChange: onTableChange,
@@ -288,6 +288,7 @@ export const Table: any = withDynamicSchemaProps(
       const [selectedRow, setSelectedRow] = useState([]);
       const dataSource = field?.value?.slice?.()?.filter?.(Boolean) || [];
       const isRowSelect = rowSelection?.type !== 'none';
+      const dragSort = tableDragSort || field.componentProps.dragSort || false;
       const defaultRowKeyMap = useRef(new Map());
       let onRow = null,
         highlightRow = '';

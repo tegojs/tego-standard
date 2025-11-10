@@ -1,4 +1,16 @@
-import React, { lazy, Profiler, Suspense, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  lazy,
+  memo,
+  Profiler,
+  startTransition,
+  Suspense,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   action,
   ArrayField,
@@ -257,6 +269,7 @@ export const SubTable: any = observer(
         selectedRows,
         setSelectedRows,
         collectionField,
+        dataSig,
       }),
       [
         field.componentProps?.fieldNames,
@@ -265,12 +278,13 @@ export const SubTable: any = observer(
         props?.onChange,
         selectedRows,
         collectionField,
+        dataSig,
       ],
     );
 
     const tabsProps = useMemo(
-      () => ({ ...props, fieldValue: fieldValueShadow, setFieldValue: setFieldValueShadow }),
-      [props, fieldValueShadow],
+      () => ({ fieldValue: fieldValueShadow, setFieldValue: setFieldValueShadow }),
+      [fieldValueShadow],
     );
 
     // -------- pagination 优化：传对象或 undefined --------
@@ -283,12 +297,14 @@ export const SubTable: any = observer(
 
     // -------- 新增按钮处理（抽象成函数，减少 footer 内联函数闭包创建） --------
     const handleAddNew = useCallback(() => {
-      action(() => {
-        field.value = field.value || [];
-        field.value.push(markRecordAsNew({}));
-        const next = [...field.value];
-        setFieldValueShadow(next);
-        field.onInput?.(next);
+      startTransition(() => {
+        action(() => {
+          const arr = field.value ?? [];
+          arr.push(markRecordAsNew({}));
+          field.value = arr; // 保持同引用
+          setFieldValueShadow(arr); // 不克隆
+          field.onInput?.(arr);
+        });
       });
     }, [field]);
 
@@ -313,31 +329,29 @@ export const SubTable: any = observer(
     const skeleton = phase === 0 && <div style={{ padding: 8, fontSize: 12, opacity: 0.55 }}>{t('Loading...')}</div>;
 
     // -------- Footer 渲染（避免匿名函数） --------
-    const renderFooter = useCallback(() => {
-      if (!field.editable) return null;
-      return (
-        <>
-          {field.componentProps?.allowAddnew !== false && (
-            <Button type="text" block className={styles.addNew} onClick={handleAddNew}>
-              {t('Add new')}
-            </Button>
-          )}
-          {field.componentProps?.allowSelectExistingRecord && (
-            <Button type="text" block className={styles.select} onClick={() => setSelectorVisible(true)}>
-              {t('Select')}
-            </Button>
-          )}
-        </>
-      );
-    }, [
-      field.editable,
-      field.componentProps?.allowAddnew,
-      field.componentProps?.allowSelectExistingRecord,
-      handleAddNew,
-      t,
-      styles.addNew,
-      styles.select,
-    ]);
+    const openSelector = useEvent(() => setSelectorVisible(true));
+    const footerNode = useMemo(
+      () => (
+        <SubTableFooter
+          allowAdd={field.componentProps?.allowAddnew !== false}
+          allowSelect={!!field.componentProps?.allowSelectExistingRecord}
+          onAdd={handleAddNew}
+          onSelect={openSelector}
+          styles={styles}
+          t={t}
+          editable={field.editable}
+        />
+      ),
+      [
+        field.componentProps?.allowAddnew,
+        field.componentProps?.allowSelectExistingRecord,
+        field.editable,
+        handleAddNew,
+        openSelector,
+        styles,
+        t,
+      ],
+    );
 
     const paginationProps = {
       pageSize: subTableField.componentProps?.pagination?.pageSize || 5,
@@ -378,7 +392,7 @@ export const SubTable: any = observer(
                   setFieldValue={setFieldValueShadow}
                   pagination={!!field.componentProps.pagination ? paginationProps : false}
                   rowSelection={{ type: 'none', hideSelectAll: true }}
-                  footer={renderFooter}
+                  footer={() => footerNode}
                   isSubTable
                   // phase<2 先给空数组占位，>=2 让 Table 自行读取 field.value 保持响应
                   dataSourceOverride={phase < 2 ? [] : undefined}
@@ -416,4 +430,50 @@ export const SubTable: any = observer(
     );
   },
   { displayName: 'SubTable' },
+);
+
+function useLatest<T>(v: T) {
+  const r = useRef(v);
+  useEffect(() => {
+    r.current = v;
+  }, [v]);
+  return r;
+}
+function useEvent<F extends (...a: any[]) => any>(fn: F | undefined) {
+  const ref = useLatest(fn);
+  return useCallback((...args: any[]) => ref.current?.(...args), []);
+}
+interface SubTableFooterProps {
+  allowAdd: boolean;
+  allowSelect: boolean;
+  onAdd: () => void;
+  onSelect: () => void;
+  styles: any;
+  t: (k: string) => string;
+  editable: boolean;
+}
+const SubTableFooter = memo(
+  ({ allowAdd, allowSelect, onAdd, onSelect, styles, t, editable }: SubTableFooterProps) => {
+    if (!editable) return null;
+    return (
+      <>
+        {allowAdd && (
+          <Button type="text" block className={styles.addNew} onClick={onAdd}>
+            {t('Add new')}
+          </Button>
+        )}
+        {allowSelect && (
+          <Button type="text" block className={styles.select} onClick={onSelect}>
+            {t('Select')}
+          </Button>
+        )}
+      </>
+    );
+  },
+  (p, n) =>
+    p.allowAdd === n.allowAdd &&
+    p.allowSelect === n.allowSelect &&
+    p.editable === n.editable &&
+    p.styles.addNew === n.styles.addNew &&
+    p.styles.select === n.styles.select,
 );

@@ -15,7 +15,6 @@ on:
 
 run-name: "Release New Version - Bump: ${{ github.event.inputs.bump || 'patch' }}"
 
-# TODO：去除统一的版本更新逻辑
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -30,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          ref: main
+          ref: ${{ github.ref }}
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node.js
@@ -57,6 +56,7 @@ jobs:
           fi
           echo "New version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
+          echo "::notice title=Version Updated::New version: $version"
 
       - name: Update workflow run name
         env:
@@ -108,38 +108,4 @@ jobs:
         with:
           tagging_message: ${{ steps.do_version.outputs.version }}
           commit_message: "chore(version): release ${{ steps.do_version.outputs.version }}"
-
-  publish:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          ref: refs/tags/${{ needs.release.outputs.version }}
-      - uses: MOZGIII/install-ldid-action@v1
-        with:
-          tag: v2.1.5-procursus7
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Install deps
-        run: pnpm install
-      - name: Build
-        run: pnpm build
-      - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          pnpm -r publish --provenance --access public --no-git-checks
 

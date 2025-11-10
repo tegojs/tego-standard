@@ -39,5 +39,5 @@ tsconfig.paths.json
 v8-compile-cache-**
 docs-repo-temp/
 
-# 构建时生成的版本文件，不应提交到 git
+# 构建时生成的临时版本文件，不应提交到 git
 .version.json

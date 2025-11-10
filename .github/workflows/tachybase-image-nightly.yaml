@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
         docker_tag:
-          description: 'The nightly Docker tag to publish (e.g., "20250317-{{tag}}", "latest")'
+          description: 'The nightly Docker tag to publish (e.g., "v1.0.1", "20250317-{{tag}}", "latest")'
           required: true
           default: 'latest'
 

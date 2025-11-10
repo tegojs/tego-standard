@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-block-comments",
   "displayName": "Comments",
-  "version": "1.4.1",
+  "version": "1.4.4",
   "description": "Comments",
   "keywords": [
     "Others"

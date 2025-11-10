@@ -1,3 +1,4 @@
+import { useContext } from 'react';
 import {
   RemoteSchemaComponent,
   SchemaComponent,
@@ -9,6 +10,7 @@ import { DetailsBlockProvider } from '@tachybase/module-workflow/client';
 import _ from 'lodash';
 
 import { FormBlockProvider } from '../../../../common/components/FormBlock.provider';
+import { ApprovalContext } from '../../common/ApprovalData.provider';
 import { SchemaComponentContextProvider } from '../common/providers/SchemaComponentContextProvider';
 import { getSchemaActionTodosContent } from './CheckContent.schema';
 import { useApprovalDetailBlockProps } from './hooks/useApprovalDetailBlockProps';
@@ -19,8 +21,9 @@ import { ApprovalActionProvider } from './providers/ApprovalAction.provider';
 import { ApprovalFormBlockProvider } from './providers/ApprovalFormBlock.provider';
 
 export const ViewCheckContent = (props) => {
+  const approval = useContext(ApprovalContext);
   const { id, node, actionEnabled } = props;
-  const schema = getSchemaActionTodosContent({ id, node, actionEnabled });
+  const schema = getSchemaActionTodosContent({ id, node, actionEnabled, approval });
 
   return (
     <SchemaComponent

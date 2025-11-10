@@ -10,9 +10,9 @@ import {
   useResourceContext,
   WorkflowSelect,
 } from '@tachybase/client';
+import { str2moment } from '@tego/client';
 
 import { DownOutlined, EllipsisOutlined, RightOutlined } from '@ant-design/icons';
-import { str2moment } from '@tego/client';
 import { App, Breadcrumb, Button, Dropdown, message, Modal, Result, Spin, Switch } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
@@ -91,7 +91,7 @@ export function WorkflowCanvas() {
 
   async function onRetry() {
     const {
-      data: { data: executionId },
+      data: { data: execution },
     } = await resource.retry({
       filterByTk: workflow.id,
       filter: {
@@ -99,7 +99,22 @@ export function WorkflowCanvas() {
       },
     });
 
-    navigate(getWorkflowExecutionsPath(executionId.executionId));
+    navigate(getWorkflowExecutionsPath(execution.id));
+  }
+
+  async function onTest() {
+    const {
+      data: { data: execution },
+    } = await resource.test({
+      filterByTk: workflow.id,
+      filter: {
+        key: workflow.key,
+      },
+      values: {
+        data: {},
+      },
+    });
+    navigate(getWorkflowExecutionsPath(execution.id));
   }
 
   async function onRevision() {
@@ -163,6 +178,8 @@ export function WorkflowCanvas() {
       case 'history':
         setVisible(true);
         return;
+      case 'test':
+        return onTest();
       case 'Retry':
         return onRetry();
       case 'revision':
@@ -255,8 +272,14 @@ export function WorkflowCanvas() {
                   role: 'button',
                   'aria-label': 'history',
                   key: 'history',
-                  label: lang('Execution history'),
+                  label: lang('Show execution history'),
                   disabled: !workflow.allExecuted,
+                },
+                {
+                  role: 'button',
+                  'aria-label': 'test',
+                  key: 'test',
+                  label: lang('Execute empty test'),
                 },
                 {
                   role: 'button',

@@ -7,6 +7,8 @@
   "Backup instructions": "백업 지침",
   "Basic Data": "기본 데이터",
   "Business data": "비즈니스 데이터",
+  "Check all": "전체 선택",
+  "Check common": "일반 선택",
   "Click or drag file to this area to upload": "여기를 클릭하거나 파일을 끌어다 이곳에 업로드하세요",
   "Configuration": "구성",
   "Delete": "삭제",
@@ -46,5 +48,7 @@
   "unknown.description": "백업 규칙이 설정되지 않은 데이터",
   "unknown.title": "알 수 없는 데이터",
   "user.description": "사용자 데이터",
-  "user.title": "사용자 데이터"
+  "user.title": "사용자 데이터",
+  "workflow.description": "워크플로우 실행 기록",
+  "workflow.title": "워크플로우 실행 기록"
 }

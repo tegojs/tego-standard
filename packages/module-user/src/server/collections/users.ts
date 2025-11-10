@@ -102,5 +102,108 @@ export default defineCollection({
       type: 'string',
       name: 'specialRole',
     },
+    {
+      type: 'string',
+      name: 'status',
+      defaultValue: 'active',
+      comment: '用户状态：active-正常, pending-待审核, locked-锁定, disabled-停用',
+      uiSchema: {
+        type: 'string',
+        title: '{{t("Status")}}',
+        'x-component': 'Select',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      type: 'date',
+      name: 'statusExpireAt',
+      comment: '状态过期时间，null表示永久',
+      uiSchema: {
+        type: 'string',
+        title: '{{t("Status Expire At")}}',
+        'x-component': 'DatePicker',
+        'x-component-props': {
+          showTime: true,
+        },
+      },
+    },
+    {
+      type: 'string',
+      name: 'previousStatus',
+      comment: '原状态，用于状态过期后自动恢复',
+      uiSchema: {
+        type: 'string',
+        title: '{{t("Previous Status")}}',
+        'x-component': 'Select',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      type: 'text',
+      name: 'statusReason',
+      comment: '状态变更原因说明',
+      uiSchema: {
+        type: 'string',
+        title: '{{t("Status Reason")}}',
+        'x-component': 'Input.TextArea',
+      },
+    },
+    {
+      type: 'belongsTo',
+      name: 'statusInfo',
+      target: 'userStatuses',
+      foreignKey: 'status',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      type: 'belongsTo',
+      name: 'previousStatusInfo',
+      target: 'userStatuses',
+      foreignKey: 'previousStatus',
+      targetKey: 'key',
+      uiSchema: {
+        type: 'object',
+        title: '{{t("Previous Status")}}',
+        'x-component': 'AssociationField',
+        'x-component-props': {
+          fieldNames: {
+            label: 'title',
+            value: 'key',
+          },
+        },
+      },
+    },
+    {
+      type: 'hasMany',
+      name: 'statusHistories',
+      target: 'userStatusHistories',
+      foreignKey: 'userId',
+      uiSchema: {
+        type: 'array',
+        title: '{{t("Status History")}}',
+        'x-component': 'AssociationField',
+      },
+    },
   ],
 });

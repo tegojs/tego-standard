@@ -12,16 +12,19 @@ const locale = {
   'Start restore': 'Iniciar a Restauração',
   'Start backup': 'Iniciar a cópia de segurança',
   'Backed up successfully': 'Cópia de segurança bem sucedida',
-  'Plugin':'Plugins',
+  Plugin: 'Plugins',
+  'Check common': 'Selecionar dados comuns',
   'file uploaded successfully': 'O ficheiro foi enviado com sucesso',
   'file upload failed': 'O envio do ficheiro falhou',
-  'Download':'download',
-  'Restore backup from local':'Restaurar a cópia de segurança localmente',
-  'Backup instructions':'Instruções de cópia de segurança',
-  'File size':'tamanho do ficheiro',
-  'New backup':'Nova Cópia de Segurança',
-  'Origin':'fonte',
-  'Backing up':'Cópia de segurança em curso'
+  Download: 'download',
+  'Restore backup from local': 'Restaurar a cópia de segurança localmente',
+  'Backup instructions': 'Instruções de cópia de segurança',
+  'File size': 'tamanho do ficheiro',
+  'New backup': 'Nova Cópia de Segurança',
+  Origin: 'fonte',
+  'Backing up': 'Cópia de segurança em curso',
+  'workflow.title': 'Registros de execução do fluxo de trabalho',
+  'workflow.description': 'Registros de execução do fluxo de trabalho',
 };
 
 export default locale;

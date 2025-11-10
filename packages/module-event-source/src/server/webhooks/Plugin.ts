@@ -2,6 +2,7 @@ import { Context, Gateway, Next, Plugin, Registry, WSServer } from '@tego/server
 
 import { EVENT_SOURCE_COLLECTION, EVENT_SOURCE_REALTIME } from '../constants';
 import { EventSourceModel } from '../model/EventSourceModel';
+import { WebhookCategories } from '../model/WebhookCategories';
 import { AppEventTrigger } from '../trigger/AppEventTrigger';
 import { CustomActionTrigger } from '../trigger/CustomctionTrigger';
 import { DatabaseEventTrigger } from '../trigger/DatabaseEventTrigger';
@@ -19,6 +20,7 @@ export class PluginWebhook extends Plugin {
   async beforeLoad() {
     this.app.db.registerModels({
       EventSourceModel: EventSourceModel,
+      WebhookCategories: WebhookCategories,
     });
   }
 
@@ -75,7 +77,7 @@ export class PluginWebhook extends Plugin {
 
     this.app.acl.registerSnippet({
       name: 'pm.business-components.event-source',
-      actions: ['webhooks:*', 'workflows:*'],
+      actions: ['webhooks:*', 'workflows:*', 'webhookCategories:*'],
     });
   }
 

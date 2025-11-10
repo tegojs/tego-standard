@@ -1,7 +1,7 @@
 import { NAMESPACE } from '../../../../locale';
 
 export const getSchemaActionTodosContent = (params) => {
-  const { id, node, actionEnabled } = params;
+  const { id, node, actionEnabled, approval } = params;
   return {
     name: `content-${id}`,
     type: 'void',
@@ -13,6 +13,11 @@ export const getSchemaActionTodosContent = (params) => {
           title: `{{t('Approval', { ns: '${NAMESPACE}' })}}`,
           'x-component': 'Tabs.TabPane',
           properties: {
+            approvalInfo: {
+              type: 'void',
+              'x-component': 'ApprovalCommon.ViewComponent.ApprovalInfo',
+              'x-component-props': { approval },
+            },
             detail: {
               type: 'void',
               'x-decorator': 'SchemaComponentContextProvider',

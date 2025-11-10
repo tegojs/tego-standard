@@ -263,7 +263,7 @@ export const Table: any = withDynamicSchemaProps(
       const { pagination: pagination2, ...others2 } = useProps?.() || {};
 
       const {
-        dragSort = false,
+        dragSort: tableDragSort,
         showIndex = true,
         onRowSelectionChange,
         onChange: onTableChange,
@@ -288,6 +288,7 @@ export const Table: any = withDynamicSchemaProps(
       const [selectedRow, setSelectedRow] = useState([]);
       const dataSource = field?.value?.slice?.()?.filter?.(Boolean) || [];
       const isRowSelect = rowSelection?.type !== 'none';
+      const dragSort = tableDragSort || field.componentProps.dragSort || false;
       const defaultRowKeyMap = useRef(new Map());
       let onRow = null,
         highlightRow = '';

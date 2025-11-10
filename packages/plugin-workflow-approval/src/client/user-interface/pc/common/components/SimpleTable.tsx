@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { useTranslation } from '../../../../locale';
+
 export interface SimpleTableColumn {
   key: string;
   title: string;
@@ -25,21 +27,9 @@ export interface SimpleTableProps {
  * 用于展示简单的表格数据，样式简洁，无额外依赖
  */
 export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSource, style, wrapperStyle }) => {
+  const { t } = useTranslation();
   return (
     <div style={{ marginBottom: 12, ...wrapperStyle }}>
-      {/* {title && (
-        <div
-          style={{
-            marginBottom: 8,
-            fontSize: 14,
-            fontWeight: 500,
-            color: '#333',
-            lineHeight: '20px',
-          }}
-        >
-          {title}
-        </div>
-      )} */}
       <table
         style={{
           width: '100%',
@@ -48,7 +38,25 @@ export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSo
           ...style,
         }}
       >
-        <thead>
+        <thead
+          style={{
+            backgroundColor: '#f5f5f5',
+            fontWeight: 'normal',
+            color: '#666',
+          }}
+        >
+          {title && (
+            <tr>
+              <th
+                colSpan={columns.length}
+                style={{
+                  textAlign: 'center',
+                }}
+              >
+                {title}
+              </th>
+            </tr>
+          )}
           <tr>
             {columns.map((column) => (
               <th
@@ -57,9 +65,6 @@ export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSo
                   padding: '4px 8px',
                   textAlign: 'left',
                   border: '1px solid #e8e8e8',
-                  backgroundColor: '#f5f5f5',
-                  fontWeight: 'normal',
-                  color: '#666',
                 }}
               >
                 {column.title}
@@ -79,7 +84,7 @@ export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSo
                   color: '#999',
                 }}
               >
-                暂无数据
+                {t('No data yet')}
               </td>
             </tr>
           ) : (

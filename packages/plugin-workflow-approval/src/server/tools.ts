@@ -17,6 +17,29 @@ import { isDateType } from '../common/utils';
 //   7: 'createdBy';
 // }
 
+export function getSummary(params: ParamsType): object {
+  const { summaryConfig = [], data, collection, app } = params;
+
+  const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
+
+  const result = summaryConfig.reduce((summary, key) => {
+    const value = _.get(data, key);
+    let realValue = value;
+    if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
+      // 优先获取关联表的 titleField 值
+      const fieldName = key.split('.')[0];
+      const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
+      realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
+    }
+    return {
+      ...summary,
+      [key]: realValue,
+    };
+  }, {});
+
+  return result;
+}
+
 // 获取关联表的 titleField 值
 function getAssociationTitleFieldValue(
   value: any,
@@ -82,171 +105,113 @@ function getAssociationTitleFieldValue(
   return titleValue !== undefined && titleValue !== null ? String(titleValue) : undefined;
 }
 
-function getValueType(value: any): SummaryType {
-  if (Array.isArray(value)) {
-    return SUMMARY_TYPE.ARRAY;
+// 获取字段的 label
+function getFieldLabel(key: string, collection?: Collection): string {
+  if (!collection) {
+    return key;
+  }
+  const field = collection.getField(key);
+  // 服务端可能没有 uiSchema，尝试获取 title 或其他属性
+  if (field) {
+    // 尝试从 uiSchema 获取 title
+    const uiSchema = (field as any).uiSchema;
+    if (uiSchema?.title) {
+      return uiSchema.title;
+    }
+    // 尝试从其他属性获取
+    if ((field as any).title) {
+      return (field as any).title;
+    }
+  }
+  return key;
+}
+
+// 处理单个值，返回字符串或数字
+function processValue(value: any, fieldName: string, collection?: Collection, app?: Application): string | number {
+  if (value === undefined || value === null) {
+    return '';
   }
 
   if (value instanceof Date || (typeof value.toDate === 'function' && value.toDate() instanceof Date)) {
-    return SUMMARY_TYPE.DATE;
+    // 处理日期类型，转换为 UTC 类型的日期字符串
+    const dateObj = value instanceof Date ? value : value.toDate();
+    return dateObj.toISOString();
   }
 
-  // 此时 value 可能是字面量,或者对象
-  return SUMMARY_TYPE.LITERAL;
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    // 对象：优先尝试获取关联表的 titleField 值
+    const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
+    if (titleFieldValue !== undefined) {
+      return titleFieldValue;
+    }
+    // 尝试获取 name 字段
+    if (value.name !== undefined) {
+      return String(value.name);
+    }
+    // 默认返回字符串化的对象
+    return JSON.stringify(value);
+  }
+
+  // 数字类型直接返回
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  return String(value);
 }
 
-// 辅助函数，递归处理点号分割的 key
+// 辅助函数，处理单个字段
 function getSummaryItem(key: string, data: object, collection?: Collection, app?: Application): SummaryDataSourceItem {
-  const pathParts = key.split('.');
-  let value: any = _.get(data, key);
-  let type: SummaryType = getValueType(value);
+  const value: any = _.get(data, key);
+  const label = getFieldLabel(key, collection);
 
-  if (type === SUMMARY_TYPE.LITERAL) {
-    // string 或 date，对象处理：优先尝试获取关联表的 titleField 值
-    let valStr: string;
-    if (value === undefined || value === null) {
-      valStr = '';
-    } else if (value instanceof Date || (typeof value.toDate === 'function' && value.toDate() instanceof Date)) {
-      // 处理日期类型，转换为 UTC 类型的日期字符串
-      const dateObj = value instanceof Date ? value : value.toDate();
-      // 赋值
-      valStr = dateObj.toISOString();
-    } else if (typeof value === 'object') {
-      // 获取 key 的第一部分（如果是嵌套路径，如 'foo.bar'，则取 'foo'）
-      const fieldName = key.split('.')[0];
-      const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
-      // 赋值
-      valStr = titleFieldValue !== undefined ? titleFieldValue : value.name !== undefined ? String(value.name) : 'N/A';
-    } else {
-      valStr = String(value);
-    }
-    // 判断是否是日期类型
-    const finalType = isDateType(valStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
+  if (value === undefined || value === null) {
     return {
       key,
-      label: key,
-      type: finalType,
-      value: valStr,
-    };
-  } else if (type === SUMMARY_TYPE.DATE) {
-    return {
-      key,
-      label: key,
-      type: SUMMARY_TYPE.DATE,
-      value: value,
-    };
-  } else if (type === SUMMARY_TYPE.ARRAY) {
-    // 遍历 value（数组），对每个元素递归处理余下 path
-    const arr: SummaryDataSourceItem[] = [];
-    // key like 'accountItemList.accounts'
-    const parentKey = pathParts.slice(0, -1).join('.');
-    const childKey = pathParts.slice(-1)[0];
-
-    // 如果 parentKey 存在, 则找到 array: _.get(data, parentKey)
-    // childKey 针对子元素
-    let arrData: any[] = value;
-    // 支持如 'accountItemList.accounts'
-    if (parentKey && _.get(data, parentKey) && Array.isArray(_.get(data, parentKey))) {
-      arrData = _.get(data, parentKey);
-      type = SUMMARY_TYPE.ARRAY;
-      arr.length = 0;
-      for (const item of arrData) {
-        const childVal = item[childKey];
-        if (Array.isArray(childVal)) {
-          // 例如 accountItemList.accounts: [{...}] 递归处理
-          arr.push(
-            ...childVal.map((child) => {
-              const childStr = String(child);
-              const childType = isDateType(childStr)
-                ? SUMMARY_TYPE.DATE
-                : Array.isArray(child)
-                  ? SUMMARY_TYPE.ARRAY
-                  : SUMMARY_TYPE.LITERAL;
-              return {
-                key,
-                label: key,
-                type: childType as SummaryType,
-                value: Array.isArray(child)
-                  ? child.map((x) => {
-                      const xStr = String(x);
-                      const xType = isDateType(xStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
-                      return {
-                        key,
-                        label: key,
-                        type: xType as SummaryType,
-                        value: xStr,
-                      };
-                    })
-                  : childStr,
-              };
-            }),
-          );
-        } else {
-          const childStr = String(childVal);
-          const childType =
-            typeof childVal === 'object' && Array.isArray(childVal)
-              ? SUMMARY_TYPE.ARRAY
-              : isDateType(childStr)
-                ? SUMMARY_TYPE.DATE
-                : SUMMARY_TYPE.LITERAL;
-          arr.push({
-            key: childKey,
-            label: childKey,
-            type: childType as SummaryType,
-            value:
-              typeof childVal === 'object' && Array.isArray(childVal)
-                ? childVal.map((v) => {
-                    const vStr = String(v);
-                    const vType = isDateType(vStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
-                    return {
-                      key: childKey,
-                      label: childKey,
-                      type: vType as SummaryType,
-                      value: vStr,
-                    };
-                  })
-                : childStr,
-          });
-        }
-      }
-    } else {
-      // 普通的数组 value
-      arr.push(
-        ...value.map((item: any, idx: number) => {
-          if (typeof item === 'object' && item !== null) {
-            // 对象：优先尝试获取关联表的 titleField 值
-            const titleFieldValue = getAssociationTitleFieldValue(item, key, collection, app);
-            const itemValue =
-              titleFieldValue !== undefined
-                ? titleFieldValue
-                : item.name !== undefined
-                  ? String(item.name)
-                  : JSON.stringify(item);
-            const itemType = isDateType(itemValue) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
-            return {
-              key: `${key}[${idx}]`,
-              type: itemType as SummaryType,
-              value: itemValue,
-            };
-          } else {
-            const itemStr = String(item);
-            const itemType = isDateType(itemStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
-            return {
-              key: `${key}[${idx}]`,
-              type: itemType as SummaryType,
-              value: itemStr,
-            };
-          }
-        }),
-      );
-    }
-    return {
-      key,
-      label: key,
-      type: SUMMARY_TYPE.ARRAY,
-      value: arr,
+      label,
+      type: SUMMARY_TYPE.LITERAL,
+      value: '',
     };
   }
+
+  // 判断类型
+  if (Array.isArray(value)) {
+    // 数组类型：处理数组中的每个元素
+    const processedArray: (string | number)[] = [];
+    for (const item of value) {
+      const processedValue = processValue(item, key, collection, app);
+      processedArray.push(processedValue);
+    }
+    return {
+      key,
+      label,
+      type: SUMMARY_TYPE.ARRAY,
+      value: processedArray,
+    };
+  }
+
+  if (value instanceof Date || (typeof value.toDate === 'function' && value.toDate() instanceof Date)) {
+    // 日期类型
+    const dateObj = value instanceof Date ? value : value.toDate();
+    return {
+      key,
+      label,
+      type: SUMMARY_TYPE.DATE,
+      value: dateObj.toISOString(),
+    };
+  }
+
+  // 处理普通值
+  const processedValue = processValue(value, key, collection, app);
+  const valueStr = String(processedValue);
+  const finalType = isDateType(valueStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
+
+  return {
+    key,
+    label,
+    type: finalType,
+    value: processedValue,
+  };
 }
 
 // 根据配置和源数据,生成符合类型要求的摘要数据
@@ -256,7 +221,7 @@ export function getSummaryDataSource({
   collection,
   app,
 }: ParamsType): SummaryDataSourceItem[] {
-  // 将 summaryConfig 分为遍历主路径（不含 '.' 的 key）和子路径（含 '.' 的 key）数组
+  // 将 summaryConfig 分为主路径（不含 '.' 的 key）和子路径（含 '.' 的 key）数组
   const mainPathKeys: string[] = [];
   const subPathKeys: string[] = [];
 
@@ -268,95 +233,104 @@ export function getSummaryDataSource({
     }
   }
 
-  // 针对 mainPathKeys 的每个 key，生成符合类型的摘要数据，如在 subPathKeys 存在它的子属性，则以子属性方式构建
   const summaryDataSource: SummaryDataSourceItem[] = [];
 
   for (const mainKey of mainPathKeys) {
-    // 找到所有属于该主 key 的子属性，例如 mainKey = 'foo'，subPathKeys 里有 'foo.bar', 'foo.baz'
+    // 找到所有属于该主 key 的子属性，例如 mainKey = 'accountItemList'，subPathKeys 里有 'accountItemList.accounts', 'accountItemList.amount'
     const childrenSubKeys = subPathKeys
       .filter((subKey) => subKey.startsWith(mainKey + '.'))
-      .map((subKey) => subKey.slice(mainKey.length + 1)); // 去掉 'foo.' 部分得到 'bar'、'baz'
+      .map((subKey) => subKey.slice(mainKey.length + 1)); // 去掉 'accountItemList.' 部分得到 'accounts'、'amount'
 
     if (childrenSubKeys.length > 0) {
-      // 构建子属性数据
+      // 有子属性，需要构建 TABLE 类型或嵌套结构
       const parentValue = _.get(data, mainKey);
-      // 对 parentValue 为数组的情况也做兼容
-      let items: any[] = [];
-      if (Array.isArray(parentValue)) {
-        // 对于数组，对每一项构建相应的子属性对象
-        items = parentValue.map((item) => {
-          const childObj: Record<string, any> = {};
-          for (const childKey of childrenSubKeys) {
-            const value = _.get(item, childKey);
-            // 优先取关联表的 titleField 值，否则取 name 字段，对象用 name, 其他直接取值
-            if (value && typeof value === 'object' && !Array.isArray(value)) {
-              const fullChildKey = `${mainKey}.${childKey}`;
-              const fieldName = mainKey;
-              const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
-              childObj[childKey] =
-                titleFieldValue !== undefined ? titleFieldValue : value.name !== undefined ? value.name : value;
-            } else {
-              childObj[childKey] = value;
-            }
+      const label = getFieldLabel(mainKey, collection);
+
+      if (Array.isArray(parentValue) && parentValue.length > 0) {
+        // 数组类型：构建 TABLE 类型
+        // 检查每个子字段的值是否都是数组，且长度相同
+        const childValues: (string | number)[][] = [];
+        let isValidTable = true;
+        let rowCount = 0;
+
+        for (const childKey of childrenSubKeys) {
+          const childArray: (string | number)[] = [];
+          for (const item of parentValue) {
+            const childValue = _.get(item, childKey);
+            const processedValue = processValue(childValue, `${mainKey}.${childKey}`, collection, app);
+            childArray.push(processedValue);
           }
-          return childObj;
-        });
-      } else if (parentValue && typeof parentValue === 'object') {
-        // 单对象
+          childValues.push(childArray);
+
+          // 检查数组长度
+          if (rowCount === 0) {
+            rowCount = childArray.length;
+          } else if (rowCount !== childArray.length) {
+            isValidTable = false;
+          }
+        }
+
+        if (isValidTable && rowCount > 0) {
+          // 构建 TABLE 类型：value 是一个数组，每个元素是一个字段（SummaryDataSourceItem）
+          const tableFields: SummaryDataSourceItem[] = childrenSubKeys.map((childKey, idx) => {
+            const fullChildKey = `${mainKey}.${childKey}`;
+            const childLabel = getFieldLabel(fullChildKey, collection);
+            return {
+              key: childKey,
+              label: childLabel,
+              type: SUMMARY_TYPE.ARRAY,
+              value: childValues[idx],
+            };
+          });
+
+          summaryDataSource.push({
+            key: mainKey,
+            label,
+            type: SUMMARY_TYPE.TABLE,
+            value: tableFields,
+          });
+        } else {
+          // 如果不符合 TABLE 格式，降级为普通数组
+          summaryDataSource.push(getSummaryItem(mainKey, data, collection, app));
+        }
+      } else if (parentValue && typeof parentValue === 'object' && !Array.isArray(parentValue)) {
+        // 单对象：构建嵌套对象结构
         const childObj: Record<string, any> = {};
         for (const childKey of childrenSubKeys) {
           const value = _.get(parentValue, childKey);
-          // 优先取关联表的 titleField 值，否则取 name 字段，对象用 name, 其他直接取值
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
-            const fieldName = mainKey;
-            const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
-            childObj[childKey] =
-              titleFieldValue !== undefined ? titleFieldValue : value.name !== undefined ? value.name : value;
-          } else {
-            childObj[childKey] = value;
-          }
+          childObj[childKey] = processValue(value, `${mainKey}.${childKey}`, collection, app);
         }
-        items = [childObj];
+        summaryDataSource.push({
+          key: mainKey,
+          label,
+          type: SUMMARY_TYPE.LITERAL,
+          value: JSON.stringify(childObj),
+        });
       } else {
-        // parentValue 不存在时
-        items = [];
+        // parentValue 不存在或为空，返回空值
+        summaryDataSource.push({
+          key: mainKey,
+          label,
+          type: SUMMARY_TYPE.LITERAL,
+          value: '',
+        });
       }
-      summaryDataSource.push({
-        key: mainKey,
-        label: mainKey,
-        type: Array.isArray(parentValue) ? SUMMARY_TYPE.ARRAY : SUMMARY_TYPE.LITERAL,
-        value: items,
-      });
     } else {
       // 没有任何子属性，普通主属性
       summaryDataSource.push(getSummaryItem(mainKey, data, collection, app));
     }
   }
 
-  return summaryDataSource;
-}
-
-export function getSummary(params: ParamsType): object {
-  const { summaryConfig = [], data, collection, app } = params;
-
-  const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
-
-  const result = summaryConfig.reduce((summary, key) => {
-    const value = _.get(data, key);
-    let realValue = value;
-    if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
-      // 优先获取关联表的 titleField 值
-      const fieldName = key.split('.')[0];
-      const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
-      realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
+  // 处理子路径中不属于任何主路径的项（这种情况不应该发生，但为了健壮性还是处理）
+  for (const subKey of subPathKeys) {
+    const mainKey = subKey.split('.')[0];
+    if (!mainPathKeys.includes(mainKey)) {
+      // 如果子路径的主路径不在 mainPathKeys 中，单独处理
+      summaryDataSource.push(getSummaryItem(subKey, data, collection, app));
     }
-    return {
-      ...summary,
-      [key]: realValue,
-    };
-  }, {});
+  }
 
-  return result;
+  return summaryDataSource;
 }
 
 export async function parsePerson({ node, processor, keyName }) {

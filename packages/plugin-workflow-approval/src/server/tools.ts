@@ -92,7 +92,7 @@ function getValueType(value: any): SummaryType {
   }
 
   // 此时 value 可能是字面量,或者对象
-  return SUMMARY_TYPE.STRING;
+  return SUMMARY_TYPE.LITERAL;
 }
 
 // 辅助函数，递归处理点号分割的 key
@@ -101,7 +101,7 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
   let value: any = _.get(data, key);
   let type: SummaryType = getValueType(value);
 
-  if (type === SUMMARY_TYPE.STRING) {
+  if (type === SUMMARY_TYPE.LITERAL) {
     // string 或 date，对象处理：优先尝试获取关联表的 titleField 值
     let valStr: string;
     if (value === undefined || value === null) {
@@ -121,15 +121,17 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
       valStr = String(value);
     }
     // 判断是否是日期类型
-    const finalType = isDateType(valStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.STRING;
+    const finalType = isDateType(valStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
     return {
       key,
+      label: key,
       type: finalType,
       value: valStr,
     };
   } else if (type === SUMMARY_TYPE.DATE) {
     return {
       key,
+      label: key,
       type: SUMMARY_TYPE.DATE,
       value: value,
     };
@@ -159,15 +161,21 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
                 ? SUMMARY_TYPE.DATE
                 : Array.isArray(child)
                   ? SUMMARY_TYPE.ARRAY
-                  : SUMMARY_TYPE.STRING;
+                  : SUMMARY_TYPE.LITERAL;
               return {
                 key,
+                label: key,
                 type: childType as SummaryType,
                 value: Array.isArray(child)
                   ? child.map((x) => {
                       const xStr = String(x);
-                      const xType = isDateType(xStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.STRING;
-                      return { key, type: xType as SummaryType, value: xStr };
+                      const xType = isDateType(xStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
+                      return {
+                        key,
+                        label: key,
+                        type: xType as SummaryType,
+                        value: xStr,
+                      };
                     })
                   : childStr,
               };
@@ -180,16 +188,22 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
               ? SUMMARY_TYPE.ARRAY
               : isDateType(childStr)
                 ? SUMMARY_TYPE.DATE
-                : SUMMARY_TYPE.STRING;
+                : SUMMARY_TYPE.LITERAL;
           arr.push({
             key: childKey,
+            label: childKey,
             type: childType as SummaryType,
             value:
               typeof childVal === 'object' && Array.isArray(childVal)
                 ? childVal.map((v) => {
                     const vStr = String(v);
-                    const vType = isDateType(vStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.STRING;
-                    return { key: childKey, type: vType as SummaryType, value: vStr };
+                    const vType = isDateType(vStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
+                    return {
+                      key: childKey,
+                      label: childKey,
+                      type: vType as SummaryType,
+                      value: vStr,
+                    };
                   })
                 : childStr,
           });
@@ -208,7 +222,7 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
                 : item.name !== undefined
                   ? String(item.name)
                   : JSON.stringify(item);
-            const itemType = isDateType(itemValue) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.STRING;
+            const itemType = isDateType(itemValue) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
             return {
               key: `${key}[${idx}]`,
               type: itemType as SummaryType,
@@ -216,7 +230,7 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
             };
           } else {
             const itemStr = String(item);
-            const itemType = isDateType(itemStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.STRING;
+            const itemType = isDateType(itemStr) ? SUMMARY_TYPE.DATE : SUMMARY_TYPE.LITERAL;
             return {
               key: `${key}[${idx}]`,
               type: itemType as SummaryType,
@@ -228,6 +242,7 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
     }
     return {
       key,
+      label: key,
       type: SUMMARY_TYPE.ARRAY,
       value: arr,
     };
@@ -308,7 +323,8 @@ export function getSummaryDataSource({
       }
       summaryDataSource.push({
         key: mainKey,
-        type: Array.isArray(parentValue) ? SUMMARY_TYPE.ARRAY : SUMMARY_TYPE.STRING,
+        label: mainKey,
+        type: Array.isArray(parentValue) ? SUMMARY_TYPE.ARRAY : SUMMARY_TYPE.LITERAL,
         value: items,
       });
     } else {

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-user-manual-feishu",
   "displayName": "feishu user manual",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "feishu user manual",
   "keywords": [
     "feishu",

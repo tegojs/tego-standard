@@ -1,4 +1,4 @@
-name: Publish to NPM
+name: Auto Publish to NPM
 
 on:
   push:

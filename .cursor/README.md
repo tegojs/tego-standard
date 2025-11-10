@@ -13,9 +13,11 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
 └── rules/                 # AI rules directory / AI 规则目录
     ├── index.md          # Main rule index (references all rules) / 主规则索引（引用所有规则）
     ├── project.md        # Project configuration / 项目配置
-    ├── code-style.md     # Code style guidelines / 代码风格规范
-    ├── development.md    # Development guide / 开发指南
-    └── ai-assistant.md   # AI assistant guide / AI 辅助指南
+    ├── code-style.md     # Code style guidelines (with examples) / 代码风格规范（含示例）
+    ├── development.md    # Development guide (with examples) / 开发指南（含示例）
+    ├── ai-assistant.md   # AI assistant guide / AI 辅助指南
+    ├── packages-client.md # Client package specific rules / Client 包特定规则
+    └── quick-reference.md # Quick reference card / 快速参考卡片
 ```
 
 ## Files Overview / 文件概览
@@ -45,12 +47,16 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
     主入口点，引用所有其他规则
   - `project.md`: Project overview, tech stack, package management
     项目概述、技术栈、包管理
-  - `code-style.md`: TypeScript, React, file naming conventions
-    TypeScript、React、文件命名规范
-  - `development.md`: Workflow, commit conventions, commands
-    工作流、提交规范、命令
+  - `code-style.md`: TypeScript, React, file naming conventions (with code examples)
+    TypeScript、React、文件命名规范（含代码示例）
+  - `development.md`: Workflow, commit conventions, commands (with code examples)
+    工作流、提交规范、命令（含代码示例）
   - `ai-assistant.md`: AI-assisted development guidelines
     AI 辅助开发指南
+  - `packages-client.md`: Specific rules for packages/client directory
+    packages/client 目录的特定规则
+  - `quick-reference.md`: Quick reference for common tasks and code patterns
+    常用任务和代码模式的快速参考
 
 ## Best Practices / 最佳实践
 

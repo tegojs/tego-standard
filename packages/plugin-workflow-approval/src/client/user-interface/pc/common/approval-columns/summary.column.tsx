@@ -1,16 +1,14 @@
-import { useCollectionManager, useCollectionRecordData, useCompile } from '@tachybase/client';
+import { useCollectionManager, useCollectionRecordData, useCompile, useOptimizedMemo } from '@tachybase/client';
 import { convertUTCToLocal } from '@tego/client';
 
 import { SUMMARY_TYPE } from '../../../../../common/constants';
-import { summaryDataSource } from '../../../../../common/demo';
 import { type SummaryDataSourceItem } from '../../../../../common/interface';
 import { isUTCString } from '../../../../../common/utils';
 import { SimpleTable } from '../../../../common/components/SimpleTable';
 import useStyles from '../style';
 
 export const ApprovalsSummary = (props) => {
-  // const { value } = props;
-  const value = summaryDataSource;
+  const { value } = props;
   const isArrayValue = Array.isArray(value);
 
   // 兼容旧版, 旧版源数据是对象,新版源数据必然是数组
@@ -28,26 +26,28 @@ const SummaryShowObject = (props) => {
   const record = useCollectionRecordData();
   const { collectionName } = record;
 
-  const results = Object.entries(objectValue).map(([key, objValue]) => {
-    const field = cm.getCollectionField(`${collectionName}.${key}`);
-    const realValue = Object.prototype.toString.call(objValue) === '[object Object]' ? objValue?.['name'] : objValue;
-    if (Array.isArray(realValue)) {
+  const results = useOptimizedMemo(() => {
+    return Object.entries(objectValue).map(([key, objValue]) => {
+      const field = cm.getCollectionField(`${collectionName}.${key}`);
+      const realValue = Object.prototype.toString.call(objValue) === '[object Object]' ? objValue?.['name'] : objValue;
+      if (Array.isArray(realValue)) {
+        return {
+          label: compile(field?.uiSchema?.title || key),
+          value: realValue.map((item) => item.value),
+        };
+      } else if (isUTCString(realValue)) {
+        // 如果是UTC时间字符串, 则转换为本地时区时间
+        return {
+          label: compile(field?.uiSchema?.title || key),
+          value: convertUTCToLocal(realValue),
+        };
+      }
       return {
         label: compile(field?.uiSchema?.title || key),
-        value: realValue.map((item) => item.value),
+        value: realValue,
       };
-    } else if (isUTCString(realValue)) {
-      // 如果是UTC时间字符串, 则转换为本地时区时间
-      return {
-        label: compile(field?.uiSchema?.title || key),
-        value: convertUTCToLocal(realValue),
-      };
-    }
-    return {
-      label: compile(field?.uiSchema?.title || key),
-      value: realValue,
-    };
-  });
+    });
+  }, [objectValue, collectionName, cm, compile]);
 
   // 展示结果要展示一个数组对象, 是 label 和 value 的形式
   // label 放中文, value 放值
@@ -63,22 +63,27 @@ const SummaryShowObject = (props) => {
 const SummaryShowArray = (props) => {
   const { arrayValue = [] as SummaryDataSourceItem[] | object } = props;
 
-  return arrayValue.map((item) => {
-    const { key, type, label, value } = item || {};
-    switch (type) {
-      case SUMMARY_TYPE.LITERAL:
-        return <SummaryLiteralShow key={key} label={label} value={value} />;
-      case SUMMARY_TYPE.DATE:
-        const isUTCStringValue = isUTCString(value);
-        return (
-          <SummaryLiteralShow key={key} label={label} value={isUTCStringValue ? convertUTCToLocal(value) : value} />
-        );
-      case SUMMARY_TYPE.TABLE:
-        return <SummaryTableShow key={key} title={label} dataSource={value} />;
-      default:
-        return null;
-    }
-  });
+  // 使用优化的 useMemo：先引用比较，再深度比较
+  const renderedItems = useOptimizedMemo(() => {
+    return arrayValue.map((item) => {
+      const { key, type, label, value } = item || {};
+      switch (type) {
+        case SUMMARY_TYPE.LITERAL:
+          return <SummaryLiteralShow key={key} label={label} value={value} />;
+        case SUMMARY_TYPE.DATE:
+          const isUTCStringValue = isUTCString(value);
+          return (
+            <SummaryLiteralShow key={key} label={label} value={isUTCStringValue ? convertUTCToLocal(value) : value} />
+          );
+        case SUMMARY_TYPE.TABLE:
+          return <SummaryTableShow key={key} title={label} dataSource={value} />;
+        default:
+          return null;
+      }
+    });
+  }, [arrayValue]);
+
+  return renderedItems;
 };
 
 const SummaryLiteralShow = (props) => {
@@ -98,28 +103,31 @@ const SummaryTableShow = (props) => {
   // 获取第一行数据, 决定有多少行数据
   const firstValue = dataSource[0]?.value;
 
-  // 构建表格列配置
-  const columns = dataSource.map((field) => ({
-    key: field.key,
-    title: field.label,
-    dataIndex: field.key,
-  }));
+  const columns = useOptimizedMemo(() => {
+    return dataSource.map((field) => ({
+      key: field.key,
+      title: field.label,
+      dataIndex: field.key,
+    }));
+  }, [dataSource]);
 
   const rowCount = Array.isArray(firstValue) ? firstValue.length : 0;
 
-  const tableDataSource = Array.from(
-    {
-      length: rowCount,
-    },
-    (_, rowIdx) => {
-      const record: Record<string, any> = {};
-      dataSource.forEach((field) => {
-        const fieldValue = Array.isArray(field.value) ? field.value[rowIdx] : field.value;
-        record[field.key] = typeof fieldValue === 'string' ? fieldValue : String(fieldValue ?? '');
-      });
-      return record;
-    },
-  );
+  const tableDataSource = useOptimizedMemo(() => {
+    return Array.from(
+      {
+        length: rowCount,
+      },
+      (_, rowIdx) => {
+        const record: Record<string, any> = {};
+        dataSource.forEach((field) => {
+          const fieldValue = Array.isArray(field.value) ? field.value[rowIdx] : field.value;
+          record[field.key] = typeof fieldValue === 'string' ? fieldValue : String(fieldValue ?? '');
+        });
+        return record;
+      },
+    );
+  }, [dataSource, rowCount]);
 
   return <SimpleTable title={title} columns={columns} dataSource={tableDataSource} />;
 };

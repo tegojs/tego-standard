@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useTranslation } from '../../../../locale';
+import { useTranslation } from '../../locale';
 
 export interface SimpleTableColumn {
   key: string;

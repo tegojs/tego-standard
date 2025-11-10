@@ -4,7 +4,7 @@ import { convertUTCToLocal } from '@tego/client';
 import { SUMMARY_TYPE } from '../../../../../common/constants';
 import { type SummaryDataSourceItem } from '../../../../../common/interface';
 import { isUTCString } from '../../../../../common/utils';
-import { SimpleTable } from '../components/SimpleTable';
+import { SimpleTable } from '../../../../common/components/SimpleTable';
 import useStyles from '../style';
 
 const summaryDataSource: SummaryDataSourceItem[] = [

@@ -36,8 +36,12 @@ export default class ApprovalTrigger extends Trigger {
       ([prev, curr]) => prev === previousApprovalStatus && curr === currentApprovalStatus,
     );
 
+    // NOTE: 禁止在新建记录且状态为 DRAFT 时触发工作流
+    // 新建记录时 previousApprovalStatus 为 null/undefined，只有从 DRAFT 变为其他状态时才应该触发
+    const isNewRecordWithDraft = previousApprovalStatus == null && currentApprovalStatus === APPROVAL_STATUS.DRAFT;
+
     // 工作流触发拦截逻辑
-    if (!workflow || !isChangedStatus || !isAllowStatusList || isForbiddenWhenStatusChange) {
+    if (!workflow || !isChangedStatus || !isAllowStatusList || isForbiddenWhenStatusChange || isNewRecordWithDraft) {
       return;
     }
     const [dataSourceName, collectionName] = parseCollectionName(approval.collectionName);

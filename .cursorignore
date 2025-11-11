@@ -70,6 +70,9 @@ plugins/*
 .git/
 .gitignore
 
+# 例外：允许 COMMIT_EDITMSG 使用 AI 补全
+!.git/COMMIT_EDITMSG
+
 # 其他
 .local
 docs-repo-temp/

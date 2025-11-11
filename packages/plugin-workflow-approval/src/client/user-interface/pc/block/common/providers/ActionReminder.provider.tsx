@@ -14,8 +14,9 @@ export const ProviderActionReminder = (props) => {
   const isSameExecutionId = latestExecutionId === approvalExecution.id;
   const isDraft = status === APPROVAL_INITIATION_STATUS.DRAFT;
   const isReturned = status === APPROVAL_INITIATION_STATUS.RETURNED;
+  const isApproved = status === APPROVAL_INITIATION_STATUS.APPROVED;
 
-  if (isSameId && !isDraft && !isReturned && isSameExecutionId) {
+  if (isSameId && !isDraft && !isReturned && !isApproved && isSameExecutionId) {
     return props.children;
   }
 

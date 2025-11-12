@@ -17,29 +17,6 @@ import { isDateType } from '../common/utils';
 //   7: 'createdBy';
 // }
 
-export function getSummary(params: ParamsType): object {
-  const { summaryConfig = [], data, collection, app } = params;
-
-  const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
-
-  const result = summaryConfig.reduce((summary, key) => {
-    const value = _.get(data, key);
-    let realValue = value;
-    if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
-      // 优先获取关联表的 titleField 值
-      const fieldName = key.split('.')[0];
-      const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
-      realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
-    }
-    return {
-      ...summary,
-      [key]: realValue,
-    };
-  }, {});
-
-  return result;
-}
-
 // 获取关联表的 titleField 值
 function getAssociationTitleFieldValue(
   value: any,
@@ -215,12 +192,7 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
 }
 
 // 根据配置和源数据,生成符合类型要求的摘要数据
-export function getSummaryDataSource({
-  summaryConfig = [],
-  data,
-  collection,
-  app,
-}: ParamsType): SummaryDataSourceItem[] {
+function getSummaryDataSource({ summaryConfig = [], data, collection, app }: ParamsType): SummaryDataSourceItem[] {
   // 将 summaryConfig 分为主路径（不含 '.' 的 key）和子路径（含 '.' 的 key）数组
   const mainPathKeys: string[] = [];
   const subPathKeys: string[] = [];
@@ -331,6 +303,29 @@ export function getSummaryDataSource({
   }
 
   return summaryDataSource;
+}
+
+export function getSummary(params: ParamsType): object {
+  const { summaryConfig = [], data, collection, app } = params;
+
+  const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
+
+  const result = summaryConfig.reduce((summary, key) => {
+    const value = _.get(data, key);
+    let realValue = value;
+    if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
+      // 优先获取关联表的 titleField 值
+      const fieldName = key.split('.')[0];
+      const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
+      realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
+    }
+    return {
+      ...summary,
+      [key]: realValue,
+    };
+  }, {});
+
+  return result;
 }
 
 export async function parsePerson({ node, processor, keyName }) {

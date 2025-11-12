@@ -197,17 +197,19 @@ export async function test(context: Context, next: Next) {
   const result = await plugin.trigger(
     workflow,
     {
-      data: values.data,
-      user: context.state.currentUser,
+      data: values.data || {},
+      user: context?.state?.currentUser || {},
     },
     { httpContext: context },
   );
 
   context.app.logger.info(result);
 
-  context.state.messages.push({ message: 'testing' });
+  context.state.messages.push({
+    message: context.t('Test execution ended', { ns: 'workflow' }),
+  });
 
-  context.body = 'here???';
+  context.body = result.execution;
 }
 
 export async function revision(context: Context, next: Next) {
@@ -323,13 +325,25 @@ export async function retry(context: Context, next: Next) {
     sort: ['-createdAt'],
   });
   if (!execution) {
-    context.state.messages.push({ message: 'No execution records found for this workflow.' });
+    context.state.messages.push({
+      message: context.t('No execution records found for this workflow.', { ns: 'workflow' }),
+    });
   }
-  const executionId = execution.id;
-  const result = await plugin.trigger(workflow, execution.context, { httpContext: context });
-  context.app.logger.info(result);
-  context.state.messages.push({ message: 'Execute successfully' });
-  context.body = { executionId: executionId };
+  try {
+    const result = await plugin.trigger(workflow, execution.context, { httpContext: context });
+    context.app.logger.info(result);
+    context.state.messages.push({ message: context.t('Execute ended', { ns: 'workflow' }) });
+    context.body = result.execution;
+  } catch (error) {
+    context.app.logger.error(`Failed to retry execution ${execution.id}: ${error.message}`);
+    context.state.messages.push({
+      message: context.t('Failed to retry execution', { ns: 'workflow' }),
+      error: error.message,
+    });
+    context.body = {
+      error: error.message,
+    };
+  }
 
   await next();
 }

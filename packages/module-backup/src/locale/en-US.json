@@ -7,6 +7,7 @@
   "Backup instructions": "Backup instructions",
   "Business data": "Business data",
   "Check all": "Check all",
+  "Check common": "Check common",
   "Click or drag file to this area to upload": "Click or drag file to this area to upload",
   "Configuration": "Configuration",
   "Delete": "Delete",
@@ -42,5 +43,7 @@
   "unknown.description": "Data without configured dump rules",
   "unknown.title": "Unknown",
   "user.description": "User data",
-  "user.title": "User data"
+  "user.title": "User data",
+  "workflow.description": "Workflow execution records",
+  "workflow.title": "Workflow execution records"
 }

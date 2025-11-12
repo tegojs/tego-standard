@@ -2,7 +2,7 @@ import { CollectionOptions } from '@tego/server';
 
 export default {
   dumpRules: {
-    group: 'log',
+    group: 'required',
   },
   name: 'trackingHistoryOptions',
   createdBy: false,

@@ -12,7 +12,10 @@ export const useCurrentAppInfo = () => {
         dialect: string;
       };
       lang: string;
-      version: string;
+      version: {
+        core: string;
+        app: string;
+      };
     };
   }>(CurrentAppInfoContext);
 };

@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Application, Context, Plugin } from '@tego/server';
 
 import { getAntdLocale } from './antd';
@@ -17,6 +19,43 @@ async function getLang(ctx: Context) {
     lang = ctx.request.query.locale as string;
   }
   return lang;
+}
+
+function readAppVersionFromPackageJson(): string {
+  try {
+    // 优先读取 .version.json 文件（构建时生成，不污染 git 状态）
+    const versionJsonCandidates = [
+      join(process.cwd(), '.version.json'),
+      // fallback: relative to compiled file location
+      join(__dirname, '../../../../.version.json'),
+      join(__dirname, '../../../.version.json'),
+    ];
+    for (const versionPath of versionJsonCandidates) {
+      if (existsSync(versionPath)) {
+        const versionInfo = JSON.parse(readFileSync(versionPath, 'utf-8'));
+        if (versionInfo?.version) {
+          return versionInfo.version as string;
+        }
+      }
+    }
+
+    // 如果 .version.json 不存在，回退到读取 package.json
+    const packageJsonCandidates = [
+      join(process.cwd(), 'package.json'),
+      // fallback: relative to compiled file location
+      join(__dirname, '../../../../package.json'),
+      join(__dirname, '../../../package.json'),
+    ];
+    for (const pkgPath of packageJsonCandidates) {
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (pkg?.version) {
+          return pkg.version as string;
+        }
+      }
+    }
+  } catch (e) {}
+  return 'Unknown';
 }
 
 export class ModuleWeb extends Plugin {
@@ -77,6 +116,7 @@ export class ModuleWeb extends Plugin {
       actions: ['app:restart', 'app:refresh', 'app:clearCache'],
     });
     const dialect = this.app.db.sequelize.getDialect();
+    const appVersion = readAppVersionFromPackageJson();
 
     this.app.resourcer.define({
       name: 'app',
@@ -94,7 +134,10 @@ export class ModuleWeb extends Plugin {
             database: {
               dialect,
             },
-            version: await ctx.app.version.get(),
+            version: {
+              core: await ctx.app.version.get(),
+              app: appVersion,
+            },
             lang,
             name: ctx.app.name,
             theme: currentUser?.systemSettings?.theme || systemSetting?.options?.theme || 'default',

@@ -41,6 +41,7 @@ const useStyles = createStyles(({ css, token }) => {
       }
 
       .workflow-operator-area {
+        overflow-x: hidden;
         overflow-y: scroll;
         padding: 0px 18px 48px 18px;
         background-color: white;

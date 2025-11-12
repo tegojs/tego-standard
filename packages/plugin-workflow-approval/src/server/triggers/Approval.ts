@@ -102,6 +102,30 @@ export default class ApprovalTrigger extends Trigger {
     if (!execution.workflow) {
       execution.workflow = await execution.getWorkflow({ transaction });
     }
+    // NOTE: 拦截器, 防止重复创建 execution, 以及防止重复触发工作流.
+    // 如果这是保存草稿并且是新建审批，则将 execution 状态设为取消
+    // 判定：审批状态为 DRAFT，且当前 execution 的 status 不是 CANCELED
+    if (
+      execution.workflow.type === ApprovalTrigger.TYPE &&
+      execution.context &&
+      execution.context.approvalId &&
+      execution.status === EXECUTION_STATUS.STARTED
+    ) {
+      const approval = await this.workflow.db.getRepository('approvals').findOne({
+        filterByTk: execution.context.approvalId,
+        transaction,
+      });
+
+      if (approval && approval.status === APPROVAL_STATUS.DRAFT) {
+        await execution.update(
+          {
+            status: EXECUTION_STATUS.CANCELED,
+          },
+          { transaction },
+        );
+        return;
+      }
+    }
     if (!execution.status || execution.workflow.type !== ApprovalTrigger.TYPE) {
       return;
     }

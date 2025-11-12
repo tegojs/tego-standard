@@ -64,9 +64,6 @@ export const useStyles = createStyles(({ css, token }) => {
     bodyCell: css`
       max-width: 300px;
       white-space: nowrap;
-      .tb-read-pretty-input-number {
-        text-align: right;
-      }
       .ant-color-picker-trigger {
         position: absolute;
         top: 50%;

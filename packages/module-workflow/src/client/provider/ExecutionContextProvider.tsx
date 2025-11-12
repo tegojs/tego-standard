@@ -1,7 +1,7 @@
 import React from 'react';
 import { SchemaComponentOptions, usePlugin } from '@tachybase/client';
 
-import PluginWorkflowClient, { FlowContext } from '.';
+import PluginWorkflowClient, { FlowContext } from '..';
 
 export function ExecutionContextProvider({ children, workflow, execution, nodes }) {
   const workflowPlugin = usePlugin(PluginWorkflowClient);

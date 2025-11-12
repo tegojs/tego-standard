@@ -76,6 +76,16 @@ export const dispatchers: CollectionOptions = {
     },
     {
       type: 'string',
+      name: 'description',
+      interface: 'textarea',
+      uiSchema: {
+        title: '{{t("Description")}}',
+        type: 'string',
+        'x-component': 'Input.TextArea',
+      } as ISchema,
+    },
+    {
+      type: 'string',
       name: 'workflowKey',
       interface: 'select',
       uiSchema: {

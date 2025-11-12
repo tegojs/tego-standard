@@ -11,13 +11,13 @@
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-workflow": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
     "react-i18next": "16.2.1",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "工作流分析工具：用于时间消耗和错误分析",
   "displayName.zh-CN": "工作流分析工具"

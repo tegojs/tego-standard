@@ -11,10 +11,10 @@
   "types": "./dist/server/index.d.ts",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "dayjs": "^1.11.13",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "dayjs": "catalog:",
     "lodash": "4.17.21"
   },
   "description.zh-CN": "工作流测试工具包",

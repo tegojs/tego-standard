@@ -12,7 +12,6 @@ import {
 } from '@tachybase/client';
 
 import { DownOutlined, ExclamationCircleFilled, StopOutlined } from '@ant-design/icons';
-import { str2moment } from '@tego/client';
 import { Breadcrumb, Button, Dropdown, message, Modal, Result, Space, Spin, Splitter, Tag, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
@@ -261,6 +260,9 @@ export function ExecutionCanvas() {
   const [viewJob, setViewJob] = useState(null);
   const app = useApp();
   const apiClient = useAPIClient();
+  const localUrl = window.location.pathname;
+  const type = localUrl.split('business-components/')[1]?.split('/')[0];
+  const pluginConfig = app.systemSettingsManager.get(`business-components.${type}`) || {};
   useEffect(() => {
     const { workflow } = data?.data ?? {};
     setTitle?.(`${workflow?.title ? `${workflow.title} - ` : ''}${lang('Execution history')}`);
@@ -321,12 +323,12 @@ export function ExecutionCanvas() {
             items={[
               {
                 title: (
-                  <Link to={app.systemSettingsManager.getRoutePath(`business-components.${NAMESPACE}`)}>
-                    {lang('Workflow')}
+                  <Link to={app.systemSettingsManager.getRoutePath(`business-components.${type ? type : 'workflow'}`)}>
+                    {compile(pluginConfig['label'])}
                   </Link>
                 ),
               },
-              { title: <Link to={getWorkflowDetailPath(workflow.id)}>{workflow.title}</Link> },
+              { title: <Link to={getWorkflowDetailPath(workflow.id, type)}>{workflow.title}</Link> },
               { title: <ExecutionsDropdown /> },
             ]}
           />

@@ -1,6 +1,7 @@
 import { useAPIClient, useCollection } from '@tachybase/client';
 import { useField, useForm } from '@tachybase/schema';
 
+import { APPROVAL_TODO_STATUS } from '../../../../../common/constants/approval-todo-status';
 import { useHandleRefresh } from '../../common/hooks/useHandleRefresh';
 import { useContextApprovalAction } from '../providers/ApprovalAction.provider';
 import { useContextApprovalRecords } from '../providers/ApprovalExecutions.provider';
@@ -13,6 +14,7 @@ export function useSubmit(props: any = {}) {
   const collection = useCollection();
   const approvalRecord = useContextApprovalRecords();
   const { status } = useContextApprovalAction();
+
   const { source } = props;
   const needUpdateRecord = source === 'updateRecord';
 
@@ -23,10 +25,11 @@ export function useSubmit(props: any = {}) {
         if (!!approvalRecord.status) {
           return;
         }
-        await form.submit();
+        if (status !== APPROVAL_TODO_STATUS.RETURNED) {
+          await form.submit();
+        }
         field.data = field.data ?? {};
         field.data.loading = true;
-
         if (needUpdateRecord) {
           const collectionName = collection.name;
           const targetId = form.values.id;

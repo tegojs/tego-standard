@@ -8,11 +8,14 @@ on:
           required: false
           default: ''
 
-run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || 'auto' }}"
+run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || (github.ref_type == 'tag' && github.ref_name) || (github.ref_name == 'main' && 'latest') || github.ref_name }}"
 
 jobs:
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
     outputs:
       docker_tag: ${{ steps.set_tag.outputs.tag }}
       should_comment_pr: ${{ steps.set_tag.outputs.should_comment_pr }}
@@ -48,6 +51,20 @@ jobs:
             echo "tag=${DATE}-${BRANCH_NAME_SANITIZED}" >> $GITHUB_OUTPUT
             echo "should_comment_pr=true" >> $GITHUB_OUTPUT
           fi
+      - name: Update workflow run name
+        run: |
+          DOCKER_TAG="${{ steps.set_tag.outputs.tag }}"
+          NEW_NAME="Tegojs Image Nightly - Tag: ${DOCKER_TAG}"
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
+
+          curl -X PATCH \
+            -H "Authorization: token $TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            -d "{\"display_title\": $(echo "$NEW_NAME" | jq -Rs .)}" \
+            "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}" || echo "⚠ Failed to update run name, but continuing..."
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node.js

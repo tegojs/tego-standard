@@ -182,6 +182,11 @@ jobs:
           \`\`\`bash
           docker pull ${IMAGE_URL}
           \`\`\`
+
+           **Tag:**
+          \`\`\`bash
+          ${DOCKER_TAG}
+          \`\`\`
           EOF
           )
 

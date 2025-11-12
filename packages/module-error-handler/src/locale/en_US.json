@@ -8,6 +8,7 @@
   "JWT_INVALID_SIGNATURE": "Invalid token signature, please sign in again",
   "JWT_INVALID_TOKEN": "Invalid token, please sign in again",
   "JWT_MALFORMED": "Invalid token format, please sign in again",
+  "PERMISSION_DENIED": "You do not have permission to perform this operation",
   "Validation error": "{{field}} validation error",
   "notNull Violation": "{{field}} cannot be null",
   "notNull violation": "notNull violation",

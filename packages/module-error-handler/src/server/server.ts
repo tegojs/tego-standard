@@ -14,6 +14,7 @@ export class PluginErrorHandler extends Plugin {
   beforeLoad() {
     this.registerSequelizeValidationErrorHandler();
     this.registerJWTErrorHandler();
+    this.registerPermissionDeniedErrorHandler();
   }
 
   registerSequelizeValidationErrorHandler() {
@@ -87,6 +88,45 @@ export class PluginErrorHandler extends Plugin {
               message: ctx.i18n.t(messageKey, {
                 ns: this.i18nNs,
                 defaultValue: err.message,
+              }),
+              code: code,
+            },
+          ],
+        };
+      },
+    );
+  }
+
+  registerPermissionDeniedErrorHandler() {
+    this.errorHandler.register(
+      (err) => {
+        // 检查是否是权限拒绝错误
+        // 1. HTTP 状态码是 403
+        // 2. 或者错误消息包含 "permission denied" 或 "no permissions"
+        const is403 = err.statusCode === 403 || err.status === 403;
+        const permissionDeniedMessages = ['permission denied', 'no permissions', '没有权限', '无权限'];
+        const hasPermissionMessage =
+          err.message && permissionDeniedMessages.some((msg) => err.message.toLowerCase().includes(msg.toLowerCase()));
+
+        return is403 || hasPermissionMessage;
+      },
+      (err, ctx) => {
+        let code = 'PERMISSION_DENIED';
+        let messageKey = 'PERMISSION_DENIED';
+
+        // 如果错误已经有 code，使用原有的 code
+        if (err.code) {
+          code = err.code;
+          messageKey = err.code;
+        }
+
+        ctx.status = err.statusCode || err.status || 403;
+        ctx.body = {
+          errors: [
+            {
+              message: ctx.i18n.t(messageKey, {
+                ns: this.i18nNs,
+                defaultValue: err.message || 'Permission denied',
               }),
               code: code,
             },

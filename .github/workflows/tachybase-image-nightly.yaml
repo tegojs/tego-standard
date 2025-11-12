@@ -88,8 +88,12 @@ jobs:
           RUN_ID="${{ github.run_id }}"
           TOKEN="${{ secrets.GITHUB_TOKEN }}"
 
-          # Output docker_tag as notice
+          # Output docker_tag as notice and code block for copy button
           echo "::notice title=Docker Tag::Docker tag: ${DOCKER_TAG}"
+          echo ""
+          echo '```'
+          echo "${DOCKER_TAG}"
+          echo '```'
 
           # Try to update workflow run name
           RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
@@ -181,6 +185,11 @@ jobs:
           **Pull command:**
           \`\`\`bash
           docker pull ${IMAGE_URL}
+          \`\`\`
+
+           **Docker Tag:**
+          \`\`\`bash
+          ${DOCKER_TAG}
           \`\`\`
           EOF
           )

@@ -13,11 +13,11 @@
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
     "koa-send": "^5.0.1",
     "vditor": "^3.10.8"
   },

@@ -11,7 +11,7 @@ neverBuiltDependencies:
 
 nodeLinker: isolated
 
-overrides:
+catalog:
   '@types/node': 20.17.10
   '@types/react': 18.3.23
   '@types/react-dom': 18.3.7
@@ -33,3 +33,30 @@ overrides:
   '@tachybase/globals': 1.3.52
   '@tachybase/loader': 1.3.52
   '@tachybase/schema': 1.3.52
+
+catalogMode: strict
+
+cleanupUnusedCatalogs: true
+
+overrides:
+  '@types/node': 'catalog:'
+  '@types/react': 'catalog:'
+  '@types/react-dom': 'catalog:'
+  antd: 'catalog:'
+  dayjs: 'catalog:'
+  react: 'catalog:'
+  react-dom: 'catalog:'
+  react-router: 'catalog:'
+  react-router-dom: 'catalog:'
+  sequelize: 'catalog:'
+  string-width: 'catalog:'
+  strip-ansi: 'catalog:'
+  wrap-ansi: 'catalog:'
+  tego: 'catalog:'
+  '@tego/devkit': 'catalog:'
+  '@tego/server': 'catalog:'
+  '@tego/client': 'catalog:'
+  '@tachybase/test': 'catalog:'
+  '@tachybase/globals': 'catalog:'
+  '@tachybase/loader': 'catalog:'
+  '@tachybase/schema': 'catalog:'

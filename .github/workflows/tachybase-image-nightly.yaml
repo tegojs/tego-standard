@@ -6,18 +6,16 @@ on:
         docker_tag:
           description: >
             Docker tag (optional, auto-calculated if empty).
-
-            Production tags (v1.0.0) remain unique.
-            Test tags get timestamp+commit SHA appended for uniqueness.
-
-            Auto-calculation rules:
-            1) From tag: use tag name (production tags stay unique)
-            2) From main: use "main-date-commit" (e.g., main-20251112-abc1234) + latest
-            3) From other branches: use "date-branch-timestamp-commit" (e.g., 20251112-feat-some-143022-abc1234)
+            🔹 Production tags (v1.0.0) remain unique.
+            🔹 Test tags get timestamp+commit SHA appended.
+            🔹 Rules:
+              🔸 1) From tag: use tag name (production tags stay unique);
+              🔸 2) From main: use "main-date-commit" (e.g., main-20251112-abc1234) + latest;
+              🔸 3) From other branches: use "date-branch-timestamp-commit" (e.g., 20251112-feat-some-143022-abc1234) + latest
           required: false
           default: ''
 
-run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || (github.ref_type == 'tag' && github.ref_name) || (github.ref_name == 'main' && 'latest') || github.ref_name }}"
+run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || (github.ref_type == 'tag' && github.ref_name) || (github.ref_name == 'main') || github.ref_name }}"
 
 jobs:
   docker:

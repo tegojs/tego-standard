@@ -41,20 +41,6 @@ cache/
 v8-compile-cache-**
 .DS_Store
 
-# 环境变量和敏感文件
-.env
-.env.*
-.env.local
-.env.local.*
-.env.test
-.env.e2e
-.npmrc
-
-# IDE 配置
-.idea/
-.vscode/
-.husky/
-
 # 存储和上传文件
 storage/*
 uploads/

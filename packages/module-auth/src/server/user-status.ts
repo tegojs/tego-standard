@@ -480,6 +480,29 @@ export class UserStatusService {
     // TODO: 主仓库可以发版后, 对 BaseAuth.signIn, signNewToken 和 check 的修改应该移动到主仓库中, 并在用户不可登录的错误中使用新的 AuthErrorCode
     const userStatusService = this; // 保存 UserStatusService 实例的引用
 
+    // 这里只是为了 原来的 check 方法中签发的新 token 也包含用户状态, 避免用户状态不匹配导致重新登录
+    // 拦截 jwt.sign 方法，确保在续签场景下也包含用户状态
+    // 注意：jwt.sign 是同步方法，无法异步获取用户状态
+    // 解决方案：在续签时，如果 payload 中没有 userStatus，我们设置一个默认值
+    // 然后在 check 方法中会验证用户状态，如果状态不匹配会要求重新登录
+    if (this.app?.authManager?.jwt) {
+      const originalSign = this.app.authManager.jwt.sign.bind(this.app.authManager.jwt);
+      this.app.authManager.jwt.sign = function (payload: any, options?: any) {
+        // 检查是否是续签场景：payload 中有 userId 和 signInTime，但没有 userStatus
+        // 续签时，JWT 服务会从旧 token 的 payload 中复制数据，如果旧 token 没有 userStatus，新 token 也不会有
+        if (payload?.userId && payload?.signInTime && !payload?.userStatus) {
+          // 这是续签场景，但旧 token 中没有 userStatus（可能是旧版本签发的）
+          // 设置默认值，check 方法会验证并处理
+          payload.userStatus = 'active';
+          userStatusService.logger.warn(
+            `[jwt.sign] Token renewal: old token missing userStatus, using default 'active' for userId=${payload.userId}. Will be validated in check method.`,
+          );
+        }
+        // 调用原始 sign 方法
+        return originalSign(payload, options);
+      };
+    }
+
     // 注入 signNewToken 方法，在 JWT payload 中添加用户状态
     BaseAuth.prototype.signNewToken = async function (userId: number, options?: any) {
       // 获取用户当前状态
@@ -599,6 +622,10 @@ export class UserStatusService {
 
         userStatusService.logger.debug(`[check] Passed, userId=${user.id}, status=${currentUserStatus}`);
       } catch (err) {
+        // 如果错误是 jwt 过期, 则不抛出而是继续
+        if (err.name === 'TokenExpiredError') {
+          return user;
+        }
         if (err.status) {
           throw err;
         }

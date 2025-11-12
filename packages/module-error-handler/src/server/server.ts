@@ -1,6 +1,6 @@
 import { Schema } from '@tachybase/schema';
-
 import { BaseError, Plugin } from '@tego/server';
+
 import lodash from 'lodash';
 
 import { ErrorHandler } from './error-handler';
@@ -13,6 +13,7 @@ export class PluginErrorHandler extends Plugin {
 
   beforeLoad() {
     this.registerSequelizeValidationErrorHandler();
+    this.registerJWTErrorHandler();
   }
 
   registerSequelizeValidationErrorHandler() {
@@ -48,6 +49,49 @@ export class PluginErrorHandler extends Plugin {
           }),
         };
         ctx.status = 400;
+      },
+    );
+  }
+
+  registerJWTErrorHandler() {
+    this.errorHandler.register(
+      (err) => {
+        // 检查是否是 JWT 相关错误
+        const jwtErrorMessages = ['jwt expired', 'jwt malformed', 'invalid token', 'invalid signature'];
+        return err.message && jwtErrorMessages.some((msg) => err.message.toLowerCase().includes(msg.toLowerCase()));
+      },
+      (err, ctx) => {
+        let code = 'JWT_EXPIRED';
+        let messageKey = 'JWT_EXPIRED';
+
+        // 根据错误消息确定错误码和翻译键
+        const errMsg = err.message.toLowerCase();
+        if (errMsg.includes('expired')) {
+          code = 'JWT_EXPIRED';
+          messageKey = 'JWT_EXPIRED';
+        } else if (errMsg.includes('malformed')) {
+          code = 'JWT_MALFORMED';
+          messageKey = 'JWT_MALFORMED';
+        } else if (errMsg.includes('invalid signature')) {
+          code = 'JWT_INVALID_SIGNATURE';
+          messageKey = 'JWT_INVALID_SIGNATURE';
+        } else if (errMsg.includes('invalid token')) {
+          code = 'JWT_INVALID_TOKEN';
+          messageKey = 'JWT_INVALID_TOKEN';
+        }
+
+        ctx.status = err.statusCode || err.status || 401;
+        ctx.body = {
+          errors: [
+            {
+              message: ctx.i18n.t(messageKey, {
+                ns: this.i18nNs,
+                defaultValue: err.message,
+              }),
+              code: code,
+            },
+          ],
+        };
       },
     );
   }

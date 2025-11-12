@@ -15,7 +15,8 @@ import { isPortalInBody } from '@tego/client';
 import { CopyOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons';
 import { SortableContext, SortableContextProps, useSortable } from '@dnd-kit/sortable';
 import { useMemoizedFn } from 'ahooks';
-import { Table as AntdTable, TableColumnProps } from 'antd';
+import { ArtColumn, BaseTable } from 'ali-react-table';
+import { TableColumnProps } from 'antd';
 import { default as classNames, default as cls } from 'classnames';
 import _, { each } from 'lodash';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +41,8 @@ import { SubFormProvider } from '../association-field/hooks';
 import { ColumnFieldProvider } from './components/ColumnFieldProvider';
 import { useStyles } from './Table.styles';
 import { extractIndex, isCollectionFieldComponent, isColumnComponent } from './utils';
+
+import './ARTTable.less';
 
 export const useArrayField = (props) => {
   const field = useField<ArrayField>();
@@ -238,7 +241,84 @@ const usePaginationProps = (pagination1, pagination2) => {
   return result.total ? result : false;
 };
 
-export const Table: any = withDynamicSchemaProps(
+/**
+ * 将 antd 风格列映射为 ali-react-table 列，保留原 schema 解析(title/render)
+ */
+function toArtColumns(
+  antdCols: any[],
+  opts: {
+    showIndex: boolean;
+    isRowSelect: boolean;
+    getRowKey: (r: any) => string;
+    selectedRowKeys: any[];
+    pagination?: { current?: number; pageSize?: number };
+  },
+): ArtColumn[] {
+  const { showIndex, isRowSelect, getRowKey, selectedRowKeys, pagination } = opts;
+  const mapped: ArtColumn[] = (antdCols || []).map((col, i) => {
+    const dataIndex = col.dataIndex;
+    const code = (Array.isArray(dataIndex) ? dataIndex.join('.') : dataIndex) || col.key || `col_${i}`;
+    return {
+      code: String(code),
+      name: col.title,
+      width: col.width,
+      align: col.align,
+      features: { fixed: col.fixed },
+      render: (val: any, record: any, rowIndex: number) => {
+        // 与 antd render(v, record, index) 保持一致的 v 取值
+        let cellVal = val;
+        if (cellVal === undefined && dataIndex) {
+          if (Array.isArray(dataIndex)) {
+            cellVal = dataIndex.reduce((acc, k) => (acc == null ? acc : acc[k]), record);
+          } else {
+            cellVal = record?.[dataIndex];
+          }
+        }
+        return col.render ? col.render(cellVal, record, rowIndex) : cellVal;
+      },
+    } as ArtColumn;
+  });
+
+  // 前置索引/选择指示列（与原 rowSelection.renderCell + showIndex 的视觉位对齐）
+  if (showIndex || isRowSelect) {
+    mapped.unshift({
+      code: '__meta',
+      name: '',
+      width: 56,
+      align: 'left',
+      render: (_: any, record: any, rowIndex: number) => {
+        const current = pagination?.current ?? 1;
+        const pageSize = pagination?.pageSize ?? 20;
+        const absIndex = (current - 1) * pageSize + rowIndex + 1;
+        const checked = selectedRowKeys.includes(getRowKey(record));
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* 拖拽图标占位，后续可接入 dnd-kit 交互 */}
+            <MenuOutlined style={{ cursor: 'grab', opacity: 0.6 }} />
+            {showIndex && (
+              <span style={{ padding: '0 6px 0 2px' }}>{record.__index ? extractIndex(record.__index) : absIndex}</span>
+            )}
+            {isRowSelect && (
+              <span
+                aria-label="row-select-indicator"
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 8,
+                  background: checked ? '#1677ff' : '#d9d9d9',
+                  display: 'inline-block',
+                }}
+              />
+            )}
+          </div>
+        );
+      },
+    });
+  }
+  return mapped;
+}
+
+export const ARTTable: any = withDynamicSchemaProps(
   observer(
     (props: {
       useProps?: () => any;
@@ -254,12 +334,12 @@ export const Table: any = withDynamicSchemaProps(
       required?: boolean;
       onExpand?: (flag: boolean, record: any) => void;
       isSubTable?: boolean;
+      footer?: (() => React.ReactNode) | React.ReactNode; // 兼容 antd Table footer
     }) => {
       const { token } = useToken();
       const { styles } = useStyles();
       const { pagination: pagination1, useProps, ...others1 } = props;
 
-      // 新版 UISchema（1.0 之后）中已经废弃了 useProps，这里之所以继续保留是为了兼容旧版的 UISchema
       const { pagination: pagination2, ...others2 } = useProps?.() || {};
 
       const {
@@ -272,8 +352,10 @@ export const Table: any = withDynamicSchemaProps(
         required,
         onExpand,
         onClickRow,
+        footer, // 透出 footer
         ...others
       } = { ...others1, ...others2 } as any;
+
       const field = useArrayField(others);
       const columns = useTableColumns(others);
       const schema = useFieldSchema();
@@ -287,11 +369,17 @@ export const Table: any = withDynamicSchemaProps(
       const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>(field?.data?.selectedRowKeys || []);
       const [selectedRow, setSelectedRow] = useState([]);
       const dataSource = field?.value?.slice?.()?.filter?.(Boolean) || [];
-      const isRowSelect = rowSelection?.type !== 'none';
       const dragSort = tableDragSort || field.componentProps.dragSort || false;
       const defaultRowKeyMap = useRef(new Map());
+
       let onRow = null,
         highlightRow = '';
+
+      // 兼容 antd Table 的 footer：支持函数或节点
+      const footerNode = useMemo(() => {
+        if (!footer) return null;
+        return typeof footer === 'function' ? (footer as () => React.ReactNode)() : footer;
+      }, [footer]);
 
       if (onClickRow) {
         onRow = (record) => {
@@ -315,49 +403,7 @@ export const Table: any = withDynamicSchemaProps(
         }
       }, [expandFlag, allIncludesChildren]);
 
-      const components = useMemo(() => {
-        return {
-          header: {
-            wrapper: (props) => {
-              return (
-                <DndContext>
-                  <thead {...props} />
-                </DndContext>
-              );
-            },
-            cell: (props) => {
-              return <th {...props} className={cls(props.className, styles.headerCellDesigner)} />;
-            },
-          },
-          body: {
-            wrapper: (props) => {
-              return (
-                <DndContext
-                  onDragEnd={(e) => {
-                    if (!e.active || !e.over) {
-                      console.warn('move cancel');
-                      return;
-                    }
-                    const fromIndex = e.active?.data.current?.sortable?.index;
-                    const toIndex = e.over?.data.current?.sortable?.index;
-                    const from = field.value[fromIndex] || e.active;
-                    const to = field.value[toIndex] || e.over;
-                    void field.move(fromIndex, toIndex);
-                    onRowDragEnd({ from, to });
-                  }}
-                >
-                  <tbody {...props} />
-                </DndContext>
-              );
-            },
-            row: (props) => {
-              return <SortableRow {...props}></SortableRow>;
-            },
-            cell: (props) => <td {...props} className={classNames(props.className, styles.bodyCell)} />,
-          },
-        };
-      }, [field, onRowDragEnd, dragSort]);
-
+      // ali-react-table 不复用 antd 的 components，自定义拖拽将另行接入（此处先移除）
       /**
        * 为没有设置 key 属性的表格行生成一个唯一的 key
        * 1. rowKey 的默认值是 “key”，所以先判断有没有 record.key；
@@ -391,59 +437,76 @@ export const Table: any = withDynamicSchemaProps(
         }
       };
 
+      // BaseTable 无 rowSelection 属性，这里改为“点击行切换”
+      const isRowSelect = rowSelection?.type !== 'none';
+      const handleRowToggle = useCallback(
+        (record: any) => {
+          if (!isRowSelect) return;
+          const key = getRowKey(record);
+          const existed = selectedRowKeys.includes(key);
+          const nextKeys = existed ? selectedRowKeys.filter((k) => k !== key) : [...selectedRowKeys, key];
+          const nextRows = (field?.value || []).filter((r) => nextKeys.includes(getRowKey(r)));
+          field.data = field.data || {};
+          field.data.selectedRowKeys = nextKeys;
+          setSelectedRowKeys(nextKeys);
+          onRowSelectionChange?.(nextKeys, nextRows);
+        },
+        [isRowSelect, selectedRowKeys, field, getRowKey, onRowSelectionChange],
+      );
+
       const restProps = {
-        rowSelection: rowSelection
-          ? {
-              type: 'checkbox',
-              selectedRowKeys: selectedRowKeys,
-              onChange(selectedRowKeys: any[], selectedRows: any[]) {
-                field.data = field.data || {};
-                field.data.selectedRowKeys = selectedRowKeys;
-                setSelectedRowKeys(selectedRowKeys);
-                onRowSelectionChange?.(selectedRowKeys, selectedRows);
-              },
-              getCheckboxProps(record) {
-                return {
-                  'aria-label': `checkbox`,
-                };
-              },
-              renderCell: (checked, record, index, originNode) => {
-                if (!dragSort && !showIndex) {
-                  return originNode;
-                }
-                const current = props?.pagination?.current;
-                const pageSize = props?.pagination?.pageSize || 20;
-                if (current) {
-                  index = index + (current - 1) * pageSize + 1;
-                } else {
-                  index = index + 1;
-                }
-                if (record.__index) {
-                  index = extractIndex(record.__index);
-                }
-                return (
-                  <div
-                    role="button"
-                    aria-label={`table-index-${index}`}
-                    className={classNames(checked ? 'checked' : null, styles.rowSelect, {
-                      [styles.rowSelectHover]: isRowSelect,
-                    })}
-                  >
-                    <div className={classNames(checked ? 'checked' : null, styles.cellChecked)}>
-                      {dragSort && <SortHandle id={getRowKey(record)} />}
-                      {showIndex && <TableIndex index={index} />}
-                    </div>
-                    {isRowSelect && (
-                      <div className={classNames('tb-origin-node', checked ? 'checked' : null, styles.cellCheckedNode)}>
-                        {originNode}
-                      </div>
-                    )}
-                  </div>
-                );
-              },
-              ...rowSelection,
-            }
-          : undefined,
+        // rowSelection: rowSelection
+        //   ? {
+        //       type: 'checkbox',
+        //       selectedRowKeys: selectedRowKeys,
+        //       onChange(selectedRowKeys: any[], selectedRows: any[]) {
+        //         field.data = field.data || {};
+        //         field.data.selectedRowKeys = selectedRowKeys;
+        //         setSelectedRowKeys(selectedRowKeys);
+        //         onRowSelectionChange?.(selectedRowKeys, selectedRows);
+        //       },
+        //       getCheckboxProps(record) {
+        //         return {
+        //           'aria-label': `checkbox`,
+        //         };
+        //       },
+        //       renderCell: (checked, record, index, originNode) => {
+        //         if (!dragSort && !showIndex) {
+        //           return originNode;
+        //         }
+        //         const current = props?.pagination?.current;
+        //         const pageSize = props?.pagination?.pageSize || 20;
+        //         if (current) {
+        //           index = index + (current - 1) * pageSize + 1;
+        //         } else {
+        //           index = index + 1;
+        //         }
+        //         if (record.__index) {
+        //           index = extractIndex(record.__index);
+        //         }
+        //         return (
+        //           <div
+        //             role="button"
+        //             aria-label={`table-index-${index}`}
+        //             className={classNames(checked ? 'checked' : null, styles.rowSelect, {
+        //               [styles.rowSelectHover]: isRowSelect,
+        //             })}
+        //           >
+        //             <div className={classNames(checked ? 'checked' : null, styles.cellChecked)}>
+        //               {dragSort && <SortHandle id={getRowKey(record)} />}
+        //               {showIndex && <TableIndex index={index} />}
+        //             </div>
+        //             {isRowSelect && (
+        //               <div className={classNames('tb-origin-node', checked ? 'checked' : null, styles.cellCheckedNode)}>
+        //                 {originNode}
+        //               </div>
+        //             )}
+        //           </div>
+        //         );
+        //       },
+        //       ...rowSelection,
+        //     }
+        //   : undefined,
       };
       const SortableWrapper = useCallback(
         ({ children }) => {
@@ -463,46 +526,87 @@ export const Table: any = withDynamicSchemaProps(
       const fixedBlock = fieldSchema?.parent?.['x-decorator-props']?.fixedBlock;
 
       const { height: tableHeight, tableSizeRefCallback } = useTableSize();
-      const scroll = useMemo(() => {
-        return fixedBlock
-          ? {
-              x: 'max-content',
-              y: tableHeight,
-            }
-          : {
-              x: 'max-content',
-            };
-      }, [fixedBlock, tableHeight]);
+
+      // BaseTable 通过容器高度控制虚拟滚动；此处保持自适应宽度
       return (
         <div className={styles.container}>
           <SortableWrapper>
-            <AntdTable
-              ref={tableSizeRefCallback}
-              rowKey={rowKey ?? defaultRowKey}
-              dataSource={dataSource}
-              tableLayout="auto"
-              {...others}
-              {...restProps}
-              pagination={paginationProps}
-              components={components}
-              onChange={(pagination, filters, sorter, extra) => {
-                onTableChange?.(pagination, filters, sorter, extra);
-              }}
-              onRow={onRow}
-              rowClassName={(record) => (selectedRow.includes(record[rowKey]) ? highlightRow : '')}
-              scroll={scroll}
-              columns={columns}
-              expandable={{
-                onExpand: (flag, record) => {
-                  const newKeys = flag
-                    ? [...expandedKeys, record[collection.getPrimaryKey()]]
-                    : expandedKeys.filter((i) => record[collection.getPrimaryKey()] !== i);
-                  setExpandesKeys(newKeys);
-                  onExpand?.(flag, record);
-                },
-                expandedRowKeys: expandedKeys,
-              }}
-            />
+            <div ref={tableSizeRefCallback}>
+              <BaseTable
+                dataSource={dataSource}
+                columns={toArtColumns(columns, {
+                  showIndex,
+                  isRowSelect,
+                  getRowKey,
+                  selectedRowKeys,
+                  pagination: props?.pagination,
+                })}
+                primaryKey={getRowKey}
+                getRowProps={(record) => ({
+                  'data-row-key': getRowKey(record),
+                  className: classNames(
+                    selectedRow.includes(record[rowKey]) ? highlightRow : '',
+                    isNewRecord(record) ? styles.newRow : '',
+                  ),
+                  onClick: (e) => {
+                    if (isPortalInBody(e.target)) return;
+                    onRow?.(record)?.onClick?.(e);
+                    handleRowToggle(record);
+                  },
+                  style: { cursor: isRowSelect || onClickRow ? 'pointer' : 'default' },
+                })}
+                useVirtual={false}
+                style={{ width: '100%' }}
+              />
+            </div>
+            {paginationProps ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', fontSize: 12 }}>
+                <div>
+                  第 {paginationProps.current || 1} /
+                  {Math.max(
+                    1,
+                    Math.ceil((paginationProps.total || dataSource.length) / (paginationProps.pageSize || 20)),
+                  )}{' '}
+                  页，共 {paginationProps.total || dataSource.length} 条
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    disabled={(paginationProps.current || 1) <= 1}
+                    onClick={() =>
+                      onTableChange?.(
+                        { ...paginationProps, current: (paginationProps.current || 1) - 1 },
+                        {},
+                        {},
+                        { action: 'paginate' },
+                      )
+                    }
+                  >
+                    上一页
+                  </button>
+                  <button
+                    disabled={
+                      (paginationProps.current || 1) >=
+                      Math.ceil((paginationProps.total || dataSource.length) / (paginationProps.pageSize || 20))
+                    }
+                    onClick={() =>
+                      onTableChange?.(
+                        { ...paginationProps, current: (paginationProps.current || 1) + 1 },
+                        {},
+                        {},
+                        { action: 'paginate' },
+                      )
+                    }
+                  >
+                    下一页
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {footerNode ? (
+              <div className={classNames('ant-table-footer')} style={{ padding: 0 }}>
+                {footerNode}
+              </div>
+            ) : null}
           </SortableWrapper>
           {field.errors.length > 0 && (
             <div className="ant-formily-item-error-help ant-formily-item-help ant-formily-item-help-enter ant-formily-item-help-enter-active">

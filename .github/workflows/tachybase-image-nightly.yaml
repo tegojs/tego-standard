@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
         docker_tag:
-          description: 'The nightly Docker tag to publish (e.g., "v1.0.1", "20250317-{{tag}}", "latest")'
-          required: true
-          default: 'latest'
+          description: 'Docker tag (optional, auto-calculated if empty). Auto-calculation rules: 1) When triggered from a tag, use the tag name; 2) When triggered from main branch, use "latest"; 3) When triggered from other branches, use "current-date-branch-name" (e.g., 20251112-feat-some)'
+          required: false
+          default: ''
 
-run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || 'latest' }}"
+run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || 'auto' }}"
 
 jobs:
   docker:
@@ -16,6 +16,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set default docker tag
+        id: set_tag
+        run: |
+          if [ -n "${{ github.event.inputs.docker_tag }}" ]; then
+            # 如果用户提供了 docker_tag，直接使用
+            echo "tag=${{ github.event.inputs.docker_tag }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            # 如果是 tag，使用 tag 名称
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            # 如果是 main 分支，使用 latest
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            # 其他分支，使用当前日期+分支名称
+            DATE=$(date +%Y%m%d)
+            BRANCH_NAME="${{ github.ref_name }}"
+            # 替换分支名称中的 / 为 -，因为 Docker tag 不支持 /
+            BRANCH_NAME_SANITIZED=$(echo "$BRANCH_NAME" | tr '/' '-')
+            echo "tag=${DATE}-${BRANCH_NAME_SANITIZED}" >> $GITHUB_OUTPUT
+          fi
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node.js
@@ -36,5 +56,5 @@ jobs:
           file: docker/tego-nightly/Dockerfile
           push: true
           tags: |
-            tegojs/tego-nightly:${{ github.event.inputs.docker_tag }}
+            tegojs/tego-nightly:${{ steps.set_tag.outputs.tag }}
             tegojs/tego-nightly:latest

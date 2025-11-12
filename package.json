@@ -1,6 +1,6 @@
 {
   "name": "tachybase",
-  "version": "1.3.25",
+  "version": "1.5.0",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
@@ -9,6 +9,7 @@
     "prebuild:p": "node scripts/update-version-with-hash.mjs",
     "build:p": "tachybase build -s --no-dts",
     "clean": "tachybase clean",
+    "predev": "node scripts/update-version-with-hash.mjs",
     "dev": "tachybase dev",
     "dev-local": "APP_ENV_PATH=.env.local tachybase dev",
     "dev-server": "tachybase dev --server",

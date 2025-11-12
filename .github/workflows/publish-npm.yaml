@@ -1,0 +1,63 @@
+name: Publish to NPM
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+run-name: "Publish to NPM - Version: ${{ github.ref_name }}"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+      - name: Check if tag is on main branch
+        id: check_branch
+        run: |
+          # 获取 tag 指向的 commit
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref_name }})
+          # 检查这个 commit 是否在 main 分支上
+          if git branch -r --contains $TAG_COMMIT | grep -q 'origin/main'; then
+            echo "on_main=true" >> $GITHUB_OUTPUT
+            echo "✓ Tag ${{ github.ref_name }} is on main branch"
+          else
+            echo "on_main=false" >> $GITHUB_OUTPUT
+            echo "⚠ Tag ${{ github.ref_name }} is not on main branch, skipping publish"
+          fi
+      - uses: MOZGIII/install-ldid-action@v1
+        if: steps.check_branch.outputs.on_main == 'true'
+        with:
+          tag: v2.1.5-procursus7
+      - name: Setup pnpm
+        if: steps.check_branch.outputs.on_main == 'true'
+        uses: pnpm/action-setup@v4
+      - name: Setup Node.js
+        if: steps.check_branch.outputs.on_main == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install deps
+        if: steps.check_branch.outputs.on_main == 'true'
+        run: pnpm install
+      - name: Build
+        if: steps.check_branch.outputs.on_main == 'true'
+        run: pnpm build
+      - name: Publish
+        if: steps.check_branch.outputs.on_main == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          pnpm -r publish --provenance --access public --no-git-checks
+

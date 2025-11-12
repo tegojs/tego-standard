@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
         docker_tag:
-          description: |
+          description: >
             Docker tag (optional, auto-calculated if empty).
 
             Production tags (v1.0.0) remain unique.

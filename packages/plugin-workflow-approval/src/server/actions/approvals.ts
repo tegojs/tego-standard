@@ -309,7 +309,7 @@ export const approvals = {
     // 构造好审批数据后, 依次通知审批人审批
     for (const userId of assignees) {
       const [dataSourceName] = parseCollectionName(approval.collectionName);
-      const collection = this.workflow.app.dataSourceManager.dataSources
+      const collection = context.app.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(approval.collectionName);
       const message = {

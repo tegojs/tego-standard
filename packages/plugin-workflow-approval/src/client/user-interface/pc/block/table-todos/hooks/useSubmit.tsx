@@ -25,7 +25,7 @@ export function useSubmit(props: any = {}) {
         if (!!approvalRecord.status) {
           return;
         }
-        if (status !== APPROVAL_TODO_STATUS.RETURNED) {
+        if (status === APPROVAL_TODO_STATUS.APPROVED) {
           await form.submit();
         }
         field.data = field.data ?? {};

@@ -32,6 +32,12 @@ export const FormActionButtonInitializer = new SchemaInitializer({
       Component: SwitchActionCommon,
       statusApproval: APPROVAL_TODO_STATUS.PENDING,
     },
+    {
+      name: 'approvalStatusReturn',
+      title: tval('Return'),
+      Component: SwitchActionCommon,
+      statusApproval: APPROVAL_TODO_STATUS.RETURNED,
+    },
   ],
 });
 

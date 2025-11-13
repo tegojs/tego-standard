@@ -165,7 +165,8 @@ function ExecutionsDropdown(props) {
   const { styles } = useStyles();
   const [executionsBefore, setExecutionsBefore] = useState([]);
   const [executionsAfter, setExecutionsAfter] = useState([]);
-
+  const localUrl = window.location.pathname;
+  const type = localUrl.split('business-components/')[1]?.split('/')[0];
   useEffect(() => {
     if (!execution) {
       return;
@@ -215,7 +216,7 @@ function ExecutionsDropdown(props) {
   const onClick = useCallback(
     ({ key }) => {
       if (key !== execution.id) {
-        navigate(getWorkflowExecutionsPath(key));
+        navigate(getWorkflowExecutionsPath(key, type));
       }
     },
     [execution],

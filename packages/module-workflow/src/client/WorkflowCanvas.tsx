@@ -81,7 +81,7 @@ export function WorkflowCanvas() {
 
   function onSwitchVersion({ key }) {
     if (key !== workflow.id) {
-      navigate(getWorkflowDetailPath(key));
+      navigate(getWorkflowDetailPath(key, type));
     }
   }
 
@@ -105,7 +105,7 @@ export function WorkflowCanvas() {
       },
     });
 
-    navigate(getWorkflowExecutionsPath(execution.id));
+    navigate(getWorkflowExecutionsPath(execution.id, type));
   }
 
   async function onTest() {
@@ -120,7 +120,7 @@ export function WorkflowCanvas() {
         data: {},
       },
     });
-    navigate(getWorkflowExecutionsPath(execution.id));
+    navigate(getWorkflowExecutionsPath(execution.id, type));
   }
 
   async function onRevision() {
@@ -138,7 +138,7 @@ export function WorkflowCanvas() {
 
     message.success(t('Operation succeeded'));
 
-    navigate(getWorkflowDetailPath(revision.id));
+    navigate(getWorkflowDetailPath(revision.id, type));
     // setRefreshKey(uid());
   }
 
@@ -158,7 +158,7 @@ export function WorkflowCanvas() {
         navigate(
           workflow.current
             ? app.systemSettingsManager.getRoutePath('workflow')
-            : getWorkflowDetailPath(revisions.find((item) => item.current)?.id),
+            : getWorkflowDetailPath(revisions.find((item) => item.current)?.id, type),
         );
       },
     });

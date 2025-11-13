@@ -563,17 +563,8 @@ export class UserStatusService {
 
       try {
         const decoded = await this.jwt.decode(token);
-        const tokenUserStatus = decoded.userStatus;
+        const tokenUserStatus = decoded.userStatus || 'active'; // 兼容: 如果 token 中没有状态信息, 视为 active
         const currentUserStatus = user.status || 'active';
-
-        // 如果 token 中没有状态信息，强制重新登录
-        if (!tokenUserStatus) {
-          userStatusService.logger.warn(`[check] Token missing userStatus, userId=${user.id}, forcing re-login`);
-          this.ctx.throw(401, {
-            message: this.ctx.t('Your account status has changed. Please sign in again.', { ns: namespace }),
-            code: AuthErrorCode.INVALID_TOKEN,
-          });
-        }
 
         // 如果状态不一致，强制重新登录
         if (tokenUserStatus !== currentUserStatus) {

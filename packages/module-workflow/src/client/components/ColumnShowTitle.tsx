@@ -1,4 +1,3 @@
-import React from 'react';
 import { useCollectionRecordData, useCompile, usePlugin } from '@tachybase/client';
 
 import { Tooltip } from 'antd';
@@ -14,8 +13,20 @@ export const ColumnShowTitle = () => {
   const target = triggersOptions.find((trigger) => trigger.value === type);
 
   return (
-    <Tooltip title={compile(target.label)} placement="right" color={'cyan'}>
-      <span style={{ textAlign: 'left', cursor: 'pointer' }}>{title}</span>
+    <Tooltip title={compile(target.label)} placement="right" color={'cyan'} style={{}}>
+      <span
+        style={{
+          display: 'inline-block',
+          maxWidth: 300,
+          textAlign: 'left',
+          cursor: 'pointer',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {title}
+      </span>
     </Tooltip>
   );
 };

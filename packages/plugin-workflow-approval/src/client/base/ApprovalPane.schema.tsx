@@ -437,6 +437,27 @@ export const schemaApprovalPanne = {
                 },
               },
             },
+            category: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                width: 20,
+                align: 'center',
+              },
+              properties: {
+                category: {
+                  type: 'array',
+                  'x-collection-field': 'workflows.category',
+                  'x-component': 'CollectionField',
+                  'x-component-props': {
+                    multiple: true,
+                    mode: 'Tag',
+                  },
+                  'x-read-pretty': true,
+                },
+              },
+            },
             description: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
@@ -445,6 +466,11 @@ export const schemaApprovalPanne = {
                 description: {
                   type: 'string',
                   'x-component': 'CollectionField',
+                  'x-component-props': {
+                    ellipsis: {
+                      showTitle: false,
+                    },
+                  },
                   'x-read-pretty': true,
                 },
               },
@@ -495,6 +521,27 @@ export const schemaApprovalPanne = {
                 },
               },
             },
+            executedTime: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Finally executed on', { ns: 'workflow' }),
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                executedTime: {
+                  type: 'string',
+                  'x-component': 'ColumnExecutedTime',
+                },
+              },
+            },
             updatedAt: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
@@ -521,7 +568,6 @@ export const schemaApprovalPanne = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
                 style: {

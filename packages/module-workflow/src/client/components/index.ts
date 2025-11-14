@@ -14,3 +14,4 @@ export * from './AddNotifiedPerson';
 export * from './ConfigButtonMessage';
 export * from './ExecutionLink';
 export * from './ExecutionRetryAction';
+export * from './ColumnExecutedTime';

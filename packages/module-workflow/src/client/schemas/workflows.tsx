@@ -1040,12 +1040,51 @@ export const workflowSchema: ISchema = {
                   'x-component': 'TableV2.Column',
                   'x-component-props': {
                     sorter: true,
+                    width: 100,
                   },
                   title: '{{t("Name")}}',
                   properties: {
                     title: {
                       type: 'string',
                       'x-component': 'ColumnShowTitle',
+                    },
+                  },
+                },
+                category: {
+                  type: 'void',
+                  'x-decorator': 'TableV2.Column.Decorator',
+                  'x-component': 'TableV2.Column',
+                  'x-component-props': {
+                    width: 20,
+                    align: 'center',
+                  },
+                  properties: {
+                    category: {
+                      type: 'array',
+                      'x-collection-field': 'workflows.category',
+                      'x-component': 'CollectionField',
+                      'x-component-props': {
+                        multiple: true,
+                        mode: 'Tag',
+                      },
+                      'x-read-pretty': true,
+                    },
+                  },
+                },
+                description: {
+                  type: 'void',
+                  'x-decorator': 'TableV2.Column.Decorator',
+                  'x-component': 'TableV2.Column',
+                  properties: {
+                    description: {
+                      type: 'string',
+                      'x-component': 'CollectionField',
+                      'x-component-props': {
+                        ellipsis: {
+                          showTitle: false,
+                        },
+                      },
+                      'x-read-pretty': true,
                     },
                   },
                 },
@@ -1146,40 +1185,6 @@ export const workflowSchema: ISchema = {
                     },
                   },
                 },
-                category: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    sorter: true,
-                    width: 20,
-                    align: 'center',
-                  },
-                  properties: {
-                    category: {
-                      type: 'array',
-                      'x-collection-field': 'workflows.category',
-                      'x-component': 'CollectionField',
-                      'x-component-props': {
-                        multiple: true,
-                        mode: 'Tag',
-                      },
-                      'x-read-pretty': true,
-                    },
-                  },
-                },
-                description: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  properties: {
-                    description: {
-                      type: 'string',
-                      'x-component': 'CollectionField',
-                      'x-read-pretty': true,
-                    },
-                  },
-                },
                 updatedAt: {
                   type: 'void',
                   'x-decorator': 'TableV2.Column.Decorator',
@@ -1206,7 +1211,6 @@ export const workflowSchema: ISchema = {
                   'x-decorator': 'TableV2.Column.Decorator',
                   'x-component': 'TableV2.Column',
                   'x-component-props': {
-                    sorter: true,
                     width: 20,
                     align: 'center',
                     style: {

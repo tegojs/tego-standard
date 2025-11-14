@@ -44,10 +44,10 @@ export function traverseSchema(schema, fn) {
   }
 }
 
-export function getWorkflowDetailPath(id: string | number) {
-  return `/_admin/business-components/workflow/${id}/workflow`;
+export function getWorkflowDetailPath(id: string | number, type?) {
+  return `/_admin/business-components/${type ? type : 'workflow'}/${id}/workflow`;
 }
 
-export function getWorkflowExecutionsPath(id: string | number) {
-  return `/_admin/business-components/workflow/${id}/executions`;
+export function getWorkflowExecutionsPath(id: string | number, type?) {
+  return `/_admin/business-components/${type ? type : 'workflow'}/${id}/executions`;
 }

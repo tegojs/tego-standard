@@ -20,3 +20,5 @@ export * from './nodes/default-node';
 export * from './nodes/default-node/components/NodeDefaultView';
 export * from './nodes/default-node/interface';
 export { TabTableBlockProvider, WorkflowTabCardItem } from './schemas/workflows';
+export * from './WorkflowPage';
+export * from './ExecutionPage';

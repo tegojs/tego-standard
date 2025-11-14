@@ -37,6 +37,7 @@ const NoticeDetail = (props) => {
       scope={{
         usePropsNoticeDetail,
         useDetailsBlockProps: useFormBlockContext,
+        useFormBlockProps: usePropsNoticeDetail,
       }}
       schema={{
         name: `content-${id}`,

@@ -601,7 +601,7 @@ export const schemaApprovalPanne = {
                   properties: {
                     configure: {
                       type: 'void',
-                      'x-component': 'WorkflowLink',
+                      'x-component': 'WorkflowApprovalLink',
                     },
                     update: updateApproval,
                     revision: {

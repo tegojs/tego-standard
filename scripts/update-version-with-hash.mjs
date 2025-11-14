@@ -27,7 +27,7 @@ function getGitHash() {
       stdio: ['pipe', 'pipe', 'ignore'],
     }).trim();
   } catch (error) {
-    console.warn(`⚠ 无法获取 Git hash: ${error.message}`);
+    console.warn(`⚠ Failed to get Git hash: ${error.message}`);
     return `UnkVer`;
   }
 }
@@ -47,7 +47,7 @@ function getGitBranch() {
       stdio: ['pipe', 'pipe', 'ignore'],
     }).trim();
   } catch (error) {
-    console.warn(`⚠ 无法获取 Git 分支名: ${error.message}`);
+    console.warn(`⚠ Failed to get Git branch name: ${error.message}`);
     return `UnkBranch`;
   }
 }
@@ -129,18 +129,18 @@ function updateVersion() {
     writeFileSync(versionJsonPath, JSON.stringify(versionInfo, null, 2) + '\n', 'utf-8');
 
     if (!isTagStandard) {
-      console.log(`✓ 版本号已生成: ${baseVersion} -> ${newVersion}`);
+      console.log(`✓ Version generated: ${baseVersion} -> ${newVersion}`);
       console.log(`  Hash: ${hash}`);
-      console.log(`  分支: ${branch}`);
-      console.log(`  版本信息已写入: .version.json`);
+      console.log(`  Branch: ${branch}`);
+      console.log(`  Version info written to: .version.json`);
     } else {
-      console.log(`✓ 版本号: ${newVersion} (标准版本标签)`);
-      console.log(`  版本信息已写入: .version.json`);
+      console.log(`✓ Version: ${newVersion} (standard version tag)`);
+      console.log(`  Version info written to: .version.json`);
     }
 
     return newVersion;
   } catch (error) {
-    console.error('❌ 更新版本号失败:', error.message);
+    console.error('❌ Failed to update version:', error.message);
     // 写入版本失败后继续执行, 不中断 build 流程
   }
 }

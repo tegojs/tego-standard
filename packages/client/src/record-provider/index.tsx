@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 
 import { useCollection_deprecated } from '../collection-manager';
 import { CollectionRecordProvider } from '../data-source';
@@ -21,9 +21,10 @@ export const RecordProvider = (props: {
 }) => {
   const { record, children, parent, isNew } = props;
   const { name: __collectionName } = useCollection_deprecated();
-  const value = { ...record };
-  value['__parent'] = parent;
-  value['__collectionName'] = __collectionName;
+  const value = useMemo(() => {
+    const base = record ?? {};
+    return { ...base, __parent: parent, __collectionName };
+  }, [record, parent, __collectionName]);
   return (
     <RecordContext_deprecated.Provider value={value}>
       <CollectionRecordProvider isNew={isNew} record={record} parentRecord={parent}>

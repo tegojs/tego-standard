@@ -45,7 +45,7 @@ import { FlagProvider } from '../../../flag-provider';
 import { useCompile, useDesignable } from '../../hooks';
 import { ActionContextProvider } from '../action';
 // import { Table } from '../table-v2/Table';
-import { ARTTable as Table } from '../table-v2/ARTTable';
+import { Table } from '../table-v2/ARTTable';
 import { useAssociationFieldContext, useFieldNames } from './hooks';
 import { useTableSelectorProps } from './InternalPicker';
 import { InternalCollapse } from './SubTabs/InternalCollapse';
@@ -139,7 +139,7 @@ export const SubTable: any = observer(
     // -------- 外部状态（保持原逻辑） --------
     const [fieldValueShadow, setFieldValueShadow] = useState<any[]>([]);
     const [selectedRows, setSelectedRows] = useState<any[]>([]);
-
+    console.log('SubTable render', 11111111111);
     // -------- 安全初始化 field.value （一次）---------
     useEffect(() => {
       if (!Array.isArray(field.value)) {

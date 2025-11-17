@@ -8,7 +8,8 @@ import {
   type UserStatusCheckResult,
 } from '@tego/server';
 
-const localeNamespace = 'auth';
+import { namespace } from '../preset';
+const localeNamespace = namespace;
 
 /**
  * 基础用户状态服务实现

@@ -391,28 +391,22 @@ jobs:
               HTTP_CODE=$(echo "${PR_RESPONSE}" | tail -n1)
               PR_BODY=$(echo "${PR_RESPONSE}" | sed '$d')
 
-              echo "PR creation response code: ${HTTP_CODE}"
-              echo "PR creation response body: ${PR_BODY}"
-
               if [ "${HTTP_CODE}" == "201" ]; then
-                # Extract PR number and URL using jq (more reliable)
+                # Extract PR number and URL
                 if command -v jq >/dev/null 2>&1; then
                   PR_NUMBER=$(echo "${PR_BODY}" | jq -r '.number // empty')
                   PR_URL=$(echo "${PR_BODY}" | jq -r '.html_url // empty')
                 else
-                  # Fallback to grep if jq not available
                   PR_NUMBER=$(echo "${PR_BODY}" | grep -o '"number":[0-9]*' | head -1 | cut -d':' -f2)
                   PR_URL=$(echo "${PR_BODY}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
                 fi
 
                 if [ -z "${PR_NUMBER}" ] || [ "${PR_NUMBER}" == "null" ]; then
-                  echo "❌ Failed to extract PR number from response"
-                  echo "Response body: ${PR_BODY}"
+                  echo "❌ Failed to extract PR number"
                   exit 1
                 fi
 
                 if [ -z "${PR_URL}" ] || [ "${PR_URL}" == "null" ]; then
-                  echo "⚠ Failed to extract PR URL, but PR number is: ${PR_NUMBER}"
                   PR_URL="https://github.com/${REPO_NAME}/pull/${PR_NUMBER}"
                 fi
 
@@ -449,165 +443,38 @@ jobs:
                     CREATE_LABEL_HTTP_CODE=$(echo "${CREATE_LABEL_RESPONSE}" | tail -n1)
                     if [ "${CREATE_LABEL_HTTP_CODE}" == "201" ]; then
                       echo "✓ Created label: ${LABEL_NAME}"
-                    elif [ "${CREATE_LABEL_HTTP_CODE}" == "422" ]; then
-                      echo "⚠ Label ${LABEL_NAME} might already exist (422)"
-                    else
-                      echo "⚠ Failed to create label ${LABEL_NAME} (HTTP ${CREATE_LABEL_HTTP_CODE})"
                     fi
                   fi
                 done
 
-                # Verify PR_NUMBER is set before adding labels
-                if [ -z "${PR_NUMBER}" ] || [ "${PR_NUMBER}" == "null" ] || [ "${PR_NUMBER}" == "0" ]; then
-                  echo "❌ PR_NUMBER is not set or invalid: '${PR_NUMBER}'"
-                  echo "Cannot add labels without valid PR number"
-                  exit 1
-                fi
-
-                echo "Adding labels to PR #${PR_NUMBER}..."
-
-                # Add labels to the PR one by one (more reliable than batch)
-                ADDED_LABELS=()
+                # Add labels to the PR
                 for LABEL_NAME in "${LABELS[@]}"; do
-                  echo "Adding label: ${LABEL_NAME} to PR #${PR_NUMBER}..."
-
-                  # Use POST method to add label (GitHub API requires array format)
-                  SINGLE_LABEL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                  curl -s -X POST \
                     -H "Accept: application/vnd.github+json" \
                     -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     -H "Content-Type: application/json" \
                     "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
-                    -d "[\"${LABEL_NAME}\"]")
-
-                  SINGLE_LABEL_HTTP_CODE=$(echo "${SINGLE_LABEL_RESPONSE}" | tail -n1)
-                  SINGLE_LABEL_BODY=$(echo "${SINGLE_LABEL_RESPONSE}" | sed '$d')
-
-                  if [ "${SINGLE_LABEL_HTTP_CODE}" == "200" ] || [ "${SINGLE_LABEL_HTTP_CODE}" == "201" ]; then
-                    echo "✓ Added label: ${LABEL_NAME}"
-                    ADDED_LABELS+=("${LABEL_NAME}")
-                  else
-                    echo "⚠ Failed to add label ${LABEL_NAME} (HTTP ${SINGLE_LABEL_HTTP_CODE})"
-                    echo "Response: ${SINGLE_LABEL_BODY}"
-
-                    # Check if label doesn't exist error
-                    if echo "${SINGLE_LABEL_BODY}" | grep -q "does not exist\|not found"; then
-                      echo "Label ${LABEL_NAME} may not exist, attempting to create it first..."
-                      # Label creation should have been done earlier, but retry if needed
-                    fi
-                  fi
-
-                  # Small delay to avoid rate limiting
-                  sleep 0.5
+                    -d "[\"${LABEL_NAME}\"]" > /dev/null
+                  sleep 0.3
                 done
-
-                # Verify labels were added by fetching PR labels
-                echo "Verifying labels were added..."
-                sleep 2  # Wait longer for GitHub to update
-
-                VERIFY_LABELS_RESPONSE=$(curl -s -w "\n%{http_code}" \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels")
-
-                VERIFY_HTTP_CODE=$(echo "${VERIFY_LABELS_RESPONSE}" | tail -n1)
-                VERIFY_BODY=$(echo "${VERIFY_LABELS_RESPONSE}" | sed '$d')
-
-                echo "Verification API response code: ${VERIFY_HTTP_CODE}"
-
-                if [ "${VERIFY_HTTP_CODE}" == "200" ]; then
-                  VERIFY_LABELS=$(echo "${VERIFY_BODY}" | jq -r '.[].name' 2>/dev/null || echo "")
-
-                  if [ -n "${VERIFY_LABELS}" ]; then
-                    echo "Current PR labels: $(echo "${VERIFY_LABELS}" | tr '\n' ' ')"
-
-                  # Check if all required labels are present
-                  HAS_AUTOMATED=false
-                  HAS_DOCUMENTATION=false
-                  HAS_SYNC=false
-
-                  if echo "${VERIFY_LABELS}" | grep -q "^automated$"; then
-                    HAS_AUTOMATED=true
-                  fi
-                  if echo "${VERIFY_LABELS}" | grep -q "^documentation$"; then
-                    HAS_DOCUMENTATION=true
-                  fi
-                  if echo "${VERIFY_LABELS}" | grep -q "^sync$"; then
-                    HAS_SYNC=true
-                  fi
-
-                  if [ "${HAS_AUTOMATED}" == "true" ] && [ "${HAS_DOCUMENTATION}" == "true" ] && [ "${HAS_SYNC}" == "true" ]; then
-                    echo "✅ All required labels verified: automated, documentation, sync"
-                  else
-                    echo "⚠ Some labels missing:"
-                    echo "  - automated: ${HAS_AUTOMATED}"
-                    echo "  - documentation: ${HAS_DOCUMENTATION}"
-                    echo "  - sync: ${HAS_SYNC}"
-                    echo "Attempting to re-add missing labels..."
-
-                    # Retry adding missing labels
-                    if [ "${HAS_AUTOMATED}" != "true" ]; then
-                      curl -s -X POST \
-                        -H "Accept: application/vnd.github+json" \
-                        -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
-                        -H "X-GitHub-Api-Version: 2022-11-28" \
-                        "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
-                        -d '["automated"]' > /dev/null && echo "✓ Re-added label: automated"
-                    fi
-                    if [ "${HAS_DOCUMENTATION}" != "true" ]; then
-                      curl -s -X POST \
-                        -H "Accept: application/vnd.github+json" \
-                        -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
-                        -H "X-GitHub-Api-Version: 2022-11-28" \
-                        "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
-                        -d '["documentation"]' > /dev/null && echo "✓ Re-added label: documentation"
-                    fi
-                    if [ "${HAS_SYNC}" != "true" ]; then
-                      curl -s -X POST \
-                        -H "Accept: application/vnd.github+json" \
-                        -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
-                        -H "X-GitHub-Api-Version: 2022-11-28" \
-                        "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
-                        -d '["sync"]' > /dev/null && echo "✓ Re-added label: sync"
-                    fi
-                  fi
-                  else
-                    echo "⚠ No labels found in PR (empty array)"
-                    echo "Full API response: ${VERIFY_BODY}"
-                  fi
-                else
-                  echo "⚠ Could not verify labels (HTTP ${VERIFY_HTTP_CODE})"
-                  echo "Full API response: ${VERIFY_BODY}"
-                fi
-
-                # Note: Auto-merge will be triggered automatically by the docs repository's rules
-                # if the PR meets the conditions:
-                # - Non-draft PR (default)
-                # - Branch name starts with "chore/sync-" (already satisfied)
-                # - Has labels: automated, documentation, sync (just added above)
+                echo "✓ Added labels: ${LABELS[*]}"
               elif [ "${HTTP_CODE}" == "422" ]; then
-                # PR might already exist, try to find it
-                echo "⚠ Pull request might already exist, checking..."
+                # PR might already exist
                 REPO_OWNER=$(echo "${REPO_NAME}" | cut -d'/' -f1)
-                REPO_REPO=$(echo "${REPO_NAME}" | cut -d'/' -f2)
                 EXISTING_PR=$(curl -s \
                   -H "Accept: application/vnd.github+json" \
                   -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
                   "https://api.github.com/repos/${REPO_NAME}/pulls?head=${REPO_OWNER}:${BRANCH_NAME}&state=open")
-
                 EXISTING_PR_URL=$(echo "${EXISTING_PR}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
                 if [ -n "${EXISTING_PR_URL}" ]; then
                   echo "✓ Found existing Pull Request: ${EXISTING_PR_URL}"
                 else
                   echo "⚠ Failed to create Pull Request (HTTP ${HTTP_CODE})"
-                  echo "Response: ${PR_BODY}"
                 fi
               else
                 echo "⚠ Failed to create Pull Request (HTTP ${HTTP_CODE})"
-                echo "Response: ${PR_BODY}"
-                echo "You may need to create the PR manually at: https://github.com/${REPO_NAME}/compare/main...${BRANCH_NAME}"
               fi
             else
               echo "❌ Failed to push branch to docs repository"

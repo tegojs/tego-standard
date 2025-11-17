@@ -11,12 +11,11 @@ run-name: "Hotfix Publish - ${{ github.event.pull_request.head.ref }}"
 
 jobs:
   detect-hotfix-pr:
-    if: |
-      github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'hotfix/')
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     outputs:
       is_hotfix: ${{ steps.check.outputs.is_hotfix }}
       base_version: ${{ steps.check.outputs.base_version }}
@@ -31,31 +30,53 @@ jobs:
 
       - name: Check if PR is hotfix
         id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           PR_BRANCH="${{ github.event.pull_request.head.ref }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
 
-          # 检查分支名是否符合 hotfix/x.y.z 格式
-          if echo "$PR_BRANCH" | grep -qE '^hotfix/[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "is_hotfix=true" >> $GITHUB_OUTPUT
-            HOTFIX_VERSION=$(echo "$PR_BRANCH" | sed 's/^hotfix\///')
-            echo "hotfix_version=$HOTFIX_VERSION" >> $GITHUB_OUTPUT
+          # 检查 PR 是否有 'hotfix' label
+          PR_LABELS=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/labels")
 
-            # 从版本号计算基础版本（PATCH - 1）
-            MAJOR=$(echo $HOTFIX_VERSION | cut -d. -f1)
-            MINOR=$(echo $HOTFIX_VERSION | cut -d. -f2)
-            PATCH=$(echo $HOTFIX_VERSION | cut -d. -f3)
-            BASE_PATCH=$((PATCH - 1))
-            BASE_VERSION="${MAJOR}.${MINOR}.${BASE_PATCH}"
-            echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+          HAS_HOTFIX_LABEL=$(echo "${PR_LABELS}" | jq -r '.[] | select(.name == "hotfix") | .name' | head -1)
 
-            echo "✓ Detected hotfix PR: $PR_BRANCH"
-            echo "  Hotfix version: $HOTFIX_VERSION"
-            echo "  Base version: $BASE_VERSION"
+          if [ -n "${HAS_HOTFIX_LABEL}" ] && [ "${HAS_HOTFIX_LABEL}" == "hotfix" ]; then
+            echo "✓ Found 'hotfix' label on PR #${PR_NUMBER}"
+
+            # 检查分支名是否符合 hotfix/x.y.z 格式
+            if echo "$PR_BRANCH" | grep -qE '^hotfix/[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "is_hotfix=true" >> $GITHUB_OUTPUT
+              HOTFIX_VERSION=$(echo "$PR_BRANCH" | sed 's/^hotfix\///')
+              echo "hotfix_version=$HOTFIX_VERSION" >> $GITHUB_OUTPUT
+
+              # 从版本号计算基础版本（PATCH - 1）
+              MAJOR=$(echo $HOTFIX_VERSION | cut -d. -f1)
+              MINOR=$(echo $HOTFIX_VERSION | cut -d. -f2)
+              PATCH=$(echo $HOTFIX_VERSION | cut -d. -f3)
+              BASE_PATCH=$((PATCH - 1))
+              BASE_VERSION="${MAJOR}.${MINOR}.${BASE_PATCH}"
+              echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+              echo "✓ Detected hotfix PR: $PR_BRANCH"
+              echo "  Hotfix version: $HOTFIX_VERSION"
+              echo "  Base version: $BASE_VERSION"
+            else
+              echo "is_hotfix=false" >> $GITHUB_OUTPUT
+              echo "❌ Error: PR has 'hotfix' label but branch name '$PR_BRANCH' does not match hotfix/x.y.z format"
+              echo "::error::Branch name must match pattern: hotfix/x.y.z"
+              exit 1
+            fi
           else
             echo "is_hotfix=false" >> $GITHUB_OUTPUT
-            echo "❌ Error: Branch name '$PR_BRANCH' does not match hotfix/x.y.z format"
-            echo "::error::This workflow only processes hotfix PRs. Branch must match pattern: hotfix/x.y.z"
-            exit 1
+            echo "ℹ PR #${PR_NUMBER} does not have 'hotfix' label, skipping"
+            echo "::notice::This workflow only processes PRs with the 'hotfix' label created by the hotfix-create workflow"
+            exit 0
           fi
 
   publish:

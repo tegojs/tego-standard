@@ -14,7 +14,6 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       pull-requests: read
     outputs:
       is_hotfix: ${{ steps.check.outputs.is_hotfix }}
@@ -23,11 +22,6 @@ jobs:
       pr_number: ${{ github.event.pull_request.number }}
       pr_branch: ${{ github.event.pull_request.head.ref }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Check if PR is hotfix
         id: check
         env:
@@ -36,6 +30,13 @@ jobs:
         run: |
           PR_BRANCH="${{ github.event.pull_request.head.ref }}"
           PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # 快速检查：如果分支名不是以 hotfix/ 开头，直接退出
+          if ! echo "$PR_BRANCH" | grep -qE '^hotfix/'; then
+            echo "is_hotfix=false" >> $GITHUB_OUTPUT
+            echo "ℹ PR #${PR_NUMBER} branch '$PR_BRANCH' does not start with 'hotfix/', skipping"
+            exit 0
+          fi
 
           # 检查 PR 是否有 'hotfix' label
           PR_LABELS=$(curl -s \

@@ -52,7 +52,12 @@ export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSo
               <th
                 colSpan={columns.length}
                 style={{
+                  padding: '4px 8px',
                   textAlign: 'center',
+                  border: '1px solid #e8e8e8',
+                  backgroundColor: '#f5f5f5',
+                  fontWeight: 'bold',
+                  color: '#333',
                 }}
               >
                 {title}

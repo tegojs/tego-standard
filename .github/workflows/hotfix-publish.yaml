@@ -1,0 +1,332 @@
+name: Hotfix Publish
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+run-name: "Hotfix Publish - ${{ github.event.pull_request.head.ref }}"
+
+jobs:
+  detect-hotfix-pr:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      is_hotfix: ${{ steps.check.outputs.is_hotfix }}
+      base_version: ${{ steps.check.outputs.base_version }}
+      hotfix_version: ${{ steps.check.outputs.hotfix_version }}
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_branch: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - name: Check if PR is hotfix
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          PR_BRANCH="${{ github.event.pull_request.head.ref }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # 快速检查：如果分支名不是以 hotfix/ 开头，直接退出
+          if ! echo "$PR_BRANCH" | grep -qE '^hotfix/'; then
+            echo "is_hotfix=false" >> $GITHUB_OUTPUT
+            echo "ℹ PR #${PR_NUMBER} branch '$PR_BRANCH' does not start with 'hotfix/', skipping"
+            exit 0
+          fi
+
+          # 检查 PR 是否有 'hotfix' label
+          PR_LABELS=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/labels")
+
+          HAS_HOTFIX_LABEL=$(echo "${PR_LABELS}" | jq -r '.[] | select(.name == "hotfix") | .name' | head -1)
+
+          if [ -n "${HAS_HOTFIX_LABEL}" ] && [ "${HAS_HOTFIX_LABEL}" == "hotfix" ]; then
+            echo "✓ Found 'hotfix' label on PR #${PR_NUMBER}"
+
+            # 检查分支名是否符合 hotfix/x.y.z 格式
+            if echo "$PR_BRANCH" | grep -qE '^hotfix/[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "is_hotfix=true" >> $GITHUB_OUTPUT
+              HOTFIX_VERSION=$(echo "$PR_BRANCH" | sed 's/^hotfix\///')
+              echo "hotfix_version=$HOTFIX_VERSION" >> $GITHUB_OUTPUT
+
+              # 从版本号计算基础版本（PATCH - 1）
+              MAJOR=$(echo $HOTFIX_VERSION | cut -d. -f1)
+              MINOR=$(echo $HOTFIX_VERSION | cut -d. -f2)
+              PATCH=$(echo $HOTFIX_VERSION | cut -d. -f3)
+              BASE_PATCH=$((PATCH - 1))
+              BASE_VERSION="${MAJOR}.${MINOR}.${BASE_PATCH}"
+              echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+              echo "✓ Detected hotfix PR: $PR_BRANCH"
+              echo "  Hotfix version: $HOTFIX_VERSION"
+              echo "  Base version: $BASE_VERSION"
+            else
+              echo "is_hotfix=false" >> $GITHUB_OUTPUT
+              echo "❌ Error: PR has 'hotfix' label but branch name '$PR_BRANCH' does not match hotfix/x.y.z format"
+              echo "::error::Branch name must match pattern: hotfix/x.y.z"
+              exit 1
+            fi
+          else
+            echo "is_hotfix=false" >> $GITHUB_OUTPUT
+            echo "ℹ PR #${PR_NUMBER} does not have 'hotfix' label, skipping"
+            echo "::notice::This workflow only processes PRs with the 'hotfix' label created by the hotfix-create workflow"
+            exit 0
+          fi
+
+  publish:
+    needs: detect-hotfix-pr
+    if: needs.detect-hotfix-pr.outputs.is_hotfix == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      actions: write
+      pull-requests: write
+    outputs:
+      version: ${{ steps.do_version.outputs.version }}
+      base_version: ${{ steps.do_version.outputs.base_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.0
+
+      - name: Determine base version
+        id: determine_base
+        run: |
+          # 从 detect-hotfix-pr job 获取版本信息
+          BASE_VERSION="${{ needs.detect-hotfix-pr.outputs.base_version }}"
+          HOTFIX_VERSION="${{ needs.detect-hotfix-pr.outputs.hotfix_version }}"
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "hotfix_version=$HOTFIX_VERSION" >> $GITHUB_OUTPUT
+          echo "✓ Using versions from merged PR: base=$BASE_VERSION, hotfix=$HOTFIX_VERSION"
+
+      - name: Validate base version
+        id: validate_base
+        run: |
+          BASE_VERSION="${{ steps.determine_base.outputs.base_version }}"
+          BASE_TAG="v${BASE_VERSION}"
+
+          # 检查 tag 是否存在
+          if ! git rev-parse "$BASE_TAG" >/dev/null 2>&1; then
+            echo "❌ Error: Tag $BASE_TAG does not exist"
+            exit 1
+          fi
+
+          # 检查版本号格式
+          if ! echo "$BASE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Error: Invalid version format. Expected format: X.Y.Z (e.g., 1.4.5)"
+            exit 1
+          fi
+
+          echo "✓ Base version $BASE_VERSION validated"
+          echo "base_tag=$BASE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Calculate hotfix version
+        id: do_version
+        run: |
+          BASE_VERSION="${{ steps.determine_base.outputs.base_version }}"
+          BASE_TAG="${{ steps.validate_base.outputs.base_tag }}"
+          HOTFIX_VERSION="${{ steps.determine_base.outputs.hotfix_version }}"
+
+          echo "✓ Using hotfix version from merged PR: $HOTFIX_VERSION"
+          echo "Base version: $BASE_VERSION"
+          echo "Hotfix version: $HOTFIX_VERSION"
+          echo "version=$HOTFIX_VERSION" >> $GITHUB_OUTPUT
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "::notice title=Hotfix Version::Hotfix version: $HOTFIX_VERSION (from $BASE_VERSION)"
+
+      - name: Checkout hotfix branch
+        id: checkout_branch
+        run: |
+          HOTFIX_BRANCH="${{ needs.detect-hotfix-pr.outputs.pr_branch }}"
+
+          echo "✓ Using branch from merged PR: $HOTFIX_BRANCH"
+
+          # 检查分支是否已存在（本地或远程）
+          if git show-ref --verify --quiet refs/heads/$HOTFIX_BRANCH 2>/dev/null; then
+            echo "✓ Local branch $HOTFIX_BRANCH exists, checking it out..."
+            git checkout $HOTFIX_BRANCH
+            git pull origin $HOTFIX_BRANCH 2>/dev/null || true
+          elif git show-ref --verify --quiet refs/remotes/origin/$HOTFIX_BRANCH 2>/dev/null; then
+            echo "✓ Remote branch $HOTFIX_BRANCH exists, checking it out..."
+            git checkout -b $HOTFIX_BRANCH origin/$HOTFIX_BRANCH
+          else
+            echo "❌ Error: Branch $HOTFIX_BRANCH does not exist."
+            exit 1
+          fi
+
+          echo "branch=$HOTFIX_BRANCH" >> $GITHUB_OUTPUT
+          echo "✓ Hotfix branch ready: $HOTFIX_BRANCH"
+
+      - name: Update version in package.json
+        run: |
+          HOTFIX_VERSION="${{ steps.do_version.outputs.version }}"
+
+          # 检查版本号是否已更新
+          CURRENT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+          if [ "$CURRENT_VERSION" = "$HOTFIX_VERSION" ]; then
+            echo "ℹ Version already set to $HOTFIX_VERSION, skipping update"
+          else
+            # 更新所有 package.json 中的版本号
+            pnpm -r exec -- npm version $HOTFIX_VERSION --no-git-tag-version
+            echo "✓ Updated version to $HOTFIX_VERSION in all package.json files"
+          fi
+
+      - name: Generate changelog
+        id: generate_changelog
+        run: |
+          BASE_VERSION="${{ steps.do_version.outputs.base_version }}"
+          BASE_TAG="v${BASE_VERSION}"
+          HOTFIX_VERSION="${{ steps.do_version.outputs.version }}"
+
+          echo "Generating changelog from $BASE_TAG to v$HOTFIX_VERSION"
+          node scripts/generate-changelog.mjs "$HOTFIX_VERSION" "$BASE_TAG"
+
+          # 检查是否有变更
+          if git diff --quiet CHANGELOG.md CHANGELOG.zh-CN.md; then
+            echo "changelog_updated=false" >> $GITHUB_OUTPUT
+            echo "⚠ No changelog updates generated (may need manual fixes)"
+          else
+            echo "changelog_updated=true" >> $GITHUB_OUTPUT
+            echo "✓ Changelog generated successfully"
+          fi
+
+      - name: Commit changes
+        run: |
+          HOTFIX_VERSION="${{ steps.do_version.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 提交版本号和 changelog 更新
+          git add package.json **/package.json CHANGELOG.md CHANGELOG.zh-CN.md
+
+          COMMIT_MSG="chore(version): hotfix $HOTFIX_VERSION"
+
+          if git diff --staged --quiet; then
+            echo "ℹ No changes to commit (version and changelog already up to date)"
+          else
+            git commit -m "$COMMIT_MSG"
+            echo "✓ Committed version and changelog updates"
+          fi
+
+      - name: Create and push tag
+        run: |
+          HOTFIX_VERSION="${{ steps.do_version.outputs.version }}"
+          HOTFIX_TAG="v${HOTFIX_VERSION}"
+
+          # 检查 tag 是否已存在
+          if git rev-parse "$HOTFIX_TAG" >/dev/null 2>&1; then
+            echo "⚠ Tag $HOTFIX_TAG already exists, updating..."
+            git tag -d "$HOTFIX_TAG" 2>/dev/null || true
+          fi
+
+          # 创建 tag（指向当前分支的最新 commit）
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          git tag -a "$HOTFIX_TAG" -m "Hotfix release $HOTFIX_VERSION" "$CURRENT_COMMIT"
+
+          # 推送分支和 tag
+          HOTFIX_BRANCH="${{ steps.checkout_branch.outputs.branch }}"
+          git push origin "$HOTFIX_BRANCH"
+          git push origin "$HOTFIX_TAG" --force
+
+          echo "✓ Created and pushed tag: $HOTFIX_TAG (pointing to ${CURRENT_COMMIT:0:7})"
+          echo "✓ Pushed hotfix branch: $HOTFIX_BRANCH"
+
+      - name: Merge hotfix to main
+        run: |
+          HOTFIX_BRANCH="${{ steps.checkout_branch.outputs.branch }}"
+
+          # PR 已经合并到 main，只需要确保在 main 分支上
+          echo "✓ PR already merged to main, skipping merge step"
+
+      - name: Ensure tag exists on main
+        run: |
+          HOTFIX_VERSION="${{ steps.do_version.outputs.version }}"
+          HOTFIX_TAG="v${HOTFIX_VERSION}"
+
+          # 切换到 main 分支
+          git checkout main
+          git pull origin main
+
+          # 检查 tag 是否在 main 分支上
+          TAG_COMMIT=$(git rev-parse "$HOTFIX_TAG" 2>/dev/null || echo "")
+          if [ -n "$TAG_COMMIT" ] && git branch -r --contains "$TAG_COMMIT" | grep -q 'origin/main'; then
+            echo "✓ Tag $HOTFIX_TAG is already on main branch"
+          else
+            # 在 main 分支上创建 tag（指向合并后的 commit）
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            git tag -f "$HOTFIX_TAG" "$CURRENT_COMMIT"
+            git push origin "$HOTFIX_TAG" --force
+            echo "✓ Created/updated tag $HOTFIX_TAG on main branch (pointing to ${CURRENT_COMMIT:0:7})"
+          fi
+
+      - name: Update workflow run name
+        env:
+          NEW_NAME: "Hotfix Publish - ${{ needs.detect-hotfix-pr.outputs.base_version }} → ${{ steps.do_version.outputs.version }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          node -e "
+            const https = require('https');
+            const newName = process.env.NEW_NAME;
+            const token = process.env.GITHUB_TOKEN;
+            const repo = process.env.REPOSITORY;
+            const runId = process.env.RUN_ID;
+            const data = JSON.stringify({ display_title: newName });
+            const options = {
+              hostname: 'api.github.com',
+              path: '/repos/' + repo + '/actions/runs/' + runId,
+              method: 'PATCH',
+              headers: {
+                'Accept': 'application/vnd.github+json',
+                'Authorization': 'Bearer ' + token,
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json',
+                'Content-Length': data.length
+              }
+            };
+            const req = https.request(options, (res) => {
+              let body = '';
+              res.on('data', (chunk) => { body += chunk; });
+              res.on('end', () => {
+                if (res.statusCode === 200 || res.statusCode === 204) {
+                  console.log('✓ Workflow run name updated successfully');
+                } else {
+                  console.log('⚠ Failed to update run name (status: ' + res.statusCode + '), but continuing...');
+                }
+              });
+            });
+            req.on('error', (e) => {
+              console.log('⚠ Error updating run name:', e.message, ', but continuing...');
+            });
+            req.write(data);
+            req.end();
+          "
+
+  sync-changelog:
+    needs: publish
+    if: always() && needs.publish.result == 'success'
+    uses: ./.github/workflows/sync-changelog-to-docs.yaml
+    secrets: inherit
+    with:
+      version: v${{ needs.publish.outputs.version }}
+

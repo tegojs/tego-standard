@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
+- update code inspector workflow (#273)
+- **changelog**: update [Unreleased] section
 - add changelog generation and sync to docs workflow (#272)
 - update version with hash (#270)
 - **pnpm-workspace**: update to catalog (#264)

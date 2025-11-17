@@ -75,6 +75,7 @@ jobs:
             echo "Syncing [Unreleased] section"
 
             # Extract [Unreleased] section from CHANGELOG.md
+            # Note: The source changelog should already be deduplicated by update-unreleased.mjs script
             if [ -f "CHANGELOG.md" ]; then
               awk '
                 /^## \[Unreleased\]/ {
@@ -94,6 +95,7 @@ jobs:
             fi
 
             # Extract [未发布] section from CHANGELOG.zh-CN.md
+            # Note: The source changelog should already be deduplicated by update-unreleased.mjs script
             if [ -f "CHANGELOG.zh-CN.md" ]; then
               awk '
                 /^## \[未发布\]/ {
@@ -208,62 +210,52 @@ jobs:
           mkdir -p "$(dirname "${ZH_TARGET}")"
 
           if [ "$IS_UNRELEASED" == "true" ]; then
-            # For Unreleased section, replace the entire section at the beginning
-            # Append English changelog (only if it has content)
-            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              if [ -f "${EN_TARGET}" ]; then
-                # Replace [Unreleased] section if exists, otherwise prepend
-                if grep -q "^## \[Unreleased\]" "${EN_TARGET}"; then
-                  # Replace existing [Unreleased] section
-                  awk '
-                    BEGIN { print_section = 0; skip = 0 }
-                    /^## \[Unreleased\]/ { skip = 1; next }
-                    skip && /^## \[/ { skip = 0 }
-                    !skip { print }
-                  ' "${EN_TARGET}" > /tmp/changelog_en_temp.md
-                  cat /tmp/changelog_en.md > "${EN_TARGET}"
-                  echo "" >> "${EN_TARGET}"
-                  cat /tmp/changelog_en_temp.md >> "${EN_TARGET}"
+            # For Unreleased section, replace the entire section
+            # Note: Content is already deduplicated and properly formatted by update-unreleased.mjs script
+            # The extracted section includes the "## [Unreleased]" header
+
+            # Helper function to replace [Unreleased] section in target file
+            # Usage: replace_unreleased_section <target_file> <section_header> <new_content_file>
+            replace_unreleased_section() {
+              local target_file="$1"
+              local section_header="$2"
+              local new_content_file="$3"
+
+              if [ -f "${target_file}" ]; then
+                # Remove existing section if exists, then prepend new content
+                if grep -q "^## \[${section_header}\]" "${target_file}"; then
+                  # Remove the section (from "## [header]" to next "## [" or end of file)
+                  awk -v header="${section_header}" '
+                    BEGIN { in_section = 0 }
+                    /^## \[/ && $0 ~ "\\[" header "\\]" { in_section = 1; next }
+                    in_section && /^## \[/ { in_section = 0 }
+                    !in_section { print }
+                  ' "${target_file}" > /tmp/temp_changelog.md
+                  cat "${new_content_file}" > "${target_file}"
+                  echo "" >> "${target_file}"
+                  cat /tmp/temp_changelog.md >> "${target_file}"
                 else
-                  # Prepend [Unreleased] section
-                  cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
-                  echo "" >> /tmp/changelog_en_new.md
-                  cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
-                  mv /tmp/changelog_en_new.md "${EN_TARGET}"
+                  # No section found, prepend new content
+                  cat "${new_content_file}" > /tmp/temp_changelog.md
+                  echo "" >> /tmp/temp_changelog.md
+                  cat "${target_file}" >> /tmp/temp_changelog.md
+                  mv /tmp/temp_changelog.md "${target_file}"
                 fi
               else
                 # Create new file
-                cat /tmp/changelog_en.md > "${EN_TARGET}"
+                cat "${new_content_file}" > "${target_file}"
               fi
+            }
+
+            # Sync English changelog (only if it has content)
+            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+              replace_unreleased_section "${EN_TARGET}" "Unreleased" /tmp/changelog_en.md
               echo "✓ Synced English [Unreleased] changelog to ${EN_TARGET}"
             fi
 
-            # Append Chinese changelog (only if it has content)
+            # Sync Chinese changelog (only if it has content)
             if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              if [ -f "${ZH_TARGET}" ]; then
-                # Replace [未发布] section if exists, otherwise prepend
-                if grep -q "^## \[未发布\]" "${ZH_TARGET}"; then
-                  # Replace existing [未发布] section
-                  awk '
-                    BEGIN { print_section = 0; skip = 0 }
-                    /^## \[未发布\]/ { skip = 1; next }
-                    skip && /^## \[/ { skip = 0 }
-                    !skip { print }
-                  ' "${ZH_TARGET}" > /tmp/changelog_zh_temp.md
-                  cat /tmp/changelog_zh.md > "${ZH_TARGET}"
-                  echo "" >> "${ZH_TARGET}"
-                  cat /tmp/changelog_zh_temp.md >> "${ZH_TARGET}"
-                else
-                  # Prepend [未发布] section
-                  cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
-                  echo "" >> /tmp/changelog_zh_new.md
-                  cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
-                  mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
-                fi
-              else
-                # Create new file
-                cat /tmp/changelog_zh.md > "${ZH_TARGET}"
-              fi
+              replace_unreleased_section "${ZH_TARGET}" "未发布" /tmp/changelog_zh.md
               echo "✓ Synced Chinese [未发布] changelog to ${ZH_TARGET}"
             fi
           else
@@ -400,9 +392,25 @@ jobs:
               PR_BODY=$(echo "${PR_RESPONSE}" | sed '$d')
 
               if [ "${HTTP_CODE}" == "201" ]; then
-                PR_URL=$(echo "${PR_BODY}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
-                PR_NUMBER=$(echo "${PR_BODY}" | grep -o '"number":[0-9]*' | head -1 | cut -d':' -f2)
-                echo "✓ Created Pull Request: ${PR_URL}"
+                # Extract PR number and URL
+                if command -v jq >/dev/null 2>&1; then
+                  PR_NUMBER=$(echo "${PR_BODY}" | jq -r '.number // empty')
+                  PR_URL=$(echo "${PR_BODY}" | jq -r '.html_url // empty')
+                else
+                  PR_NUMBER=$(echo "${PR_BODY}" | grep -o '"number":[0-9]*' | head -1 | cut -d':' -f2)
+                  PR_URL=$(echo "${PR_BODY}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+                fi
+
+                if [ -z "${PR_NUMBER}" ] || [ "${PR_NUMBER}" == "null" ]; then
+                  echo "❌ Failed to extract PR number"
+                  exit 1
+                fi
+
+                if [ -z "${PR_URL}" ] || [ "${PR_URL}" == "null" ]; then
+                  PR_URL="https://github.com/${REPO_NAME}/pull/${PR_NUMBER}"
+                fi
+
+                echo "✓ Created Pull Request #${PR_NUMBER}: ${PR_URL}"
                 echo "PR_NUMBER=${PR_NUMBER}" >> $GITHUB_OUTPUT
                 echo "PR_URL=${PR_URL}" >> $GITHUB_OUTPUT
 
@@ -435,75 +443,38 @@ jobs:
                     CREATE_LABEL_HTTP_CODE=$(echo "${CREATE_LABEL_RESPONSE}" | tail -n1)
                     if [ "${CREATE_LABEL_HTTP_CODE}" == "201" ]; then
                       echo "✓ Created label: ${LABEL_NAME}"
-                    elif [ "${CREATE_LABEL_HTTP_CODE}" == "422" ]; then
-                      echo "⚠ Label ${LABEL_NAME} might already exist (422)"
-                    else
-                      echo "⚠ Failed to create label ${LABEL_NAME} (HTTP ${CREATE_LABEL_HTTP_CODE})"
                     fi
                   fi
                 done
 
-                # Now add all labels to the PR
-                LABEL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
-                  -d '["automated", "documentation", "sync"]')
-
-                LABEL_HTTP_CODE=$(echo "${LABEL_RESPONSE}" | tail -n1)
-                if [ "${LABEL_HTTP_CODE}" == "200" ] || [ "${LABEL_HTTP_CODE}" == "201" ]; then
-                  echo "✓ Added labels: automated, documentation, sync"
-                else
-                  echo "⚠ Failed to add labels (HTTP ${LABEL_HTTP_CODE})"
-                  echo "Response: $(echo "${LABEL_RESPONSE}" | sed '$d')"
-                  echo "Trying to add labels one by one..."
-
-                  # Fallback: add labels one by one
-                  for LABEL_NAME in "${LABELS[@]}"; do
-                    SINGLE_LABEL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-                      -H "Accept: application/vnd.github+json" \
-                      -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
-                      -H "X-GitHub-Api-Version: 2022-11-28" \
-                      "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
-                      -d "[\"${LABEL_NAME}\"]")
-
-                    SINGLE_LABEL_HTTP_CODE=$(echo "${SINGLE_LABEL_RESPONSE}" | tail -n1)
-                    if [ "${SINGLE_LABEL_HTTP_CODE}" == "200" ] || [ "${SINGLE_LABEL_HTTP_CODE}" == "201" ]; then
-                      echo "✓ Added label: ${LABEL_NAME}"
-                    else
-                      echo "⚠ Failed to add label ${LABEL_NAME} (HTTP ${SINGLE_LABEL_HTTP_CODE})"
-                    fi
-                  done
-                fi
-
-                # Note: Auto-merge will be triggered automatically by the docs repository's rules
-                # if the PR meets the conditions:
-                # - Non-draft PR (default)
-                # - Branch name starts with "chore/sync-" (already satisfied)
-                # - Has labels: automated, documentation, sync (just added above)
+                # Add labels to the PR
+                for LABEL_NAME in "${LABELS[@]}"; do
+                  curl -s -X POST \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    -H "Content-Type: application/json" \
+                    "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
+                    -d "[\"${LABEL_NAME}\"]" > /dev/null
+                  sleep 0.3
+                done
+                echo "✓ Added labels: ${LABELS[*]}"
               elif [ "${HTTP_CODE}" == "422" ]; then
-                # PR might already exist, try to find it
-                echo "⚠ Pull request might already exist, checking..."
+                # PR might already exist
                 REPO_OWNER=$(echo "${REPO_NAME}" | cut -d'/' -f1)
-                REPO_REPO=$(echo "${REPO_NAME}" | cut -d'/' -f2)
                 EXISTING_PR=$(curl -s \
                   -H "Accept: application/vnd.github+json" \
                   -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
                   "https://api.github.com/repos/${REPO_NAME}/pulls?head=${REPO_OWNER}:${BRANCH_NAME}&state=open")
-
                 EXISTING_PR_URL=$(echo "${EXISTING_PR}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
                 if [ -n "${EXISTING_PR_URL}" ]; then
                   echo "✓ Found existing Pull Request: ${EXISTING_PR_URL}"
                 else
                   echo "⚠ Failed to create Pull Request (HTTP ${HTTP_CODE})"
-                  echo "Response: ${PR_BODY}"
                 fi
               else
                 echo "⚠ Failed to create Pull Request (HTTP ${HTTP_CODE})"
-                echo "Response: ${PR_BODY}"
-                echo "You may need to create the PR manually at: https://github.com/${REPO_NAME}/compare/main...${BRANCH_NAME}"
               fi
             else
               echo "❌ Failed to push branch to docs repository"

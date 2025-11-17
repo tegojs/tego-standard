@@ -9,8 +9,14 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import https from 'https';
-import { URL } from 'url';
+import {
+  parseCommit,
+  parseGitLogOutput,
+  groupCommits,
+  convertPRNumbersToLinks,
+  translateText,
+  translateTexts,
+} from './changelog-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,99 +52,6 @@ const TYPE_MAP_ZH = {
   revert: '回退',
 };
 
-// 翻译文本（使用 Google Translate 免费 API）
-/**
- * @param {string} text - 要翻译的文本
- * @param {string} from - 源语言，默认 'en'
- * @param {string} to - 目标语言，默认 'zh-CN'
- * @returns {Promise<string>} 翻译后的文本
- */
-async function translateText(text, from = 'en', to = 'zh-CN') {
-  if (!text || text.trim().length === 0) {
-    return text;
-  }
-
-  // 如果文本已经是中文，直接返回
-  if (/[\u4e00-\u9fa5]/.test(text)) {
-    return text;
-  }
-
-  try {
-    // 使用 Google Translate 免费 API
-    const encodedText = encodeURIComponent(text);
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodedText}`;
-
-    return new Promise((resolve, reject) => {
-      https.get(url, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            if (result && result[0] && result[0][0] && result[0][0][0]) {
-              resolve(result[0][0][0]);
-            } else {
-              resolve(text); // 翻译失败，返回原文
-            }
-          } catch (error) {
-            console.warn(`Translation failed for "${text}":`, error.message);
-            resolve(text); // 翻译失败，返回原文
-          }
-        });
-      }).on('error', (error) => {
-        console.warn(`Translation error for "${text}":`, error.message);
-        resolve(text); // 网络错误，返回原文
-      });
-    });
-  } catch (error) {
-    console.warn(`Translation error for "${text}":`, error.message);
-    return text; // 出错时返回原文
-  }
-}
-
-// 批量翻译文本（带缓存和去重）
-const translationCache = new Map();
-
-/**
- * @param {string[]} texts - 要翻译的文本数组
- * @returns {Promise<string[]>} 翻译后的文本数组
- */
-async function translateTexts(texts) {
-  const uniqueTexts = [...new Set(texts)];
-  const results = new Map();
-
-  // 从缓存中获取已翻译的文本
-  for (const text of uniqueTexts) {
-    if (translationCache.has(text)) {
-      results.set(text, translationCache.get(text));
-    }
-  }
-
-  // 翻译未缓存的文本
-  const textsToTranslate = uniqueTexts.filter((text) => !results.has(text));
-
-  if (textsToTranslate.length > 0) {
-    console.log(`Translating ${textsToTranslate.length} items...`);
-
-    // 批量翻译，添加延迟以避免频率限制
-    for (let i = 0; i < textsToTranslate.length; i++) {
-      const text = textsToTranslate[i];
-      const translated = await translateText(text);
-      results.set(text, translated);
-      translationCache.set(text, translated);
-
-      // 添加延迟以避免频率限制（每 100ms 翻译一个）
-      if (i < textsToTranslate.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-    }
-  }
-
-  // 返回原始顺序的翻译结果
-  return texts.map((text) => results.get(text) || text);
-}
 
 // 检查 tag 是否存在
 function tagExists(tag) {
@@ -187,110 +100,20 @@ function getCommitsBetweenTags(fromTag, toTag) {
       }
     }
 
-    const logFormat = '%H|%s|%b';
+    // 使用 \0 作为分隔符，避免 body 中的 | 和换行符导致解析错误
+    const logFormat = '%H%x00%s%x00%b%x00%an';
     const output = execSync(`git log ${range} --pretty=format:"${logFormat}" --no-merges`, {
       encoding: 'utf-8',
       cwd: rootDir,
     }).trim();
 
-    if (!output) {
-      return [];
-    }
-
-    const commits = output
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const parts = line.split('|');
-        const hash = parts[0] || '';
-        const subject = parts[1] || '';
-        const body = parts.slice(2).join('|').trim();
-        return { hash, subject, body };
-      })
-      .filter((commit) => commit.hash && commit.subject);
-
-    return commits;
+    return parseGitLogOutput(output);
   } catch (error) {
     console.warn('Warning: Could not get commits:', error.message);
     return [];
   }
 }
 
-// 解析 conventional commit
-function parseCommit(commit) {
-  const { subject, body } = commit;
-
-  // 检查 subject 是否存在
-  if (!subject) {
-    return null;
-  }
-
-  // 匹配格式: type(scope): description
-  const match = subject.match(/^(\w+)(?:\(([^)]+)\))?: (.+)$/);
-
-  if (!match) {
-    return null;
-  }
-
-  const [, type, scope, description] = match;
-
-  // 检查是否是 breaking change
-  const isBreaking = subject.includes('!') || (body && body.includes('BREAKING CHANGE'));
-
-  return {
-    type: type.toLowerCase(),
-    scope: scope || '',
-    description: description.trim(),
-    body: (body || '').trim(),
-    isBreaking,
-  };
-}
-
-// 分组 commits
-function groupCommits(commits) {
-  const grouped = {
-    feat: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    fix: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    docs: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    style: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    refactor: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    perf: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    test: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    build: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    ci: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    chore: /** @type {Array<string | {type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    revert: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    breaking: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-  };
-
-  commits.forEach((commit) => {
-    const parsed = parseCommit(commit);
-    if (!parsed) {
-      // 未匹配的 commit 归类到 chore
-      grouped.chore.push(commit.subject);
-      return;
-    }
-
-    if (parsed.isBreaking) {
-      grouped.breaking.push({
-        ...parsed,
-        full: commit.subject,
-      });
-    }
-
-    const type = parsed.type;
-    if (grouped[type]) {
-      grouped[type].push({
-        ...parsed,
-        full: commit.subject,
-      });
-    } else {
-      grouped.chore.push(commit.subject);
-    }
-  });
-
-  return grouped;
-}
 
 // 生成英文 changelog 条目
 function generateChangelogEntryEN(grouped, version, date) {
@@ -301,27 +124,30 @@ function generateChangelogEntryEN(grouped, version, date) {
     lines.push('### ⚠️ Breaking Changes', '');
     grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${item.description}${author}`);
     });
     lines.push('');
   }
 
   // Added
   if (grouped.feat.length > 0) {
-    lines.push('### Added', '');
+    lines.push('### ✨ Added', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${item.description}${author}`);
     });
     lines.push('');
   }
 
   // Fixed
   if (grouped.fix.length > 0) {
-    lines.push('### Fixed', '');
+    lines.push('### 🐛 Fixed', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${item.description}${author}`);
     });
     lines.push('');
   }
@@ -329,20 +155,22 @@ function generateChangelogEntryEN(grouped, version, date) {
   // Changed (refactor, perf)
   const changed = [...grouped.refactor, ...grouped.perf];
   if (changed.length > 0) {
-    lines.push('### Changed', '');
+    lines.push('### 🔄 Changed', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${item.description}${author}`);
     });
     lines.push('');
   }
 
   // Documentation
   if (grouped.docs.length > 0) {
-    lines.push('### Documentation', '');
+    lines.push('### 📝 Documentation', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${item.description}${author}`);
     });
     lines.push('');
   }
@@ -366,7 +194,7 @@ function generateChangelogEntryEN(grouped, version, date) {
       ]
     : [];
   if (other.length > 0) {
-    lines.push('### Other', '');
+    lines.push('### 🔧 Other', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
         lines.push(`- ${item}`);
@@ -374,7 +202,8 @@ function generateChangelogEntryEN(grouped, version, date) {
         const scope = item.scope ? `**${item.scope}**: ` : '';
         const description = item.description || item.full || '';
         if (description) {
-          lines.push(`- ${scope}${description}`);
+          const author = item.author ? ` (@${item.author})` : '';
+          lines.push(`- ${scope}${description}${author}`);
         }
       }
     });
@@ -402,11 +231,12 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
     lines.push('### ⚠️ 破坏性变更', '');
     grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符，稍后替换
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        lines.push(`- ${scope}${item.description}${author}`);
       }
     });
     lines.push('');
@@ -414,14 +244,15 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
 
   // Added
   if (grouped.feat.length > 0) {
-    lines.push('### 新增', '');
+    lines.push('### ✨ 新增', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        lines.push(`- ${scope}${item.description}${author}`);
       }
     });
     lines.push('');
@@ -429,14 +260,15 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
 
   // Fixed
   if (grouped.fix.length > 0) {
-    lines.push('### 修复', '');
+    lines.push('### 🐛 修复', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        lines.push(`- ${scope}${item.description}${author}`);
       }
     });
     lines.push('');
@@ -445,14 +277,15 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
   // Changed
   const changed = [...grouped.refactor, ...grouped.perf];
   if (changed.length > 0) {
-    lines.push('### 变更', '');
+    lines.push('### 🔄 变更', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        lines.push(`- ${scope}${item.description}${author}`);
       }
     });
     lines.push('');
@@ -460,14 +293,15 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
 
   // Documentation
   if (grouped.docs.length > 0) {
-    lines.push('### 文档', '');
+    lines.push('### 📝 文档', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        lines.push(`- ${scope}${item.description}${author}`);
       }
     });
     lines.push('');
@@ -492,7 +326,7 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
       ]
     : [];
   if (other.length > 0) {
-    lines.push('### 其他', '');
+    lines.push('### 🔧 其他', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
         if (autoTranslate) {
@@ -505,11 +339,12 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
         const scope = item.scope ? `**${item.scope}**: ` : '';
         const description = item.description || item.full || '';
         if (description) {
+          const author = item.author ? ` (@${item.author})` : '';
           if (autoTranslate) {
-            translations.push({ text: description, scope, lineIndex: lines.length });
+            translations.push({ text: description, scope, lineIndex: lines.length, author });
             lines.push(''); // 占位符
           } else {
-            lines.push(`- ${scope}${description}`);
+            lines.push(`- ${scope}${description}${author}`);
           }
         }
       }
@@ -525,11 +360,12 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
     // 替换占位符
     translations.forEach((translation, index) => {
       const translated = translatedTexts[index];
+      const author = translation.author || '';
       const lineIndex = translation.lineIndex;
       if (translation.isString) {
-        lines[lineIndex] = `- ${translated}`;
+        lines[lineIndex] = `- ${translated}${author}`;
       } else {
-        lines[lineIndex] = `- ${translation.scope}${translated}`;
+        lines[lineIndex] = `- ${translation.scope}${translated}${author}`;
       }
     });
   }
@@ -679,7 +515,7 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     } else {
       // 如果英文没有内容，从 git commits 生成
       const commits = getCommitsBetweenTags(fromTag, versionTag);
-      const grouped = groupCommits(commits);
+      const grouped = groupCommits(commits, false); // 不包含 commit 链接
       entryEN = generateChangelogEntryEN(grouped, versionNumber, date);
     }
 
@@ -688,7 +524,7 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     } else {
       // 如果中文没有内容，从 git commits 生成并翻译
       const commits = getCommitsBetweenTags(fromTag, versionTag);
-      const grouped = groupCommits(commits);
+      const grouped = groupCommits(commits, false); // 不包含 commit 链接
       const autoTranslate = process.env.CHANGELOG_AUTO_TRANSLATE !== 'false';
       entryZH = await generateChangelogEntryZH(grouped, versionNumber, date, autoTranslate);
     }
@@ -708,7 +544,7 @@ async function updateChangelog(newVersion, fromTag = undefined) {
       return;
     }
 
-    const grouped = groupCommits(commits);
+    const grouped = groupCommits(commits, false); // 不包含 commit 链接（用于版本发布）
 
     // 检查是否有对用户有价值的变更（排除内部维护性改动）
     // 只检查：feat, fix, perf, refactor, docs, revert, breaking

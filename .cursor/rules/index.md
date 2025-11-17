@@ -22,8 +22,8 @@ This project uses a modular rule file structure, with each file focusing on a sp
 
 - **Project Configuration / 项目配置** (`project.md`) - Project overview, tech stack, package management
   项目概述、技术栈、包管理规范
-- **Code Style / 代码风格** (`code-style.md`) - TypeScript, React components, file naming conventions
-  TypeScript、React 组件、文件命名等代码规范
+- **Code Style / 代码风格** (`code-style.md`) - TypeScript, React components, file naming conventions, code refactoring principles
+  TypeScript、React 组件、文件命名、代码重构原则等代码规范
 - **Development Guide / 开发指南** (`development.md`) - Development workflow, commit conventions, testing, common commands
   开发流程、提交规范、测试、常用命令
 - **AI Assistant / AI 辅助** (`ai-assistant.md`) - AI-assisted development suggestions and guidelines

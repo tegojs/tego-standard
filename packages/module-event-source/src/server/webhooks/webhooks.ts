@@ -1,6 +1,6 @@
 import { PluginWorkflow, Processor } from '@tachybase/module-workflow';
-
 import { ActionParams, Application, Context, IField } from '@tego/server';
+
 import dayjs from 'dayjs';
 import lodash from 'lodash';
 
@@ -146,7 +146,7 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
         changed,
       };
     } catch (err) {
-      ctx.log.error(err);
+      ctx.logger.error(err);
       return {
         error: err.stack,
       };

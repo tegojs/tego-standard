@@ -6,6 +6,54 @@ import { SUMMARY_TYPE } from '../common/constants';
 import { type ParamsType, type SummaryDataSourceItem } from '../common/interface';
 import { isDateType } from '../common/utils';
 
+function getSummary(params: ParamsType): object {
+  const { summaryConfig = [], data, collection, app } = params;
+
+  const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
+
+  return summaryDataSource;
+
+  // const result = summaryConfig.reduce((summary, key) => {
+  //   const value = _.get(data, key);
+  //   let realValue = value;
+  //   if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
+  //     // 优先获取关联表的 titleField 值
+  //     const fieldName = key.split('.')[0];
+  //     const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
+  //     realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
+  //   }
+  //   return {
+  //     ...summary,
+  //     [key]: realValue,
+  //   };
+  // }, {});
+
+  // return result;
+}
+
+async function parsePerson({ node, processor, keyName }) {
+  const configPerson = processor
+    .getParsedValue(node.config?.[keyName] ?? [], node.id)
+    .flat()
+    .filter(Boolean);
+
+  const targetPerson = new Set();
+  const UserRepo = processor.options.plugin.app.db.getRepository('users');
+  for (const item of configPerson) {
+    if (typeof item === 'object') {
+      const users = await UserRepo.find({
+        ...item,
+        fields: ['id'],
+        transaction: processor.transaction,
+      });
+      users.forEach((userData) => targetPerson.add(userData.id));
+    } else {
+      targetPerson.add(item);
+    }
+  }
+  return [...targetPerson];
+}
+
 // 获取关联表的 titleField 值
 function getAssociationTitleFieldValue(
   value: any,
@@ -582,50 +630,4 @@ function getSummaryDataSource({ summaryConfig = [], data, collection, app }: Par
   return summaryDataSource;
 }
 
-export function getSummary(params: ParamsType): object {
-  const { summaryConfig = [], data, collection, app } = params;
-
-  const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
-
-  return summaryDataSource;
-
-  // const result = summaryConfig.reduce((summary, key) => {
-  //   const value = _.get(data, key);
-  //   let realValue = value;
-  //   if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
-  //     // 优先获取关联表的 titleField 值
-  //     const fieldName = key.split('.')[0];
-  //     const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
-  //     realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
-  //   }
-  //   return {
-  //     ...summary,
-  //     [key]: realValue,
-  //   };
-  // }, {});
-
-  // return result;
-}
-
-export async function parsePerson({ node, processor, keyName }) {
-  const configPerson = processor
-    .getParsedValue(node.config?.[keyName] ?? [], node.id)
-    .flat()
-    .filter(Boolean);
-
-  const targetPerson = new Set();
-  const UserRepo = processor.options.plugin.app.db.getRepository('users');
-  for (const item of configPerson) {
-    if (typeof item === 'object') {
-      const users = await UserRepo.find({
-        ...item,
-        fields: ['id'],
-        transaction: processor.transaction,
-      });
-      users.forEach((userData) => targetPerson.add(userData.id));
-    } else {
-      targetPerson.add(item);
-    }
-  }
-  return [...targetPerson];
-}
+export { getSummary, parsePerson };

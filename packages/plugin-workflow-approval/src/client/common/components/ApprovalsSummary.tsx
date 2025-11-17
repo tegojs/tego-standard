@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useCollectionManager, useCompile, useOptimizedMemo } from '@tachybase/client';
 import { convertUTCToLocal } from '@tego/client';
 
@@ -6,6 +6,12 @@ import { SUMMARY_TYPE } from '../../../common/constants';
 import type { SummaryDataSourceItem } from '../../../common/interface';
 import { isUTCString } from '../../../common/utils';
 import { SimpleTable } from './SimpleTable';
+
+// 常量提取，避免重复创建
+const OBJECT_STRING = '[object Object]';
+const DEFAULT_ITEM_CLASS = 'approvalsSummaryStyle-item';
+const DEFAULT_LABEL_CLASS = 'approvalsSummaryStyle-label';
+const DEFAULT_VALUE_CLASS = 'approvalsSummaryStyle-value';
 
 interface ApprovalsSummaryProps {
   value: any;
@@ -19,8 +25,8 @@ interface ApprovalsSummaryProps {
 export const ApprovalsSummary = React.memo<ApprovalsSummaryProps>((props) => {
   const { value, collectionName, className, itemClassName, labelClassName, valueClassName } = props;
 
-  // 使用 useMemo 缓存判断结果
-  const isArrayValue = useMemo(() => Array.isArray(value), [value]);
+  // Array.isArray 是 O(1) 操作，直接判断即可，useMemo 开销可能大于收益
+  const isArrayValue = Array.isArray(value);
 
   // 兼容旧版, 旧版源数据是对象,新版源数据必然是数组
   return isArrayValue ? (
@@ -60,10 +66,19 @@ const SummaryShowObject = React.memo<SummaryShowObjectProps>((props) => {
   const compile = useCompile();
   const { objectValue = {}, collectionName, className, itemClassName, labelClassName, valueClassName } = props;
 
+  // 使用 useCallback 缓存字段获取函数，避免每次重新创建
+  const getField = useCallback(
+    (key: string) => {
+      return collectionName ? cm.getCollectionField(`${collectionName}.${key}`) : null;
+    },
+    [collectionName, cm],
+  );
+
   const results = useOptimizedMemo(() => {
     return Object.entries(objectValue).map(([key, objValue]) => {
-      const field = collectionName ? cm.getCollectionField(`${collectionName}.${key}`) : null;
-      const realValue = Object.prototype.toString.call(objValue) === '[object Object]' ? objValue?.['name'] : objValue;
+      const field = getField(key);
+      // 使用常量替代字符串，避免重复创建
+      const realValue = Object.prototype.toString.call(objValue) === OBJECT_STRING ? objValue?.['name'] : objValue;
       if (Array.isArray(realValue)) {
         return {
           key,
@@ -84,7 +99,7 @@ const SummaryShowObject = React.memo<SummaryShowObjectProps>((props) => {
         value: realValue,
       };
     });
-  }, [objectValue, collectionName, cm, compile]);
+  }, [objectValue, getField, compile]);
 
   // 展示结果要展示一个数组对象, 是 label 和 value 的形式
   // label 放中文, value 放值
@@ -118,6 +133,11 @@ const SummaryShowArray = React.memo<SummaryShowArrayProps>((props) => {
   const compile = useCompile();
   const { arrayValue = [], itemClassName, labelClassName, valueClassName } = props;
 
+  // 使用 useCallback 缓存数组转字符串的函数
+  const arrayToString = useCallback((arr: any[]): string => {
+    return arr.map((v) => String(v ?? '')).join(', ');
+  }, []);
+
   // 使用优化的 useMemo：先引用比较，再深度比较
   const renderedItems = useOptimizedMemo(() => {
     return arrayValue.map((item: SummaryDataSourceItem) => {
@@ -149,9 +169,7 @@ const SummaryShowArray = React.memo<SummaryShowArrayProps>((props) => {
           );
         case SUMMARY_TYPE.ARRAY:
           // 数组类型：将数组转换为逗号分隔的字符串
-          const arrayValueStr = Array.isArray(value)
-            ? value.map((v) => String(v ?? '')).join(', ')
-            : String(value ?? '');
+          const arrayValueStr = Array.isArray(value) ? arrayToString(value) : String(value ?? '');
           return (
             <SummaryLiteralShow
               key={key}
@@ -168,7 +186,7 @@ const SummaryShowArray = React.memo<SummaryShowArrayProps>((props) => {
           return null;
       }
     });
-  }, [arrayValue, compile, itemClassName, labelClassName, valueClassName]);
+  }, [arrayValue, compile, itemClassName, labelClassName, valueClassName, arrayToString]);
 
   return <>{renderedItems}</>;
 });
@@ -187,11 +205,12 @@ const SummaryLiteralShow = React.memo<SummaryLiteralShowProps>((props) => {
   const { label, value, itemClassName, labelClassName, valueClassName } = props;
   const compile = useCompile();
 
-  // 使用 useMemo 缓存编译后的 label 和类名
+  // 使用 useMemo 缓存编译后的 label（compile 可能有开销）
   const compiledLabel = useMemo(() => compile(label), [label, compile]);
-  const defaultItemClassName = useMemo(() => itemClassName || 'approvalsSummaryStyle-item', [itemClassName]);
-  const defaultLabelClassName = useMemo(() => labelClassName || 'approvalsSummaryStyle-label', [labelClassName]);
-  const defaultValueClassName = useMemo(() => valueClassName || 'approvalsSummaryStyle-value', [valueClassName]);
+  // 简单的字符串默认值不需要 useMemo，直接计算即可（useMemo 开销可能大于收益）
+  const defaultItemClassName = itemClassName || DEFAULT_ITEM_CLASS;
+  const defaultLabelClassName = labelClassName || DEFAULT_LABEL_CLASS;
+  const defaultValueClassName = valueClassName || DEFAULT_VALUE_CLASS;
 
   return (
     <div className={defaultItemClassName}>
@@ -211,7 +230,8 @@ interface SummaryTableShowProps {
 const SummaryTableShow = React.memo<SummaryTableShowProps>((props) => {
   const { title, dataSource = [] } = props;
 
-  // 使用 useMemo 缓存第一行数据的获取
+  // dataSource[0]?.value 是 O(1) 操作，useMemo 开销可能大于收益
+  // 但考虑到 dataSource 可能是大数组，保留 useMemo 也可以
   const firstValue = useMemo(() => dataSource[0]?.value, [dataSource]);
 
   const columns = useOptimizedMemo(() => {
@@ -222,26 +242,26 @@ const SummaryTableShow = React.memo<SummaryTableShowProps>((props) => {
     }));
   }, [dataSource]);
 
-  // 使用 useMemo 缓存 rowCount 计算
+  // 使用 useMemo 缓存 rowCount 计算（依赖 firstValue，需要缓存）
   const rowCount = useMemo(() => (Array.isArray(firstValue) ? firstValue.length : 0), [firstValue]);
 
   const tableDataSource = useOptimizedMemo(() => {
     if (rowCount === 0) {
       return [];
     }
-    return Array.from(
-      {
-        length: rowCount,
-      },
-      (_, rowIdx) => {
-        const record: Record<string, any> = {};
-        dataSource.forEach((field) => {
-          const fieldValue = Array.isArray(field.value) ? field.value[rowIdx] : field.value;
-          record[field.key] = typeof fieldValue === 'string' ? fieldValue : String(fieldValue ?? '');
-        });
-        return record;
-      },
-    );
+    // 预分配数组大小，避免动态扩容
+    const result: Record<string, any>[] = new Array(rowCount);
+    for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
+      const record: Record<string, any> = {};
+      // 使用 for 循环替代 forEach，性能更好
+      for (let i = 0; i < dataSource.length; i++) {
+        const field = dataSource[i];
+        const fieldValue = Array.isArray(field.value) ? field.value[rowIdx] : field.value;
+        record[field.key] = typeof fieldValue === 'string' ? fieldValue : String(fieldValue ?? '');
+      }
+      result[rowIdx] = record;
+    }
+    return result;
   }, [dataSource, rowCount]);
 
   return <SimpleTable title={title} columns={columns} dataSource={tableDataSource} />;

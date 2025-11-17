@@ -348,13 +348,23 @@ function generateChangelogEntryEN(grouped, version, date) {
   }
 
   // Other (style, test, build, ci, chore)
-  const other = [
-    ...grouped.style,
-    ...grouped.test,
-    ...grouped.build,
-    ...grouped.ci,
-    ...grouped.chore,
-  ];
+  // Note: 以下类型的提交默认不包含在 changelog 中，因为它们是内部维护性改动，对用户无直接影响：
+  // - style: 代码格式（空格、分号等）
+  // - test: 测试相关改动
+  // - build: 构建系统改动
+  // - ci: CI 配置改动
+  // - chore: 维护性改动
+  // 如果需要在 changelog 中包含这些类型，可以通过环境变量 CHANGELOG_INCLUDE_INTERNAL=true 启用
+  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const other = includeInternal
+    ? [
+        ...grouped.style,
+        ...grouped.test,
+        ...grouped.build,
+        ...grouped.ci,
+        ...grouped.chore,
+      ]
+    : [];
   if (other.length > 0) {
     lines.push('### Other', '');
     other.forEach((item) => {
@@ -463,14 +473,24 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
     lines.push('');
   }
 
-  // Other
-  const other = [
-    ...grouped.style,
-    ...grouped.test,
-    ...grouped.build,
-    ...grouped.ci,
-    ...grouped.chore,
-  ];
+  // Other (style, test, build, ci, chore)
+  // Note: 以下类型的提交默认不包含在 changelog 中，因为它们是内部维护性改动，对用户无直接影响：
+  // - style: 代码格式（空格、分号等）
+  // - test: 测试相关改动
+  // - build: 构建系统改动
+  // - ci: CI 配置改动
+  // - chore: 维护性改动
+  // 如果需要在 changelog 中包含这些类型，可以通过环境变量 CHANGELOG_INCLUDE_INTERNAL=true 启用
+  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const other = includeInternal
+    ? [
+        ...grouped.style,
+        ...grouped.test,
+        ...grouped.build,
+        ...grouped.ci,
+        ...grouped.chore,
+      ]
+    : [];
   if (other.length > 0) {
     lines.push('### 其他', '');
     other.forEach((item) => {
@@ -646,9 +666,13 @@ async function updateChangelog(newVersion, fromTag = undefined) {
 
   let entryEN, entryZH;
 
-  // 如果 [Unreleased] 有内容，优先使用它
-  if (unreleasedContentEN || unreleasedContentZH) {
-    console.log('Using content from [Unreleased] section');
+  // 发布版本时，优先从 git commits 生成，确保包含所有变更
+  // 因为 [Unreleased] 是每周更新一次，可能不包含最新的 commits
+  // 如果设置了 CHANGELOG_USE_UNRELEASED=true，则使用 [Unreleased] 内容
+  const useUnreleased = process.env.CHANGELOG_USE_UNRELEASED === 'true';
+
+  if (useUnreleased && (unreleasedContentEN || unreleasedContentZH)) {
+    console.log('Using content from [Unreleased] section (CHANGELOG_USE_UNRELEASED=true)');
 
     if (unreleasedContentEN) {
       entryEN = convertUnreleasedToVersionEntry(unreleasedContentEN, versionNumber, date);
@@ -669,8 +693,13 @@ async function updateChangelog(newVersion, fromTag = undefined) {
       entryZH = await generateChangelogEntryZH(grouped, versionNumber, date, autoTranslate);
     }
   } else {
-    // 如果 [Unreleased] 没有内容，从 git commits 生成
-    console.log('No [Unreleased] content found, generating from git commits');
+    // 默认从 git commits 生成，确保发布版本时包含所有变更
+    if (unreleasedContentEN || unreleasedContentZH) {
+      console.log('[Unreleased] content found, but generating from git commits to ensure completeness');
+      console.log('  (Set CHANGELOG_USE_UNRELEASED=true to use [Unreleased] content instead)');
+    } else {
+      console.log('No [Unreleased] content found, generating from git commits');
+    }
 
     const commits = getCommitsBetweenTags(fromTag, versionTag);
 
@@ -681,10 +710,23 @@ async function updateChangelog(newVersion, fromTag = undefined) {
 
     const grouped = groupCommits(commits);
 
-    // 检查是否有实际变更
-    const hasChanges = Object.values(grouped).some((items) => items.length > 0);
-    if (!hasChanges) {
-      console.log('No conventional commits found. Skipping changelog generation.');
+    // 检查是否有对用户有价值的变更（排除内部维护性改动）
+    // 只检查：feat, fix, perf, refactor, docs, revert, breaking
+    const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+    const userFacingTypes = ['feat', 'fix', 'perf', 'refactor', 'docs', 'revert', 'breaking'];
+    const hasUserFacingChanges = userFacingTypes.some(
+      (type) => grouped[type] && grouped[type].length > 0
+    );
+
+    // 如果启用了包含内部改动，也检查内部类型
+    const hasInternalChanges = includeInternal
+      ? ['style', 'test', 'build', 'ci', 'chore'].some(
+          (type) => grouped[type] && grouped[type].length > 0
+        )
+      : false;
+
+    if (!hasUserFacingChanges && !hasInternalChanges) {
+      console.log('No user-facing changes found (only internal maintenance commits). Skipping changelog generation.');
       return;
     }
 
@@ -813,11 +855,11 @@ async function updateChangelog(newVersion, fromTag = undefined) {
   );
 
   // 更新或添加新版本的链接
-  const versionLinkPattern = new RegExp(`\\[${versionNumber.replace(/\./g, '\\.')}\\]: https://github\\.com/[^/]+/[^/]+/releases/tag/[^\\s]+`, 'g');
-  if (changelogZH.match(versionLinkPattern)) {
+  const versionLinkPatternZH = new RegExp(`\\[${versionNumber.replace(/\./g, '\\.')}\\]: https://github\\.com/[^/]+/[^/]+/releases/tag/[^\\s]+`, 'g');
+  if (changelogZH.match(versionLinkPatternZH)) {
     // 如果链接已存在，更新它
     changelogZH = changelogZH.replace(
-      versionLinkPattern,
+      versionLinkPatternZH,
       `[${versionNumber}]: https://github.com/tegojs/tego-standard/releases/tag/${versionTag}`
     );
   } else {
@@ -846,7 +888,9 @@ async function main() {
     console.error('Example: node generate-changelog.mjs 1.5.2 v1.5.1');
     console.error('');
     console.error('Environment variables:');
-    console.error('  CHANGELOG_AUTO_TRANSLATE=false  Disable auto translation');
+    console.error('  CHANGELOG_AUTO_TRANSLATE=false      Disable auto translation');
+    console.error('  CHANGELOG_INCLUDE_INTERNAL=true       Include internal commits (style, test, build, ci, chore) in changelog (default: false)');
+    console.error('  CHANGELOG_USE_UNRELEASED=true         Use [Unreleased] section content when generating version changelog (default: false, generates from git commits)');
     process.exit(1);
   }
 

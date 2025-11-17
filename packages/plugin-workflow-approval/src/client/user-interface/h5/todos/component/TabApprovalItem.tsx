@@ -4,13 +4,13 @@ import { observer } from '@tachybase/schema';
 
 import { useAsyncEffect } from 'ahooks';
 import { Empty, List, Space, Tag } from 'antd-mobile';
-import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
 import { approvalStatusEnums } from '../../../../common/constants/approval-initiation-status-options';
 import { APPROVAL_TODO_STATUS } from '../../../../common/constants/approval-todo-status';
 import { approvalTodoStatusOptions } from '../../../../common/constants/approval-todo-status-options';
 import { useTranslation } from '../../../../locale';
+import { processSummary } from '../../common/processSummary';
 import { ApprovalPriorityType, ExecutionStatusOptions } from '../../constants';
 
 export const TabApprovalItem = observer((props) => {
@@ -112,28 +112,7 @@ const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setDa
         const statusType = approvalTodoListStatus(item, t);
         const categoryTitle = item.workflow?.title;
         const collectionName = item.workflow?.config?.collection || item.execution?.context?.collectionName;
-
-        const summary = [];
-        Object.entries(item.summary)?.forEach(([key, value]) => {
-          const field = cm.getCollectionField(`${collectionName}.${key}`);
-          let resonValue = value;
-          if (field.type === 'date' && value) {
-            resonValue = dayjs(value as string).format('YYYY-MM-DD HH:mm:ss');
-          }
-          if (key === 'createdAt') {
-            summary.unshift({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          } else {
-            summary.push({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          }
-        });
+        const summary = processSummary(item.summary, collectionName, cm, compile);
 
         const nickName = item.approval?.createdBy?.nickname;
         return {
@@ -240,27 +219,7 @@ export const changeWorkflowNoticeService = (api, t, cm, compile, input, setData,
         );
         const categoryTitle = item.workflow?.title;
         const collectionName = item.collectionName;
-        const summary = [];
-        Object.entries(item.summary)?.forEach(([key, value]) => {
-          const field = cm.getCollectionField(`${collectionName}.${key}`);
-          let resonValue = value;
-          if (field.type === 'date' && value) {
-            resonValue = dayjs(value as string).format('YYYY-MM-DD HH:mm:ss');
-          }
-          if (key === 'createdAt') {
-            summary.unshift({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          } else {
-            summary.push({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          }
-        });
+        const summary = processSummary(item.summary, collectionName, cm, compile);
         const statusType = approvalStatusEnums.find((value) => value.value === item.approval?.status);
         const nickName = user.find((userItem) => userItem.id === item.snapshot?.createdById)?.nickname;
         return {

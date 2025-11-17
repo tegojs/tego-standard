@@ -4,11 +4,11 @@ import { observer } from '@tachybase/schema';
 
 import { useDeepCompareEffect } from 'ahooks';
 import { Empty, List, Space, Tag } from 'antd-mobile';
-import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
 import { approvalStatusEnums } from '../../../../common/constants/approval-initiation-status-options';
 import { useTranslation } from '../../../../locale';
+import { processSummary } from '../../common/processSummary';
 import { ApprovalPriorityType } from '../../constants';
 import { InitiationsBlockContext } from '../InitiationsBlock';
 
@@ -104,27 +104,7 @@ const changService = (api, setData, user, filter, t, setDefaultData, cm, compile
         const statusType = approvalTodoListStatus(item, t);
         const categoryTitle = item.workflow?.title;
         const collectionName = item.workflow?.config?.collection || item.execution?.context?.collectionName;
-        const summary = [];
-        Object.entries(item.summary)?.forEach(([key, value]) => {
-          const field = cm.getCollectionField(`${collectionName}.${key}`);
-          let resonValue = value;
-          if (field.type === 'date' && value) {
-            resonValue = dayjs(value as string).format('YYYY-MM-DD HH:mm:ss');
-          }
-          if (key === 'createdAt') {
-            summary.unshift({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          } else {
-            summary.push({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          }
-        });
+        const summary = processSummary(item.summary, collectionName, cm, compile);
         return {
           ...item,
           title: `${user.data.data.nickname}的${categoryTitle}`,

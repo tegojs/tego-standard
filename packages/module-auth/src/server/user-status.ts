@@ -66,7 +66,13 @@ export class UserStatusService implements IUserStatusService {
           return {
             allowed: false,
             status: 'unknown',
+            statusInfo: {
+              title: this.t('User not found. Please sign in again to continue.', { ns: localeNamespace }),
+              color: 'red',
+              allowLogin: false,
+            },
             errorMessage: this.t('User not found. Please sign in again to continue.', { ns: localeNamespace }),
+            isExpired: false,
           };
         }
 
@@ -117,11 +123,9 @@ export class UserStatusService implements IUserStatusService {
             title: this.t('Invalid status', { ns: localeNamespace }),
             color: 'red',
             allowLogin: false,
-            loginErrorMessage: this.t('User status is invalid, please contact administrator', {
-              ns: localeNamespace,
-            }),
           },
           errorMessage: this.t('User status is invalid, please contact administrator', { ns: localeNamespace }),
+          isExpired: true,
         };
       }
 
@@ -153,9 +157,9 @@ export class UserStatusService implements IUserStatusService {
           title: translatedTitle,
           color: statusInfo.color,
           allowLogin: statusInfo.allowLogin,
-          loginErrorMessage: translatedLoginErrorMessage,
         },
-        errorMessage: !statusInfo.allowLogin ? translatedLoginErrorMessage : undefined,
+        errorMessage: translatedLoginErrorMessage || null,
+        isExpired: false,
       };
     } catch (error) {
       this.logger.error(`Error checking user status for userId=${userId}: ${error}`);
@@ -167,9 +171,9 @@ export class UserStatusService implements IUserStatusService {
           title: this.t('Unknown status', { ns: localeNamespace }),
           color: 'red',
           allowLogin: false,
-          loginErrorMessage: this.t('System error, please contact administrator', { ns: localeNamespace }),
         },
         errorMessage: this.t('System error, please contact administrator', { ns: localeNamespace }),
+        isExpired: false,
       };
     }
   }

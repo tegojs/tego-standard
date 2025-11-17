@@ -28,7 +28,7 @@ export function parseCommit(commit) {
   }
 
   const [, type, scope, breaking, description] = match;
-  const isBreaking = !!breaking || commit.body?.includes('BREAKING CHANGE');
+  const isBreaking = !!breaking || !!(commit.body && commit.body.includes('BREAKING CHANGE'));
 
   return {
     type: type.toLowerCase(),

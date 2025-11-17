@@ -1,0 +1,230 @@
+name: Sync Changelog to Docs Repository
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to sync (e.g., v1.5.1)'
+        required: false
+        type: string
+      docs_repo:
+        description: 'Documentation repository (e.g., tegojs/docs)'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to sync (e.g., v1.5.1)'
+        required: false
+        type: string
+      docs_repo:
+        description: 'Documentation repository (e.g., tegojs/docs)'
+        required: false
+        type: string
+    secrets:
+      DOCS_REPOSITORY:
+        required: false
+      DOCS_REPO_TOKEN:
+        required: false
+      DOCS_CHANGELOG_EN_PATH:
+        required: false
+      DOCS_CHANGELOG_ZH_PATH:
+        required: false
+
+run-name: "Sync Changelog - Version: ${{ github.ref_name || inputs.version || github.event.inputs.version }}"
+
+jobs:
+  sync-changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: source
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version || github.event.inputs.version }}" ]; then
+            VERSION="${{ inputs.version || github.event.inputs.version }}"
+          elif [ -n "${{ github.ref_name }}" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION=$(node -p "require('./source/package.json').version")
+            VERSION="v${VERSION}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version to sync: ${VERSION}"
+
+      - name: Extract changelog entries
+        id: extract_changelog
+        run: |
+          cd source
+
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUMBER=${VERSION#v}
+
+          # Extract changelog entry for this version from CHANGELOG.md
+          if [ -f "CHANGELOG.md" ]; then
+            awk -v version="$VERSION_NUMBER" '
+              /^## \[/ {
+                if ($0 ~ "\\[" version "\\]") {
+                  print_section = 1
+                  print $0
+                  next
+                } else if (print_section && /^## \[/) {
+                  exit
+                }
+              }
+              print_section { print }
+            ' CHANGELOG.md > /tmp/changelog_en.md || echo "" > /tmp/changelog_en.md
+          else
+            echo "" > /tmp/changelog_en.md
+          fi
+
+          # Extract changelog entry for this version from CHANGELOG.zh-CN.md
+          if [ -f "CHANGELOG.zh-CN.md" ]; then
+            awk -v version="$VERSION_NUMBER" '
+              /^## \[/ {
+                if ($0 ~ "\\[" version "\\]") {
+                  print_section = 1
+                  print $0
+                  next
+                } else if (print_section && /^## \[/) {
+                  exit
+                }
+              }
+              print_section { print }
+            ' CHANGELOG.zh-CN.md > /tmp/changelog_zh.md || echo "" > /tmp/changelog_zh.md
+          else
+            echo "" > /tmp/changelog_zh.md
+          fi
+
+          # Check if changelog entries exist (more than just empty lines)
+          EN_LINES=$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)
+          ZH_LINES=$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)
+
+          if [ "$EN_LINES" -gt 1 ] || [ "$ZH_LINES" -gt 1 ]; then
+            echo "has_changelog=true" >> $GITHUB_OUTPUT
+            echo "Found changelog entries: EN($EN_LINES lines), ZH($ZH_LINES lines)"
+          else
+            echo "has_changelog=false" >> $GITHUB_OUTPUT
+            echo "No changelog entries found for version $VERSION_NUMBER"
+          fi
+
+      - name: Checkout docs repository
+        if: steps.extract_changelog.outputs.has_changelog == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}
+          token: ${{ secrets.DOCS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          path: docs
+          fetch-depth: 1
+
+      - name: Setup Git
+        if: steps.extract_changelog.outputs.has_changelog == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync changelog to docs repository
+        if: steps.extract_changelog.outputs.has_changelog == 'true'
+        env:
+          DOCS_CHANGELOG_EN_PATH: ${{ secrets.DOCS_CHANGELOG_EN_PATH || 'docs/en/changelog/changelog.md' }}
+          DOCS_CHANGELOG_ZH_PATH: ${{ secrets.DOCS_CHANGELOG_ZH_PATH || 'docs/zh/changelog/changelog.md' }}
+          DOCS_REPO_TOKEN: ${{ secrets.DOCS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          cd docs
+
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUMBER=${VERSION#v}
+
+          # Determine target file paths
+          EN_TARGET="${DOCS_CHANGELOG_EN_PATH}"
+          ZH_TARGET="${DOCS_CHANGELOG_ZH_PATH}"
+
+          # Create directories if they don't exist
+          mkdir -p "$(dirname "${EN_TARGET}")"
+          mkdir -p "$(dirname "${ZH_TARGET}")"
+
+          # Append English changelog (only if it has content)
+          if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+            # Check if version already exists in the file
+            if [ -f "${EN_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${EN_TARGET}"; then
+              echo "⚠ Version ${VERSION_NUMBER} already exists in ${EN_TARGET}, skipping"
+            else
+              # Append new version entry at the beginning
+              if [ -f "${EN_TARGET}" ]; then
+                # Find the first ## header and insert before it
+                if grep -q "^## \[" "${EN_TARGET}"; then
+                  # Create temporary file with new content + existing content
+                  cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
+                  echo "" >> /tmp/changelog_en_new.md
+                  cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
+                  mv /tmp/changelog_en_new.md "${EN_TARGET}"
+                else
+                  # Append to end if no version entries found
+                  echo "" >> "${EN_TARGET}"
+                  cat /tmp/changelog_en.md >> "${EN_TARGET}"
+                fi
+              else
+                # Create new file
+                cat /tmp/changelog_en.md > "${EN_TARGET}"
+              fi
+              echo "✓ Synced English changelog to ${EN_TARGET}"
+            fi
+          fi
+
+          # Append Chinese changelog (only if it has content)
+          if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+            # Check if version already exists in the file
+            if [ -f "${ZH_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${ZH_TARGET}"; then
+              echo "⚠ Version ${VERSION_NUMBER} already exists in ${ZH_TARGET}, skipping"
+            else
+              # Append new version entry at the beginning
+              if [ -f "${ZH_TARGET}" ]; then
+                # Find the first ## header and insert before it
+                if grep -q "^## \[" "${ZH_TARGET}"; then
+                  # Create temporary file with new content + existing content
+                  cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
+                  echo "" >> /tmp/changelog_zh_new.md
+                  cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
+                  mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
+                else
+                  # Append to end if no version entries found
+                  echo "" >> "${ZH_TARGET}"
+                  cat /tmp/changelog_zh.md >> "${ZH_TARGET}"
+                fi
+              else
+                # Create new file
+                cat /tmp/changelog_zh.md > "${ZH_TARGET}"
+              fi
+              echo "✓ Synced Chinese changelog to ${ZH_TARGET}"
+            fi
+          fi
+
+          # Commit and push
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "docs(changelog): sync changelog for ${VERSION}"
+            git push
+            echo "✓ Pushed changes to docs repository"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.extract_changelog.outputs.has_changelog }}" == "true" ]; then
+            echo "✓ Changelog synced successfully for ${{ steps.version.outputs.version }}"
+          else
+            echo "⚠ No changelog entry found for ${{ steps.version.outputs.version }}, skipping sync"
+          fi
+

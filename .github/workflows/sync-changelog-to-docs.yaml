@@ -70,40 +70,83 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUMBER=${VERSION#v}
 
-          # Extract changelog entry for this version from CHANGELOG.md
-          if [ -f "CHANGELOG.md" ]; then
-            awk -v version="$VERSION_NUMBER" '
-              /^## \[/ {
-                if ($0 ~ "\\[" version "\\]") {
+          # Check if syncing Unreleased section
+          if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
+            echo "Syncing [Unreleased] section"
+            
+            # Extract [Unreleased] section from CHANGELOG.md
+            if [ -f "CHANGELOG.md" ]; then
+              awk '
+                /^## \[Unreleased\]/ {
                   print_section = 1
                   print $0
                   next
-                } else if (print_section && /^## \[/) {
-                  exit
                 }
-              }
-              print_section { print }
-            ' CHANGELOG.md > /tmp/changelog_en.md || echo "" > /tmp/changelog_en.md
-          else
-            echo "" > /tmp/changelog_en.md
-          fi
+                print_section {
+                  if (/^## \[/) {
+                    exit
+                  }
+                  print
+                }
+              ' CHANGELOG.md > /tmp/changelog_en.md || echo "" > /tmp/changelog_en.md
+            else
+              echo "" > /tmp/changelog_en.md
+            fi
 
-          # Extract changelog entry for this version from CHANGELOG.zh-CN.md
-          if [ -f "CHANGELOG.zh-CN.md" ]; then
-            awk -v version="$VERSION_NUMBER" '
-              /^## \[/ {
-                if ($0 ~ "\\[" version "\\]") {
+            # Extract [未发布] section from CHANGELOG.zh-CN.md
+            if [ -f "CHANGELOG.zh-CN.md" ]; then
+              awk '
+                /^## \[未发布\]/ {
                   print_section = 1
                   print $0
                   next
-                } else if (print_section && /^## \[/) {
-                  exit
                 }
-              }
-              print_section { print }
-            ' CHANGELOG.zh-CN.md > /tmp/changelog_zh.md || echo "" > /tmp/changelog_zh.md
+                print_section {
+                  if (/^## \[/) {
+                    exit
+                  }
+                  print
+                }
+              ' CHANGELOG.zh-CN.md > /tmp/changelog_zh.md || echo "" > /tmp/changelog_zh.md
+            else
+              echo "" > /tmp/changelog_zh.md
+            fi
           else
-            echo "" > /tmp/changelog_zh.md
+            # Extract changelog entry for this version from CHANGELOG.md
+            if [ -f "CHANGELOG.md" ]; then
+              awk -v version="$VERSION_NUMBER" '
+                /^## \[/ {
+                  if ($0 ~ "\\[" version "\\]") {
+                    print_section = 1
+                    print $0
+                    next
+                  } else if (print_section && /^## \[/) {
+                    exit
+                  }
+                }
+                print_section { print }
+              ' CHANGELOG.md > /tmp/changelog_en.md || echo "" > /tmp/changelog_en.md
+            else
+              echo "" > /tmp/changelog_en.md
+            fi
+
+            # Extract changelog entry for this version from CHANGELOG.zh-CN.md
+            if [ -f "CHANGELOG.zh-CN.md" ]; then
+              awk -v version="$VERSION_NUMBER" '
+                /^## \[/ {
+                  if ($0 ~ "\\[" version "\\]") {
+                    print_section = 1
+                    print $0
+                    next
+                  } else if (print_section && /^## \[/) {
+                    exit
+                  }
+                }
+                print_section { print }
+              ' CHANGELOG.zh-CN.md > /tmp/changelog_zh.md || echo "" > /tmp/changelog_zh.md
+            else
+              echo "" > /tmp/changelog_zh.md
+            fi
           fi
 
           # Check if changelog entries exist (more than just empty lines)
@@ -115,7 +158,11 @@ jobs:
             echo "Found changelog entries: EN($EN_LINES lines), ZH($ZH_LINES lines)"
           else
             echo "has_changelog=false" >> $GITHUB_OUTPUT
-            echo "No changelog entries found for version $VERSION_NUMBER"
+            if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
+              echo "No [Unreleased] entries found"
+            else
+              echo "No changelog entries found for version $VERSION_NUMBER"
+            fi
           fi
 
       - name: Checkout docs repository
@@ -144,6 +191,11 @@ jobs:
 
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUMBER=${VERSION#v}
+          IS_UNRELEASED=false
+          
+          if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
+            IS_UNRELEASED=true
+          fi
 
           # Determine target file paths
           EN_TARGET="${DOCS_CHANGELOG_EN_PATH}"
@@ -153,59 +205,121 @@ jobs:
           mkdir -p "$(dirname "${EN_TARGET}")"
           mkdir -p "$(dirname "${ZH_TARGET}")"
 
-          # Append English changelog (only if it has content)
-          if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-            # Check if version already exists in the file
-            if [ -f "${EN_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${EN_TARGET}"; then
-              echo "⚠ Version ${VERSION_NUMBER} already exists in ${EN_TARGET}, skipping"
-            else
-              # Append new version entry at the beginning
+          if [ "$IS_UNRELEASED" == "true" ]; then
+            # For Unreleased section, replace the entire section at the beginning
+            # Append English changelog (only if it has content)
+            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
               if [ -f "${EN_TARGET}" ]; then
-                # Find the first ## header and insert before it
-                if grep -q "^## \[" "${EN_TARGET}"; then
-                  # Create temporary file with new content + existing content
+                # Replace [Unreleased] section if exists, otherwise prepend
+                if grep -q "^## \[Unreleased\]" "${EN_TARGET}"; then
+                  # Replace existing [Unreleased] section
+                  awk '
+                    BEGIN { print_section = 0; skip = 0 }
+                    /^## \[Unreleased\]/ { skip = 1; next }
+                    skip && /^## \[/ { skip = 0 }
+                    !skip { print }
+                  ' "${EN_TARGET}" > /tmp/changelog_en_temp.md
+                  cat /tmp/changelog_en.md > "${EN_TARGET}"
+                  echo "" >> "${EN_TARGET}"
+                  cat /tmp/changelog_en_temp.md >> "${EN_TARGET}"
+                else
+                  # Prepend [Unreleased] section
                   cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
                   echo "" >> /tmp/changelog_en_new.md
                   cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
                   mv /tmp/changelog_en_new.md "${EN_TARGET}"
-                else
-                  # Append to end if no version entries found
-                  echo "" >> "${EN_TARGET}"
-                  cat /tmp/changelog_en.md >> "${EN_TARGET}"
                 fi
               else
                 # Create new file
                 cat /tmp/changelog_en.md > "${EN_TARGET}"
               fi
-              echo "✓ Synced English changelog to ${EN_TARGET}"
+              echo "✓ Synced English [Unreleased] changelog to ${EN_TARGET}"
             fi
-          fi
 
-          # Append Chinese changelog (only if it has content)
-          if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-            # Check if version already exists in the file
-            if [ -f "${ZH_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${ZH_TARGET}"; then
-              echo "⚠ Version ${VERSION_NUMBER} already exists in ${ZH_TARGET}, skipping"
-            else
-              # Append new version entry at the beginning
+            # Append Chinese changelog (only if it has content)
+            if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
               if [ -f "${ZH_TARGET}" ]; then
-                # Find the first ## header and insert before it
-                if grep -q "^## \[" "${ZH_TARGET}"; then
-                  # Create temporary file with new content + existing content
+                # Replace [未发布] section if exists, otherwise prepend
+                if grep -q "^## \[未发布\]" "${ZH_TARGET}"; then
+                  # Replace existing [未发布] section
+                  awk '
+                    BEGIN { print_section = 0; skip = 0 }
+                    /^## \[未发布\]/ { skip = 1; next }
+                    skip && /^## \[/ { skip = 0 }
+                    !skip { print }
+                  ' "${ZH_TARGET}" > /tmp/changelog_zh_temp.md
+                  cat /tmp/changelog_zh.md > "${ZH_TARGET}"
+                  echo "" >> "${ZH_TARGET}"
+                  cat /tmp/changelog_zh_temp.md >> "${ZH_TARGET}"
+                else
+                  # Prepend [未发布] section
                   cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
                   echo "" >> /tmp/changelog_zh_new.md
                   cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
                   mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
-                else
-                  # Append to end if no version entries found
-                  echo "" >> "${ZH_TARGET}"
-                  cat /tmp/changelog_zh.md >> "${ZH_TARGET}"
                 fi
               else
                 # Create new file
                 cat /tmp/changelog_zh.md > "${ZH_TARGET}"
               fi
-              echo "✓ Synced Chinese changelog to ${ZH_TARGET}"
+              echo "✓ Synced Chinese [未发布] changelog to ${ZH_TARGET}"
+            fi
+          else
+            # For version releases, append new version entry
+            # Append English changelog (only if it has content)
+            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+              # Check if version already exists in the file
+              if [ -f "${EN_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${EN_TARGET}"; then
+                echo "⚠ Version ${VERSION_NUMBER} already exists in ${EN_TARGET}, skipping"
+              else
+                # Append new version entry at the beginning
+                if [ -f "${EN_TARGET}" ]; then
+                  # Find the first ## header and insert before it
+                  if grep -q "^## \[" "${EN_TARGET}"; then
+                    # Create temporary file with new content + existing content
+                    cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
+                    echo "" >> /tmp/changelog_en_new.md
+                    cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
+                    mv /tmp/changelog_en_new.md "${EN_TARGET}"
+                  else
+                    # Append to end if no version entries found
+                    echo "" >> "${EN_TARGET}"
+                    cat /tmp/changelog_en.md >> "${EN_TARGET}"
+                  fi
+                else
+                  # Create new file
+                  cat /tmp/changelog_en.md > "${EN_TARGET}"
+                fi
+                echo "✓ Synced English changelog to ${EN_TARGET}"
+              fi
+            fi
+
+            # Append Chinese changelog (only if it has content)
+            if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+              # Check if version already exists in the file
+              if [ -f "${ZH_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${ZH_TARGET}"; then
+                echo "⚠ Version ${VERSION_NUMBER} already exists in ${ZH_TARGET}, skipping"
+              else
+                # Append new version entry at the beginning
+                if [ -f "${ZH_TARGET}" ]; then
+                  # Find the first ## header and insert before it
+                  if grep -q "^## \[" "${ZH_TARGET}"; then
+                    # Create temporary file with new content + existing content
+                    cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
+                    echo "" >> /tmp/changelog_zh_new.md
+                    cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
+                    mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
+                  else
+                    # Append to end if no version entries found
+                    echo "" >> "${ZH_TARGET}"
+                    cat /tmp/changelog_zh.md >> "${ZH_TARGET}"
+                  fi
+                else
+                  # Create new file
+                  cat /tmp/changelog_zh.md > "${ZH_TARGET}"
+                fi
+                echo "✓ Synced Chinese changelog to ${ZH_TARGET}"
+              fi
             fi
           fi
 
@@ -214,7 +328,11 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "docs(changelog): sync changelog for ${VERSION}"
+            if [ "$IS_UNRELEASED" == "true" ]; then
+              git commit -m "docs(changelog): sync [Unreleased] section"
+            else
+              git commit -m "docs(changelog): sync changelog for ${VERSION}"
+            fi
             git push
             echo "✓ Pushed changes to docs repository"
           fi

@@ -211,106 +211,15 @@ function getSummaryItem(key: string, data: object, collection?: Collection, app?
   };
 }
 
-// 判断字段是否为关联字段
-function isAssociationField(field: any): boolean {
-  if (!field || typeof field !== 'object') {
-    return false;
-  }
-  const fieldType = field.type || (field as any).type;
-  return ['belongsTo', 'hasOne', 'hasMany', 'belongsToMany'].includes(fieldType);
-}
-
-// 判断字段是否为普通字段（非主键、非外键、非系统字段、非关联字段）
-function isNormalField(field: any, fieldName: string, targetCollection?: Collection): boolean {
-  // 系统字段名称
-  const systemFieldNames = ['id', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy'];
-  if (systemFieldNames.includes(fieldName)) {
-    return false;
-  }
-
-  // 主键字段
-  if (
-    field?.primaryKey === true ||
-    (typeof field === 'object' && field !== null && (field as any).primaryKey === true)
-  ) {
-    return false;
-  }
-
-  // 外键字段：检查 isForeignKey 属性
-  if (
-    field?.isForeignKey === true ||
-    (typeof field === 'object' && field !== null && (field as any).isForeignKey === true)
-  ) {
-    return false;
-  }
-
-  // 外键字段：type 为 foreignKey
-  if (
-    field?.type === 'foreignKey' ||
-    (typeof field === 'object' && field !== null && (field as any).type === 'foreignKey')
-  ) {
-    return false;
-  }
-
-  // 检查是否有其他字段的 foreignKey 属性指向这个字段名（说明这个字段是外键）
-  if (targetCollection) {
-    try {
-      const allFields = (targetCollection as any).fields;
-      if (allFields instanceof Map) {
-        for (const [, otherField] of allFields) {
-          if (otherField?.foreignKey === fieldName) {
-            return false;
-          }
-        }
-      } else if (Array.isArray(allFields)) {
-        for (const otherField of allFields) {
-          if (otherField?.foreignKey === fieldName) {
-            return false;
-          }
-        }
-      } else if (typeof allFields === 'object' && allFields !== null) {
-        for (const otherField of Object.values(allFields)) {
-          if ((otherField as any)?.foreignKey === fieldName) {
-            return false;
-          }
-        }
-      }
-    } catch (e) {
-      // 忽略错误
-    }
-  }
-
-  // 字段名以 Id 结尾的通常是外键（如 userId, categoryId 等）
-  // 但排除系统字段（如 createdById, updatedById 已经在上面处理了）
-  if (fieldName.endsWith('Id') && fieldName !== 'id') {
-    return false;
-  }
-
-  // 关联字段
-  if (isAssociationField(field)) {
-    return false;
-  }
-
-  return true;
-}
-
-// 获取关联表的字段名
-// onlySubPathKeys: 如果为 true，只返回 subPathKeys 中标注的字段（用于多对多字段）
-// 如果为 false，返回普通字段以及在 subPathKeys 里标明的关系字段
-function getTargetCollectionFields(
-  mainKey: string,
-  subPathKeys: string[],
-  collection?: Collection,
-  app?: Application,
-  onlySubPathKeys: boolean = false,
-): string[] {
+// 获取关联表
+function getTargetCollection(mainKey: string, collection?: Collection, app?: Application): Collection | undefined {
   if (!collection) {
-    return [];
+    return undefined;
   }
 
   const field = collection.getField(mainKey);
   if (!field || !field.target) {
-    return [];
+    return undefined;
   }
 
   let targetCollection: Collection | undefined;
@@ -334,99 +243,7 @@ function getTargetCollectionFields(
     }
   }
 
-  if (!targetCollection) {
-    return [];
-  }
-
-  // 如果 onlySubPathKeys 为 true，只返回 subPathKeys 中标注的字段
-  if (onlySubPathKeys) {
-    const result: string[] = [];
-    for (const subKey of subPathKeys) {
-      // 检查 subKey 是否以 mainKey. 开头
-      if (subKey.startsWith(mainKey + '.')) {
-        // 提取字段名（去掉 mainKey. 前缀，并取第一部分）
-        const relativePath = subKey.slice(mainKey.length + 1);
-        const fieldName = relativePath.split('.')[0];
-        // 避免重复添加
-        if (fieldName && !result.includes(fieldName)) {
-          result.push(fieldName);
-        }
-      }
-    }
-    return result;
-  }
-
-  // 获取目标表的所有字段
-  // 服务器端的 collection.fields 是 Map，客户端可能是数组
-  const fields = (targetCollection as any).fields;
-  let fieldNames: string[] = [];
-  let fieldMap: Map<string, any> | Record<string, any> | undefined;
-
-  if (fields instanceof Map) {
-    fieldMap = fields;
-    fieldNames = Array.from(fields.keys());
-  } else if (Array.isArray(fields)) {
-    // 创建字段映射以便后续判断
-    fieldMap = fields.reduce((acc: Record<string, any>, f: any) => {
-      const name = f.name || f;
-      acc[name] = f;
-      return acc;
-    }, {});
-    fieldNames = fields.map((f: any) => f.name || f);
-  } else if (typeof fields === 'object' && fields !== null) {
-    fieldNames = Object.keys(fields);
-    fieldMap = fields;
-  } else {
-    // 尝试使用 getFields 方法（可能是异步的，但这里先尝试同步调用）
-    try {
-      const fieldsList = (targetCollection as any).getFields?.();
-      if (Array.isArray(fieldsList)) {
-        fieldNames = fieldsList.map((f: any) => f.name || f);
-        fieldMap = fieldsList.reduce((acc: Record<string, any>, f: any) => {
-          const name = f.name || f;
-          acc[name] = f;
-          return acc;
-        }, {});
-      }
-    } catch (e) {
-      // 忽略错误
-    }
-  }
-
-  // 正向逻辑：只展示普通字段，以及在 subPathKeys 里标明的关系字段
-  return fieldNames.filter((fieldName) => {
-    let fieldObj: any;
-    if (fieldMap instanceof Map) {
-      fieldObj = fieldMap.get(fieldName);
-    } else if (fieldMap && typeof fieldMap === 'object') {
-      fieldObj = fieldMap[fieldName];
-    } else {
-      // 如果无法获取字段对象，尝试通过 getField 方法获取
-      try {
-        fieldObj = targetCollection?.getField(fieldName);
-      } catch (e) {
-        // 忽略错误
-      }
-    }
-
-    // 1. 如果是普通字段，则包含
-    if (isNormalField(fieldObj, fieldName, targetCollection)) {
-      return true;
-    }
-
-    // 2. 如果是关联字段，检查 subPathKeys 中是否有对应的路径
-    if (isAssociationField(fieldObj)) {
-      const fullSubKey = `${mainKey}.${fieldName}`;
-      // 检查是否有完全匹配或前缀匹配的路径
-      const hasMatchingPath = subPathKeys.some((subKey) => {
-        return subKey === fullSubKey || subKey.startsWith(fullSubKey + '.');
-      });
-      return hasMatchingPath;
-    }
-
-    // 其他情况不包含
-    return false;
-  });
+  return targetCollection;
 }
 
 // 判断字段是否为多对多字段
@@ -522,10 +339,13 @@ function getSummaryDataSource({ summaryConfig = [], data, collection, app }: Par
         }
 
         if (isValidTable && rowCount > 0) {
+          // 获取关联表，用于获取字段的 label
+          const targetCollection = getTargetCollection(mainKey, collection, app);
+
           // 构建 TABLE 类型：value 是一个数组，每个元素是一个字段（SummaryDataSourceItem）
           const tableFields: SummaryDataSourceItem[] = targetFields.map((fieldName, idx) => {
-            const fullSubKey = `${mainKey}.${fieldName}`;
-            const childLabel = getFieldLabel(fullSubKey, collection);
+            // 从关联表中获取字段的 label
+            const childLabel = targetCollection ? getFieldLabel(fieldName, targetCollection) : fieldName;
             return {
               key: fieldName,
               label: childLabel,

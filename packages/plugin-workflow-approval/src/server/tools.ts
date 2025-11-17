@@ -294,12 +294,15 @@ function isNormalField(field: any, fieldName: string, targetCollection?: Collect
   return true;
 }
 
-// 获取关联表的字段名（只展示普通字段，以及在 subPathKeys 里标明的关系字段）
+// 获取关联表的字段名
+// onlySubPathKeys: 如果为 true，只返回 subPathKeys 中标注的字段（用于多对多字段）
+// 如果为 false，返回普通字段以及在 subPathKeys 里标明的关系字段
 function getTargetCollectionFields(
   mainKey: string,
   subPathKeys: string[],
   collection?: Collection,
   app?: Application,
+  onlySubPathKeys: boolean = false,
 ): string[] {
   if (!collection) {
     return [];
@@ -333,6 +336,24 @@ function getTargetCollectionFields(
 
   if (!targetCollection) {
     return [];
+  }
+
+  // 如果 onlySubPathKeys 为 true，只返回 subPathKeys 中标注的字段
+  if (onlySubPathKeys) {
+    const result: string[] = [];
+    for (const subKey of subPathKeys) {
+      // 检查 subKey 是否以 mainKey. 开头
+      if (subKey.startsWith(mainKey + '.')) {
+        // 提取字段名（去掉 mainKey. 前缀，并取第一部分）
+        const relativePath = subKey.slice(mainKey.length + 1);
+        const fieldName = relativePath.split('.')[0];
+        // 避免重复添加
+        if (fieldName && !result.includes(fieldName)) {
+          result.push(fieldName);
+        }
+      }
+    }
+    return result;
   }
 
   // 获取目标表的所有字段
@@ -445,168 +466,87 @@ function getSummaryDataSource({ summaryConfig = [], data, collection, app }: Par
     const isManyToMany = isManyToManyField(mainKey, collection);
 
     if (isManyToMany && Array.isArray(parentValue) && parentValue.length > 0) {
-      // 多对多字段：只展示普通字段，以及在 subPathKeys 里标明的关系字段
-      const targetFields = getTargetCollectionFields(mainKey, subPathKeys, collection, app);
-      const childValues: (string | number)[][] = [];
-      let isValidTable = true;
-      let rowCount = 0;
+      // 多对多字段：只展示 subPathKeys 里的从属字段
+      // 直接基于 subPathKeys 处理，按字段名分组并找到最匹配的路径
+      const mainKeyPrefix = `${mainKey}.`;
+      const relevantSubKeys = subPathKeys.filter((subKey) => subKey.startsWith(mainKeyPrefix));
 
-      // 遍历目标表的所有字段
-      for (const fieldName of targetFields) {
-        const fullSubKey = `${mainKey}.${fieldName}`;
-        const relativeSubKey = fieldName;
-
-        // 检查 subPathKeys 中是否有对应的路径（支持嵌套路径，如 'accountItemList.accounts.name'）
-        const matchingSubKeys = subPathKeys.filter((subKey) => {
-          if (subKey === fullSubKey) {
-            return true;
-          }
-          // 支持嵌套路径，如 'accountItemList.accounts.name' 匹配 'accountItemList.accounts'
-          return subKey.startsWith(fullSubKey + '.');
-        });
-
-        const childArray: (string | number)[] = [];
-
-        // 对于多对多字段，从数组的每个元素中获取子字段值
-        for (let i = 0; i < parentValue.length; i++) {
-          const item = parentValue[i];
-          let childValue;
-
-          if (matchingSubKeys.length > 0) {
-            // 如果 subPathKeys 中有对应的路径，使用最匹配的路径来获取值
-            // 优先使用完全匹配的路径，否则使用最长的匹配路径
-            const bestMatch = matchingSubKeys.reduce((best, current) => {
-              if (current === fullSubKey) {
-                return current;
-              }
-              if (!best || current.length > best.length) {
-                return current;
-              }
-              return best;
-            }, '');
-
-            // 提取相对路径（去掉 mainKey. 前缀）
-            const relativePath = bestMatch.slice(mainKey.length + 1);
-            childValue = _.get(item, relativePath);
-          } else {
-            // 如果没有匹配的 subPathKeys，直接从 item 中获取字段值
-            childValue = _.get(item, relativeSubKey);
-          }
-
-          const processedValue = processValue(childValue, fullSubKey, collection, app);
-          childArray.push(processedValue);
-        }
-
-        childValues.push(childArray);
-
-        // 检查数组长度
-        if (rowCount === 0) {
-          rowCount = childArray.length;
-        } else if (rowCount !== childArray.length) {
-          isValidTable = false;
-        }
-      }
-
-      if (isValidTable && rowCount > 0) {
-        // 构建 TABLE 类型：value 是一个数组，每个元素是一个字段（SummaryDataSourceItem）
-        const tableFields: SummaryDataSourceItem[] = targetFields.map((fieldName, idx) => {
-          const fullSubKey = `${mainKey}.${fieldName}`;
-          const childLabel = getFieldLabel(fullSubKey, collection);
-          return {
-            key: fieldName,
-            label: childLabel,
-            type: SUMMARY_TYPE.ARRAY,
-            value: childValues[idx],
-          };
-        });
-
-        summaryDataSource.push({
-          key: mainKey,
-          label,
-          type: SUMMARY_TYPE.TABLE,
-          value: tableFields,
-        });
-      } else {
-        // 如果不符合 TABLE 格式，降级为普通数组
+      if (relevantSubKeys.length === 0) {
+        // 如果没有相关的 subPathKeys，降级为普通数组
         summaryDataSource.push(getSummaryItem(mainKey, data, collection, app));
-      }
-    } else {
-      // 非多对多字段：按照原本逻辑构造
-      const childrenFullSubKeys = subPathKeys.filter((subKey) => subKey.startsWith(mainKey + '.'));
+      } else {
+        // 按字段名分组，找到每个字段最匹配的路径
+        const fieldPathMap = new Map<string, string>();
+        for (const subKey of relevantSubKeys) {
+          const relativePath = subKey.slice(mainKeyPrefix.length);
+          const fieldName = relativePath.split('.')[0];
 
-      if (childrenFullSubKeys.length > 0) {
-        // 有子属性，需要构建 TABLE 类型或嵌套结构
-        if (Array.isArray(parentValue) && parentValue.length > 0) {
-          // 数组类型：构建 TABLE 类型
-          const childValues: (string | number)[][] = [];
-          let isValidTable = true;
-          let rowCount = 0;
-
-          for (const fullSubKey of childrenFullSubKeys) {
-            const childArray: (string | number)[] = [];
-            const relativeSubKey = fullSubKey.slice(mainKey.length + 1);
-
-            for (const item of parentValue) {
-              const childValue = _.get(item, relativeSubKey);
-              const processedValue = processValue(childValue, fullSubKey, collection, app);
-              childArray.push(processedValue);
-            }
-            childValues.push(childArray);
-
-            if (rowCount === 0) {
-              rowCount = childArray.length;
-            } else if (rowCount !== childArray.length) {
-              isValidTable = false;
-            }
-          }
-
-          if (isValidTable && rowCount > 0) {
-            const tableFields: SummaryDataSourceItem[] = childrenFullSubKeys.map((fullSubKey, idx) => {
-              const childLabel = getFieldLabel(fullSubKey, collection);
-              const relativeKey = fullSubKey.slice(mainKey.length + 1);
-              return {
-                key: relativeKey,
-                label: childLabel,
-                type: SUMMARY_TYPE.ARRAY,
-                value: childValues[idx],
-              };
-            });
-
-            summaryDataSource.push({
-              key: mainKey,
-              label,
-              type: SUMMARY_TYPE.TABLE,
-              value: tableFields,
-            });
+          if (!fieldPathMap.has(fieldName)) {
+            fieldPathMap.set(fieldName, relativePath);
           } else {
-            summaryDataSource.push(getSummaryItem(mainKey, data, collection, app));
+            // 如果已存在，选择更长的路径（更具体的路径）
+            const existingPath = fieldPathMap.get(fieldName)!;
+            if (relativePath.length > existingPath.length) {
+              fieldPathMap.set(fieldName, relativePath);
+            }
           }
-        } else if (parentValue && typeof parentValue === 'object' && !Array.isArray(parentValue)) {
-          // 单对象：构建嵌套对象结构
-          const childObj: Record<string, any> = {};
-          for (const fullSubKey of childrenFullSubKeys) {
-            const value = _.get(data, fullSubKey);
-            const relativeKey = fullSubKey.slice(mainKey.length + 1);
-            childObj[relativeKey] = processValue(value, fullSubKey, collection, app);
+        }
+
+        const targetFields = Array.from(fieldPathMap.keys());
+        const childValues: (string | number)[][] = [];
+        let isValidTable = true;
+        let rowCount = 0;
+
+        // 遍历 subPathKeys 中的字段
+        for (const fieldName of targetFields) {
+          const relativePath = fieldPathMap.get(fieldName)!;
+          const fullSubKey = `${mainKey}.${fieldName}`;
+          const childArray: (string | number)[] = [];
+
+          // 对于多对多字段，从数组的每个元素中获取子字段值
+          for (let i = 0; i < parentValue.length; i++) {
+            const item = parentValue[i];
+            const childValue = _.get(item, relativePath);
+            const processedValue = processValue(childValue, fullSubKey, collection, app);
+            childArray.push(processedValue);
           }
+
+          childValues.push(childArray);
+
+          // 检查数组长度
+          if (rowCount === 0) {
+            rowCount = childArray.length;
+          } else if (rowCount !== childArray.length) {
+            isValidTable = false;
+          }
+        }
+
+        if (isValidTable && rowCount > 0) {
+          // 构建 TABLE 类型：value 是一个数组，每个元素是一个字段（SummaryDataSourceItem）
+          const tableFields: SummaryDataSourceItem[] = targetFields.map((fieldName, idx) => {
+            const fullSubKey = `${mainKey}.${fieldName}`;
+            const childLabel = getFieldLabel(fullSubKey, collection);
+            return {
+              key: fieldName,
+              label: childLabel,
+              type: SUMMARY_TYPE.ARRAY,
+              value: childValues[idx],
+            };
+          });
+
           summaryDataSource.push({
             key: mainKey,
             label,
-            type: SUMMARY_TYPE.LITERAL,
-            value: JSON.stringify(childObj),
+            type: SUMMARY_TYPE.TABLE,
+            value: tableFields,
           });
         } else {
-          summaryDataSource.push({
-            key: mainKey,
-            label,
-            type: SUMMARY_TYPE.LITERAL,
-            value: '',
-          });
+          // 如果不符合 TABLE 格式，降级为普通数组
+          summaryDataSource.push(getSummaryItem(mainKey, data, collection, app));
         }
-      } else {
-        // 没有任何子属性，普通主属性
-        summaryDataSource.push(getSummaryItem(mainKey, data, collection, app));
       }
+    } else {
+      summaryDataSource.push(getSummaryItem(mainKey, data, collection, app));
     }
   }
 

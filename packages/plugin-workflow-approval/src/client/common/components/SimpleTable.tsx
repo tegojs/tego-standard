@@ -29,12 +29,14 @@ export interface SimpleTableProps {
 export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSource, style, wrapperStyle }) => {
   const { t } = useTranslation();
   return (
-    <div style={{ marginBottom: 12, ...wrapperStyle }}>
+    <div style={{ marginBottom: 12, maxWidth: '100%', ...wrapperStyle }}>
       <table
         style={{
           width: '100%',
+          maxWidth: '100%',
           borderCollapse: 'collapse',
           fontSize: 12,
+          tableLayout: 'fixed',
           ...style,
         }}
       >
@@ -63,8 +65,11 @@ export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSo
                 key={column.key}
                 style={{
                   padding: '4px 8px',
-                  textAlign: 'left',
+                  textAlign: 'center',
                   border: '1px solid #e8e8e8',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {column.title}
@@ -101,7 +106,12 @@ export const SimpleTable: React.FC<SimpleTableProps> = ({ title, columns, dataSo
                         padding: '4px 8px',
                         border: '1px solid #e8e8e8',
                         color: '#333',
+                        textAlign: 'center',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
                       }}
+                      title={typeof cellValue === 'string' ? cellValue : String(cellValue ?? '')}
                     >
                       {cellValue}
                     </td>

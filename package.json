@@ -8,6 +8,8 @@
     "build": "tachybase build",
     "prebuild:p": "node scripts/update-version-with-hash.mjs",
     "build:p": "tachybase build -s --no-dts",
+    "changelog:generate": "node scripts/generate-changelog.mjs",
+    "changelog:update-unreleased": "node scripts/update-unreleased.mjs",
     "clean": "tachybase clean",
     "predev": "node scripts/update-version-with-hash.mjs",
     "dev": "tachybase dev",

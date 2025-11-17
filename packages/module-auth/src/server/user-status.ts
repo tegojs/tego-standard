@@ -159,7 +159,7 @@ export class UserStatusService implements IUserStatusService {
           color: statusInfo.color,
           allowLogin: statusInfo.allowLogin,
         },
-        errorMessage: translatedLoginErrorMessage || null,
+        errorMessage: statusInfo.allowLogin ? null : translatedLoginErrorMessage || null,
         isExpired: false,
       };
     } catch (error) {

@@ -26,7 +26,7 @@ export class PluginAuthServer extends Plugin {
         name: 'auth-token-controller',
         prefix: 'auth-token-controller',
       });
-      const tokenController = new TokenController({ cache, app: this.app, logger: this.app.log });
+      const tokenController = new TokenController({ cache, app: this.app, logger: this.app.logger });
 
       this.app.authManager.setTokenControlService(tokenController);
       const tokenPolicyRepo = this.app.db.getRepository(tokenPolicyCollectionName);
@@ -54,8 +54,7 @@ export class PluginAuthServer extends Plugin {
     // 将服务暴露到 app 上,方便其他插件调用
     (this.app as any).userStatusService = this.userStatusService;
 
-    // 注入登录检查方法, 注册状态变更拦截器
-    this.userStatusService.injectLoginCheck();
+    // 注册状态变更拦截器
     this.userStatusService.registerStatusChangeInterceptor();
 
     this.cache = await this.app.cacheManager.createCache({
@@ -158,7 +157,6 @@ export class PluginAuthServer extends Plugin {
         db: this.app.db,
         cache: this.app.cache,
         logger: this.app.logger,
-        log: this.app.log,
         throw: (...args) => {
           throw new Error(...args);
         },

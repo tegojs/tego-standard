@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-
 import { AuthConfig, BaseAuth, PasswordField } from '@tego/server';
 
 // import VerificationPlugin from '@tachybase/plugin-otp';
@@ -9,7 +8,8 @@ import { namespace } from '../preset';
 export class BasicAuth extends BaseAuth {
   constructor(config: AuthConfig) {
     const userCollection = config.ctx.db.getCollection('users');
-    super({ ...config, userCollection });
+    const userStatusCollection = config.ctx.db.getCollection('userStatuses');
+    super({ ...config, userCollection, userStatusCollection });
   }
 
   async validate() {

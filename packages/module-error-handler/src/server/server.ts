@@ -104,9 +104,14 @@ export class PluginErrorHandler extends Plugin {
         // 1. HTTP 状态码是 403
         // 2. 或者错误消息包含 "permission denied" 或 "no permissions"
         const is403 = err.statusCode === 403 || err.status === 403;
-        const permissionDeniedMessages = ['permission denied', 'no permissions', '没有权限', '无权限'];
+        const permissionDeniedMessagesEn = ['permission denied', 'no permissions'];
+        const permissionDeniedMessagesZh = ['没有权限', '无权限'];
         const hasPermissionMessage =
-          err.message && permissionDeniedMessages.some((msg) => err.message.toLowerCase().includes(msg.toLowerCase()));
+          err.message &&
+          (
+            permissionDeniedMessagesEn.some((msg) => err.message.toLowerCase().includes(msg.toLowerCase())) ||
+            permissionDeniedMessagesZh.some((msg) => err.message.includes(msg))
+          );
 
         return is403 || hasPermissionMessage;
       },

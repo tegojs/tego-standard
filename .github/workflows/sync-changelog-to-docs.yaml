@@ -73,7 +73,7 @@ jobs:
           # Check if syncing Unreleased section
           if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
             echo "Syncing [Unreleased] section"
-            
+
             # Extract [Unreleased] section from CHANGELOG.md
             if [ -f "CHANGELOG.md" ]; then
               awk '
@@ -170,6 +170,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}
+          # Note: GITHUB_TOKEN cannot access cross-repository, must use DOCS_REPO_TOKEN (PAT)
           token: ${{ secrets.DOCS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
           path: docs
           fetch-depth: 1
@@ -192,7 +193,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUMBER=${VERSION#v}
           IS_UNRELEASED=false
-          
+
           if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
             IS_UNRELEASED=true
           fi
@@ -359,19 +360,37 @@ jobs:
             else
               git commit -m "docs(changelog): sync changelog for ${VERSION}"
             fi
-            
+
             # Configure git remote with token for push
-            git remote set-url origin "https://${DOCS_REPO_TOKEN}@github.com/${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}.git"
-            
+            REPO_NAME="${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}"
+
+            # Use x-access-token prefix for GitHub tokens (required for GitHub Actions)
+            git remote set-url origin "https://x-access-token:${DOCS_REPO_TOKEN}@github.com/${REPO_NAME}.git"
+
             # Push with error handling
             if git push origin HEAD; then
               echo "✓ Pushed changes to docs repository"
             else
               echo "❌ Failed to push changes to docs repository"
+              echo ""
+              echo "Error: Permission denied (403). This usually means:"
+              echo "  1. DOCS_REPO_TOKEN secret is not configured, or"
+              echo "  2. GITHUB_TOKEN is being used (cannot push to cross-repository), or"
+              echo "  3. Token does not have write permission to ${REPO_NAME}"
+              echo ""
+              echo "Solution: Configure DOCS_REPO_TOKEN secret:"
+              echo "  1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions"
+              echo "  2. Click 'New repository secret'"
+              echo "  3. Name: DOCS_REPO_TOKEN"
+              echo "  4. Value: A Personal Access Token (PAT) with 'repo' scope"
+              echo "     - Create PAT at: https://github.com/settings/tokens"
+              echo "     - Required scopes: repo (full control of private repositories)"
+              echo "     - Must have write access to ${REPO_NAME}"
+              echo ""
               echo "Checking git status:"
               git status
-              echo "Checking remote:"
-              git remote -v
+              echo "Checking remote (token masked):"
+              git remote -v | sed 's/\(x-access-token:\)[^@]*/\1***/g'
               exit 1
             fi
           fi

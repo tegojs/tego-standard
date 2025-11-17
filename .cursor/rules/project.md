@@ -68,12 +68,77 @@ tego-standard/
 - 导入时可以使用别名而非相对路径
 
 ### Internationalization / 国际化
-- The project supports English and Chinese, using i18next.
-- 项目支持中英文，使用 i18next
-- Text content must provide both English and Chinese versions.
-- 文本内容需要同时提供中英文版本
-- Use `displayName` and `displayName.zh-CN` fields.
-- 使用 `displayName` 和 `displayName.zh-CN` 字段
+
+**This project fully supports bilingual mode (English and Chinese) for international collaboration.**
+
+**本项目完全支持双语模式（英文和中文），便于国际协作。**
+
+#### Core Requirements / 核心要求
+
+- **Language Support / 语言支持**: English (en-US) and Chinese Simplified (zh-CN)
+- **语言支持**：英文（en-US）和简体中文（zh-CN）
+- **Framework / 框架**: Uses i18next for internationalization
+- **框架**：使用 i18next 进行国际化
+- **Default Language / 默认语言**: English (en-US), with Chinese (zh-CN) as secondary
+- **默认语言**：英文（en-US），中文（zh-CN）作为次要语言
+
+#### Implementation Guidelines / 实现指南
+
+1. **Plugin/Module Registration / 插件/模块注册**
+   - Must provide both `displayName` (English) and `displayName.zh-CN` (Chinese) fields
+   - 必须提供 `displayName`（英文）和 `displayName.zh-CN`（中文）字段
+   - Example / 示例:
+   ```typescript
+   this.app.pluginManager.add('my-plugin', {
+     name: 'my-plugin',
+     displayName: 'My Plugin',
+     displayName: {
+       'zh-CN': '我的插件',
+     },
+   })
+   ```
+
+2. **UI Text / 界面文本**
+   - Use i18next `t()` function for all user-facing text
+   - 所有面向用户的文本使用 i18next 的 `t()` 函数
+   - Define translation keys in locale files (both English and Chinese)
+   - 在 locale 文件中定义翻译键（英文和中文）
+   - Example / 示例:
+   ```typescript
+   const { t } = useTranslation();
+   <Button>{t('Save')}</Button>  // Will display "保存" in Chinese mode
+   ```
+
+3. **Documentation Files / 文档文件**
+   - README files: `README.md` (English) and `README.zh-CN.md` (Chinese)
+   - README 文件：`README.md`（英文）和 `README.zh-CN.md`（中文）
+   - Changelog files: `CHANGELOG.md` (English) and `CHANGELOG.zh-CN.md` (Chinese)
+   - 更新日志文件：`CHANGELOG.md`（英文）和 `CHANGELOG.zh-CN.md`（中文）
+   - Rule files: All `.cursor/rules/*.md` files contain bilingual content side by side
+   - 规则文件：所有 `.cursor/rules/*.md` 文件都包含并排的双语内容
+
+4. **Code Comments / 代码注释**
+   - Important comments should be bilingual when possible
+   - 重要注释应尽可能使用双语
+   - Use format: `// English comment / 中文注释`
+   - 使用格式：`// English comment / 中文注释`
+
+5. **Error Messages / 错误信息**
+   - All error messages must support both languages
+   - 所有错误信息必须支持两种语言
+   - Use i18next translation keys, not hardcoded strings
+   - 使用 i18next 翻译键，不要硬编码字符串
+
+#### Best Practices / 最佳实践
+
+- **Always provide both languages** when adding new features
+- **添加新功能时始终提供两种语言**
+- **Test in both languages** to ensure UI layout works correctly
+- **在两种语言下测试**，确保 UI 布局正确
+- **Use translation keys** instead of hardcoded text
+- **使用翻译键**而非硬编码文本
+- **Keep translations synchronized** when updating content
+- **更新内容时保持翻译同步**
 
 ### Plugin System / 插件系统
 - Plugins must implement the Plugin interface.

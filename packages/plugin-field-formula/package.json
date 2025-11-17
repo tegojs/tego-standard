@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-field-formula",
   "displayName": "Field: Formula",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Configure and store the results of calculations between multiple field values in the same record, supporting both Math.js and Excel formula functions.",
   "keywords": [
     "Collection fields"
@@ -10,13 +10,13 @@
   "main": "./dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "dayjs": "^1.11.13",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "dayjs": "catalog:",
     "lodash": "^4.17.21",
-    "react": "18.3.1",
+    "react": "catalog:",
     "react-i18next": "16.2.1"
   },
   "description.zh-CN": "可以配置并存储同一条记录的多字段值之间的计算结果，支持 Math.js 和 Excel formula functions 两种引擎",

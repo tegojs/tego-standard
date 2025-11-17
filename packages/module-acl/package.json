@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-acl",
   "displayName": "Access control",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Based on roles, resources, and actions, access control can precisely manage interface configuration permissions, data operation permissions, menu access permissions, and plugin permissions.",
   "keywords": [
     "Users & permissions"
@@ -13,18 +13,18 @@
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "@types/jsonwebtoken": "^8.5.9",
     "ahooks": "^3.9.0",
-    "antd": "5.22.5",
+    "antd": "catalog:",
     "async-mutex": "^0.5.0",
     "jsonwebtoken": "^8.5.1",
     "lodash": "4.17.21",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "react-i18next": "16.2.1"
   },
   "description.zh-CN": "基于角色、资源和操作的权限控制，可以精确控制界面配置权限、数据操作权限、菜单访问权限、插件权限。",

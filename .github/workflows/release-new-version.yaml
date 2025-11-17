@@ -56,7 +56,34 @@ jobs:
           fi
           echo "New version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
           echo "::notice title=Version Updated::New version: $version"
+
+      - name: Generate changelog
+        id: generate_changelog
+        run: |
+          current_version="${{ steps.do_version.outputs.current_version }}"
+          new_version="${{ steps.do_version.outputs.version }}"
+          
+          # 获取上一个 tag
+          previous_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -n "$previous_tag" ]; then
+            echo "Generating changelog from $previous_tag to v$new_version"
+            node scripts/generate-changelog.mjs "$new_version" "$previous_tag"
+          else
+            echo "No previous tag found, generating changelog for v$new_version"
+            node scripts/generate-changelog.mjs "$new_version"
+          fi
+          
+          # 检查是否有变更
+          if git diff --quiet CHANGELOG.md CHANGELOG.zh-CN.md; then
+            echo "changelog_updated=false" >> $GITHUB_OUTPUT
+            echo "No changelog updates generated"
+          else
+            echo "changelog_updated=true" >> $GITHUB_OUTPUT
+            echo "✓ Changelog generated successfully"
+          fi
 
       - name: Update workflow run name
         env:
@@ -108,4 +135,17 @@ jobs:
         with:
           tagging_message: ${{ steps.do_version.outputs.version }}
           commit_message: "chore(version): release ${{ steps.do_version.outputs.version }}"
+          file_pattern: |
+            package.json
+            **/package.json
+            CHANGELOG.md
+            CHANGELOG.zh-CN.md
+
+  sync-changelog:
+    needs: release
+    if: always() && needs.release.result == 'success'
+    uses: ./.github/workflows/sync-changelog-to-docs.yaml
+    secrets: inherit
+    with:
+      version: v${{ needs.release.outputs.version }}
 

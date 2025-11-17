@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-ui-schema",
   "displayName": "UI schema storage",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Provides centralized UI schema storage service.",
   "keywords": [
     "System & security"
@@ -14,11 +14,11 @@
     "@tachybase/client": "workspace:*",
     "@tachybase/module-error-handler": "workspace:*",
     "@tachybase/module-user": "workspace:*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "lodash": "4.17.21",
-    "sequelize": "^6.37.5"
+    "sequelize": "catalog:"
   },
   "description.zh-CN": "提供中心化的 UI schema 存储服务。",
   "displayName.zh-CN": "UI schema 存储服务"

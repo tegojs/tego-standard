@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-user-manual-feishu",
   "displayName": "feishu user manual",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "feishu user manual",
   "keywords": [
     "feishu",
@@ -11,10 +11,10 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5"
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:"
   },
   "description.zh-CN": "飞书使用手册",
   "displayName.zh-CN": "飞书使用手册"

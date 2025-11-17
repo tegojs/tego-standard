@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-mock-collections",
   "displayName": "mock-collections",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "mock-collections",
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
@@ -12,10 +12,10 @@
     "@tachybase/client": "workspace:*",
     "@tachybase/module-collection": "workspace:*",
     "@tachybase/module-error-handler": "workspace:*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "dayjs": "^1.11.13",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "dayjs": "catalog:",
     "lodash": "4.17.21",
     "pg": "^8.16.3"
   }

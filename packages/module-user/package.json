@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-user",
   "displayName": "Users",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Provides basic user model, as well as created by and updated by fields.",
   "keywords": [
     "Users & permissions"
@@ -14,12 +14,12 @@
     "@tachybase/client": "workspace:*",
     "@tachybase/module-acl": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "@types/jsonwebtoken": "^8.5.9",
-    "antd": "5.22.5",
+    "antd": "catalog:",
     "jsonwebtoken": "^8.5.1",
     "react-i18next": "16.2.1"
   },

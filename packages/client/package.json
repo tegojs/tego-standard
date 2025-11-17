@@ -1,6 +1,6 @@
 {
   "name": "@tachybase/client",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "license": "Apache-2.0",
   "main": "lib/index.js",
   "module": "es/index.mjs",
@@ -21,10 +21,10 @@
     "@floating-ui/react": "0.26.28",
     "@js-preview/excel": "^1.7.14",
     "@lottiefiles/dotlottie-react": "^0.9.3",
-    "@tachybase/schema": "*",
-    "@tego/client": "*",
+    "@tachybase/schema": "catalog:",
+    "@tego/client": "catalog:",
     "ahooks": "^3.9.0",
-    "antd": "5.22.5",
+    "antd": "catalog:",
     "antd-style": "3.7.1",
     "axios": "1.13.0",
     "axios-mock-adapter": "^1.22.0",
@@ -32,7 +32,7 @@
     "click-to-react-component": "1.1.2",
     "cronstrue": "^3.2.0",
     "d3-format": "^3.1.0",
-    "dayjs": "1.11.13",
+    "dayjs": "catalog:",
     "deepmerge": "^4.3.1",
     "file-saver": "^2.0.5",
     "flat": "^5.0.2",
@@ -55,8 +55,8 @@
     "react-js-cron": "^3.2.0",
     "react-pdf": "^10.0.1",
     "react-quill": "^2.0.0",
-    "react-router": "6.28.1",
-    "react-router-dom": "6.28.1",
+    "react-router": "catalog:",
+    "react-router-dom": "catalog:",
     "react-to-print": "^2.15.1",
     "react-zoom-pan-pinch": "^3.7.0",
     "sanitize-html": "2.17.0",
@@ -70,8 +70,8 @@
     "@types/react-big-calendar": "^1.16.2"
   },
   "peerDependencies": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "react-is": ">=18.0.0"
   }
 }

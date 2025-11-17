@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-online-user",
   "displayName": "Online User Management",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Online User Management",
   "keywords": [
     "Users & permissions"
@@ -11,14 +11,14 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
     "jsonwebtoken": "^8.5.1",
     "lodash": "4.17.21",
-    "react": "18.3.1",
+    "react": "catalog:",
     "redis": "^4.7.0",
     "ws": "^8.18.3"
   },

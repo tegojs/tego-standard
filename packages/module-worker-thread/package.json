@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-worker-thread",
   "displayName": "Worker thread",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Worker thread for executing time-consuming tasks",
   "keywords": [
     "Workflow"
@@ -10,16 +10,16 @@
   "scripts": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/globals": "*",
-    "@tachybase/loader": "*",
+    "@tachybase/globals": "catalog:",
+    "@tachybase/loader": "catalog:",
     "@tachybase/module-collection": "workspace:*",
     "@tachybase/module-user": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
-    "dayjs": "1.11.13",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
+    "dayjs": "catalog:",
     "tsx": "4.20.3"
   },
   "description.zh-CN": "工作线程,用于执行耗时任务",

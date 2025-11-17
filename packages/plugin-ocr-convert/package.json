@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-ocr-convert",
   "displayName": "OCR Conversion Plugin",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "OCR Conversion Plugin",
   "keywords": [
     "System management"
@@ -10,19 +10,19 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "@vercel/ncc": "0.38.3",
-    "antd": "5.22.5",
+    "antd": "catalog:",
     "axios": "1.13.0",
-    "dayjs": "1.11.13",
+    "dayjs": "catalog:",
     "docxtemplater": "^3.55.8",
     "exceljs": "^4.4.0",
     "fs-extra": "^11.3.0",
     "pizzip": "^3.1.7",
-    "react": "18.3.1",
+    "react": "catalog:",
     "react-i18next": "16.2.1",
     "tencentcloud-sdk-nodejs": "^4.0.996"
   },

@@ -18,6 +18,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
+- add changelog generation and sync to docs workflow (#274)
+- **changelog**: update [Unreleased] section
+- update code inspector workflow (#273)
+- **changelog**: update [Unreleased] section
+- add changelog generation and sync to docs workflow (#272)
+- update version with hash (#270)
+- **pnpm-workspace**: update to catalog (#264)
+- update tachybase-image-nightly.yaml
+- update tachybase-image-nightly.yaml
+- update tachybase-image-nightly.yaml
+- update tachybase-image-nightly.yaml
+- update tachybase-image-nightly.yaml
+- update tachybase image nightly workflow to use timestamp (#262)
+- update tachybase image nightly workflow to use Bearer token (#261)
+- update tachybase image nightly workflow to comment PR (#260)
+- update tachybase image nightly workflow (#259)
+- clean up .cursorignore by removing unnecessary entries
+- update cursor config (#255)
+- allow AI completion for COMMIT_EDITMSG file
+
+
+### Fixed
+
+- approval add return and update approval navigation path (#265)
+- fixed approval reminder & approval records repeat (#256)
+
+### Changed
+
+- **core**: allow empty user status in token (#267)
+
+### Other
+
 - update code inspector workflow (#273)
 - **changelog**: update [Unreleased] section
 - add changelog generation and sync to docs workflow (#272)

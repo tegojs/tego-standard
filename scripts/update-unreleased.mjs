@@ -64,7 +64,8 @@ function getCommitsSinceLatestTag() {
     }
 
     const range = `${latestTag}..HEAD`;
-    const logFormat = '%H|%s|%b';
+    // 使用 \0 作为分隔符，避免 body 中的 | 和换行符导致解析错误
+    const logFormat = '%H%x00%s%x00%b%x00%an';
     const output = execSync(`git log ${range} --pretty=format:"${logFormat}" --no-merges`, {
       encoding: 'utf-8',
       cwd: rootDir,
@@ -74,18 +75,51 @@ function getCommitsSinceLatestTag() {
       return [];
     }
 
-    const commits = output
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const parts = line.split('|');
-        const hash = parts[0] || '';
-        const subject = parts[1] || '';
-        const body = parts.slice(2).join('|').trim();
-        return { hash, subject, body };
-      })
-      .filter((commit) => commit.hash && commit.subject);
-
+    // git log 输出格式：每个 commit 可能跨多行，格式为 hash\0subject\0body\0author\n
+    // body 可能包含换行符，所以需要找到前三个 \0 的位置来分割
+    const commits = [];
+    let remaining = output;
+    
+    while (remaining.length > 0) {
+      // 找到前三个 \0 的位置
+      const firstNull = remaining.indexOf('\0');
+      if (firstNull === -1) break;
+      
+      const secondNull = remaining.indexOf('\0', firstNull + 1);
+      if (secondNull === -1) break;
+      
+      const thirdNull = remaining.indexOf('\0', secondNull + 1);
+      if (thirdNull === -1) break;
+      
+      // 提取 hash, subject, body (body 可能包含换行符)
+      const hash = remaining.substring(0, firstNull).trim();
+      const subject = remaining.substring(firstNull + 1, secondNull).trim();
+      const bodyStart = secondNull + 1;
+      
+      // 找到最后一个 \0（author 之前），body 在 secondNull 和 thirdNull 之间
+      // 但 author 可能在下一行，所以需要找到下一个 commit 的开始或文件结束
+      // 实际上，author 后面应该跟着 \n，然后是下一个 commit 的 hash
+      // 或者如果这是最后一个 commit，author 后面就是文件结束
+      
+      // 从 thirdNull 之后开始，找到第一个 \n 或文件结束，这就是 author
+      let authorEnd = remaining.indexOf('\n', thirdNull + 1);
+      if (authorEnd === -1) {
+        // 这是最后一个 commit
+        authorEnd = remaining.length;
+      }
+      
+      const body = remaining.substring(bodyStart, thirdNull).trim();
+      const author = remaining.substring(thirdNull + 1, authorEnd).trim().replace(/\n/g, '');
+      
+      // 验证 hash 是有效的 40 位十六进制字符串
+      if (hash && /^[0-9a-f]{40}$/.test(hash) && subject) {
+        commits.push({ hash, subject, body, author });
+      }
+      
+      // 移动到下一个 commit（跳过 author 和换行符）
+      remaining = remaining.substring(authorEnd + 1);
+    }
+    
     return commits;
   } catch (error) {
     console.warn('Warning: Could not get commits:', error.message);
@@ -117,6 +151,7 @@ function groupCommits(commits) {
     const commitLink = shortHash
       ? `[${shortHash}](https://github.com/tegojs/tego-standard/commit/${commit.hash})`
       : '';
+    const author = commit.author || '';
 
     if (!parsed) {
       // 对于无法解析的 commit，直接使用 subject 字符串
@@ -130,6 +165,7 @@ function groupCommits(commits) {
       hash: commit.hash,
       shortHash,
       commitLink,
+      author,
     };
 
     if (parsed.isBreaking) {
@@ -196,7 +232,8 @@ function generateUnreleasedContentEN(grouped) {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
-      lines.push(`- ${scope}${description}${commitLink}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
@@ -208,7 +245,8 @@ function generateUnreleasedContentEN(grouped) {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
-      lines.push(`- ${scope}${description}${commitLink}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
@@ -220,7 +258,8 @@ function generateUnreleasedContentEN(grouped) {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
-      lines.push(`- ${scope}${description}${commitLink}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
@@ -233,7 +272,8 @@ function generateUnreleasedContentEN(grouped) {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
-      lines.push(`- ${scope}${description}${commitLink}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
@@ -245,7 +285,8 @@ function generateUnreleasedContentEN(grouped) {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
-      lines.push(`- ${scope}${description}${commitLink}`);
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
@@ -280,7 +321,8 @@ function generateUnreleasedContentEN(grouped) {
         if (description) {
           const converted = convertPRNumbersToLinks(description);
           const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
-          lines.push(`- ${scope}${converted}${commitLink}`);
+          const author = item.author ? ` (@${item.author})` : '';
+          lines.push(`- ${scope}${converted}${commitLink}${author}`);
         }
       }
     });
@@ -353,15 +395,16 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // Breaking changes
   if (grouped.breaking.length > 0) {
     lines.push('### ⚠️ 破坏性变更', '');
-    grouped.breaking.forEach((item) => {
+      grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
         const description = convertPRNumbersToLinks(item.description);
-        lines.push(`- ${scope}${description}${commitLink}`);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -370,15 +413,16 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // Added
   if (grouped.feat.length > 0) {
     lines.push('### ✨ 新增', '');
-    grouped.feat.forEach((item) => {
+      grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
         const description = convertPRNumbersToLinks(item.description);
-        lines.push(`- ${scope}${description}${commitLink}`);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -387,15 +431,16 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // Fixed
   if (grouped.fix.length > 0) {
     lines.push('### 🐛 修复', '');
-    grouped.fix.forEach((item) => {
+      grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
         const description = convertPRNumbersToLinks(item.description);
-        lines.push(`- ${scope}${description}${commitLink}`);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -405,15 +450,16 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   const changed = [...grouped.refactor, ...grouped.perf];
   if (changed.length > 0) {
     lines.push('### 🔄 变更', '');
-    changed.forEach((item) => {
+      changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
         const description = convertPRNumbersToLinks(item.description);
-        lines.push(`- ${scope}${description}${commitLink}`);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -422,15 +468,16 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // Documentation
   if (grouped.docs.length > 0) {
     lines.push('### 📝 文档', '');
-    grouped.docs.forEach((item) => {
+      grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
         const description = convertPRNumbersToLinks(item.description);
-        lines.push(`- ${scope}${description}${commitLink}`);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -459,7 +506,7 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     other.forEach((item) => {
       if (typeof item === 'string') {
         if (autoTranslate) {
-          translations.push({ text: item, scope: '', lineIndex: lines.length, isString: true, commitLink: '' });
+          translations.push({ text: item, scope: '', lineIndex: lines.length, isString: true, commitLink: '', author: '' });
           lines.push(''); // 占位符
         } else {
           const converted = convertPRNumbersToLinks(item);
@@ -470,12 +517,13 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
         const description = item.description || item.full || '';
         if (description) {
           const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+          const author = item.author ? ` (@${item.author})` : '';
           if (autoTranslate) {
-            translations.push({ text: description, scope, lineIndex: lines.length, commitLink });
+            translations.push({ text: description, scope, lineIndex: lines.length, commitLink, author });
             lines.push(''); // 占位符
           } else {
             const converted = convertPRNumbersToLinks(description);
-            lines.push(`- ${scope}${converted}${commitLink}`);
+            lines.push(`- ${scope}${converted}${commitLink}${author}`);
           }
         }
       }
@@ -492,11 +540,12 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
       // 在翻译后应用 PR 链接转换
       const translatedWithLinks = convertPRNumbersToLinks(translated);
       const commitLink = translation.commitLink || '';
+      const author = translation.author || '';
       const lineIndex = translation.lineIndex;
       if (translation.isString) {
-        lines[lineIndex] = `- ${translatedWithLinks}${commitLink}`;
+        lines[lineIndex] = `- ${translatedWithLinks}${commitLink}${author}`;
       } else {
-        lines[lineIndex] = `- ${translation.scope}${translatedWithLinks}${commitLink}`;
+        lines[lineIndex] = `- ${translation.scope}${translatedWithLinks}${commitLink}${author}`;
       }
     });
   }

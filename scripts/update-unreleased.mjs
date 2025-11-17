@@ -63,6 +63,8 @@ function getCommitsSinceLatestTag() {
       latestTag = firstCommit;
     }
 
+    // 不包含 tag 点本身的 commit，因为 tag 点属于已发布的版本
+    // Unreleased 应该只包含自最新 tag 之后的 commit
     const range = `${latestTag}..HEAD`;
     // 使用 \0 作为分隔符，避免 body 中的 | 和换行符导致解析错误
     const logFormat = '%H%x00%s%x00%b%x00%an';

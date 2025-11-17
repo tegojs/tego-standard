@@ -28,6 +28,8 @@ This project uses a modular rule file structure, with each file focusing on a sp
   开发流程、提交规范、测试、常用命令
 - **AI Assistant / AI 辅助** (`ai-assistant.md`) - AI-assisted development suggestions and guidelines
   AI 辅助开发的建议和指南
+- **Lint Check / Lint 检查** (`lint-check.md`) - Mandatory lint error checking rules after code modifications
+  代码修改后必须的 lint 错误检查规则
 - **Client Package / Client 包** (`packages-client.md`) - Specific rules for packages/client directory
   packages/client 目录的特定规则
 - **Quick Reference / 快速参考** (`quick-reference.md`) - Quick reference for common tasks and patterns
@@ -43,6 +45,7 @@ The following rule files will be automatically loaded and applied:
 @file code-style.md
 @file development.md
 @file ai-assistant.md
+@file lint-check.md
 @file packages-client.md
 @file quick-reference.md
 

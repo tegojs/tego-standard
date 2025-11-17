@@ -96,18 +96,18 @@ function getCommitsSinceLatestTag() {
 // 分组 commits
 function groupCommits(commits) {
   const grouped = {
-    feat: [],
-    fix: [],
-    docs: [],
-    style: [],
-    refactor: [],
-    perf: [],
-    test: [],
-    build: [],
-    ci: [],
-    chore: [],
-    revert: [],
-    breaking: [],
+    feat: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    fix: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    docs: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    style: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    refactor: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    perf: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    test: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    build: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    ci: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    chore: /** @type {Array<string | {type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    revert: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    breaking: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
   };
 
   commits.forEach((commit) => {
@@ -194,13 +194,23 @@ function generateUnreleasedContentEN(grouped) {
   }
 
   // Other (style, test, build, ci, chore)
-  const other = [
-    ...grouped.style,
-    ...grouped.test,
-    ...grouped.build,
-    ...grouped.ci,
-    ...grouped.chore,
-  ];
+  // Note: 以下类型的提交默认不包含在 changelog 中，因为它们是内部维护性改动，对用户无直接影响：
+  // - style: 代码格式（空格、分号等）
+  // - test: 测试相关改动
+  // - build: 构建系统改动
+  // - ci: CI 配置改动
+  // - chore: 维护性改动
+  // 如果需要在 changelog 中包含这些类型，可以通过环境变量 CHANGELOG_INCLUDE_INTERNAL=true 启用
+  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const other = includeInternal
+    ? [
+        ...grouped.style,
+        ...grouped.test,
+        ...grouped.build,
+        ...grouped.ci,
+        ...grouped.chore,
+      ]
+    : [];
   if (other.length > 0) {
     lines.push('### Other', '');
     other.forEach((item) => {
@@ -355,14 +365,24 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     lines.push('');
   }
 
-  // Other
-  const other = [
-    ...grouped.style,
-    ...grouped.test,
-    ...grouped.build,
-    ...grouped.ci,
-    ...grouped.chore,
-  ];
+  // Other (style, test, build, ci, chore)
+  // Note: 以下类型的提交默认不包含在 changelog 中，因为它们是内部维护性改动，对用户无直接影响：
+  // - style: 代码格式（空格、分号等）
+  // - test: 测试相关改动
+  // - build: 构建系统改动
+  // - ci: CI 配置改动
+  // - chore: 维护性改动
+  // 如果需要在 changelog 中包含这些类型，可以通过环境变量 CHANGELOG_INCLUDE_INTERNAL=true 启用
+  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const other = includeInternal
+    ? [
+        ...grouped.style,
+        ...grouped.test,
+        ...grouped.build,
+        ...grouped.ci,
+        ...grouped.chore,
+      ]
+    : [];
   if (other.length > 0) {
     lines.push('### 其他', '');
     other.forEach((item) => {
@@ -431,18 +451,45 @@ async function updateUnreleased() {
 
   const grouped = groupCommits(commits);
 
-  // 检查是否有实际变更
-  const hasChanges = Object.values(grouped).some((items) => items.length > 0);
-  if (!hasChanges) {
-    console.log('No conventional commits found. Skipping update.');
+  // 检查是否有对用户有价值的变更（排除内部维护性改动）
+  // 只检查：feat, fix, perf, refactor, docs, revert, breaking
+  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const userFacingTypes = ['feat', 'fix', 'perf', 'refactor', 'docs', 'revert', 'breaking'];
+  const hasUserFacingChanges = userFacingTypes.some(
+    (type) => grouped[type] && grouped[type].length > 0
+  );
+
+  // 如果启用了包含内部改动，也检查内部类型
+  const hasInternalChanges = includeInternal
+    ? ['style', 'test', 'build', 'ci', 'chore'].some(
+        (type) => grouped[type] && grouped[type].length > 0
+      )
+    : false;
+
+  if (!hasUserFacingChanges && !hasInternalChanges) {
+    console.log('No user-facing changes found (only internal maintenance commits). Skipping update.');
     return;
   }
 
   const contentEN = generateUnreleasedContentEN(grouped);
 
+  // 检查生成的内容是否为空（去除空行后）
+  const contentENTrimmed = contentEN.trim();
+  if (!contentENTrimmed) {
+    console.log('Generated changelog content is empty. Skipping update.');
+    return;
+  }
+
   // 检查是否启用自动翻译（通过环境变量控制，默认启用）
   const autoTranslate = process.env.CHANGELOG_AUTO_TRANSLATE !== 'false';
   const contentZH = await generateUnreleasedContentZH(grouped, autoTranslate);
+
+  // 检查中文内容是否为空
+  const contentZHTrimmed = contentZH.trim();
+  if (!contentZHTrimmed) {
+    console.log('Generated Chinese changelog content is empty. Skipping update.');
+    return;
+  }
 
   // 获取最新版本号用于更新链接
   const latestVersion = getLatestVersion();

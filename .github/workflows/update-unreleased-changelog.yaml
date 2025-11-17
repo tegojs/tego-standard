@@ -1,19 +1,11 @@
 name: Update Unreleased Changelog
 
 on:
-  push:
-    branches:
-      - main
-      - master
-    paths:
-      - '**.js'
-      - '**.ts'
-      - '**.tsx'
-      - '**.jsx'
-      - '**.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/**'
+  # 每周五晚上 12 点（北京时间周六凌晨 0 点）定时触发
+  # UTC 时间：周五 16:00（北京时间 UTC+8 周六 00:00）
+  schedule:
+    - cron: '0 16 * * 5'  # 每周五 UTC 16:00 (北京时间周六 00:00)
+  # 保留手动触发功能
   workflow_dispatch:
 
 permissions:

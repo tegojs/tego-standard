@@ -18,6 +18,8 @@ on:
       - 'vitest.config.*'
       - 'playwright.config.*'
       - 'rsbuild.config.*'
+    paths-ignore:
+      - 'scripts/**'
   pull_request:
     branches:
       - main
@@ -36,6 +38,8 @@ on:
       - 'vitest.config.*'
       - 'playwright.config.*'
       - 'rsbuild.config.*'
+    paths-ignore:
+      - 'scripts/**'
 
 permissions:
   contents: write

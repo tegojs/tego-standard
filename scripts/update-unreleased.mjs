@@ -96,46 +96,70 @@ function getCommitsSinceLatestTag() {
 // 分组 commits
 function groupCommits(commits) {
   const grouped = {
-    feat: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    fix: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    docs: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    style: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    refactor: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    perf: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    test: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    build: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    ci: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    chore: /** @type {Array<string | {type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    revert: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    breaking: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
+    feat: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    fix: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    docs: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    style: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    refactor: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    perf: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    test: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    build: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    ci: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    chore: /** @type {Array<string | {type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string, subject?: string}>} */ ([]),
+    revert: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
+    breaking: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
   };
 
   commits.forEach((commit) => {
     const parsed = parseCommit(commit);
+    // 获取 commit hash 的短版本（7 位）
+    const shortHash = commit.hash ? commit.hash.substring(0, 7) : '';
+    const commitLink = shortHash
+      ? `[${shortHash}](https://github.com/tegojs/tego-standard/commit/${commit.hash})`
+      : '';
+
     if (!parsed) {
+      // 对于无法解析的 commit，直接使用 subject 字符串
       grouped.chore.push(commit.subject);
       return;
     }
 
+    const commitInfo = {
+      ...parsed,
+      full: commit.subject,
+      hash: commit.hash,
+      shortHash,
+      commitLink,
+    };
+
     if (parsed.isBreaking) {
-      grouped.breaking.push({
-        ...parsed,
-        full: commit.subject,
-      });
+      grouped.breaking.push(commitInfo);
     }
 
     const type = parsed.type;
     if (grouped[type]) {
-      grouped[type].push({
-        ...parsed,
-        full: commit.subject,
-      });
+      grouped[type].push(commitInfo);
     } else {
-      grouped.chore.push(commit.subject);
+      grouped.chore.push(commitInfo);
     }
   });
 
   return grouped;
+}
+
+// 将 PR 编号转换为链接
+// 例如: (#271) -> [#271](https://github.com/tegojs/tego-standard/pull/271)
+// 支持中文括号: （#271） -> [#271](https://github.com/tegojs/tego-standard/pull/271)
+function convertPRNumbersToLinks(text) {
+  if (!text) return text;
+  // 匹配 (#数字) 或 （#数字） 格式，转换为链接
+  // 同时匹配英文括号和中文括号
+  // 注意：中文括号是 （ 和 ），需要完整匹配
+  const chineseLeft = '（';
+  const chineseRight = '）';
+  return text
+    .replace(/\(#(\d+)\)/g, '([#$1](https://github.com/tegojs/tego-standard/pull/$1))')
+    .replace(new RegExp(`${chineseLeft}#(\\d+)${chineseRight}`, 'g'), '([#$1](https://github.com/tegojs/tego-standard/pull/$1))');
 }
 
 // 去除重复的行（保留第一次出现）
@@ -170,7 +194,9 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('### ⚠️ Breaking Changes', '');
     grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      lines.push(`- ${scope}${description}${commitLink}`);
     });
     lines.push('');
   }
@@ -180,7 +206,9 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('### Added', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      lines.push(`- ${scope}${description}${commitLink}`);
     });
     lines.push('');
   }
@@ -190,7 +218,9 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('### Fixed', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      lines.push(`- ${scope}${description}${commitLink}`);
     });
     lines.push('');
   }
@@ -201,7 +231,9 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('### Changed', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      lines.push(`- ${scope}${description}${commitLink}`);
     });
     lines.push('');
   }
@@ -211,7 +243,9 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('### Documentation', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      lines.push(`- ${scope}${description}${commitLink}`);
     });
     lines.push('');
   }
@@ -238,12 +272,15 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('### Other', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
-        lines.push(`- ${item}`);
+        const converted = convertPRNumbersToLinks(item);
+        lines.push(`- ${converted}`);
       } else if (item && typeof item === 'object') {
         const scope = item.scope ? `**${item.scope}**: ` : '';
         const description = item.description || item.full || '';
         if (description) {
-          lines.push(`- ${scope}${description}`);
+          const converted = convertPRNumbersToLinks(description);
+          const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+          lines.push(`- ${scope}${converted}${commitLink}`);
         }
       }
     });
@@ -318,11 +355,13 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     lines.push('### ⚠️ 破坏性变更', '');
     grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}`);
       }
     });
     lines.push('');
@@ -333,11 +372,13 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     lines.push('### 新增', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}`);
       }
     });
     lines.push('');
@@ -348,11 +389,13 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     lines.push('### 修复', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}`);
       }
     });
     lines.push('');
@@ -364,11 +407,13 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     lines.push('### 变更', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}`);
       }
     });
     lines.push('');
@@ -379,11 +424,13 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     lines.push('### 文档', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}`);
       }
     });
     lines.push('');
@@ -412,20 +459,23 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     other.forEach((item) => {
       if (typeof item === 'string') {
         if (autoTranslate) {
-          translations.push({ text: item, scope: '', lineIndex: lines.length, isString: true });
+          translations.push({ text: item, scope: '', lineIndex: lines.length, isString: true, commitLink: '' });
           lines.push(''); // 占位符
         } else {
-          lines.push(`- ${item}`);
+          const converted = convertPRNumbersToLinks(item);
+          lines.push(`- ${converted}`);
         }
       } else if (item && typeof item === 'object') {
         const scope = item.scope ? `**${item.scope}**: ` : '';
         const description = item.description || item.full || '';
         if (description) {
+          const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
           if (autoTranslate) {
-            translations.push({ text: description, scope, lineIndex: lines.length });
+            translations.push({ text: description, scope, lineIndex: lines.length, commitLink });
             lines.push(''); // 占位符
           } else {
-            lines.push(`- ${scope}${description}`);
+            const converted = convertPRNumbersToLinks(description);
+            lines.push(`- ${scope}${converted}${commitLink}`);
           }
         }
       }
@@ -439,11 +489,14 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     const translatedTexts = await translateTexts(textsToTranslate);
     translations.forEach((translation, index) => {
       const translated = translatedTexts[index];
+      // 在翻译后应用 PR 链接转换
+      const translatedWithLinks = convertPRNumbersToLinks(translated);
+      const commitLink = translation.commitLink || '';
       const lineIndex = translation.lineIndex;
       if (translation.isString) {
-        lines[lineIndex] = `- ${translated}`;
+        lines[lineIndex] = `- ${translatedWithLinks}${commitLink}`;
       } else {
-        lines[lineIndex] = `- ${translation.scope}${translated}`;
+        lines[lineIndex] = `- ${translation.scope}${translatedWithLinks}${commitLink}`;
       }
     });
   }
@@ -452,16 +505,26 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   return deduplicateContent(content);
 }
 
-// 获取最新版本号
+// 获取最新版本号（所有 tag 中最新的版本，而不是当前分支上的最新 tag）
 function getLatestVersion() {
   try {
-    const tag = execSync('git describe --tags --abbrev=0', {
+    // 使用 git tag 按版本号排序，获取最新的版本
+    const tag = execSync('git tag --sort=-version:refname | head -1', {
       encoding: 'utf-8',
       cwd: rootDir,
     }).trim();
     return tag.replace(/^v/, '');
   } catch {
-    return null;
+    // 如果失败，回退到 git describe
+    try {
+      const tag = execSync('git describe --tags --abbrev=0', {
+        encoding: 'utf-8',
+        cwd: rootDir,
+      }).trim();
+      return tag.replace(/^v/, '');
+    } catch {
+      return null;
+    }
   }
 }
 

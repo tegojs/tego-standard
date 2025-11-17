@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-auth",
   "displayName": "Authentication",
-  "version": "1.3.25",
+  "version": "1.5.1",
   "description": "User authentication management, including password, SMS, and support for Single Sign-On (SSO) protocols, with extensibility.",
   "keywords": [
     "Authentication",
@@ -13,18 +13,18 @@
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
     "axios": "1.13.0",
     "cron": "^3.3.1",
     "lodash": "4.17.21",
     "ms": "^2.1.3",
-    "react": "18.3.1",
+    "react": "catalog:",
     "react-i18next": "16.2.1",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "用户认证管理，包括基础的密码认证、短信认证、SSO 协议的认证等，可扩展。",
   "displayName.zh-CN": "用户认证"

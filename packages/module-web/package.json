@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-web",
   "displayName": "WEB client",
-  "version": "1.3.25",
+  "version": "1.5.1",
   "description": "Provides a client interface for the TachyBase server",
   "keywords": [
     "System management"
@@ -13,25 +13,25 @@
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "@types/react": "~18.3.23",
-    "@types/react-dom": "~18.3.7",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "ahooks": "^3.9.0",
-    "antd": "5.22.5",
+    "antd": "catalog:",
     "antd-mobile": "^5.39.0",
     "antd-mobile-icons": "^0.3.0",
     "cronstrue": "^3.2.0",
-    "dayjs": "^1.11.13",
+    "dayjs": "catalog:",
     "koa-send": "^5.0.1",
     "koa-static": "^5.0.0",
     "lodash": "4.17.21",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "react-i18next": "16.2.1",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "为 TachyBase 服务端提供客户端界面",
   "displayName.zh-CN": "WEB 客户端"

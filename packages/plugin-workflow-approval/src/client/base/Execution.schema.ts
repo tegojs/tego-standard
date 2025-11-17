@@ -113,7 +113,7 @@ export const schemaExecution = {
                   properties: {
                     link: {
                       type: 'void',
-                      'x-component': 'ExecutionLink',
+                      'x-component': 'ExecutionApprovalLink',
                     },
                     retry: {
                       type: 'void',

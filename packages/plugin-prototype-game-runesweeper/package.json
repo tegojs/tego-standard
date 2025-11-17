@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-demos-game-runesweeper",
   "displayName": "Game runesweeper demo",
-  "version": "1.3.25",
+  "version": "1.5.1",
   "description": "Game runesweeper demo",
   "keywords": [
     "Others"
@@ -11,11 +11,11 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "canvas-confetti": "^1.9.3",
-    "react": "18.3.1",
+    "react": "catalog:",
     "react-swipeable": "^7.0.2"
   },
   "description.zh-CN": "Game runesweeper demo",

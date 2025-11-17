@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-action-export",
   "displayName": "Action: Export records",
-  "version": "1.3.25",
+  "version": "1.5.1",
   "description": "Export filtered records to excel, you can configure which fields to export.",
   "keywords": [
     "Actions"
@@ -12,16 +12,16 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
-    "dayjs": "^1.11.13",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
+    "dayjs": "catalog:",
     "file-saver": "^2.0.5",
     "lodash": "4.17.21",
     "node-xlsx": "^0.24.0",
-    "react": "18.3.1",
+    "react": "catalog:",
     "react-i18next": "16.2.1"
   },
   "description.zh-CN": "导出筛选后的记录到 Excel 中，可以配置导出哪些字段。",

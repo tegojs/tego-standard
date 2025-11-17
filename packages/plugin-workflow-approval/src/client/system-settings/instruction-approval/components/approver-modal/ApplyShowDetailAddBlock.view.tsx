@@ -10,8 +10,8 @@ import {
 } from '@tachybase/client';
 import { DetailsBlockProvider, SimpleDesigner } from '@tachybase/module-workflow/client';
 import { useForm } from '@tachybase/schema';
-
 import { uid } from '@tego/client';
+
 import { Spin } from 'antd';
 
 import { FormBlockProvider } from '../../../../common/components/FormBlock.provider';
@@ -44,7 +44,6 @@ export const ViewApplyShowDetailAddBlock = (props) => {
       'x-initializer': 'ApproverShowDetailInitializer',
       properties: {},
     };
-
     await apiClient.resource('uiSchemas').insert({ values: schema });
 
     onChange(id);
@@ -54,7 +53,10 @@ export const ViewApplyShowDetailAddBlock = (props) => {
 
   const onChangeFunc = useCallback(
     (data) => {
-      const arr = flatSchemaArray(data.toJSON(), (field) => field['x-decorator'] === 'ApprovalFormBlockProvider');
+      const arr = flatSchemaArray(
+        data.toJSON(),
+        (field) => field['x-decorator'] === 'ApprovalFormBlockProvider' || field['x-decorator'] === 'FormBlockProvider',
+      );
 
       const flatSet = arr.reduce((accSet, curr) => {
         const currArr = flatSchemaArray(curr, (field) => field['x-component'] === 'Action');

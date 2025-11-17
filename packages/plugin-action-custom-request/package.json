@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-action-custom-request",
   "displayName": "Action: Custom request",
-  "version": "1.3.25",
+  "version": "1.5.1",
   "description": "Sending a request to any HTTP service supports sending context data to the target service.",
   "keywords": [
     "Actions"
@@ -12,16 +12,16 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
     "axios": "1.13.0",
     "file-saver": "^2.0.5",
     "lodash": "4.17.21",
     "react-i18next": "16.2.1",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "向任意 HTTP 服务发送请求，支持将上下文数据发送给目标服务。",
   "displayName.zh-CN": "操作：自定义请求"

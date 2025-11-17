@@ -23,15 +23,32 @@ async function getLang(ctx: Context) {
 
 function readAppVersionFromPackageJson(): string {
   try {
-    const candidates = [
+    // 优先读取 .version.json 文件（构建时生成，不污染 git 状态）
+    const versionJsonCandidates = [
+      join(process.cwd(), '.version.json'),
+      // fallback: relative to compiled file location
+      join(__dirname, '../../../../.version.json'),
+      join(__dirname, '../../../.version.json'),
+    ];
+    for (const versionPath of versionJsonCandidates) {
+      if (existsSync(versionPath)) {
+        const versionInfo = JSON.parse(readFileSync(versionPath, 'utf-8'));
+        if (versionInfo?.version) {
+          return versionInfo.version as string;
+        }
+      }
+    }
+
+    // 如果 .version.json 不存在，回退到读取 package.json
+    const packageJsonCandidates = [
       join(process.cwd(), 'package.json'),
       // fallback: relative to compiled file location
       join(__dirname, '../../../../package.json'),
       join(__dirname, '../../../package.json'),
     ];
-    for (const p of candidates) {
-      if (existsSync(p)) {
-        const pkg = JSON.parse(readFileSync(p, 'utf-8'));
+    for (const pkgPath of packageJsonCandidates) {
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
         if (pkg?.version) {
           return pkg.version as string;
         }

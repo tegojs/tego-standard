@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-auth-saml",
   "displayName": "Auth: SAML 2.0",
-  "version": "1.3.25",
+  "version": "1.5.1",
   "description": "SAML 2.0 authentication.",
   "keywords": [
     "Authentication"
@@ -15,14 +15,14 @@
     "@node-saml/node-saml": "^4.0.5",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
-    "react": "18.3.1",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
+    "react": "catalog:",
     "react-i18next": "16.2.1",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "通过 SAML 2.0 协议认证身份。",
   "displayName.zh-CN": "认证：SAML 2.0"

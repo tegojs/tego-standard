@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-action-bulk-update",
   "displayName": "Action: Batch update",
-  "version": "1.3.25",
+  "version": "1.5.1",
   "description": "Batch update all records or selected records.",
   "keywords": [
     "Actions"
@@ -12,13 +12,13 @@
   "dependencies": {},
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
     "react-i18next": "16.2.1",
-    "react-router-dom": "6.28.1"
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "对全部数据或选中的数据进行批量更新。",
   "displayName.zh-CN": "操作：批量更新"

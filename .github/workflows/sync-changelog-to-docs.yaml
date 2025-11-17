@@ -215,12 +215,14 @@ jobs:
                 # Replace [Unreleased] section if exists, otherwise prepend
                 if grep -q "^## \[Unreleased\]" "${EN_TARGET}"; then
                   # Replace existing [Unreleased] section
+                  # Remove everything from "## [Unreleased]" to the next "## [" (exclusive)
                   awk '
-                    BEGIN { print_section = 0; skip = 0 }
-                    /^## \[Unreleased\]/ { skip = 1; next }
-                    skip && /^## \[/ { skip = 0 }
-                    !skip { print }
+                    BEGIN { in_unreleased = 0 }
+                    /^## \[Unreleased\]/ { in_unreleased = 1; next }
+                    in_unreleased && /^## \[/ { in_unreleased = 0 }
+                    !in_unreleased { print }
                   ' "${EN_TARGET}" > /tmp/changelog_en_temp.md
+                  # Prepend new [Unreleased] content
                   cat /tmp/changelog_en.md > "${EN_TARGET}"
                   echo "" >> "${EN_TARGET}"
                   cat /tmp/changelog_en_temp.md >> "${EN_TARGET}"
@@ -244,12 +246,14 @@ jobs:
                 # Replace [未发布] section if exists, otherwise prepend
                 if grep -q "^## \[未发布\]" "${ZH_TARGET}"; then
                   # Replace existing [未发布] section
+                  # Remove everything from "## [未发布]" to the next "## [" (exclusive)
                   awk '
-                    BEGIN { print_section = 0; skip = 0 }
-                    /^## \[未发布\]/ { skip = 1; next }
-                    skip && /^## \[/ { skip = 0 }
-                    !skip { print }
+                    BEGIN { in_unreleased = 0 }
+                    /^## \[未发布\]/ { in_unreleased = 1; next }
+                    in_unreleased && /^## \[/ { in_unreleased = 0 }
+                    !in_unreleased { print }
                   ' "${ZH_TARGET}" > /tmp/changelog_zh_temp.md
+                  # Prepend new [未发布] content
                   cat /tmp/changelog_zh.md > "${ZH_TARGET}"
                   echo "" >> "${ZH_TARGET}"
                   cat /tmp/changelog_zh_temp.md >> "${ZH_TARGET}"

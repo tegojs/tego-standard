@@ -7,19 +7,20 @@ on:
       - 'next/**'
       - 'release/**'
     paths:
-      - '**.ts'
-      - '**.tsx'
-      - '**.js'
-      - '**.jsx'
-      - '**.mjs'
+      - 'apps/**/*.ts'
+      - 'apps/**/*.tsx'
+      - 'apps/**/*.js'
+      - 'apps/**/*.jsx'
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+      - 'packages/**/*.js'
+      - 'packages/**/*.jsx'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'tsconfig*.json'
       - 'vitest.config.*'
       - 'playwright.config.*'
       - 'rsbuild.config.*'
-    paths-ignore:
-      - 'scripts/**'
   pull_request:
     branches:
       - main
@@ -27,19 +28,20 @@ on:
       - 'next/**'
       - 'release/**'
     paths:
-      - '**.ts'
-      - '**.tsx'
-      - '**.js'
-      - '**.jsx'
-      - '**.mjs'
+      - 'apps/**/*.ts'
+      - 'apps/**/*.tsx'
+      - 'apps/**/*.js'
+      - 'apps/**/*.jsx'
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+      - 'packages/**/*.js'
+      - 'packages/**/*.jsx'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'tsconfig*.json'
       - 'vitest.config.*'
       - 'playwright.config.*'
       - 'rsbuild.config.*'
-    paths-ignore:
-      - 'scripts/**'
 
 permissions:
   contents: write

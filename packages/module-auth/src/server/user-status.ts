@@ -1,127 +1,55 @@
-import { Application, AuthErrorCode, BaseAuth, Cache, Database, Model } from '@tego/server';
+import {
+  Application,
+  Cache,
+  Collection,
+  SystemLogger,
+  type IUserStatusService,
+  type UserStatusCache,
+  type UserStatusCheckResult,
+} from '@tego/server';
 
-import { namespace } from '../preset';
-
-/**
- * 用户状态检查结果
- */
-export interface UserStatusCheckResult {
-  allowed: boolean; // 是否允许登录
-  status: string; // 当前状态 key
-  statusInfo?: {
-    // 状态详细信息
-    title: string;
-    color: string;
-    allowLogin: boolean;
-    loginErrorMessage?: string;
-  };
-  errorMessage?: string; // 不允许登录时的错误提示
-  isExpired?: boolean; // 状态是否已过期
-}
+const localeNamespace = 'auth';
 
 /**
- * 修改用户状态的选项
+ * 基础用户状态服务实现
  */
-export interface ChangeUserStatusOptions {
-  expireAt?: Date; // 状态过期时间
-  reason?: string; // 变更原因
-  operationType: 'manual' | 'auto' | 'system'; // 操作类型
-  operatorId?: number; // 操作人ID (manual 时必填)
-}
+export class UserStatusService implements IUserStatusService {
+  protected cache: Cache;
+  protected app: Application;
+  protected logger: SystemLogger;
+  protected userCollection: Collection;
+  protected userStatusCollection: Collection;
+  protected userStatusHistoryCollection: Collection;
 
-/**
- * 状态注册配置
- */
-export interface StatusConfig {
-  key: string; // 状态唯一标识
-  title: string; // 状态显示名称(支持国际化)
-  color?: string; // 颜色标识
-  allowLogin: boolean; // 是否允许登录
-  loginErrorMessage?: string; // 登录错误提示
-  packageName: string; // 定义该状态的插件包名
-  description?: string; // 状态描述
-  sort?: number; // 排序权重
-  config?: Record<string, any>; // 扩展配置
-}
-
-/**
- * 用户状态缓存数据
- */
-interface UserStatusCache {
-  userId: number;
-  status: string;
-  expireAt: Date | null;
-  previousStatus: string | null;
-  lastChecked: Date;
-}
-
-/**
- * 用户状态管理服务
- * 负责用户状态的检查、变更、恢复等核心业务逻辑
- */
-export class UserStatusService {
-  private db: Database;
-  private app: Application;
-  private cache: Cache;
-  private logger: any;
-
-  constructor(app: Application) {
+  constructor({ cache, app, logger }: { cache: Cache; app: Application; logger: SystemLogger }) {
+    this.cache = cache;
     this.app = app;
-    this.db = app.db;
-    this.cache = app.cache;
-    this.logger = app.logger;
+    this.logger = logger;
+    this.userCollection = app.db.getCollection('users');
+    this.userStatusCollection = app.db.getCollection('userStatuses');
+    this.userStatusHistoryCollection = app.db.getCollection('userStatusHistories');
+  }
+
+  get userRepository() {
+    return this.userCollection.repository;
+  }
+
+  get userStatusRepository() {
+    return this.userStatusCollection.repository;
+  }
+
+  get userStatusHistoryRepository() {
+    return this.userStatusHistoryCollection.repository;
   }
 
   /**
-   * 获取用户状态缓存键
+   * 翻译消息
    */
-  private getUserStatusCacheKey(userId: number): string {
-    return `userStatus:${userId}`;
+  private t(key: string, options?: { ns?: string; lng?: string }): string {
+    const language = options?.lng || this.app.i18n?.language || 'en-US';
+    return this.app.i18n?.t(key, { ...options, lng: language }) || key;
   }
 
-  /**
-   * 从缓存获取用户状态
-   */
-  private async getUserStatusFromCache(userId: number): Promise<UserStatusCache | null> {
-    try {
-      const cacheKey = this.getUserStatusCacheKey(userId);
-      const cached = await this.cache.get(cacheKey);
-      return cached ? (JSON.parse(cached as unknown as string) as UserStatusCache) : null;
-    } catch (error) {
-      this.logger.error('Error getting user status from cache:', error);
-      return null;
-    }
-  }
-
-  /**
-   * 设置用户状态缓存
-   */
-  private async setUserStatusCache(userId: number, data: UserStatusCache): Promise<void> {
-    try {
-      const cacheKey = this.getUserStatusCacheKey(userId);
-      await this.cache.set(cacheKey, JSON.stringify(data), 300 * 1000); // 5分钟过期
-    } catch (error) {
-      this.logger.error('Error setting user status cache:', error);
-    }
-  }
-
-  /**
-   * 清除用户状态缓存
-   */
-  private async clearUserStatusCache(userId: number): Promise<void> {
-    try {
-      const cacheKey = this.getUserStatusCacheKey(userId);
-      await this.cache.del(cacheKey);
-    } catch (error) {
-      this.logger.error('Error clearing user status cache:', error);
-    }
-  }
-
-  /**
-   * 检查用户状态是否允许登录
-   * @param userId 用户ID
-   * @returns 检查结果
-   */
   async checkUserStatus(userId: number): Promise<UserStatusCheckResult> {
     try {
       // 步骤1: 尝试从缓存获取
@@ -129,9 +57,8 @@ export class UserStatusService {
 
       // 步骤2: 缓存不存在,从数据库查询
       if (!cached) {
-        const userRepo = this.db.getRepository('users');
-        const user = await userRepo.findOne({
-          filterByTk: userId,
+        const user = await this.userRepository.findOne({
+          filter: { id: userId },
           fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
         });
 
@@ -139,7 +66,7 @@ export class UserStatusService {
           return {
             allowed: false,
             status: 'unknown',
-            errorMessage: this.app.i18n.t('User not found'),
+            errorMessage: this.t('User not found. Please sign in again to continue.', { ns: localeNamespace }),
           };
         }
 
@@ -162,9 +89,8 @@ export class UserStatusService {
         await this.restoreUserStatus(userId);
 
         // 重新获取恢复后的状态
-        const userRepo = this.db.getRepository('users');
-        const user = await userRepo.findOne({
-          filterByTk: userId,
+        const user = await this.userRepository.findOne({
+          filter: { id: userId },
           fields: ['status'],
         });
 
@@ -177,9 +103,8 @@ export class UserStatusService {
       }
 
       // 步骤4: 查询状态定义
-      const statusRepo = this.db.getRepository('userStatuses');
-      const statusInfo = await statusRepo.findOne({
-        filterByTk: cached.status,
+      const statusInfo = await this.userStatusRepository.findOne({
+        filter: { key: cached.status },
       });
 
       if (!statusInfo) {
@@ -189,14 +114,14 @@ export class UserStatusService {
           allowed: false,
           status: cached.status,
           statusInfo: {
-            title: this.app.i18n.t('Invalid status', { ns: namespace }),
+            title: this.t('Invalid status', { ns: localeNamespace }),
             color: 'red',
             allowLogin: false,
-            loginErrorMessage: this.app.i18n.t('User status is invalid, please contact administrator', {
-              ns: namespace,
+            loginErrorMessage: this.t('User status is invalid, please contact administrator', {
+              ns: localeNamespace,
             }),
           },
-          errorMessage: this.app.i18n.t('User status is invalid, please contact administrator', { ns: namespace }),
+          errorMessage: this.t('User status is invalid, please contact administrator', { ns: localeNamespace }),
         };
       }
 
@@ -208,7 +133,7 @@ export class UserStatusService {
         // 匹配 {{t("...")}} 格式
         const match = message.match(/\{\{t\("([^"]+)"\)\}\}/);
         if (match && match[1]) {
-          return this.app.i18n.t(match[1], { ns: namespace });
+          return this.t(match[1], { ns: localeNamespace });
         }
 
         // 如果不是模板格式，直接返回
@@ -216,7 +141,9 @@ export class UserStatusService {
       };
 
       const translatedTitle = translateMessage(statusInfo.title);
-      const translatedLoginErrorMessage = translateMessage(statusInfo.loginErrorMessage);
+      const translatedLoginErrorMessage =
+        translateMessage(statusInfo.loginErrorMessage) ||
+        this.t('User status does not allow login', { ns: localeNamespace });
 
       // 步骤6: 返回检查结果
       return {
@@ -228,9 +155,7 @@ export class UserStatusService {
           allowLogin: statusInfo.allowLogin,
           loginErrorMessage: translatedLoginErrorMessage,
         },
-        errorMessage: !statusInfo.allowLogin
-          ? translatedLoginErrorMessage || this.app.i18n.t('User status does not allow login', { ns: namespace })
-          : undefined,
+        errorMessage: !statusInfo.allowLogin ? translatedLoginErrorMessage : undefined,
       };
     } catch (error) {
       this.logger.error(`Error checking user status for userId=${userId}: ${error}`);
@@ -239,21 +164,112 @@ export class UserStatusService {
         allowed: false,
         status: 'unknown',
         statusInfo: {
-          title: this.app.i18n.t('Unknown status', { ns: namespace }),
+          title: this.t('Unknown status', { ns: localeNamespace }),
           color: 'red',
           allowLogin: false,
-          loginErrorMessage: this.app.i18n.t('System error, please contact administrator', { ns: namespace }),
+          loginErrorMessage: this.t('System error, please contact administrator', { ns: localeNamespace }),
         },
-        errorMessage: this.app.i18n.t('System error, please contact administrator', { ns: namespace }),
+        errorMessage: this.t('System error, please contact administrator', { ns: localeNamespace }),
       };
     }
   }
 
-  /**
-   * 记录状态变更历史（如果不存在相同记录）
-   * @param params 状态变更参数
-   */
-  private async recordStatusHistoryIfNotExists(params: {
+  async setUserStatusCache(userId: number, data: UserStatusCache): Promise<void> {
+    try {
+      const cacheKey = this.getUserStatusCacheKey(userId);
+      await this.cache.set(cacheKey, JSON.stringify(data), 300 * 1000); // 5分钟过期
+    } catch (error) {
+      this.logger.error('Error setting user status cache:', error);
+    }
+  }
+
+  async getUserStatusFromCache(userId: number): Promise<UserStatusCache | null> {
+    try {
+      const cacheKey = this.getUserStatusCacheKey(userId);
+      const cached = await this.cache.get(cacheKey);
+      return cached ? (JSON.parse(cached as unknown as string) as UserStatusCache) : null;
+    } catch (error) {
+      this.logger.error('Error getting user status from cache:', error);
+      return null;
+    }
+  }
+
+  getUserStatusCacheKey(userId: number): string {
+    return `userStatus:${userId}`;
+  }
+
+  async restoreUserStatus(userId: number): Promise<void> {
+    try {
+      // 步骤1: 查询用户信息
+      const user = await this.userRepository.findOne({
+        filter: { id: userId },
+        fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
+      });
+
+      if (!user) {
+        throw new Error(this.t('User not found. Please sign in again to continue.', { ns: localeNamespace }));
+      }
+
+      // 步骤2: 检查是否需要恢复
+      if (!user.statusExpireAt || new Date(user.statusExpireAt) > new Date()) {
+        // 未过期或没有设置过期时间
+        return;
+      }
+
+      const oldStatus = user.status;
+      const restoreToStatus = user.previousStatus || 'active'; // 默认恢复为 active
+
+      // 步骤3: 开启事务执行恢复
+      await this.app.db.sequelize.transaction(async (transaction) => {
+        // 先插入历史记录, 不然会被记录为手动
+        await this.recordStatusHistoryIfNotExists({
+          userId: userId,
+          fromStatus: oldStatus,
+          toStatus: restoreToStatus,
+          reason: this.t('Status expired, auto restored', { ns: localeNamespace }),
+          operationType: 'auto',
+          createdBy: null,
+          expireAt: null,
+          transaction,
+        });
+        // 更新 users 表
+        await this.userRepository.update({
+          filter: { id: userId },
+          values: {
+            status: restoreToStatus,
+            statusExpireAt: null,
+            previousStatus: null,
+            statusReason: this.t('Status expired, auto restored', { ns: localeNamespace }),
+          },
+          transaction,
+        });
+      });
+
+      // 步骤4: 触发事件
+      await this.app.emitAsync('user:statusRestored', {
+        userId,
+        fromStatus: oldStatus,
+        toStatus: restoreToStatus,
+      });
+
+      // 步骤6: 记录日志
+      this.logger.info(`User status auto restored: userId=${userId}, ${oldStatus} → ${restoreToStatus}`);
+    } catch (error) {
+      this.logger.error('Error restoring user status:', error);
+      throw error;
+    }
+  }
+
+  async clearUserStatusCache(userId: number): Promise<void> {
+    try {
+      const cacheKey = this.getUserStatusCacheKey(userId);
+      await this.cache.del(cacheKey);
+    } catch (error) {
+      this.logger.error('Error clearing user status cache:', error);
+    }
+  }
+
+  async recordStatusHistoryIfNotExists(params: {
     userId: number;
     fromStatus: string;
     toStatus: string;
@@ -267,9 +283,8 @@ export class UserStatusService {
 
     try {
       // 查询是否已存在相同的记录（最近5秒内）
-      const historyRepo = this.db.getRepository('userStatusHistories');
       const fiveSecondsAgo = new Date(Date.now() - 5000);
-      const existing = await historyRepo.findOne({
+      const existing = await this.userStatusHistoryRepository.findOne({
         filter: {
           userId,
           fromStatus,
@@ -291,7 +306,7 @@ export class UserStatusService {
       }
 
       // 插入历史记录
-      await historyRepo.create({
+      await this.userStatusHistoryRepository.create({
         values: {
           userId,
           fromStatus,
@@ -318,131 +333,6 @@ export class UserStatusService {
   }
 
   /**
-   * 恢复过期的用户状态
-   * @param userId 用户ID
-   */
-  async restoreUserStatus(userId: number): Promise<void> {
-    try {
-      // 步骤1: 查询用户信息
-      const userRepo = this.db.getRepository('users');
-      const user = await userRepo.findOne({
-        filterByTk: userId,
-        fields: ['id', 'status', 'statusExpireAt', 'previousStatus'],
-      });
-
-      if (!user) {
-        throw new Error(this.app.i18n.t('User not found'));
-      }
-
-      // 步骤2: 检查是否需要恢复
-      if (!user.statusExpireAt || new Date(user.statusExpireAt) > new Date()) {
-        // 未过期或没有设置过期时间
-        return;
-      }
-
-      const oldStatus = user.status;
-      const restoreToStatus = user.previousStatus || 'active'; // 默认恢复为 active
-
-      // 步骤3: 开启事务执行恢复
-      await this.db.sequelize.transaction(async (transaction) => {
-        // 先插入历史记录, 不然会被记录为手动
-        await this.recordStatusHistoryIfNotExists({
-          userId: userId,
-          fromStatus: oldStatus,
-          toStatus: restoreToStatus,
-          reason: this.app.i18n.t('Status expired, auto restored'),
-          operationType: 'auto',
-          createdBy: null,
-          expireAt: null,
-          transaction,
-        });
-        // 更新 users 表
-        await userRepo.update({
-          filterByTk: userId,
-          values: {
-            status: restoreToStatus,
-            statusExpireAt: null,
-            previousStatus: null,
-            statusReason: this.app.i18n.t('Status expired, auto restored'),
-          },
-          transaction,
-        });
-      });
-
-      // 步骤4: 触发事件
-      this.app.emitAsync('user:statusRestored', {
-        userId,
-        fromStatus: oldStatus,
-        toStatus: restoreToStatus,
-      });
-
-      // 步骤6: 记录日志
-      this.logger.info(`User status auto restored: userId=${userId}, ${oldStatus} → ${restoreToStatus}`);
-    } catch (error) {
-      this.logger.error('Error restoring user status:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 注册新的用户状态(供插件使用)
-   * @param config 状态配置
-   */
-  async registerStatus(config: StatusConfig): Promise<void> {
-    try {
-      const statusRepo = this.db.getRepository('userStatuses');
-
-      // 步骤1: 检查状态是否已存在
-      const existing = await statusRepo.findOne({
-        filterByTk: config.key,
-      });
-
-      if (existing) {
-        // 如果是同一个插件,更新配置
-        if (existing.packageName === config.packageName) {
-          await statusRepo.update({
-            filterByTk: config.key,
-            values: {
-              title: config.title,
-              color: config.color || 'default',
-              allowLogin: config.allowLogin,
-              loginErrorMessage: config.loginErrorMessage || null,
-              description: config.description || null,
-              sort: config.sort || 0,
-              config: config.config || {},
-            },
-          });
-          this.logger.info(`Updated status: ${config.key} by ${config.packageName}`);
-        } else {
-          this.logger.warn(`Status ${config.key} already registered by ${existing.packageName}, skipping`);
-        }
-        return;
-      }
-
-      // 步骤2: 插入新状态
-      await statusRepo.create({
-        values: {
-          key: config.key,
-          title: config.title,
-          color: config.color || 'default',
-          allowLogin: config.allowLogin,
-          loginErrorMessage: config.loginErrorMessage || null,
-          isSystemDefined: false, // 插件注册的状态不是系统内置
-          packageName: config.packageName,
-          description: config.description || null,
-          sort: config.sort || 0,
-          config: config.config || {},
-        },
-      });
-
-      this.logger.info(`Registered new status: ${config.key} by ${config.packageName}`);
-    } catch (error) {
-      this.logger.error('Error registering status:', error);
-      throw error;
-    }
-  }
-
-  /**
    * 注册用户状态变更拦截器
    * 拦截 users:update 请求,自动记录状态变更历史
    */
@@ -450,7 +340,7 @@ export class UserStatusService {
     const userStatusService = this;
 
     // 监听 users 表的更新操作
-    this.db.on('users.beforeUpdate', async (model: any, options: any) => {
+    this.app.db.on('users.beforeUpdate', async (model: any, options: any) => {
       // 检查是否有 status 字段变更
       if (model.changed('status')) {
         const oldStatus = model._previousDataValues.status || 'active';
@@ -482,7 +372,7 @@ export class UserStatusService {
     });
 
     // 监听 users 表的更新完成
-    this.db.on('users.afterUpdate', async (model: any, options: any) => {
+    this.app.db.on('users.afterUpdate', async (model: any, options: any) => {
       // 检查是否有状态变更记录
       const statusChange = options?.transaction?.__statusChange?.[model.id];
 
@@ -511,5 +401,3 @@ export class UserStatusService {
     this.logger.info('User status change interceptor registered');
   }
 }
-
-export default UserStatusService;

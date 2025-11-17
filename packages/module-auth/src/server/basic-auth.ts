@@ -9,8 +9,7 @@ export class BasicAuth extends BaseAuth {
   constructor(config: AuthConfig) {
     const userCollection = config.ctx.db.getCollection('users');
     const userStatusCollection = config.ctx.db.getCollection('userStatuses');
-    const userStatusHistoryCollection = config.ctx.db.getCollection('userStatusHistory');
-    super({ ...config, userCollection, userStatusCollection, userStatusHistoryCollection });
+    super({ ...config, userCollection, userStatusCollection });
   }
 
   async validate() {

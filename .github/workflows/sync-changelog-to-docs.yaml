@@ -40,7 +40,7 @@ jobs:
   sync-changelog:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
@@ -359,8 +359,21 @@ jobs:
             else
               git commit -m "docs(changelog): sync changelog for ${VERSION}"
             fi
-            git push
-            echo "✓ Pushed changes to docs repository"
+            
+            # Configure git remote with token for push
+            git remote set-url origin "https://${DOCS_REPO_TOKEN}@github.com/${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}.git"
+            
+            # Push with error handling
+            if git push origin HEAD; then
+              echo "✓ Pushed changes to docs repository"
+            else
+              echo "❌ Failed to push changes to docs repository"
+              echo "Checking git status:"
+              git status
+              echo "Checking remote:"
+              git remote -v
+              exit 1
+            fi
           fi
 
       - name: Summary

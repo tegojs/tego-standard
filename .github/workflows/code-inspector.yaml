@@ -6,12 +6,36 @@ on:
       - dev
       - 'next/**'
       - 'release/**'
+    paths:
+      - '**.ts'
+      - '**.tsx'
+      - '**.js'
+      - '**.jsx'
+      - '**.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig*.json'
+      - 'vitest.config.*'
+      - 'playwright.config.*'
+      - 'rsbuild.config.*'
   pull_request:
     branches:
       - main
       - dev
       - 'next/**'
       - 'release/**'
+    paths:
+      - '**.ts'
+      - '**.tsx'
+      - '**.js'
+      - '**.jsx'
+      - '**.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig*.json'
+      - 'vitest.config.*'
+      - 'playwright.config.*'
+      - 'rsbuild.config.*'
 
 permissions:
   contents: write

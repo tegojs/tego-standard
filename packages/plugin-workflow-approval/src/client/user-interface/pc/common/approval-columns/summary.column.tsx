@@ -61,18 +61,14 @@ const SummaryShowObject = (props) => {
 };
 
 const SummaryShowArray = (props) => {
-  const cm = useCollectionManager();
   const compile = useCompile();
-  const record = useCollectionRecordData();
-  const { collectionName } = record;
   const { arrayValue = [] as SummaryDataSourceItem[] | object } = props;
 
   // 使用优化的 useMemo：先引用比较，再深度比较
   const renderedItems = useOptimizedMemo(() => {
     return arrayValue.map((item) => {
       const { key, type, label, value } = item || {};
-      const field = cm.getCollectionField(`${collectionName}.${key}`);
-      const labelTitle = field?.uiSchema?.title || label;
+      const labelTitle = compile(label) || key;
       switch (type) {
         case SUMMARY_TYPE.LITERAL:
           return <SummaryLiteralShow key={key} label={labelTitle} value={value} />;
@@ -91,7 +87,7 @@ const SummaryShowArray = (props) => {
           return null;
       }
     });
-  }, [arrayValue, collectionName, cm, compile]);
+  }, [arrayValue, compile]);
 
   return renderedItems;
 };

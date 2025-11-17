@@ -2,6 +2,7 @@ import type { Application, Collection } from '@tego/server';
 
 import _ from 'lodash';
 
+import options from '../../../plugin-theme-editor/src/client/antd-token-previewer/component-demos/cascader/data';
 import { SUMMARY_TYPE } from '../common/constants';
 import { type ParamsType, type SummaryDataSourceItem, type SummaryType } from '../common/interface';
 import { isDateType } from '../common/utils';
@@ -91,7 +92,7 @@ function getFieldLabel(key: string, collection?: Collection): string {
   // 服务端可能没有 uiSchema，尝试获取 title 或其他属性
   if (field) {
     // 尝试从 uiSchema 获取 title
-    const uiSchema = (field as any).uiSchema;
+    const uiSchema = (field as any).options?.uiSchema;
     if (uiSchema?.title) {
       return uiSchema.title;
     }
@@ -312,22 +313,22 @@ export function getSummary(params: ParamsType): object {
 
   return summaryDataSource;
 
-  const result = summaryConfig.reduce((summary, key) => {
-    const value = _.get(data, key);
-    let realValue = value;
-    if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
-      // 优先获取关联表的 titleField 值
-      const fieldName = key.split('.')[0];
-      const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
-      realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
-    }
-    return {
-      ...summary,
-      [key]: realValue,
-    };
-  }, {});
+  // const result = summaryConfig.reduce((summary, key) => {
+  //   const value = _.get(data, key);
+  //   let realValue = value;
+  //   if (Object.prototype.toString.call(value) === '[object Object]' && !Array.isArray(value)) {
+  //     // 优先获取关联表的 titleField 值
+  //     const fieldName = key.split('.')[0];
+  //     const titleFieldValue = getAssociationTitleFieldValue(value, fieldName, collection, app);
+  //     realValue = titleFieldValue !== undefined ? titleFieldValue : value?.['name'];
+  //   }
+  //   return {
+  //     ...summary,
+  //     [key]: realValue,
+  //   };
+  // }, {});
 
-  return result;
+  // return result;
 }
 
 export async function parsePerson({ node, processor, keyName }) {

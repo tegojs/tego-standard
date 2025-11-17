@@ -11,6 +11,15 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  parseCommit,
+  parseGitLogOutput,
+  groupCommits,
+  convertPRNumbersToLinks,
+  deduplicateContent,
+  translateText,
+  translateTexts,
+} from './changelog-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,31 +27,6 @@ const rootDir = join(__dirname, '..');
 
 const changelogENPath = join(rootDir, 'CHANGELOG.md');
 const changelogZHPath = join(rootDir, 'CHANGELOG.zh-CN.md');
-
-// 解析 commit 消息
-function parseCommit(commit) {
-  const { subject } = commit;
-  if (!subject) {
-    return null;
-  }
-
-  // Conventional Commits 格式: type(scope): description
-  const match = subject.match(/^(\w+)(?:\(([^)]+)\))?(!)?:\s*(.+)$/);
-  if (!match) {
-    return null;
-  }
-
-  const [, type, scope, breaking, description] = match;
-  const isBreaking = !!breaking || commit.body?.includes('BREAKING CHANGE');
-
-  return {
-    type: type.toLowerCase(),
-    scope: scope || '',
-    description: description.trim(),
-    body: commit.body || '',
-    isBreaking,
-  };
-}
 
 // 获取两个版本之间的 commits
 function getCommitsSinceLatestTag() {
@@ -73,155 +57,13 @@ function getCommitsSinceLatestTag() {
       cwd: rootDir,
     }).trim();
 
-    if (!output) {
-      return [];
-    }
-
-    // git log 输出格式：每个 commit 可能跨多行，格式为 hash\0subject\0body\0author\n
-    // body 可能包含换行符，所以需要找到前三个 \0 的位置来分割
-    const commits = [];
-    let remaining = output;
-    
-    while (remaining.length > 0) {
-      // 找到前三个 \0 的位置
-      const firstNull = remaining.indexOf('\0');
-      if (firstNull === -1) break;
-      
-      const secondNull = remaining.indexOf('\0', firstNull + 1);
-      if (secondNull === -1) break;
-      
-      const thirdNull = remaining.indexOf('\0', secondNull + 1);
-      if (thirdNull === -1) break;
-      
-      // 提取 hash, subject, body (body 可能包含换行符)
-      const hash = remaining.substring(0, firstNull).trim();
-      const subject = remaining.substring(firstNull + 1, secondNull).trim();
-      const bodyStart = secondNull + 1;
-      
-      // 找到最后一个 \0（author 之前），body 在 secondNull 和 thirdNull 之间
-      // 但 author 可能在下一行，所以需要找到下一个 commit 的开始或文件结束
-      // 实际上，author 后面应该跟着 \n，然后是下一个 commit 的 hash
-      // 或者如果这是最后一个 commit，author 后面就是文件结束
-      
-      // 从 thirdNull 之后开始，找到第一个 \n 或文件结束，这就是 author
-      let authorEnd = remaining.indexOf('\n', thirdNull + 1);
-      if (authorEnd === -1) {
-        // 这是最后一个 commit
-        authorEnd = remaining.length;
-      }
-      
-      const body = remaining.substring(bodyStart, thirdNull).trim();
-      const author = remaining.substring(thirdNull + 1, authorEnd).trim().replace(/\n/g, '');
-      
-      // 验证 hash 是有效的 40 位十六进制字符串
-      if (hash && /^[0-9a-f]{40}$/.test(hash) && subject) {
-        commits.push({ hash, subject, body, author });
-      }
-      
-      // 移动到下一个 commit（跳过 author 和换行符）
-      remaining = remaining.substring(authorEnd + 1);
-    }
-    
-    return commits;
+    return parseGitLogOutput(output);
   } catch (error) {
     console.warn('Warning: Could not get commits:', error.message);
     return [];
   }
 }
 
-// 分组 commits
-function groupCommits(commits) {
-  const grouped = {
-    feat: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    fix: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    docs: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    style: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    refactor: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    perf: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    test: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    build: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    ci: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    chore: /** @type {Array<string | {type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string, subject?: string}>} */ ([]),
-    revert: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-    breaking: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, hash: string, shortHash: string, commitLink: string}>} */ ([]),
-  };
-
-  commits.forEach((commit) => {
-    const parsed = parseCommit(commit);
-    // 获取 commit hash 的短版本（7 位）
-    const shortHash = commit.hash ? commit.hash.substring(0, 7) : '';
-    const commitLink = shortHash
-      ? `[${shortHash}](https://github.com/tegojs/tego-standard/commit/${commit.hash})`
-      : '';
-    const author = commit.author || '';
-
-    if (!parsed) {
-      // 对于无法解析的 commit，直接使用 subject 字符串
-      grouped.chore.push(commit.subject);
-      return;
-    }
-
-    const commitInfo = {
-      ...parsed,
-      full: commit.subject,
-      hash: commit.hash,
-      shortHash,
-      commitLink,
-      author,
-    };
-
-    if (parsed.isBreaking) {
-      grouped.breaking.push(commitInfo);
-    }
-
-    const type = parsed.type;
-    if (grouped[type]) {
-      grouped[type].push(commitInfo);
-    } else {
-      grouped.chore.push(commitInfo);
-    }
-  });
-
-  return grouped;
-}
-
-// 将 PR 编号转换为链接
-// 例如: (#271) -> [#271](https://github.com/tegojs/tego-standard/pull/271)
-// 支持中文括号: （#271） -> [#271](https://github.com/tegojs/tego-standard/pull/271)
-function convertPRNumbersToLinks(text) {
-  if (!text) return text;
-  // 匹配 (#数字) 或 （#数字） 格式，转换为链接
-  // 同时匹配英文括号和中文括号
-  // 注意：中文括号是 （ 和 ），需要完整匹配
-  const chineseLeft = '（';
-  const chineseRight = '）';
-  return text
-    .replace(/\(#(\d+)\)/g, '([#$1](https://github.com/tegojs/tego-standard/pull/$1))')
-    .replace(new RegExp(`${chineseLeft}#(\\d+)${chineseRight}`, 'g'), '([#$1](https://github.com/tegojs/tego-standard/pull/$1))');
-}
-
-// 去除重复的行（保留第一次出现）
-function deduplicateContent(content) {
-  const contentLines = content.split('\n');
-  const seen = new Set();
-  const deduplicatedLines = [];
-
-  for (const line of contentLines) {
-    // 对于列表项（以 "- " 开头），检查是否重复
-    if (line.trim().startsWith('- ')) {
-      const normalized = line.trim();
-      if (!seen.has(normalized)) {
-        seen.add(normalized);
-        deduplicatedLines.push(line);
-      }
-    } else {
-      // 非列表项（标题、空行等）直接保留
-      deduplicatedLines.push(line);
-    }
-  }
-
-  return deduplicatedLines.join('\n');
-}
 
 // 生成 Unreleased 部分的英文内容
 function generateUnreleasedContentEN(grouped) {
@@ -335,59 +177,6 @@ function generateUnreleasedContentEN(grouped) {
   return deduplicateContent(content);
 }
 
-// 翻译文本（使用 Google Translate API）
-async function translateText(text, from = 'en', to = 'zh-CN') {
-  if (!text || text.trim().length === 0) {
-    return text;
-  }
-  // 如果已经包含中文，不需要翻译
-  if (/[\u4e00-\u9fa5]/.test(text)) {
-    return text;
-  }
-  try {
-    const https = await import('https');
-    const encodedText = encodeURIComponent(text);
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodedText}`;
-    return new Promise((resolve) => {
-      https.default.get(url, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            if (result && result[0] && result[0][0] && result[0][0][0]) {
-              resolve(result[0][0][0]);
-            } else {
-              resolve(text);
-            }
-          } catch (error) {
-            console.warn(`Translation failed for "${text}":`, error.message);
-            resolve(text);
-          }
-        });
-      }).on('error', (error) => {
-        console.warn(`Translation error for "${text}":`, error.message);
-        resolve(text);
-      });
-    });
-  } catch (error) {
-    console.warn(`Translation error for "${text}":`, error.message);
-    return text;
-  }
-}
-
-// 批量翻译文本
-async function translateTexts(texts) {
-  const results = [];
-  for (const text of texts) {
-    results.push(await translateText(text));
-    // 添加延迟以避免频率限制
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  return results;
-}
 
 // 生成 Unreleased 部分的中文内容
 async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
@@ -628,7 +417,7 @@ async function updateUnreleased() {
     return;
   }
 
-  const grouped = groupCommits(commits);
+  const grouped = groupCommits(commits, true); // 包含 commit 链接
 
   // 检查是否有对用户有价值的变更（排除内部维护性改动）
   // 只检查：feat, fix, perf, refactor, docs, revert, breaking

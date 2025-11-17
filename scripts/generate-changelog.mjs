@@ -9,8 +9,14 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import https from 'https';
-import { URL } from 'url';
+import {
+  parseCommit,
+  parseGitLogOutput,
+  groupCommits,
+  convertPRNumbersToLinks,
+  translateText,
+  translateTexts,
+} from './changelog-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,99 +52,6 @@ const TYPE_MAP_ZH = {
   revert: '回退',
 };
 
-// 翻译文本（使用 Google Translate 免费 API）
-/**
- * @param {string} text - 要翻译的文本
- * @param {string} from - 源语言，默认 'en'
- * @param {string} to - 目标语言，默认 'zh-CN'
- * @returns {Promise<string>} 翻译后的文本
- */
-async function translateText(text, from = 'en', to = 'zh-CN') {
-  if (!text || text.trim().length === 0) {
-    return text;
-  }
-
-  // 如果文本已经是中文，直接返回
-  if (/[\u4e00-\u9fa5]/.test(text)) {
-    return text;
-  }
-
-  try {
-    // 使用 Google Translate 免费 API
-    const encodedText = encodeURIComponent(text);
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodedText}`;
-
-    return new Promise((resolve, reject) => {
-      https.get(url, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            if (result && result[0] && result[0][0] && result[0][0][0]) {
-              resolve(result[0][0][0]);
-            } else {
-              resolve(text); // 翻译失败，返回原文
-            }
-          } catch (error) {
-            console.warn(`Translation failed for "${text}":`, error.message);
-            resolve(text); // 翻译失败，返回原文
-          }
-        });
-      }).on('error', (error) => {
-        console.warn(`Translation error for "${text}":`, error.message);
-        resolve(text); // 网络错误，返回原文
-      });
-    });
-  } catch (error) {
-    console.warn(`Translation error for "${text}":`, error.message);
-    return text; // 出错时返回原文
-  }
-}
-
-// 批量翻译文本（带缓存和去重）
-const translationCache = new Map();
-
-/**
- * @param {string[]} texts - 要翻译的文本数组
- * @returns {Promise<string[]>} 翻译后的文本数组
- */
-async function translateTexts(texts) {
-  const uniqueTexts = [...new Set(texts)];
-  const results = new Map();
-
-  // 从缓存中获取已翻译的文本
-  for (const text of uniqueTexts) {
-    if (translationCache.has(text)) {
-      results.set(text, translationCache.get(text));
-    }
-  }
-
-  // 翻译未缓存的文本
-  const textsToTranslate = uniqueTexts.filter((text) => !results.has(text));
-
-  if (textsToTranslate.length > 0) {
-    console.log(`Translating ${textsToTranslate.length} items...`);
-
-    // 批量翻译，添加延迟以避免频率限制
-    for (let i = 0; i < textsToTranslate.length; i++) {
-      const text = textsToTranslate[i];
-      const translated = await translateText(text);
-      results.set(text, translated);
-      translationCache.set(text, translated);
-
-      // 添加延迟以避免频率限制（每 100ms 翻译一个）
-      if (i < textsToTranslate.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-    }
-  }
-
-  // 返回原始顺序的翻译结果
-  return texts.map((text) => results.get(text) || text);
-}
 
 // 检查 tag 是否存在
 function tagExists(tag) {
@@ -194,135 +107,13 @@ function getCommitsBetweenTags(fromTag, toTag) {
       cwd: rootDir,
     }).trim();
 
-    if (!output) {
-      return [];
-    }
-
-    // git log 输出格式：每个 commit 可能跨多行，格式为 hash\0subject\0body\0author\n
-    // body 可能包含换行符，所以需要找到前三个 \0 的位置来分割
-    const commits = [];
-    let remaining = output;
-    
-    while (remaining.length > 0) {
-      // 找到前三个 \0 的位置
-      const firstNull = remaining.indexOf('\0');
-      if (firstNull === -1) break;
-      
-      const secondNull = remaining.indexOf('\0', firstNull + 1);
-      if (secondNull === -1) break;
-      
-      const thirdNull = remaining.indexOf('\0', secondNull + 1);
-      if (thirdNull === -1) break;
-      
-      // 提取 hash, subject, body (body 可能包含换行符)
-      const hash = remaining.substring(0, firstNull).trim();
-      const subject = remaining.substring(firstNull + 1, secondNull).trim();
-      const bodyStart = secondNull + 1;
-      
-      // 从 thirdNull 之后开始，找到第一个 \n 或文件结束，这就是 author
-      let authorEnd = remaining.indexOf('\n', thirdNull + 1);
-      if (authorEnd === -1) {
-        // 这是最后一个 commit
-        authorEnd = remaining.length;
-      }
-      
-      const body = remaining.substring(bodyStart, thirdNull).trim();
-      const author = remaining.substring(thirdNull + 1, authorEnd).trim().replace(/\n/g, '');
-      
-      // 验证 hash 是有效的 40 位十六进制字符串
-      if (hash && /^[0-9a-f]{40}$/.test(hash) && subject) {
-        commits.push({ hash, subject, body, author });
-      }
-      
-      // 移动到下一个 commit（跳过 author 和换行符）
-      remaining = remaining.substring(authorEnd + 1);
-    }
-    
-    return commits;
+    return parseGitLogOutput(output);
   } catch (error) {
     console.warn('Warning: Could not get commits:', error.message);
     return [];
   }
 }
 
-// 解析 conventional commit
-function parseCommit(commit) {
-  const { subject, body } = commit;
-
-  // 检查 subject 是否存在
-  if (!subject) {
-    return null;
-  }
-
-  // 匹配格式: type(scope): description
-  const match = subject.match(/^(\w+)(?:\(([^)]+)\))?: (.+)$/);
-
-  if (!match) {
-    return null;
-  }
-
-  const [, type, scope, description] = match;
-
-  // 检查是否是 breaking change
-  const isBreaking = subject.includes('!') || (body && body.includes('BREAKING CHANGE'));
-
-  return {
-    type: type.toLowerCase(),
-    scope: scope || '',
-    description: description.trim(),
-    body: (body || '').trim(),
-    isBreaking,
-  };
-}
-
-// 分组 commits
-function groupCommits(commits) {
-  const grouped = {
-    feat: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    fix: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    docs: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    style: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    refactor: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    perf: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    test: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    build: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    ci: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    chore: /** @type {Array<string | {type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    revert: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-    breaking: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string, author?: string}>} */ ([]),
-  };
-
-  commits.forEach((commit) => {
-    const parsed = parseCommit(commit);
-    const author = commit.author || '';
-    if (!parsed) {
-      // 未匹配的 commit 归类到 chore
-      grouped.chore.push(commit.subject);
-      return;
-    }
-
-    if (parsed.isBreaking) {
-      grouped.breaking.push({
-        ...parsed,
-        full: commit.subject,
-        author,
-      });
-    }
-
-    const type = parsed.type;
-    if (grouped[type]) {
-      grouped[type].push({
-        ...parsed,
-        full: commit.subject,
-        author,
-      });
-    } else {
-      grouped.chore.push(commit.subject);
-    }
-  });
-
-  return grouped;
-}
 
 // 生成英文 changelog 条目
 function generateChangelogEntryEN(grouped, version, date) {
@@ -724,7 +515,7 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     } else {
       // 如果英文没有内容，从 git commits 生成
       const commits = getCommitsBetweenTags(fromTag, versionTag);
-      const grouped = groupCommits(commits);
+      const grouped = groupCommits(commits, false); // 不包含 commit 链接
       entryEN = generateChangelogEntryEN(grouped, versionNumber, date);
     }
 
@@ -733,7 +524,7 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     } else {
       // 如果中文没有内容，从 git commits 生成并翻译
       const commits = getCommitsBetweenTags(fromTag, versionTag);
-      const grouped = groupCommits(commits);
+      const grouped = groupCommits(commits, false); // 不包含 commit 链接
       const autoTranslate = process.env.CHANGELOG_AUTO_TRANSLATE !== 'false';
       entryZH = await generateChangelogEntryZH(grouped, versionNumber, date, autoTranslate);
     }
@@ -753,7 +544,7 @@ async function updateChangelog(newVersion, fromTag = undefined) {
       return;
     }
 
-    const grouped = groupCommits(commits);
+    const grouped = groupCommits(commits, false); // 不包含 commit 链接（用于版本发布）
 
     // 检查是否有对用户有价值的变更（排除内部维护性改动）
     // 只检查：feat, fix, perf, refactor, docs, revert, breaking

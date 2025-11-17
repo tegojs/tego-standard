@@ -203,7 +203,7 @@ function generateUnreleasedContentEN(grouped) {
 
   // Added
   if (grouped.feat.length > 0) {
-    lines.push('### Added', '');
+    lines.push('### ✨ Added', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
@@ -215,7 +215,7 @@ function generateUnreleasedContentEN(grouped) {
 
   // Fixed
   if (grouped.fix.length > 0) {
-    lines.push('### Fixed', '');
+    lines.push('### 🐛 Fixed', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
@@ -228,7 +228,7 @@ function generateUnreleasedContentEN(grouped) {
   // Changed (refactor, perf)
   const changed = [...grouped.refactor, ...grouped.perf];
   if (changed.length > 0) {
-    lines.push('### Changed', '');
+    lines.push('### 🔄 Changed', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
@@ -240,7 +240,7 @@ function generateUnreleasedContentEN(grouped) {
 
   // Documentation
   if (grouped.docs.length > 0) {
-    lines.push('### Documentation', '');
+    lines.push('### 📝 Documentation', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const description = convertPRNumbersToLinks(item.description);
@@ -269,7 +269,7 @@ function generateUnreleasedContentEN(grouped) {
       ]
     : [];
   if (other.length > 0) {
-    lines.push('### Other', '');
+    lines.push('### 🔧 Other', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
         const converted = convertPRNumbersToLinks(item);
@@ -369,7 +369,7 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
 
   // Added
   if (grouped.feat.length > 0) {
-    lines.push('### 新增', '');
+    lines.push('### ✨ 新增', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
@@ -386,7 +386,7 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
 
   // Fixed
   if (grouped.fix.length > 0) {
-    lines.push('### 修复', '');
+    lines.push('### 🐛 修复', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
@@ -404,7 +404,7 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // Changed
   const changed = [...grouped.refactor, ...grouped.perf];
   if (changed.length > 0) {
-    lines.push('### 变更', '');
+    lines.push('### 🔄 变更', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
@@ -421,7 +421,7 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
 
   // Documentation
   if (grouped.docs.length > 0) {
-    lines.push('### 文档', '');
+    lines.push('### 📝 文档', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
       const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
@@ -455,7 +455,7 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
       ]
     : [];
   if (other.length > 0) {
-    lines.push('### 其他', '');
+    lines.push('### 🔧 其他', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
         if (autoTranslate) {

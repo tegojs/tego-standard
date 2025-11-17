@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       hotfix_branch:
-        description: 'Hotfix branch name (e.g., hotfix/1.4.6)'
-        required: true
+        description: 'Hotfix branch name (optional, defaults to current branch)'
+        required: false
         type: string
 
-run-name: "Hotfix Publish - ${{ github.event.inputs.hotfix_branch }}"
+run-name: "Hotfix Publish - ${{ github.event.inputs.hotfix_branch || github.ref_name }}"
 
 jobs:
   detect-hotfix-pr:
@@ -20,7 +20,7 @@ jobs:
       base_version: ${{ steps.check.outputs.base_version }}
       hotfix_version: ${{ steps.check.outputs.hotfix_version }}
       pr_number: ${{ steps.check.outputs.pr_number }}
-      pr_branch: ${{ github.event.inputs.hotfix_branch }}
+      pr_branch: ${{ steps.check.outputs.branch_name }}
     steps:
       - name: Check if branch is hotfix
         id: check
@@ -28,7 +28,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          HOTFIX_BRANCH="${{ github.event.inputs.hotfix_branch }}"
+          # 使用输入的分支名，如果没有则使用当前分支
+          if [ -n "${{ github.event.inputs.hotfix_branch }}" ]; then
+            HOTFIX_BRANCH="${{ github.event.inputs.hotfix_branch }}"
+          else
+            # 从 ref 中提取分支名（处理 refs/heads/branch-name 格式）
+            HOTFIX_BRANCH="${GITHUB_REF#refs/heads/}"
+            if [ "${{ github.ref_type }}" != "branch" ]; then
+              echo "❌ Error: Cannot determine branch name. Please provide hotfix_branch input or run from a branch."
+              exit 1
+            fi
+          fi
+
+          echo "branch_name=$HOTFIX_BRANCH" >> $GITHUB_OUTPUT
 
           # 检查分支名是否符合 hotfix/x.y.z 格式
           if ! echo "$HOTFIX_BRANCH" | grep -qE '^hotfix/[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -172,7 +184,7 @@ jobs:
         run: |
           HOTFIX_BRANCH="${{ needs.detect-hotfix-pr.outputs.pr_branch }}"
 
-          echo "✓ Using branch from merged PR: $HOTFIX_BRANCH"
+          echo "✓ Using hotfix branch: $HOTFIX_BRANCH"
 
           # 检查分支是否已存在（本地或远程）
           if git show-ref --verify --quiet refs/heads/$HOTFIX_BRANCH 2>/dev/null; then

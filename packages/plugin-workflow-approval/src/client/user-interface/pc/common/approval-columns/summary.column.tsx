@@ -61,37 +61,48 @@ const SummaryShowObject = (props) => {
 };
 
 const SummaryShowArray = (props) => {
+  const cm = useCollectionManager();
+  const compile = useCompile();
+  const record = useCollectionRecordData();
+  const { collectionName } = record;
   const { arrayValue = [] as SummaryDataSourceItem[] | object } = props;
 
   // 使用优化的 useMemo：先引用比较，再深度比较
   const renderedItems = useOptimizedMemo(() => {
     return arrayValue.map((item) => {
       const { key, type, label, value } = item || {};
+      const field = cm.getCollectionField(`${collectionName}.${key}`);
+      const labelTitle = field?.uiSchema?.title || label;
       switch (type) {
         case SUMMARY_TYPE.LITERAL:
-          return <SummaryLiteralShow key={key} label={label} value={value} />;
+          return <SummaryLiteralShow key={key} label={labelTitle} value={value} />;
         case SUMMARY_TYPE.DATE:
           const isUTCStringValue = isUTCString(value);
           return (
-            <SummaryLiteralShow key={key} label={label} value={isUTCStringValue ? convertUTCToLocal(value) : value} />
+            <SummaryLiteralShow
+              key={key}
+              label={labelTitle}
+              value={isUTCStringValue ? convertUTCToLocal(value) : value}
+            />
           );
         case SUMMARY_TYPE.TABLE:
-          return <SummaryTableShow key={key} title={label} dataSource={value} />;
+          return <SummaryTableShow key={key} title={labelTitle} dataSource={value} />;
         default:
           return null;
       }
     });
-  }, [arrayValue]);
+  }, [arrayValue, collectionName, cm, compile]);
 
   return renderedItems;
 };
 
 const SummaryLiteralShow = (props) => {
   const { label, value } = props;
+  const compile = useCompile();
   const { styles } = useStyles();
   return (
     <div className={`${styles.ApprovalsSummaryStyle}-item`}>
-      <div className={`${styles.ApprovalsSummaryStyle}-item-label`}>{`${label}:`}&nbsp;&nbsp;&nbsp;</div>
+      <div className={`${styles.ApprovalsSummaryStyle}-item-label`}>{`${compile(label)}:`}&nbsp;&nbsp;&nbsp;</div>
       <div className={`${styles.ApprovalsSummaryStyle}-item-value`}>{value}</div>
     </div>
   );

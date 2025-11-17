@@ -310,6 +310,8 @@ export function getSummary(params: ParamsType): object {
 
   const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
 
+  return summaryDataSource;
+
   const result = summaryConfig.reduce((summary, key) => {
     const value = _.get(data, key);
     let realValue = value;

@@ -603,7 +603,7 @@ function removeVersionEntry(changelogContent, versionNumber) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
+
     // 检查是否是目标版本的标题行
     if (line.match(/^## \[.*\]/)) {
       if (line.includes(`[${versionNumber}]`)) {
@@ -613,7 +613,7 @@ function removeVersionEntry(changelogContent, versionNumber) {
         skip = false;
       }
     }
-    
+
     if (!skip) {
       result.push(line);
     }
@@ -695,28 +695,27 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     entryZH = await generateChangelogEntryZH(grouped, versionNumber, date, autoTranslate);
   }
 
-  // 检查版本是否已发布（通过检查 tag 是否存在）
-  // 如果版本已发布，保护已发布的版本信息，不允许覆盖
+  // 智能混合模式：根据版本是否已发布决定是否允许覆盖
+  // - 已发布的版本（有 tag）：保护已发布的版本信息，不允许覆盖
+  // - 未发布的版本（无 tag）：允许覆盖，方便在发布前调整
   const isPublished = tagExists(versionTag);
+
+  // 重新读取文件以检查当前状态
+  changelogEN = readFileSync(changelogENPath, 'utf-8');
+
   if (isPublished) {
-    // 检查 CHANGELOG 中是否已存在该版本
-    let changelogEN = readFileSync(changelogENPath, 'utf-8');
+    // 版本已发布：如果 CHANGELOG 中已存在该版本，跳过更新以保护已发布信息
     if (changelogEN.includes(`[${versionNumber}]`)) {
       console.log(`⚠ Version ${versionNumber} already exists and is published (tag ${versionTag} exists), skipping update`);
       console.log(`  If you need to update a published version, please edit CHANGELOG files manually.`);
       return;
     }
-  }
-
-  // 更新英文 CHANGELOG
-  // 重新读取文件（可能在上面的步骤中已经读取过）
-  changelogEN = readFileSync(changelogENPath, 'utf-8');
-
-  // 检查并移除已存在的版本条目（如果存在且版本未发布）
-  if (changelogEN.includes(`[${versionNumber}]`)) {
-    // 版本未发布，允许覆盖
-    console.log(`⚠ Version ${versionNumber} already exists in CHANGELOG.md but not published, replacing it`);
-    changelogEN = removeVersionEntry(changelogEN, versionNumber);
+  } else {
+    // 版本未发布：如果 CHANGELOG 中已存在该版本，允许覆盖
+    if (changelogEN.includes(`[${versionNumber}]`)) {
+      console.log(`⚠ Version ${versionNumber} already exists in CHANGELOG.md but not published, replacing it`);
+      changelogEN = removeVersionEntry(changelogEN, versionNumber);
+    }
   }
 
   // 在 [Unreleased] 之后插入新版本条目，并清空 [Unreleased] 部分
@@ -774,12 +773,11 @@ async function updateChangelog(newVersion, fromTag = undefined) {
   console.log(`✓ Updated CHANGELOG.md for version ${versionNumber}`);
 
   // 更新中文 CHANGELOG
-  // 重新读取文件（可能在上面的步骤中已经读取过）
+  // 重新读取文件（已发布的版本在上面已经检查并返回了，这里只处理未发布的版本）
   changelogZH = readFileSync(changelogZHPath, 'utf-8');
 
-  // 检查并移除已存在的版本条目（如果存在且版本未发布）
+  // 版本未发布：如果 CHANGELOG 中已存在该版本，允许覆盖
   if (changelogZH.includes(`[${versionNumber}]`)) {
-    // 版本未发布，允许覆盖（已发布的版本在上面已经检查并返回了）
     console.log(`⚠ Version ${versionNumber} already exists in CHANGELOG.zh-CN.md but not published, replacing it`);
     changelogZH = removeVersionEntry(changelogZH, versionNumber);
   }

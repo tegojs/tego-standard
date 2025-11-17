@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useCollectionManager, useCompile, useOptimizedMemo } from '@tachybase/client';
 import { convertUTCToLocal } from '@tego/client';
 
@@ -16,9 +16,11 @@ interface ApprovalsSummaryProps {
   valueClassName?: string;
 }
 
-export const ApprovalsSummary = (props: ApprovalsSummaryProps) => {
+export const ApprovalsSummary = React.memo<ApprovalsSummaryProps>((props) => {
   const { value, collectionName, className, itemClassName, labelClassName, valueClassName } = props;
-  const isArrayValue = Array.isArray(value);
+
+  // 使用 useMemo 缓存判断结果
+  const isArrayValue = useMemo(() => Array.isArray(value), [value]);
 
   // 兼容旧版, 旧版源数据是对象,新版源数据必然是数组
   return isArrayValue ? (
@@ -39,7 +41,9 @@ export const ApprovalsSummary = (props: ApprovalsSummaryProps) => {
       valueClassName={valueClassName}
     />
   );
-};
+});
+
+ApprovalsSummary.displayName = 'ApprovalsSummary';
 
 // Used for compatibility with older versions, where the original data source is an object
 interface SummaryShowObjectProps {
@@ -51,7 +55,7 @@ interface SummaryShowObjectProps {
   valueClassName?: string;
 }
 
-const SummaryShowObject = (props: SummaryShowObjectProps) => {
+const SummaryShowObject = React.memo<SummaryShowObjectProps>((props) => {
   const cm = useCollectionManager();
   const compile = useCompile();
   const { objectValue = {}, collectionName, className, itemClassName, labelClassName, valueClassName } = props;
@@ -62,17 +66,20 @@ const SummaryShowObject = (props: SummaryShowObjectProps) => {
       const realValue = Object.prototype.toString.call(objValue) === '[object Object]' ? objValue?.['name'] : objValue;
       if (Array.isArray(realValue)) {
         return {
+          key,
           label: compile(field?.uiSchema?.title || key),
           value: realValue.map((item) => item.value),
         };
       } else if (isUTCString(realValue)) {
         // 如果是UTC时间字符串, 则转换为本地时区时间
         return {
+          key,
           label: compile(field?.uiSchema?.title || key),
           value: convertUTCToLocal(realValue),
         };
       }
       return {
+        key,
         label: compile(field?.uiSchema?.title || key),
         value: realValue,
       };
@@ -83,9 +90,9 @@ const SummaryShowObject = (props: SummaryShowObjectProps) => {
   // label 放中文, value 放值
   return (
     <div className={className}>
-      {results.map((item, index) => (
+      {results.map((item) => (
         <SummaryLiteralShow
-          key={index}
+          key={item.key}
           label={item.label}
           value={item.value}
           itemClassName={itemClassName}
@@ -95,7 +102,9 @@ const SummaryShowObject = (props: SummaryShowObjectProps) => {
       ))}
     </div>
   );
-};
+});
+
+SummaryShowObject.displayName = 'SummaryShowObject';
 
 interface SummaryShowArrayProps {
   arrayValue?: SummaryDataSourceItem[] | any;
@@ -105,7 +114,7 @@ interface SummaryShowArrayProps {
   valueClassName?: string;
 }
 
-const SummaryShowArray = (props: SummaryShowArrayProps) => {
+const SummaryShowArray = React.memo<SummaryShowArrayProps>((props) => {
   const compile = useCompile();
   const { arrayValue = [], itemClassName, labelClassName, valueClassName } = props;
 
@@ -162,7 +171,9 @@ const SummaryShowArray = (props: SummaryShowArrayProps) => {
   }, [arrayValue, compile, itemClassName, labelClassName, valueClassName]);
 
   return <>{renderedItems}</>;
-};
+});
+
+SummaryShowArray.displayName = 'SummaryShowArray';
 
 interface SummaryLiteralShowProps {
   label: string | React.ReactNode;
@@ -172,33 +183,36 @@ interface SummaryLiteralShowProps {
   valueClassName?: string;
 }
 
-const SummaryLiteralShow = (props: SummaryLiteralShowProps) => {
+const SummaryLiteralShow = React.memo<SummaryLiteralShowProps>((props) => {
   const { label, value, itemClassName, labelClassName, valueClassName } = props;
   const compile = useCompile();
 
-  // 默认类名（兼容 H5 和 PC）
-  const defaultItemClassName = itemClassName || 'approvalsSummaryStyle-item';
-  const defaultLabelClassName = labelClassName || 'approvalsSummaryStyle-label';
-  const defaultValueClassName = valueClassName || 'approvalsSummaryStyle-value';
+  // 使用 useMemo 缓存编译后的 label 和类名
+  const compiledLabel = useMemo(() => compile(label), [label, compile]);
+  const defaultItemClassName = useMemo(() => itemClassName || 'approvalsSummaryStyle-item', [itemClassName]);
+  const defaultLabelClassName = useMemo(() => labelClassName || 'approvalsSummaryStyle-label', [labelClassName]);
+  const defaultValueClassName = useMemo(() => valueClassName || 'approvalsSummaryStyle-value', [valueClassName]);
 
   return (
     <div className={defaultItemClassName}>
-      <div className={defaultLabelClassName}>{`${compile(label)}:`}&nbsp;&nbsp;</div>
+      <div className={defaultLabelClassName}>{`${compiledLabel}:`}&nbsp;&nbsp;</div>
       <div className={defaultValueClassName}>{value}</div>
     </div>
   );
-};
+});
+
+SummaryLiteralShow.displayName = 'SummaryLiteralShow';
 
 interface SummaryTableShowProps {
   title?: React.ReactNode;
   dataSource?: SummaryDataSourceItem[];
 }
 
-const SummaryTableShow = (props: SummaryTableShowProps) => {
+const SummaryTableShow = React.memo<SummaryTableShowProps>((props) => {
   const { title, dataSource = [] } = props;
 
-  // 获取第一行数据, 决定有多少行数据
-  const firstValue = dataSource[0]?.value;
+  // 使用 useMemo 缓存第一行数据的获取
+  const firstValue = useMemo(() => dataSource[0]?.value, [dataSource]);
 
   const columns = useOptimizedMemo(() => {
     return dataSource.map((field) => ({
@@ -208,9 +222,13 @@ const SummaryTableShow = (props: SummaryTableShowProps) => {
     }));
   }, [dataSource]);
 
-  const rowCount = Array.isArray(firstValue) ? firstValue.length : 0;
+  // 使用 useMemo 缓存 rowCount 计算
+  const rowCount = useMemo(() => (Array.isArray(firstValue) ? firstValue.length : 0), [firstValue]);
 
   const tableDataSource = useOptimizedMemo(() => {
+    if (rowCount === 0) {
+      return [];
+    }
     return Array.from(
       {
         length: rowCount,
@@ -227,4 +245,6 @@ const SummaryTableShow = (props: SummaryTableShowProps) => {
   }, [dataSource, rowCount]);
 
   return <SimpleTable title={title} columns={columns} dataSource={tableDataSource} />;
-};
+});
+
+SummaryTableShow.displayName = 'SummaryTableShow';

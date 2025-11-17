@@ -106,7 +106,7 @@ export default function useServiceOptions(props) {
     fieldSchema,
     findVariable,
     parseFilter,
-    record,
+    // record,
     service?.params?.filter,
   ]);
 

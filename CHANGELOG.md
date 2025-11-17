@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
-- add changelog generation and sync to docs workflow
+- add changelog generation and sync to docs workflow (#272)
 - update version with hash (#270)
 - **pnpm-workspace**: update to catalog (#264)
 - update tachybase-image-nightly.yaml

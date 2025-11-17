@@ -75,6 +75,7 @@ jobs:
             echo "Syncing [Unreleased] section"
 
             # Extract [Unreleased] section from CHANGELOG.md
+            # Note: The source changelog should already be deduplicated by update-unreleased.mjs script
             if [ -f "CHANGELOG.md" ]; then
               awk '
                 /^## \[Unreleased\]/ {
@@ -94,6 +95,7 @@ jobs:
             fi
 
             # Extract [未发布] section from CHANGELOG.zh-CN.md
+            # Note: The source changelog should already be deduplicated by update-unreleased.mjs script
             if [ -f "CHANGELOG.zh-CN.md" ]; then
               awk '
                 /^## \[未发布\]/ {
@@ -208,66 +210,52 @@ jobs:
           mkdir -p "$(dirname "${ZH_TARGET}")"
 
           if [ "$IS_UNRELEASED" == "true" ]; then
-            # For Unreleased section, replace the entire section at the beginning
-            # Append English changelog (only if it has content)
-            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              if [ -f "${EN_TARGET}" ]; then
-                # Replace [Unreleased] section if exists, otherwise prepend
-                if grep -q "^## \[Unreleased\]" "${EN_TARGET}"; then
-                  # Replace existing [Unreleased] section
-                  # Remove everything from "## [Unreleased]" to the next "## [" (exclusive)
-                  awk '
-                    BEGIN { in_unreleased = 0 }
-                    /^## \[Unreleased\]/ { in_unreleased = 1; next }
-                    in_unreleased && /^## \[/ { in_unreleased = 0 }
-                    !in_unreleased { print }
-                  ' "${EN_TARGET}" > /tmp/changelog_en_temp.md
-                  # Prepend new [Unreleased] content
-                  cat /tmp/changelog_en.md > "${EN_TARGET}"
-                  echo "" >> "${EN_TARGET}"
-                  cat /tmp/changelog_en_temp.md >> "${EN_TARGET}"
+            # For Unreleased section, replace the entire section
+            # Note: Content is already deduplicated and properly formatted by update-unreleased.mjs script
+            # The extracted section includes the "## [Unreleased]" header
+
+            # Helper function to replace [Unreleased] section in target file
+            # Usage: replace_unreleased_section <target_file> <section_header> <new_content_file>
+            replace_unreleased_section() {
+              local target_file="$1"
+              local section_header="$2"
+              local new_content_file="$3"
+
+              if [ -f "${target_file}" ]; then
+                # Remove existing section if exists, then prepend new content
+                if grep -q "^## \[${section_header}\]" "${target_file}"; then
+                  # Remove the section (from "## [header]" to next "## [" or end of file)
+                  awk -v header="${section_header}" '
+                    BEGIN { in_section = 0 }
+                    /^## \[/ && $0 ~ "\\[" header "\\]" { in_section = 1; next }
+                    in_section && /^## \[/ { in_section = 0 }
+                    !in_section { print }
+                  ' "${target_file}" > /tmp/temp_changelog.md
+                  cat "${new_content_file}" > "${target_file}"
+                  echo "" >> "${target_file}"
+                  cat /tmp/temp_changelog.md >> "${target_file}"
                 else
-                  # Prepend [Unreleased] section
-                  cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
-                  echo "" >> /tmp/changelog_en_new.md
-                  cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
-                  mv /tmp/changelog_en_new.md "${EN_TARGET}"
+                  # No section found, prepend new content
+                  cat "${new_content_file}" > /tmp/temp_changelog.md
+                  echo "" >> /tmp/temp_changelog.md
+                  cat "${target_file}" >> /tmp/temp_changelog.md
+                  mv /tmp/temp_changelog.md "${target_file}"
                 fi
               else
                 # Create new file
-                cat /tmp/changelog_en.md > "${EN_TARGET}"
+                cat "${new_content_file}" > "${target_file}"
               fi
+            }
+
+            # Sync English changelog (only if it has content)
+            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+              replace_unreleased_section "${EN_TARGET}" "Unreleased" /tmp/changelog_en.md
               echo "✓ Synced English [Unreleased] changelog to ${EN_TARGET}"
             fi
 
-            # Append Chinese changelog (only if it has content)
+            # Sync Chinese changelog (only if it has content)
             if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              if [ -f "${ZH_TARGET}" ]; then
-                # Replace [未发布] section if exists, otherwise prepend
-                if grep -q "^## \[未发布\]" "${ZH_TARGET}"; then
-                  # Replace existing [未发布] section
-                  # Remove everything from "## [未发布]" to the next "## [" (exclusive)
-                  awk '
-                    BEGIN { in_unreleased = 0 }
-                    /^## \[未发布\]/ { in_unreleased = 1; next }
-                    in_unreleased && /^## \[/ { in_unreleased = 0 }
-                    !in_unreleased { print }
-                  ' "${ZH_TARGET}" > /tmp/changelog_zh_temp.md
-                  # Prepend new [未发布] content
-                  cat /tmp/changelog_zh.md > "${ZH_TARGET}"
-                  echo "" >> "${ZH_TARGET}"
-                  cat /tmp/changelog_zh_temp.md >> "${ZH_TARGET}"
-                else
-                  # Prepend [未发布] section
-                  cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
-                  echo "" >> /tmp/changelog_zh_new.md
-                  cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
-                  mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
-                fi
-              else
-                # Create new file
-                cat /tmp/changelog_zh.md > "${ZH_TARGET}"
-              fi
+              replace_unreleased_section "${ZH_TARGET}" "未发布" /tmp/changelog_zh.md
               echo "✓ Synced Chinese [未发布] changelog to ${ZH_TARGET}"
             fi
           else

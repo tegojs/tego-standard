@@ -138,6 +138,29 @@ function groupCommits(commits) {
   return grouped;
 }
 
+// 去除重复的行（保留第一次出现）
+function deduplicateContent(content) {
+  const contentLines = content.split('\n');
+  const seen = new Set();
+  const deduplicatedLines = [];
+
+  for (const line of contentLines) {
+    // 对于列表项（以 "- " 开头），检查是否重复
+    if (line.trim().startsWith('- ')) {
+      const normalized = line.trim();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        deduplicatedLines.push(line);
+      }
+    } else {
+      // 非列表项（标题、空行等）直接保留
+      deduplicatedLines.push(line);
+    }
+  }
+
+  return deduplicatedLines.join('\n');
+}
+
 // 生成 Unreleased 部分的英文内容
 function generateUnreleasedContentEN(grouped) {
   const lines = [];
@@ -227,7 +250,8 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('');
   }
 
-  return lines.join('\n');
+  const content = lines.join('\n');
+  return deduplicateContent(content);
 }
 
 // 翻译文本（使用 Google Translate API）
@@ -424,7 +448,8 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     });
   }
 
-  return lines.join('\n');
+  const content = lines.join('\n');
+  return deduplicateContent(content);
 }
 
 // 获取最新版本号
@@ -437,6 +462,46 @@ function getLatestVersion() {
     return tag.replace(/^v/, '');
   } catch {
     return null;
+  }
+}
+
+// 更新 changelog 中的 [Unreleased] 或 [未发布] 部分
+function updateChangelogSection(changelog, sectionTitle, sectionLinkPattern, newContent, versionTag) {
+  if (changelog.includes(sectionTitle)) {
+    // 找到部分的开始和结束位置
+    const sectionIndex = changelog.indexOf(sectionTitle);
+    const nextSectionIndex = changelog.indexOf('\n## [', sectionIndex + 1);
+
+    // 提取部分之前的内容
+    const beforeSection = changelog.slice(0, sectionIndex);
+
+    // 提取部分之后的内容（下一个版本部分或链接部分）
+    let afterSection = '';
+    if (nextSectionIndex > -1) {
+      // 有下一个版本部分
+      afterSection = changelog.slice(nextSectionIndex);
+    } else {
+      // 没有下一个版本部分，查找链接部分
+      const linkMatch = changelog.match(sectionLinkPattern);
+      if (linkMatch) {
+        const linkIndex = changelog.indexOf(linkMatch[0]);
+        // 提取链接行及其后面的内容
+        const linkLineEnd = changelog.indexOf('\n', linkIndex);
+        if (linkLineEnd > -1) {
+          afterSection = changelog.slice(linkLineEnd);
+        } else {
+          afterSection = '';
+        }
+        // 保留链接
+        afterSection = linkMatch[0] + (afterSection ? '\n' + afterSection : '');
+      }
+    }
+
+    // 重新构建：标题 + 新内容 + 后续内容
+    return beforeSection + sectionTitle + '\n\n' + newContent + (afterSection ? '\n\n' + afterSection : '');
+  } else {
+    // 如果没有该部分，在文件开头添加
+    return sectionTitle + '\n\n' + newContent + '\n\n' + changelog;
   }
 }
 
@@ -497,35 +562,13 @@ async function updateUnreleased() {
 
   // 更新英文 CHANGELOG
   let changelogEN = readFileSync(changelogENPath, 'utf-8');
-
-  if (changelogEN.includes('## [Unreleased]')) {
-    // 找到 [Unreleased] 部分的结束位置（下一个 ## 或文件末尾）
-    const unreleasedIndex = changelogEN.indexOf('## [Unreleased]');
-    const nextSectionIndex = changelogEN.indexOf('\n## [', unreleasedIndex + 1);
-
-    if (nextSectionIndex > -1) {
-      // 替换 [Unreleased] 部分的内容（保留标题和链接）
-      const beforeUnreleased = changelogEN.slice(0, unreleasedIndex + '## [Unreleased]'.length);
-      const afterNextSection = changelogEN.slice(nextSectionIndex);
-      changelogEN = beforeUnreleased + '\n\n' + contentEN + afterNextSection;
-    } else {
-      // 在文件末尾，替换 [Unreleased] 部分的内容
-      const beforeUnreleased = changelogEN.slice(0, unreleasedIndex + '## [Unreleased]'.length);
-      const afterUnreleased = changelogEN.slice(unreleasedIndex + '## [Unreleased]'.length);
-      // 找到链接部分
-      const linkIndex = afterUnreleased.indexOf('[Unreleased]:');
-      if (linkIndex > -1) {
-        const beforeLink = afterUnreleased.slice(0, linkIndex);
-        const linkPart = afterUnreleased.slice(linkIndex);
-        changelogEN = beforeUnreleased + '\n\n' + contentEN + beforeLink + linkPart;
-      } else {
-        changelogEN = beforeUnreleased + '\n\n' + contentEN + afterUnreleased;
-      }
-    }
-  } else {
-    // 如果没有 [Unreleased] 部分，在文件开头添加
-    changelogEN = `## [Unreleased]\n\n${contentEN}\n\n${changelogEN}`;
-  }
+  changelogEN = updateChangelogSection(
+    changelogEN,
+    '## [Unreleased]',
+    /\[Unreleased\]:\s*https:\/\/[^\s]+/,
+    contentEN,
+    versionTag
+  );
 
   // 更新链接
   changelogEN = changelogEN.replace(
@@ -538,30 +581,13 @@ async function updateUnreleased() {
 
   // 更新中文 CHANGELOG
   let changelogZH = readFileSync(changelogZHPath, 'utf-8');
-
-  if (changelogZH.includes('## [未发布]')) {
-    const unreleasedIndex = changelogZH.indexOf('## [未发布]');
-    const nextSectionIndex = changelogZH.indexOf('\n## [', unreleasedIndex + 1);
-
-    if (nextSectionIndex > -1) {
-      const beforeUnreleased = changelogZH.slice(0, unreleasedIndex + '## [未发布]'.length);
-      const afterNextSection = changelogZH.slice(nextSectionIndex);
-      changelogZH = beforeUnreleased + '\n\n' + contentZH + afterNextSection;
-    } else {
-      const beforeUnreleased = changelogZH.slice(0, unreleasedIndex + '## [未发布]'.length);
-      const afterUnreleased = changelogZH.slice(unreleasedIndex + '## [未发布]'.length);
-      const linkIndex = afterUnreleased.indexOf('[未发布]:');
-      if (linkIndex > -1) {
-        const beforeLink = afterUnreleased.slice(0, linkIndex);
-        const linkPart = afterUnreleased.slice(linkIndex);
-        changelogZH = beforeUnreleased + '\n\n' + contentZH + beforeLink + linkPart;
-      } else {
-        changelogZH = beforeUnreleased + '\n\n' + contentZH + afterUnreleased;
-      }
-    }
-  } else {
-    changelogZH = `## [未发布]\n\n${contentZH}\n\n${changelogZH}`;
-  }
+  changelogZH = updateChangelogSection(
+    changelogZH,
+    '## [未发布]',
+    /\[未发布\]:\s*https:\/\/[^\s]+/,
+    contentZH,
+    versionTag
+  );
 
   // 更新链接
   changelogZH = changelogZH.replace(

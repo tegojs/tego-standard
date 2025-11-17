@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       base_version:
-        description: 'Base version to hotfix (e.g., 1.4.5)'
-        required: true
+        description: 'Base version to hotfix (e.g., 1.4.5). Leave empty if triggering from a tag.'
+        required: false
         type: string
       fix_description:
         description: 'Brief description of the fix (optional)'
         required: false
         type: string
 
-run-name: "Hotfix Create - Base: ${{ github.event.inputs.base_version }}"
+run-name: "Hotfix Create - Base: ${{ github.event.inputs.base_version || github.ref_name }}"
 
 jobs:
   create:
@@ -22,7 +22,7 @@ jobs:
       pull-requests: write
     outputs:
       hotfix_version: ${{ steps.do_version.outputs.version }}
-      base_version: ${{ github.event.inputs.base_version }}
+      base_version: ${{ steps.validate_base.outputs.base_version }}
       hotfix_branch: ${{ steps.create_branch.outputs.branch }}
       pr_number: ${{ steps.create_pr.outputs.PR_NUMBER }}
       pr_url: ${{ steps.create_pr.outputs.PR_URL }}
@@ -44,7 +44,26 @@ jobs:
       - name: Validate base version
         id: validate_base
         run: |
-          BASE_VERSION="${{ github.event.inputs.base_version }}"
+          # 如果提供了 base_version 输入，使用它；否则从当前 ref 提取
+          if [ -n "${{ github.event.inputs.base_version }}" ]; then
+            BASE_VERSION="${{ github.event.inputs.base_version }}"
+          else
+            # 从当前 ref 提取版本号（如果从 tag 触发）
+            REF_NAME="${{ github.ref_name }}"
+            # 移除 'v' 前缀（如果存在）
+            BASE_VERSION="${REF_NAME#v}"
+          fi
+
+          # 检查版本号格式
+          if ! echo "$BASE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Error: Invalid version format. Expected format: X.Y.Z (e.g., 1.4.5)"
+            echo "   Got: $BASE_VERSION (from ref: ${{ github.ref_name }})"
+            echo "   Please either:"
+            echo "   1. Provide base_version input, or"
+            echo "   2. Trigger this workflow from a tag (e.g., v1.4.5)"
+            exit 1
+          fi
+
           BASE_TAG="v${BASE_VERSION}"
 
           # 检查 tag 是否存在
@@ -53,19 +72,14 @@ jobs:
             exit 1
           fi
 
-          # 检查版本号格式
-          if ! echo "$BASE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "❌ Error: Invalid version format. Expected format: X.Y.Z (e.g., 1.4.5)"
-            exit 1
-          fi
-
           echo "✓ Base version $BASE_VERSION validated"
           echo "base_tag=$BASE_TAG" >> $GITHUB_OUTPUT
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Calculate hotfix version
         id: do_version
         run: |
-          BASE_VERSION="${{ github.event.inputs.base_version }}"
+          BASE_VERSION="${{ steps.validate_base.outputs.base_version }}"
           BASE_TAG="${{ steps.validate_base.outputs.base_tag }}"
 
           # 计算新的 PATCH 版本号
@@ -169,7 +183,7 @@ jobs:
             echo "PR_CREATED=false" >> $GITHUB_OUTPUT
           else
             # 创建新的 PR
-            BASE_VERSION="${{ github.event.inputs.base_version }}"
+            BASE_VERSION="${{ steps.validate_base.outputs.base_version }}"
 
             # 使用 node.js 构建 PR body 和 payload 以避免 YAML lint 错误
             if [ -n "$FIX_DESC" ]; then

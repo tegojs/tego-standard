@@ -270,56 +270,82 @@ jobs:
             if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
               # Check if version already exists in the file
               if [ -f "${EN_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${EN_TARGET}"; then
-                echo "⚠ Version ${VERSION_NUMBER} already exists in ${EN_TARGET}, skipping"
-              else
-                # Append new version entry at the beginning
-                if [ -f "${EN_TARGET}" ]; then
-                  # Find the first ## header and insert before it
-                  if grep -q "^## \[" "${EN_TARGET}"; then
-                    # Create temporary file with new content + existing content
-                    cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
-                    echo "" >> /tmp/changelog_en_new.md
-                    cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
-                    mv /tmp/changelog_en_new.md "${EN_TARGET}"
-                  else
-                    # Append to end if no version entries found
-                    echo "" >> "${EN_TARGET}"
-                    cat /tmp/changelog_en.md >> "${EN_TARGET}"
-                  fi
-                else
-                  # Create new file
-                  cat /tmp/changelog_en.md > "${EN_TARGET}"
-                fi
-                echo "✓ Synced English changelog to ${EN_TARGET}"
+                echo "⚠ Version ${VERSION_NUMBER} already exists in ${EN_TARGET}, replacing it"
+                # Remove existing version entry
+                awk -v version="${VERSION_NUMBER}" '
+                  BEGIN { skip = 0 }
+                  /^## \[/ {
+                    if ($0 ~ "\\[" version "\\]") {
+                      skip = 1
+                      next
+                    } else if (skip && /^## \[/) {
+                      skip = 0
+                    }
+                  }
+                  !skip { print }
+                ' "${EN_TARGET}" > /tmp/changelog_en_temp.md
+                mv /tmp/changelog_en_temp.md "${EN_TARGET}"
               fi
+              # Insert new version entry at the beginning
+              if [ -f "${EN_TARGET}" ]; then
+                # Find the first ## header and insert before it
+                if grep -q "^## \[" "${EN_TARGET}"; then
+                  # Create temporary file with new content + existing content
+                  cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
+                  echo "" >> /tmp/changelog_en_new.md
+                  cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
+                  mv /tmp/changelog_en_new.md "${EN_TARGET}"
+                else
+                  # Append to end if no version entries found
+                  echo "" >> "${EN_TARGET}"
+                  cat /tmp/changelog_en.md >> "${EN_TARGET}"
+                fi
+              else
+                # Create new file
+                cat /tmp/changelog_en.md > "${EN_TARGET}"
+              fi
+              echo "✓ Synced English changelog to ${EN_TARGET}"
             fi
 
             # Append Chinese changelog (only if it has content)
             if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
               # Check if version already exists in the file
               if [ -f "${ZH_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${ZH_TARGET}"; then
-                echo "⚠ Version ${VERSION_NUMBER} already exists in ${ZH_TARGET}, skipping"
-              else
-                # Append new version entry at the beginning
-                if [ -f "${ZH_TARGET}" ]; then
-                  # Find the first ## header and insert before it
-                  if grep -q "^## \[" "${ZH_TARGET}"; then
-                    # Create temporary file with new content + existing content
-                    cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
-                    echo "" >> /tmp/changelog_zh_new.md
-                    cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
-                    mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
-                  else
-                    # Append to end if no version entries found
-                    echo "" >> "${ZH_TARGET}"
-                    cat /tmp/changelog_zh.md >> "${ZH_TARGET}"
-                  fi
-                else
-                  # Create new file
-                  cat /tmp/changelog_zh.md > "${ZH_TARGET}"
-                fi
-                echo "✓ Synced Chinese changelog to ${ZH_TARGET}"
+                echo "⚠ Version ${VERSION_NUMBER} already exists in ${ZH_TARGET}, replacing it"
+                # Remove existing version entry
+                awk -v version="${VERSION_NUMBER}" '
+                  BEGIN { skip = 0 }
+                  /^## \[/ {
+                    if ($0 ~ "\\[" version "\\]") {
+                      skip = 1
+                      next
+                    } else if (skip && /^## \[/) {
+                      skip = 0
+                    }
+                  }
+                  !skip { print }
+                ' "${ZH_TARGET}" > /tmp/changelog_zh_temp.md
+                mv /tmp/changelog_zh_temp.md "${ZH_TARGET}"
               fi
+              # Insert new version entry at the beginning
+              if [ -f "${ZH_TARGET}" ]; then
+                # Find the first ## header and insert before it
+                if grep -q "^## \[" "${ZH_TARGET}"; then
+                  # Create temporary file with new content + existing content
+                  cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
+                  echo "" >> /tmp/changelog_zh_new.md
+                  cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
+                  mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
+                else
+                  # Append to end if no version entries found
+                  echo "" >> "${ZH_TARGET}"
+                  cat /tmp/changelog_zh.md >> "${ZH_TARGET}"
+                fi
+              else
+                # Create new file
+                cat /tmp/changelog_zh.md > "${ZH_TARGET}"
+              fi
+              echo "✓ Synced Chinese changelog to ${ZH_TARGET}"
             fi
           fi
 

@@ -590,6 +590,38 @@ function convertUnreleasedToVersionEntry(unreleasedContent, versionNumber, date)
   return `## [${versionNumber}] - ${date}\n\n${unreleasedContent}`;
 }
 
+// 移除已存在的版本条目
+/**
+ * @param {string} changelogContent
+ * @param {string} versionNumber
+ * @returns {string}
+ */
+function removeVersionEntry(changelogContent, versionNumber) {
+  const lines = changelogContent.split('\n');
+  const result = [];
+  let skip = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // 检查是否是目标版本的标题行
+    if (line.match(/^## \[.*\]/)) {
+      if (line.includes(`[${versionNumber}]`)) {
+        skip = true;
+        continue;
+      } else {
+        skip = false;
+      }
+    }
+    
+    if (!skip) {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
 // 更新 CHANGELOG 文件
 /**
  * @param {string} newVersion
@@ -663,9 +695,29 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     entryZH = await generateChangelogEntryZH(grouped, versionNumber, date, autoTranslate);
   }
 
+  // 检查版本是否已发布（通过检查 tag 是否存在）
+  // 如果版本已发布，保护已发布的版本信息，不允许覆盖
+  const isPublished = tagExists(versionTag);
+  if (isPublished) {
+    // 检查 CHANGELOG 中是否已存在该版本
+    let changelogEN = readFileSync(changelogENPath, 'utf-8');
+    if (changelogEN.includes(`[${versionNumber}]`)) {
+      console.log(`⚠ Version ${versionNumber} already exists and is published (tag ${versionTag} exists), skipping update`);
+      console.log(`  If you need to update a published version, please edit CHANGELOG files manually.`);
+      return;
+    }
+  }
+
   // 更新英文 CHANGELOG
   // 重新读取文件（可能在上面的步骤中已经读取过）
   changelogEN = readFileSync(changelogENPath, 'utf-8');
+
+  // 检查并移除已存在的版本条目（如果存在且版本未发布）
+  if (changelogEN.includes(`[${versionNumber}]`)) {
+    // 版本未发布，允许覆盖
+    console.log(`⚠ Version ${versionNumber} already exists in CHANGELOG.md but not published, replacing it`);
+    changelogEN = removeVersionEntry(changelogEN, versionNumber);
+  }
 
   // 在 [Unreleased] 之后插入新版本条目，并清空 [Unreleased] 部分
   if (changelogEN.includes('## [Unreleased]')) {
@@ -699,8 +751,16 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     `[Unreleased]: https://github.com/tegojs/tego-standard/compare/${versionTag}...HEAD`
   );
 
-  // 添加新版本的链接（如果不存在）
-  if (!changelogEN.includes(`[${versionNumber}]:`)) {
+  // 更新或添加新版本的链接
+  const versionLinkPattern = new RegExp(`\\[${versionNumber.replace(/\./g, '\\.')}\\]: https://github\\.com/[^/]+/[^/]+/releases/tag/[^\\s]+`, 'g');
+  if (changelogEN.match(versionLinkPattern)) {
+    // 如果链接已存在，更新它
+    changelogEN = changelogEN.replace(
+      versionLinkPattern,
+      `[${versionNumber}]: https://github.com/tegojs/tego-standard/releases/tag/${versionTag}`
+    );
+  } else {
+    // 如果链接不存在，添加它
     const linkMatch = changelogEN.match(/\[Unreleased\]: https:\/\/github\.com\/[^/]+\/[^/]+\/compare\/v[^\s]+\.\.\.HEAD/);
     if (linkMatch) {
       changelogEN = changelogEN.replace(
@@ -716,6 +776,13 @@ async function updateChangelog(newVersion, fromTag = undefined) {
   // 更新中文 CHANGELOG
   // 重新读取文件（可能在上面的步骤中已经读取过）
   changelogZH = readFileSync(changelogZHPath, 'utf-8');
+
+  // 检查并移除已存在的版本条目（如果存在且版本未发布）
+  if (changelogZH.includes(`[${versionNumber}]`)) {
+    // 版本未发布，允许覆盖（已发布的版本在上面已经检查并返回了）
+    console.log(`⚠ Version ${versionNumber} already exists in CHANGELOG.zh-CN.md but not published, replacing it`);
+    changelogZH = removeVersionEntry(changelogZH, versionNumber);
+  }
 
   // 在 [未发布] 之后插入新版本条目，并清空 [未发布] 部分
   if (changelogZH.includes('## [未发布]')) {
@@ -747,8 +814,16 @@ async function updateChangelog(newVersion, fromTag = undefined) {
     `[未发布]: https://github.com/tegojs/tego-standard/compare/${versionTag}...HEAD`
   );
 
-  // 添加新版本的链接（如果不存在）
-  if (!changelogZH.includes(`[${versionNumber}]:`)) {
+  // 更新或添加新版本的链接
+  const versionLinkPattern = new RegExp(`\\[${versionNumber.replace(/\./g, '\\.')}\\]: https://github\\.com/[^/]+/[^/]+/releases/tag/[^\\s]+`, 'g');
+  if (changelogZH.match(versionLinkPattern)) {
+    // 如果链接已存在，更新它
+    changelogZH = changelogZH.replace(
+      versionLinkPattern,
+      `[${versionNumber}]: https://github.com/tegojs/tego-standard/releases/tag/${versionTag}`
+    );
+  } else {
+    // 如果链接不存在，添加它
     const linkMatch = changelogZH.match(/\[未发布\]: https:\/\/github\.com\/[^/]+\/[^/]+\/compare\/v[^\s]+\.\.\.HEAD/);
     if (linkMatch) {
       changelogZH = changelogZH.replace(

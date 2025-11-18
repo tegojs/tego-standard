@@ -11,6 +11,15 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  parseCommit,
+  parseGitLogOutput,
+  groupCommits,
+  convertPRNumbersToLinks,
+  deduplicateContent,
+  translateText,
+  translateTexts,
+} from './changelog-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,31 +27,6 @@ const rootDir = join(__dirname, '..');
 
 const changelogENPath = join(rootDir, 'CHANGELOG.md');
 const changelogZHPath = join(rootDir, 'CHANGELOG.zh-CN.md');
-
-// 解析 commit 消息
-function parseCommit(commit) {
-  const { subject } = commit;
-  if (!subject) {
-    return null;
-  }
-
-  // Conventional Commits 格式: type(scope): description
-  const match = subject.match(/^(\w+)(?:\(([^)]+)\))?(!)?:\s*(.+)$/);
-  if (!match) {
-    return null;
-  }
-
-  const [, type, scope, breaking, description] = match;
-  const isBreaking = !!breaking || commit.body?.includes('BREAKING CHANGE');
-
-  return {
-    type: type.toLowerCase(),
-    scope: scope || '',
-    description: description.trim(),
-    body: commit.body || '',
-    isBreaking,
-  };
-}
 
 // 获取两个版本之间的 commits
 function getCommitsSinceLatestTag() {
@@ -63,80 +47,23 @@ function getCommitsSinceLatestTag() {
       latestTag = firstCommit;
     }
 
+    // 不包含 tag 点本身的 commit，因为 tag 点属于已发布的版本
+    // Unreleased 应该只包含自最新 tag 之后的 commit
     const range = `${latestTag}..HEAD`;
-    const logFormat = '%H|%s|%b';
+    // 使用 \0 作为分隔符，避免 body 中的 | 和换行符导致解析错误
+    const logFormat = '%H%x00%s%x00%b%x00%an';
     const output = execSync(`git log ${range} --pretty=format:"${logFormat}" --no-merges`, {
       encoding: 'utf-8',
       cwd: rootDir,
     }).trim();
 
-    if (!output) {
-      return [];
-    }
-
-    const commits = output
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const parts = line.split('|');
-        const hash = parts[0] || '';
-        const subject = parts[1] || '';
-        const body = parts.slice(2).join('|').trim();
-        return { hash, subject, body };
-      })
-      .filter((commit) => commit.hash && commit.subject);
-
-    return commits;
+    return parseGitLogOutput(output);
   } catch (error) {
     console.warn('Warning: Could not get commits:', error.message);
     return [];
   }
 }
 
-// 分组 commits
-function groupCommits(commits) {
-  const grouped = {
-    feat: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    fix: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    docs: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    style: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    refactor: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    perf: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    test: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    build: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    ci: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    chore: /** @type {Array<string | {type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    revert: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-    breaking: /** @type {Array<{type: string, scope: string, description: string, body: string, isBreaking: boolean, full: string}>} */ ([]),
-  };
-
-  commits.forEach((commit) => {
-    const parsed = parseCommit(commit);
-    if (!parsed) {
-      grouped.chore.push(commit.subject);
-      return;
-    }
-
-    if (parsed.isBreaking) {
-      grouped.breaking.push({
-        ...parsed,
-        full: commit.subject,
-      });
-    }
-
-    const type = parsed.type;
-    if (grouped[type]) {
-      grouped[type].push({
-        ...parsed,
-        full: commit.subject,
-      });
-    } else {
-      grouped.chore.push(commit.subject);
-    }
-  });
-
-  return grouped;
-}
 
 // 生成 Unreleased 部分的英文内容
 function generateUnreleasedContentEN(grouped) {
@@ -147,27 +74,36 @@ function generateUnreleasedContentEN(grouped) {
     lines.push('### ⚠️ Breaking Changes', '');
     grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
 
   // Added
   if (grouped.feat.length > 0) {
-    lines.push('### Added', '');
+    lines.push('### ✨ Added', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
 
   // Fixed
   if (grouped.fix.length > 0) {
-    lines.push('### Fixed', '');
+    lines.push('### 🐛 Fixed', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
@@ -175,20 +111,26 @@ function generateUnreleasedContentEN(grouped) {
   // Changed (refactor, perf)
   const changed = [...grouped.refactor, ...grouped.perf];
   if (changed.length > 0) {
-    lines.push('### Changed', '');
+    lines.push('### 🔄 Changed', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
 
   // Documentation
   if (grouped.docs.length > 0) {
-    lines.push('### Documentation', '');
+    lines.push('### 📝 Documentation', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
-      lines.push(`- ${scope}${item.description}`);
+      const description = convertPRNumbersToLinks(item.description);
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
+      lines.push(`- ${scope}${description}${commitLink}${author}`);
     });
     lines.push('');
   }
@@ -212,77 +154,29 @@ function generateUnreleasedContentEN(grouped) {
       ]
     : [];
   if (other.length > 0) {
-    lines.push('### Other', '');
+    lines.push('### 🔧 Other', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
-        lines.push(`- ${item}`);
+        const converted = convertPRNumbersToLinks(item);
+        lines.push(`- ${converted}`);
       } else if (item && typeof item === 'object') {
         const scope = item.scope ? `**${item.scope}**: ` : '';
         const description = item.description || item.full || '';
         if (description) {
-          lines.push(`- ${scope}${description}`);
+          const converted = convertPRNumbersToLinks(description);
+          const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+          const author = item.author ? ` (@${item.author})` : '';
+          lines.push(`- ${scope}${converted}${commitLink}${author}`);
         }
       }
     });
     lines.push('');
   }
 
-  return lines.join('\n');
+  const content = lines.join('\n');
+  return deduplicateContent(content);
 }
 
-// 翻译文本（使用 Google Translate API）
-async function translateText(text, from = 'en', to = 'zh-CN') {
-  if (!text || text.trim().length === 0) {
-    return text;
-  }
-  // 如果已经包含中文，不需要翻译
-  if (/[\u4e00-\u9fa5]/.test(text)) {
-    return text;
-  }
-  try {
-    const https = await import('https');
-    const encodedText = encodeURIComponent(text);
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodedText}`;
-    return new Promise((resolve) => {
-      https.default.get(url, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            if (result && result[0] && result[0][0] && result[0][0][0]) {
-              resolve(result[0][0][0]);
-            } else {
-              resolve(text);
-            }
-          } catch (error) {
-            console.warn(`Translation failed for "${text}":`, error.message);
-            resolve(text);
-          }
-        });
-      }).on('error', (error) => {
-        console.warn(`Translation error for "${text}":`, error.message);
-        resolve(text);
-      });
-    });
-  } catch (error) {
-    console.warn(`Translation error for "${text}":`, error.message);
-    return text;
-  }
-}
-
-// 批量翻译文本
-async function translateTexts(texts) {
-  const results = [];
-  for (const text of texts) {
-    results.push(await translateText(text));
-    // 添加延迟以避免频率限制
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  return results;
-}
 
 // 生成 Unreleased 部分的中文内容
 async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
@@ -292,13 +186,16 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // Breaking changes
   if (grouped.breaking.length > 0) {
     lines.push('### ⚠️ 破坏性变更', '');
-    grouped.breaking.forEach((item) => {
+      grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -306,14 +203,17 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
 
   // Added
   if (grouped.feat.length > 0) {
-    lines.push('### 新增', '');
-    grouped.feat.forEach((item) => {
+    lines.push('### ✨ 新增', '');
+      grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -321,14 +221,17 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
 
   // Fixed
   if (grouped.fix.length > 0) {
-    lines.push('### 修复', '');
-    grouped.fix.forEach((item) => {
+    lines.push('### 🐛 修复', '');
+      grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -337,14 +240,17 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // Changed
   const changed = [...grouped.refactor, ...grouped.perf];
   if (changed.length > 0) {
-    lines.push('### 变更', '');
-    changed.forEach((item) => {
+    lines.push('### 🔄 变更', '');
+      changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -352,14 +258,17 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
 
   // Documentation
   if (grouped.docs.length > 0) {
-    lines.push('### 文档', '');
-    grouped.docs.forEach((item) => {
+    lines.push('### 📝 文档', '');
+      grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+      const author = item.author ? ` (@${item.author})` : '';
       if (autoTranslate && item.description) {
-        translations.push({ text: item.description, scope, lineIndex: lines.length });
+        translations.push({ text: item.description, scope, lineIndex: lines.length, commitLink, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${commitLink}${author}`);
       }
     });
     lines.push('');
@@ -384,24 +293,28 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
       ]
     : [];
   if (other.length > 0) {
-    lines.push('### 其他', '');
+    lines.push('### 🔧 其他', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
         if (autoTranslate) {
-          translations.push({ text: item, scope: '', lineIndex: lines.length, isString: true });
+          translations.push({ text: item, scope: '', lineIndex: lines.length, isString: true, commitLink: '', author: '' });
           lines.push(''); // 占位符
         } else {
-          lines.push(`- ${item}`);
+          const converted = convertPRNumbersToLinks(item);
+          lines.push(`- ${converted}`);
         }
       } else if (item && typeof item === 'object') {
         const scope = item.scope ? `**${item.scope}**: ` : '';
         const description = item.description || item.full || '';
         if (description) {
+          const commitLink = item.commitLink ? ` ${item.commitLink}` : '';
+          const author = item.author ? ` (@${item.author})` : '';
           if (autoTranslate) {
-            translations.push({ text: description, scope, lineIndex: lines.length });
+            translations.push({ text: description, scope, lineIndex: lines.length, commitLink, author });
             lines.push(''); // 占位符
           } else {
-            lines.push(`- ${scope}${description}`);
+            const converted = convertPRNumbersToLinks(description);
+            lines.push(`- ${scope}${converted}${commitLink}${author}`);
           }
         }
       }
@@ -415,28 +328,83 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
     const translatedTexts = await translateTexts(textsToTranslate);
     translations.forEach((translation, index) => {
       const translated = translatedTexts[index];
+      // 在翻译后应用 PR 链接转换
+      const translatedWithLinks = convertPRNumbersToLinks(translated);
+      const commitLink = translation.commitLink || '';
+      const author = translation.author || '';
       const lineIndex = translation.lineIndex;
       if (translation.isString) {
-        lines[lineIndex] = `- ${translated}`;
+        lines[lineIndex] = `- ${translatedWithLinks}${commitLink}${author}`;
       } else {
-        lines[lineIndex] = `- ${translation.scope}${translated}`;
+        lines[lineIndex] = `- ${translation.scope}${translatedWithLinks}${commitLink}${author}`;
       }
     });
   }
 
-  return lines.join('\n');
+  const content = lines.join('\n');
+  return deduplicateContent(content);
 }
 
-// 获取最新版本号
+// 获取最新版本号（所有 tag 中最新的版本，而不是当前分支上的最新 tag）
 function getLatestVersion() {
   try {
-    const tag = execSync('git describe --tags --abbrev=0', {
+    // 使用 git tag 按版本号排序，获取最新的版本
+    const tag = execSync('git tag --sort=-version:refname | head -1', {
       encoding: 'utf-8',
       cwd: rootDir,
     }).trim();
     return tag.replace(/^v/, '');
   } catch {
-    return null;
+    // 如果失败，回退到 git describe
+    try {
+      const tag = execSync('git describe --tags --abbrev=0', {
+        encoding: 'utf-8',
+        cwd: rootDir,
+      }).trim();
+      return tag.replace(/^v/, '');
+    } catch {
+      return null;
+    }
+  }
+}
+
+// 更新 changelog 中的 [Unreleased] 或 [未发布] 部分
+function updateChangelogSection(changelog, sectionTitle, sectionLinkPattern, newContent, versionTag) {
+  if (changelog.includes(sectionTitle)) {
+    // 找到部分的开始和结束位置
+    const sectionIndex = changelog.indexOf(sectionTitle);
+    const nextSectionIndex = changelog.indexOf('\n## [', sectionIndex + 1);
+
+    // 提取部分之前的内容
+    const beforeSection = changelog.slice(0, sectionIndex);
+
+    // 提取部分之后的内容（下一个版本部分或链接部分）
+    let afterSection = '';
+    if (nextSectionIndex > -1) {
+      // 有下一个版本部分
+      afterSection = changelog.slice(nextSectionIndex);
+    } else {
+      // 没有下一个版本部分，查找链接部分
+      const linkMatch = changelog.match(sectionLinkPattern);
+      if (linkMatch) {
+        const linkIndex = changelog.indexOf(linkMatch[0]);
+        // 提取链接行及其后面的内容
+        const linkLineEnd = changelog.indexOf('\n', linkIndex);
+        if (linkLineEnd > -1) {
+          afterSection = changelog.slice(linkLineEnd);
+        } else {
+          afterSection = '';
+        }
+        // 保留链接
+        afterSection = linkMatch[0] + (afterSection ? '\n' + afterSection : '');
+      }
+    }
+
+    // 重新构建：标题 + 新内容 + 后续内容
+    return beforeSection + sectionTitle + '\n\n' + newContent + (afterSection ? '\n\n' + afterSection : '');
+  } else {
+    // 如果没有该部分，在文件开头添加
+    return sectionTitle + '\n\n' + newContent + '\n\n' + changelog;
   }
 }
 
@@ -449,7 +417,7 @@ async function updateUnreleased() {
     return;
   }
 
-  const grouped = groupCommits(commits);
+  const grouped = groupCommits(commits, true); // 包含 commit 链接
 
   // 检查是否有对用户有价值的变更（排除内部维护性改动）
   // 只检查：feat, fix, perf, refactor, docs, revert, breaking
@@ -497,35 +465,13 @@ async function updateUnreleased() {
 
   // 更新英文 CHANGELOG
   let changelogEN = readFileSync(changelogENPath, 'utf-8');
-
-  if (changelogEN.includes('## [Unreleased]')) {
-    // 找到 [Unreleased] 部分的结束位置（下一个 ## 或文件末尾）
-    const unreleasedIndex = changelogEN.indexOf('## [Unreleased]');
-    const nextSectionIndex = changelogEN.indexOf('\n## [', unreleasedIndex + 1);
-
-    if (nextSectionIndex > -1) {
-      // 替换 [Unreleased] 部分的内容（保留标题和链接）
-      const beforeUnreleased = changelogEN.slice(0, unreleasedIndex + '## [Unreleased]'.length);
-      const afterNextSection = changelogEN.slice(nextSectionIndex);
-      changelogEN = beforeUnreleased + '\n\n' + contentEN + afterNextSection;
-    } else {
-      // 在文件末尾，替换 [Unreleased] 部分的内容
-      const beforeUnreleased = changelogEN.slice(0, unreleasedIndex + '## [Unreleased]'.length);
-      const afterUnreleased = changelogEN.slice(unreleasedIndex + '## [Unreleased]'.length);
-      // 找到链接部分
-      const linkIndex = afterUnreleased.indexOf('[Unreleased]:');
-      if (linkIndex > -1) {
-        const beforeLink = afterUnreleased.slice(0, linkIndex);
-        const linkPart = afterUnreleased.slice(linkIndex);
-        changelogEN = beforeUnreleased + '\n\n' + contentEN + beforeLink + linkPart;
-      } else {
-        changelogEN = beforeUnreleased + '\n\n' + contentEN + afterUnreleased;
-      }
-    }
-  } else {
-    // 如果没有 [Unreleased] 部分，在文件开头添加
-    changelogEN = `## [Unreleased]\n\n${contentEN}\n\n${changelogEN}`;
-  }
+  changelogEN = updateChangelogSection(
+    changelogEN,
+    '## [Unreleased]',
+    /\[Unreleased\]:\s*https:\/\/[^\s]+/,
+    contentEN,
+    versionTag
+  );
 
   // 更新链接
   changelogEN = changelogEN.replace(
@@ -538,30 +484,13 @@ async function updateUnreleased() {
 
   // 更新中文 CHANGELOG
   let changelogZH = readFileSync(changelogZHPath, 'utf-8');
-
-  if (changelogZH.includes('## [未发布]')) {
-    const unreleasedIndex = changelogZH.indexOf('## [未发布]');
-    const nextSectionIndex = changelogZH.indexOf('\n## [', unreleasedIndex + 1);
-
-    if (nextSectionIndex > -1) {
-      const beforeUnreleased = changelogZH.slice(0, unreleasedIndex + '## [未发布]'.length);
-      const afterNextSection = changelogZH.slice(nextSectionIndex);
-      changelogZH = beforeUnreleased + '\n\n' + contentZH + afterNextSection;
-    } else {
-      const beforeUnreleased = changelogZH.slice(0, unreleasedIndex + '## [未发布]'.length);
-      const afterUnreleased = changelogZH.slice(unreleasedIndex + '## [未发布]'.length);
-      const linkIndex = afterUnreleased.indexOf('[未发布]:');
-      if (linkIndex > -1) {
-        const beforeLink = afterUnreleased.slice(0, linkIndex);
-        const linkPart = afterUnreleased.slice(linkIndex);
-        changelogZH = beforeUnreleased + '\n\n' + contentZH + beforeLink + linkPart;
-      } else {
-        changelogZH = beforeUnreleased + '\n\n' + contentZH + afterUnreleased;
-      }
-    }
-  } else {
-    changelogZH = `## [未发布]\n\n${contentZH}\n\n${changelogZH}`;
-  }
+  changelogZH = updateChangelogSection(
+    changelogZH,
+    '## [未发布]',
+    /\[未发布\]:\s*https:\/\/[^\s]+/,
+    contentZH,
+    versionTag
+  );
 
   // 更新链接
   changelogZH = changelogZH.replace(

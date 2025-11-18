@@ -12,6 +12,7 @@ import { default as _, default as lodash } from 'lodash';
 
 import { AppMigrator } from './app-migrator';
 import { FieldValueWriter } from './field-value-writer';
+import { ProgressManager, ProgressTracker } from './progress-tracker';
 import { DUMPED_EXTENSION, humanFileSize, sqlAdapter } from './utils';
 
 const finished = util.promisify(stream.finished);
@@ -20,6 +21,7 @@ type DumpOptions = {
   groups: Set<DumpRulesGroupType>;
   fileName?: string;
   appName?: string;
+  userId?: number;
 };
 
 type BackUpStatusOk = {
@@ -33,6 +35,8 @@ type BackUpStatusDoing = {
   name: string;
   inProgress: true;
   status: 'in_progress';
+  progress?: number;
+  currentStep?: string;
 };
 
 type BackUpStatusError = {
@@ -46,6 +50,19 @@ export class Dumper extends AppMigrator {
 
   direction = 'dump' as const;
 
+  private get progressManager(): ProgressManager {
+    if (!this._progressManager) {
+      this._progressManager = new ProgressManager(
+        (appName?: string) => this.backUpStorageDir(appName),
+        this.workDir,
+        this.app,
+      );
+    }
+    return this._progressManager;
+  }
+
+  private _progressManager?: ProgressManager;
+
   sqlContent: {
     [key: string]: {
       sql: string | string[];
@@ -57,13 +74,17 @@ export class Dumper extends AppMigrator {
     return this.dumpTasks.get(taskId);
   }
 
-  static async getFileStatus(filePath: string): Promise<BackUpStatusOk | BackUpStatusDoing | BackUpStatusError> {
+  static async getFileStatus(
+    filePath: string,
+    appName?: string,
+  ): Promise<BackUpStatusOk | BackUpStatusDoing | BackUpStatusError> {
     const lockFile = filePath + '.lock';
+    const progressFile = filePath + '.progress';
     const fileName = path.basename(filePath);
 
     return fs.promises
       .stat(lockFile)
-      .then((lockFileStat) => {
+      .then(async (lockFileStat) => {
         if (lockFileStat.isFile()) {
           // 超过2小时认为是失败
           if (lockFileStat.ctime.getTime() < Date.now() - 2 * 60 * 60 * 1000) {
@@ -73,10 +94,21 @@ export class Dumper extends AppMigrator {
               status: 'error',
             } as BackUpStatusError;
           } else {
+            // 尝试读取进度信息
+            let progress: { percent: number; currentStep: string } | null = null;
+            try {
+              const progressContent = await fsPromises.readFile(progressFile, 'utf8');
+              progress = JSON.parse(progressContent);
+            } catch (error) {
+              // 忽略进度文件不存在的错误
+            }
+
             return {
               name: fileName,
               inProgress: true,
               status: 'in_progress',
+              progress: progress?.percent,
+              currentStep: progress?.currentStep,
             } as BackUpStatusDoing;
           }
         } else {
@@ -240,6 +272,8 @@ export class Dumper extends AppMigrator {
   async cleanLockFile(fileName: string, appName: string) {
     const filePath = this.lockFilePath(fileName, appName);
     await fsPromises.unlink(filePath);
+    // 同时清理进度文件
+    await this.progressManager.cleanProgressFile(fileName, appName);
   }
 
   async getLockFile(appName: string) {
@@ -253,6 +287,7 @@ export class Dumper extends AppMigrator {
       groups: options.groups,
       fileName: options.fileName,
       appName: options.appName,
+      userId: options.userId,
     });
   }
 
@@ -268,10 +303,19 @@ export class Dumper extends AppMigrator {
     const dumpingGroups = options.groups;
     dumpingGroups.add('required');
 
+    const backupFileName = options.fileName || Dumper.generateFileName();
+    const progressTracker = this.progressManager.createProgressTracker(backupFileName, options.appName, options.userId);
+
+    // 步骤 1: 准备阶段 (0-5%)
+    await progressTracker.update(0, 'Preparing...');
+
     const delayCollections = new Set();
     const dumpedCollections = await this.getCollectionsByDataTypes(dumpingGroups);
+    const totalCollections = dumpedCollections.length;
 
-    for (const collectionName of dumpedCollections) {
+    // 步骤 2: 备份集合数据 (5-70%)
+    for (let i = 0; i < dumpedCollections.length; i++) {
+      const collectionName = dumpedCollections[i];
       const collection = this.app.db.getCollection(collectionName);
       if (lodash.get(collection.options, 'dumpRules.delayRestore')) {
         delayCollections.add(collectionName);
@@ -280,30 +324,59 @@ export class Dumper extends AppMigrator {
       await this.dumpCollection({
         name: collectionName,
       });
+
+      // 更新进度
+      const progress = progressTracker.getCollectionProgress(i, totalCollections);
+      await progressTracker.update(progress, `Dumping collection: ${collectionName} (${i + 1}/${totalCollections})`);
     }
 
+    // 步骤 3: 备份元数据和数据库特殊内容 (70-90%)
+    await progressTracker.update(70, 'Dumping metadata...');
     await this.dumpMeta({
       dumpableCollectionsGroupByGroup: lodash.pick(await this.dumpableCollectionsGroupByGroup(), [...dumpingGroups]),
       dumpedGroups: [...dumpingGroups],
       delayCollections: [...delayCollections],
     });
 
-    await this.dumpDb(options);
+    await progressTracker.update(75, 'Dumping metadata...');
+    await progressTracker.update(80, 'Dumping database content...');
+    await this.dumpDb(options, progressTracker);
 
-    const backupFileName = options.fileName || Dumper.generateFileName();
-    const filePath = await this.packDumpedDir(backupFileName, options.appName);
+    // 步骤 4: 打包文件 (90-99%)
+    await progressTracker.update(90, 'Packing backup file...');
+    const filePath = await this.packDumpedDir(backupFileName, options.appName, progressTracker);
     await this.clearWorkDir();
+
+    // 完成 (100%)
+    await progressTracker.update(100, 'Completed');
+    // 清理进度文件
+    await this.progressManager.cleanProgressFile(backupFileName, options.appName);
+
     return filePath;
   }
 
-  async dumpDb(options: DumpOptions) {
-    for (const collection of this.app.db.collections.values()) {
+  async dumpDb(options: DumpOptions, progressTracker?: ProgressTracker) {
+    const collections = Array.from(this.app.db.collections.values());
+    const totalCollections = collections.length;
+    let processedCollections = 0;
+
+    for (const collection of collections) {
       const collectionOnDumpOption = this.app.db.collectionFactory.collectionTypes.get(
         collection.constructor as typeof Collection,
       )?.onDump;
 
       if (collectionOnDumpOption) {
         await collectionOnDumpOption(this, collection);
+        processedCollections++;
+
+        // 更新进度
+        if (progressTracker && totalCollections > 0) {
+          const progress = progressTracker.getDbContentProgress(processedCollections, totalCollections);
+          await progressTracker.update(
+            progress,
+            `Dumping database content... (${processedCollections}/${totalCollections})`,
+          );
+        }
       }
     }
 
@@ -322,6 +395,11 @@ export class Dumper extends AppMigrator {
         ),
         'utf8',
       );
+    }
+
+    // 确保进度更新到 88%
+    if (progressTracker) {
+      await progressTracker.update(88, 'Dumping database content...');
     }
   }
 
@@ -472,7 +550,7 @@ export class Dumper extends AppMigrator {
     await fsPromises.writeFile(path.resolve(collectionDataDir, 'meta'), JSON.stringify(meta), 'utf8');
   }
 
-  async packDumpedDir(fileName: string, appName?: string) {
+  async packDumpedDir(fileName: string, appName?: string, progressTracker?: ProgressTracker) {
     const dirname = this.backUpStorageDir(appName);
     await fsPromises.mkdir(dirname, { recursive: true });
 
@@ -483,10 +561,20 @@ export class Dumper extends AppMigrator {
       zlib: { level: 9 },
     });
 
+    let cleanupProgress: (() => void) | null = null;
+
+    // 如果有进度跟踪器，设置打包进度更新
+    if (progressTracker) {
+      cleanupProgress = this.progressManager.setupPackingProgress(archive, progressTracker);
+    }
+
     // Create a promise that resolves when the 'close' event is fired
     const onClose = new Promise((resolve, reject) => {
       output.on('close', function () {
         console.log('dumped file size: ' + humanFileSize(archive.pointer(), true));
+        if (cleanupProgress) {
+          cleanupProgress();
+        }
         resolve(true);
       });
 
@@ -504,6 +592,9 @@ export class Dumper extends AppMigrator {
       });
 
       archive.on('error', function (err) {
+        if (cleanupProgress) {
+          cleanupProgress();
+        }
         reject(err);
       });
     });
@@ -517,6 +608,11 @@ export class Dumper extends AppMigrator {
 
     // Wait for the 'close' event
     await onClose;
+
+    // 确保进度更新到 99%
+    if (progressTracker) {
+      await progressTracker.update(99, 'Packing backup file...');
+    }
 
     return {
       filePath,

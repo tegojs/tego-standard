@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
-
 import { DumpRulesGroupType, Plugin } from '@tego/server';
+
 import parser from 'cron-parser';
 
 import { COLLECTION_AUTOBACKUP } from '../constants';
@@ -222,11 +222,12 @@ export default class PluginBackupRestoreServer extends Plugin {
     this.schedule(cronJob, null, false);
   }
 
-  async workerCreateBackUp(data: { dataTypes: string[]; appName: string; filename: string }) {
+  async workerCreateBackUp(data: { dataTypes: string[]; appName: string; filename: string; userId?: number }) {
     await new Dumper(this.app).runDumpTask({
       groups: new Set(data.dataTypes) as Set<DumpRulesGroupType>,
       appName: data.appName,
       fileName: data.filename,
+      userId: data.userId,
     });
   }
 }

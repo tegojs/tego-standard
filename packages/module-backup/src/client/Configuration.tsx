@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox, DatePicker, useAPIClient, useCompile, useNoticeSub } from '@tachybase/client';
 import { FormItem } from '@tego/client';
 
@@ -26,6 +26,9 @@ import {
 } from 'antd';
 import { saveAs } from 'file-saver';
 
+import { BackupProgressCell } from './components/BackupProgressCell';
+import { useBackupProgress } from './hooks/useBackupProgress';
+import { useDownloadProgress } from './hooks/useDownloadProgress';
 import { useDuplicatorTranslation } from './locale';
 
 const { Dragger } = Upload;
@@ -348,8 +351,8 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
     setIsModalOpen(true);
   };
 
-  const handleOk = (method) => {
-    apiClient.request({
+  const handleOk = async (method) => {
+    await apiClient.request({
       url: 'backupFiles:create',
       method: 'post',
       data: {
@@ -363,6 +366,8 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
       .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
       .map((item) => item.value);
     setBackupData(['required', ...availableCommonTypes]);
+    // 立即刷新列表以显示新创建的备份任务
+    // 使用较短的延迟确保后端已经创建了 lock 文件
     setTimeout(() => {
       refresh();
     }, 500);
@@ -481,15 +486,52 @@ export const BackupAndRestoreList = () => {
   const apiClient = useAPIClient();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [downloadTarget, setDownloadTarget] = useState(false);
   const { modal, notification } = App.useApp();
   const resource = useMemo(() => {
     return apiClient.resource('backupFiles');
   }, [apiClient]);
 
+  // 使用下载进度 hook
+  const { downloadProgress, handleDownload } = useDownloadProgress({
+    onDownloadComplete: (fileName, blob) => {
+      saveAs(blob, fileName);
+      notification.success({
+        key: 'downloadBackup',
+        message: <span>{t('Downloaded success!')}</span>,
+        duration: 1,
+      });
+    },
+    onDownloadError: (fileName, error) => {
+      notification.error({
+        key: 'downloadBackup',
+        message: <span>{t('Download failed')}</span>,
+        duration: 3,
+      });
+    },
+  });
+
+  const queryFieldList = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+      try {
+        const { data } = await resource.list();
+        // 后端返回的数据结构是 { rows: [...], count: ..., page: ..., pageSize: ..., totalPage: ... }
+        const newDataSource = data?.rows || data?.data || [];
+        setDataSource(newDataSource);
+      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [resource],
+  );
+
   const handleRefresh = useCallback(async () => {
     await queryFieldList();
-  }, []);
+  }, [queryFieldList]);
 
   useNoticeSub('backup', (message) => {
     let func = notification[message.level] || notification.info;
@@ -502,50 +544,17 @@ export const BackupAndRestoreList = () => {
 
   useEffect(() => {
     queryFieldList();
-  }, []);
-  const queryFieldList = async () => {
-    setLoading(true);
-    const { data } = await resource.list();
-    setDataSource(data.data);
-    setLoading(false);
-  };
-  const handleDownload = async (fileData) => {
-    setDownloadTarget(fileData.name);
-    // TODO: 优化成断点续传下载
-    const data = await apiClient.request({
-      url: 'backupFiles:download',
-      method: 'get',
-      params: {
-        filterByTk: fileData.name,
-      },
-      responseType: 'blob',
-      onDownloadProgress: (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        const success = percentCompleted >= 100;
-        if (!success) {
-          notification.info({
-            key: 'downloadBackup',
-            message: (
-              <span>
-                {t('Downloading ') + percentCompleted + '%'} &nbsp; &nbsp;
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-              </span>
-            ),
-            duration: 0,
-          });
-        } else {
-          notification.success({
-            key: 'downloadBackup',
-            message: <span>{t('Downloaded success!')}</span>,
-            duration: 1,
-          });
-        }
-      },
-    });
-    setDownloadTarget(false);
-    const blob = new Blob([data.data]);
-    saveAs(blob, fileData.name);
-  };
+  }, [queryFieldList]);
+
+  // 使用备份进度 hook，监听 WebSocket 消息
+  useBackupProgress({
+    dataSource,
+    onDataSourceUpdate: setDataSource,
+    onComplete: (fileName) => {
+      // 进度达到 100% 时刷新列表
+      queryFieldList(false);
+    },
+  });
   const handleDestory = (fileData) => {
     modal.confirm({
       title: t('Delete record', { ns: 'core' }),
@@ -586,16 +595,12 @@ export const BackupAndRestoreList = () => {
               onCell: (data) => {
                 return data.inProgress
                   ? {
-                      colSpan: 5,
+                      colSpan: 1,
                     }
                   : {};
               },
               render: (name, data) =>
-                data.inProgress ? (
-                  <div style={{ color: 'rgba(0, 0, 0, 0.88)' }}>
-                    {name}({t('Backing up')}...)
-                  </div>
-                ) : data.status === 'error' ? (
+                data.status === 'error' ? (
                   <div style={{ color: 'red' }}>
                     {name}({t('Error')})
                   </div>
@@ -604,36 +609,47 @@ export const BackupAndRestoreList = () => {
                 ),
             },
             {
-              title: t('File size'),
-              dataIndex: 'fileSize',
-              onCell: (data) => {
-                return data.inProgress
-                  ? {
-                      colSpan: 0,
-                    }
-                  : {};
+              title: t('Backup progress'),
+              dataIndex: 'progress',
+              width: 200,
+              align: 'center',
+              render: (_, record) => {
+                return (
+                  <BackupProgressCell
+                    inProgress={record.inProgress}
+                    status={record.status}
+                    progress={record.progress}
+                    currentStep={record.currentStep}
+                    downloadProgress={downloadProgress[record.name]}
+                    showDownloadText={false}
+                  />
+                );
               },
             },
             {
-              title: t('Progress'),
-              dataIndex: 'progress',
+              title: t('File size'),
+              dataIndex: 'fileSize',
               width: 150,
-              onCell: (data) => {
-                return data.inProgress
-                  ? {
-                      colSpan: 0,
-                    }
-                  : {};
-              },
-              render: (_, record) => {
-                if (record.inProgress) {
-                  return <Progress percent={undefined} status="active" />;
-                } else if (record.status === 'error') {
-                  return <Progress percent={0} status="exception" />;
-                } else if (record.status === 'ok') {
-                  return <Progress percent={100} status="success" />;
-                }
-                return null;
+              render: (value, record) => {
+                const percent = record.progress ?? 0;
+                const stepText = record.currentStep || t('Backing up');
+                return record.inProgress ? (
+                  <div
+                    style={{
+                      width: '150px',
+                      fontSize: '12px',
+                      color: 'rgba(0, 0, 0, 0.45)',
+                      marginTop: '4px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {percent > 0 ? `${percent}%` : ''}&nbsp;{stepText}
+                  </div>
+                ) : (
+                  value
+                );
               },
             },
             {

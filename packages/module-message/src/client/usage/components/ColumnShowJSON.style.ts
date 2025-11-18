@@ -25,5 +25,11 @@ export const useStyles = createStyles(({ css }) => {
         }
       }
     `,
+    tablePlaceholder: css`
+      color: #999;
+      font-style: italic;
+      display: inline-flex;
+      align-items: center;
+    `,
   };
 });

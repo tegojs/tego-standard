@@ -20,6 +20,7 @@ export default {
   'Backup instructions': 'バックアップの説明',
   'File size': 'ファイルサイズ',
   'New backup': '新規バックアップ',
+  Progress: '進捗',
   Origin: 'ソース',
   'Backing up': 'バックアップ中',
   'workflow.title': 'ワークフロー実行レコード',

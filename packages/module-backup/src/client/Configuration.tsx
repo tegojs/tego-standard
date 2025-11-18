@@ -14,6 +14,7 @@ import {
   Menu,
   message,
   Modal,
+  Progress,
   Row,
   Space,
   Spin,
@@ -177,28 +178,34 @@ const Restore = ({ ButtonComponent = Button, title, upload = false, fileData }: 
   const checkAll = dataSource.length === dataTypes.length;
 
   useEffect(() => {
-    setDataSource(
-      Object.keys(restoreData?.dumpableCollectionsGroupByGroup || []).map((key) => ({
-        value: key,
-        label: t(`${key}.title`),
-        disabled: ['required', 'skipped'].includes(key),
-      })),
-    );
-  }, [restoreData]);
+    const newDataSource = Object.keys(restoreData?.dumpableCollectionsGroupByGroup || []).map((key) => ({
+      value: key,
+      label: t(`${key}.title`),
+      disabled: ['required', 'skipped'].includes(key),
+    }));
+    setDataSource(newDataSource);
+    // 默认全选
+    if (newDataSource.length > 0) {
+      setDataTypes(newDataSource.map((item) => item.value));
+    }
+  }, [restoreData, t]);
 
   const showModal = async () => {
     setIsModalOpen(true);
     if (!upload) {
       setLoading(true);
       const { data } = await resource.get({ filterByTk: fileData.name });
-      setDataSource(
-        Object.keys(data?.data?.meta?.dumpableCollectionsGroupByGroup || []).map((key) => ({
-          value: key,
-          label: t(`${key}.title`),
-          disabled: ['required', 'skipped'].includes(key),
-        })),
-      );
+      const newDataSource = Object.keys(data?.data?.meta?.dumpableCollectionsGroupByGroup || []).map((key) => ({
+        value: key,
+        label: t(`${key}.title`),
+        disabled: ['required', 'skipped'].includes(key),
+      }));
+      setDataSource(newDataSource);
       setRestoreData(data?.data?.meta);
+      // 默认全选
+      if (newDataSource.length > 0) {
+        setDataTypes(newDataSource.map((item) => item.value));
+      }
       setLoading(false);
     }
   };
@@ -216,7 +223,12 @@ const Restore = ({ ButtonComponent = Button, title, upload = false, fileData }: 
   const handleCancel = () => {
     setIsModalOpen(false);
     setRestoreData(null);
-    setDataTypes(['required']);
+    // 重置时保持全选状态（如果有数据源）
+    if (dataSource.length > 0) {
+      setDataTypes(dataSource.map((item) => item.value));
+    } else {
+      setDataTypes(['required']);
+    }
   };
 
   const onCheckAllChange: CheckboxProps['onChange'] = (e) => {
@@ -268,7 +280,6 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dataTypes, setBackupData] = useState<any[]>(['required']);
   const apiClient = useAPIClient();
-  const { notification } = App.useApp();
   const [dataSource, setDataSource] = useState([]);
   const commonTypes = ['required', 'user', 'third-party', 'custom'];
 
@@ -321,13 +332,19 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
 
   const showModal = async () => {
     const { data } = await apiClient.resource('backupFiles').dumpableCollections();
-    setDataSource(
-      Object.keys(data || []).map((key) => ({
-        value: key,
-        label: t(`${key}.title`),
-        disabled: ['required', 'skipped'].includes(key),
-      })),
-    );
+    const newDataSource = Object.keys(data || []).map((key) => ({
+      value: key,
+      label: t(`${key}.title`),
+      disabled: ['required', 'skipped'].includes(key),
+    }));
+    setDataSource(newDataSource);
+
+    // 默认选择常用类型
+    const availableCommonTypes = newDataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    setBackupData(['required', ...availableCommonTypes]);
+
     setIsModalOpen(true);
   };
 
@@ -340,18 +357,12 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
         method,
       },
     });
-    notification.info({
-      key: 'backup',
-      message: (
-        <span>
-          {t('Processing...')} &nbsp; &nbsp;
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-        </span>
-      ),
-      duration: 0,
-    });
     setIsModalOpen(false);
-    setBackupData(['required']);
+    // 重置为常用类型
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    setBackupData(['required', ...availableCommonTypes]);
     setTimeout(() => {
       refresh();
     }, 500);
@@ -359,7 +370,11 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
 
   const handleCancel = () => {
     setIsModalOpen(false);
-    setBackupData(['required']);
+    // 重置为常用类型
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    setBackupData(['required', ...availableCommonTypes]);
   };
 
   return (
@@ -571,7 +586,7 @@ export const BackupAndRestoreList = () => {
               onCell: (data) => {
                 return data.inProgress
                   ? {
-                      colSpan: 4,
+                      colSpan: 5,
                     }
                   : {};
               },
@@ -597,6 +612,28 @@ export const BackupAndRestoreList = () => {
                       colSpan: 0,
                     }
                   : {};
+              },
+            },
+            {
+              title: t('Progress'),
+              dataIndex: 'progress',
+              width: 150,
+              onCell: (data) => {
+                return data.inProgress
+                  ? {
+                      colSpan: 0,
+                    }
+                  : {};
+              },
+              render: (_, record) => {
+                if (record.inProgress) {
+                  return <Progress percent={undefined} status="active" />;
+                } else if (record.status === 'error') {
+                  return <Progress percent={0} status="exception" />;
+                } else if (record.status === 'ok') {
+                  return <Progress percent={100} status="success" />;
+                }
+                return null;
               },
             },
             {

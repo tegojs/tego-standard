@@ -21,6 +21,7 @@ const locale = {
   'Backup instructions': 'Instruções de cópia de segurança',
   'File size': 'tamanho do ficheiro',
   'New backup': 'Nova Cópia de Segurança',
+  Progress: 'Progresso',
   Origin: 'fonte',
   'Backing up': 'Cópia de segurança em curso',
   'workflow.title': 'Registros de execução do fluxo de trabalho',

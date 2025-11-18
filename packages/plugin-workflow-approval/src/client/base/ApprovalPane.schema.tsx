@@ -1,21 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
-  SchemaComponent,
-  TableBlockProvider,
   useActionContext,
   useAPIClient,
   useCollectionRecordData,
-  useCompile,
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
 } from '@tachybase/client';
 import { collectionWorkflows, TabTableBlockProvider, WorkflowTabCardItem } from '@tachybase/module-workflow/client';
-import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
+import { ISchema, useForm } from '@tachybase/schema';
 
-import { App, message } from 'antd';
+import { message } from 'antd';
 import { saveAs } from 'file-saver';
-import _ from 'lodash';
 
 import { NAMESPACE, tval, useTranslation } from '../locale';
 import { schemaExecution } from './Execution.schema';
@@ -639,22 +635,7 @@ export const schemaApprovalPanne = {
                                   'x-component': 'Action',
                                   'x-component-props': {
                                     type: 'primary',
-                                    useAction() {
-                                      const { t } = useTranslation();
-                                      const { refresh } = useDataBlockRequest();
-                                      const resource = useDataBlockResource();
-                                      const { setVisible } = useActionContext();
-                                      const filterByTk = useFilterByTk();
-                                      const { values } = useForm();
-                                      return {
-                                        async run() {
-                                          await resource.revision({ filterByTk, values });
-                                          message.success(t('Operation succeeded'));
-                                          refresh();
-                                          setVisible(false);
-                                        },
-                                      };
-                                    },
+                                    useAction: '{{ useRevisionAction }}',
                                   },
                                 },
                                 cancel: {

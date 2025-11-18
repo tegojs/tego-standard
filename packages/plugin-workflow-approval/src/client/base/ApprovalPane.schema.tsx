@@ -625,6 +625,27 @@ export const schemaApprovalPanne = {
                               'x-decorator': 'FormItem',
                               'x-component': 'Input',
                             },
+                            category: {
+                              'x-collection-field': 'workflows.category',
+                              'x-component': 'CollectionField',
+                              'x-decorator': 'FormItem',
+                              'x-component-props': {
+                                multiple: true,
+                                service: {
+                                  params: {
+                                    filter: {
+                                      $and: [
+                                        {
+                                          type: {
+                                            $eq: 'approval',
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
+                                },
+                              },
+                            },
                             footer: {
                               type: 'void',
                               'x-component': 'Action.Modal.Footer',

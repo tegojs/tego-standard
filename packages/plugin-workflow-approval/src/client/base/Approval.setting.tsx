@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import {
   useActionContext,
   useCancelAction,
+  useCollectionRecordData,
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
@@ -42,12 +44,32 @@ function useRevisionAction() {
   const { t } = useTranslation();
   const { refresh } = useDataBlockRequest();
   const resource = useDataBlockResource();
-  const { setVisible } = useActionContext();
+  const { setVisible, visible } = useActionContext();
   const filterByTk = useFilterByTk();
-  const { values } = useForm();
+  const { values, setInitialValues } = useForm();
+  const record = useCollectionRecordData();
+
+  // 当 Modal 打开时，设置分类的默认值为当前工作流的分类
+  useEffect(() => {
+    if (visible && record?.category) {
+      // 直接使用对象数组，这样 CollectionField 可以正确显示分类名称
+      // 提交时会自动转换为 ID 数组
+      setInitialValues({
+        category: record.category,
+      });
+    }
+  }, [visible, record, setInitialValues]);
+
   return {
     async run() {
-      await resource.revision({ filterByTk, values });
+      // 确保提交时分类字段是 ID 数组格式
+      const submitValues = { ...values };
+      if (submitValues.category && Array.isArray(submitValues.category)) {
+        submitValues.category = submitValues.category.map((item) =>
+          typeof item === 'object' && item?.id != null ? item.id : item,
+        );
+      }
+      await resource.revision({ filterByTk, values: submitValues });
       message.success(t('Operation succeeded'));
       refresh();
       setVisible(false);

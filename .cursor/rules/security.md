@@ -1,8 +1,19 @@
 # Security Guidelines / 安全开发指南
 
-This document provides comprehensive security guidelines for the Tego Standard project.
+This document provides comprehensive security guidelines for the Tego project.
 
-本文档提供 Tego Standard 项目的全面安全开发指南。
+本文档提供 Tego 项目的全面安全开发指南。
+
+## Quick Navigation / 快速导航
+
+- [Authentication / 认证](resources/security/authentication.md) - Token security, password security, session management
+  Token 安全、密码安全、会话管理
+- [Authorization / 授权](resources/security/authorization.md) - ACL, resource-level authorization, permissions
+  ACL、资源级授权、权限
+- [Input Validation / 输入验证](resources/security/input-validation.md) - Input sanitization, SQL injection prevention
+  输入清理、SQL 注入防护
+- [Common Vulnerabilities / 常见漏洞](resources/security/vulnerabilities.md) - XSS, CSRF, path traversal prevention
+  XSS、CSRF、路径遍历防护
 
 ## Security Principles / 安全原则
 
@@ -22,173 +33,6 @@ This document provides comprehensive security guidelines for the Tego Standard p
    - Validate and sanitize all input / 验证和清理所有输入
    - Use parameterized queries / 使用参数化查询
 
-## Authentication / 认证
-
-### Token Security / Token 安全
-
-```typescript
-// ✅ Good / 好的 - Secure token handling / 安全的 token 处理
-const token = ctx.getBearerToken();
-if (!token) {
-  ctx.throw(401, { message: 'Unauthenticated' });
-}
-
-// Validate token / 验证 token
-const payload = await jwt.decode(token);
-if (payload.exp < Date.now() / 1000) {
-  ctx.throw(401, { message: 'Token expired' });
-}
-
-// Check blacklist / 检查黑名单
-const blocked = await jwt.blacklist.has(payload.jti);
-if (blocked) {
-  ctx.throw(401, { message: 'Token blocked' });
-}
-
-// ❌ Bad / 不好的 - Trust token without validation / 不验证就信任 token
-const token = ctx.getBearerToken();
-const payload = jwt.decode(token); // No validation / 没有验证
-```
-
-### API Keys / API 密钥
-
-```typescript
-// ✅ Good / 好的 - Secure API key handling / 安全的 API 密钥处理
-app.resourcer.use(async (ctx, next) => {
-  const token = ctx.getBearerToken();
-  if (token?.length === 64) { // API key format / API 密钥格式
-    const key = await repo.findOne({
-      filter: { accessToken: token },
-    });
-    if (key) {
-      ctx.getBearerToken = () => key.token; // Use associated token / 使用关联的 token
-    }
-  }
-  await next();
-}, { tag: 'api-access-token', before: 'auth' });
-```
-
-### Password Security / 密码安全
-
-```typescript
-import bcrypt from 'bcrypt';
-
-// ✅ Good / 好的 - Hash passwords / 哈希密码
-const hashedPassword = await bcrypt.hash(password, 10);
-
-// ✅ Good / 好的 - Verify passwords / 验证密码
-const isValid = await bcrypt.compare(password, hashedPassword);
-
-// ❌ Bad / 不好的 - Store plain text passwords / 存储明文密码
-await db.getRepository('users').create({
-  values: { password: plainTextPassword }, // Never do this / 永远不要这样做
-});
-```
-
-## Authorization / 授权
-
-### ACL (Access Control List) / 访问控制列表
-
-```typescript
-// ✅ Good / 好的 - Check permissions before actions / 操作前检查权限
-const canAccess = await ctx.acl.can({
-  role: ctx.state.user.role,
-  resource: 'users',
-  action: 'create',
-});
-
-if (!canAccess) {
-  ctx.throw(403, { message: 'Forbidden' });
-}
-
-// ✅ Good / 好的 - Use ACL middleware / 使用 ACL 中间件
-app.resourcer.use(acl.middleware(), { tag: 'acl', after: ['auth'] });
-```
-
-### Resource-Level Authorization / 资源级授权
-
-```typescript
-// ✅ Good / 好的 - Filter by user ownership / 按用户所有权过滤
-app.resourcer.use(async (ctx, next) => {
-  const { resourceName, actionName } = ctx.action;
-  if (resourceName === 'apiKeys' && ['list', 'destroy'].includes(actionName)) {
-    ctx.action.mergeParams({
-      filter: {
-        createdById: ctx.auth.user.id, // Only user's own resources / 仅用户自己的资源
-      },
-    });
-  }
-  await next();
-}, { tag: 'resourceFilter', after: 'auth' });
-```
-
-### Module/Plugin Authorization / 模块/插件授权
-
-```typescript
-// ✅ Good / 好的 - Register ACL snippets for plugins / 为插件注册 ACL 片段
-class MyPlugin extends Plugin {
-  async beforeLoad() {
-    this.app.acl.registerSnippet({
-      name: ['pm', this.name, 'configuration'].join('.'),
-      actions: ['myResource:list', 'myResource:create'],
-    });
-  }
-}
-```
-
-## Input Validation / 输入验证
-
-### Sanitize User Input / 清理用户输入
-
-```typescript
-import validator from 'validator';
-
-// ✅ Good / 好的 - Validate and sanitize input / 验证和清理输入
-function validateEmail(email: string): string {
-  if (!validator.isEmail(email)) {
-    throw new Error('Invalid email format');
-  }
-  return validator.normalizeEmail(email);
-}
-
-function sanitizeHtml(html: string): string {
-  return validator.escape(html); // Prevent XSS / 防止 XSS
-}
-
-// ❌ Bad / 不好的 - Use raw user input / 使用原始用户输入
-const userInput = ctx.request.body.content;
-await db.getRepository('posts').create({ values: { content: userInput } }); // XSS risk / XSS 风险
-```
-
-### SQL Injection Prevention / SQL 注入防护
-
-```typescript
-// ✅ Good / 好的 - Use parameterized queries / 使用参数化查询
-const user = await db.getRepository('users').findOne({
-  filter: {
-    email: userEmail, // Parameterized / 参数化
-  },
-});
-
-// ❌ Bad / 不好的 - String concatenation / 字符串拼接
-const query = `SELECT * FROM users WHERE email = '${userEmail}'`; // SQL injection risk / SQL 注入风险
-```
-
-### Type Validation / 类型验证
-
-```typescript
-import { z } from 'zod';
-
-// ✅ Good / 好的 - Use schema validation / 使用模式验证
-const userSchema = z.object({
-  name: z.string().min(1).max(100),
-  email: z.string().email(),
-  age: z.number().int().min(0).max(120),
-});
-
-const validatedData = userSchema.parse(ctx.request.body);
-```
-
 ## Data Protection / 数据保护
 
 ### Sensitive Data / 敏感数据
@@ -204,10 +48,6 @@ const user = await db.getRepository('users').findOne({
 delete user.password;
 delete user.secretKey;
 delete user.apiKey;
-
-// ❌ Bad / 不好的 - Expose all fields / 暴露所有字段
-const user = await db.getRepository('users').findOne({ filter: { id: userId } });
-ctx.body = user; // May include password / 可能包含密码
 ```
 
 ### Encryption / 加密
@@ -255,9 +95,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-// ❌ Bad / 不好的 - Allow all origins / 允许所有来源
-app.use(cors({ origin: '*' })); // Security risk / 安全风险
 ```
 
 ### HTTPS / HTTPS
@@ -273,74 +110,6 @@ if (process.env.NODE_ENV === 'production') {
     return next();
   });
 }
-```
-
-## Common Vulnerabilities / 常见漏洞
-
-### XSS (Cross-Site Scripting) / 跨站脚本攻击
-
-```typescript
-// ✅ Good / 好的 - Escape user input / 转义用户输入
-import { escape } from 'lodash';
-
-const safeContent = escape(userInput);
-
-// ✅ Good / 好的 - Use Content Security Policy / 使用内容安全策略
-app.use((ctx, next) => {
-  ctx.set('Content-Security-Policy', "default-src 'self'");
-  return next();
-});
-```
-
-### CSRF (Cross-Site Request Forgery) / 跨站请求伪造
-
-```typescript
-// ✅ Good / 好的 - Use CSRF tokens / 使用 CSRF token
-import csrf from 'csurf';
-
-const csrfProtection = csrf({ cookie: true });
-app.use(csrfProtection);
-
-// Include token in forms / 在表单中包含 token
-app.use((ctx, next) => {
-  ctx.state.csrfToken = ctx.csrfToken();
-  return next();
-});
-```
-
-### Path Traversal / 路径遍历
-
-```typescript
-// ✅ Good / 好的 - Validate file paths / 验证文件路径
-import path from 'path';
-
-function getSafeFilePath(userPath: string): string {
-  const normalized = path.normalize(userPath);
-  const baseDir = '/safe/directory';
-  
-  if (!normalized.startsWith(baseDir)) {
-    throw new Error('Invalid path');
-  }
-  
-  return normalized;
-}
-
-// ❌ Bad / 不好的 - Use user input directly / 直接使用用户输入
-const filePath = path.join('/uploads', userInput); // Path traversal risk / 路径遍历风险
-```
-
-## Security Headers / 安全头
-
-```typescript
-// ✅ Good / 好的 - Set security headers / 设置安全头
-app.use(async (ctx, next) => {
-  ctx.set('X-Content-Type-Options', 'nosniff');
-  ctx.set('X-Frame-Options', 'DENY');
-  ctx.set('X-XSS-Protection', '1; mode=block');
-  ctx.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  ctx.set('Content-Security-Policy', "default-src 'self'");
-  await next();
-});
 ```
 
 ## Environment Variables / 环境变量
@@ -383,45 +152,6 @@ app.use(async (ctx, next) => {
 });
 ```
 
-## Module/Plugin Security / 模块/插件安全
-
-### Secure Plugin Initialization / 安全的插件初始化
-
-```typescript
-// ✅ Good / 好的 - Validate plugin configuration / 验证插件配置
-class MyPlugin extends Plugin {
-  async beforeLoad() {
-    // Validate required options / 验证必需的选项
-    if (!this.options.apiKey) {
-      throw new Error('API key is required');
-    }
-    
-    // Register resources securely / 安全地注册资源
-    this.app.resourcer.define({
-      name: 'myResource',
-      actions: {
-        list: { handler: this.handleList },
-      },
-    });
-  }
-}
-```
-
-### Plugin Isolation / 插件隔离
-
-```typescript
-// ✅ Good / 好的 - Isolate plugin data / 隔离插件数据
-class MyPlugin extends Plugin {
-  async load() {
-    // Use plugin-specific namespace / 使用插件特定的命名空间
-    this.app.db.collection({
-      name: `${this.name}_data`, // Namespace by plugin name / 按插件名称命名空间
-      fields: [...],
-    });
-  }
-}
-```
-
 ## Checklist / 检查清单
 
 ### Authentication / 认证
@@ -431,7 +161,6 @@ class MyPlugin extends Plugin {
 - [ ] Implement token blacklist / 实现 token 黑名单
 - [ ] Hash passwords / 哈希密码
 - [ ] Use strong password policies / 使用强密码策略
-- [ ] Secure API key handling / 安全的 API 密钥处理
 
 ### Authorization / 授权
 
@@ -439,7 +168,6 @@ class MyPlugin extends Plugin {
 - [ ] Check permissions before actions / 操作前检查权限
 - [ ] Filter resources by ownership / 按所有权过滤资源
 - [ ] Use least privilege principle / 使用最小权限原则
-- [ ] Register ACL snippets for plugins / 为插件注册 ACL 片段
 
 ### Input Validation / 输入验证
 
@@ -462,15 +190,8 @@ class MyPlugin extends Plugin {
 - [ ] Use security headers / 使用安全头
 - [ ] Implement CSRF protection / 实现 CSRF 保护
 
-### Module/Plugin Security / 模块/插件安全
-
-- [ ] Validate plugin configuration / 验证插件配置
-- [ ] Isolate plugin data / 隔离插件数据
-- [ ] Secure plugin initialization / 安全的插件初始化
-
 ## Resources / 资源
 
 - **OWASP Top 10**: https://owasp.org/www-project-top-ten/
 - **Node.js Security Best Practices**: https://nodejs.org/en/docs/guides/security/
 - **Express Security**: https://expressjs.com/en/advanced/best-practice-security.html
-

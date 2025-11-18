@@ -17,6 +17,23 @@
       "intentPatterns": "使用正则表达式进行灵活的用户意图匹配"
     }
   },
+  "notes": {
+    "enforcement_types": {
+      "suggest": "技能建议出现但不阻止执行",
+      "block": "需要先使用技能才能继续（护栏）",
+      "warn": "显示警告但允许继续"
+    },
+    "priority_levels": {
+      "high": "重要 - 大多数匹配时触发",
+      "medium": "中等 - 明确匹配时触发",
+      "low": "可选 - 仅在显式匹配时触发"
+    },
+    "customization": {
+      "pathPatterns": "根据项目结构调整路径模式",
+      "keywords": "添加与项目相关的领域特定术语",
+      "intentPatterns": "使用正则表达式进行灵活的用户意图匹配"
+    }
+  },
   "skills": {
     "backend-guidelines": {
       "type": "domain",
@@ -324,7 +341,57 @@
         ]
       },
       "ruleFile": ".cursor/rules/performance.md"
+    },
+    "security-guidelines": {
+      "type": "domain",
+      "priority": "high",
+      "description": "安全开发指南",
+      "promptTriggers": {
+        "keywords": [
+          "security",
+          "安全",
+          "auth",
+          "认证",
+          "permission",
+          "权限",
+          "authorization",
+          "授权",
+          "xss",
+          "csrf",
+          "sql injection",
+          "SQL注入",
+          "encrypt",
+          "加密",
+          "vulnerability",
+          "漏洞"
+        ],
+        "intentPatterns": [
+          "(implement|实现).*?(auth|security|认证|安全)",
+          "(how to|如何).*?(secure|安全)",
+          "(prevent|防止).*?(xss|csrf|sql injection|XSS|CSRF|SQL注入)",
+          "(validate|验证).*?(input|输入)",
+          "(encrypt|加密).*?(data|数据)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "packages/module-auth/src/**/*.ts",
+          "packages/module-acl/src/**/*.ts",
+          "packages/plugin-api-keys/src/**/*.ts",
+          "packages/*/src/**/*.{ts,tsx}"
+        ],
+        "contentPatterns": [
+          "ctx\\.getBearerToken",
+          "ctx\\.auth",
+          "ctx\\.acl",
+          "bcrypt\\.(hash|compare)",
+          "jwt\\.(sign|verify|decode)",
+          "validator\\.(escape|isEmail)",
+          "csrf",
+          "registerSnippet"
+        ]
+      },
+      "ruleFile": ".cursor/rules/security.md"
     }
-  },
-  "version": "1.0"
+  }
 }

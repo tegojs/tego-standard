@@ -37,7 +37,7 @@ export class FieldModel extends MagicAttributeModel {
 
     const field = await (async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
-      if (process.env.DEBUG_COLLECTION_FIELD) {
+      if (ctx.tego.environment.getVariables().DEBUG_COLLECTION_FIELD) {
         this.db.logger.debug({ collectionName, options });
       }
       return collection.setField(name, options);

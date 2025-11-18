@@ -143,7 +143,7 @@ function generateUnreleasedContentEN(grouped) {
   // - ci: CI 配置改动
   // - chore: 维护性改动
   // 如果需要在 changelog 中包含这些类型，可以通过环境变量 CHANGELOG_INCLUDE_INTERNAL=true 启用
-  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const includeInternal = ctx.tego.environment.getVariables().CHANGELOG_INCLUDE_INTERNAL === 'true';
   const other = includeInternal
     ? [
         ...grouped.style,
@@ -282,7 +282,7 @@ async function generateUnreleasedContentZH(grouped, autoTranslate = true) {
   // - ci: CI 配置改动
   // - chore: 维护性改动
   // 如果需要在 changelog 中包含这些类型，可以通过环境变量 CHANGELOG_INCLUDE_INTERNAL=true 启用
-  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const includeInternal = ctx.tego.environment.getVariables().CHANGELOG_INCLUDE_INTERNAL === 'true';
   const other = includeInternal
     ? [
         ...grouped.style,
@@ -421,7 +421,7 @@ async function updateUnreleased() {
 
   // 检查是否有对用户有价值的变更（排除内部维护性改动）
   // 只检查：feat, fix, perf, refactor, docs, revert, breaking
-  const includeInternal = process.env.CHANGELOG_INCLUDE_INTERNAL === 'true';
+  const includeInternal = ctx.tego.environment.getVariables().CHANGELOG_INCLUDE_INTERNAL === 'true';
   const userFacingTypes = ['feat', 'fix', 'perf', 'refactor', 'docs', 'revert', 'breaking'];
   const hasUserFacingChanges = userFacingTypes.some(
     (type) => grouped[type] && grouped[type].length > 0
@@ -449,7 +449,7 @@ async function updateUnreleased() {
   }
 
   // 检查是否启用自动翻译（通过环境变量控制，默认启用）
-  const autoTranslate = process.env.CHANGELOG_AUTO_TRANSLATE !== 'false';
+  const autoTranslate = ctx.tego.environment.getVariables().CHANGELOG_AUTO_TRANSLATE !== 'false';
   const contentZH = await generateUnreleasedContentZH(grouped, autoTranslate);
 
   // 检查中文内容是否为空

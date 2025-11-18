@@ -26,7 +26,7 @@ export class PluginAdapterRedNodeServer extends Plugin {
     const settings = {
       httpAdminRoot: prefix + '/red',
       httpNodeRoot: prefix + '/api',
-      userDir: path.join(process.env.TEGO_RUNTIME_HOME, 'storage/red-node'),
+      userDir: path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, 'storage/red-node'),
       functionGlobalContext: {}, // enables global context
     };
 

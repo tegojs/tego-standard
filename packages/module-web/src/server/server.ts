@@ -11,7 +11,7 @@ async function getLang(ctx: Context) {
   const systemSetting = await SystemSetting.findOne();
   const enabledLanguages: string[] = systemSetting.get('enabledLanguages') || [];
   const currentUser = ctx.state.currentUser;
-  let lang = enabledLanguages?.[0] || process.env.APP_LANG || 'en-US';
+  let lang = enabledLanguages?.[0] || ctx.tego.environment.getVariables().APP_LANG || 'en-US';
   if (enabledLanguages.includes(currentUser?.appLang)) {
     lang = currentUser?.appLang;
   }
@@ -126,7 +126,7 @@ export class ModuleWeb extends Plugin {
           const systemSetting = await SystemSetting.findOne();
           const enabledLanguages: string[] = systemSetting.get('enabledLanguages') || [];
           const currentUser = ctx.state.currentUser;
-          let lang = enabledLanguages?.[0] || process.env.APP_LANG || 'en-US';
+          let lang = enabledLanguages?.[0] || ctx.tego.environment.getVariables().APP_LANG || 'en-US';
           if (enabledLanguages.includes(currentUser?.appLang)) {
             lang = currentUser?.appLang;
           }

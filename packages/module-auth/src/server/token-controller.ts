@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import {
   Application,
   AuthError,
@@ -13,6 +12,7 @@ import {
   TokenPolicyConfig,
   type SystemLogger,
 } from '@tego/server';
+
 import ms from 'ms';
 
 import {
@@ -91,7 +91,7 @@ export class TokenController implements TokenControlService {
     await this.setTokenInfo(jti, data);
 
     try {
-      if (process.env.DB_DIALECT === 'sqlite') {
+      if (ctx.tego.environment.getVariables().DB_DIALECT === 'sqlite') {
         // SQLITE does not support concurrent operations
         await this.removeSessionExpiredTokens(userId);
       } else {

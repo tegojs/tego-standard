@@ -36,12 +36,12 @@ export default {
       title: 'AWS S3',
       name: 'aws-s3',
       type: STORAGE_TYPE_S3,
-      baseUrl: process.env.AWS_S3_STORAGE_BASE_URL,
+      baseUrl: ctx.tego.environment.getVariables().AWS_S3_STORAGE_BASE_URL,
       options: {
-        region: process.env.AWS_S3_REGION,
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        bucket: process.env.AWS_S3_BUCKET,
+        region: ctx.tego.environment.getVariables().AWS_S3_REGION,
+        accessKeyId: ctx.tego.environment.getVariables().AWS_ACCESS_KEY_ID,
+        secretAccessKey: ctx.tego.environment.getVariables().AWS_SECRET_ACCESS_KEY,
+        bucket: ctx.tego.environment.getVariables().AWS_S3_BUCKET,
       },
     };
   },

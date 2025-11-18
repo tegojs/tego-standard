@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Field, reaction, useField, useFieldSchema } from '@tachybase/schema';
-
 import { getValuesByPath } from '@tego/client';
+
 import _ from 'lodash';
 
 import { useRecordIndex } from '../../../../../src/record-provider';
@@ -71,7 +71,7 @@ const useParseDefaultValue = () => {
         field.loading = true;
         const collectionField = !fieldSchema.name.toString().includes('.') && getField(fieldSchema.name);
 
-        if (process.env.NODE_ENV !== 'production') {
+        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
           if (!collectionField) {
             console.error(`useParseDefaultValue: can not find field ${fieldSchema.name}`);
           }

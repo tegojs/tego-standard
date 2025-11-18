@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
 import { Context } from '@tego/server';
+
 import { Queue } from 'bullmq';
 
 import { generate } from './printTemplates';
@@ -17,9 +17,9 @@ function saveBufferToTempFile(buffer: Buffer): string {
 
 // 创建队列
 const redisOptions = {
-  port: Number(process.env.REDIS_PORT || 6379),
-  host: process.env.REDIS_HOST || 'localhost',
-  password: process.env.REDIS_PASSWORD || '',
+  port: Number(ctx.tego.environment.getVariables().REDIS_PORT || 6379),
+  host: ctx.tego.environment.getVariables().REDIS_HOST || 'localhost',
+  password: ctx.tego.environment.getVariables().REDIS_PASSWORD || '',
   // 移除 tls 属性
 };
 
@@ -47,7 +47,7 @@ export const addConversionJob = async (ctx: Context) => {
     console.log('Generated DOCX file path:', filePath);
 
     const id = ctx.action.params.id;
-    const outputDir = path.join(process.env.PWD, 'storage/uploads');
+    const outputDir = path.join(ctx.tego.environment.getVariables().PWD, 'storage/uploads');
 
     // 添加作业到队列
     const job = await pdfConversionQueue.add('convert', { wordFilePath: filePath, outputDir, id });

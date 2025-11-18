@@ -174,9 +174,9 @@ export class Dumper extends AppMigrator {
 
   backUpStorageDir(appName?: string) {
     if (appName && appName !== 'main') {
-      return path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'backups', appName);
+      return path.resolve(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, 'storage', 'backups', appName);
     }
-    return path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'backups');
+    return path.resolve(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, 'storage', 'backups');
   }
 
   async allBackUpFilePaths(options?: { includeInProgress?: boolean; dir?: string; appName?: string }) {
@@ -335,10 +335,10 @@ export class Dumper extends AppMigrator {
     const metaObj = {
       version: await this.app.version.get(),
       dialect: this.app.db.sequelize.getDialect(),
-      DB_UNDERSCORED: process.env.DB_UNDERSCORED,
-      DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX,
-      DB_SCHEMA: process.env.DB_SCHEMA,
-      COLLECTION_MANAGER_SCHEMA: process.env.COLLECTION_MANAGER_SCHEMA,
+      DB_UNDERSCORED: ctx.tego.environment.getVariables().DB_UNDERSCORED,
+      DB_TABLE_PREFIX: ctx.tego.environment.getVariables().DB_TABLE_PREFIX,
+      DB_SCHEMA: ctx.tego.environment.getVariables().DB_SCHEMA,
+      COLLECTION_MANAGER_SCHEMA: ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA,
       ...additionalMeta,
     };
 

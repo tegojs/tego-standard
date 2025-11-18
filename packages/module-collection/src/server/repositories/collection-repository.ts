@@ -1,4 +1,5 @@
 import { Application, CollectionsGraph, Repository } from '@tego/server';
+
 import lodash from 'lodash';
 
 import { CollectionModel } from '../models/collection';
@@ -88,7 +89,7 @@ export class CollectionRepository extends Repository {
         lazyCollectionFields.set(instanceName, skipField);
       }
 
-      process.env.DEBUG_LOAD_COLLECTION &&
+      ctx.tego.environment.getVariables().DEBUG_LOAD_COLLECTION &&
         this.database.logger.debug(`load collection`, {
           instanceName,
           submodule: 'CollectionRepository',
@@ -101,7 +102,7 @@ export class CollectionRepository extends Repository {
 
     // load view fields
     for (const viewCollectionName of viewCollections) {
-      process.env.DEBUG_LOAD_COLLECTION_FIELDS &&
+      ctx.tego.environment.getVariables().DEBUG_LOAD_COLLECTION_FIELDS &&
         this.database.logger.debug(`load collection fields`, {
           submodule: 'CollectionRepository',
           method: 'load',
@@ -113,7 +114,7 @@ export class CollectionRepository extends Repository {
 
     // load lazy collection field
     for (const [collectionName, skipField] of lazyCollectionFields) {
-      process.env.DEBUG_LOAD_COLLECTION_FIELDS &&
+      ctx.tego.environment.getVariables().DEBUG_LOAD_COLLECTION_FIELDS &&
         this.database.logger.debug(`load collection fields`, {
           submodule: 'CollectionRepository',
           method: 'load',

@@ -4,7 +4,6 @@ import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import TachybaseGlobal from '@tachybase/globals';
 import CollectionManagerPlugin, { CollectionRepository } from '@tachybase/module-collection';
 import PluginUsersServer from '@tachybase/module-user';
-
 import { Application, ApplicationOptions, AppLoggerOptions, Container, getLoggerTransport, uid } from '@tego/server';
 
 import { WorkerEvent } from './workerTypes';
@@ -16,11 +15,11 @@ if (!isMainThread) {
 const loggerOptions = {
   system: {
     transports: getLoggerTransport(),
-    level: process.env.LOGGER_LEVEL || 'info',
+    level: ctx.tego.environment.getVariables().LOGGER_LEVEL || 'info',
   },
   request: {
     transports: getLoggerTransport(),
-    level: process.env.LOGGER_LEVEL || 'info',
+    level: ctx.tego.environment.getVariables().LOGGER_LEVEL || 'info',
   },
 } as AppLoggerOptions;
 

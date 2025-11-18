@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { SelectWithTitle, useCurrentUserContext, useSystemSettings } from '@tachybase/client';
-
 import { error } from '@tego/client';
+
 import { MenuProps } from 'antd';
 
 import { useThemeId } from '../components/InitializeTheme';
@@ -49,11 +49,11 @@ function Label() {
     return null;
   }
 
-  if (process.env.NODE_ENV !== 'production' && !currentUser) {
+  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !currentUser) {
     throw new Error('Please check if provide `CurrentUserProvider` in your app.');
   }
 
-  if (process.env.NODE_ENV !== 'production' && !systemSettings) {
+  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !systemSettings) {
     throw new Error('Please check if provide `SystemSettingsProvider` in your app.');
   }
 

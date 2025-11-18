@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { reaction } from '@tachybase/schema';
-
 import { flatten, getValuesByPath } from '@tego/client';
+
 import { useDeepCompareEffect } from 'ahooks';
 import _ from 'lodash';
 
@@ -38,7 +38,7 @@ export function useParsedFilter({ filterOption }: { filterOption: any }) {
           const variableName = getVariableName(value);
           const variable = findVariable(variableName);
 
-          if (process.env.NODE_ENV !== 'production' && !variable) {
+          if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !variable) {
             throw new Error(`useParsedFilter: can not find variable ${variableName}`);
           }
 

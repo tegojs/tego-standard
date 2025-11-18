@@ -1405,7 +1405,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
-- import menu error, custom request origin, test workflow, some process.env.NODE_ENV ([#167](https://github.com/tegojs/tego-standard/pull/167)) (@wildworker)
+- import menu error, custom request origin, test workflow, some ctx.tego.environment.getVariables().NODE_ENV ([#167](https://github.com/tegojs/tego-standard/pull/167)) (@wildworker)
 - chart grouping table field calculation ([#165](https://github.com/tegojs/tego-standard/pull/165)) (@dududuna)
 - association field, normal form case ([#168](https://github.com/tegojs/tego-standard/pull/168)) (@bai.zixv)
 - fuzzy search action key ([#164](https://github.com/tegojs/tego-standard/pull/164)) (@bai.zixv)

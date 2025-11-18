@@ -35,7 +35,7 @@ function getGitHash() {
 function getGitBranch() {
   try {
     // 优先获取 CI/CD 环境变量中的分支名
-    const ciBranch = process.env.CI_COMMIT_REF_NAME || process.env.GITHUB_REF_NAME || process.env.GIT_BRANCH;
+    const ciBranch = ctx.tego.environment.getVariables().CI_COMMIT_REF_NAME || ctx.tego.environment.getVariables().GITHUB_REF_NAME || ctx.tego.environment.getVariables().GIT_BRANCH;
     if (ciBranch) {
       return ciBranch;
     }
@@ -55,8 +55,8 @@ function getGitBranch() {
 function getCurrentTag() {
   try {
     // 在 CI/CD 环境中，通过环境变量获取 tag
-    if (process.env.GITHUB_REF_TYPE === 'tag') {
-      return process.env.GITHUB_REF_NAME || process.env.CI_COMMIT_TAG || null;
+    if (ctx.tego.environment.getVariables().GITHUB_REF_TYPE === 'tag') {
+      return ctx.tego.environment.getVariables().GITHUB_REF_NAME || ctx.tego.environment.getVariables().CI_COMMIT_TAG || null;
     }
 
     // 通过 Git 命令获取当前 commit 的 tag

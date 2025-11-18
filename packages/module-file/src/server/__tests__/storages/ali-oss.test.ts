@@ -1,13 +1,12 @@
 import path from 'node:path';
 import { MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
 
 import { getApp, requestFile } from '..';
 import { FILE_FIELD_NAME } from '../../constants';
 import aliossStorage from '../../storages/ali-oss';
 
-const itif = process.env.ALI_OSS_ACCESS_KEY_SECRET ? it : it.skip;
+const itif = ctx.tego.environment.getVariables().ALI_OSS_ACCESS_KEY_SECRET ? it : it.skip;
 
 describe('storage:ali-oss', () => {
   let app: MockServer;

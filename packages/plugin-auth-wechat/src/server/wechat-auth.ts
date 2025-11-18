@@ -99,9 +99,9 @@ export class WeChatAuth extends BaseAuth {
     // 本地测试使用
     if (referer) {
       const clientUrl = new URL(referer);
-      redirectUrl = `${clientUrl.protocol}//${clientUrl.host}${process.env.API_BASE_PATH}wechatAuth:redirect`;
+      redirectUrl = `${clientUrl.protocol}//${clientUrl.host}${ctx.tego.environment.getVariables().API_BASE_PATH}wechatAuth:redirect`;
     } else {
-      redirectUrl = `${this.ctx.protocol}://${this.ctx.host}${process.env.API_BASE_PATH}wechatAuth:redirect`;
+      redirectUrl = `${this.ctx.protocol}://${this.ctx.host}${ctx.tego.environment.getVariables().API_BASE_PATH}wechatAuth:redirect`;
     }
     // 如果后续有登录后绑定的场景，服务端需要校验 state
     const state = encodeURIComponent(

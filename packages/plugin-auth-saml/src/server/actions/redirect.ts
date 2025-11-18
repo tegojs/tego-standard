@@ -5,7 +5,7 @@ import { SAMLAuth } from '../saml-auth';
 export const redirect = async (ctx: Context, next: Next) => {
   const { authenticator, __appName: appName } = ctx.action.params || {};
   const { RelayState: redirect } = ctx.action.params.values || {};
-  let prefix = process.env.APP_PUBLIC_PATH || '';
+  let prefix = ctx.tego.environment.getVariables().APP_PUBLIC_PATH || '';
   if (appName && appName !== 'main') {
     const appSupervisor = AppSupervisor.getInstance();
     if (appSupervisor?.runningMode !== 'single') {

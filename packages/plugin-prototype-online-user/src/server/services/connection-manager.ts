@@ -1,4 +1,5 @@
 import { App, Application, currentProcessNum, Gateway, isMain, Service } from '@tego/server';
+
 import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
 import WebSocket from 'ws';
@@ -14,7 +15,7 @@ type WSEventHandler = (ws: WebSocket & { id: string }, ...args: any[]) => Promis
 @Service()
 export class ConnectionManager {
   // private redisClient = createClient({
-  //   url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
+  //   url: ctx.tego.environment.getVariables().REDIS_URL ?? 'redis://127.0.0.1:6379',
   // });
   // private redisPubClient = this.app.online.app.duplicate();
   // private redisSubClient = this.app.online.app.duplicate();
@@ -36,7 +37,7 @@ export class ConnectionManager {
   async load() {
     if (!this.app.online) {
       const all = createClient({
-        url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
+        url: ctx.tego.environment.getVariables().REDIS_URL ?? 'redis://127.0.0.1:6379',
       });
       const pub = all.duplicate();
       const sub = all.duplicate();

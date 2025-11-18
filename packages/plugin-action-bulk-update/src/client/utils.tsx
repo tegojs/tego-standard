@@ -12,8 +12,8 @@ import {
   useVariables,
 } from '@tachybase/client';
 import { SchemaExpressionScopeContext, useField, useFieldSchema } from '@tachybase/schema';
-
 import { isURL } from '@tego/client';
+
 import { App, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 
@@ -52,7 +52,7 @@ export const useCustomizeBulkUpdateActionProps = () => {
         const value = originalAssignedValues[key];
         const collectionField = getField(key);
 
-        if (process.env.NODE_ENV !== 'production') {
+        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
           if (!collectionField) {
             throw new Error(`useCustomizeBulkUpdateActionProps: field "${key}" not found in collection "${name}"`);
           }

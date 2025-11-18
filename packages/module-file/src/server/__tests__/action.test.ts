@@ -84,7 +84,9 @@ describe('action', () => {
 
         const { documentRoot = 'storage/uploads' } = storage.options || {};
         const destPath = path.resolve(
-          path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+          path.isAbsolute(documentRoot)
+            ? documentRoot
+            : path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, documentRoot),
           storage.path,
         );
         const file = await fs.readFile(`${destPath}/${attachment.filename}`);
@@ -228,7 +230,9 @@ describe('action', () => {
 
       const { documentRoot = 'storage/uploads' } = storage.options || {};
       const destPath = path.resolve(
-        path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+        path.isAbsolute(documentRoot)
+          ? documentRoot
+          : path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
       const file = await fs.stat(path.join(destPath, attachment.filename));
@@ -254,7 +258,9 @@ describe('action', () => {
 
       const { documentRoot = path.join('storage', 'uploads') } = storage.options || {};
       const destPath = path.resolve(
-        path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+        path.isAbsolute(documentRoot)
+          ? documentRoot
+          : path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
       const file = await fs.stat(path.join(destPath, attachment.filename));
@@ -286,7 +292,9 @@ describe('action', () => {
 
       const { documentRoot = path.join('storage', 'uploads') } = storage.options || {};
       const destPath = path.resolve(
-        path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+        path.isAbsolute(documentRoot)
+          ? documentRoot
+          : path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
       const file1 = await fs.stat(path.join(destPath, f1.data.filename));
@@ -315,7 +323,9 @@ describe('action', () => {
 
       const { documentRoot = path.join('storage', 'uploads') } = storage.options || {};
       const destPath = path.resolve(
-        path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+        path.isAbsolute(documentRoot)
+          ? documentRoot
+          : path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
       const filePath = path.join(destPath, attachment.filename);

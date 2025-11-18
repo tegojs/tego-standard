@@ -80,7 +80,7 @@ const ToOneNester = (props) => {
   const isAllowToSetDefaultValue = useCallback(
     ({ form, fieldSchema, collectionField, getInterface, formBlockType }: IsAllowToSetDefaultValueParams) => {
       if (!collectionField) {
-        if (process.env.NODE_ENV !== 'production') {
+        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
           console.error(`collectionField should not be ${collectionField}`);
         }
         return false;
@@ -137,7 +137,7 @@ const ToManyNester = observer(
 
     const isAllowToSetDefaultValue = useCallback(({ form, fieldSchema, collectionField, getInterface }) => {
       if (!collectionField) {
-        if (process.env.NODE_ENV !== 'production') {
+        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
           console.error(`collectionField should not be ${collectionField}`);
         }
         return false;

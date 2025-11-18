@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { CollectionRepository } from '@tachybase/module-collection';
-
 import { Collection, Database, InstallOptions, merge, Plugin, Repository, uid } from '@tego/server';
+
 import _ from 'lodash';
 import { Client } from 'pg';
 
@@ -314,11 +314,11 @@ export class PluginMockCollectionsServer extends Plugin {
 
     // create external database
     let client = new Client({
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      host: process.env.DB_HOST,
-      database: process.env.DB_DATABASE,
-      port: parseInt(process.env.DB_PORT),
+      user: ctx.tego.environment.getVariables().DB_USER,
+      password: ctx.tego.environment.getVariables().DB_PASSWORD,
+      host: ctx.tego.environment.getVariables().DB_HOST,
+      database: ctx.tego.environment.getVariables().DB_DATABASE,
+      port: parseInt(ctx.tego.environment.getVariables().DB_PORT),
     });
 
     await client.connect();
@@ -328,11 +328,11 @@ export class PluginMockCollectionsServer extends Plugin {
 
     // import sql import external database
     client = new Client({
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      host: process.env.DB_HOST,
+      user: ctx.tego.environment.getVariables().DB_USER,
+      password: ctx.tego.environment.getVariables().DB_PASSWORD,
+      host: ctx.tego.environment.getVariables().DB_HOST,
       database: externalDB,
-      port: parseInt(process.env.DB_PORT),
+      port: parseInt(ctx.tego.environment.getVariables().DB_PORT),
     });
 
     await client.connect();

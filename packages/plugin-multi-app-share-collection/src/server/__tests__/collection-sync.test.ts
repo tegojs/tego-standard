@@ -1,6 +1,5 @@
 import * as process from 'node:process';
 import { createMockServer, isPg, MockServer } from '@tachybase/test';
-
 import { AppSupervisor, BelongsToManyRepository, Database } from '@tego/server';
 
 describe.runIf(isPg())('enable plugin', () => {
@@ -89,7 +88,7 @@ describe.runIf(isPg())('collection sync after main', () => {
     const postCollection = subApp1.db.getCollection('posts');
 
     expect(postCollection.options.schema).toBe(
-      process.env.COLLECTION_MANAGER_SCHEMA || mainApp.db.options.schema || 'public',
+      ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA || mainApp.db.options.schema || 'public',
     );
 
     expect(await subApp1.db.getRepository('posts').count()).toBe(1);
@@ -375,7 +374,7 @@ describe.runIf(isPg())('collection sync', () => {
     const postCollection = subApp1.db.getCollection('posts');
 
     expect(postCollection.options.schema).toBe(
-      process.env.COLLECTION_MANAGER_SCHEMA || mainDb.options.schema || 'public',
+      ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA || mainDb.options.schema || 'public',
     );
   });
 
@@ -403,7 +402,7 @@ describe.runIf(isPg())('collection sync', () => {
     const postCollection = subApp1.db.getCollection('posts');
 
     expect(postCollection.options.schema).toBe(
-      process.env.COLLECTION_MANAGER_SCHEMA || mainDb.options.schema || 'public',
+      ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA || mainDb.options.schema || 'public',
     );
   });
 

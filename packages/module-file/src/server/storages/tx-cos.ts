@@ -1,4 +1,4 @@
-import { promisify } from 'util';
+import { promisify } from 'node:util';
 
 import { AttachmentModel } from '.';
 import { STORAGE_TYPE_TX_COS } from '../constants';
@@ -18,12 +18,12 @@ export default {
       title: '腾讯云对象存储',
       type: STORAGE_TYPE_TX_COS,
       name: 'tx-cos-1',
-      baseUrl: process.env.TX_COS_STORAGE_BASE_URL,
+      baseUrl: ctx.tego.environment.getVariables().TX_COS_STORAGE_BASE_URL,
       options: {
-        Region: process.env.TX_COS_REGION,
-        SecretId: process.env.TX_COS_SECRET_ID,
-        SecretKey: process.env.TX_COS_SECRET_KEY,
-        Bucket: process.env.TX_COS_BUCKET,
+        Region: ctx.tego.environment.getVariables().TX_COS_REGION,
+        SecretId: ctx.tego.environment.getVariables().TX_COS_SECRET_ID,
+        SecretKey: ctx.tego.environment.getVariables().TX_COS_SECRET_KEY,
+        Bucket: ctx.tego.environment.getVariables().TX_COS_BUCKET,
       },
     };
   },

@@ -21,8 +21,8 @@ import {
   useFieldSchema,
   useForm,
 } from '@tachybase/schema';
-
 import { ArrayCollapse, ArrayItems, error, FormItem, FormLayout, Input } from '@tego/client';
+
 import {
   Alert,
   App,
@@ -508,7 +508,7 @@ export const SchemaSettingsItem: FC<SchemaSettingsItemProps> = (props) => {
 
   const { name } = useSchemaSettingsItem();
 
-  if (process.env.NODE_ENV !== 'production' && !title) {
+  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !title) {
     throw new Error('SchemaSettingsItem must have a title');
   }
 

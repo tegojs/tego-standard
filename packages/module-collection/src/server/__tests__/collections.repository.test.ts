@@ -416,7 +416,7 @@ describe('collections repository', () => {
   });
 
   test('create underscored field', async () => {
-    if (process.env.DB_UNDERSCORED !== 'true') {
+    if (ctx.tego.environment.getVariables().DB_UNDERSCORED !== 'true') {
       return;
     }
 

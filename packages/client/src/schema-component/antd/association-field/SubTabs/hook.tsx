@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { reaction } from '@tachybase/schema';
-
 import { flatten, getValuesByPath } from '@tego/client';
+
 import _ from 'lodash';
 
 import { mergeFilter } from '../../../../filter-provider';
@@ -38,7 +38,7 @@ export const useFieldServiceFilter = (filter, originalFilter?) => {
           const variableName = getVariableName(value);
           const variable = findVariable(variableName);
 
-          if (process.env.NODE_ENV !== 'production' && !variable) {
+          if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !variable) {
             throw new Error(`useServiceOptions: can not find variable ${variableName}`);
           }
 

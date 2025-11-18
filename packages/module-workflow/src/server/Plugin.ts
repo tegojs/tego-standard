@@ -1,6 +1,6 @@
 import path from 'node:path';
-
 import { Application, Logger, LoggerOptions, Op, Plugin, PluginOptions, Registry, Transactionable } from '@tego/server';
+
 import { LRUCache } from 'lru-cache';
 
 import initActions from './actions';
@@ -91,7 +91,7 @@ export default class PluginWorkflowServer extends Plugin {
     const logger = this.createLogger({
       dirname: path.join('workflows', date),
       filename: `${workflowId}.log`,
-      transports: process.env.APP_ENV !== 'production' ? ['console'] : ['file'],
+      transports: ctx.tego.environment.getVariables().APP_ENV !== 'production' ? ['console'] : ['file'],
     } as LoggerOptions);
 
     this.loggerCache.set(key, logger);

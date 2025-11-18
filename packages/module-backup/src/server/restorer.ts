@@ -63,10 +63,10 @@ export class Restorer extends AppMigrator {
     if (path.isAbsolute(backUpFilePath)) {
       this.backUpFilePath = backUpFilePath;
     } else if (path.basename(backUpFilePath) === backUpFilePath) {
-      const dirname = path.resolve(process.env.TEGO_RUNTIME_HOME, 'storage', 'duplicator');
+      const dirname = path.resolve(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, 'storage', 'duplicator');
       this.backUpFilePath = path.resolve(dirname, backUpFilePath);
     } else {
-      this.backUpFilePath = path.resolve(process.env.TEGO_RUNTIME_HOME, backUpFilePath);
+      this.backUpFilePath = path.resolve(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, backUpFilePath);
     }
   }
 

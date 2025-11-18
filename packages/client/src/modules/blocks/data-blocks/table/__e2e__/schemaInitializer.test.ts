@@ -109,7 +109,7 @@ test.describe('configure actions', () => {
 
 test.describe('configure columns', () => {
   // 该用例在 CI 并发环境下容易报错，原因未知，通过增加重试次数可以解决
-  test.describe.configure({ retries: process.env.CI ? 4 : 0 });
+  test.describe.configure({ retries: ctx.tego.environment.getVariables().CI ? 4 : 0 });
   test('action column & display collection fields & display association fields', async ({ page, mockPage }) => {
     await mockPage(oneEmptyTable).goto();
     const configureColumnButton = page.getByLabel('schema-initializer-TableV2-table:configureColumns-t_unp4scqamw9');

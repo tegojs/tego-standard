@@ -1,6 +1,6 @@
 import { AuthModel } from '@tachybase/module-auth';
-
 import { AuthConfig, BaseAuth } from '@tego/server';
+
 import { Issuer } from 'openid-client';
 
 import { cookieName } from '../constants';
@@ -21,7 +21,7 @@ export class OIDCAuth extends BaseAuth {
     const { http, port } = this.getOptions();
     const protocol = http ? 'http' : 'https';
     const host = port ? `${ctx.hostname}${port ? `:${port}` : ''}` : ctx.host;
-    return `${protocol}://${host}${process.env.API_BASE_PATH}oidc:redirect`;
+    return `${protocol}://${host}${ctx.tego.environment.getVariables().API_BASE_PATH}oidc:redirect`;
   }
 
   getOptions() {

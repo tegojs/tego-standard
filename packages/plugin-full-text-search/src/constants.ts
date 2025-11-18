@@ -1,1 +1,1 @@
-export const SEARCH_KEYWORDS_MAX = +process.env.SEARCH_KEYWORDS_MAX || 10;
+export const SEARCH_KEYWORDS_MAX = +ctx.tego.environment.getVariables().SEARCH_KEYWORDS_MAX || 10;

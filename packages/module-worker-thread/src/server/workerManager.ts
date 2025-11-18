@@ -3,7 +3,6 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMainThread, Worker } from 'node:worker_threads';
 import TachybaseGlobal from '@tachybase/globals';
-
 import { Application, fsExists } from '@tego/server';
 
 import { WORKER_ERROR_RETRY, WORKER_FILE, WORKER_TIMEOUT } from './constants';
@@ -92,7 +91,7 @@ export class WorkerManager {
   }
 
   private async addWorker() {
-    const maxMemory = process.env.WORKER_MAX_MEMORY || 4096;
+    const maxMemory = ctx.tego.environment.getVariables().WORKER_MAX_MEMORY || 4096;
     const maxOldSpaceSize = `--max-old-space-size=${maxMemory}`;
     let worker: Worker;
     if (this.isProd) {

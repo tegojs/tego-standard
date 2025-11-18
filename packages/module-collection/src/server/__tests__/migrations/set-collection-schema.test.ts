@@ -1,5 +1,4 @@
 import { MockServer, pgOnly } from '@tachybase/test';
-
 import { Database, MigrationContext } from '@tego/server';
 
 import Migrator from '../../migrations/20230918024546-set-collection-schema';
@@ -38,7 +37,7 @@ pgOnly()('set collection schema', () => {
     const collection2 = await db.getRepository('collections').findOne({});
 
     expect(collection2.options.schema).toEqual(
-      process.env.COLLECTION_MANAGER_SCHEMA || app.db.options.schema || 'public',
+      ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA || app.db.options.schema || 'public',
     );
   });
 });

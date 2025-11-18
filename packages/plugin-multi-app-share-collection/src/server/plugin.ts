@@ -265,7 +265,7 @@ export class MultiAppShareCollectionPlugin extends Plugin {
         }),
         plugins,
         resourcer: {
-          prefix: process.env.API_BASE_PATH,
+          prefix: ctx.tego.environment.getVariables().API_BASE_PATH,
         },
         logger: {
           ...mainApp.options.logger,

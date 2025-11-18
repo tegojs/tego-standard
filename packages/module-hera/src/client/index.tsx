@@ -1,5 +1,4 @@
 import { Plugin, useFormulaTitleVisible } from '@tachybase/client';
-
 import { CodeMirror } from '@tego/client';
 
 import {
@@ -167,7 +166,7 @@ export class PluginCoreClient extends Plugin {
   async afterLoad() {
     // log for debug
     await this.registerSchemaInitializer();
-    if (process.env.NODE_ENV !== 'production') {
+    if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
       console.info('current components', this.app.components);
       console.info('current schemaSettings', this.app.schemaSettingsManager.getAll());
       console.info('current schemaInitializer', this.app.schemaInitializerManager.getAll());

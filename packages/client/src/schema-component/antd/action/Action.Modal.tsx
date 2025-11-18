@@ -31,7 +31,7 @@ export const ActionModal: ComposedActionDrawer<ModalProps> = observer(
       return buf;
     });
 
-    if (process.env.__E2E__) {
+    if (ctx.tego.environment.getVariables().__E2E__) {
       useSetAriaLabelForModal(visible);
     }
 

@@ -95,7 +95,7 @@ function _isAllowToSetDefaultValue({
   }
 
   if (!collectionField) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
       console.error(`collectionField should not be ${collectionField}`);
     }
     return false;

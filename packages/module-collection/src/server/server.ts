@@ -35,7 +35,7 @@ export class CollectionManagerPlugin extends Plugin {
 
   async beforeLoad() {
     if (this.app.db.inDialect('postgres')) {
-      this.schema = process.env.COLLECTION_MANAGER_SCHEMA || this.db.options.schema || 'public';
+      this.schema = ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA || this.db.options.schema || 'public';
     }
 
     this.app.db.registerRepositories({

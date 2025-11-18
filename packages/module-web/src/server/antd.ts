@@ -1,11 +1,10 @@
 import { resolve } from 'node:path';
-
 import { requireModule } from '@tego/server';
 
 export const getAntdLocale = (lang) => {
   const lng = lang.replace('-', '_');
   const files = [resolve(__dirname, `../locale/antd/${lng}`)];
-  if (process.env.APP_ENV !== 'production') {
+  if (ctx.tego.environment.getVariables().APP_ENV !== 'production') {
     files.unshift(`antd/lib/locale/${lng}`);
     files.push(`antd/lib/locale/en_US`);
   }

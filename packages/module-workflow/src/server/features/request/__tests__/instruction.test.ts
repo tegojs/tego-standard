@@ -2,8 +2,8 @@ import { Server } from 'node:http';
 import PluginWorkflow, { EXECUTION_STATUS, JOB_STATUS, Processor } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
+
 import jwt from 'jsonwebtoken';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
@@ -314,7 +314,7 @@ describe('workflow > instructions > request', () => {
         {
           userId: typeof user.id,
         },
-        process.env.APP_KEY,
+        ctx.tego.environment.getVariables().APP_KEY,
         {
           expiresIn: '1d',
         },

@@ -9,10 +9,13 @@ import { STORAGE_TYPE_LOCAL } from '../constants';
 import { getFilename } from '../utils';
 
 function getDocumentRoot(storage): string {
-  const { documentRoot = process.env.LOCAL_STORAGE_DEST || 'storage/uploads' } = storage.options || {};
+  const { documentRoot = ctx.tego.environment.getVariables().LOCAL_STORAGE_DEST || 'storage/uploads' } =
+    storage.options || {};
   // TODO(feature): 后面考虑以字符串模板的方式使用，可注入 req/action 相关变量，以便于区分文件夹
   return path.resolve(
-    path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+    path.isAbsolute(documentRoot)
+      ? documentRoot
+      : path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, documentRoot),
   );
 }
 

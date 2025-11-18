@@ -5,7 +5,7 @@ import { CASAuth } from '../auth';
 export const service = async (ctx: Context, next: Next) => {
   const { authenticator, __appName: appName, redirect } = ctx.action.params;
 
-  let prefix = process.env.APP_PUBLIC_PATH || '';
+  let prefix = ctx.tego.environment.getVariables().APP_PUBLIC_PATH || '';
   if (appName && appName !== 'main') {
     const appSupervisor = AppSupervisor.getInstance();
     if (appSupervisor?.runningMode !== 'single') {

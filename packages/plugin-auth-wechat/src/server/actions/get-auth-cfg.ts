@@ -25,9 +25,9 @@ const getBindAuthCfg = (ctx, redirect: string, appID: string) => {
   let redirectUrl;
   if (referer) {
     const clientUrl = new URL(referer);
-    redirectUrl = `${clientUrl.protocol}//${clientUrl.host}${process.env.API_BASE_PATH}wechatAuth:redirect`;
+    redirectUrl = `${clientUrl.protocol}//${clientUrl.host}${ctx.tego.environment.getVariables().API_BASE_PATH}wechatAuth:redirect`;
   } else {
-    redirectUrl = `${ctx.protocol}://${ctx.host}${process.env.API_BASE_PATH}wechatAuth:redirect`;
+    redirectUrl = `${ctx.protocol}://${ctx.host}${ctx.tego.environment.getVariables().API_BASE_PATH}wechatAuth:redirect`;
   }
   let state = `redirect=${redirect}&app=${app}&name=${ctx.headers['x-authenticator']}`;
 

@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database, { Repository } from '@tego/server';
 
 describe('actions', () => {
@@ -83,10 +82,10 @@ describe('actions', () => {
     let agent;
 
     beforeEach(async () => {
-      process.env.INIT_ROOT_EMAIL = 'test@tachybase.com';
-      process.env.INT_ROOT_USERNAME = 'test';
-      process.env.INIT_ROOT_PASSWORD = '123456';
-      process.env.INIT_ROOT_NICKNAME = 'Test';
+      ctx.tego.environment.getVariables().INIT_ROOT_EMAIL = 'test@tachybase.com';
+      ctx.tego.environment.getVariables().INT_ROOT_USERNAME = 'test';
+      ctx.tego.environment.getVariables().INIT_ROOT_PASSWORD = '123456';
+      ctx.tego.environment.getVariables().INIT_ROOT_NICKNAME = 'Test';
       app = await createMockServer({
         plugins: ['auth', 'users'],
       });
@@ -106,8 +105,10 @@ describe('actions', () => {
         .post('/auth:signIn')
         .set({ 'X-Authenticator': 'basic' })
         .send({
-          account: process.env.INIT_ROOT_USERNAME || process.env.INIT_ROOT_EMAIL,
-          password: process.env.INIT_ROOT_PASSWORD,
+          account:
+            ctx.tego.environment.getVariables().INIT_ROOT_USERNAME ||
+            ctx.tego.environment.getVariables().INIT_ROOT_EMAIL,
+          password: ctx.tego.environment.getVariables().INIT_ROOT_PASSWORD,
         });
       expect(res.statusCode).toEqual(200);
       const data = res.body.data;
@@ -140,8 +141,8 @@ describe('actions', () => {
         },
       });
       res = await agent.post('/auth:signUp').set({ 'X-Authenticator': 'basic' }).send({
-        username: process.env.INIT_ROOT_USERNAME,
-        password: process.env.INIT_ROOT_PASSWORD,
+        username: ctx.tego.environment.getVariables().INIT_ROOT_USERNAME,
+        password: ctx.tego.environment.getVariables().INIT_ROOT_PASSWORD,
       });
       expect(res.statusCode).toEqual(403);
     });

@@ -25,7 +25,7 @@ export class ExportPlugin extends Plugin {
   public static defaultSavePath = 'storage/uploads';
 
   xlsxStorageDir() {
-    return path.resolve(process.env.TEGO_RUNTIME_HOME, ExportPlugin.defaultSavePath);
+    return path.resolve(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, ExportPlugin.defaultSavePath);
   }
 
   async workerExportXlsx(params) {

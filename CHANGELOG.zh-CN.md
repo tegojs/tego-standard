@@ -1408,7 +1408,7 @@
 
 ### 🐛 修复
 
-- 导入菜单错误、自定义请求来源、测试工作流程、某些 process.env.NODE_ENV ([#167](https://github.com/tegojs/tego-standard/pull/167)) (@wildworker)
+- 导入菜单错误、自定义请求来源、测试工作流程、某些 ctx.tego.environment.getVariables().NODE_ENV ([#167](https://github.com/tegojs/tego-standard/pull/167)) (@wildworker)
 - 图表分组表字段计算 ([#165](https://github.com/tegojs/tego-standard/pull/165)) (@dududuna)
 - 关联字段，正常形式情况 ([#168](https://github.com/tegojs/tego-standard/pull/168)) (@bai.zixv)
 - 模糊搜索操作键 ([#164](https://github.com/tegojs/tego-standard/pull/164)) (@bai.zixv)

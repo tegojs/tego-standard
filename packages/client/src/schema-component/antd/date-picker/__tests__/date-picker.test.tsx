@@ -31,7 +31,7 @@ describe('DatePicker', () => {
       expect(screen.getByText('2023/05/01 00:00:00', { selector: '.ant-description-date-picker' })).toBeInTheDocument();
 
       // TODO: 需要有个方法来固定测试环境的时区
-      if (!process.env.GITHUB_ACTIONS) {
+      if (!ctx.tego.environment.getVariables().GITHUB_ACTIONS) {
         // Value
         expect(screen.getByText('2023-04-30T16:00:00.000Z')).toBeInTheDocument();
       }
@@ -126,7 +126,7 @@ describe('RangePicker', () => {
       // Read pretty
       expect(screen.getByText('2023-05-01~2023-05-02', { selector: '.ant-description-text' })).toBeInTheDocument();
 
-      if (!process.env.GITHUB_ACTIONS) {
+      if (!ctx.tego.environment.getVariables().GITHUB_ACTIONS) {
         // Value
         expect(screen.getByText(/2023-04-30t16:00:00\.000z ~ 2023-05-02t15:59:59\.999z/i)).toBeInTheDocument();
       }
@@ -198,7 +198,7 @@ describe('RangePicker', () => {
       // Read pretty
       expect(screen.getByText('2023/05/01', { selector: '.ant-description-date-picker' })).toBeInTheDocument();
 
-      if (!process.env.GITHUB_ACTIONS) {
+      if (!ctx.tego.environment.getVariables().GITHUB_ACTIONS) {
         // Value
         // 当 gmt 为 false 时是按照客户端本地时区进行计算的，但是这里的测试环境是 UTC+8，所以会有 8 小时的误差
         expect(screen.getByText('2023-04-30T16:00:00.000Z')).toBeInTheDocument();

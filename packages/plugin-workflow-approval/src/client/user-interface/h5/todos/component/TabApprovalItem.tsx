@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAPIClient, useCollectionManager, useCompile } from '@tachybase/client';
+import { Pagination, useAPIClient, useCollectionManager, useCompile } from '@tachybase/client';
 import { observer } from '@tachybase/schema';
 
 import { useAsyncEffect } from 'ahooks';
@@ -21,16 +21,37 @@ export const TabApprovalItem = observer((props) => {
   const compile = useCompile();
   const navigate = useNavigate();
   const cm = useCollectionManager();
+  const [page, setPage] = useState({
+    pageSize: 10,
+    current: 1,
+  });
+  const [total, setTotal] = useState();
   useAsyncEffect(async () => {
     if (collectionName === 'approvalRecords') {
-      changeApprovalRecordsService(api, params?.[tabKey], filter, cm, compile, t, setData, input);
+      changeApprovalRecordsService(api, params?.[tabKey], filter, cm, compile, t, setData, input, page, setTotal);
     } else if (collectionName === 'users_jobs') {
-      changeUsersJobsService(api, t, cm, compile, input, setData, params?.[tabKey], filter);
+      changeUsersJobsService(api, t, cm, compile, input, setData, params?.[tabKey], filter, page, setTotal);
     } else if (collectionName === 'workflowNotice') {
       const user = await api.request({ url: 'users:list', params: { paginate: false } });
-      changeWorkflowNoticeService(api, t, cm, compile, input, setData, params?.[tabKey], filter, user?.data?.data);
+      changeWorkflowNoticeService(
+        api,
+        t,
+        cm,
+        compile,
+        input,
+        setData,
+        params?.[tabKey],
+        filter,
+        user?.data?.data,
+        page,
+        setTotal,
+      );
     }
-  }, [filter, params, input]);
+  }, [filter, params, input, page]);
+
+  const onChange = (page, pageSize) => {
+    setPage({ pageSize, current: page });
+  };
   return (
     <div style={{ marginTop: '10px', minHeight: '70vh' }}>
       {data.length ? (
@@ -80,6 +101,14 @@ export const TabApprovalItem = observer((props) => {
       ) : (
         <Empty description="暂无数据" />
       )}
+      <Pagination
+        defaultCurrent={1}
+        total={total}
+        align="end"
+        pageSize={page.pageSize}
+        current={page.current}
+        onChange={onChange}
+      />
     </div>
   );
 });
@@ -96,14 +125,16 @@ const approvalTodoListStatus = (item, t) => {
   }
 };
 
-const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setData, input) => {
+const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setData, input, page, setTotal) => {
   api
     .request({
       url: 'approvalRecords:listCentralized',
       params: {
-        paginate: false,
         appends: ['approval.createdBy.nickname', 'execution', 'job', 'node', 'workflow', 'user'],
         filter: { ...params, ...filter },
+        pageSize: page.pageSize,
+        page: page.current,
+        sort: ['-createdAt'],
       },
     })
     .then((res) => {
@@ -140,7 +171,7 @@ const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setDa
           ...item,
           title: `${nickName}的${categoryTitle}`,
           categoryTitle: categoryTitle,
-          statusTitle: t(statusType?.label),
+          statusTitle: compile(statusType?.label),
           statusColor: statusType?.color || 'default',
           reason: summary || [],
           priorityTitle: priorityType?.label,
@@ -155,6 +186,7 @@ const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setDa
       filterResult.sort((a, b) => {
         return Date.parse(b.createdAt) - Date.parse(a.createdAt);
       });
+      setTotal(res.data?.meta?.count);
       setData(filterResult);
     })
     .catch(() => {
@@ -162,14 +194,16 @@ const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setDa
     });
 };
 
-const changeUsersJobsService = (api, t, cm, compile, input, setData, params, filter) => {
+const changeUsersJobsService = (api, t, cm, compile, input, setData, params, filter, page, setTotal) => {
   api
     .request({
       url: 'users_jobs:list',
       params: {
-        paginate: false,
+        pageSize: page.pageSize,
+        page: page.current,
         filter: { ...params, ...filter },
         appends: ['execution', 'job', 'node', 'user', 'workflow'],
+        sort: ['-createdAt'],
       },
     })
     .then((res) => {
@@ -184,7 +218,7 @@ const changeUsersJobsService = (api, t, cm, compile, input, setData, params, fil
           ...item,
           title: `${nickName}的${categoryTitle}`,
           categoryTitle: categoryTitle,
-          statusTitle: t(statusType?.label),
+          statusTitle: compile(statusType?.label),
           statusColor: statusType?.color || 'default',
           statusIcon: statusType?.icon,
           reason: [],
@@ -200,6 +234,7 @@ const changeUsersJobsService = (api, t, cm, compile, input, setData, params, fil
       filterResult.sort((a, b) => {
         return Date.parse(b.createdAt) - Date.parse(a.createdAt);
       });
+      setTotal(res.data?.meta?.count);
       setData(filterResult);
     })
     .catch(() => {
@@ -207,12 +242,25 @@ const changeUsersJobsService = (api, t, cm, compile, input, setData, params, fil
     });
 };
 
-export const changeWorkflowNoticeService = (api, t, cm, compile, input, setData, params, filter, user) => {
+export const changeWorkflowNoticeService = (
+  api,
+  t,
+  cm,
+  compile,
+  input,
+  setData,
+  params,
+  filter,
+  user,
+  page,
+  setTotal,
+) => {
   api
     .request({
       url: 'approvalCarbonCopy:listCentralized',
       params: {
-        paginate: false,
+        pageSize: page.pageSize,
+        page: page.current,
         filter: { ...params, ...filter },
         appends: [
           'createdBy.id',
@@ -231,6 +279,7 @@ export const changeWorkflowNoticeService = (api, t, cm, compile, input, setData,
           'execution.id',
           'execution.status',
         ],
+        sort: ['-createdAt'],
       },
     })
     .then((res) => {
@@ -283,6 +332,7 @@ export const changeWorkflowNoticeService = (api, t, cm, compile, input, setData,
       filterResult.sort((a, b) => {
         return Date.parse(b.createdAt) - Date.parse(a.createdAt);
       });
+      setTotal(res.data?.meta?.count);
       setData(filterResult);
     })
     .catch(() => {

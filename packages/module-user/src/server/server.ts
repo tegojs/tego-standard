@@ -201,7 +201,7 @@ export default class PluginUsersServer extends Plugin {
       },
       { tag: 'roleCacheInvalidation' },
     );
-    const verificationPlugin = this.app.getPlugin('otp') as any;
+    const verificationPlugin = this.app.pm.get('otp') as any;
     if (!verificationPlugin) {
       this.app.logger.warn('sms-auth: @tachybase/plugin-otp is required');
       return;

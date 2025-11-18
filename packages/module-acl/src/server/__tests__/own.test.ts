@@ -1,6 +1,6 @@
 import { MockServer } from '@tachybase/test';
-
 import { ACL, Database } from '@tego/server';
+
 import PluginUser from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';
@@ -67,7 +67,7 @@ describe('own test', () => {
 
     admin = await db.getRepository('users').findOne();
 
-    pluginUser = app.getPlugin('users');
+    pluginUser = app.pm.get('users');
 
     adminAgent = app.agent().login(admin);
 

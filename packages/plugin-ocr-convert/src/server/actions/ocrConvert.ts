@@ -3,7 +3,7 @@ import actions, { Context, Next } from '@tego/server';
 import { PluginOcrConvert } from '../plugin';
 
 export async function recognize(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(PluginOcrConvert) as PluginOcrConvert;
+  const plugin = context.app.pm.get(PluginOcrConvert) as PluginOcrConvert;
   const { values } = context.action.params;
   const providerItem = await plugin.getDefault();
   if (!providerItem) {

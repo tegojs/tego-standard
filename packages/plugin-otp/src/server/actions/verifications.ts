@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
-
 import { actions, Context, Next, Op } from '@tego/server';
+
 import dayjs from 'dayjs';
 
 import Plugin, { namespace } from '..';
@@ -10,7 +10,7 @@ import { CODE_STATUS_UNUSED } from '../constants';
 const asyncRandomInt = promisify(randomInt);
 
 export async function create(context: Context, next: Next) {
-  const plugin = context.app.getPlugin('otp') as Plugin;
+  const plugin = context.app.pm.get('otp') as Plugin;
 
   const { values } = context.action.params;
   const interceptor = plugin.interceptors.get(values?.type);

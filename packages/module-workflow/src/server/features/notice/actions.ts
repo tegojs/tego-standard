@@ -79,7 +79,7 @@ const workflowNotice = {
     workflowNotice.execution.workflow = workflowNotice.workflow;
     workflowNotice.job.execution = workflowNotice.execution;
     workflowNotice.job.latestUserJob = workflowNotice.get();
-    const workflow = context.app.getPlugin(PluginWorkflow);
+    const workflow = context.app.pm.get(PluginWorkflow);
     const processor = workflow.createProcessor(workflowNotice.execution);
 
     processor.logger.info(

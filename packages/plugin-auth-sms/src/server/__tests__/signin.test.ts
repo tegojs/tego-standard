@@ -1,6 +1,5 @@
 import VerificationPlugin from '@tachybase/plugin-otp';
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database, Model, ModelStatic } from '@tego/server';
 
 import { authType } from '../../constants';
@@ -28,7 +27,7 @@ describe('signin', () => {
     db = app.db;
     agent = app.agent();
 
-    const verificationPlugin: VerificationPlugin = app.getPlugin('verification');
+    const verificationPlugin: VerificationPlugin = app.pm.get('verification');
     verificationPlugin.providers.register('fake', Provider as any);
     const VerificationProviderRepo = db.getRepository('verifications_providers');
     await VerificationProviderRepo.create({

@@ -1,5 +1,4 @@
 import { PluginWorkflow } from '@tachybase/module-workflow';
-
 import { actions, utils } from '@tego/server';
 
 import { ERROR_CODE_MAP } from '../constants/error-code';
@@ -72,7 +71,7 @@ export const approvalRecords = {
     approvalRecord.execution.workflow = approvalRecord.workflow;
     approvalRecord.job.execution = approvalRecord.execution;
     approvalRecord.job.latestUserJob = approvalRecord.get();
-    const workflow = context.app.getPlugin(PluginWorkflow);
+    const workflow = context.app.pm.get(PluginWorkflow);
     const processor = workflow.createProcessor(approvalRecord.execution);
     processor.logger.info(
       `approval node (${approvalRecord.nodeId}) action trigger execution (${approvalRecord.execution.id}) to resume`,

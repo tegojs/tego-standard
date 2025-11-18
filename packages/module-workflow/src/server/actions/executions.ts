@@ -59,7 +59,7 @@ export async function cancel(context: Context, next) {
 }
 
 export async function retry(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
+  const plugin = context.app.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(context);
   const { filterByTk, filter = {}, values = {} } = context.action.params;
   const WorkflowRepo = context.db.getRepository('workflows');

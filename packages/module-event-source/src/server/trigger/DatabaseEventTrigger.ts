@@ -46,7 +46,7 @@ export class DatabaseEventTrigger extends EventSourceTrigger {
         return;
       }
       // TODO: 执行人设置为创建这个任务的人/或者更新这个任务的人
-      const pluginWorkflow = this.app.getPlugin(PluginWorkflow) as PluginWorkflow;
+      const pluginWorkflow = this.app.pm.get(PluginWorkflow) as PluginWorkflow;
       const wfRepo = this.app.db.getRepository('workflows');
       const wf = await wfRepo.findOne({ filter: { key: workflowKey, enabled: true } });
       const result = (await pluginWorkflow.trigger(

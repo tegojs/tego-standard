@@ -102,7 +102,7 @@ export async function dump(context: Context, next: Next) {
 }
 
 export async function load(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
+  const plugin = context.app.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(context);
   const { values = {} } = context.action.params;
 
@@ -176,7 +176,7 @@ export async function load(context: Context, next: Next) {
 }
 
 export async function test(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
+  const plugin = context.app.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(context);
   const { filterByTk, filter = {}, values = {} } = context.action.params;
 
@@ -213,7 +213,7 @@ export async function test(context: Context, next: Next) {
 }
 
 export async function revision(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
+  const plugin = context.app.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(context);
   const { filterByTk, filter = {}, values = {} } = context.action.params;
 
@@ -302,7 +302,7 @@ export async function revision(context: Context, next: Next) {
 }
 
 export async function retry(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
+  const plugin = context.app.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(context);
   const { filterByTk, filter = {}, values = {} } = context.action.params;
   const ExecutionRepo = context.db.getRepository('executions');
@@ -349,7 +349,7 @@ export async function retry(context: Context, next: Next) {
 }
 
 export async function sync(context: Context, next) {
-  const plugin = context.app.getPlugin(Plugin);
+  const plugin = context.app.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(context);
   const { filterByTk, filter = {} } = context.action.params;
 

@@ -63,6 +63,45 @@ export class MyModule extends Module {
 }
 ```
 
+## Internationalization (i18n) / 国际化
+
+### Translation File Synchronization / 翻译文件同步
+- **Mandatory Rule / 必须规则**: When adding or modifying translations, **MUST** update **ALL** language files in the locale directory.
+- **必须规则**：添加或修改翻译时，**必须**更新 locale 目录下的**所有**语言文件
+- Do not only update Chinese (zh-CN) and English (en-US), but also update all other language files:
+- 不要只更新中文（zh-CN）和英文（en-US），还要更新所有其他语言文件：
+  - Korean (ko_KR.json)
+  - Japanese (ja-JP.ts)
+  - Portuguese (pt-BR.ts)
+  - And any other language files that exist
+  - 以及存在的任何其他语言文件
+
+### Translation File Locations / 翻译文件位置
+- Locale files are typically located in `packages/*/src/locale/` directory
+- 翻译文件通常位于 `packages/*/src/locale/` 目录
+- Common file formats: `.json`, `.ts`
+- 常见文件格式：`.json`, `.ts`
+
+### Workflow for Adding Translations / 添加翻译的工作流程
+1. Identify all locale files in the target package / 识别目标包中的所有翻译文件
+2. Add the translation key to **ALL** language files / 将翻译键添加到**所有**语言文件
+3. Provide appropriate translations for each language / 为每种语言提供适当的翻译
+4. If unsure of translation, use English as fallback or mark with TODO / 如果不确定翻译，使用英文作为后备或标记 TODO
+
+### Example / 示例
+```typescript
+// ❌ Wrong - Only updating two files / 错误 - 只更新两个文件
+// zh-CN.json: { "NewKey": "新键" }
+// en-US.json: { "NewKey": "New Key" }
+
+// ✅ Correct - Updating all files / 正确 - 更新所有文件
+// zh-CN.json: { "NewKey": "新键" }
+// en-US.json: { "NewKey": "New Key" }
+// ko_KR.json: { "NewKey": "새 키" }
+// ja-JP.ts: { NewKey: '新しいキー' }
+// pt-BR.ts: { NewKey: 'Nova Chave' }
+```
+
 ## Code Quality Check / 代码质量检查
 
 ### Lint Error Check / Lint 错误检查

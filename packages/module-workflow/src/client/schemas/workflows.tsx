@@ -212,6 +212,7 @@ export const workflowFieldset: Record<string, ISchema> = {
     title: `{{ t("Execute mode", { ns: "${NAMESPACE}" }) }}`,
     'x-decorator': 'FormItem',
     'x-component': 'SyncOptionSelect',
+    default: true,
     'x-component-props': {
       options: [
         {

@@ -1,4 +1,5 @@
 import { AuthConfig, BaseAuth, Context } from '@tego/server';
+
 import dayjs from 'dayjs';
 
 import { namespace, weChatApiOauthBaseUrl, weChatApiOauthScope } from '../constants';
@@ -91,7 +92,7 @@ export class WeChatAuth extends BaseAuth {
 
   async getAuthCfg(redirect: string) {
     const appID = this.options?.wechatAuth?.AppID;
-    const app = this.ctx.app.name;
+    const app = this.ctx.tego.name;
     const ctx = this.ctx;
     const referer = ctx.req.headers['referer'];
     let redirectUrl;

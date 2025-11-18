@@ -1,6 +1,6 @@
 import { PluginWorkflow, Processor } from '@tachybase/module-workflow';
-
 import { ActionParams, Application, Context, IField } from '@tego/server';
+
 import dayjs from 'dayjs';
 import lodash from 'lodash';
 
@@ -88,7 +88,7 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
       const params = lodash.cloneDeep(ctx.action.params) as ActionParams;
       // const changedKeys = new Set(Object.keys(params.values));
       const fieldsObj: Record<string, IField> = {};
-      const app = ctx.app as Application;
+      const app = ctx.tego as Application;
       const c = app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
       const collectionRepo = ctx.db.getRepository(c.name);
       const fields = c.getFields();
@@ -146,7 +146,7 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
         changed,
       };
     } catch (err) {
-      ctx.log.error(err);
+      ctx.logger.error(err);
       return {
         error: err.stack,
       };
@@ -179,7 +179,7 @@ export class WebhookController {
       roleName: currentRole,
     };
 
-    const pluginWorkflow = ctx.app.getPlugin(PluginWorkflow) as PluginWorkflow;
+    const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;
     const repo = ctx.db.getRepository(EVENT_SOURCE_COLLECTION);
     const webhook = await repo.findOne(where);
     const webhookCtx = {
@@ -243,7 +243,7 @@ export class WebhookController {
       });
       return webhookCtx.body;
     } catch (err) {
-      ctx.app.log.error(err);
+      ctx.tego.logger.error(err);
       return null;
     }
   }
@@ -259,7 +259,7 @@ export class WebhookController {
       user: UserModel.build(currentUser).desensitize(),
       roleName: currentRole,
     };
-    const pluginWorkflow = ctx.app.getPlugin(PluginWorkflow) as PluginWorkflow;
+    const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;
     const wfRepo = ctx.db.getRepository('workflows');
     const wf = await wfRepo.findOne({ filter: { key: action.workflowKey, enabled: true } });
     return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, { httpContext: ctx });

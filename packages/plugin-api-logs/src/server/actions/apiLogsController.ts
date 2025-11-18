@@ -37,7 +37,7 @@ export class ApiLogsController {
     }
     try {
       await apiLogsRepo.createMany({ records: collectionsToInsert, hooks: false });
-      const plugin = ctx.app.pm.get('api-logs');
+      const plugin = ctx.tego.pm.get('api-logs');
       await plugin.apiFilter?.load();
     } catch (error) {
       ctx.throw(error?.response?.data?.error?.message || 'request error');

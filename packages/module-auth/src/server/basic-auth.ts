@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-
 import { AuthConfig, BaseAuth, PasswordField } from '@tego/server';
 
 // import VerificationPlugin from '@tachybase/plugin-otp';
@@ -142,7 +141,7 @@ export class BasicAuth extends BaseAuth {
       },
     });
     const pwd = this.userCollection.getField<PasswordField>('password');
-    const verificationPlugin = ctx.app.getPlugin('otp');
+    const verificationPlugin = ctx.tego.getPlugin('otp');
     if (user.password !== null) {
       const isValid = await pwd.verify(oldPassword, user.password);
       if (!isValid) {

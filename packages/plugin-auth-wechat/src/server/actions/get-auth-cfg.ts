@@ -6,7 +6,7 @@ export const getAuthCfg = async (ctx: Context, next: Next) => {
   const { redirect, bind } = ctx.action.params.values;
   if (bind) {
     const { authenticator } = ctx.action.params.values;
-    const app = ctx.app as Application;
+    const app = ctx.tego as Application;
     const options = await app.authManager.getOptions(authenticator);
     ctx.body = getBindAuthCfg(ctx, redirect, options?.wechatAuth?.AppID);
   } else {
@@ -20,7 +20,7 @@ const getBindAuthCfg = (ctx, redirect: string, appID: string) => {
   if (!userId) {
     ctx.throw(400, 'Bind user failed: no user found');
   }
-  const app = ctx.app.name;
+  const app = ctx.tego.name;
   const referer = ctx.req.headers['referer'];
   let redirectUrl;
   if (referer) {
@@ -31,7 +31,7 @@ const getBindAuthCfg = (ctx, redirect: string, appID: string) => {
   }
   let state = `redirect=${redirect}&app=${app}&name=${ctx.headers['x-authenticator']}`;
 
-  const token = ctx.app.authManager.jwt.sign({ userId: ctx.auth.user.id }, { expiresIn: `${AUTH_TIMEOUT_MINUTE}m` });
+  const token = ctx.tego.authManager.jwt.sign({ userId: ctx.auth.user.id }, { expiresIn: `${AUTH_TIMEOUT_MINUTE}m` });
   state += `&bindToken=${token}`;
   return {
     appId: appID,

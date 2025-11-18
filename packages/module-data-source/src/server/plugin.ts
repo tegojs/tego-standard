@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
-
 import { Application, Plugin } from '@tego/server';
+
 import lodash from 'lodash';
 
 import { DataSourcesRolesResourcesModel } from './models/connections-roles-resources';
@@ -275,7 +275,7 @@ export class PluginDataSourceManagerServer extends Plugin {
 
         const { options, type } = values;
 
-        const klass = ctx.app.dataSourceManager.factory.getClass(type);
+        const klass = ctx.tego.dataSourceManager.factory.getClass(type);
 
         try {
           await klass.testConnection(this.renderJsonTemplate(options || {}));
@@ -305,7 +305,7 @@ export class PluginDataSourceManagerServer extends Plugin {
           (clientStatus ? clientStatus && canRefreshStatus.includes(clientStatus) : true)
         ) {
           dataSourceModel.loadIntoApplication({
-            app: ctx.app,
+            app: ctx.tego,
           });
         }
 

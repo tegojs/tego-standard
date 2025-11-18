@@ -71,7 +71,7 @@ export class SignInFailsController {
         totalPage: Math.ceil(count / Number(pageSize)),
       };
     } catch (error) {
-      ctx.app.logger.error('Failed to list sign-in fails:', error);
+      ctx.tego.logger.error('Failed to list sign-in fails:', error);
       ctx.throw(500, ctx.t('Failed to load sign-in fails history', { ns: 'plugin-password-policy' }));
     }
 
@@ -92,7 +92,7 @@ export class SignInFailsController {
 
       ctx.body = result;
     } catch (error) {
-      ctx.app.logger.error('Failed to get sign-in fail record:', error);
+      ctx.tego.logger.error('Failed to get sign-in fail record:', error);
       ctx.throw(500, ctx.t('Failed to load sign-in fail record', { ns: 'plugin-password-policy' }));
     }
 

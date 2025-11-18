@@ -20,7 +20,7 @@ export class notificationsController {
   @Action('send', { acl: 'private' })
   async send(ctx: Context, next: Next) {
     try {
-      if (ctx.app.name !== 'main') {
+      if (ctx.tego.name !== 'main') {
         ctx.throw(403, ctx.t('Forbidden broadcast in sub application'));
       }
       const { title = '', detail: content = '', level = 'open', notifyType } = ctx.action.params;
@@ -42,17 +42,17 @@ export class notificationsController {
       }
       switch (notifyType) {
         case NoticeType.MODAL:
-          ctx.app.noticeManager.modal(title, content, level, duration);
+          ctx.tego.noticeManager.modal(title, content, level, duration);
           break;
         case NoticeType.STATUS:
-          ctx.app.noticeManager.status(content, level, duration);
+          ctx.tego.noticeManager.status(content, level, duration);
           break;
         case NoticeType.TOAST:
-          ctx.app.noticeManager.toast(content, level, duration);
+          ctx.tego.noticeManager.toast(content, level, duration);
           break;
         case NoticeType.NOTIFICATION:
         default:
-          ctx.app.noticeManager.notification(title, content, level, duration);
+          ctx.tego.noticeManager.notification(title, content, level, duration);
       }
       const item: NotificationLog = {
         content,

@@ -42,7 +42,7 @@ export class PasswordPolicyController {
       await transaction.commit();
       ctx.body = data;
     } catch (err) {
-      ctx.app.logger.error('put password policy config error', err);
+      ctx.tego.logger.error('put password policy config error', err);
       transaction?.rollback();
     }
     return next();

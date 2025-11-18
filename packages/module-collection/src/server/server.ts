@@ -2,8 +2,8 @@ import path from 'node:path';
 import * as process from 'node:process';
 import { isMainThread } from 'node:worker_threads';
 import PluginErrorHandler from '@tachybase/module-error-handler';
-
 import { Filter, InheritedCollection, Plugin, UniqueConstraintError } from '@tego/server';
+
 import { Mutex } from 'async-mutex';
 import lodash from 'lodash';
 
@@ -237,7 +237,7 @@ export class CollectionManagerPlugin extends Plugin {
     });
 
     const loadCollections = async () => {
-      this.log.debug('loading custom collections', { method: 'loadCollections' });
+      this.app.logger.debug('loading custom collections', { method: 'loadCollections' });
       this.app.setMaintainingMessage('loading custom collections');
       await this.app.db.getRepository<CollectionRepository>('collections').load({
         filter: this.loadFilter,

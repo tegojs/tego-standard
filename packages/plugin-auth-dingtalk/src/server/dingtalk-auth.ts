@@ -59,7 +59,7 @@ export class DingtalkAuth extends BaseAuth {
   }
   async getAuthUrl(redirect) {
     const clientId = this.options?.dingtalk?.clientId;
-    const app = this.ctx.app.name;
+    const app = this.ctx.tego.name;
     const redirectUrl = encodeURIComponent(
       `${this.ctx.protocol}://${this.ctx.host}${process.env.API_BASE_PATH}dingtalk:redirect`,
     );

@@ -38,7 +38,7 @@ export async function changeUserRolesMiddleware(ctx: Context, next) {
       if (!selfRole) {
         continue;
       }
-      await selfRole.resetAcl({ acl: ctx.app.acl });
+      await selfRole.resetAcl({ acl: ctx.tego.acl });
     }
   } else if (
     associatedName === 'roles' &&
@@ -60,7 +60,7 @@ export async function changeUserRolesMiddleware(ctx: Context, next) {
 
     const affectedRoles = affectedUsers.map((u) => u.selfRole) as MergeRoleModel[];
     for (const affectedRole of affectedRoles) {
-      await affectedRole.resetAcl({ acl: ctx.app.acl, changedFields: ['menuUiSchemas'] });
+      await affectedRole.resetAcl({ acl: ctx.tego.acl, changedFields: ['menuUiSchemas'] });
     }
   }
 }

@@ -135,18 +135,18 @@ export class ModuleWeb extends Plugin {
               dialect,
             },
             version: {
-              core: await ctx.app.version.get(),
+              core: await ctx.tego.version.get(),
               app: appVersion,
             },
             lang,
-            name: ctx.app.name,
+            name: ctx.tego.name,
             theme: currentUser?.systemSettings?.theme || systemSetting?.options?.theme || 'default',
           };
           await next();
         },
         async getLang(ctx: Context, next) {
           const lang = await getLang(ctx);
-          const app = ctx.app as Application;
+          const app = ctx.tego as Application;
           const eTag = await app.localeManager.getETag(lang);
           const resources = await app.localeManager.get(lang);
           // UUID 前36位
@@ -170,11 +170,11 @@ export class ModuleWeb extends Plugin {
           await next();
         },
         async restart(ctx, next) {
-          ctx.app.runAsCLI(['restart'], { from: 'user' });
+          ctx.tego.runAsCLI(['restart'], { from: 'user' });
           await next();
         },
         async refresh(ctx, next) {
-          ctx.app.runCommand('refresh');
+          ctx.tego.runCommand('refresh');
           await next();
         },
       },

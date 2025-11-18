@@ -19,12 +19,12 @@ async function checkCount(repository: Repository, id: number[]) {
 
 export default {
   listTypes: async (ctx: Context, next: Next) => {
-    ctx.body = ctx.app.authManager.listTypes();
+    ctx.body = ctx.tego.authManager.listTypes();
     await next();
   },
   publicList: async (ctx: Context, next: Next) => {
     const repo = ctx.db.getRepository('authenticators');
-    const authManager = ctx.app.authManager as AuthManager;
+    const authManager = ctx.tego.authManager as AuthManager;
     const authenticators = await repo.find({
       fields: ['name', 'authType', 'title', 'options', 'sort'],
       filter: {

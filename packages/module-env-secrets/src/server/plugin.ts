@@ -109,7 +109,7 @@ export class PluginEnvironmentVariablesServer extends Plugin {
         // Find first '=' to support values containing '='
         const equalIndex = line.indexOf('=');
         if (equalIndex === -1) {
-          this.app.log.warn(`Invalid environment variable format: ${line}`);
+          this.app.logger.warn(`Invalid environment variable format: ${line}`);
           continue;
         }
 
@@ -117,7 +117,7 @@ export class PluginEnvironmentVariablesServer extends Plugin {
         const value = line.slice(equalIndex + 1).trim();
 
         if (!key) {
-          this.app.log.warn(`Empty key found: ${line}`);
+          this.app.logger.warn(`Empty key found: ${line}`);
           continue;
         }
 
@@ -174,7 +174,7 @@ export class PluginEnvironmentVariablesServer extends Plugin {
           const decrypted = await this.aesEncryptor.decrypt(model.value);
           model.set('value', decrypted);
         } catch (error) {
-          this.app.log.error(error);
+          this.app.logger.error(error);
         }
       }
       this.app.environment.setVariable(model.name, model.value);
@@ -200,7 +200,7 @@ export class PluginEnvironmentVariablesServer extends Plugin {
           const decrypted = await this.aesEncryptor.decrypt(model.value);
           model.set('value', decrypted);
         } catch (error) {
-          this.app.log.error(error);
+          this.app.logger.error(error);
         }
       }
       this.app.environment.setVariable(model.name, model.value);

@@ -1,6 +1,6 @@
 import { Schema } from '@tachybase/schema';
-
 import { BaseError, Plugin } from '@tego/server';
+
 import lodash from 'lodash';
 
 import { ErrorHandler } from './error-handler';
@@ -23,7 +23,7 @@ export class PluginErrorHandler extends Plugin {
 
       const model = instance.constructor;
       const dataSourceKey = ctx.get('x-data-source');
-      const dataSource = ctx.app.dataSourceManager.dataSources.get(dataSourceKey);
+      const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceKey);
       const database = dataSource ? dataSource.collectionManager.db : ctx.db;
 
       const collection = database.modelCollection.get(model);

@@ -186,7 +186,7 @@ export default class PluginUsersServer extends Plugin {
       async (ctx, next) => {
         await next();
         const { associatedName, resourceName, actionName, values } = ctx.action.params;
-        const cache = ctx.app.cache as Cache;
+        const cache = ctx.tego.cache as Cache;
         if (
           associatedName === 'roles' &&
           resourceName === 'users' &&

@@ -8,7 +8,8 @@ import {
   type UserStatusCheckResult,
 } from '@tego/server';
 
-const localeNamespace = 'auth';
+import { namespace } from '../preset';
+const localeNamespace = namespace;
 
 /**
  * 基础用户状态服务实现
@@ -158,7 +159,7 @@ export class UserStatusService implements IUserStatusService {
           color: statusInfo.color,
           allowLogin: statusInfo.allowLogin,
         },
-        errorMessage: translatedLoginErrorMessage || null,
+        errorMessage: statusInfo.allowLogin ? null : translatedLoginErrorMessage || null,
         isExpired: false,
       };
     } catch (error) {

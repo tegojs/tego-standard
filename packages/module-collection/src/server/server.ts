@@ -296,8 +296,8 @@ export class CollectionManagerPlugin extends Plugin {
       { tag: 'setReverseFieldOnFieldChange' },
     );
 
-    this.app.resource(viewResourcer);
-    this.app.resource(sqlResourcer);
+    this.app.resourcer.define(viewResourcer);
+    this.app.resourcer.define(sqlResourcer);
     this.app.actions(collectionActions);
 
     const handleFieldSource = (fields) => {

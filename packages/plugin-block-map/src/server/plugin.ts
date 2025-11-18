@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { InstallOptions, Plugin } from '@tego/server';
 
 import { getConfiguration, setConfiguration } from './actions';
@@ -28,7 +27,7 @@ export class MapPlugin extends Plugin {
   async load() {
     await this.importCollections(path.resolve(__dirname, 'collections'));
 
-    this.app.resource({
+    this.app.resourcer.define({
       name: 'map-configuration',
       actions: {
         get: getConfiguration,

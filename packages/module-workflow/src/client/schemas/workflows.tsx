@@ -1,19 +1,16 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   CardItem,
   SchemaComponent,
-  SchemaComponentContext,
   TableBlockProvider,
   useActionContext,
   useAPIClient,
-  useCollectionManager_deprecated,
   useCollectionRecordData,
   useCompile,
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
   useFormBlockProps,
-  useResourceActionContext,
 } from '@tachybase/client';
 import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
 
@@ -215,6 +212,7 @@ export const workflowFieldset: Record<string, ISchema> = {
     title: `{{ t("Execute mode", { ns: "${NAMESPACE}" }) }}`,
     'x-decorator': 'FormItem',
     'x-component': 'SyncOptionSelect',
+    default: true,
     'x-component-props': {
       options: [
         {
@@ -474,6 +472,27 @@ const revisionWorkflow: ISchema = {
           'x-decorator': 'FormItem',
           'x-component': 'Input',
         },
+        category: {
+          'x-collection-field': 'workflows.category',
+          'x-component': 'CollectionField',
+          'x-decorator': 'FormItem',
+          'x-component-props': {
+            multiple: true,
+            service: {
+              params: {
+                filter: {
+                  $and: [
+                    {
+                      type: {
+                        $ne: 'approval',
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
         footer: {
           type: 'void',
           'x-component': 'Action.Modal.Footer',
@@ -484,22 +503,7 @@ const revisionWorkflow: ISchema = {
               'x-component': 'Action',
               'x-component-props': {
                 type: 'primary',
-                useAction() {
-                  const { t } = useTranslation();
-                  const { refresh } = useDataBlockRequest();
-                  const resource = useDataBlockResource();
-                  const { setVisible } = useActionContext();
-                  const filterByTk = useFilterByTk();
-                  const { values } = useForm();
-                  return {
-                    async run() {
-                      await resource.revision({ filterByTk, values });
-                      message.success(t('Operation succeeded'));
-                      refresh();
-                      setVisible(false);
-                    },
-                  };
-                },
+                useAction: '{{ useRevisionAction }}',
               },
             },
             cancel: {
@@ -1055,6 +1059,7 @@ export const workflowSchema: ISchema = {
                   'x-decorator': 'TableV2.Column.Decorator',
                   'x-component': 'TableV2.Column',
                   'x-component-props': {
+                    sorter: true,
                     width: 20,
                     align: 'center',
                   },
@@ -1066,23 +1071,6 @@ export const workflowSchema: ISchema = {
                       'x-component-props': {
                         multiple: true,
                         mode: 'Tag',
-                      },
-                      'x-read-pretty': true,
-                    },
-                  },
-                },
-                description: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  properties: {
-                    description: {
-                      type: 'string',
-                      'x-component': 'CollectionField',
-                      'x-component-props': {
-                        ellipsis: {
-                          showTitle: false,
-                        },
                       },
                       'x-read-pretty': true,
                     },
@@ -1185,6 +1173,21 @@ export const workflowSchema: ISchema = {
                     },
                   },
                 },
+                description: {
+                  type: 'void',
+                  'x-decorator': 'TableV2.Column.Decorator',
+                  'x-component': 'TableV2.Column',
+                  properties: {
+                    description: {
+                      type: 'string',
+                      'x-component': 'CollectionField',
+                      'x-component-props': {
+                        ellipsis: true,
+                      },
+                      'x-read-pretty': true,
+                    },
+                  },
+                },
                 updatedAt: {
                   type: 'void',
                   'x-decorator': 'TableV2.Column.Decorator',
@@ -1267,22 +1270,7 @@ export const workflowSchema: ISchema = {
                           title: '{{ t("Dump") }}',
                           'x-component': 'Action.Link',
                           'x-component-props': {
-                            useAction() {
-                              const { t } = useTranslation();
-                              const resource = useDataBlockResource();
-                              const filterByTk = useFilterByTk();
-
-                              return {
-                                async run() {
-                                  const { data } = await resource.dump({ filterByTk });
-                                  const blob = new Blob([JSON.stringify(data.data, null, 2)], {
-                                    type: 'application/json',
-                                  });
-                                  saveAs(blob, data.data.title + '-' + data.data.key + '.json');
-                                  message.success(t('Operation succeeded'));
-                                },
-                              };
-                            },
+                            useAction: '{{ useDumpAction }}',
                           },
                         },
                       },

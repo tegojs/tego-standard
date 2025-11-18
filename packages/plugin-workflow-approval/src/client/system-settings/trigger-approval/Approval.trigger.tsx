@@ -179,7 +179,7 @@ export class ApprovalTrigger extends Trigger {
   }
 
   useInitializers(config: { collection: any }): SchemaInitializerItemType | null {
-    if (!config.collection) {
+    if (!config?.collection) {
       return null;
     }
 

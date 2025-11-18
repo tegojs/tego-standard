@@ -1,4 +1,11 @@
-import { ColumnExecutedTime, ExecutionRetryAction, WorkflowPane } from '@tachybase/module-workflow/client';
+import { useCancelAction } from '@tachybase/client';
+import {
+  ColumnExecutedTime,
+  ExecutionRetryAction,
+  useDumpAction,
+  useRevisionAction,
+  WorkflowPane,
+} from '@tachybase/module-workflow/client';
 
 import { tval } from '../locale';
 import { schemaApprovalPanne } from './ApprovalPane.schema';
@@ -16,8 +23,11 @@ export const settingApproval = {
         ColumnShowApprovalId,
         ColumnExecutedTime,
       }}
-      scope={{
+      scopes={{
         ExecutionRetryAction,
+        useCancelAction,
+        useDumpAction,
+        useRevisionAction,
       }}
     />
   ),

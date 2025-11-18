@@ -1,0 +1,68 @@
+name: Update Unreleased Changelog
+
+on:
+  # 每周五晚上 12 点（北京时间周六凌晨 0 点）定时触发
+  # UTC 时间：周五 16:00（北京时间 UTC+8 周六 00:00）
+  schedule:
+    - cron: '0 16 * * 5'  # 每周五 UTC 16:00 (北京时间周六 00:00)
+  # 保留手动触发功能
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-unreleased:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check_changes.outputs.has_changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.0
+
+      - name: Update Unreleased changelog
+        run: |
+          node scripts/update-unreleased.mjs
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet CHANGELOG.md CHANGELOG.zh-CN.md; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changelog changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changelog changes detected"
+            git diff CHANGELOG.md CHANGELOG.zh-CN.md
+          fi
+
+      - name: Commit changes
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(changelog): update [Unreleased] section"
+          file_pattern: |
+            CHANGELOG.md
+            CHANGELOG.zh-CN.md
+          commit_user_name: github-actions[bot]
+          commit_user_email: github-actions[bot]@users.noreply.github.com
+
+  sync-unreleased-to-docs:
+    needs: update-unreleased
+    if: always() && needs.update-unreleased.result == 'success' && needs.update-unreleased.outputs.has_changes == 'true'
+    uses: ./.github/workflows/sync-changelog-to-docs.yaml
+    secrets: inherit
+    with:
+      version: unreleased
+

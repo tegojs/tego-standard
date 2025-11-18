@@ -41,3 +41,6 @@ docs-repo-temp/
 
 # 构建时生成的临时版本文件，不应提交到 git
 .version.json
+
+# 临时文档文件
+*.temp.*

@@ -428,6 +428,8 @@ export const schemaApprovalPanne = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 sorter: true,
+                width: 100,
+                align: 'center',
               },
               properties: {
                 title: {
@@ -437,14 +439,25 @@ export const schemaApprovalPanne = {
                 },
               },
             },
-            description: {
+
+            category: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 100,
+                align: 'center',
+              },
               properties: {
-                description: {
-                  type: 'string',
+                category: {
+                  type: 'array',
+                  'x-collection-field': 'workflows.category',
                   'x-component': 'CollectionField',
+                  'x-component-props': {
+                    multiple: true,
+                    mode: 'Tag',
+                  },
                   'x-read-pretty': true,
                 },
               },
@@ -455,7 +468,8 @@ export const schemaApprovalPanne = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 sorter: true,
-                width: 20,
+                width: 50,
+                align: 'center',
               },
               properties: {
                 enabled: {
@@ -472,7 +486,8 @@ export const schemaApprovalPanne = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 sorter: true,
-                width: 20,
+                width: 100,
+                align: 'center',
               },
               properties: {
                 allExecuted: {
@@ -492,6 +507,42 @@ export const schemaApprovalPanne = {
                   properties: {
                     drawer: schemaExecution,
                   },
+                },
+              },
+            },
+            executedTime: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Finally executed on', { ns: 'workflow' }),
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                executedTime: {
+                  type: 'string',
+                  'x-component': 'ColumnExecutedTime',
+                },
+              },
+            },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-component-props': {
+                    ellipsis: true,
+                  },
+                  'x-read-pretty': true,
                 },
               },
             },

@@ -194,6 +194,13 @@ export async function test(context: Context, next: Next) {
     context,
   });
 
+  if (!workflow) {
+    return context.throw(404, 'Workflow not found');
+  }
+
+  // 记录触发前的时间，用于队列模式下查找新创建的执行记录
+  const beforeTriggerTime = new Date();
+
   const result = await plugin.trigger(
     workflow,
     {
@@ -205,11 +212,48 @@ export async function test(context: Context, next: Next) {
 
   context.app.logger.info(result);
 
+  let execution;
+
+  // 处理同步模式：result 是 Processor 对象，包含 execution 属性
+  if (result && typeof result === 'object' && 'execution' in result && result.execution) {
+    execution = result.execution;
+  } else if (!result && !plugin.isWorkflowSync(workflow)) {
+    // 队列模式：trigger 返回 void，需要等待执行记录创建
+    const ExecutionRepo = context.db.getRepository('executions');
+    // 重试机制：最多等待 2 秒，每 200ms 检查一次
+    const maxRetries = 10;
+    const retryDelay = 200;
+    for (let i = 0; i < maxRetries; i++) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      execution = await ExecutionRepo.findOne({
+        filter: {
+          key: workflow.key,
+          createdAt: {
+            [Op.gte]: beforeTriggerTime,
+          },
+        },
+        sort: ['-createdAt'],
+        transaction: context.transaction,
+      });
+      if (execution) {
+        break;
+      }
+    }
+  }
+
+  if (!execution) {
+    context.state.messages.push({
+      message: context.t('Failed to create execution', { ns: 'workflow' }),
+    });
+    return context.throw(500, 'Failed to create execution');
+  }
+
   context.state.messages.push({
     message: context.t('Test execution ended', { ns: 'workflow' }),
   });
 
-  context.body = result.execution;
+  context.body = execution;
+  await next();
 }
 
 export async function revision(context: Context, next: Next) {

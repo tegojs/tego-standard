@@ -1,19 +1,16 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   CardItem,
   SchemaComponent,
-  SchemaComponentContext,
   TableBlockProvider,
   useActionContext,
   useAPIClient,
-  useCollectionManager_deprecated,
   useCollectionRecordData,
   useCompile,
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
   useFormBlockProps,
-  useResourceActionContext,
 } from '@tachybase/client';
 import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
 
@@ -1272,22 +1269,7 @@ export const workflowSchema: ISchema = {
                           title: '{{ t("Dump") }}',
                           'x-component': 'Action.Link',
                           'x-component-props': {
-                            useAction() {
-                              const { t } = useTranslation();
-                              const resource = useDataBlockResource();
-                              const filterByTk = useFilterByTk();
-
-                              return {
-                                async run() {
-                                  const { data } = await resource.dump({ filterByTk });
-                                  const blob = new Blob([JSON.stringify(data.data, null, 2)], {
-                                    type: 'application/json',
-                                  });
-                                  saveAs(blob, data.data.title + '-' + data.data.key + '.json');
-                                  message.success(t('Operation succeeded'));
-                                },
-                              };
-                            },
+                            useAction: '{{ useDumpAction }}',
                           },
                         },
                       },

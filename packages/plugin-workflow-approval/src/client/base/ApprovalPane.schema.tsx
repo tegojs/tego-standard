@@ -11,7 +11,6 @@ import { collectionWorkflows, TabTableBlockProvider, WorkflowTabCardItem } from 
 import { ISchema, useForm } from '@tachybase/schema';
 
 import { message } from 'antd';
-import { saveAs } from 'file-saver';
 
 import { NAMESPACE, tval, useTranslation } from '../locale';
 import { schemaExecution } from './Execution.schema';
@@ -691,20 +690,7 @@ export const schemaApprovalPanne = {
                       title: '{{ t("Dump") }}',
                       'x-component': 'Action.Link',
                       'x-component-props': {
-                        useAction() {
-                          const { t } = useTranslation();
-                          const resource = useDataBlockResource();
-                          const filterByTk = useFilterByTk();
-
-                          return {
-                            async run() {
-                              const { data } = await resource.dump({ filterByTk });
-                              const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
-                              saveAs(blob, data.data.title + '-' + data.data.key + '.json');
-                              message.success(t('Operation succeeded'));
-                            },
-                          };
-                        },
+                        useAction: '{{ useDumpAction }}',
                       },
                     },
                   },

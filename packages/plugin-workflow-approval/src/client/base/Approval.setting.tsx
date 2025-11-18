@@ -2,6 +2,7 @@ import { useCancelAction } from '@tachybase/client';
 import {
   ColumnExecutedTime,
   ExecutionRetryAction,
+  useDumpAction,
   useRevisionAction,
   WorkflowPane,
 } from '@tachybase/module-workflow/client';
@@ -25,6 +26,7 @@ export const settingApproval = {
       scopes={{
         ExecutionRetryAction,
         useCancelAction,
+        useDumpAction,
         useRevisionAction,
       }}
     />

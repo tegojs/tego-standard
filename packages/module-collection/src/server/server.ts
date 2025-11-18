@@ -298,7 +298,7 @@ export class CollectionManagerPlugin extends Plugin {
 
     this.app.resourcer.define(viewResourcer);
     this.app.resourcer.define(sqlResourcer);
-    this.app.actions(collectionActions);
+    this.app.resourcer.registerActions(collectionActions);
 
     const handleFieldSource = (fields) => {
       for (const field of lodash.castArray(fields)) {

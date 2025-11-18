@@ -90,7 +90,7 @@ const workflowNotice = {
 };
 
 export function init({ app }) {
-  app.actions({
+  app.resourcer.registerActions({
     ...make(COLLECTION_WORKFLOWS_NAME, workflows),
     ...make(COLLECTION_NOTICE_NAME, workflowNotice),
   });

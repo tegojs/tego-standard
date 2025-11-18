@@ -254,7 +254,7 @@ export class PluginDataSourceManagerServer extends Plugin {
       { tag: 'dataSourcesget' },
     );
 
-    this.app.actions({
+    this.app.resourcer.registerActions({
       async ['dataSources:listEnabled'](ctx, next) {
         const dataSources = await ctx.db.getRepository('dataSources').find({
           filter: {

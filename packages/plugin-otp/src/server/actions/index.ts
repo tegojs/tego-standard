@@ -11,7 +11,7 @@ function make(name, mod) {
 }
 
 export default function ({ app }) {
-  app.actions({
+  app.resourcer.registerActions({
     ...make('verifications', verifications),
   });
 }

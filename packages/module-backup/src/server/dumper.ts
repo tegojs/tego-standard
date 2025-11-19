@@ -609,7 +609,8 @@ export class Dumper extends AppMigrator {
     // Wait for the 'close' event
     await onClose;
 
-    // 确保进度更新到 99%
+    // 清理进度更新定时器（setupPackingProgress 的 cleanup 函数会在 close 事件中调用）
+    // 确保进度更新到 99%（如果还没有更新的话）
     if (progressTracker) {
       await progressTracker.update(99, 'Packing backup file...');
     }

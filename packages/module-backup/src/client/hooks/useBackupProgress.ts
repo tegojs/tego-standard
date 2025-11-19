@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useApp } from '@tachybase/client';
 import { autorun } from '@tachybase/schema';
 
@@ -27,6 +27,15 @@ export interface UseBackupProgressOptions {
    * WebSocket 消息类型，默认为 'backup:progress'
    */
   messageType?: string;
+  /**
+   * 超时时间（毫秒），如果备份任务长时间没有收到进度更新，将被标记为失败
+   * 默认为 5 分钟 (300000 毫秒)
+   */
+  timeout?: number;
+  /**
+   * 超时回调，当备份任务超时时调用
+   */
+  onTimeout?: (fileName: string) => void;
 }
 
 /**
@@ -51,36 +60,36 @@ export function useBackupProgress({
   onDataSourceUpdate,
   onComplete,
   messageType = 'backup:progress',
+  timeout = 5 * 60 * 1000, // 默认 5 分钟
+  onTimeout,
 }: UseBackupProgressOptions) {
   const app = useApp();
   const onCompleteRef = useRef(onComplete);
+  const onTimeoutRef = useRef(onTimeout);
   const dataSourceRef = useRef(dataSource);
   const hasSentSignInRef = useRef(false);
+  // 跟踪每个备份任务的最后更新时间
+  const lastUpdateTimeRef = useRef<Map<string, number>>(new Map());
+  // 跟踪每个备份任务的超时定时器
+  const timeoutTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // 更新 ref，确保总是使用最新的值
   useEffect(() => {
     onCompleteRef.current = onComplete;
+    onTimeoutRef.current = onTimeout;
     dataSourceRef.current = dataSource;
-  }, [onComplete, dataSource]);
+  }, [onComplete, onTimeout, dataSource]);
 
   // 确保 WebSocket 连接后发送 signIn 消息，设置用户标签
   // 这样服务端才能通过标签找到对应的连接并推送备份进度
-  // 注意：如果 message 模块已加载，MessageChannelProvider 也会发送 signIn，但不会冲突
-  // 备份模块的服务端也会处理 signIn 消息，所以即使 message 模块未加载也能正常工作
+  // 备份模块独立处理 signIn 消息，不依赖 message 模块
+  // 即使 message 模块已加载，备份模块也会发送 signIn 以确保标签正确设置
   useEffect(() => {
     if (!app.ws || !app.ws.enabled) {
       return;
     }
 
-    // 检查 message 模块是否已加载（如果已加载，MessageChannelProvider 会发送 signIn）
-    // 如果 message 模块已加载，我们就不需要重复发送了
-    const messagePlugin = app.pm.get('ModuleMessageClient');
-    if (messagePlugin) {
-      // message 模块已加载，MessageChannelProvider 会发送 signIn，这里不需要重复发送
-      return;
-    }
-
-    // 如果 message 模块未加载，我们需要发送 signIn 消息
+    // 始终发送 signIn 消息，不依赖 message 模块
     // 备份模块的服务端会处理这个消息并设置 WebSocket 标签
     const disposer = autorun(() => {
       if (app.ws.connected && !hasSentSignInRef.current) {
@@ -96,6 +105,10 @@ export function useBackupProgress({
           };
           app.ws.send(JSON.stringify(data));
           hasSentSignInRef.current = true;
+          // 调试日志
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[BackupProgress] Sent signIn message to set WebSocket tag');
+          }
         }
       } else if (!app.ws.connected) {
         // 连接断开时重置标志，以便重连后再次发送
@@ -107,7 +120,77 @@ export function useBackupProgress({
       disposer();
       hasSentSignInRef.current = false;
     };
-  }, [app.ws, app.apiClient, app.pm]);
+  }, [app.ws, app.apiClient]);
+
+  // 设置超时检测（使用 useCallback 避免闭包问题）
+  const setupTimeoutCheck = useCallback(
+    (fileName: string) => {
+      // 清除旧的超时定时器
+      const oldTimer = timeoutTimersRef.current.get(fileName);
+      if (oldTimer) {
+        clearTimeout(oldTimer);
+      }
+
+      // 更新最后更新时间
+      lastUpdateTimeRef.current.set(fileName, Date.now());
+
+      // 设置新的超时定时器
+      const timer = setTimeout(() => {
+        // 检查是否真的超时了（可能在这期间收到了更新）
+        const lastUpdate = lastUpdateTimeRef.current.get(fileName);
+        if (lastUpdate && Date.now() - lastUpdate >= timeout) {
+          // 标记为失败
+          onDataSourceUpdate((prevDataSource) => {
+            return prevDataSource.map((item: any) => {
+              if (item.name === fileName && (item.inProgress || item.status === 'in_progress')) {
+                console.warn(`[BackupProgress] Backup task ${fileName} timed out after ${timeout}ms`);
+                return {
+                  ...item,
+                  inProgress: false,
+                  status: 'error',
+                  progress: item.progress || 0,
+                  currentStep: 'Timeout: No progress update received',
+                };
+              }
+              return item;
+            });
+          });
+
+          // 清理定时器和更新时间
+          timeoutTimersRef.current.delete(fileName);
+          lastUpdateTimeRef.current.delete(fileName);
+
+          // 触发超时回调
+          onTimeoutRef.current?.(fileName);
+        }
+      }, timeout);
+
+      timeoutTimersRef.current.set(fileName, timer);
+    },
+    [timeout, onDataSourceUpdate],
+  );
+
+  // 清理超时检测
+  const clearTimeoutCheck = useCallback((fileName: string) => {
+    const timer = timeoutTimersRef.current.get(fileName);
+    if (timer) {
+      clearTimeout(timer);
+      timeoutTimersRef.current.delete(fileName);
+    }
+    lastUpdateTimeRef.current.delete(fileName);
+  }, []);
+
+  // 监听数据源变化，为新的备份任务设置超时检测
+  useEffect(() => {
+    dataSource.forEach((item: any) => {
+      if ((item.inProgress || item.status === 'in_progress') && item.name) {
+        // 如果还没有设置超时检测，则设置
+        if (!timeoutTimersRef.current.has(item.name)) {
+          setupTimeoutCheck(item.name);
+        }
+      }
+    });
+  }, [dataSource, setupTimeoutCheck]);
 
   useEffect(() => {
     if (!app.ws) {
@@ -117,19 +200,39 @@ export function useBackupProgress({
     const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        // 调试日志：记录所有收到的消息类型（仅在开发环境）
+        if (process.env.NODE_ENV === 'development' && data?.type === messageType) {
+          console.log('[BackupProgress] Received backup progress message:', data);
+        }
+
         if (data?.type === messageType) {
+          // 检查 payload 是否存在
+          if (!data.payload) {
+            console.warn('[BackupProgress] Received message without payload:', data);
+            return;
+          }
+
           const { fileName, progress } = data.payload as BackupProgressUpdate;
 
-          // 如果进度达到 100%，触发完成回调
+          // 检查必要字段
+          if (!fileName || !progress) {
+            console.warn('[BackupProgress] Invalid message format:', data.payload);
+            return;
+          }
+
+          // 如果进度达到 100%，触发完成回调并清理超时检测
           if (progress.percent >= 100) {
+            clearTimeoutCheck(fileName);
             onCompleteRef.current?.(fileName);
             return;
           }
 
-          // 更新对应文件的进度
+          // 更新对应文件的进度，并重置超时检测
           onDataSourceUpdate((prevDataSource) => {
             return prevDataSource.map((item: any) => {
               if (item.name === fileName) {
+                // 重置超时检测
+                setupTimeoutCheck(fileName);
                 return {
                   ...item,
                   inProgress: true,
@@ -143,7 +246,10 @@ export function useBackupProgress({
           });
         }
       } catch (error) {
-        // 忽略解析错误
+        // 忽略解析错误，但记录警告
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[BackupProgress] Failed to parse message:', error);
+        }
       }
     };
 
@@ -151,6 +257,12 @@ export function useBackupProgress({
 
     return () => {
       app.ws.off('message', handleMessage);
+      // 清理所有超时定时器
+      timeoutTimersRef.current.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      timeoutTimersRef.current.clear();
+      lastUpdateTimeRef.current.clear();
     };
-  }, [app.ws, messageType, onDataSourceUpdate]);
+  }, [app.ws, messageType, onDataSourceUpdate, setupTimeoutCheck, clearTimeoutCheck]);
 }

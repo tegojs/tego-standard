@@ -32,8 +32,8 @@ export default class PluginBackupRestoreServer extends Plugin {
     this.app.resourcer.define(backupFilesResourcer);
 
     // 处理 WebSocket signIn 消息，设置用户标签
-    // 这样即使 message 模块没有加载，备份进度也能正常推送
-    // 注意：如果 message 模块已加载，它也会处理 signIn，但不会冲突（会覆盖标签）
+    // 备份模块独立处理 signIn 消息，不依赖 message 模块
+    // 这样可以确保备份进度推送功能在任何环境下都能正常工作
     const gateway = Gateway.getInstance();
     const ws = gateway['wsServer'];
     if (ws?.wss) {
@@ -57,14 +57,21 @@ export default class PluginBackupRestoreServer extends Plugin {
                     const userId = analysis.userId;
                     const client = ws.webSocketClients.get(websocket.id);
                     if (client) {
-                      // 移除所有以 'app:' 开头的标签
+                      // 移除所有以 'app:' 开头的标签（包括 message 模块设置的标签）
                       client.tags.forEach((tag) => {
                         if (tag.startsWith('app:')) {
                           client.tags.delete(tag);
                         }
                       });
-                      // 添加新标签
-                      client.tags.add(`app:${appName}#${userId}`);
+                      // 添加新标签（备份模块的标签格式）
+                      const tag = `app:${appName}#${userId}`;
+                      client.tags.add(tag);
+                      // 调试日志：记录标签设置
+                      this.app.logger.debug(`[Backup] WebSocket signIn: set tag ${tag} for connection ${websocket.id}`);
+                    } else {
+                      this.app.logger.warn(
+                        `[Backup] WebSocket signIn: client not found for connection ${websocket.id}`,
+                      );
                     }
                   } catch (error) {
                     this.app.logger.warn('[Backup] WebSocket signIn message connection error:', error);
@@ -77,6 +84,8 @@ export default class PluginBackupRestoreServer extends Plugin {
           });
         },
       );
+    } else {
+      this.app.logger.warn('[Backup] WebSocket server not available, backup progress will not be pushed via WebSocket');
     }
 
     this.app.on('afterStart', async (app) => {

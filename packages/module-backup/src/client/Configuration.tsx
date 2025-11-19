@@ -554,6 +554,17 @@ export const BackupAndRestoreList = () => {
       // 进度达到 100% 时刷新列表
       queryFieldList(false);
     },
+    onTimeout: (fileName) => {
+      // 备份任务超时时显示通知
+      notification.error({
+        key: 'backup-timeout',
+        message: t('Backup timeout', { ns: 'backup' }),
+        description: `${fileName} ${t('No progress update received for a long time', { ns: 'backup' })}`,
+        duration: 5,
+      });
+      // 刷新列表以更新状态
+      queryFieldList(false);
+    },
   });
   const handleDestory = (fileData) => {
     modal.confirm({

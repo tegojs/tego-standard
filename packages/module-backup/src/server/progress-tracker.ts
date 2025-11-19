@@ -74,6 +74,9 @@ export class ProgressManager {
     // 如果没有 userId，说明是自动备份或其他系统任务，不推送 WebSocket
     // 进度信息仍然会写入文件，前端可以通过轮询或刷新获取
     if (!userId || userId <= 0) {
+      if (this.app?.logger) {
+        this.app.logger.debug(`[ProgressManager] Skipping WebSocket push for ${fileName}: no userId`);
+      }
       return;
     }
 
@@ -81,25 +84,63 @@ export class ProgressManager {
       const gateway = Gateway.getInstance();
       const ws = gateway['wsServer'];
       if (!ws) {
+        if (this.app?.logger) {
+          this.app.logger.warn('[ProgressManager] WebSocket server not available');
+        }
         return;
+      }
+
+      const finalAppName = appName || this.app.name;
+      const tagPrefix = `app:${finalAppName}`;
+      const tagValue = `${userId}`;
+      const expectedTag = `${tagPrefix}#${tagValue}`;
+
+      // 调试日志：记录发送的消息和标签信息
+      if (this.app?.logger) {
+        // 检查是否有匹配的连接
+        const matchingConnections = Array.from(ws.webSocketClients.values()).filter((client: any) => {
+          return client.tags?.has?.(expectedTag);
+        });
+        this.app.logger.debug(
+          `[ProgressManager] Sending backup progress via WebSocket: fileName=${fileName}, userId=${userId}, appName=${finalAppName}, tag=${expectedTag}, progress=${progress.percent}%, matchingConnections=${matchingConnections.length}`,
+        );
+        if (matchingConnections.length === 0) {
+          // 列出所有连接的标签，帮助调试
+          const allTags = Array.from(ws.webSocketClients.values())
+            .flatMap((client: any) => Array.from(client.tags || []))
+            .filter((tag: string) => typeof tag === 'string' && tag.startsWith('app:'));
+          this.app.logger.warn(
+            `[ProgressManager] No matching connections found for tag ${expectedTag}. Available tags: ${allTags.join(', ')}`,
+          );
+        }
       }
 
       // 发送给特定用户
       // 注意：userId 必须有效，否则 sendToConnectionsByTag 可能会报错
-      ws.sendToConnectionsByTag(`app:${appName || this.app.name}`, `${userId}`, {
-        type: 'backup:progress',
-        payload: {
-          fileName,
-          progress,
-        },
-      });
+      try {
+        ws.sendToConnectionsByTag(tagPrefix, tagValue, {
+          type: 'backup:progress',
+          payload: {
+            fileName,
+            progress,
+          },
+        });
+      } catch (sendError) {
+        // 如果发送失败，记录详细错误信息
+        if (this.app?.logger) {
+          this.app.logger.error(
+            `[ProgressManager] Failed to send WebSocket message: tagPrefix=${tagPrefix}, tagValue=${tagValue}, error=`,
+            sendError,
+          );
+        }
+        throw sendError;
+      }
     } catch (error) {
-      // 忽略 WebSocket 推送错误，不影响备份流程
-      // 使用 logger 而不是 console.error，如果可用的话
+      // 记录 WebSocket 推送错误，但不影响备份流程
       if (this.app?.logger) {
-        this.app.logger.warn('[ProgressManager] WebSocket push error:', error);
+        this.app.logger.warn(`[ProgressManager] WebSocket push error for ${fileName} (userId=${userId}):`, error);
       } else {
-        console.error('[ProgressManager] WebSocket push error:', error);
+        console.error(`[ProgressManager] WebSocket push error for ${fileName} (userId=${userId}):`, error);
       }
     }
   }
@@ -205,37 +246,85 @@ export class ProgressManager {
     let startTime = Date.now();
     let progressInterval: NodeJS.Timeout | null = null;
     let currentProgress = 90;
+    let isFinished = false;
 
-    // 估算总文件数
-    this.countFiles(this.workDir).then((count) => {
-      totalEntries = count || 1; // 避免除零
-    });
+    // 估算总文件数（同步等待，避免异步问题）
+    this.countFiles(this.workDir)
+      .then((count) => {
+        totalEntries = count || 1; // 避免除零
+      })
+      .catch(() => {
+        // 如果统计失败，使用默认值
+        totalEntries = 1;
+      });
 
     // 监听 entry 事件，跟踪已处理的文件数
     archive.on('entry', () => {
       processedEntries++;
     });
 
+    // 监听 archive 完成事件，确保打包完成后更新进度
+    // archiver 会在打包完成时触发 'end' 事件
+    const handleFinish = async () => {
+      if (isFinished) {
+        return; // 避免重复处理
+      }
+      isFinished = true;
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      // 打包完成，更新到 99%
+      try {
+        await progressTracker.update(99, 'Packing backup file...');
+      } catch (error) {
+        // 记录错误但不抛出，避免影响打包流程
+        if (this.app?.logger) {
+          this.app.logger.warn('[ProgressManager] Failed to update progress after packing:', error);
+        }
+      }
+    };
+
+    // 监听多个事件以确保打包完成时能正确更新进度
+    archive.on('end', handleFinish);
+    archive.on('finish', handleFinish);
+
     // 使用定时器平滑更新进度 (90-99%)
     progressInterval = setInterval(async () => {
+      if (isFinished) {
+        // 如果已经完成，停止更新
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+        return;
+      }
+
+      const elapsed = Date.now() - startTime;
+
       if (processedEntries > 0 && totalEntries > 0) {
         // 根据已处理的文件数计算进度
         const fileBasedProgress = 90 + Math.floor((processedEntries / totalEntries) * 9);
         // 根据时间估算进度（作为补充，防止文件数统计不准确）
-        const elapsed = Date.now() - startTime;
-        const timeBasedProgress = Math.min(90 + Math.floor((elapsed / 10000) * 9), 99); // 假设打包最多需要10秒
+        // 增加时间估算的上限，从10秒改为60秒，避免长时间打包时进度卡住
+        const timeBasedProgress = Math.min(90 + Math.floor((elapsed / 60000) * 9), 99);
         // 取两者中的较大值，确保进度不会倒退
         currentProgress = Math.max(currentProgress, Math.min(fileBasedProgress, timeBasedProgress, 99));
       } else {
         // 如果还没有处理文件，根据时间缓慢增加进度
-        const elapsed = Date.now() - startTime;
-        currentProgress = Math.min(90 + Math.floor((elapsed / 10000) * 9), 99);
+        // 增加时间估算的上限，从10秒改为60秒
+        currentProgress = Math.min(90 + Math.floor((elapsed / 60000) * 9), 99);
       }
-      await progressTracker.update(currentProgress, 'Packing backup file...');
+
+      // 如果进度已经达到 99%，不再更新（等待完成事件）
+      if (currentProgress < 99) {
+        await progressTracker.update(currentProgress, 'Packing backup file...');
+      }
     }, 300); // 每 300ms 更新一次进度
 
     // 返回清理函数
     return () => {
+      isFinished = true;
       if (progressInterval) {
         clearInterval(progressInterval);
         progressInterval = null;

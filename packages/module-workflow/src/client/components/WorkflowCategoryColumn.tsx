@@ -6,8 +6,9 @@ import { Tag } from 'antd';
 
 /**
  * 工作流分类列组件
- * 直接展示分类数据，不触发 API 请求
- * 与 data-source 的 CollectionCategory 组件类似
+ * - 直接展示后端返回的分类数据，不触发额外的 API 请求
+ * - 数据由 listExtended action 提供，格式：{ id, name, color? }[]
+ * - 与 data-source 模块的 CollectionCategory 组件设计类似
  */
 export const WorkflowCategoryColumn = observer((props: any) => {
   const { value } = props;

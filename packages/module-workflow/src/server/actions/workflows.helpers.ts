@@ -3,14 +3,18 @@ import { Context } from '@tego/server';
 import dayjs from 'dayjs';
 
 /**
- * 获取 workflow 的实际数据（可能是 Model 或 JSON）
+ * 获取工作流的实际数据（处理 Model 和 JSON 两种格式）
  */
 export function getWorkflowData(workflow: any): { id?: number; key?: string } {
   return workflow && typeof workflow.toJSON === 'function' ? workflow.toJSON() : workflow;
 }
 
 /**
- * 查询单个 workflow 的最新执行时间（UTC ISO 格式）
+ * 查询单个工作流的最新执行时间
+ * @param context 上下文对象
+ * @param workflowId 工作流 ID（优先使用，可利用外键索引）
+ * @param workflowKey 工作流 Key（备用）
+ * @returns UTC ISO 格式的时间字符串，如果不存在则返回 null
  */
 export async function getLatestExecutedTimeForWorkflow(
   context: Context,
@@ -25,7 +29,7 @@ export async function getLatestExecutedTimeForWorkflow(
     const ExecutionRepo = context.db.getRepository('executions');
     const filter: any = {};
 
-    // 优先使用 workflowId（可以利用外键索引）
+    // 优先使用 workflowId（可以利用外键索引提高查询性能）
     if (workflowId) {
       filter.workflowId = workflowId;
     } else if (workflowKey) {
@@ -47,7 +51,8 @@ export async function getLatestExecutedTimeForWorkflow(
 }
 
 /**
- * 为 workflow 对象设置最新执行时间
+ * 为工作流对象设置最新执行时间
+ * 支持 Model 和普通对象两种格式
  */
 export function setLatestExecutedTime(row: any, executedTime: string | null) {
   (row as any).latestExecutedTime = executedTime;
@@ -57,7 +62,10 @@ export function setLatestExecutedTime(row: any, executedTime: string | null) {
 }
 
 /**
- * 查询单个 workflow 的事件源名称
+ * 查询单个工作流关联的事件源名称
+ * @param context 上下文对象
+ * @param workflowKey 工作流 Key
+ * @returns 事件源名称，如果不存在则返回 null
  */
 export async function getEventSourceNameForWorkflow(context: Context, workflowKey?: string): Promise<string | null> {
   if (!workflowKey) {
@@ -80,7 +88,8 @@ export async function getEventSourceNameForWorkflow(context: Context, workflowKe
 }
 
 /**
- * 为 workflow 对象设置事件源名称
+ * 为工作流对象设置事件源名称
+ * 支持 Model 和普通对象两种格式
  */
 export function setEventSourceName(row: any, eventSourceName: string | null) {
   (row as any).eventSourceName = eventSourceName;
@@ -90,15 +99,19 @@ export function setEventSourceName(row: any, eventSourceName: string | null) {
 }
 
 /**
- * 查询单个 workflow 的分类信息
- * 如果 workflow 对象已经包含 category 数据（通过 appends），则直接使用
+ * 查询单个工作流的分类信息
+ * 优先从 workflow 对象中获取已加载的分类数据（通过 appends），如果不存在则查询数据库
+ * @param context 上下文对象
+ * @param workflow 工作流对象（可能包含已加载的分类数据）
+ * @param workflowKey 工作流 Key（用于查询数据库）
+ * @returns 分类信息数组，格式：{ id, name, color? }[]
  */
 export async function getCategoriesForWorkflow(
   context: Context,
   workflow?: any,
   workflowKey?: string,
 ): Promise<Array<{ id: number; name: string; color?: string }> | null> {
-  // 优先从 workflow 对象中获取已加载的分类数据
+  // 优先从 workflow 对象中获取已加载的分类数据（避免重复查询）
   if (workflow) {
     const workflowData = workflow && typeof workflow.toJSON === 'function' ? workflow.toJSON() : workflow;
     if ((workflowData as any)?.category && Array.isArray((workflowData as any).category)) {
@@ -168,7 +181,8 @@ export async function getCategoriesForWorkflow(
 }
 
 /**
- * 为 workflow 对象设置分类信息
+ * 为工作流对象设置分类信息
+ * 支持 Model 和普通对象两种格式
  */
 export function setCategories(row: any, categories: Array<{ id: number; name: string; color?: string }> | null) {
   (row as any).category = categories || [];

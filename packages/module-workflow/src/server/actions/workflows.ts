@@ -13,18 +13,21 @@ import {
 } from './workflows.helpers';
 
 /**
- * 自定义 list action，在返回 workflows 列表时附加额外字段（如最新执行时间等）
- * 使用 listExtended 作为 action 名称，避免覆盖默认的 list，便于后续扩展其他字段
+ * 扩展的 list action，在返回工作流列表时附加额外字段
+ * - latestExecutedTime: 最新执行时间（UTC ISO 格式）
+ * - eventSourceName: 关联的事件源名称
+ * - category: 分类信息数组
+ *
+ * 使用 listExtended 作为 action 名称，避免覆盖默认的 list，便于后续扩展
  */
 export async function listExtended(context: Context, next: Next) {
-  // 先执行默认的 list action
+  // 先执行默认的 list action 获取基础数据
   await actions.list(context, next);
 
-  // 如果返回的是列表数据，为每个 workflow 附加额外字段（最新执行时间、事件源名称等）
+  // 为每个工作流附加额外字段
   if (context.body?.rows && Array.isArray(context.body.rows) && context.body.rows.length > 0) {
     const workflows = context.body.rows as WorkflowModel[];
 
-    // 为每条数据单独查询额外字段
     for (let index = 0; index < workflows.length; index++) {
       const workflow = workflows[index];
       const row = context.body.rows[index];
@@ -33,15 +36,15 @@ export async function listExtended(context: Context, next: Next) {
 
       const workflowData = getWorkflowData(workflow);
 
-      // 查询最新执行时间
+      // 查询并附加最新执行时间
       const executedTime = await getLatestExecutedTimeForWorkflow(context, workflowData?.id, workflowData?.key);
       setLatestExecutedTime(row, executedTime);
 
-      // 查询事件源名称
+      // 查询并附加事件源名称
       const eventSourceName = await getEventSourceNameForWorkflow(context, workflowData?.key);
       setEventSourceName(row, eventSourceName);
 
-      // 查询分类信息
+      // 查询并附加分类信息
       const categories = await getCategoriesForWorkflow(context, workflow, workflowData?.key);
       setCategories(row, categories);
     }

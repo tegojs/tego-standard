@@ -845,46 +845,50 @@ export const WorkflowTabCardItem = (props) => {
   );
 };
 
+/**
+ * 表格数据提供者，支持分类筛选
+ * - 根据当前选中的分类标签（tag.value）动态添加 category.id filter
+ * - 使用 listExtended action 获取包含额外字段的工作流列表（最新执行时间、事件源名称、分类等）
+ */
 export const TabTableBlockProvider = observer((props: { params }) => {
-  const { params = {} } = props; // 确保 params 有默认值
-  const { categoriesLoaded } = useWorkflowCategory();
+  const { params = {} } = props;
 
   // 预先解析 filter，避免 TableBlockProvider 内部重新计算
   const { filter: parsedFilter } = useParsedFilter({
     filterOption: params?.filter,
   });
 
-  // 使用 useMemo 稳定 requestProps 对象，避免重复请求
-  // 只有在分类数据加载完成后才使用 tag.value，避免无效的第一次请求
-  // 同时确保 params.filter 存在，避免第一次请求时 filter 为空
+  // 构建请求参数，根据分类标签动态调整 filter
   const requestProps = useMemo(() => {
-    // 使用解析后的 filter，而不是原始的 params.filter
+    // 使用解析后的 filter，每次创建新对象确保引用不同，让 useDeepCompareEffect 能检测到变化
     const filter = parsedFilter && Object.keys(parsedFilter).length > 0 ? { ...parsedFilter } : {};
-    // 只有在分类数据加载完成后才添加 category.id filter，避免使用无效的 tag.value
-    if (categoriesLoaded && tag.value) {
+
+    // 根据当前选中的分类标签添加或移除 category.id filter
+    if (tag.value) {
       filter['category.id'] = [tag.value];
+    } else {
+      delete filter['category.id'];
     }
+
     return {
       collection: collectionWorkflows,
-      action: 'listExtended', // 使用自定义的 list action，包含额外字段（如最新执行时间等）
+      action: 'listExtended', // 自定义 action，返回包含额外字段的工作流列表
       params: {
         ...params,
-        filter,
+        filter: { ...filter }, // 创建新的 filter 对象，确保引用不同
       },
       rowKey: 'id',
     };
-  }, [params, parsedFilter, tag.value, categoriesLoaded]);
+  }, [params, parsedFilter, tag.value]);
 
-  // 如果 params.filter 不为空但 parsedFilter 为空，说明还在解析中，等待解析完成
+  // 等待 filter 解析完成
   const hasOriginalFilter = params?.filter && Object.keys(params.filter).length > 0;
   const hasParsedFilter = parsedFilter && Object.keys(parsedFilter).length > 0;
   if (hasOriginalFilter && !hasParsedFilter) {
-    // 等待 filter 解析完成
     return null;
   }
 
-  // 如果 params 还没有初始化（filter 为空对象或不存在），不渲染 TableBlockProvider，避免无效请求
-  // 注意：{} 的布尔值为 true，所以需要检查对象是否为空
+  // 如果 filter 未初始化，不渲染 TableBlockProvider，避免无效请求
   const hasFilter = hasParsedFilter || (params?.filter && Object.keys(params.filter).length > 0);
   if (!hasFilter) {
     return null;

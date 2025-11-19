@@ -207,6 +207,25 @@ if (error) return <Alert message={error.message} />
 return <UserList data={data} />
 ```
 
+## Internationalization Quick Checklist / 国际化快速检查清单
+
+When adding translation keys / 添加翻译键时:
+
+```bash
+# 1. Find all locale files / 查找所有语言文件
+find packages/*/src/locale -name "*.json" -o -name "*.ts" | grep -E "(en-US|zh-CN|ko_KR|ja-JP|pt-BR)"
+
+# 2. Add key to ALL files / 在所有文件中添加键
+# Example / 示例:
+# en-US.json: { "NewKey": "New Key" }
+# zh-CN.json: { "NewKey": "新键" }
+# ko_KR.json: { "NewKey": "새 키" }
+# ja-JP.ts: { NewKey: '新しいキー' }
+# pt-BR.ts: { NewKey: 'Nova Chave' }
+```
+
+**⚠️ Remember / 记住**: Always update ALL locale files, not just en-US and zh-CN / 始终更新所有语言文件，不仅仅是 en-US 和 zh-CN
+
 ## Resources / 资源
 
 - **Project Docs / 项目文档**: https://tachybase.org/

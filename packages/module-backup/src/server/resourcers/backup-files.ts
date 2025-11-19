@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-
 import { Application, DEFAULT_PAGE, DEFAULT_PER_PAGE, koaMulter as multer } from '@tego/server';
 
 import { Dumper } from '../dumper';
@@ -43,7 +42,7 @@ export default {
       const rows = await Promise.all(
         backupFiles.slice((page - 1) * pageSize, page * pageSize).map(async (file) => {
           // if file is lock file, remove lock extension
-          return await Dumper.getFileStatus(file.endsWith('.lock') ? file.replace('.lock', '') : file);
+          return await Dumper.getFileStatus(file.endsWith('.lock') ? file.replace('.lock', '') : file, ctx.app.name);
         }),
       );
 
@@ -106,6 +105,7 @@ export default {
       >ctx.request.body;
 
       const app = ctx.app as Application;
+      const userId = ctx.state.currentUser?.id;
 
       if (data.method === 'worker' && !app.worker?.available) {
         ctx.throw(500, ctx.t('No worker thread', { ns: 'worker-thread' }));
@@ -124,6 +124,7 @@ export default {
               dataTypes: data.dataTypes,
               appName: ctx.app.name,
               filename: taskId,
+              userId,
             },
             // 目前限制方法并发为1
             concurrency: 1,
@@ -144,6 +145,7 @@ export default {
             dataTypes: data.dataTypes,
             appName: ctx.app.name,
             filename: taskId,
+            userId,
           })
           .then((res) => {
             app.noticeManager.notify('backup', { level: 'info', msg: ctx.t('Done', { ns: 'backup' }) });

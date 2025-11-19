@@ -845,7 +845,7 @@ export const TabTableBlockProvider = observer((props: { params }) => {
   const { params } = props;
   const requestProps = {
     collection: collectionWorkflows,
-    action: 'list',
+    action: 'listWithExecutedTime', // 使用自定义的 list action，包含最新执行时间
     params: {
       ...params,
       filter: { ...params.filter },

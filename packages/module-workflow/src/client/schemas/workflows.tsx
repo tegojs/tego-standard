@@ -992,12 +992,6 @@ export const workflowSchema: ISchema = {
                   'x-decorator': 'FormV2',
                   'x-component': 'Action.Modal',
                   properties: {
-                    title: {
-                      type: 'string',
-                      title: '{{t("Title")}}',
-                      'x-decorator': 'FormItem',
-                      'x-component': 'Input',
-                    },
                     file: {
                       type: 'object',
                       title: '{{ t("File") }}',
@@ -1007,6 +1001,35 @@ export const workflowSchema: ISchema = {
                       'x-component-props': {
                         action: 'attachments:create',
                         multiple: false,
+                      },
+                    },
+                    title: {
+                      type: 'string',
+                      title: '{{t("Title")}}',
+                      'x-decorator': 'FormItem',
+                      'x-component': 'Input',
+                      'x-reactions': {
+                        dependencies: ['file'],
+                        fulfill: {
+                          state: {
+                            value: '{{$deps[0]?.title || $deps[0]?.filename || ""}}',
+                          },
+                        },
+                      },
+                    },
+                    category: {
+                      'x-collection-field': 'workflows.category',
+                      'x-component': 'CollectionField',
+                      'x-decorator': 'FormItem',
+                      'x-component-props': {
+                        multiple: true,
+                        service: {
+                          params: {
+                            filter: {
+                              $and: [{ type: { $ne: 'approval' } }],
+                            },
+                          },
+                        },
                       },
                     },
                     footer: {
@@ -1026,9 +1049,15 @@ export const workflowSchema: ISchema = {
                               const resource = useDataBlockResource();
                               const filterByTk = useFilterByTk();
                               const { setVisible } = useActionContext();
-                              const { values } = useForm();
+                              const form = useForm();
+                              // 设置分类默认值为当前分类标签的分类
+                              if (tag.value && tag.item) {
+                                form.setInitialValues({ category: [tag.item] });
+                                form.setValues({ category: [tag.item] });
+                              }
                               return {
                                 async run() {
+                                  const { values } = form;
                                   const { data } = await api.request({
                                     url: values.file.url,
                                     baseURL: '/',

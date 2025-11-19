@@ -1,5 +1,4 @@
-import { execSync } from 'node:child_process';
-import { DumpRulesGroupType, Plugin } from '@tego/server';
+import { DumpRulesGroupType, Gateway, Plugin } from '@tego/server';
 
 import parser from 'cron-parser';
 
@@ -31,6 +30,55 @@ export default class PluginBackupRestoreServer extends Plugin {
 
   async load() {
     this.app.resourcer.define(backupFilesResourcer);
+
+    // 处理 WebSocket signIn 消息，设置用户标签
+    // 这样即使 message 模块没有加载，备份进度也能正常推送
+    // 注意：如果 message 模块已加载，它也会处理 signIn，但不会冲突（会覆盖标签）
+    const gateway = Gateway.getInstance();
+    const ws = gateway['wsServer'];
+    if (ws?.wss) {
+      const appName = this.app.name;
+      ws.wss.on(
+        'connection',
+        async (websocket: {
+          id: string;
+          on: (event: string, handler: (data: any) => void | Promise<void>) => void;
+        }) => {
+          websocket.on('message', async (data) => {
+            if (data.toString() !== 'ping') {
+              try {
+                const userMeg = JSON.parse(data.toString());
+                if (userMeg.type === 'signIn') {
+                  if (!userMeg.payload?.token) {
+                    return;
+                  }
+                  try {
+                    const analysis = await this.app.authManager?.jwt?.verifyToken(userMeg.payload.token);
+                    const userId = analysis.userId;
+                    const client = ws.webSocketClients.get(websocket.id);
+                    if (client) {
+                      // 移除所有以 'app:' 开头的标签
+                      client.tags.forEach((tag) => {
+                        if (tag.startsWith('app:')) {
+                          client.tags.delete(tag);
+                        }
+                      });
+                      // 添加新标签
+                      client.tags.add(`app:${appName}#${userId}`);
+                    }
+                  } catch (error) {
+                    this.app.logger.warn('[Backup] WebSocket signIn message connection error:', error);
+                  }
+                }
+              } catch (error) {
+                // 忽略 JSON 解析错误
+              }
+            }
+          });
+        },
+      );
+    }
+
     this.app.on('afterStart', async (app) => {
       const cronJobs = await app.db.getRepository(COLLECTION_AUTOBACKUP).find({
         filter: { enabled: true },

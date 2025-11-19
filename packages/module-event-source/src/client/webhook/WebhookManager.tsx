@@ -159,7 +159,7 @@ const properties = {
     'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
     'x-decorator-props': {
-      tooltip: 'ctx.request\nctx.body\nlib.JSON\nlib.Math\nlib.dayjs',
+      tooltip: 'ctx.request\nctx.body\nctx.originalBody (action response data)\nlib.JSON\nlib.Math\nlib.dayjs',
     },
     'x-collection-field': 'webhooks.code',
   },

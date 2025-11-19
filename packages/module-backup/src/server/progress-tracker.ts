@@ -36,6 +36,9 @@ export interface ProgressTracker {
  * 进度管理器类，负责管理备份过程中的进度文件
  */
 export class ProgressManager {
+  // 静态标志，用于避免重复警告 WebSocket 不可用（在 worker 线程中很常见）
+  private static wsUnavailableWarned = false;
+
   constructor(
     private backupStorageDir: (appName?: string) => string,
     private workDir: string,
@@ -84,8 +87,14 @@ export class ProgressManager {
       const gateway = Gateway.getInstance();
       const ws = gateway['wsServer'];
       if (!ws) {
-        if (this.app?.logger) {
-          this.app.logger.warn('[ProgressManager] WebSocket server not available');
+        // 只在第一次遇到时警告，避免在 worker 线程中频繁输出警告日志
+        if (!ProgressManager.wsUnavailableWarned) {
+          ProgressManager.wsUnavailableWarned = true;
+          if (this.app?.logger) {
+            this.app.logger.warn(
+              '[ProgressManager] WebSocket server not available (this is normal in worker threads, progress will be saved to file only)',
+            );
+          }
         }
         return;
       }

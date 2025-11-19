@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Checkbox, DatePicker, useAPIClient, useCompile, useNoticeSub } from '@tachybase/client';
+import { Checkbox, DatePicker, useAPIClient, useApp, useCompile, useNoticeSub } from '@tachybase/client';
 import { FormItem } from '@tego/client';
 
 import { InboxOutlined, LoadingOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
@@ -484,6 +484,7 @@ const RestoreUpload = (props: any) => {
 export const BackupAndRestoreList = () => {
   const { t } = useDuplicatorTranslation();
   const apiClient = useAPIClient();
+  const app = useApp();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(false);
   const { modal, notification } = App.useApp();
@@ -576,6 +577,34 @@ export const BackupAndRestoreList = () => {
       queryFieldList(false);
     },
   });
+
+  // 自动轮询机制：当有进行中的备份任务时，定期轮询 API 获取进度
+  // 只在 WebSocket 不可用或未连接时启用轮询，避免与 WebSocket 推送冲突
+  // 这样可以确保在 worker 线程中（WebSocket 不可用）也能实时更新进度
+  useEffect(() => {
+    const hasInProgressBackup = dataSource.some((item: any) => item.inProgress || item.status === 'in_progress');
+
+    if (!hasInProgressBackup) {
+      return;
+    }
+
+    // 如果 WebSocket 可用且已连接，不启用轮询，避免与 WebSocket 推送冲突
+    // 只在 WebSocket 不可用或未连接时才启用轮询
+    const shouldPoll = !app.ws?.enabled || !app.ws?.connected;
+
+    if (!shouldPoll) {
+      return;
+    }
+
+    // 每 2 秒轮询一次进度（在 worker 线程中，进度保存在文件中，API 可以读取）
+    const pollInterval = setInterval(() => {
+      queryFieldList(false);
+    }, 2000);
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [dataSource, queryFieldList, app.ws]);
   const handleDestory = (fileData) => {
     modal.confirm({
       title: t('Delete record', { ns: 'core' }),

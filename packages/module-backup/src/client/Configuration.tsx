@@ -67,7 +67,7 @@ function useUploadProps(props: UploadProps): any {
 
       return {
         abort() {
-          console.log('upload progress is aborted.');
+          // Upload aborted
         },
       };
     },
@@ -467,7 +467,7 @@ const RestoreUpload = (props: any) => {
       }
     },
     onDrop(e) {
-      console.log('Dropped files', e.dataTransfer.files);
+      // Files dropped
     },
   };
 

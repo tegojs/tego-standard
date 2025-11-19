@@ -105,10 +105,6 @@ export function useBackupProgress({
           };
           app.ws.send(JSON.stringify(data));
           hasSentSignInRef.current = true;
-          // 调试日志
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[BackupProgress] Sent signIn message to set WebSocket tag');
-          }
         }
       } else if (!app.ws.connected) {
         // 连接断开时重置标志，以便重连后再次发送
@@ -200,10 +196,6 @@ export function useBackupProgress({
     const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
-        // 调试日志：记录所有收到的消息类型（仅在开发环境）
-        if (process.env.NODE_ENV === 'development' && data?.type === messageType) {
-          console.log('[BackupProgress] Received backup progress message:', data);
-        }
 
         if (data?.type === messageType) {
           // 检查 payload 是否存在
@@ -246,10 +238,7 @@ export function useBackupProgress({
           });
         }
       } catch (error) {
-        // 忽略解析错误，但记录警告
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[BackupProgress] Failed to parse message:', error);
-        }
+        // 忽略解析错误
       }
     };
 

@@ -569,17 +569,20 @@ export class Dumper extends AppMigrator {
     }
 
     // Create a promise that resolves when the 'close' event is fired
+    const app = this.app;
     const onClose = new Promise((resolve, reject) => {
-      output.on('close', function () {
-        console.log('dumped file size: ' + humanFileSize(archive.pointer(), true));
+      output.on('close', () => {
+        if (app?.logger) {
+          app.logger.info(`Backup file created: ${humanFileSize(archive.pointer(), true)}`);
+        }
         if (cleanupProgress) {
           cleanupProgress();
         }
         resolve(true);
       });
 
-      output.on('end', function () {
-        console.log('Data has been drained');
+      output.on('end', () => {
+        // Archive stream ended
       });
 
       archive.on('warning', function (err) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox, DatePicker, useAPIClient, useApp, useCompile, useNoticeSub } from '@tachybase/client';
+import { autorun } from '@tachybase/schema';
 import { FormItem } from '@tego/client';
 
 import { InboxOutlined, LoadingOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
@@ -579,8 +580,8 @@ export const BackupAndRestoreList = () => {
   });
 
   // 自动轮询机制：当有进行中的备份任务时，定期轮询 API 获取进度
-  // 只在 WebSocket 不可用或未连接时启用轮询，避免与 WebSocket 推送冲突
-  // 这样可以确保在 worker 线程中（WebSocket 不可用）也能实时更新进度
+  // 即使 WebSocket 已连接，也启用轮询作为后备（因为 worker 线程中 WebSocket 无法推送进度）
+  // 轮询会读取文件中的最新进度，不会与 WebSocket 推送冲突
   useEffect(() => {
     const hasInProgressBackup = dataSource.some((item: any) => item.inProgress || item.status === 'in_progress');
 
@@ -588,21 +589,34 @@ export const BackupAndRestoreList = () => {
       return;
     }
 
-    // 如果 WebSocket 可用且已连接，不启用轮询，避免与 WebSocket 推送冲突
-    // 只在 WebSocket 不可用或未连接时才启用轮询
-    const shouldPoll = !app.ws?.enabled || !app.ws?.connected;
+    let pollInterval: NodeJS.Timeout | null = null;
 
-    if (!shouldPoll) {
-      return;
-    }
+    // 使用 autorun 监听 WebSocket 连接状态的变化（因为 app.ws.connected 是 observable）
+    // 根据 WebSocket 状态调整轮询频率：已连接时降低频率（作为后备），未连接时提高频率
+    const disposer = autorun(() => {
+      const wsConnected = app.ws?.enabled && app.ws?.connected;
 
-    // 每 2 秒轮询一次进度（在 worker 线程中，进度保存在文件中，API 可以读取）
-    const pollInterval = setInterval(() => {
-      queryFieldList(false);
-    }, 2000);
+      // 清除之前的轮询
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+
+      // 如果有进行中的备份任务，始终启用轮询
+      // WebSocket 已连接时：降低频率（5秒），作为后备机制
+      // WebSocket 未连接时：提高频率（2秒），主要更新方式
+      const pollIntervalMs = wsConnected ? 5000 : 2000;
+
+      pollInterval = setInterval(() => {
+        queryFieldList(false);
+      }, pollIntervalMs);
+    });
 
     return () => {
-      clearInterval(pollInterval);
+      disposer();
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
   }, [dataSource, queryFieldList, app.ws]);
   const handleDestory = (fileData) => {

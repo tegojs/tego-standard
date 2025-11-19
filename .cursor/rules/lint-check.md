@@ -36,7 +36,9 @@ After completing any code modifications, you must perform the following checks:
 
 每次完成代码修改后，必须执行以下检查：
 
-### 1. Remove Unused Imports and Exports / 删除不必要的导入导出
+### 1. Remove Unused Code / 清理无用代码
+
+#### 1.1 Remove Unused Imports and Exports / 删除未使用的导入和导出
 
 - **Check all modified files** for unused imports and exports / **检查所有修改的文件**中未使用的导入和导出
 - Remove any imports that are not used in the code / 删除代码中未使用的导入
@@ -51,6 +53,74 @@ import { useState, useEffect, useMemo } from 'react'
 
 // ✅ Good: Only import what's needed / 好的：只导入需要的
 import { useState } from 'react'
+```
+
+#### 1.2 Remove Unused Variables and Functions / 删除未使用的变量和函数
+
+- **Check for unused variables** declared but never used / **检查未使用的变量**（声明但从未使用）
+- **Check for unused functions** defined but never called / **检查未使用的函数**（定义但从未调用）
+- **Check for unused type definitions** that are not referenced / **检查未使用的类型定义**（未被引用）
+- Remove dead code (code that is unreachable or never executed) / 删除死代码（无法到达或从未执行的代码）
+
+**Example / 示例:**
+```typescript
+// ❌ Bad: Unused variable / 不好的：未使用的变量
+const unusedVar = 'test'
+const result = calculateValue()
+
+// ❌ Bad: Unused function / 不好的：未使用的函数
+function helperFunction() {
+  return 'unused'
+}
+
+// ✅ Good: Remove unused code / 好的：删除未使用的代码
+const result = calculateValue()
+```
+
+#### 1.3 Remove Commented Code / 删除注释掉的代码
+
+- **Remove commented-out code blocks** unless they serve as documentation / **删除注释掉的代码块**（除非它们作为文档）
+- Commented code should be removed before committing / 提交前应删除注释掉的代码
+- If code needs to be preserved, use proper documentation comments instead / 如果需要保留代码，应使用适当的文档注释
+
+**Example / 示例:**
+```typescript
+// ❌ Bad: Commented code / 不好的：注释掉的代码
+// function oldFunction() {
+//   return 'old'
+// }
+function newFunction() {
+  return 'new'
+}
+
+// ✅ Good: Remove commented code / 好的：删除注释掉的代码
+function newFunction() {
+  return 'new'
+}
+```
+
+#### 1.4 Remove Debug Code / 删除调试代码
+
+- **Remove console.log statements** unless they are intentional logging (see development.md for debug logging rules) / **删除 console.log 语句**（除非是有意的日志记录，参见 development.md 中的调试日志规则）
+- **Remove debug breakpoints** and temporary debugging code / **删除调试断点**和临时调试代码
+- **Remove test/demo code** that was added for testing purposes / **删除测试/演示代码**（为测试目的而添加的）
+
+**Example / 示例:**
+```typescript
+// ❌ Bad: Debug code / 不好的：调试代码
+console.log('debug value:', value)
+function processData(data) {
+  return data
+}
+
+// ✅ Good: Remove debug code / 好的：删除调试代码
+function processData(data) {
+  return data
+}
+
+// ✅ Good: Intentional logging with timestamp (see development.md) / 好的：带时间戳的有意日志（参见 development.md）
+const timestamp = new Date().toISOString()
+this.app.logger.info(`[${timestamp}] Processing data`, { data })
 ```
 
 ### 2. Synchronize All Translation Files / 同步所有翻译文件
@@ -96,9 +166,27 @@ When adding or modifying translation keys, you must:
 
 - **Do not commit code with lint errors** / **不能提交有 lint 错误的代码**
 - **Do not commit code with unused imports/exports** / **不能提交带有未使用导入/导出的代码**
+- **Do not commit code with unused variables/functions** / **不能提交带有未使用变量/函数的代码**
+- **Do not commit commented-out code** / **不能提交注释掉的代码**
+- **Do not commit debug code** (console.log, breakpoints, etc.) / **不能提交调试代码**（console.log、断点等）
 - **Do not commit incomplete translations** / **不能提交不完整的翻译**
 - Actively run lint checks after completing code modifications, don't wait for user reminders / 在完成代码修改后，应该主动运行 lint 检查，而不是等待用户提醒
 - If lint errors are found, must fix them immediately, cannot ignore / 如果发现 lint 错误，必须立即修复，不能忽略
-- Always check for unused imports/exports before completing code changes / 在完成代码更改之前，始终检查未使用的导入/导出
+- Always check for unused code before completing code changes / 在完成代码更改之前，始终检查未使用的代码
 - Always synchronize translations across all language files / 始终在所有语言文件之间同步翻译
+
+## Cleanup Checklist / 清理检查清单
+
+Before completing code modifications, ensure:
+在完成代码修改之前，确保：
+
+- [ ] All lint errors are fixed / 所有 lint 错误已修复
+- [ ] Unused imports are removed / 未使用的导入已删除
+- [ ] Unused exports are removed / 未使用的导出已删除
+- [ ] Unused variables are removed / 未使用的变量已删除
+- [ ] Unused functions are removed / 未使用的函数已删除
+- [ ] Unused type definitions are removed / 未使用的类型定义已删除
+- [ ] Commented-out code is removed / 注释掉的代码已删除
+- [ ] Debug code (console.log, breakpoints) is removed / 调试代码（console.log、断点）已删除
+- [ ] All translation files are synchronized / 所有翻译文件已同步
 

@@ -603,9 +603,9 @@ export const BackupAndRestoreList = () => {
       }
 
       // 如果有进行中的备份任务，始终启用轮询
-      // WebSocket 已连接时：降低频率（5秒），作为后备机制
-      // WebSocket 未连接时：提高频率（2秒），主要更新方式
-      const pollIntervalMs = wsConnected ? 5000 : 2000;
+      // WebSocket 已连接时：降低频率（1秒），作为后备机制
+      // WebSocket 未连接时：提高频率（500毫秒），主要更新方式
+      const pollIntervalMs = wsConnected ? 1000 : 500;
 
       pollInterval = setInterval(() => {
         queryFieldList(false);

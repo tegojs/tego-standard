@@ -10,6 +10,10 @@ export interface UseDownloadProgressOptions {
    * 下载失败的回调
    */
   onDownloadError?: (fileName: string, error: Error) => void;
+  /**
+   * 下载开始时的回调（用于显示弹窗等）
+   */
+  onDownloadStart?: (fileName: string) => void;
 }
 
 export interface DownloadProgressState {
@@ -41,6 +45,11 @@ export function useDownloadProgress(options?: UseDownloadProgressOptions) {
 
       // 初始化下载进度
       setDownloadProgress((prev) => ({ ...prev, [fileName]: 0 }));
+
+      // 触发下载开始回调
+      if (options?.onDownloadStart) {
+        options.onDownloadStart(fileName);
+      }
 
       try {
         // 使用 apiClient.request 进行下载，支持进度回调

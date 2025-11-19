@@ -487,14 +487,22 @@ export const BackupAndRestoreList = () => {
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(false);
   const { modal, notification } = App.useApp();
+  const [downloadModalVisible, setDownloadModalVisible] = useState(false);
+  const [downloadingFileName, setDownloadingFileName] = useState<string>('');
   const resource = useMemo(() => {
     return apiClient.resource('backupFiles');
   }, [apiClient]);
 
   // 使用下载进度 hook
   const { downloadProgress, handleDownload } = useDownloadProgress({
+    onDownloadStart: (fileName) => {
+      setDownloadingFileName(fileName);
+      setDownloadModalVisible(true);
+    },
     onDownloadComplete: (fileName, blob) => {
       saveAs(blob, fileName);
+      setDownloadModalVisible(false);
+      setDownloadingFileName('');
       notification.success({
         key: 'downloadBackup',
         message: <span>{t('Downloaded success!')}</span>,
@@ -502,6 +510,8 @@ export const BackupAndRestoreList = () => {
       });
     },
     onDownloadError: (fileName, error) => {
+      setDownloadModalVisible(false);
+      setDownloadingFileName('');
       notification.error({
         key: 'downloadBackup',
         message: <span>{t('Download failed')}</span>,
@@ -704,6 +714,25 @@ export const BackupAndRestoreList = () => {
           ]}
         />
       </Card>
+      {/* 下载进度弹窗 */}
+      <Modal
+        title={t('Downloading')}
+        open={downloadModalVisible}
+        closable={false}
+        maskClosable={false}
+        footer={null}
+        width={400}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <div style={{ marginBottom: 16, fontSize: '14px', color: 'rgba(0, 0, 0, 0.65)' }}>{downloadingFileName}</div>
+          <Progress
+            percent={downloadingFileName ? downloadProgress[downloadingFileName] || 0 : 0}
+            status="active"
+            showInfo
+            format={(percent) => `${percent}%`}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,77 +1,30 @@
 import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 
-import dayjs from 'dayjs';
-
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
+import {
+  getCategoriesForWorkflow,
+  getEventSourceNameForWorkflow,
+  getLatestExecutedTimeForWorkflow,
+  getWorkflowData,
+  setCategories,
+  setEventSourceName,
+  setLatestExecutedTime,
+} from './workflows.helpers';
 
 /**
- * 获取 workflow 的实际数据（可能是 Model 或 JSON）
+ * 自定义 list action，在返回 workflows 列表时附加额外字段（如最新执行时间等）
+ * 使用 listExtended 作为 action 名称，避免覆盖默认的 list，便于后续扩展其他字段
  */
-export function getWorkflowData(workflow: any): { id?: number; key?: string } {
-  return workflow && typeof workflow.toJSON === 'function' ? workflow.toJSON() : workflow;
-}
-
-/**
- * 查询单个 workflow 的最新执行时间（UTC ISO 格式）
- */
-export async function getLatestExecutedTimeForWorkflow(
-  context: Context,
-  workflowId?: number,
-  workflowKey?: string,
-): Promise<string | null> {
-  if (!workflowId && !workflowKey) {
-    return null;
-  }
-
-  try {
-    const ExecutionRepo = context.db.getRepository('executions');
-    const filter: any = {};
-
-    // 优先使用 workflowId（可以利用外键索引）
-    if (workflowId) {
-      filter.workflowId = workflowId;
-    } else if (workflowKey) {
-      filter.key = workflowKey;
-    }
-
-    const latestExecution = await ExecutionRepo.findOne({
-      filter,
-      fields: ['id', 'key', 'createdAt', 'workflowId'],
-      sort: ['-createdAt'],
-      context,
-    });
-
-    return latestExecution?.createdAt ? dayjs(latestExecution.createdAt).utc().toISOString() : null;
-  } catch (error) {
-    context.log.error('Failed to fetch latest executed time:', error);
-    return null;
-  }
-}
-
-/**
- * 为 workflow 对象设置最新执行时间
- */
-export function setLatestExecutedTime(row: any, executedTime: string | null) {
-  (row as any).latestExecutedTime = executedTime;
-  if (row && typeof row.setDataValue === 'function') {
-    row.setDataValue('latestExecutedTime', executedTime);
-  }
-}
-
-/**
- * 自定义 list action，在返回 workflows 列表时附加最新执行时间
- * 使用 listWithExecutedTime 作为 action 名称，避免覆盖默认的 list
- */
-export async function listWithExecutedTime(context: Context, next: Next) {
+export async function listExtended(context: Context, next: Next) {
   // 先执行默认的 list action
   await actions.list(context, next);
 
-  // 如果返回的是列表数据，为每个 workflow 附加最新执行时间
+  // 如果返回的是列表数据，为每个 workflow 附加额外字段（最新执行时间、事件源名称等）
   if (context.body?.rows && Array.isArray(context.body.rows) && context.body.rows.length > 0) {
     const workflows = context.body.rows as WorkflowModel[];
 
-    // 为每条数据单独查询最新执行时间
+    // 为每条数据单独查询额外字段
     for (let index = 0; index < workflows.length; index++) {
       const workflow = workflows[index];
       const row = context.body.rows[index];
@@ -79,8 +32,18 @@ export async function listWithExecutedTime(context: Context, next: Next) {
       if (!row) continue;
 
       const workflowData = getWorkflowData(workflow);
+
+      // 查询最新执行时间
       const executedTime = await getLatestExecutedTimeForWorkflow(context, workflowData?.id, workflowData?.key);
       setLatestExecutedTime(row, executedTime);
+
+      // 查询事件源名称
+      const eventSourceName = await getEventSourceNameForWorkflow(context, workflowData?.key);
+      setEventSourceName(row, eventSourceName);
+
+      // 查询分类信息
+      const categories = await getCategoriesForWorkflow(context, workflow, workflowData?.key);
+      setCategories(row, categories);
     }
   }
 

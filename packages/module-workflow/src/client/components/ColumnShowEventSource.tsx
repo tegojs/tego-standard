@@ -1,18 +1,10 @@
 import React from 'react';
-import { useCollectionManager, useCollectionRecordData } from '@tachybase/client';
-
-import { useEventSourceContext } from '../provider/EventSourceProvider';
+import { useCollectionRecordData } from '@tachybase/client';
 
 export const ColumnShowEventSource = () => {
   const record = useCollectionRecordData();
-  const { eventSourceList } = useEventSourceContext();
-  let showName = '-';
-  if (eventSourceList?.length) {
-    const eventSource = eventSourceList?.filter((item) => {
-      return item.workflowKey === record.key;
-    })?.[0];
-    showName = eventSource?.name || '';
-  }
+  // 直接从 record 中获取 eventSourceName（由后端 listExtended action 附加）
+  const showName = record.eventSourceName || '-';
 
   return <div style={{ textAlign: 'left' }}>{showName}</div>;
 };

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CardItem,
   SchemaComponent,
@@ -11,6 +11,7 @@ import {
   useDataBlockResource,
   useFilterByTk,
   useFormBlockProps,
+  useParsedFilter,
 } from '@tachybase/client';
 import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
 
@@ -31,7 +32,6 @@ import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
 import { lang, NAMESPACE, tval } from '../locale';
-import { EventSourceProvider } from '../provider/EventSourceProvider';
 import { useWorkflowCategory, WorkflowCategoryContext } from '../WorkflowCategoriesProvider';
 import { executionSchema } from './executions';
 
@@ -688,25 +688,27 @@ export const WorkflowTabCardItem = (props) => {
   const { children, params, type } = props;
   const api = useAPIClient();
   const [dataSource, setDataSource] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false); // 标记分类数据是否已加载
   const [activeKey, setActiveKey] = useState({ tab: tag.value, item: tag.item });
   const compile = useCompile();
   const { modal } = App.useApp();
 
+  // 在组件内部请求分类数据，只有组件真正渲染时才请求
   const fetchData = useCallback(async () => {
-    setLoading(true);
     const { data } = await api.request({
       url: 'workflowCategories:list',
       params,
     });
     setDataSource(data.data);
+    // 验证 tag.value 是否有效，如果无效则重置
     if (tag.value && !data.data.find((value) => value.id === tag.value)) {
       tag.value = '';
       tag.item = {};
       setActiveKey({ tab: '', item: {} });
     }
-    setLoading(false);
-  }, []);
+    // 标记分类数据已加载完成
+    setCategoriesLoaded(true);
+  }, [api, params]);
 
   useEffect(() => {
     fetchData();
@@ -763,9 +765,11 @@ export const WorkflowTabCardItem = (props) => {
   return (
     <WorkflowCategoryContext.Provider
       value={{
+        data: dataSource,
         refresh: fetchData,
         activeKey: activeKey.tab,
         setActiveKey: (key: string) => setActiveKey({ tab: key, item: dataSource.find((value) => value.id === key) }),
+        categoriesLoaded, // 传递分类加载状态
       }}
     >
       <DndProvider>
@@ -842,18 +846,48 @@ export const WorkflowTabCardItem = (props) => {
 };
 
 export const TabTableBlockProvider = observer((props: { params }) => {
-  const { params } = props;
-  const requestProps = {
-    collection: collectionWorkflows,
-    action: 'listWithExecutedTime', // 使用自定义的 list action，包含最新执行时间
-    params: {
-      ...params,
-      filter: { ...params.filter },
-    },
-    rowKey: 'id',
-  };
-  if (tag.value) {
-    requestProps.params.filter['category.id'] = [tag.value];
+  const { params = {} } = props; // 确保 params 有默认值
+  const { categoriesLoaded } = useWorkflowCategory();
+
+  // 预先解析 filter，避免 TableBlockProvider 内部重新计算
+  const { filter: parsedFilter } = useParsedFilter({
+    filterOption: params?.filter,
+  });
+
+  // 使用 useMemo 稳定 requestProps 对象，避免重复请求
+  // 只有在分类数据加载完成后才使用 tag.value，避免无效的第一次请求
+  // 同时确保 params.filter 存在，避免第一次请求时 filter 为空
+  const requestProps = useMemo(() => {
+    // 使用解析后的 filter，而不是原始的 params.filter
+    const filter = parsedFilter && Object.keys(parsedFilter).length > 0 ? { ...parsedFilter } : {};
+    // 只有在分类数据加载完成后才添加 category.id filter，避免使用无效的 tag.value
+    if (categoriesLoaded && tag.value) {
+      filter['category.id'] = [tag.value];
+    }
+    return {
+      collection: collectionWorkflows,
+      action: 'listExtended', // 使用自定义的 list action，包含额外字段（如最新执行时间等）
+      params: {
+        ...params,
+        filter,
+      },
+      rowKey: 'id',
+    };
+  }, [params, parsedFilter, tag.value, categoriesLoaded]);
+
+  // 如果 params.filter 不为空但 parsedFilter 为空，说明还在解析中，等待解析完成
+  const hasOriginalFilter = params?.filter && Object.keys(params.filter).length > 0;
+  const hasParsedFilter = parsedFilter && Object.keys(parsedFilter).length > 0;
+  if (hasOriginalFilter && !hasParsedFilter) {
+    // 等待 filter 解析完成
+    return null;
+  }
+
+  // 如果 params 还没有初始化（filter 为空对象或不存在），不渲染 TableBlockProvider，避免无效请求
+  // 注意：{} 的布尔值为 true，所以需要检查对象是否为空
+  const hasFilter = hasParsedFilter || (params?.filter && Object.keys(params.filter).length > 0);
+  if (!hasFilter) {
+    return null;
   }
 
   return <TableBlockProvider {...props} {...requestProps} />;
@@ -862,417 +896,406 @@ export const TabTableBlockProvider = observer((props: { params }) => {
 export const workflowSchema: ISchema = {
   type: 'void',
   properties: {
-    eventSourceProvider: {
+    provider: {
       type: 'void',
-      'x-decorator': EventSourceProvider,
-      properties: {
-        provider: {
-          type: 'void',
-          'x-decorator': TabTableBlockProvider,
-          'x-decorator-props': {
-            params: {
-              filter: {
-                current: true,
-                type: {
-                  // TODO: 等工作流整理完成后, 去除这里的依赖审批 "approval" 字段
-                  $not: 'approval',
-                },
-              },
-              sort: ['-initAt'],
+      'x-decorator': TabTableBlockProvider,
+      'x-decorator-props': {
+        params: {
+          filter: {
+            current: true,
+            type: {
+              // TODO: 等工作流整理完成后, 去除这里的依赖审批 "approval" 字段
+              $not: 'approval',
             },
           },
-          'x-component': WorkflowTabCardItem,
+          sort: ['-initAt'],
+        },
+      },
+      'x-component': WorkflowTabCardItem,
+      'x-component-props': {
+        params: {
+          paginate: false,
+          sort: ['sort'],
+          filter: {
+            type: { $ne: 'approval' },
+          },
+        },
+        type: 'workflow',
+      },
+      properties: {
+        actions: {
+          type: 'void',
+          'x-component': 'ActionBar',
           'x-component-props': {
-            params: {
-              paginate: false,
-              sort: ['sort'],
-              filter: {
-                type: { $ne: 'approval' },
-              },
+            style: {
+              marginBottom: 16,
             },
-            type: 'workflow',
           },
           properties: {
-            actions: {
+            filter: {
               type: 'void',
-              'x-component': 'ActionBar',
-              'x-component-props': {
-                style: {
-                  marginBottom: 16,
-                },
+              title: '{{ t("Filter") }}',
+              default: {
+                $and: [{ title: { $includes: '' } }],
               },
-              properties: {
-                filter: {
-                  type: 'void',
-                  title: '{{ t("Filter") }}',
-                  default: {
-                    $and: [{ title: { $includes: '' } }],
-                  },
-                  'x-action': 'filter',
-                  'x-component': 'Filter.Action',
-                  'x-use-component-props': 'useFilterActionProps',
-                  'x-component-props': {
-                    icon: 'FilterOutlined',
-                  },
-                  'x-align': 'left',
+              'x-action': 'filter',
+              'x-component': 'Filter.Action',
+              'x-use-component-props': 'useFilterActionProps',
+              'x-component-props': {
+                icon: 'FilterOutlined',
+              },
+              'x-align': 'left',
+            },
+            fuzzySearch: {
+              type: 'void',
+              'x-component': 'FuzzySearchInput',
+              'x-align': 'left',
+            },
+            refresh: {
+              type: 'void',
+              title: '{{ t("Refresh") }}',
+              'x-action': 'refresh',
+              'x-component': 'Action',
+              'x-settings': 'actionSettings:refresh',
+              'x-component-props': {
+                icon: 'ReloadOutlined',
+              },
+              'x-use-component-props': 'useRefreshActionProps',
+            },
+            delete: {
+              type: 'void',
+              title: '{{t("Delete")}}',
+              'x-action': 'destroy',
+              'x-decorator': 'ACLActionProvider',
+              'x-component': 'Action',
+              'x-use-component-props': 'useDestroyActionProps',
+              'x-component-props': {
+                icon: 'DeleteOutlined',
+                confirm: {
+                  title: "{{t('Delete record')}}",
+                  content: "{{t('Are you sure you want to delete it?')}}",
                 },
-                fuzzySearch: {
-                  type: 'void',
-                  'x-component': 'FuzzySearchInput',
-                  'x-align': 'left',
-                },
-                refresh: {
-                  type: 'void',
-                  title: '{{ t("Refresh") }}',
-                  'x-action': 'refresh',
-                  'x-component': 'Action',
-                  'x-settings': 'actionSettings:refresh',
-                  'x-component-props': {
-                    icon: 'ReloadOutlined',
-                  },
-                  'x-use-component-props': 'useRefreshActionProps',
-                },
-                delete: {
-                  type: 'void',
-                  title: '{{t("Delete")}}',
-                  'x-action': 'destroy',
-                  'x-decorator': 'ACLActionProvider',
-                  'x-component': 'Action',
-                  'x-use-component-props': 'useDestroyActionProps',
-                  'x-component-props': {
-                    icon: 'DeleteOutlined',
-                    confirm: {
-                      title: "{{t('Delete record')}}",
-                      content: "{{t('Are you sure you want to delete it?')}}",
-                    },
-                  },
-                },
-                load: {
-                  type: 'void',
-                  title: `{{t("Load", { ns: "${NAMESPACE}" })}}`,
-                  'x-component': 'Action',
-                  'x-component-props': {
-                    icon: 'UploadOutlined',
-                    openSize: 'small',
-                  },
-                  properties: {
-                    modal: {
-                      type: 'void',
-                      title: `{{t("Load a workflow", { ns: "${NAMESPACE}" })}}`,
-                      'x-decorator': 'FormV2',
-                      'x-component': 'Action.Modal',
-                      properties: {
-                        title: {
-                          type: 'string',
-                          title: '{{t("Title")}}',
-                          'x-decorator': 'FormItem',
-                          'x-component': 'Input',
-                        },
-                        file: {
-                          type: 'object',
-                          title: '{{ t("File") }}',
-                          required: true,
-                          'x-decorator': 'FormItem',
-                          'x-component': 'Upload.Attachment',
-                          'x-component-props': {
-                            action: 'attachments:create',
-                            multiple: false,
-                          },
-                        },
-                        footer: {
-                          type: 'void',
-                          'x-component': 'Action.Modal.Footer',
-                          properties: {
-                            submit: {
-                              type: 'void',
-                              title: '{{t("Submit")}}',
-                              'x-component': 'Action',
-                              'x-component-props': {
-                                type: 'primary',
-                                useAction() {
-                                  const { t } = useTranslation();
-                                  const api = useAPIClient();
-                                  const { refresh } = useDataBlockRequest();
-                                  const resource = useDataBlockResource();
-                                  const filterByTk = useFilterByTk();
-                                  const { setVisible } = useActionContext();
-                                  const { values } = useForm();
-                                  return {
-                                    async run() {
-                                      const { data } = await api.request({
-                                        url: values.file.url,
-                                        baseURL: '/',
-                                      });
-                                      await resource.load({ filterByTk, values: { ...values, workflow: data } });
-                                      message.success(t('Operation succeeded'));
-                                      refresh();
-                                      setVisible(false);
-                                    },
-                                  };
-                                },
-                              },
-                            },
-                            cancel: {
-                              type: 'void',
-                              title: '{{t("Cancel")}}',
-                              'x-component': 'Action',
-                              'x-use-component-props': 'useCancelActionProps',
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-                create: createWorkflow,
               },
             },
-            table: {
-              type: 'array',
-              'x-component': 'TableV2',
-              'x-use-component-props': 'useTableBlockProps',
+            load: {
+              type: 'void',
+              title: `{{t("Load", { ns: "${NAMESPACE}" })}}`,
+              'x-component': 'Action',
               'x-component-props': {
-                rowKey: 'id',
-                rowSelection: {
-                  type: 'checkbox',
-                },
+                icon: 'UploadOutlined',
+                openSize: 'small',
               },
               properties: {
-                title: {
+                modal: {
                   type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    sorter: true,
-                    width: 100,
-                  },
-                  title: '{{t("Name")}}',
+                  title: `{{t("Load a workflow", { ns: "${NAMESPACE}" })}}`,
+                  'x-decorator': 'FormV2',
+                  'x-component': 'Action.Modal',
                   properties: {
                     title: {
                       type: 'string',
-                      'x-component': 'ColumnShowTitle',
+                      title: '{{t("Title")}}',
+                      'x-decorator': 'FormItem',
+                      'x-component': 'Input',
                     },
-                  },
-                },
-                category: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    sorter: true,
-                    width: 20,
-                    align: 'center',
-                  },
-                  properties: {
-                    category: {
-                      type: 'array',
-                      'x-collection-field': 'workflows.category',
-                      'x-component': 'CollectionField',
+                    file: {
+                      type: 'object',
+                      title: '{{ t("File") }}',
+                      required: true,
+                      'x-decorator': 'FormItem',
+                      'x-component': 'Upload.Attachment',
                       'x-component-props': {
-                        multiple: true,
-                        mode: 'Tag',
-                      },
-                      'x-read-pretty': true,
-                    },
-                  },
-                },
-                enabled: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    sorter: true,
-                    width: 20,
-                    align: 'center',
-                  },
-                  properties: {
-                    enabled: {
-                      type: 'boolean',
-                      'x-component': 'CollectionField',
-                      'x-read-pretty': true,
-                      default: false,
-                    },
-                  },
-                },
-                allExecuted: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    sorter: true,
-                    width: 20,
-                    align: 'center',
-                    style: {
-                      display: 'grid',
-                      placeItems: 'center',
-                    },
-                  },
-                  properties: {
-                    allExecuted: {
-                      type: 'number',
-                      'x-decorator': 'OpenDrawer',
-                      'x-decorator-props': {
-                        component: function Com(props) {
-                          const record = useCollectionRecordData();
-                          return React.createElement('a', {
-                            'aria-label': `executed-${record.title}`,
-                            ...props,
-                          });
-                        },
-                      },
-                      'x-component': 'CollectionField',
-                      'x-read-pretty': true,
-                      properties: {
-                        drawer: executionSchema,
+                        action: 'attachments:create',
+                        multiple: false,
                       },
                     },
-                  },
-                },
-                executedTime: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  title: tval('Finally executed on'),
-                  'x-component-props': {
-                    sorter: true,
-                    width: 20,
-                    align: 'center',
-                    style: {
-                      display: 'grid',
-                      placeItems: 'center',
-                    },
-                  },
-                  properties: {
-                    executedTime: {
-                      type: 'string',
-                      'x-component': 'ColumnExecutedTime',
-                    },
-                  },
-                },
-                showCollection: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  title: tval('Collection'),
-                  properties: {
-                    showCollection: {
-                      type: 'string',
-                      'x-component': 'ColumnShowCollection',
-                    },
-                  },
-                },
-                showEventSource: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  title: tval('Event source'),
-                  properties: {
-                    showEventSource: {
-                      type: 'string',
-                      'x-component': 'ColumnShowEventSource',
-                    },
-                  },
-                },
-                description: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  properties: {
-                    description: {
-                      type: 'string',
-                      'x-component': 'CollectionField',
-                      'x-component-props': {
-                        ellipsis: true,
-                      },
-                      'x-read-pretty': true,
-                    },
-                  },
-                },
-                updatedAt: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    sorter: true,
-                    width: 20,
-                    align: 'center',
-                    style: {
-                      display: 'grid',
-                      placeItems: 'center',
-                    },
-                  },
-                  properties: {
-                    updatedAt: {
-                      type: 'string',
-                      'x-component': 'CollectionField',
-                      'x-read-pretty': true,
-                    },
-                  },
-                },
-                updatedBy: {
-                  type: 'void',
-                  'x-decorator': 'TableV2.Column.Decorator',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    width: 20,
-                    align: 'center',
-                    style: {
-                      display: 'grid',
-                      placeItems: 'center',
-                    },
-                  },
-                  properties: {
-                    updatedBy: {
-                      type: 'string',
-                      'x-collection-field': 'workflows.updatedBy',
-                      'x-component': 'CollectionField',
-                      'x-read-pretty': true,
-                    },
-                  },
-                },
-                actions: {
-                  type: 'void',
-                  title: '{{ t("Actions") }}',
-                  'x-component': 'TableV2.Column',
-                  'x-component-props': {
-                    fixed: 'right',
-                  },
-                  properties: {
-                    actions: {
+                    footer: {
                       type: 'void',
-                      'x-component': 'Space',
-                      'x-component-props': {
-                        split: '|',
-                      },
+                      'x-component': 'Action.Modal.Footer',
                       properties: {
-                        configure: {
+                        submit: {
                           type: 'void',
-                          'x-component': 'WorkflowLink',
-                        },
-                        update: updateWorkflow,
-                        revision: revisionWorkflow,
-                        test: testWorkflow,
-                        delete: {
-                          type: 'void',
-                          title: '{{t("Delete")}}',
-                          'x-action': 'destroy',
-                          'x-component': 'Action.Link',
-                          'x-use-component-props': 'useDestroyActionProps',
+                          title: '{{t("Submit")}}',
+                          'x-component': 'Action',
                           'x-component-props': {
-                            confirm: {
-                              title: "{{t('Delete record')}}",
-                              content: "{{t('Are you sure you want to delete it?')}}",
+                            type: 'primary',
+                            useAction() {
+                              const { t } = useTranslation();
+                              const api = useAPIClient();
+                              const { refresh } = useDataBlockRequest();
+                              const resource = useDataBlockResource();
+                              const filterByTk = useFilterByTk();
+                              const { setVisible } = useActionContext();
+                              const { values } = useForm();
+                              return {
+                                async run() {
+                                  const { data } = await api.request({
+                                    url: values.file.url,
+                                    baseURL: '/',
+                                  });
+                                  await resource.load({ filterByTk, values: { ...values, workflow: data } });
+                                  message.success(t('Operation succeeded'));
+                                  refresh();
+                                  setVisible(false);
+                                },
+                              };
                             },
                           },
                         },
-                        dump: {
+                        cancel: {
                           type: 'void',
-                          title: '{{ t("Dump") }}',
-                          'x-component': 'Action.Link',
-                          'x-component-props': {
-                            useAction: '{{ useDumpAction }}',
-                          },
+                          title: '{{t("Cancel")}}',
+                          'x-component': 'Action',
+                          'x-use-component-props': 'useCancelActionProps',
                         },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            create: createWorkflow,
+          },
+        },
+        table: {
+          type: 'array',
+          'x-component': 'TableV2',
+          'x-use-component-props': 'useTableBlockProps',
+          'x-component-props': {
+            rowKey: 'id',
+            rowSelection: {
+              type: 'checkbox',
+            },
+          },
+          properties: {
+            title: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 100,
+              },
+              title: '{{t("Name")}}',
+              properties: {
+                title: {
+                  type: 'string',
+                  'x-component': 'ColumnShowTitle',
+                },
+              },
+            },
+            category: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+              },
+              properties: {
+                category: {
+                  type: 'array',
+                  'x-component': 'WorkflowCategoryColumn',
+                  'x-read-pretty': true,
+                },
+              },
+            },
+            enabled: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+              },
+              properties: {
+                enabled: {
+                  type: 'boolean',
+                  'x-component': 'CollectionField',
+                  'x-read-pretty': true,
+                  default: false,
+                },
+              },
+            },
+            allExecuted: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                allExecuted: {
+                  type: 'number',
+                  'x-decorator': 'OpenDrawer',
+                  'x-decorator-props': {
+                    component: function Com(props) {
+                      const record = useCollectionRecordData();
+                      return React.createElement('a', {
+                        'aria-label': `executed-${record.title}`,
+                        ...props,
+                      });
+                    },
+                  },
+                  'x-component': 'CollectionField',
+                  'x-read-pretty': true,
+                  properties: {
+                    drawer: executionSchema,
+                  },
+                },
+              },
+            },
+            executedTime: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Finally executed on'),
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                executedTime: {
+                  type: 'string',
+                  'x-component': 'ColumnExecutedTime',
+                },
+              },
+            },
+            showCollection: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Collection'),
+              properties: {
+                showCollection: {
+                  type: 'string',
+                  'x-component': 'ColumnShowCollection',
+                },
+              },
+            },
+            showEventSource: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Event source'),
+              properties: {
+                showEventSource: {
+                  type: 'string',
+                  'x-component': 'ColumnShowEventSource',
+                },
+              },
+            },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-component-props': {
+                    ellipsis: true,
+                  },
+                  'x-read-pretty': true,
+                },
+              },
+            },
+            updatedAt: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                updatedAt: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-read-pretty': true,
+                },
+              },
+            },
+            updatedBy: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                updatedBy: {
+                  type: 'string',
+                  'x-collection-field': 'workflows.updatedBy',
+                  'x-component': 'CollectionField',
+                  'x-read-pretty': true,
+                },
+              },
+            },
+            actions: {
+              type: 'void',
+              title: '{{ t("Actions") }}',
+              'x-component': 'TableV2.Column',
+              'x-component-props': {
+                fixed: 'right',
+              },
+              properties: {
+                actions: {
+                  type: 'void',
+                  'x-component': 'Space',
+                  'x-component-props': {
+                    split: '|',
+                  },
+                  properties: {
+                    configure: {
+                      type: 'void',
+                      'x-component': 'WorkflowLink',
+                    },
+                    update: updateWorkflow,
+                    revision: revisionWorkflow,
+                    test: testWorkflow,
+                    delete: {
+                      type: 'void',
+                      title: '{{t("Delete")}}',
+                      'x-action': 'destroy',
+                      'x-component': 'Action.Link',
+                      'x-use-component-props': 'useDestroyActionProps',
+                      'x-component-props': {
+                        confirm: {
+                          title: "{{t('Delete record')}}",
+                          content: "{{t('Are you sure you want to delete it?')}}",
+                        },
+                      },
+                    },
+                    dump: {
+                      type: 'void',
+                      title: '{{ t("Dump") }}',
+                      'x-component': 'Action.Link',
+                      'x-component-props': {
+                        useAction: '{{ useDumpAction }}',
                       },
                     },
                   },

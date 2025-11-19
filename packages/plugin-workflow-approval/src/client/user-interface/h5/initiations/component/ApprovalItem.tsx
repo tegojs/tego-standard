@@ -4,11 +4,11 @@ import { observer } from '@tachybase/schema';
 
 import { useDeepCompareEffect } from 'ahooks';
 import { Empty, List, Space, Tag } from 'antd-mobile';
-import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
 import { approvalStatusEnums } from '../../../../common/constants/approval-initiation-status-options';
 import { useTranslation } from '../../../../locale';
+import { ApprovalsSummary } from '../../common/approval-columns/summary.column';
 import { ApprovalPriorityType } from '../../constants';
 import { InitiationsBlockContext } from '../InitiationsBlock';
 
@@ -30,8 +30,31 @@ export const ApprovalItem = observer((props) => {
   useEffect(() => {
     if (inputFilter && defaultData.length) {
       const filterData = defaultData.filter((value) => {
-        const reason = value?.reason.find((reasonItem) => reasonItem?.value?.toString().includes(inputFilter));
-        return value.title.includes(inputFilter) || reason;
+        // 检查标题
+        if (value.title.includes(inputFilter)) {
+          return true;
+        }
+        // 检查 summary 中的值
+        const summary = value.summary;
+        if (summary) {
+          if (Array.isArray(summary)) {
+            // 新版数组格式
+            return summary.some((item: any) => {
+              const itemValue = item?.value;
+              if (Array.isArray(itemValue)) {
+                return itemValue.some((v: any) => String(v ?? '').includes(inputFilter));
+              }
+              return String(itemValue ?? '').includes(inputFilter);
+            });
+          } else if (typeof summary === 'object') {
+            // 旧版对象格式
+            return Object.values(summary).some((v: any) => {
+              const realValue = Object.prototype.toString.call(v) === '[object Object]' ? v?.['name'] : v;
+              return String(realValue ?? '').includes(inputFilter);
+            });
+          }
+        }
+        return false;
       });
 
       filterData.sort((a, b) => {
@@ -68,14 +91,7 @@ export const ApprovalItem = observer((props) => {
                   </Tag>
                 </Space>
                 {/* </Badge> */}
-                {item.reason?.map((reasonItem, index) => {
-                  return (
-                    <div className="approvalsSummaryStyle-item" key={index}>
-                      <div className="approvalsSummaryStyle-label">{`${reasonItem.label}:`}&nbsp;&nbsp;</div>
-                      <div className="approvalsSummaryStyle-value">{`${reasonItem.value}`}</div>
-                    </div>
-                  );
-                })}
+                <ApprovalsSummary value={item.summary} collectionName={item.collectionName} />
               </List.Item>
             );
           })}
@@ -104,34 +120,14 @@ const changService = (api, setData, user, filter, t, setDefaultData, cm, compile
         const statusType = approvalTodoListStatus(item, t);
         const categoryTitle = item.workflow?.title;
         const collectionName = item.workflow?.config?.collection || item.execution?.context?.collectionName;
-        const summary = [];
-        Object.entries(item.summary)?.forEach(([key, value]) => {
-          const field = cm.getCollectionField(`${collectionName}.${key}`);
-          let resonValue = value;
-          if (field.type === 'date' && value) {
-            resonValue = dayjs(value as string).format('YYYY-MM-DD HH:mm:ss');
-          }
-          if (key === 'createdAt') {
-            summary.unshift({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          } else {
-            summary.push({
-              label: compile(field?.uiSchema?.title || key),
-              value:
-                (Object.prototype.toString.call(value) === '[object Object]' ? resonValue?.['name'] : resonValue) || '',
-            });
-          }
-        });
         return {
           ...item,
           title: `${user.data.data.nickname}的${categoryTitle}`,
           categoryTitle: categoryTitle,
           statusTitle: compile(statusType?.label),
           statusColor: statusType?.color || 'default',
-          reason: summary || [],
+          summary: item.summary,
+          collectionName: collectionName,
           priorityTitle: priorityType?.label,
           priorityColor: priorityType?.color,
         };

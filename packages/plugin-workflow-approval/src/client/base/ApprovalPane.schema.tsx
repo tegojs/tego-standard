@@ -567,7 +567,6 @@ export const schemaApprovalPanne = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
                 style: {

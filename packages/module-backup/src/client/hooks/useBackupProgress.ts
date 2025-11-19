@@ -180,13 +180,24 @@ export function useBackupProgress({
   useEffect(() => {
     dataSource.forEach((item: any) => {
       if ((item.inProgress || item.status === 'in_progress') && item.name) {
+        // 如果进度已经达到 100%，说明备份已完成，不应该设置超时检测
+        if (item.progress >= 100) {
+          // 清理可能存在的超时检测
+          clearTimeoutCheck(item.name);
+          return;
+        }
         // 如果还没有设置超时检测，则设置
         if (!timeoutTimersRef.current.has(item.name)) {
           setupTimeoutCheck(item.name);
         }
+      } else {
+        // 如果任务不在进行中，清理超时检测
+        if (item.name && timeoutTimersRef.current.has(item.name)) {
+          clearTimeoutCheck(item.name);
+        }
       }
     });
-  }, [dataSource, setupTimeoutCheck]);
+  }, [dataSource, setupTimeoutCheck, clearTimeoutCheck]);
 
   useEffect(() => {
     if (!app.ws) {

@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "./hooks/format.sh"
+      },
+      {
+        "command": "./hooks/sync-locale.sh"
+      }
+    ]
+  },
+  "version": 1
+}

@@ -193,7 +193,8 @@
     "internationalization": {
       "type": "domain",
       "priority": "high",
-      "description": "国际化开发规则 - i18n/翻译文件",
+      "enforcement": "warn",
+      "description": "国际化开发规则 - i18n/翻译文件同步（必须更新所有语言文件）",
       "promptTriggers": {
         "keywords": [
           "i18n",
@@ -213,13 +214,17 @@
           "fr-FR",
           "es-ES",
           "ru-RU",
-          "tr-TR"
+          "tr-TR",
+          "locale file",
+          "语言包",
+          "翻译文件"
         ],
         "intentPatterns": [
-          "(create|add|modify|update|创建|添加|修改|更新).*?(translation|locale|i18n|翻译|国际化)",
-          "(how to|如何).*?(add|create|添加|创建).*?(translation|locale|翻译)",
-          "(sync|synchronize|同步).*?(translation|locale|翻译)",
-          "(missing|缺少|缺失).*?(translation|locale|翻译)"
+          "(create|add|modify|update|创建|添加|修改|更新).*?(translation|locale|i18n|翻译|国际化|语言包)",
+          "(how to|如何).*?(add|create|添加|创建).*?(translation|locale|翻译|语言包)",
+          "(sync|synchronize|同步).*?(translation|locale|翻译|语言包)",
+          "(missing|缺少|缺失).*?(translation|locale|翻译|语言包)",
+          "(update|更新).*?(locale|翻译).*?(file|文件)"
         ]
       },
       "fileTriggers": {
@@ -234,10 +239,14 @@
           "app\\.i18n",
           "ctx\\.i18n",
           "changeLanguage",
-          "en-US|zh-CN|ko_KR|ja-JP|pt-BR|fr-FR|es-ES|ru-RU|tr-TR"
+          "en-US|zh-CN|ko_KR|ja-JP|pt-BR|fr-FR|es-ES|ru-RU|tr-TR",
+          "\"\\w+\":\\s*\"[^\"]+\"",
+          "'\\w+':\\s*'[^']+'"
         ]
       },
-      "ruleFile": ".cursor/rules/development.md"
+      "ruleFile": ".cursor/rules/development.md",
+      "additionalRules": [".cursor/rules/lint-check.md", ".cursor/rules/frontend-guidelines.md"],
+      "reminder": "⚠️ CRITICAL: When modifying locale files, you MUST update ALL language files (en-US, zh-CN, ko_KR, ja-JP, pt-BR, etc.), not just one or two. Check the locale directory for all existing files. / ⚠️ 关键：修改语言文件时，必须更新所有语言文件（en-US、zh-CN、ko_KR、ja-JP、pt-BR 等），不仅仅是其中一两个。检查 locale 目录中的所有现有文件。"
     },
     "testing-patterns": {
       "type": "domain",

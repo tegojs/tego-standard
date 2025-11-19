@@ -55,20 +55,28 @@ import { useState } from 'react'
 
 ### 2. Synchronize All Translation Files / 同步所有翻译文件
 
+**MANDATORY RULE / 必须规则**: When editing any file in a `locale` directory, you MUST immediately synchronize all translation keys to all other language files in the same directory.
+
+**必须规则**：当编辑 `locale` 目录下的任何文件时，必须立即将所有翻译键同步到同目录下的所有其他语言文件。
+
 When adding or modifying translation keys, you must:
 
 当添加或修改翻译键时，必须：
 
 - **Add the translation key to ALL language files** in the locale directory / **在所有语言文件中添加翻译键**
 - Common language files include: `en-US.json`, `zh-CN.json`, `es-ES.json`, `fr-FR.json`, `ja-JP.json`, `ko_KR.json`, `pt-BR.json`, `ru-RU.json`, `tr-TR.json` / 常见语言文件包括：`en-US.json`, `zh-CN.json`, `es-ES.json`, `fr-FR.json`, `ja-JP.json`, `ko_KR.json`, `pt-BR.json`, `ru-RU.json`, `tr-TR.json`
+- Support both JSON (`.json`) and TypeScript (`.ts`) locale file formats / 支持 JSON (`.json`) 和 TypeScript (`.ts`) 两种 locale 文件格式
 - Ensure all translation keys are in the same order across all files / 确保所有文件中的翻译键顺序一致
 - Use appropriate translations for each language / 为每种语言使用适当的翻译
+- For new keys added to other language files, use the key name as the default value (to be translated later) / 对于添加到其他语言文件的新键，使用键名作为默认值（待后续翻译）
 
 **Workflow / 工作流程:**
-1. Add/modify translation key in one language file (usually `en-US.json` or `zh-CN.json`) / 在一个语言文件中添加/修改翻译键（通常是 `en-US.json` 或 `zh-CN.json`）
-2. **Immediately add the same key to all other language files** / **立即在所有其他语言文件中添加相同的键**
-3. Provide appropriate translations for each language / 为每种语言提供适当的翻译
-4. Verify JSON syntax is correct in all files / 验证所有文件的 JSON 语法正确
+1. Edit a locale file (e.g., `en-US.json` or `zh-CN.json`) / 编辑 locale 文件（如 `en-US.json` 或 `zh-CN.json`）
+2. **IMMEDIATELY check all other language files in the same directory** / **立即检查同目录下的所有其他语言文件**
+3. **Add any missing translation keys to all other language files** / **将所有缺失的翻译键添加到所有其他语言文件**
+4. For new keys, use the key name as the default value in other language files / 对于新键，在其他语言文件中使用键名作为默认值
+5. Provide appropriate translations for each language / 为每种语言提供适当的翻译
+6. Verify JSON/TypeScript syntax is correct in all files / 验证所有文件的 JSON/TypeScript 语法正确
 
 **Example / 示例:**
 ```json

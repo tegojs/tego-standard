@@ -11,6 +11,10 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
 ├── README.md              # This file / 本文件
 ├── cli.json               # CLI permissions configuration / CLI 权限配置
 ├── skill-rules.json      # Skill activation rules configuration / 技能激活规则配置
+├── hooks.json            # Hooks configuration template / Hooks 配置模板
+├── hooks/                # Hooks scripts directory / Hooks 脚本目录
+│   ├── README.md        # Hooks setup instructions / Hooks 设置说明
+│   └── format.sh        # Auto-format script / 自动格式化脚本
 └── rules/                 # AI rules directory / AI 规则目录
     ├── index.md          # Main rule index (references all rules) / 主规则索引（引用所有规则）
     ├── project.md        # Project configuration / 项目配置
@@ -53,6 +57,27 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
     优先级级别（高/中/低）用于规则重要性
   - Supports backend, frontend, database, client, i18n, testing, performance, and security skills
     支持后端、前端、数据库、客户端、国际化、测试、性能和安全技能
+
+### `.cursor/hooks.json` & `.cursor/hooks/`
+- **Purpose / 用途**: Hooks configuration template for automatic code formatting and translation synchronization after file edits
+  Hooks 配置模板，用于文件编辑后自动代码格式化和翻译同步
+- **Key Features / 关键特性**:
+  - **Auto-format / 自动格式化**: Auto-format code files after editing using Prettier
+    使用 Prettier 在编辑后自动格式化代码文件
+    - Supports JavaScript, TypeScript, JSON, SQL, and Markdown files
+      支持 JavaScript、TypeScript、JSON、SQL 和 Markdown 文件
+  - **Translation Sync Reminder / 翻译同步提醒**: Detects locale file edits and reminds AI to sync translation keys
+    检测 locale 文件编辑并提醒 AI 同步翻译键
+    - Supports JSON and TypeScript locale files
+      支持 JSON 和 TypeScript 格式的 locale 文件
+    - Hook only detects and reminds; actual sync is performed by AI according to rules
+      Hook 只负责检测和提醒，实际同步由 AI 根据规则执行
+    - See `.cursor/rules/lint-check.md` for sync rules
+      查看 `.cursor/rules/lint-check.md` 了解同步规则
+  - **Note / 注意**: Hooks must be copied to `~/.cursor/` directory to work
+    Hooks 必须复制到 `~/.cursor/` 目录才能生效
+  - See `.cursor/hooks/README.md` for setup instructions
+    查看 `.cursor/hooks/README.md` 了解设置说明
 
 ### `.cursor/rules/`
 - **Purpose / 用途**: Contains all AI behavior rules and guidelines

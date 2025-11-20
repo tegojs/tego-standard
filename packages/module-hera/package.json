@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-hera",
   "displayName": "Hera platform - Deprecated",
-  "version": "2.5.1",
+  "version": "1.6.0",
   "description": "Hera platform - Deprecated",
   "keywords": [
     "System management"

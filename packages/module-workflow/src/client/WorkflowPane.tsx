@@ -1,11 +1,5 @@
 import React, { useContext } from 'react';
-import {
-  EnabledStatusFilter,
-  ExtendCollectionsProvider,
-  SchemaComponent,
-  SchemaComponentContext,
-  usePlugin,
-} from '@tachybase/client';
+import { ExtendCollectionsProvider, SchemaComponent, SchemaComponentContext, usePlugin } from '@tachybase/client';
 import { onFieldChange, useField, useFormEffects } from '@tachybase/schema';
 
 import WorkflowPlugin, { RadioWithTooltip } from '.';
@@ -15,6 +9,7 @@ import { ColumnShowCollection } from './components/ColumnShowCollection';
 import { ColumnShowEventSource } from './components/ColumnShowEventSource';
 import { ColumnShowTitle } from './components/ColumnShowTitle';
 import { EditWorkflowCategory, EditWorkflowCategoryAction } from './components/EditWorkflowCategory';
+import { EnabledStatusFilter } from './components/EnabledStatusFilter';
 import { ExecutionLink } from './components/ExecutionLink';
 import { ExecutionRetryAction } from './components/ExecutionRetryAction';
 import { ExecutionStatusColumn, ExecutionStatusSelect } from './components/ExecutionStatus';

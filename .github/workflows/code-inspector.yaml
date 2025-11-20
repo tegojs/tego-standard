@@ -6,44 +6,19 @@ on:
       - dev
       - 'next/**'
       - 'release/**'
-    paths:
-      - 'apps/**/*.ts'
-      - 'apps/**/*.tsx'
-      - 'apps/**/*.js'
-      - 'apps/**/*.jsx'
-      - 'packages/**/*.ts'
-      - 'packages/**/*.tsx'
-      - 'packages/**/*.js'
-      - 'packages/**/*.jsx'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'tsconfig*.json'
-      - 'vitest.config.*'
-      - 'playwright.config.*'
-      - 'rsbuild.config.*'
-      - '!.github/workflows/**'
+    paths-ignore:
+      - '.github/workflows/**'
+      - '**/*.md'
+
   pull_request:
     branches:
       - main
       - dev
       - 'next/**'
       - 'release/**'
-    paths:
-      - 'apps/**/*.ts'
-      - 'apps/**/*.tsx'
-      - 'apps/**/*.js'
-      - 'apps/**/*.jsx'
-      - 'packages/**/*.ts'
-      - 'packages/**/*.tsx'
-      - 'packages/**/*.js'
-      - 'packages/**/*.jsx'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'tsconfig*.json'
-      - 'vitest.config.*'
-      - 'playwright.config.*'
-      - 'rsbuild.config.*'
-      - '!.github/workflows/**'
+    paths-ignore:
+      - '.github/workflows/**'
+      - '**/*.md'
 
 permissions:
   contents: write

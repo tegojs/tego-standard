@@ -52,31 +52,56 @@ jobs:
           ref: ${{ github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine version (preliminary)
+        id: version_prelim
+        run: |
+          # Quick version check to determine checkout strategy
+          # This is used to decide whether to checkout main branch or current branch
+          if [ -n "${{ inputs.version || github.event.inputs.version }}" ]; then
+            VERSION="${{ inputs.version || github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
+          elif [[ "${{ github.ref_name }}" == v* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            # For branches or other cases, we'll determine later
+            # Set a flag to indicate we need to check package.json
+            VERSION=""
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          if [ -n "$VERSION" ]; then
+            echo "Preliminary version: ${VERSION}"
+          else
+            echo "Version will be determined after checkout"
+          fi
+
       - name: Fetch latest changes
         run: |
           cd source
           # Fetch all branches and tags to ensure we have the latest commits
           git fetch --all --tags --force
 
-          # Determine the branch name from github.ref
-          # Extract branch name from ref (e.g., refs/heads/main -> main, refs/tags/v1.0.0 -> v1.0.0)
-          REF_NAME="${{ github.ref }}"
-          if [[ "$REF_NAME" == refs/heads/* ]]; then
-            BRANCH_NAME=$(echo "$REF_NAME" | sed 's|refs/heads/||')
-          elif [[ "$REF_NAME" == refs/tags/* ]]; then
-            # For tags, extract tag name and checkout
-            TAG_NAME=$(echo "$REF_NAME" | sed 's|refs/tags/||')
-            echo "Checking out tag: $TAG_NAME"
-            git checkout "$TAG_NAME" 2>/dev/null || {
-              echo "Warning: Could not checkout tag $TAG_NAME, trying with refs/tags/$TAG_NAME"
-              git checkout "refs/tags/$TAG_NAME" 2>/dev/null || true
-            }
-            echo "Current commit: $(git rev-parse HEAD)"
-            echo "Current branch: $(git rev-parse --abbrev-ref HEAD || echo 'detached HEAD')"
-            exit 0
-          else
-            # Default to main branch if ref format is unexpected
+          VERSION="${{ steps.version_prelim.outputs.version }}"
+
+          # For specific version releases, always checkout main branch
+          # because changelog entries are typically added to main after the tag is created
+          # For unreleased or when version is not yet determined, checkout the current branch to get latest changes
+          if [ -n "$VERSION" ] && [ "$VERSION" != "unreleased" ] && [[ "$VERSION" == v* ]]; then
+            echo "Syncing specific version ($VERSION), checking out main branch for latest changelog"
             BRANCH_NAME="main"
+          else
+            # Determine the branch name from github.ref
+            REF_NAME="${{ github.ref }}"
+            if [[ "$REF_NAME" == refs/heads/* ]]; then
+              BRANCH_NAME=$(echo "$REF_NAME" | sed 's|refs/heads/||')
+            elif [[ "$REF_NAME" == refs/tags/* ]]; then
+              # For tags when syncing unreleased, use main branch
+              echo "Tag trigger for unreleased, using main branch"
+              BRANCH_NAME="main"
+            else
+              # Default to main branch if ref format is unexpected
+              BRANCH_NAME="main"
+            fi
           fi
 
           # Pull latest changes from the branch to ensure we have the most recent commits
@@ -96,19 +121,20 @@ jobs:
         run: |
           cd source
 
-          # Priority 1: Use explicit input version
-          if [ -n "${{ inputs.version || github.event.inputs.version }}" ]; then
-            VERSION="${{ inputs.version || github.event.inputs.version }}"
-          # Priority 2: Use github.ref_name if it looks like a version tag (starts with 'v')
-          elif [ -n "${{ github.ref_name }}" ] && [[ "${{ github.ref_name }}" == v* ]]; then
-            VERSION="${{ github.ref_name }}"
-          # Priority 3: If triggered by tag push, extract from ref
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
-          # Priority 4: Try to get version from package.json
-          else
-            VERSION=$(node -p "require('./package.json').version")
-            VERSION="v${VERSION}"
+          # Use the preliminary version determination result
+          VERSION="${{ steps.version_prelim.outputs.version }}"
+
+          # If preliminary version is empty, try to determine from package.json or set as unreleased
+          if [ -z "$VERSION" ]; then
+            # Check if we're syncing unreleased (when called from update-unreleased-changelog)
+            # Otherwise, try to get version from package.json
+            if [ -n "${{ inputs.version || github.event.inputs.version }}" ] && [ "${{ inputs.version || github.event.inputs.version }}" == "unreleased" ]; then
+              VERSION="unreleased"
+            else
+              # Try to get version from package.json as fallback
+              VERSION=$(node -p "require('./package.json').version")
+              VERSION="v${VERSION}"
+            fi
           fi
 
           # Validate version format

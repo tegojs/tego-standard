@@ -3,9 +3,13 @@ name: Release New Version
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Specific version number (e.g., 1.6.0). If provided, bump will be ignored.'
+        required: false
+        type: string
       bump:
-        description: 'Version bump type'
-        required: true
+        description: 'Version bump type (only used if version is not provided)'
+        required: false
         default: 'patch'
         type: choice
         options:
@@ -13,7 +17,7 @@ on:
           - minor
           - major
 
-run-name: "Release New Version - Bump: ${{ github.event.inputs.bump || 'patch' }}"
+run-name: "Release New Version - ${{ github.event.inputs.version || format('Bump: {0}', github.event.inputs.bump || 'patch') }}"
 
 jobs:
   release:
@@ -36,24 +40,64 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.18.0
-      - name: Do major version release
+      - name: Do version release
         id: do_version
         run: |
           # 读取当前版本号
           current_version=$(node -p "require('./package.json').version")
           echo "Current version: $current_version"
 
-          bump="${{ github.event.inputs.bump }}"
-          if [ "$bump" = "major" ]; then
-            pnpm -r exec -- npm version major
-            version=$(npm version major --no-git-tag-version)
-          elif [ "$bump" = "minor" ]; then
-            pnpm -r exec -- npm version minor
-            version=$(npm version minor --no-git-tag-version)
+          # 如果提供了具体版本号，使用它；否则使用 bump 类型
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            # 使用指定的版本号
+            SPECIFIED_VERSION="${{ github.event.inputs.version }}"
+            # 移除可能的 'v' 前缀
+            SPECIFIED_VERSION=$(echo "$SPECIFIED_VERSION" | sed 's/^v//')
+
+            # 验证版本号格式 (X.Y.Z)
+            if ! echo "$SPECIFIED_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "❌ Error: Invalid version format. Expected format: X.Y.Z (e.g., 1.6.0)"
+              echo "   Got: $SPECIFIED_VERSION"
+              exit 1
+            fi
+
+            # 检查版本号是否大于当前版本
+            CURRENT_MAJOR=$(echo "$current_version" | cut -d. -f1)
+            CURRENT_MINOR=$(echo "$current_version" | cut -d. -f2)
+            CURRENT_PATCH=$(echo "$current_version" | cut -d. -f3)
+            SPEC_MAJOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f1)
+            SPEC_MINOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f2)
+            SPEC_PATCH=$(echo "$SPECIFIED_VERSION" | cut -d. -f3)
+
+            if [ "$SPEC_MAJOR" -lt "$CURRENT_MAJOR" ] || \
+               ([ "$SPEC_MAJOR" -eq "$CURRENT_MAJOR" ] && [ "$SPEC_MINOR" -lt "$CURRENT_MINOR" ]) || \
+               ([ "$SPEC_MAJOR" -eq "$CURRENT_MAJOR" ] && [ "$SPEC_MINOR" -eq "$CURRENT_MINOR" ] && [ "$SPEC_PATCH" -le "$CURRENT_PATCH" ]); then
+              echo "⚠ Warning: Specified version $SPECIFIED_VERSION is not greater than current version $current_version"
+              echo "   Continuing anyway..."
+            fi
+
+            # 更新所有 package.json 中的版本号
+            pnpm -r exec -- npm version "$SPECIFIED_VERSION" --no-git-tag-version
+            version="$SPECIFIED_VERSION"
+            echo "✓ Using specified version: $version"
           else
-            pnpm -r exec -- npm version patch
-            version=$(npm version patch --no-git-tag-version)
+            # 使用 bump 类型
+            bump="${{ github.event.inputs.bump || 'patch' }}"
+            echo "Using bump type: $bump"
+
+            if [ "$bump" = "major" ]; then
+              pnpm -r exec -- npm version major
+              version=$(npm version major --no-git-tag-version)
+            elif [ "$bump" = "minor" ]; then
+              pnpm -r exec -- npm version minor
+              version=$(npm version minor --no-git-tag-version)
+            else
+              pnpm -r exec -- npm version patch
+              version=$(npm version patch --no-git-tag-version)
+            fi
+            echo "✓ Version bumped to: $version"
           fi
+
           echo "New version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
@@ -64,10 +108,10 @@ jobs:
         run: |
           current_version="${{ steps.do_version.outputs.current_version }}"
           new_version="${{ steps.do_version.outputs.version }}"
-          
+
           # 获取上一个 tag
           previous_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          
+
           if [ -n "$previous_tag" ]; then
             echo "Generating changelog from $previous_tag to v$new_version"
             node scripts/generate-changelog.mjs "$new_version" "$previous_tag"
@@ -75,7 +119,7 @@ jobs:
             echo "No previous tag found, generating changelog for v$new_version"
             node scripts/generate-changelog.mjs "$new_version"
           fi
-          
+
           # 检查是否有变更
           if git diff --quiet CHANGELOG.md CHANGELOG.zh-CN.md; then
             echo "changelog_updated=false" >> $GITHUB_OUTPUT
@@ -87,7 +131,7 @@ jobs:
 
       - name: Update workflow run name
         env:
-          NEW_NAME: "Release New Version - Bump: ${{ github.event.inputs.bump || 'patch' }} → ${{ steps.do_version.outputs.version }}"
+          NEW_NAME: "Release New Version - ${{ github.event.inputs.version || format('Bump: {0}', github.event.inputs.bump || 'patch') }} → ${{ steps.do_version.outputs.version }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Plugin } from '@tego/server';
 
 export class PluginEnvironmentVariablesServer extends Plugin {
@@ -20,6 +21,16 @@ export class PluginEnvironmentVariablesServer extends Plugin {
   }
 
   async load() {
+    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
+    const collectionsDir = path.resolve(__dirname, './collections');
+    const envVarsCollection = this.db.getCollection('environmentVariables');
+    if (!envVarsCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-env-secrets',
+      });
+    }
+
     this.registerACL();
     this.onEnvironmentSaved();
     await this.loadVariables();
@@ -188,8 +199,19 @@ export class PluginEnvironmentVariablesServer extends Plugin {
   }
 
   async loadVariables() {
-    const repository = this.db.getRepository('environmentVariables');
-    const r = await repository.collection.existsInDb();
+    const collection = this.db.getCollection('environmentVariables');
+    if (!collection) {
+      this.app.logger.warn('Collection environmentVariables is not defined');
+      return;
+    }
+
+    const repository = collection.repository;
+    if (!repository) {
+      this.app.logger.warn('Repository for environmentVariables is not available');
+      return;
+    }
+
+    const r = await collection.existsInDb();
     if (!r) {
       return;
     }

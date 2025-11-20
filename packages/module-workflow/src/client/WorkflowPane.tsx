@@ -9,6 +9,7 @@ import { ColumnShowCollection } from './components/ColumnShowCollection';
 import { ColumnShowEventSource } from './components/ColumnShowEventSource';
 import { ColumnShowTitle } from './components/ColumnShowTitle';
 import { EditWorkflowCategory, EditWorkflowCategoryAction } from './components/EditWorkflowCategory';
+import { EnabledStatusFilter } from './components/EnabledStatusFilter';
 import { ExecutionLink } from './components/ExecutionLink';
 import { ExecutionRetryAction } from './components/ExecutionRetryAction';
 import { ExecutionStatusColumn, ExecutionStatusSelect } from './components/ExecutionStatus';
@@ -73,6 +74,7 @@ export function WorkflowPane(props) {
             ColumnShowEventSource,
             ColumnExecutedTime,
             WorkflowCategoryColumn,
+            EnabledStatusFilter,
             ...components,
           }}
           scope={{

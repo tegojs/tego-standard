@@ -299,6 +299,11 @@ export const schemaApprovalPanne = {
               'x-component': 'FuzzySearchInput',
               'x-align': 'left',
             },
+            statusFilter: {
+              type: 'void',
+              'x-component': 'EnabledStatusFilter',
+              'x-align': 'left',
+            },
             refresh: {
               type: 'void',
               title: '{{ t("Refresh") }}',
@@ -440,7 +445,6 @@ export const schemaApprovalPanne = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 100,
                 align: 'center',
               },
@@ -466,12 +470,14 @@ export const schemaApprovalPanne = {
                 width: 50,
                 align: 'center',
               },
+              title: `{{t("Status", { ns: "${NAMESPACE}" })}}`,
               properties: {
                 enabled: {
-                  type: 'boolean',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
-                  default: false,
+                  type: 'void',
+                  'x-component': 'EnabledToggle',
+                  'x-component-props': {
+                    resource: 'workflows',
+                  },
                 },
               },
             },

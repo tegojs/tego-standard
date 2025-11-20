@@ -17,7 +17,7 @@ const defaultTheme: ThemeConfig = {
     colorBgSettingsHover: 'rgba(33,150,243, 0.06)',
     colorBorderSettingsHover: 'rgba(33,150,243, 0.3)',
     motionUnit: 0.03,
-    motion: !ctx.tego.environment.getVariables().__E2E__,
+    motion: !process.env.__E2E__,
   },
 };
 

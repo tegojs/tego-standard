@@ -91,7 +91,7 @@ export class TokenController implements TokenControlService {
     await this.setTokenInfo(jti, data);
 
     try {
-      if (ctx.tego.environment.getVariables().DB_DIALECT === 'sqlite') {
+      if (process.env.DB_DIALECT === 'sqlite') {
         // SQLITE does not support concurrent operations
         await this.removeSessionExpiredTokens(userId);
       } else {

@@ -50,9 +50,9 @@ export default defineConfig({
   source: {
     define: {
       ...rsDefined,
-      'ctx.tego.environment.getVariables().NODE_ENV': JSON.stringify(ctx.tego.environment.getVariables().NODE_ENV),
-      'ctx.tego.environment.getVariables().REACT_APP_CLICK_TO_COMPONENT_EDITOR': JSON.stringify(
-        ctx.tego.environment.getVariables().REACT_APP_CLICK_TO_COMPONENT_EDITOR,
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+      'process.env.REACT_APP_CLICK_TO_COMPONENT_EDITOR': JSON.stringify(
+        process.env.REACT_APP_CLICK_TO_COMPONENT_EDITOR,
       ),
     },
   },
@@ -73,8 +73,8 @@ export default defineConfig({
     overrideBrowserslist: ['chrome >= 69', 'edge >= 79', 'safari >= 12'],
   },
   server: {
-    port: Number(ctx.tego.environment.getVariables().PORT || 3000),
-    open: !ctx.tego.environment.getVariables().NO_OPEN,
+    port: Number(process.env.PORT || 3000),
+    open: !process.env.NO_OPEN,
     proxy: {
       ...config.proxy,
     },

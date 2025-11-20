@@ -49,6 +49,16 @@ export class PluginAuthServer extends Plugin {
   }
 
   async load() {
+    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
+    const collectionsDir = resolve(__dirname, './collections');
+    const tokenBlacklistCollection = this.db.getCollection('tokenBlacklist');
+    if (!tokenBlacklistCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-auth',
+      });
+    }
+
     // 初始化 UserStatusService
     this.userStatusService = new UserStatusService(this.app);
     // 将服务暴露到 app 上,方便其他插件调用

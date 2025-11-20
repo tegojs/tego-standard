@@ -3,13 +3,9 @@ name: Release New Version
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Specific version number (e.g., v1.6.0). Must start with "v" and be >= latest tag. If provided, bump will be ignored.'
-        required: false
-        type: string
       bump:
-        description: 'Version bump type (only used if version is not provided)'
-        required: false
+        description: 'Version bump type'
+        required: true
         default: 'patch'
         type: choice
         options:
@@ -17,7 +13,7 @@ on:
           - minor
           - major
 
-run-name: "Release New Version - ${{ github.event.inputs.version || format('Bump: {0}', github.event.inputs.bump || 'patch') }}"
+run-name: "Release New Version - Bump: ${{ github.event.inputs.bump || 'patch' }}"
 
 jobs:
   release:
@@ -54,171 +50,41 @@ jobs:
           current_version=$(node -p "require('./package.json').version")
           echo "Current version: $current_version"
 
-          # 如果提供了具体版本号，使用它；否则使用 bump 类型
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            # 使用指定的版本号（保留原始格式用于显示）
-            SPECIFIED_VERSION_INPUT="${{ github.event.inputs.version }}"
+          # 使用 bump 类型
+          bump="${{ github.event.inputs.bump || 'patch' }}"
+          echo "Using bump type: $bump"
 
-            # 验证版本号格式 (vX.Y.Z) - 必须带 v 前缀
-            if ! echo "$SPECIFIED_VERSION_INPUT" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-              echo "❌ Error: Invalid version format. Expected format: vX.Y.Z (e.g., v1.6.0)"
-              echo "   Got: $SPECIFIED_VERSION_INPUT"
-              echo "   Version must start with 'v' followed by semantic versioning (major.minor.patch)"
+          if [ "$bump" = "major" ]; then
+            if ! pnpm -r exec -- npm version major --no-git-tag-version; then
+              echo "❌ Error: Failed to bump version in some packages"
               exit 1
             fi
-
-            # 移除 'v' 前缀用于内部处理
-            SPECIFIED_VERSION=$(echo "$SPECIFIED_VERSION_INPUT" | sed 's/^v//')
-
-            # 获取最新的 tag（按版本号排序）
-            echo "Checking latest tag..."
-            LATEST_TAG=$(git tag --sort=-version:refname | head -1 || echo "")
-
-            if [ -z "$LATEST_TAG" ]; then
-              echo "ℹ No existing tags found, version $SPECIFIED_VERSION_INPUT is acceptable"
-            else
-              # 移除 tag 的 'v' 前缀进行比较
-              LATEST_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
-              echo "Latest tag: $LATEST_TAG (version: $LATEST_VERSION)"
-
-              # 比较版本号
-              LATEST_MAJOR=$(echo "$LATEST_VERSION" | cut -d. -f1)
-              LATEST_MINOR=$(echo "$LATEST_VERSION" | cut -d. -f2)
-              LATEST_PATCH=$(echo "$LATEST_VERSION" | cut -d. -f3)
-              SPEC_MAJOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f1)
-              SPEC_MINOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f2)
-              SPEC_PATCH=$(echo "$SPECIFIED_VERSION" | cut -d. -f3)
-
-              # 检查新版本是否 >= 最新 tag（允许覆盖最新 tag，但不允许回退）
-              VERSION_VALID=false
-              if [ "$SPEC_MAJOR" -gt "$LATEST_MAJOR" ]; then
-                VERSION_VALID=true
-              elif [ "$SPEC_MAJOR" -eq "$LATEST_MAJOR" ]; then
-                if [ "$SPEC_MINOR" -gt "$LATEST_MINOR" ]; then
-                  VERSION_VALID=true
-                elif [ "$SPEC_MINOR" -eq "$LATEST_MINOR" ]; then
-                  if [ "$SPEC_PATCH" -ge "$LATEST_PATCH" ]; then
-                    VERSION_VALID=true
-                  fi
-                fi
-              fi
-
-              if [ "$VERSION_VALID" != "true" ]; then
-                echo "❌ Error: Cannot release version $SPECIFIED_VERSION_INPUT"
-                echo ""
-                echo "   Reason: Version must be greater than or equal to the latest tag"
-                echo "   Latest tag: $LATEST_TAG (version: $LATEST_VERSION)"
-                echo "   Specified version: $SPECIFIED_VERSION_INPUT (version: $SPECIFIED_VERSION)"
-                echo ""
-                echo "   ⚠ You cannot release an older version (version rollback is not allowed)."
-                echo "   ⚠ You can only release the latest tag (to overwrite it) or a newer version."
-                echo ""
-                echo "   Allowed versions:"
-                echo "   - Overwrite latest: $LATEST_TAG"
-                echo "   - New versions:"
-                echo "     * Major: v$((LATEST_MAJOR + 1)).0.0"
-                echo "     * Minor: v$LATEST_MAJOR.$((LATEST_MINOR + 1)).0"
-                echo "     * Patch: v$LATEST_MAJOR.$LATEST_MINOR.$((LATEST_PATCH + 1))"
-                exit 1
-              fi
-
-              if [ "$SPEC_MAJOR" -eq "$LATEST_MAJOR" ] && [ "$SPEC_MINOR" -eq "$LATEST_MINOR" ] && [ "$SPEC_PATCH" -eq "$LATEST_PATCH" ]; then
-                echo "ℹ Version $SPECIFIED_VERSION_INPUT matches latest tag $LATEST_TAG"
-                echo "   This will overwrite the existing tag."
-              else
-                echo "✓ Version $SPECIFIED_VERSION_INPUT is greater than latest tag $LATEST_TAG"
-              fi
-            fi
-
-            # 更新所有 package.json 中的版本号
-            echo "Updating version to $SPECIFIED_VERSION in all packages..."
-            if ! pnpm -r exec -- npm version "$SPECIFIED_VERSION" --no-git-tag-version; then
-              echo "❌ Error: Failed to update version in some packages"
+            version=$(npm version major --no-git-tag-version)
+          elif [ "$bump" = "minor" ]; then
+            if ! pnpm -r exec -- npm version minor --no-git-tag-version; then
+              echo "❌ Error: Failed to bump version in some packages"
               exit 1
             fi
-
-            # 验证根目录和主要包的版本号都已更新
-            echo "Verifying version updates in key packages..."
-            ROOT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
-            if [ -z "$ROOT_VERSION" ]; then
-              echo "❌ Error: Failed to read root package.json version"
-              exit 1
-            fi
-            if [ "$ROOT_VERSION" != "$SPECIFIED_VERSION" ]; then
-              echo "❌ Error: Root package.json version is $ROOT_VERSION, expected $SPECIFIED_VERSION"
-              exit 1
-            fi
-            echo "✓ Root package.json version verified: $ROOT_VERSION"
-
-            # 检查几个关键包的版本号（使用更可靠的方法）
-            KEY_PACKAGES=("packages/client/package.json" "packages/module-workflow/package.json" "apps/web/package.json")
-            for pkg in "${KEY_PACKAGES[@]}"; do
-              if [ -f "$pkg" ]; then
-                # 使用 grep 和 sed 直接读取版本号（更可靠）
-                PKG_VERSION=$(grep -E '^\s*"version"\s*:\s*"' "$pkg" | head -1 | sed -E 's/.*"version"\s*:\s*"([^"]+)".*/\1/' || echo "")
-                if [ -z "$PKG_VERSION" ]; then
-                  echo "⚠ Warning: Could not extract version from $pkg using grep, trying node..."
-                  # 备用方法：使用 node（需要正确的路径）
-                  PKG_VERSION=$(cd "$(dirname "$pkg")" && node -p "require('./$(basename "$pkg")').version" 2>/dev/null || echo "")
-                fi
-                if [ -z "$PKG_VERSION" ]; then
-                  echo "❌ Error: Could not read version from $pkg"
-                  echo "File content (first 10 lines):"
-                  head -10 "$pkg"
-                  exit 1
-                fi
-                if [ "$PKG_VERSION" != "$SPECIFIED_VERSION" ]; then
-                  echo "❌ Error: $pkg version is $PKG_VERSION, expected $SPECIFIED_VERSION"
-                  exit 1
-                fi
-                echo "✓ $pkg version verified: $PKG_VERSION"
-              else
-                echo "⚠ Warning: $pkg does not exist, skipping verification"
-              fi
-            done
-
-            # 统计所有更新的 package.json 文件
-            UPDATED_COUNT=$(git diff --name-only HEAD | grep -c "package.json$" || echo "0")
-            echo "✓ Updated $UPDATED_COUNT package.json files to version $SPECIFIED_VERSION"
-
-            version="$SPECIFIED_VERSION"
-            echo "✓ All packages updated to version: $version"
+            version=$(npm version minor --no-git-tag-version)
           else
-            # 使用 bump 类型
-            bump="${{ github.event.inputs.bump || 'patch' }}"
-            echo "Using bump type: $bump"
-
-            if [ "$bump" = "major" ]; then
-              if ! pnpm -r exec -- npm version major --no-git-tag-version; then
-                echo "❌ Error: Failed to bump version in some packages"
-                exit 1
-              fi
-              version=$(npm version major --no-git-tag-version)
-            elif [ "$bump" = "minor" ]; then
-              if ! pnpm -r exec -- npm version minor --no-git-tag-version; then
-                echo "❌ Error: Failed to bump version in some packages"
-                exit 1
-              fi
-              version=$(npm version minor --no-git-tag-version)
-            else
-              if ! pnpm -r exec -- npm version patch --no-git-tag-version; then
-                echo "❌ Error: Failed to bump version in some packages"
-                exit 1
-              fi
-              version=$(npm version patch --no-git-tag-version)
-            fi
-
-            # 验证根目录版本号
-            ROOT_VERSION=$(node -p "require('./package.json').version")
-            if [ "$ROOT_VERSION" != "$version" ]; then
-              echo "❌ Error: Root package.json version mismatch. Expected $version, got $ROOT_VERSION"
+            # patch (default)
+            if ! pnpm -r exec -- npm version patch --no-git-tag-version; then
+              echo "❌ Error: Failed to bump version in some packages"
               exit 1
             fi
-
-            # 统计所有更新的 package.json 文件
-            UPDATED_COUNT=$(git diff --name-only HEAD | grep -c "package.json$" || echo "0")
-            echo "✓ Version bumped to: $version ($UPDATED_COUNT package.json files updated)"
+            version=$(npm version patch --no-git-tag-version)
           fi
+
+          # 验证根目录版本号
+          ROOT_VERSION=$(node -p "require('./package.json').version")
+          if [ "$ROOT_VERSION" != "$version" ]; then
+            echo "❌ Error: Root package.json version mismatch. Expected $version, got $ROOT_VERSION"
+            exit 1
+          fi
+
+          # 统计所有更新的 package.json 文件
+          UPDATED_COUNT=$(git diff --name-only HEAD | grep -c "package.json$" || echo "0")
+          echo "✓ Version bumped to: $version ($UPDATED_COUNT package.json files updated)"
 
           echo "New version: $version"
           # 输出版本号（不带 v 前缀，用于内部处理）
@@ -344,7 +210,7 @@ jobs:
 
       - name: Update workflow run name
         env:
-          NEW_NAME: "Release New Version - ${{ github.event.inputs.version || format('Bump: {0}', github.event.inputs.bump || 'patch') }} → ${{ steps.do_version.outputs.version }}"
+          NEW_NAME: "Release New Version - Bump: ${{ github.event.inputs.bump || 'patch' }} → ${{ steps.do_version.outputs.version }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}

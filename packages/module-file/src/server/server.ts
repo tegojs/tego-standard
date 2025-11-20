@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { Plugin } from '@tego/server';
 
 import initActions from './actions';
@@ -66,9 +65,22 @@ export default class PluginFileManager extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, './collections'));
+    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
+    const collectionsDir = resolve(__dirname, './collections');
+    const storagesCollection = this.db.getCollection('storages');
+    if (!storagesCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-file',
+      });
+    }
 
-    const Storage = this.db.getModel('storages');
+    const storagesCollectionAfterImport = this.db.getCollection('storages');
+    if (!storagesCollectionAfterImport) {
+      throw new Error('Collection storages is not defined after import');
+    }
+
+    const Storage = storagesCollectionAfterImport.model;
     Storage.afterSave(async (m, { transaction }) => {
       await this.loadStorages({ transaction });
     });

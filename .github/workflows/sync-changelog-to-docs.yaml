@@ -155,7 +155,7 @@ jobs:
           VERSION_NUMBER=${VERSION#v}
 
           # Debug information
-          echo "Extracting changelog for version: $VERSION (number: $VERSION_NUMBER)"
+          echo "Syncing full changelog files to docs repository"
           echo "Current directory: $(pwd)"
           echo "CHANGELOG.md exists: $([ -f "CHANGELOG.md" ] && echo 'yes' || echo 'no')"
           echo "CHANGELOG.zh-CN.md exists: $([ -f "CHANGELOG.zh-CN.md" ] && echo 'yes' || echo 'no')"
@@ -164,111 +164,30 @@ jobs:
             head -20 CHANGELOG.md
           fi
 
-          # Check if syncing Unreleased section
-          if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
-            echo "Syncing [Unreleased] section"
-
-            # Extract [Unreleased] section from CHANGELOG.md
-            # Note: The source changelog should already be deduplicated by update-unreleased.mjs script
-            if [ -f "CHANGELOG.md" ]; then
-              awk '
-                /^## \[Unreleased\]/ {
-                  print_section = 1
-                  print $0
-                  next
-                }
-                print_section {
-                  if (/^## \[/) {
-                    exit
-                  }
-                  print
-                }
-              ' CHANGELOG.md > /tmp/changelog_en.md || echo "" > /tmp/changelog_en.md
-            else
-              echo "" > /tmp/changelog_en.md
-            fi
-
-            # Extract [未发布] section from CHANGELOG.zh-CN.md
-            # Note: The source changelog should already be deduplicated by update-unreleased.mjs script
-            if [ -f "CHANGELOG.zh-CN.md" ]; then
-              awk '
-                /^## \[未发布\]/ {
-                  print_section = 1
-                  print $0
-                  next
-                }
-                print_section {
-                  if (/^## \[/) {
-                    exit
-                  }
-                  print
-                }
-              ' CHANGELOG.zh-CN.md > /tmp/changelog_zh.md || echo "" > /tmp/changelog_zh.md
-            else
-              echo "" > /tmp/changelog_zh.md
-            fi
+          # Copy entire changelog files to ensure consistency
+          # This ensures docs repository always has the complete changelog matching tego-standard
+          if [ -f "CHANGELOG.md" ]; then
+            cp "CHANGELOG.md" /tmp/changelog_en.md
+            echo "✓ Copied full CHANGELOG.md ($(wc -l < /tmp/changelog_en.md) lines)"
           else
-            # Extract changelog entry for this version from CHANGELOG.md
-            echo "Extracting version $VERSION_NUMBER from CHANGELOG.md"
-            if [ -f "CHANGELOG.md" ]; then
-              # Debug: show matching lines
-              echo "Looking for pattern: ## [$VERSION_NUMBER]"
-              grep -n "^## \[" CHANGELOG.md | head -5 || echo "No version headers found"
-
-              awk -v version="$VERSION_NUMBER" '
-                /^## \[/ {
-                  if ($0 ~ "\\[" version "\\]") {
-                    print_section = 1
-                    print $0
-                    next
-                  } else if (print_section && /^## \[/) {
-                    exit
-                  }
-                }
-                print_section { print }
-              ' CHANGELOG.md > /tmp/changelog_en.md || echo "" > /tmp/changelog_en.md
-
-              echo "Extracted English changelog ($(wc -l < /tmp/changelog_en.md) lines):"
-              head -10 /tmp/changelog_en.md || echo "(empty)"
-            else
-              echo "CHANGELOG.md not found"
-              echo "" > /tmp/changelog_en.md
-            fi
-
-            # Extract changelog entry for this version from CHANGELOG.zh-CN.md
-            echo "Extracting version $VERSION_NUMBER from CHANGELOG.zh-CN.md"
-            if [ -f "CHANGELOG.zh-CN.md" ]; then
-              # Debug: show matching lines
-              echo "Looking for pattern: ## [$VERSION_NUMBER]"
-              grep -n "^## \[" CHANGELOG.zh-CN.md | head -5 || echo "No version headers found"
-
-              awk -v version="$VERSION_NUMBER" '
-                /^## \[/ {
-                  if ($0 ~ "\\[" version "\\]") {
-                    print_section = 1
-                    print $0
-                    next
-                  } else if (print_section && /^## \[/) {
-                    exit
-                  }
-                }
-                print_section { print }
-              ' CHANGELOG.zh-CN.md > /tmp/changelog_zh.md || echo "" > /tmp/changelog_zh.md
-
-              echo "Extracted Chinese changelog ($(wc -l < /tmp/changelog_zh.md) lines):"
-              head -10 /tmp/changelog_zh.md || echo "(empty)"
-            else
-              echo "CHANGELOG.zh-CN.md not found"
-              echo "" > /tmp/changelog_zh.md
-            fi
+            echo "⚠ CHANGELOG.md not found"
+            echo "" > /tmp/changelog_en.md
           fi
 
-          # Check if changelog entries exist (more than just empty lines)
+          if [ -f "CHANGELOG.zh-CN.md" ]; then
+            cp "CHANGELOG.zh-CN.md" /tmp/changelog_zh.md
+            echo "✓ Copied full CHANGELOG.zh-CN.md ($(wc -l < /tmp/changelog_zh.md) lines)"
+          else
+            echo "⚠ CHANGELOG.zh-CN.md not found"
+            echo "" > /tmp/changelog_zh.md
+          fi
+
+          # Check if changelog files exist and have content
           EN_LINES=$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)
           ZH_LINES=$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)
 
           # Log detailed information
-          echo "Changelog extraction results:"
+          echo "Changelog files:"
           echo "  English: $EN_LINES lines (file: /tmp/changelog_en.md)"
           echo "  Chinese: $ZH_LINES lines (file: /tmp/changelog_zh.md)"
 
@@ -282,24 +201,14 @@ jobs:
             echo "✓ Chinese changelog has content"
           else
             echo "⚠ Chinese changelog is empty or has no content"
-            if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
-              echo "  This may be because:"
-              echo "    1. Translation failed during update-unreleased step"
-              echo "    2. No Chinese content was generated"
-              echo "    3. CHANGELOG.zh-CN.md was not updated in the previous step"
-            fi
           fi
 
           if [ "$EN_LINES" -gt 1 ] || [ "$ZH_LINES" -gt 1 ]; then
             echo "has_changelog=true" >> $GITHUB_OUTPUT
-            echo "Found changelog entries: EN($EN_LINES lines), ZH($ZH_LINES lines)"
+            echo "Found changelog files: EN($EN_LINES lines), ZH($ZH_LINES lines)"
           else
             echo "has_changelog=false" >> $GITHUB_OUTPUT
-            if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
-              echo "No [Unreleased] entries found"
-            else
-              echo "No changelog entries found for version $VERSION_NUMBER"
-            fi
+            echo "No changelog files found or files are empty"
           fi
 
       - name: Checkout docs repository
@@ -330,11 +239,6 @@ jobs:
 
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUMBER=${VERSION#v}
-          IS_UNRELEASED=false
-
-          if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
-            IS_UNRELEASED=true
-          fi
 
           # Determine target file paths
           EN_TARGET="${DOCS_CHANGELOG_EN_PATH}"
@@ -344,148 +248,23 @@ jobs:
           mkdir -p "$(dirname "${EN_TARGET}")"
           mkdir -p "$(dirname "${ZH_TARGET}")"
 
-          if [ "$IS_UNRELEASED" == "true" ]; then
-            # For Unreleased section, replace the entire section
-            # Note: Content is already deduplicated and properly formatted by update-unreleased.mjs script
-            # The extracted section includes the "## [Unreleased]" header
+          # Overwrite entire changelog files to ensure consistency with tego-standard
+          # This ensures docs repository always has the complete changelog matching tego-standard
 
-            # Helper function to replace [Unreleased] section in target file
-            # Usage: replace_unreleased_section <target_file> <section_header> <new_content_file>
-            replace_unreleased_section() {
-              local target_file="$1"
-              local section_header="$2"
-              local new_content_file="$3"
-
-              if [ -f "${target_file}" ]; then
-                # Remove existing section if exists, then prepend new content
-                if grep -q "^## \[${section_header}\]" "${target_file}"; then
-                  # Remove the section (from "## [header]" to next "## [" or end of file)
-                  awk -v header="${section_header}" '
-                    BEGIN { in_section = 0 }
-                    /^## \[/ && $0 ~ "\\[" header "\\]" { in_section = 1; next }
-                    in_section && /^## \[/ { in_section = 0 }
-                    !in_section { print }
-                  ' "${target_file}" > /tmp/temp_changelog.md
-                  cat "${new_content_file}" > "${target_file}"
-                  echo "" >> "${target_file}"
-                  cat /tmp/temp_changelog.md >> "${target_file}"
-                else
-                  # No section found, prepend new content
-                  cat "${new_content_file}" > /tmp/temp_changelog.md
-                  echo "" >> /tmp/temp_changelog.md
-                  cat "${target_file}" >> /tmp/temp_changelog.md
-                  mv /tmp/temp_changelog.md "${target_file}"
-                fi
-              else
-                # Create new file
-                cat "${new_content_file}" > "${target_file}"
-              fi
-            }
-
-            # Sync English changelog (only if it has content)
-            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              replace_unreleased_section "${EN_TARGET}" "Unreleased" /tmp/changelog_en.md
-              echo "✓ Synced English [Unreleased] changelog to ${EN_TARGET}"
-            else
-              echo "⚠ Skipped syncing English changelog (no content or empty file)"
-            fi
-
-            # Sync Chinese changelog (only if it has content)
-            if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              replace_unreleased_section "${ZH_TARGET}" "未发布" /tmp/changelog_zh.md
-              echo "✓ Synced Chinese [未发布] changelog to ${ZH_TARGET}"
-            else
-              echo "⚠ Skipped syncing Chinese changelog (no content or empty file)"
-              echo "  This may be because translation failed or Chinese content was not generated in the update step"
-            fi
+          # Sync English changelog (overwrite entire file)
+          if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+            cp /tmp/changelog_en.md "${EN_TARGET}"
+            echo "✓ Synced full English changelog to ${EN_TARGET} ($(wc -l < "${EN_TARGET}") lines)"
           else
-            # For version releases, append new version entry
-            # Append English changelog (only if it has content)
-            if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              # Check if version already exists in the file
-              if [ -f "${EN_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${EN_TARGET}"; then
-                echo "⚠ Version ${VERSION_NUMBER} already exists in ${EN_TARGET}, replacing it"
-                # Remove existing version entry
-                awk -v version="${VERSION_NUMBER}" '
-                  BEGIN { skip = 0 }
-                  /^## \[/ {
-                    if ($0 ~ "\\[" version "\\]") {
-                      skip = 1
-                      next
-                    } else if (skip && /^## \[/) {
-                      skip = 0
-                    }
-                  }
-                  !skip { print }
-                ' "${EN_TARGET}" > /tmp/changelog_en_temp.md
-                mv /tmp/changelog_en_temp.md "${EN_TARGET}"
-              fi
-              # Insert new version entry at the beginning
-              if [ -f "${EN_TARGET}" ]; then
-                # Find the first ## header and insert before it
-                if grep -q "^## \[" "${EN_TARGET}"; then
-                  # Create temporary file with new content + existing content
-                  cat /tmp/changelog_en.md > /tmp/changelog_en_new.md
-                  echo "" >> /tmp/changelog_en_new.md
-                  cat "${EN_TARGET}" >> /tmp/changelog_en_new.md
-                  mv /tmp/changelog_en_new.md "${EN_TARGET}"
-                else
-                  # Append to end if no version entries found
-                  echo "" >> "${EN_TARGET}"
-                  cat /tmp/changelog_en.md >> "${EN_TARGET}"
-                fi
-              else
-                # Create new file
-                cat /tmp/changelog_en.md > "${EN_TARGET}"
-              fi
-              echo "✓ Synced English changelog to ${EN_TARGET}"
-            else
-              echo "⚠ Skipped syncing English changelog (no content or empty file)"
-            fi
+            echo "⚠ Skipped syncing English changelog (no content or empty file)"
+          fi
 
-            # Append Chinese changelog (only if it has content)
-            if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
-              # Check if version already exists in the file
-              if [ -f "${ZH_TARGET}" ] && grep -q "\[${VERSION_NUMBER}\]" "${ZH_TARGET}"; then
-                echo "⚠ Version ${VERSION_NUMBER} already exists in ${ZH_TARGET}, replacing it"
-                # Remove existing version entry
-                awk -v version="${VERSION_NUMBER}" '
-                  BEGIN { skip = 0 }
-                  /^## \[/ {
-                    if ($0 ~ "\\[" version "\\]") {
-                      skip = 1
-                      next
-                    } else if (skip && /^## \[/) {
-                      skip = 0
-                    }
-                  }
-                  !skip { print }
-                ' "${ZH_TARGET}" > /tmp/changelog_zh_temp.md
-                mv /tmp/changelog_zh_temp.md "${ZH_TARGET}"
-              fi
-              # Insert new version entry at the beginning
-              if [ -f "${ZH_TARGET}" ]; then
-                # Find the first ## header and insert before it
-                if grep -q "^## \[" "${ZH_TARGET}"; then
-                  # Create temporary file with new content + existing content
-                  cat /tmp/changelog_zh.md > /tmp/changelog_zh_new.md
-                  echo "" >> /tmp/changelog_zh_new.md
-                  cat "${ZH_TARGET}" >> /tmp/changelog_zh_new.md
-                  mv /tmp/changelog_zh_new.md "${ZH_TARGET}"
-                else
-                  # Append to end if no version entries found
-                  echo "" >> "${ZH_TARGET}"
-                  cat /tmp/changelog_zh.md >> "${ZH_TARGET}"
-                fi
-              else
-                # Create new file
-                cat /tmp/changelog_zh.md > "${ZH_TARGET}"
-              fi
-              echo "✓ Synced Chinese changelog to ${ZH_TARGET}"
-            else
-              echo "⚠ Skipped syncing Chinese changelog (no content or empty file)"
-              echo "  This may be because translation failed or Chinese content was not generated"
-            fi
+          # Sync Chinese changelog (overwrite entire file)
+          if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+            cp /tmp/changelog_zh.md "${ZH_TARGET}"
+            echo "✓ Synced full Chinese changelog to ${ZH_TARGET} ($(wc -l < "${ZH_TARGET}") lines)"
+          else
+            echo "⚠ Skipped syncing Chinese changelog (no content or empty file)"
           fi
 
           # Commit and push
@@ -495,18 +274,12 @@ jobs:
           else
             REPO_NAME="${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}"
 
-            # Create branch name
-            if [ "$IS_UNRELEASED" == "true" ]; then
-              BRANCH_NAME="chore/sync-unreleased-changelog-$(date +%Y%m%d-%H%M%S)"
-              COMMIT_MSG="docs(changelog): sync [Unreleased] section"
-              PR_TITLE="docs(changelog): sync [Unreleased] section"
-              PR_BODY="Automatically sync [Unreleased] changelog from tego-standard repository."
-            else
-              BRANCH_NAME="chore/sync-changelog-${VERSION_NUMBER}"
-              COMMIT_MSG="docs(changelog): sync changelog for ${VERSION}"
-              PR_TITLE="docs(changelog): sync changelog for ${VERSION}"
-              PR_BODY="Automatically sync changelog for version ${VERSION} from tego-standard repository."
-            fi
+            # Create branch name and commit message
+            # Always sync full changelog to ensure consistency with tego-standard
+            BRANCH_NAME="chore/sync-full-changelog-$(date +%Y%m%d-%H%M%S)"
+            COMMIT_MSG="docs(changelog): sync full changelog from tego-standard"
+            PR_TITLE="docs(changelog): sync full changelog from tego-standard"
+            PR_BODY="Automatically sync full changelog files from tego-standard repository to ensure consistency. This PR overwrites the changelog files in docs repository with the complete changelog from tego-standard repository."
 
             # Create and checkout new branch
             git checkout -b "${BRANCH_NAME}"

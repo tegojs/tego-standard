@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-
 import { utils as actionUtils, Cache, Collection, Context, Plugin, RelationField } from '@tego/server';
+
 import { Mutex } from 'async-mutex';
 import lodash from 'lodash';
 
@@ -667,7 +667,15 @@ export class PluginACL extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
+    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
+    const collectionsDir = resolve(__dirname, 'collections');
+    const rolesCollection = this.db.getCollection('roles');
+    if (!rolesCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-acl',
+      });
+    }
 
     this.db.extendCollection({
       name: 'rolesUischemas',

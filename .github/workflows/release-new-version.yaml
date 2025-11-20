@@ -77,25 +77,73 @@ jobs:
             fi
 
             # 更新所有 package.json 中的版本号
-            pnpm -r exec -- npm version "$SPECIFIED_VERSION" --no-git-tag-version
+            echo "Updating version to $SPECIFIED_VERSION in all packages..."
+            if ! pnpm -r exec -- npm version "$SPECIFIED_VERSION" --no-git-tag-version; then
+              echo "❌ Error: Failed to update version in some packages"
+              exit 1
+            fi
+
+            # 验证根目录和主要包的版本号都已更新
+            echo "Verifying version updates in key packages..."
+            ROOT_VERSION=$(node -p "require('./package.json').version")
+            if [ "$ROOT_VERSION" != "$SPECIFIED_VERSION" ]; then
+              echo "❌ Error: Root package.json version is $ROOT_VERSION, expected $SPECIFIED_VERSION"
+              exit 1
+            fi
+
+            # 检查几个关键包的版本号
+            KEY_PACKAGES=("packages/client/package.json" "packages/module-workflow/package.json" "apps/web/package.json")
+            for pkg in "${KEY_PACKAGES[@]}"; do
+              if [ -f "$pkg" ]; then
+                PKG_VERSION=$(node -p "require('$pkg').version" 2>/dev/null || echo "")
+                if [ "$PKG_VERSION" != "$SPECIFIED_VERSION" ]; then
+                  echo "❌ Error: $pkg version is $PKG_VERSION, expected $SPECIFIED_VERSION"
+                  exit 1
+                fi
+              fi
+            done
+
+            # 统计所有更新的 package.json 文件
+            UPDATED_COUNT=$(git diff --name-only HEAD | grep -c "package.json$" || echo "0")
+            echo "✓ Updated $UPDATED_COUNT package.json files to version $SPECIFIED_VERSION"
+
             version="$SPECIFIED_VERSION"
-            echo "✓ Using specified version: $version"
+            echo "✓ All packages updated to version: $version"
           else
             # 使用 bump 类型
             bump="${{ github.event.inputs.bump || 'patch' }}"
             echo "Using bump type: $bump"
 
             if [ "$bump" = "major" ]; then
-              pnpm -r exec -- npm version major
+              if ! pnpm -r exec -- npm version major --no-git-tag-version; then
+                echo "❌ Error: Failed to bump version in some packages"
+                exit 1
+              fi
               version=$(npm version major --no-git-tag-version)
             elif [ "$bump" = "minor" ]; then
-              pnpm -r exec -- npm version minor
+              if ! pnpm -r exec -- npm version minor --no-git-tag-version; then
+                echo "❌ Error: Failed to bump version in some packages"
+                exit 1
+              fi
               version=$(npm version minor --no-git-tag-version)
             else
-              pnpm -r exec -- npm version patch
+              if ! pnpm -r exec -- npm version patch --no-git-tag-version; then
+                echo "❌ Error: Failed to bump version in some packages"
+                exit 1
+              fi
               version=$(npm version patch --no-git-tag-version)
             fi
-            echo "✓ Version bumped to: $version"
+
+            # 验证根目录版本号
+            ROOT_VERSION=$(node -p "require('./package.json').version")
+            if [ "$ROOT_VERSION" != "$version" ]; then
+              echo "❌ Error: Root package.json version mismatch. Expected $version, got $ROOT_VERSION"
+              exit 1
+            fi
+
+            # 统计所有更新的 package.json 文件
+            UPDATED_COUNT=$(git diff --name-only HEAD | grep -c "package.json$" || echo "0")
+            echo "✓ Version bumped to: $version ($UPDATED_COUNT package.json files updated)"
           fi
 
           echo "New version: $version"
@@ -106,27 +154,59 @@ jobs:
       - name: Generate changelog
         id: generate_changelog
         run: |
+          set -e  # 如果任何命令失败，立即退出
+
           current_version="${{ steps.do_version.outputs.current_version }}"
           new_version="${{ steps.do_version.outputs.version }}"
 
           # 获取上一个 tag
           previous_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
+          echo "Generating changelog for version: $new_version"
           if [ -n "$previous_tag" ]; then
-            echo "Generating changelog from $previous_tag to v$new_version"
+            echo "  From tag: $previous_tag"
             node scripts/generate-changelog.mjs "$new_version" "$previous_tag"
           else
-            echo "No previous tag found, generating changelog for v$new_version"
+            echo "  No previous tag found, generating from all commits"
             node scripts/generate-changelog.mjs "$new_version"
           fi
 
-          # 检查是否有变更
-          if git diff --quiet CHANGELOG.md CHANGELOG.zh-CN.md; then
+          # 验证生成的文件是否存在且有内容
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "❌ Error: CHANGELOG.md was not generated"
+            exit 1
+          fi
+
+          if [ ! -f "CHANGELOG.zh-CN.md" ]; then
+            echo "❌ Error: CHANGELOG.zh-CN.md was not generated"
+            exit 1
+          fi
+
+          # 检查是否包含新版本的条目
+          if ! grep -q "## \[$new_version\]" CHANGELOG.md; then
+            echo "❌ Error: CHANGELOG.md does not contain entry for version $new_version"
+            echo "First 50 lines of CHANGELOG.md:"
+            head -50 CHANGELOG.md
+            exit 1
+          fi
+
+          if ! grep -q "## \[$new_version\]" CHANGELOG.zh-CN.md; then
+            echo "❌ Error: CHANGELOG.zh-CN.md does not contain entry for version $new_version"
+            echo "First 50 lines of CHANGELOG.zh-CN.md:"
+            head -50 CHANGELOG.zh-CN.md
+            exit 1
+          fi
+
+          # 检查是否有变更（相对于 HEAD）
+          if git diff --quiet HEAD CHANGELOG.md CHANGELOG.zh-CN.md; then
+            echo "⚠ Warning: No changes detected in CHANGELOG files"
+            echo "This may indicate the changelog was already up to date"
             echo "changelog_updated=false" >> $GITHUB_OUTPUT
-            echo "No changelog updates generated"
           else
+            echo "✓ Changelog generated successfully with changes"
+            echo "Changes preview:"
+            git diff --stat HEAD CHANGELOG.md CHANGELOG.zh-CN.md
             echo "changelog_updated=true" >> $GITHUB_OUTPUT
-            echo "✓ Changelog generated successfully"
           fi
 
       - name: Update workflow run name
@@ -174,16 +254,93 @@ jobs:
             req.end();
           "
 
-      - name: Commit
+      - name: Verify files before commit
+        run: |
+          NEW_VERSION="${{ steps.do_version.outputs.version }}"
+
+          echo "=== Verifying files before commit ==="
+
+          # 验证关键文件是否存在
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "❌ Error: CHANGELOG.md does not exist"
+            exit 1
+          fi
+          if [ ! -f "CHANGELOG.zh-CN.md" ]; then
+            echo "❌ Error: CHANGELOG.zh-CN.md does not exist"
+            exit 1
+          fi
+
+          # 检查 CHANGELOG 是否包含新版本条目
+          if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.md; then
+            echo "❌ Error: CHANGELOG.md does not contain entry for version $NEW_VERSION"
+            echo "Available versions in CHANGELOG.md:"
+            grep "^## \[" CHANGELOG.md | head -5
+            exit 1
+          fi
+
+          if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.zh-CN.md; then
+            echo "❌ Error: CHANGELOG.zh-CN.md does not contain entry for version $NEW_VERSION"
+            echo "Available versions in CHANGELOG.zh-CN.md:"
+            grep "^## \[" CHANGELOG.zh-CN.md | head -5
+            exit 1
+          fi
+
+          # 显示文件变更状态
+          echo ""
+          echo "=== File changes status ==="
+          echo "All package.json files changed:"
+          git diff --name-only HEAD | grep "package.json$" | head -20 || echo "  (no package.json changes found)"
+          TOTAL_PKG_CHANGES=$(git diff --name-only HEAD | grep -c "package.json$" || echo "0")
+          echo "Total package.json files changed: $TOTAL_PKG_CHANGES"
+
+          # 验证至少更新了根目录和主要包的 package.json
+          # 通常应该有 90+ 个 package.json 文件（根目录 + packages/* + apps/*）
+          if [ "$TOTAL_PKG_CHANGES" -lt 10 ]; then
+            echo "❌ Error: Expected at least 10+ package.json files to be updated, but only $TOTAL_PKG_CHANGES found"
+            echo "This indicates that not all packages were updated correctly"
+            echo "Please check if pnpm -r exec command succeeded for all packages"
+            exit 1
+          fi
+
+          # 验证根目录 package.json 是否在更改列表中
+          if ! git diff --name-only HEAD | grep -q "^package.json$"; then
+            echo "❌ Error: Root package.json was not updated"
+            exit 1
+          fi
+
+          echo ""
+          echo "CHANGELOG.md changes:"
+          git diff --stat HEAD CHANGELOG.md 2>/dev/null || echo "  (no changes)"
+
+          echo ""
+          echo "CHANGELOG.zh-CN.md changes:"
+          git diff --stat HEAD CHANGELOG.zh-CN.md 2>/dev/null || echo "  (no changes)"
+
+          # 显示 CHANGELOG 中新版本条目的预览
+          echo ""
+          echo "=== CHANGELOG.md entry preview for $NEW_VERSION ==="
+          grep -A 10 "## \[$NEW_VERSION\]" CHANGELOG.md | head -15
+
+          echo ""
+          echo "=== CHANGELOG.zh-CN.md entry preview for $NEW_VERSION ==="
+          grep -A 10 "## \[$NEW_VERSION\]" CHANGELOG.zh-CN.md | head -15
+
+          echo ""
+          echo "✓ All files verified successfully"
+
+      - name: Commit and tag
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           tagging_message: ${{ steps.do_version.outputs.version }}
           commit_message: "chore(version): release ${{ steps.do_version.outputs.version }}"
+          # 匹配所有 package.json 文件（根目录和所有子目录）
           file_pattern: |
             package.json
             **/package.json
             CHANGELOG.md
             CHANGELOG.zh-CN.md
+          skip_dirty_check: true
+          skip_fetch: false
 
   sync-changelog:
     needs: release

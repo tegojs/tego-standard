@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Context, Gateway, Next, Plugin, Registry, WSServer } from '@tego/server';
 
 import { EVENT_SOURCE_COLLECTION, EVENT_SOURCE_REALTIME } from '../constants';
@@ -25,6 +26,16 @@ export class PluginWebhook extends Plugin {
   }
 
   async load() {
+    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
+    const collectionsDir = path.resolve(__dirname, '../collections');
+    const webhooksCollection = this.db.getCollection(EVENT_SOURCE_COLLECTION);
+    if (!webhooksCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-event-source',
+      });
+    }
+
     const gateway = Gateway.getInstance();
     this.ws = gateway['wsServer'];
 
@@ -82,7 +93,18 @@ export class PluginWebhook extends Plugin {
   }
 
   async loadEventSources() {
-    const repo = this.db.getRepository(EVENT_SOURCE_COLLECTION);
+    const collection = this.db.getCollection(EVENT_SOURCE_COLLECTION);
+    if (!collection) {
+      this.app.logger.warn(`Collection ${EVENT_SOURCE_COLLECTION} is not defined`);
+      return;
+    }
+
+    const repo = collection.repository;
+    if (!repo) {
+      this.app.logger.warn(`Repository for ${EVENT_SOURCE_COLLECTION} is not available`);
+      return;
+    }
+
     const list = (await repo.find({
       filter: {
         enabled: true,

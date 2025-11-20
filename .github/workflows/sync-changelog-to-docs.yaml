@@ -94,14 +94,29 @@ jobs:
       - name: Determine version
         id: version
         run: |
+          cd source
+
+          # Priority 1: Use explicit input version
           if [ -n "${{ inputs.version || github.event.inputs.version }}" ]; then
             VERSION="${{ inputs.version || github.event.inputs.version }}"
-          elif [ -n "${{ github.ref_name }}" ]; then
+          # Priority 2: Use github.ref_name if it looks like a version tag (starts with 'v')
+          elif [ -n "${{ github.ref_name }}" ] && [[ "${{ github.ref_name }}" == v* ]]; then
             VERSION="${{ github.ref_name }}"
+          # Priority 3: If triggered by tag push, extract from ref
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
+          # Priority 4: Try to get version from package.json
           else
-            VERSION=$(node -p "require('./source/package.json').version")
+            VERSION=$(node -p "require('./package.json').version")
             VERSION="v${VERSION}"
           fi
+
+          # Validate version format
+          if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$VERSION" != "unreleased" ]; then
+            echo "⚠ Warning: Version '$VERSION' does not match expected format (vX.Y.Z or unreleased)"
+            echo "This may cause issues when extracting changelog entries"
+          fi
+
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Version to sync: ${VERSION}"
 

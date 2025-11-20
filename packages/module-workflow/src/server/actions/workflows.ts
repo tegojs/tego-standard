@@ -2,6 +2,7 @@ import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
+import { triggerWorkflowAndGetExecution } from '../utils';
 import {
   getCategoriesForWorkflow,
   getEventSourceNameForWorkflow,
@@ -248,48 +249,16 @@ export async function test(context: Context, next: Next) {
     return context.throw(404, 'Workflow not found');
   }
 
-  // 记录触发前的时间，用于队列模式下查找新创建的执行记录
-  const beforeTriggerTime = new Date();
-
-  const result = await plugin.trigger(
+  const execution = await triggerWorkflowAndGetExecution(
+    plugin,
     workflow,
     {
       data: values.data || {},
       user: context?.state?.currentUser || {},
     },
-    { httpContext: context },
+    { httpContext: context, transaction: context.transaction },
+    context.db,
   );
-
-  context.app.logger.info(result);
-
-  let execution;
-
-  // 处理同步模式：result 是 Processor 对象，包含 execution 属性
-  if (result && typeof result === 'object' && 'execution' in result && result.execution) {
-    execution = result.execution;
-  } else if (!result && !plugin.isWorkflowSync(workflow)) {
-    // 队列模式：trigger 返回 void，需要等待执行记录创建
-    const ExecutionRepo = context.db.getRepository('executions');
-    // 重试机制：最多等待 2 秒，每 200ms 检查一次
-    const maxRetries = 10;
-    const retryDelay = 200;
-    for (let i = 0; i < maxRetries; i++) {
-      await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      execution = await ExecutionRepo.findOne({
-        filter: {
-          key: workflow.key,
-          createdAt: {
-            [Op.gte]: beforeTriggerTime,
-          },
-        },
-        sort: ['-createdAt'],
-        transaction: context.transaction,
-      });
-      if (execution) {
-        break;
-      }
-    }
-  }
 
   if (!execution) {
     context.state.messages.push({
@@ -423,11 +392,28 @@ export async function retry(context: Context, next: Next) {
       message: context.t('No execution records found for this workflow.', { ns: 'workflow' }),
     });
   }
+
   try {
-    const result = await plugin.trigger(workflow, execution.context, { httpContext: context });
-    context.app.logger.info(result);
+    const newExecution = await triggerWorkflowAndGetExecution(
+      plugin,
+      workflow,
+      execution.context,
+      { httpContext: context, transaction: context.transaction },
+      context.db,
+    );
+
+    if (!newExecution) {
+      context.state.messages.push({
+        message: context.t('Failed to create execution', { ns: 'workflow' }),
+      });
+      context.body = {
+        error: context.t('Failed to create execution', { ns: 'workflow' }),
+      };
+      return await next();
+    }
+
     context.state.messages.push({ message: context.t('Execute ended', { ns: 'workflow' }) });
-    context.body = result.execution;
+    context.body = newExecution;
   } catch (error) {
     context.app.logger.error(`Failed to retry execution ${execution.id}: ${error.message}`);
     context.state.messages.push({

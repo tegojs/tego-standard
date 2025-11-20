@@ -85,21 +85,41 @@ jobs:
 
             # 验证根目录和主要包的版本号都已更新
             echo "Verifying version updates in key packages..."
-            ROOT_VERSION=$(node -p "require('./package.json').version")
+            ROOT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+            if [ -z "$ROOT_VERSION" ]; then
+              echo "❌ Error: Failed to read root package.json version"
+              exit 1
+            fi
             if [ "$ROOT_VERSION" != "$SPECIFIED_VERSION" ]; then
               echo "❌ Error: Root package.json version is $ROOT_VERSION, expected $SPECIFIED_VERSION"
               exit 1
             fi
+            echo "✓ Root package.json version verified: $ROOT_VERSION"
 
-            # 检查几个关键包的版本号
+            # 检查几个关键包的版本号（使用更可靠的方法）
             KEY_PACKAGES=("packages/client/package.json" "packages/module-workflow/package.json" "apps/web/package.json")
             for pkg in "${KEY_PACKAGES[@]}"; do
               if [ -f "$pkg" ]; then
-                PKG_VERSION=$(node -p "require('$pkg').version" 2>/dev/null || echo "")
+                # 使用 grep 和 sed 直接读取版本号（更可靠）
+                PKG_VERSION=$(grep -E '^\s*"version"\s*:\s*"' "$pkg" | head -1 | sed -E 's/.*"version"\s*:\s*"([^"]+)".*/\1/' || echo "")
+                if [ -z "$PKG_VERSION" ]; then
+                  echo "⚠ Warning: Could not extract version from $pkg using grep, trying node..."
+                  # 备用方法：使用 node（需要正确的路径）
+                  PKG_VERSION=$(cd "$(dirname "$pkg")" && node -p "require('./$(basename "$pkg")').version" 2>/dev/null || echo "")
+                fi
+                if [ -z "$PKG_VERSION" ]; then
+                  echo "❌ Error: Could not read version from $pkg"
+                  echo "File content (first 10 lines):"
+                  head -10 "$pkg"
+                  exit 1
+                fi
                 if [ "$PKG_VERSION" != "$SPECIFIED_VERSION" ]; then
                   echo "❌ Error: $pkg version is $PKG_VERSION, expected $SPECIFIED_VERSION"
                   exit 1
                 fi
+                echo "✓ $pkg version verified: $PKG_VERSION"
+              else
+                echo "⚠ Warning: $pkg does not exist, skipping verification"
               fi
             done
 

@@ -411,11 +411,50 @@ jobs:
           echo ""
           echo "✓ All files verified successfully"
 
+      - name: Stage all changed files
+        run: |
+          # 显式添加所有需要提交的文件
+          echo "Staging all changed files..."
+
+          # 添加根目录 package.json
+          if [ -f "package.json" ]; then
+            git add package.json
+            echo "✓ Added package.json"
+          fi
+
+          # 添加所有子目录的 package.json 文件（排除 node_modules 和 dist）
+          find . \
+            -type d \( -name node_modules -o -name dist \) -prune \
+            -o -name package.json -type f -print | \
+          while IFS= read -r file; do
+            if [ "$file" != "./package.json" ]; then
+              git add "$file"
+            fi
+          done
+          echo "✓ Added all package.json files"
+
+          # 添加 CHANGELOG 文件
+          git add CHANGELOG.md CHANGELOG.zh-CN.md
+          echo "✓ Added CHANGELOG files"
+
+          # 显示将要提交的文件
+          echo ""
+          echo "Files staged for commit:"
+          git diff --cached --name-only | head -20
+          TOTAL_STAGED=$(git diff --cached --name-only | wc -l | tr -d ' ')
+          echo "Total files staged: $TOTAL_STAGED"
+
+          if [ "$TOTAL_STAGED" -lt 10 ]; then
+            echo "❌ Error: Expected at least 10+ files to be staged"
+            exit 1
+          fi
+
       - name: Commit and tag
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           tagging_message: ${{ steps.do_version.outputs.version }}
           commit_message: "chore(version): release ${{ steps.do_version.outputs.version }}"
+          # 由于我们已经显式暂存了文件，file_pattern 用于验证
           # 匹配所有 package.json 文件（根目录和所有子目录）
           file_pattern: |
             package.json

@@ -379,10 +379,16 @@ jobs:
             exit 1
           fi
 
-          # 验证根目录 package.json 是否在更改列表中
-          if ! git diff --name-only HEAD | grep -q "^package.json$"; then
-            echo "❌ Error: Root package.json was not updated"
+          # 验证根目录 package.json 的版本号是否正确（而不是检查是否在 diff 中）
+          # 因为版本更新步骤已经更新了它，所以它可能已经在工作区中
+          ROOT_PKG_VERSION=$(grep -E '^\s*"version"\s*:\s*"' package.json | head -1 | sed -E 's/.*"version"\s*:\s*"([^"]+)".*/\1/' || echo "")
+          if [ -z "$ROOT_PKG_VERSION" ]; then
+            echo "⚠ Warning: Could not read root package.json version"
+          elif [ "$ROOT_PKG_VERSION" != "$NEW_VERSION" ]; then
+            echo "❌ Error: Root package.json version is $ROOT_PKG_VERSION, expected $NEW_VERSION"
             exit 1
+          else
+            echo "✓ Root package.json version verified: $ROOT_PKG_VERSION"
           fi
 
           echo ""

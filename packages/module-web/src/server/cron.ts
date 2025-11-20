@@ -4,7 +4,7 @@ import { requireModule } from '@tego/server';
 export const getCronLocale = (lang: string) => {
   const lng = lang.replace('-', '_');
   const files = [resolve(__dirname, `./../../../client/src/locale/cron/${lng}`)];
-  if (ctx.tego.environment.getVariables().APP_ENV !== 'production') {
+  if (process.env.APP_ENV !== 'production') {
     files.push(`@tachybase/client/src/locale/cron/${lng}`, `@tachybase/client/lib/locale/cron/${lng}`);
   }
   for (const file of files) {

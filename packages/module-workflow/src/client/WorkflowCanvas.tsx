@@ -109,18 +109,29 @@ export function WorkflowCanvas() {
   }
 
   async function onTest() {
-    const {
-      data: { data: execution },
-    } = await resource.test({
-      filterByTk: workflow.id,
-      filter: {
-        key: workflow.key,
-      },
-      values: {
-        data: {},
-      },
-    });
-    navigate(getWorkflowExecutionsPath(execution.id, type));
+    try {
+      const {
+        data: { data: execution },
+      } = await resource.test({
+        filterByTk: workflow.id,
+        filter: {
+          key: workflow.key,
+        },
+        values: {
+          data: {},
+        },
+      });
+
+      if (!execution || !execution.id) {
+        message.error(lang('Failed to create execution'));
+        return;
+      }
+
+      navigate(getWorkflowExecutionsPath(execution.id, type));
+    } catch (error) {
+      console.error('Test execution failed:', error);
+      message.error(error?.response?.data?.message || error?.message || lang('Test execution failed'));
+    }
   }
 
   async function onRevision() {

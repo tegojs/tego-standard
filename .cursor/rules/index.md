@@ -22,12 +22,26 @@ This project uses a modular rule file structure, with each file focusing on a sp
 
 - **Project Configuration / 项目配置** (`project.md`) - Project overview, tech stack, package management
   项目概述、技术栈、包管理规范
-- **Code Style / 代码风格** (`code-style.md`) - TypeScript, React components, file naming conventions
-  TypeScript、React 组件、文件命名等代码规范
+- **Code Style / 代码风格** (`code-style.md`) - TypeScript, React components, file naming conventions, code refactoring principles
+  TypeScript、React 组件、文件命名、代码重构原则等代码规范
 - **Development Guide / 开发指南** (`development.md`) - Development workflow, commit conventions, testing, common commands
   开发流程、提交规范、测试、常用命令
 - **AI Assistant / AI 辅助** (`ai-assistant.md`) - AI-assisted development suggestions and guidelines
   AI 辅助开发的建议和指南
+- **Lint Check / Lint 检查** (`lint-check.md`) - Mandatory lint error checking rules after code modifications
+  代码修改后必须的 lint 错误检查规则
+- **Testing / 测试** (`testing.md`) - Testing patterns and best practices for Vitest/Playwright
+  测试模式和最佳实践（Vitest/Playwright）
+  - Resources: `resources/testing/` - Unit tests, integration tests, E2E tests, mocking
+    资源：单元测试、集成测试、E2E 测试、模拟
+- **Performance / 性能** (`performance.md`) - Performance optimization guidelines
+  性能优化指南
+  - Resources: `resources/performance/` - Database, frontend, API, monitoring
+    资源：数据库、前端、API、监控
+- **Security / 安全** (`security.md`) - Security development guidelines
+  安全开发指南
+  - Resources: `resources/security/` - Authentication, authorization, input validation, vulnerabilities
+    资源：认证、授权、输入验证、漏洞
 - **Client Package / Client 包** (`packages-client.md`) - Specific rules for packages/client directory
   packages/client 目录的特定规则
 - **Quick Reference / 快速参考** (`quick-reference.md`) - Quick reference for common tasks and patterns
@@ -43,6 +57,10 @@ The following rule files will be automatically loaded and applied:
 @file code-style.md
 @file development.md
 @file ai-assistant.md
+@file lint-check.md
+@file testing.md
+@file performance.md
+@file security.md
 @file packages-client.md
 @file quick-reference.md
 

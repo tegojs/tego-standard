@@ -1,21 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
-  SchemaComponent,
-  TableBlockProvider,
   useActionContext,
   useAPIClient,
   useCollectionRecordData,
-  useCompile,
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
 } from '@tachybase/client';
 import { collectionWorkflows, TabTableBlockProvider, WorkflowTabCardItem } from '@tachybase/module-workflow/client';
-import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
+import { ISchema, useForm } from '@tachybase/schema';
 
-import { App, message } from 'antd';
-import { saveAs } from 'file-saver';
-import _ from 'lodash';
+import { message } from 'antd';
 
 import { NAMESPACE, tval, useTranslation } from '../locale';
 import { schemaExecution } from './Execution.schema';
@@ -428,6 +423,8 @@ export const schemaApprovalPanne = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 sorter: true,
+                width: 100,
+                align: 'center',
               },
               properties: {
                 title: {
@@ -437,14 +434,25 @@ export const schemaApprovalPanne = {
                 },
               },
             },
-            description: {
+
+            category: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
+              'x-component-props': {
+                sorter: true,
+                width: 100,
+                align: 'center',
+              },
               properties: {
-                description: {
-                  type: 'string',
+                category: {
+                  type: 'array',
+                  'x-collection-field': 'workflows.category',
                   'x-component': 'CollectionField',
+                  'x-component-props': {
+                    multiple: true,
+                    mode: 'Tag',
+                  },
                   'x-read-pretty': true,
                 },
               },
@@ -455,7 +463,8 @@ export const schemaApprovalPanne = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 sorter: true,
-                width: 20,
+                width: 50,
+                align: 'center',
               },
               properties: {
                 enabled: {
@@ -472,7 +481,8 @@ export const schemaApprovalPanne = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 sorter: true,
-                width: 20,
+                width: 100,
+                align: 'center',
               },
               properties: {
                 allExecuted: {
@@ -492,6 +502,42 @@ export const schemaApprovalPanne = {
                   properties: {
                     drawer: schemaExecution,
                   },
+                },
+              },
+            },
+            executedTime: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Finally executed on', { ns: 'workflow' }),
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                executedTime: {
+                  type: 'string',
+                  'x-component': 'ColumnExecutedTime',
+                },
+              },
+            },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-component-props': {
+                    ellipsis: true,
+                  },
+                  'x-read-pretty': true,
                 },
               },
             },
@@ -521,7 +567,6 @@ export const schemaApprovalPanne = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
                 style: {
@@ -578,6 +623,27 @@ export const schemaApprovalPanne = {
                               'x-decorator': 'FormItem',
                               'x-component': 'Input',
                             },
+                            category: {
+                              'x-collection-field': 'workflows.category',
+                              'x-component': 'CollectionField',
+                              'x-decorator': 'FormItem',
+                              'x-component-props': {
+                                multiple: true,
+                                service: {
+                                  params: {
+                                    filter: {
+                                      $and: [
+                                        {
+                                          type: {
+                                            $eq: 'approval',
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
+                                },
+                              },
+                            },
                             footer: {
                               type: 'void',
                               'x-component': 'Action.Modal.Footer',
@@ -588,22 +654,7 @@ export const schemaApprovalPanne = {
                                   'x-component': 'Action',
                                   'x-component-props': {
                                     type: 'primary',
-                                    useAction() {
-                                      const { t } = useTranslation();
-                                      const { refresh } = useDataBlockRequest();
-                                      const resource = useDataBlockResource();
-                                      const { setVisible } = useActionContext();
-                                      const filterByTk = useFilterByTk();
-                                      const { values } = useForm();
-                                      return {
-                                        async run() {
-                                          await resource.revision({ filterByTk, values });
-                                          message.success(t('Operation succeeded'));
-                                          refresh();
-                                          setVisible(false);
-                                        },
-                                      };
-                                    },
+                                    useAction: '{{ useRevisionAction }}',
                                   },
                                 },
                                 cancel: {
@@ -638,20 +689,7 @@ export const schemaApprovalPanne = {
                       title: '{{ t("Dump") }}',
                       'x-component': 'Action.Link',
                       'x-component-props': {
-                        useAction() {
-                          const { t } = useTranslation();
-                          const resource = useDataBlockResource();
-                          const filterByTk = useFilterByTk();
-
-                          return {
-                            async run() {
-                              const { data } = await resource.dump({ filterByTk });
-                              const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
-                              saveAs(blob, data.data.title + '-' + data.data.key + '.json');
-                              message.success(t('Operation succeeded'));
-                            },
-                          };
-                        },
+                        useAction: '{{ useDumpAction }}',
                       },
                     },
                   },

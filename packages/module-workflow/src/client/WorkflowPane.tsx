@@ -13,6 +13,8 @@ import { ExecutionLink } from './components/ExecutionLink';
 import { ExecutionRetryAction } from './components/ExecutionRetryAction';
 import { ExecutionStatusColumn, ExecutionStatusSelect } from './components/ExecutionStatus';
 import OpenDrawer from './components/OpenDrawer';
+import { WorkflowCategoryColumn } from './components/WorkflowCategoryColumn';
+import { useDumpAction, useRevisionAction } from './hooks';
 import { ExecutionResourceProvider } from './provider/ExecutionResourceProvider';
 import { executionCollection } from './schemas/executions';
 import {
@@ -70,12 +72,15 @@ export function WorkflowPane(props) {
             EditWorkflowCategoryAction,
             ColumnShowEventSource,
             ColumnExecutedTime,
+            WorkflowCategoryColumn,
             ...components,
           }}
           scope={{
             getTriggersOptions,
             ExecutionRetryAction,
             useCreateFormBlockProps,
+            useDumpAction,
+            useRevisionAction,
             ...scopes,
           }}
         />

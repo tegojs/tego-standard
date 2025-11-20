@@ -53,9 +53,9 @@ import { useWebhookCategoryContext, WebhookCategoryContext } from '../provider/W
 import { dispatchers } from './collections/dispatchers';
 import { webhookCategories } from './collections/webhookCategories';
 import { AddWebhookCategory } from './components/AddWebhookCategory';
-import { ColumnExecutedTime } from './components/ColumnExecutedTime';
 import { EditWebhookCategory } from './components/EditWebookCategory';
 import { TypeContainer } from './components/TypeContainer';
+import { WorkflowKeyColumn, WorkflowTitleProvider } from './components/WorkflowKeyColumn';
 
 const tag = observable({ value: '', item: {} });
 
@@ -159,7 +159,7 @@ const properties = {
     'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
     'x-decorator-props': {
-      tooltip: 'ctx.request\nctx.body\nlib.JSON\nlib.Math\nlib.dayjs',
+      tooltip: 'ctx.request\nctx.body\nctx.originalBody (action response data)\nlib.JSON\nlib.Math\nlib.dayjs',
     },
     'x-collection-field': 'webhooks.code',
   },
@@ -693,7 +693,11 @@ const WebhooksTabaCardItem = ({ children }) => {
                     />
                   </Dropdown>
                 ),
-                children: <CardItem>{children}</CardItem>,
+                children: (
+                  <CardItem>
+                    <WorkflowTitleProvider>{children}</WorkflowTitleProvider>
+                  </CardItem>
+                ),
               };
             })}
         />
@@ -876,6 +880,7 @@ const schema: ISchema = {
               },
             },
             workflowKeyColumn: {
+              title: tval('Workflow'),
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
@@ -884,23 +889,12 @@ const schema: ISchema = {
               },
               properties: {
                 workflowKey: {
-                  'x-collection-field': 'webhooks.workflowKey',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
+                  type: 'string',
+                  'x-component': 'WorkflowKeyColumn',
                   'x-decorator': 'OpenDrawer',
                   'x-decorator-props': {
-                    component: ({ children, onClick }) => {
-                      const webhook = useCollectionRecordData();
-                      return (
-                        <Space size="small">
-                          {children}
-                          {webhook.workflowKey ? (
-                            <Button type="link" onClick={onClick} style={{ padding: 0, marginLeft: '-4px' }}>
-                              ({lang('View executions')})
-                            </Button>
-                          ) : null}
-                        </Space>
-                      );
+                    component: ({ onClick }) => {
+                      return <WorkflowKeyColumn onClick={onClick} />;
                     },
                   },
                   properties: {
@@ -929,27 +923,6 @@ const schema: ISchema = {
                       display: 'none',
                     },
                   },
-                },
-              },
-            },
-            executedTime: {
-              type: 'void',
-              'x-decorator': 'TableV2.Column.Decorator',
-              'x-component': 'TableV2.Column',
-              title: tval('Finally executed on'),
-              'x-component-props': {
-                sorter: true,
-                width: 20,
-                align: 'center',
-                style: {
-                  display: 'grid',
-                  placeItems: 'center',
-                },
-              },
-              properties: {
-                executedTime: {
-                  type: 'string',
-                  'x-component': 'ColumnExecutedTime',
                 },
               },
             },
@@ -1130,7 +1103,7 @@ export const WebhookManager = () => {
           TypeContainer,
           AddWebhookCategory,
           EditWebhookCategory,
-          ColumnExecutedTime,
+          WorkflowKeyColumn,
         }}
       />
     </ExtendCollectionsProvider>

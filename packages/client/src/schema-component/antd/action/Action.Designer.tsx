@@ -389,7 +389,7 @@ function WorkflowSelectComponent({
   return (
     <DataSourceProvider dataSource="main">
       <RemoteSelect
-        manual={false}
+        manual={true}
         placeholder={t('Select workflow', { ns: 'workflow' })}
         fieldNames={{
           label: 'title',
@@ -406,7 +406,7 @@ function WorkflowSelectComponent({
               sync: props.filterSync === undefined ? undefined : props.filterSync,
               key: props.filterKey === undefined ? undefined : props.filterKey,
             },
-            sort: ['-updatedAt'],
+            sort: ['-initAt'],
           },
         }}
         optionFilter={optionFilter}

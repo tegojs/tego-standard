@@ -1,6 +1,5 @@
-import { execSync } from 'node:child_process';
+import { DumpRulesGroupType, Gateway, Plugin } from '@tego/server';
 
-import { DumpRulesGroupType, Plugin } from '@tego/server';
 import parser from 'cron-parser';
 
 import { COLLECTION_AUTOBACKUP } from '../constants';
@@ -31,6 +30,64 @@ export default class PluginBackupRestoreServer extends Plugin {
 
   async load() {
     this.app.resourcer.define(backupFilesResourcer);
+
+    // 处理 WebSocket signIn 消息，设置用户标签
+    // 备份模块独立处理 signIn 消息，不依赖 message 模块
+    // 这样可以确保备份进度推送功能在任何环境下都能正常工作
+    const gateway = Gateway.getInstance();
+    const ws = gateway['wsServer'];
+    if (ws?.wss) {
+      const appName = this.app.name;
+      ws.wss.on(
+        'connection',
+        async (websocket: {
+          id: string;
+          on: (event: string, handler: (data: any) => void | Promise<void>) => void;
+        }) => {
+          websocket.on('message', async (data) => {
+            if (data.toString() !== 'ping') {
+              try {
+                const userMeg = JSON.parse(data.toString());
+                if (userMeg.type === 'signIn') {
+                  if (!userMeg.payload?.token) {
+                    return;
+                  }
+                  try {
+                    const analysis = await this.app.authManager?.jwt?.verifyToken(userMeg.payload.token);
+                    const userId = analysis.userId;
+                    const client = ws.webSocketClients.get(websocket.id);
+                    if (client) {
+                      // 移除所有以 'app:' 开头的标签（包括 message 模块设置的标签）
+                      client.tags.forEach((tag) => {
+                        if (tag.startsWith('app:')) {
+                          client.tags.delete(tag);
+                        }
+                      });
+                      // 添加新标签（备份模块的标签格式）
+                      const tag = `app:${appName}#${userId}`;
+                      client.tags.add(tag);
+                      // 调试日志：记录标签设置
+                      this.app.logger.debug(`[Backup] WebSocket signIn: set tag ${tag} for connection ${websocket.id}`);
+                    } else {
+                      this.app.logger.warn(
+                        `[Backup] WebSocket signIn: client not found for connection ${websocket.id}`,
+                      );
+                    }
+                  } catch (error) {
+                    this.app.logger.warn('[Backup] WebSocket signIn message connection error:', error);
+                  }
+                }
+              } catch (error) {
+                // 忽略 JSON 解析错误
+              }
+            }
+          });
+        },
+      );
+    } else {
+      this.app.logger.warn('[Backup] WebSocket server not available, backup progress will not be pushed via WebSocket');
+    }
+
     this.app.on('afterStart', async (app) => {
       const cronJobs = await app.db.getRepository(COLLECTION_AUTOBACKUP).find({
         filter: { enabled: true },
@@ -222,11 +279,12 @@ export default class PluginBackupRestoreServer extends Plugin {
     this.schedule(cronJob, null, false);
   }
 
-  async workerCreateBackUp(data: { dataTypes: string[]; appName: string; filename: string }) {
+  async workerCreateBackUp(data: { dataTypes: string[]; appName: string; filename: string; userId?: number }) {
     await new Dumper(this.app).runDumpTask({
       groups: new Set(data.dataTypes) as Set<DumpRulesGroupType>,
       appName: data.appName,
       fileName: data.filename,
+      userId: data.userId,
     });
   }
 }

@@ -155,6 +155,29 @@ jobs:
           EN_LINES=$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)
           ZH_LINES=$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)
 
+          # Log detailed information
+          echo "Changelog extraction results:"
+          echo "  English: $EN_LINES lines (file: /tmp/changelog_en.md)"
+          echo "  Chinese: $ZH_LINES lines (file: /tmp/changelog_zh.md)"
+
+          if [ "$EN_LINES" -gt 1 ]; then
+            echo "✓ English changelog has content"
+          else
+            echo "⚠ English changelog is empty or has no content"
+          fi
+
+          if [ "$ZH_LINES" -gt 1 ]; then
+            echo "✓ Chinese changelog has content"
+          else
+            echo "⚠ Chinese changelog is empty or has no content"
+            if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
+              echo "  This may be because:"
+              echo "    1. Translation failed during update-unreleased step"
+              echo "    2. No Chinese content was generated"
+              echo "    3. CHANGELOG.zh-CN.md was not updated in the previous step"
+            fi
+          fi
+
           if [ "$EN_LINES" -gt 1 ] || [ "$ZH_LINES" -gt 1 ]; then
             echo "has_changelog=true" >> $GITHUB_OUTPUT
             echo "Found changelog entries: EN($EN_LINES lines), ZH($ZH_LINES lines)"
@@ -251,12 +274,17 @@ jobs:
             if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
               replace_unreleased_section "${EN_TARGET}" "Unreleased" /tmp/changelog_en.md
               echo "✓ Synced English [Unreleased] changelog to ${EN_TARGET}"
+            else
+              echo "⚠ Skipped syncing English changelog (no content or empty file)"
             fi
 
             # Sync Chinese changelog (only if it has content)
             if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
               replace_unreleased_section "${ZH_TARGET}" "未发布" /tmp/changelog_zh.md
               echo "✓ Synced Chinese [未发布] changelog to ${ZH_TARGET}"
+            else
+              echo "⚠ Skipped syncing Chinese changelog (no content or empty file)"
+              echo "  This may be because translation failed or Chinese content was not generated in the update step"
             fi
           else
             # For version releases, append new version entry
@@ -299,6 +327,8 @@ jobs:
                 cat /tmp/changelog_en.md > "${EN_TARGET}"
               fi
               echo "✓ Synced English changelog to ${EN_TARGET}"
+            else
+              echo "⚠ Skipped syncing English changelog (no content or empty file)"
             fi
 
             # Append Chinese changelog (only if it has content)
@@ -340,6 +370,9 @@ jobs:
                 cat /tmp/changelog_zh.md > "${ZH_TARGET}"
               fi
               echo "✓ Synced Chinese changelog to ${ZH_TARGET}"
+            else
+              echo "⚠ Skipped syncing Chinese changelog (no content or empty file)"
+              echo "  This may be because translation failed or Chinese content was not generated"
             fi
           fi
 

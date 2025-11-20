@@ -7,25 +7,31 @@
 
 ## [未发布]
 
-
-
-## [1.6.0] - 2025-11-20
-
 ### ✨ 新增
 
-- 在 event & perf(workflow) 之后调整资源操作的事件源代码：调整执行时间的工作流代码 (#285) (@bai.zixv)
-- 添加备份进度和下载进度 & 杂务：游标规则更新 & 杂务：更新 github 工作流程 (#280) (@bai.zixv)
-- 审批摘要支持数组类型数据 & feat: 更改工作流程和审批列表页面的列显示 (#239) (@bai.zixv)
-- 添加光标挂钩以进行自动格式化和翻译同步（#282） (@bai.zixv)
+- **workflow**: 添加类别列以创建工作流模式 [73171bc](https://github.com/tegojs/tego-standard/commit/73171bc6ca821268a3075f2fed970152d1e869c1) (@bai.zixv)
+- **workflow**: 添加工作流类别列 [9497224](https://github.com/tegojs/tego-standard/commit/9497224134d2eb02abf3813556d49aa3c2c854f9) (@bai.zixv)
+- 调整事件源码以实现事件后的资源操作 [d33d927](https://github.com/tegojs/tego-standard/commit/d33d92722d864f2aca014a22dc432e97af11d01e) (@bai.zixv)
+- 添加备份进度和下载进度 & 杂务：游标规则更新 & 杂务：更新 github 工作流程 ([#280](https://github.com/tegojs/tego-standard/pull/280)) [be4c3eb](https://github.com/tegojs/tego-standard/commit/be4c3eb4b1184699b9932ca3a1feeac1dc60615b) (@bai.zixv)
+- 审批摘要支持数组类型数据 & feat: 更改工作流和审批列表页面的列显示 ([#239](https://github.com/tegojs/tego-standard/pull/239)) [8ea5f4e](https://github.com/tegojs/tego-standard/commit/8ea5f4e4314652b51f9bb6334500571d9a326e89) (@bai.zixv)
+- 添加光标挂钩以进行自动格式化和翻译同步([#282](https://github.com/tegojs/tego-standard/pull/282)) [e1eb6bd](https://github.com/tegojs/tego-standard/commit/e1eb6bd856e9af49b344f38c40a1d9c83ae43c38) (@bai.zixv)
 
 ### 🐛 修复
 
-- **workflow**: 修复同步审批工作流程 (#284) (@bai.zixv)
-- **backup**: 修复备份进度超时检查 (#283) (@bai.zixv)
-- **workflow-approval**: 测试逻辑 & 修复（工作流）：useAction 字符串引用 & 修复（工作流）：重复的工作流类别默认值 & 修复（数据源）：集合表列宽 & 杂项（光标）：更新 lint 检查规则 (#279) (@bai.zixv)
-- 批准抄送详细信息 (#269) (@dududuna)
-- 导出当前表函数并添加过滤条件（#271） (@dududuna)
-- 审批添加返回并更新审批导航路径 (#265) (@dududuna)
+- **workflow**: 修复同步审批工作流程 ([#284](https://github.com/tegojs/tego-standard/pull/284)) [ab2efe4](https://github.com/tegojs/tego-standard/commit/ab2efe421486e42287fc5bb9b98f418c12d17900) (@bai.zixv)
+- **backup**: 修复备份进度超时检查 ([#283](https://github.com/tegojs/tego-standard/pull/283)) [cc8e14f](https://github.com/tegojs/tego-standard/commit/cc8e14f191309f3dc1fcff657c898a17a98d379f) (@bai.zixv)
+- **workflow-approval**: 测试逻辑 & 修复（工作流）：useAction 字符串引用 & 修复（工作流）：重复的工作流类别默认值 & 修复（数据源）：集合表列宽 & 杂项（光标）：更新 lint 检查规则 ([#279](https://github.com/tegojs/tego-standard/pull/279)) [f7d54dd](https://github.com/tegojs/tego-standard/commit/f7d54dd183c3a54ca4a7b4ab9e0ab793c2302f94) (@bai.zixv)
+- 批准抄送详细信息 ([#269](https://github.com/tegojs/tego-standard/pull/269)) [24e3916](https://github.com/tegojs/tego-standard/commit/24e3916a7e7cec8fefeddd609739dcf4ecd6fa4c) (@dududuna)
+- 导出当前表函数并添加过滤条件([#271](https://github.com/tegojs/tego-standard/pull/271)) [2be25ab](https://github.com/tegojs/tego-standard/commit/2be25ab69a7951cfc46102726460f71bf5b01c6e) (@dududuna)
+- 审批添加返回并更新审批导航路径 ([#265](https://github.com/tegojs/tego-standard/pull/265)) [ed0091c](https://github.com/tegojs/tego-standard/commit/ed0091cb6b48d604e3c0f0f239e6211f6517059d) (@dududuna)
+
+### 🔄 变更
+
+- **workflow**: 优化工作流程类别栏和列表扩展操作 [3362b9f](https://github.com/tegojs/tego-standard/commit/3362b9f430974f02263a87ffa68a43038138d912) (@bai.zixv)
+- **workflow**: 调整工作流程代码的执行时间 [90c4b96](https://github.com/tegojs/tego-standard/commit/90c4b96c01e516c05b1267acfc6dbc8a5cfbb4f2) (@bai.zixv)
+- **event-source**: 调整事件源码以实现事件后的资源操作 [c117c2c](https://github.com/tegojs/tego-standard/commit/c117c2c65747cda66996d0c6f84beb17c22e85c2) (@bai.zixv)
+
+
 
 ## [1.5.1] - 2025-11-13
 
@@ -2839,8 +2845,7 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.0...HEAD
-[1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.5.1...HEAD
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1
 [1.5.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.0
 [1.4.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.4.0

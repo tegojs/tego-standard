@@ -59,20 +59,20 @@ jobs:
               echo "❌ Error: Failed to bump version in some packages"
               exit 1
             fi
-            version=$(npm version major --no-git-tag-version)
+            version=$(npm version major --no-git-tag-version | sed 's/^v//')
           elif [ "$bump" = "minor" ]; then
             if ! pnpm -r exec -- npm version minor --no-git-tag-version; then
               echo "❌ Error: Failed to bump version in some packages"
               exit 1
             fi
-            version=$(npm version minor --no-git-tag-version)
+            version=$(npm version minor --no-git-tag-version | sed 's/^v//')
           else
             # patch (default)
             if ! pnpm -r exec -- npm version patch --no-git-tag-version; then
               echo "❌ Error: Failed to bump version in some packages"
               exit 1
             fi
-            version=$(npm version patch --no-git-tag-version)
+            version=$(npm version patch --no-git-tag-version | sed 's/^v//')
           fi
 
           # 验证根目录版本号

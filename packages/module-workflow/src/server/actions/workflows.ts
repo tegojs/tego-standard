@@ -3,6 +3,56 @@ import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
 import { triggerWorkflowAndGetExecution } from '../utils';
+import {
+  getCategoriesForWorkflow,
+  getEventSourceNameForWorkflow,
+  getLatestExecutedTimeForWorkflow,
+  getWorkflowData,
+  setCategories,
+  setEventSourceName,
+  setLatestExecutedTime,
+} from './workflows.helpers';
+
+/**
+ * 扩展的 list action，在返回工作流列表时附加额外字段
+ * - latestExecutedTime: 最新执行时间（UTC ISO 格式）
+ * - eventSourceName: 关联的事件源名称
+ * - category: 分类信息数组
+ *
+ * 使用 listExtended 作为 action 名称，避免覆盖默认的 list，便于后续扩展
+ */
+export async function listExtended(context: Context, next: Next) {
+  // 先执行默认的 list action 获取基础数据
+  await actions.list(context, next);
+
+  // 为每个工作流附加额外字段
+  if (context.body?.rows && Array.isArray(context.body.rows) && context.body.rows.length > 0) {
+    const workflows = context.body.rows as WorkflowModel[];
+
+    for (let index = 0; index < workflows.length; index++) {
+      const workflow = workflows[index];
+      const row = context.body.rows[index];
+
+      if (!row) continue;
+
+      const workflowData = getWorkflowData(workflow);
+
+      // 查询并附加最新执行时间
+      const executedTime = await getLatestExecutedTimeForWorkflow(context, workflowData?.id, workflowData?.key);
+      setLatestExecutedTime(row, executedTime);
+
+      // 查询并附加事件源名称
+      const eventSourceName = await getEventSourceNameForWorkflow(context, workflowData?.key);
+      setEventSourceName(row, eventSourceName);
+
+      // 查询并附加分类信息
+      const categories = await getCategoriesForWorkflow(context, workflow, workflowData?.key);
+      setCategories(row, categories);
+    }
+  }
+
+  return context;
+}
 
 export async function update(context: Context, next) {
   const repository = utils.getRepositoryFromParams(context) as Repository;

@@ -448,17 +448,6 @@ async function updateUnreleased() {
     return;
   }
 
-  // 检查是否启用自动翻译（通过环境变量控制，默认启用）
-  const autoTranslate = process.env.CHANGELOG_AUTO_TRANSLATE !== 'false';
-  const contentZH = await generateUnreleasedContentZH(grouped, autoTranslate);
-
-  // 检查中文内容是否为空
-  const contentZHTrimmed = contentZH.trim();
-  if (!contentZHTrimmed) {
-    console.log('Generated Chinese changelog content is empty. Skipping update.');
-    return;
-  }
-
   // 获取最新版本号用于更新链接
   const latestVersion = getLatestVersion();
   const versionTag = latestVersion ? `v${latestVersion}` : 'HEAD';
@@ -482,24 +471,48 @@ async function updateUnreleased() {
   writeFileSync(changelogENPath, changelogEN, 'utf-8');
   console.log(`✓ Updated CHANGELOG.md [Unreleased] section`);
 
-  // 更新中文 CHANGELOG
-  let changelogZH = readFileSync(changelogZHPath, 'utf-8');
-  changelogZH = updateChangelogSection(
-    changelogZH,
-    '## [未发布]',
-    /\[未发布\]:\s*https:\/\/[^\s]+/,
-    contentZH,
-    versionTag
-  );
+  // 检查是否启用自动翻译（通过环境变量控制，默认启用）
+  const autoTranslate = process.env.CHANGELOG_AUTO_TRANSLATE !== 'false';
+  let contentZH;
+  let hasZHContent = false;
 
-  // 更新链接
-  changelogZH = changelogZH.replace(
-    /\[未发布\]: https:\/\/github\.com\/[^/]+\/[^/]+\/compare\/v[^\s]+\.\.\.HEAD/g,
-    `[未发布]: https://github.com/tegojs/tego-standard/compare/${versionTag}...HEAD`
-  );
+  try {
+    contentZH = await generateUnreleasedContentZH(grouped, autoTranslate);
+    // 检查中文内容是否为空
+    const contentZHTrimmed = contentZH.trim();
+    hasZHContent = !!contentZHTrimmed;
 
-  writeFileSync(changelogZHPath, changelogZH, 'utf-8');
-  console.log(`✓ Updated CHANGELOG.zh-CN.md [未发布] section`);
+    if (!hasZHContent) {
+      console.warn('⚠ Warning: Generated Chinese changelog content is empty. English changelog has been updated, but Chinese changelog will not be updated.');
+    }
+  } catch (error) {
+    console.error('❌ Error generating Chinese changelog content:', error);
+    console.warn('⚠ Warning: Failed to generate Chinese changelog. English changelog has been updated, but Chinese changelog will not be updated.');
+    hasZHContent = false;
+  }
+
+  // 更新中文 CHANGELOG（仅当有内容时）
+  if (hasZHContent) {
+    let changelogZH = readFileSync(changelogZHPath, 'utf-8');
+    changelogZH = updateChangelogSection(
+      changelogZH,
+      '## [未发布]',
+      /\[未发布\]:\s*https:\/\/[^\s]+/,
+      contentZH,
+      versionTag
+    );
+
+    // 更新链接
+    changelogZH = changelogZH.replace(
+      /\[未发布\]: https:\/\/github\.com\/[^/]+\/[^/]+\/compare\/v[^\s]+\.\.\.HEAD/g,
+      `[未发布]: https://github.com/tegojs/tego-standard/compare/${versionTag}...HEAD`
+    );
+
+    writeFileSync(changelogZHPath, changelogZH, 'utf-8');
+    console.log(`✓ Updated CHANGELOG.zh-CN.md [未发布] section`);
+  } else {
+    console.log('⏭ Skipped updating CHANGELOG.zh-CN.md (no content generated)');
+  }
 }
 
 // 主函数

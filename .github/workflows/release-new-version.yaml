@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Specific version number (e.g., 1.6.0). If provided, bump will be ignored.'
+        description: 'Specific version number (e.g., v1.6.0). Must start with "v" and be >= latest tag. If provided, bump will be ignored.'
         required: false
         type: string
       bump:
@@ -41,6 +41,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.18.0
+      - name: Fetch all tags
+        run: |
+          # 确保获取所有远程 tags，用于版本比较
+          git fetch --tags --force
+          echo "Available tags:"
+          git tag --sort=-version:refname | head -10 || echo "No tags found"
       - name: Do version release
         id: do_version
         run: |
@@ -50,31 +56,78 @@ jobs:
 
           # 如果提供了具体版本号，使用它；否则使用 bump 类型
           if [ -n "${{ github.event.inputs.version }}" ]; then
-            # 使用指定的版本号
-            SPECIFIED_VERSION="${{ github.event.inputs.version }}"
-            # 移除可能的 'v' 前缀
-            SPECIFIED_VERSION=$(echo "$SPECIFIED_VERSION" | sed 's/^v//')
+            # 使用指定的版本号（保留原始格式用于显示）
+            SPECIFIED_VERSION_INPUT="${{ github.event.inputs.version }}"
 
-            # 验证版本号格式 (X.Y.Z)
-            if ! echo "$SPECIFIED_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-              echo "❌ Error: Invalid version format. Expected format: X.Y.Z (e.g., 1.6.0)"
-              echo "   Got: $SPECIFIED_VERSION"
+            # 验证版本号格式 (vX.Y.Z) - 必须带 v 前缀
+            if ! echo "$SPECIFIED_VERSION_INPUT" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "❌ Error: Invalid version format. Expected format: vX.Y.Z (e.g., v1.6.0)"
+              echo "   Got: $SPECIFIED_VERSION_INPUT"
+              echo "   Version must start with 'v' followed by semantic versioning (major.minor.patch)"
               exit 1
             fi
 
-            # 检查版本号是否大于当前版本
-            CURRENT_MAJOR=$(echo "$current_version" | cut -d. -f1)
-            CURRENT_MINOR=$(echo "$current_version" | cut -d. -f2)
-            CURRENT_PATCH=$(echo "$current_version" | cut -d. -f3)
-            SPEC_MAJOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f1)
-            SPEC_MINOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f2)
-            SPEC_PATCH=$(echo "$SPECIFIED_VERSION" | cut -d. -f3)
+            # 移除 'v' 前缀用于内部处理
+            SPECIFIED_VERSION=$(echo "$SPECIFIED_VERSION_INPUT" | sed 's/^v//')
 
-            if [ "$SPEC_MAJOR" -lt "$CURRENT_MAJOR" ] || \
-               ([ "$SPEC_MAJOR" -eq "$CURRENT_MAJOR" ] && [ "$SPEC_MINOR" -lt "$CURRENT_MINOR" ]) || \
-               ([ "$SPEC_MAJOR" -eq "$CURRENT_MAJOR" ] && [ "$SPEC_MINOR" -eq "$CURRENT_MINOR" ] && [ "$SPEC_PATCH" -le "$CURRENT_PATCH" ]); then
-              echo "⚠ Warning: Specified version $SPECIFIED_VERSION is not greater than current version $current_version"
-              echo "   Continuing anyway..."
+            # 获取最新的 tag（按版本号排序）
+            echo "Checking latest tag..."
+            LATEST_TAG=$(git tag --sort=-version:refname | head -1 || echo "")
+
+            if [ -z "$LATEST_TAG" ]; then
+              echo "ℹ No existing tags found, version $SPECIFIED_VERSION_INPUT is acceptable"
+            else
+              # 移除 tag 的 'v' 前缀进行比较
+              LATEST_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
+              echo "Latest tag: $LATEST_TAG (version: $LATEST_VERSION)"
+
+              # 比较版本号
+              LATEST_MAJOR=$(echo "$LATEST_VERSION" | cut -d. -f1)
+              LATEST_MINOR=$(echo "$LATEST_VERSION" | cut -d. -f2)
+              LATEST_PATCH=$(echo "$LATEST_VERSION" | cut -d. -f3)
+              SPEC_MAJOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f1)
+              SPEC_MINOR=$(echo "$SPECIFIED_VERSION" | cut -d. -f2)
+              SPEC_PATCH=$(echo "$SPECIFIED_VERSION" | cut -d. -f3)
+
+              # 检查新版本是否 >= 最新 tag（允许覆盖最新 tag，但不允许回退）
+              VERSION_VALID=false
+              if [ "$SPEC_MAJOR" -gt "$LATEST_MAJOR" ]; then
+                VERSION_VALID=true
+              elif [ "$SPEC_MAJOR" -eq "$LATEST_MAJOR" ]; then
+                if [ "$SPEC_MINOR" -gt "$LATEST_MINOR" ]; then
+                  VERSION_VALID=true
+                elif [ "$SPEC_MINOR" -eq "$LATEST_MINOR" ]; then
+                  if [ "$SPEC_PATCH" -ge "$LATEST_PATCH" ]; then
+                    VERSION_VALID=true
+                  fi
+                fi
+              fi
+
+              if [ "$VERSION_VALID" != "true" ]; then
+                echo "❌ Error: Cannot release version $SPECIFIED_VERSION_INPUT"
+                echo ""
+                echo "   Reason: Version must be greater than or equal to the latest tag"
+                echo "   Latest tag: $LATEST_TAG (version: $LATEST_VERSION)"
+                echo "   Specified version: $SPECIFIED_VERSION_INPUT (version: $SPECIFIED_VERSION)"
+                echo ""
+                echo "   ⚠ You cannot release an older version (version rollback is not allowed)."
+                echo "   ⚠ You can only release the latest tag (to overwrite it) or a newer version."
+                echo ""
+                echo "   Allowed versions:"
+                echo "   - Overwrite latest: $LATEST_TAG"
+                echo "   - New versions:"
+                echo "     * Major: v$((LATEST_MAJOR + 1)).0.0"
+                echo "     * Minor: v$LATEST_MAJOR.$((LATEST_MINOR + 1)).0"
+                echo "     * Patch: v$LATEST_MAJOR.$LATEST_MINOR.$((LATEST_PATCH + 1))"
+                exit 1
+              fi
+
+              if [ "$SPEC_MAJOR" -eq "$LATEST_MAJOR" ] && [ "$SPEC_MINOR" -eq "$LATEST_MINOR" ] && [ "$SPEC_PATCH" -eq "$LATEST_PATCH" ]; then
+                echo "ℹ Version $SPECIFIED_VERSION_INPUT matches latest tag $LATEST_TAG"
+                echo "   This will overwrite the existing tag."
+              else
+                echo "✓ Version $SPECIFIED_VERSION_INPUT is greater than latest tag $LATEST_TAG"
+              fi
             fi
 
             # 更新所有 package.json 中的版本号
@@ -168,7 +221,10 @@ jobs:
           fi
 
           echo "New version: $version"
+          # 输出版本号（不带 v 前缀，用于内部处理）
           echo "version=$version" >> $GITHUB_OUTPUT
+          # 输出带 v 前缀的版本号（用于创建 tag）
+          echo "version_tag=v$version" >> $GITHUB_OUTPUT
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
           echo "::notice title=Version Updated::New version: $version"
 
@@ -452,8 +508,8 @@ jobs:
       - name: Commit and tag
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          tagging_message: ${{ steps.do_version.outputs.version }}
-          commit_message: "chore(version): release ${{ steps.do_version.outputs.version }}"
+          tagging_message: ${{ steps.do_version.outputs.version_tag || format('v{0}', steps.do_version.outputs.version) }}
+          commit_message: "chore(version): release ${{ steps.do_version.outputs.version_tag || format('v{0}', steps.do_version.outputs.version) }}"
           # 由于我们已经显式暂存了文件，file_pattern 用于验证
           # 匹配所有 package.json 文件（根目录和所有子目录）
           file_pattern: |

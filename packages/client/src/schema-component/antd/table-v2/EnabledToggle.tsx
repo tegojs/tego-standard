@@ -1,9 +1,13 @@
 import React from 'react';
-import { useAPIClient, useCollectionRecordData, useDataBlockRequest, useTranslation } from '@tachybase/client';
 import { observer } from '@tachybase/schema';
 
 import { message, Switch } from 'antd';
 import { createStyles } from 'antd-style';
+import { useTranslation } from 'react-i18next';
+
+import { useAPIClient } from '../../../api-client';
+import { useCollectionRecordData } from '../../../data-source/collection-record/CollectionRecordProvider';
+import { useDataBlockRequest } from '../../../data-source/data-block/DataBlockRequestProvider';
 
 const useStyles = createStyles(({ css }) => ({
   switchClass: css`
@@ -45,7 +49,7 @@ export const EnabledToggle = observer((props: EnabledToggleProps = {}) => {
       await api.resource(resourceName).update({
         filterByTk: record.id,
         values: {
-          enabled: checked,
+          [fieldName]: checked,
         },
       });
       message.success(t('Operation succeeded'));

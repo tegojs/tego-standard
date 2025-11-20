@@ -21,6 +21,7 @@ on:
       - 'vitest.config.*'
       - 'playwright.config.*'
       - 'rsbuild.config.*'
+      - '!.github/workflows/**'
   pull_request:
     branches:
       - main
@@ -42,6 +43,7 @@ on:
       - 'vitest.config.*'
       - 'playwright.config.*'
       - 'rsbuild.config.*'
+      - '!.github/workflows/**'
 
 permissions:
   contents: write

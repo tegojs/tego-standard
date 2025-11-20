@@ -64,10 +64,15 @@ jobs:
           if [[ "$REF_NAME" == refs/heads/* ]]; then
             BRANCH_NAME=$(echo "$REF_NAME" | sed 's|refs/heads/||')
           elif [[ "$REF_NAME" == refs/tags/* ]]; then
-            # For tags, we don't need to pull, just use the tag
-            echo "Checking out tag: $REF_NAME"
-            git checkout "$REF_NAME" 2>/dev/null || true
+            # For tags, extract tag name and checkout
+            TAG_NAME=$(echo "$REF_NAME" | sed 's|refs/tags/||')
+            echo "Checking out tag: $TAG_NAME"
+            git checkout "$TAG_NAME" 2>/dev/null || {
+              echo "Warning: Could not checkout tag $TAG_NAME, trying with refs/tags/$TAG_NAME"
+              git checkout "refs/tags/$TAG_NAME" 2>/dev/null || true
+            }
             echo "Current commit: $(git rev-parse HEAD)"
+            echo "Current branch: $(git rev-parse --abbrev-ref HEAD || echo 'detached HEAD')"
             exit 0
           else
             # Default to main branch if ref format is unexpected
@@ -107,6 +112,16 @@ jobs:
 
           VERSION="${{ steps.version.outputs.version }}"
           VERSION_NUMBER=${VERSION#v}
+
+          # Debug information
+          echo "Extracting changelog for version: $VERSION (number: $VERSION_NUMBER)"
+          echo "Current directory: $(pwd)"
+          echo "CHANGELOG.md exists: $([ -f "CHANGELOG.md" ] && echo 'yes' || echo 'no')"
+          echo "CHANGELOG.zh-CN.md exists: $([ -f "CHANGELOG.zh-CN.md" ] && echo 'yes' || echo 'no')"
+          if [ -f "CHANGELOG.md" ]; then
+            echo "First few lines of CHANGELOG.md:"
+            head -20 CHANGELOG.md
+          fi
 
           # Check if syncing Unreleased section
           if [ "$VERSION" == "unreleased" ] || [ "$VERSION_NUMBER" == "unreleased" ]; then
@@ -153,7 +168,12 @@ jobs:
             fi
           else
             # Extract changelog entry for this version from CHANGELOG.md
+            echo "Extracting version $VERSION_NUMBER from CHANGELOG.md"
             if [ -f "CHANGELOG.md" ]; then
+              # Debug: show matching lines
+              echo "Looking for pattern: ## [$VERSION_NUMBER]"
+              grep -n "^## \[" CHANGELOG.md | head -5 || echo "No version headers found"
+
               awk -v version="$VERSION_NUMBER" '
                 /^## \[/ {
                   if ($0 ~ "\\[" version "\\]") {
@@ -166,12 +186,21 @@ jobs:
                 }
                 print_section { print }
               ' CHANGELOG.md > /tmp/changelog_en.md || echo "" > /tmp/changelog_en.md
+
+              echo "Extracted English changelog ($(wc -l < /tmp/changelog_en.md) lines):"
+              head -10 /tmp/changelog_en.md || echo "(empty)"
             else
+              echo "CHANGELOG.md not found"
               echo "" > /tmp/changelog_en.md
             fi
 
             # Extract changelog entry for this version from CHANGELOG.zh-CN.md
+            echo "Extracting version $VERSION_NUMBER from CHANGELOG.zh-CN.md"
             if [ -f "CHANGELOG.zh-CN.md" ]; then
+              # Debug: show matching lines
+              echo "Looking for pattern: ## [$VERSION_NUMBER]"
+              grep -n "^## \[" CHANGELOG.zh-CN.md | head -5 || echo "No version headers found"
+
               awk -v version="$VERSION_NUMBER" '
                 /^## \[/ {
                   if ($0 ~ "\\[" version "\\]") {
@@ -184,7 +213,11 @@ jobs:
                 }
                 print_section { print }
               ' CHANGELOG.zh-CN.md > /tmp/changelog_zh.md || echo "" > /tmp/changelog_zh.md
+
+              echo "Extracted Chinese changelog ($(wc -l < /tmp/changelog_zh.md) lines):"
+              head -10 /tmp/changelog_zh.md || echo "(empty)"
             else
+              echo "CHANGELOG.zh-CN.md not found"
               echo "" > /tmp/changelog_zh.md
             fi
           fi

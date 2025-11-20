@@ -1,5 +1,11 @@
 import React, { useContext } from 'react';
-import { ExtendCollectionsProvider, SchemaComponent, SchemaComponentContext, usePlugin } from '@tachybase/client';
+import {
+  EnabledStatusFilter,
+  ExtendCollectionsProvider,
+  SchemaComponent,
+  SchemaComponentContext,
+  usePlugin,
+} from '@tachybase/client';
 import { onFieldChange, useField, useFormEffects } from '@tachybase/schema';
 
 import WorkflowPlugin, { RadioWithTooltip } from '.';
@@ -73,6 +79,7 @@ export function WorkflowPane(props) {
             ColumnShowEventSource,
             ColumnExecutedTime,
             WorkflowCategoryColumn,
+            EnabledStatusFilter,
             ...components,
           }}
           scope={{

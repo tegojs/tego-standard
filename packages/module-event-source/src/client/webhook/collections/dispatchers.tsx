@@ -148,8 +148,8 @@ export const dispatchers: CollectionOptions = {
         type: 'string',
         required: true,
         enum: [
-          { label: tval('On'), value: true, color: '#52c41a' },
-          { label: tval('Off'), value: false },
+          { label: tval('Effective'), value: true, color: '#52c41a' },
+          { label: tval('Ineffective'), value: false, color: '#d9d9d9' },
         ],
         'x-component': 'Radio.Group',
         'x-decorator': 'FormItem',

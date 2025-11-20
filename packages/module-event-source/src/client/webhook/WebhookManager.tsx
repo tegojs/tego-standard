@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
   CardItem,
+  EnabledStatusFilter,
   ExtendCollectionsProvider,
   SchemaComponent,
   TableBlockProvider,
@@ -742,6 +743,11 @@ const schema: ISchema = {
               'x-component': 'FuzzySearchInput',
               'x-align': 'left',
             },
+            statusFilter: {
+              type: 'void',
+              'x-component': 'EnabledStatusFilter',
+              'x-align': 'left',
+            },
             refresh: {
               type: 'void',
               title: '{{ t("Refresh") }}',
@@ -837,7 +843,6 @@ const schema: ISchema = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
               },
@@ -860,21 +865,15 @@ const schema: ISchema = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 width: 20,
+                align: 'center',
               },
+              title: tval('Status'),
               properties: {
                 enabled: {
-                  type: 'boolean',
-                  'x-collection-field': 'webhooks.enabled',
-                  'x-component': 'CollectionField',
+                  type: 'void',
+                  'x-component': 'EnabledToggle',
                   'x-component-props': {
-                    ellipsis: true,
-                  },
-                  'x-read-pretty': true,
-                  'x-decorator': null,
-                  'x-decorator-props': {
-                    labelStyle: {
-                      display: 'none',
-                    },
+                    resource: 'webhooks',
                   },
                 },
               },
@@ -933,7 +932,9 @@ const schema: ISchema = {
               'x-component-props': {
                 width: 20,
                 sorter: true,
+                align: 'center',
               },
+              title: tval('Real effect'),
               properties: {
                 effect: {
                   type: 'boolean',
@@ -1091,6 +1092,7 @@ export const WebhookManager = () => {
           useShowAlertProps,
           useWebhookCategoryContext,
           useCreateFormBlockProps,
+          lang,
         }}
         components={{
           Alert: withDynamicSchemaProps(AntdAlert),
@@ -1104,6 +1106,7 @@ export const WebhookManager = () => {
           AddWebhookCategory,
           EditWebhookCategory,
           WorkflowKeyColumn,
+          EnabledStatusFilter,
         }}
       />
     </ExtendCollectionsProvider>

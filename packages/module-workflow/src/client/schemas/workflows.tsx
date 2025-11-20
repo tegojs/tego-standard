@@ -955,6 +955,11 @@ export const workflowSchema: ISchema = {
               'x-component': 'FuzzySearchInput',
               'x-align': 'left',
             },
+            statusFilter: {
+              type: 'void',
+              'x-component': 'EnabledStatusFilter',
+              'x-align': 'left',
+            },
             refresh: {
               type: 'void',
               title: '{{ t("Refresh") }}',
@@ -1122,10 +1127,10 @@ export const workflowSchema: ISchema = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
               },
+              title: `{{t("Category", { ns: "${NAMESPACE}" })}}`,
               properties: {
                 category: {
                   type: 'array',
@@ -1143,12 +1148,14 @@ export const workflowSchema: ISchema = {
                 width: 20,
                 align: 'center',
               },
+              title: `{{t("Status", { ns: "${NAMESPACE}" })}}`,
               properties: {
                 enabled: {
-                  type: 'boolean',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
-                  default: false,
+                  type: 'void',
+                  'x-component': 'EnabledToggle',
+                  'x-component-props': {
+                    resource: 'workflows',
+                  },
                 },
               },
             },

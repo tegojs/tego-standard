@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { css } from '@tachybase/client';
-import { connect, useForm } from '@tachybase/schema';
+import { connect, useField, useForm } from '@tachybase/schema';
 import { CodeEditor } from '@tego/client';
 
 import * as Babel from '@babel/standalone';
@@ -12,14 +12,16 @@ import * as prettier from 'prettier/standalone';
 
 import { CompileCache, CompileError } from '../../types';
 import { useTranslation } from '../locale';
+import { registerCompileFunction } from './CompileButton';
 import ComPreview from './Preview';
 
 export default connect(({ value: code, onChange: setCode }) => {
   const { t } = useTranslation();
   const form = useForm();
+  const field = useField();
   const [compileCode, setCompileCode] = useState('');
   const [error, setError] = useState<CompileError | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // 初始不加载，等待手动编译
 
   // 检查代码来源，如果是远程代码则设置为只读
   const codeSource = form.values?.codeSource;
@@ -29,9 +31,64 @@ export default connect(({ value: code, onChange: setCode }) => {
     deltaDecorations?: (oldDecorations: any[], newDecorations: any[]) => any[];
     getModel?: () => { getLineLength: (lineNumber: number) => number } | null;
     revealLineInCenter?: (lineNumber: number) => void;
+    updateOptions?: (options: any) => void;
+    [key: string]: any; // 允许访问其他 Monaco Editor 属性
   }
 
   const editorRef = useRef<MonacoEditor | null>(null);
+
+  // 使用 useMemo 创建响应式的编辑器选项
+  const editorOptions = useMemo(
+    () => ({
+      lineNumbers: 'on' as const,
+      minimap: {
+        enabled: false,
+      },
+      readOnly: isReadOnly, // 远程代码时设置为只读
+      // 自动补全配置（仅在本地代码模式下启用）
+      quickSuggestions: !isReadOnly
+        ? {
+            other: true,
+            comments: true,
+            strings: true,
+          }
+        : false,
+      suggestOnTriggerCharacters: !isReadOnly,
+      acceptSuggestionOnCommitCharacter: !isReadOnly,
+      acceptSuggestionOnEnter: (!isReadOnly ? 'on' : 'off') as 'on' | 'off',
+      tabCompletion: (!isReadOnly ? 'on' : 'off') as 'on' | 'off',
+      wordBasedSuggestions: (!isReadOnly ? 'allDocuments' : 'off') as 'allDocuments' | 'off',
+      snippetSuggestions: (!isReadOnly ? 'top' : 'none') as 'top' | 'none',
+      // 其他编辑器增强功能
+      autoIndent: (!isReadOnly ? 'full' : 'none') as 'full' | 'none',
+      formatOnPaste: !isReadOnly,
+      formatOnType: !isReadOnly,
+      codeLens: !isReadOnly,
+      folding: true,
+      bracketPairColorization: {
+        enabled: !isReadOnly,
+      },
+    }),
+    [isReadOnly],
+  );
+
+  // 监听 codeSource 变化，动态更新编辑器的只读状态
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (editor) {
+      // 尝试使用 updateOptions 方法（Monaco Editor 的标准方法）
+      if (typeof editor.updateOptions === 'function') {
+        editor.updateOptions(editorOptions);
+      } else {
+        // 如果 updateOptions 不存在，尝试直接访问编辑器实例
+        // Monaco Editor 的实例通常可以通过 getEditor 或直接访问
+        const monacoEditor = (editor as any).getEditor?.() || editor;
+        if (monacoEditor && typeof monacoEditor.updateOptions === 'function') {
+          monacoEditor.updateOptions(editorOptions);
+        }
+      }
+    }
+  }, [codeSource, isReadOnly, editorOptions]);
   // 编译缓存：避免重复编译相同代码
   const compileCacheRef = useRef<CompileCache | null>(null);
 
@@ -159,7 +216,7 @@ export default connect(({ value: code, onChange: setCode }) => {
   };
 
   // 编译代码（带缓存）
-  const handleCompile = async () => {
+  const handleCompile = React.useCallback(async () => {
     if (!code) {
       setCompileCode('');
       setError(null);
@@ -222,20 +279,32 @@ export default connect(({ value: code, onChange: setCode }) => {
         console.error('[ComponentEditor] Compilation error:', error);
       }
     }
-  };
+  }, [code, t]);
 
-  // 使用防抖的编译函数
-  const { run: debouncedCompile } = useDebounceFn(handleCompile, {
-    wait: 800, // 800ms 防抖延迟
-    leading: false,
-    trailing: true,
-  });
+  // 检查代码来源，决定是否自动编译
+  const isLocalCode = codeSource === 'local' || !codeSource;
 
-  // 监听代码变化，触发防抖编译
+  // 仅在非本地代码模式下自动编译（远程代码模式保持实时编译以预览）
   useEffect(() => {
-    setLoading(true);
-    debouncedCompile();
-  }, [code]);
+    if (!isLocalCode && code) {
+      setLoading(true);
+      handleCompile();
+    }
+  }, [code, isLocalCode, handleCompile]);
+
+  // 手动触发编译的函数（供编译按钮使用）
+  const triggerCompile = React.useCallback(() => {
+    if (code) {
+      setLoading(true);
+      handleCompile();
+    }
+  }, [code, handleCompile]);
+
+  // 注册编译函数到全局注册表
+  useEffect(() => {
+    const unregister = registerCompileFunction(triggerCompile);
+    return unregister;
+  }, [triggerCompile]);
 
   const { run } = useDebounceFn(onChange, { wait: 500 });
 
@@ -254,16 +323,13 @@ export default connect(({ value: code, onChange: setCode }) => {
               if (isReadOnly) {
                 return; // 只读模式下不允许修改
               }
-              setLoading(true);
+              // 本地代码模式下不自动触发编译
+              if (!isLocalCode) {
+                setLoading(true);
+              }
               run(value);
             }}
-            options={{
-              lineNumbers: 'on',
-              minimap: {
-                enabled: false,
-              },
-              readOnly: isReadOnly, // 远程代码时设置为只读
-            }}
+            options={editorOptions}
             height="100%"
             onMount={(editor) => (editorRef.current = editor)}
           />

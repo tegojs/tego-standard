@@ -25,6 +25,7 @@
   "Code synced successfully": "代码同步成功",
   "Compilation error": "编译错误",
   "Compilation failed: No code generated": "编译失败：未生成代码",
+  "Compile": "编译",
   "Compiling...": "正在编译中...",
   "Component code": "组件代码",
   "Component data": "组件数据",

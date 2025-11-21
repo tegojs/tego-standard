@@ -177,6 +177,10 @@ const edit = {
                               },
                               type: 'void',
                             },
+                            compile: {
+                              type: 'void',
+                              'x-component': 'CompileButton',
+                            },
                             history: {
                               // TODO 查看版本，可以选择特定版本并且覆盖当前信息，不自动发版
                               title: tval('History'),

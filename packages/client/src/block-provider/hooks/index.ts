@@ -544,6 +544,7 @@ export const useFilterBlockActionProps = () => {
   const { getCollectionJoinField } = useCollectionManager_deprecated();
 
   actionField.data = actionField.data || {};
+
   return {
     async onClick() {
       const { targets = [], uid } = findFilterTargets(fieldSchema);
@@ -600,7 +601,6 @@ export const useFilterBlockActionProps = () => {
             if (block.dataLoadingMode === 'manual' && _.isEmpty(currFilter)) {
               return block.clearData();
             }
-
             return block.doFilter(
               {
                 ...param,

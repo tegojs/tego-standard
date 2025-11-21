@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- add select node ([#286](https://github.com/tegojs/tego-standard/pull/286)) [d7a683f](https://github.com/tegojs/tego-standard/commit/d7a683f3dfe5ee65cbbb9a88e6dd5fabf3bb45f5) (@dududuna)
+- **workflow**: add enabled toggle to workflow and webhook ([#287](https://github.com/tegojs/tego-standard/pull/287)) [76f9fb7](https://github.com/tegojs/tego-standard/commit/76f9fb78110fbf6b4e2ae5b106a2f99fa6d3d1f3) (@bai.zixv)
+
+### 🐛 Fixed
+
+- **web**: add promise with resolvers polyfill ([#291](https://github.com/tegojs/tego-standard/pull/291)) [a9d5d3a](https://github.com/tegojs/tego-standard/commit/a9d5d3a40f2cfd88e065de8e082a441d544b1bd4) (@bai.zixv)
+- table filter ([#288](https://github.com/tegojs/tego-standard/pull/288)) [fe2a98b](https://github.com/tegojs/tego-standard/commit/fe2a98bacd2fe3600358e07b0ddf8c501f553761) (@dududuna)
+
 
 
 ## [1.6.0] - 2025-11-20

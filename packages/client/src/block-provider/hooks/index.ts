@@ -524,7 +524,6 @@ export const findFilterTargets = (fieldSchema): FilterTarget => {
   }
   return {};
 };
-
 export const updateFilterTargets = (fieldSchema, targets: FilterTarget['targets']) => {
   while (fieldSchema) {
     if (fieldSchema['x-filter-targets']) {
@@ -601,6 +600,7 @@ export const useFilterBlockActionProps = () => {
             if (block.dataLoadingMode === 'manual' && _.isEmpty(currFilter)) {
               return block.clearData();
             }
+
             return block.doFilter(
               {
                 ...param,

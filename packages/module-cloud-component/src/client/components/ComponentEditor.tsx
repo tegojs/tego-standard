@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { css } from '@tachybase/client';
-import { connect } from '@tachybase/schema';
+import { connect, useForm } from '@tachybase/schema';
 import { CodeEditor } from '@tego/client';
 
 import * as Babel from '@babel/standalone';
@@ -16,9 +16,14 @@ import ComPreview from './Preview';
 
 export default connect(({ value: code, onChange: setCode }) => {
   const { t } = useTranslation();
+  const form = useForm();
   const [compileCode, setCompileCode] = useState('');
   const [error, setError] = useState<CompileError | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 检查代码来源，如果是远程代码则设置为只读
+  const codeSource = form.values?.codeSource;
+  const isReadOnly = codeSource === 'remote';
   // Monaco Editor 类型定义
   interface MonacoEditor {
     deltaDecorations?: (oldDecorations: any[], newDecorations: any[]) => any[];
@@ -30,8 +35,11 @@ export default connect(({ value: code, onChange: setCode }) => {
   // 编译缓存：避免重复编译相同代码
   const compileCacheRef = useRef<CompileCache | null>(null);
 
-  // 保存后，格式化代码
+  // 保存后，格式化代码（仅在非只读模式下启用）
   useKeyPress(['meta.s', 'ctrl.s'], async (event) => {
+    if (isReadOnly) {
+      return; // 只读模式下禁用格式化
+    }
     try {
       event.stopPropagation();
       event.preventDefault();
@@ -61,8 +69,11 @@ export default connect(({ value: code, onChange: setCode }) => {
     }
   });
 
-  // 实时保存代码
+  // 实时保存代码（仅在非只读模式下启用）
   const onChange = (value: string = '') => {
+    if (isReadOnly) {
+      return; // 只读模式下不允许修改
+    }
     setCode(value);
   };
 
@@ -240,6 +251,9 @@ export default connect(({ value: code, onChange: setCode }) => {
             defaultLanguage="typescript"
             value={code}
             onChange={(value) => {
+              if (isReadOnly) {
+                return; // 只读模式下不允许修改
+              }
               setLoading(true);
               run(value);
             }}
@@ -248,6 +262,7 @@ export default connect(({ value: code, onChange: setCode }) => {
               minimap: {
                 enabled: false,
               },
+              readOnly: isReadOnly, // 远程代码时设置为只读
             }}
             height="100%"
             onMount={(editor) => (editorRef.current = editor)}

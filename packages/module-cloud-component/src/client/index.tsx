@@ -11,6 +11,8 @@ import * as recharts from 'recharts';
 
 import { CloudLibraryManager } from './cloud-library-manager/CloudLibraryManager';
 import { ProviderCloudComponent } from './CloudComponent.provider';
+import { GitUrlPreview } from './components/GitUrlPreview';
+import { SyncRemoteCodeButton } from './components/SyncRemoteCodeButton';
 import { useTranslation } from './locale';
 import { CloudComponentBlock } from './settings/CloudComponentBlock';
 import { cloudComponentBlockInitializerItem } from './settings/InitializerItem';
@@ -40,6 +42,8 @@ export class ModuleCloudComponentClient extends Plugin {
     this.app.use(ProviderCloudComponent);
     this.app.addComponents({
       CloudComponentBlock,
+      GitUrlPreview,
+      SyncRemoteCodeButton,
     });
     this.app.schemaSettingsManager.add(cloudComponentBlockSettings);
     // 添加到页面的 Add block 里

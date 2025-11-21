@@ -310,6 +310,7 @@ export const collection: CollectionOptions = {
       collectionName: 'cloudLibraries',
       parentKey: null,
       reverseKey: null,
+      defaultValue: 'git',
       uiSchema: {
         type: 'string',
         'x-component': 'Select',
@@ -369,6 +370,60 @@ export const collection: CollectionOptions = {
         title: tval('Code path'),
         'x-component-props': {
           placeholder: tval('Code path placeholder'),
+        },
+      },
+    },
+    {
+      name: 'codeAuthType',
+      type: 'string',
+      interface: 'select',
+      description: null,
+      collectionName: 'cloudLibraries',
+      parentKey: null,
+      reverseKey: null,
+      defaultValue: 'token',
+      uiSchema: {
+        type: 'string',
+        'x-component': 'Select',
+        title: tval('Authentication type'),
+        enum: [
+          { label: tval('No authentication'), value: 'none' },
+          { label: tval('Bearer Token'), value: 'token' },
+          { label: tval('Basic Auth'), value: 'basic' },
+        ],
+      },
+    },
+    {
+      name: 'codeAuthToken',
+      type: 'string',
+      interface: 'input',
+      description: null,
+      collectionName: 'cloudLibraries',
+      parentKey: null,
+      reverseKey: null,
+      uiSchema: {
+        type: 'string',
+        'x-component': 'Input.Password',
+        title: tval('Auth token'),
+        'x-component-props': {
+          placeholder: tval('Auth token placeholder'),
+        },
+      },
+    },
+    {
+      name: 'codeAuthUsername',
+      type: 'string',
+      interface: 'input',
+      description: null,
+      collectionName: 'cloudLibraries',
+      parentKey: null,
+      reverseKey: null,
+      uiSchema: {
+        type: 'string',
+        'x-component': 'Input',
+        title: tval('Auth username'),
+        'x-component-props': {
+          placeholder: tval('Auth username placeholder'),
         },
       },
     },

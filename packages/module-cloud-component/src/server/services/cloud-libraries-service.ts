@@ -68,8 +68,20 @@ export class CloudLibrariesService {
             code = codeCache.content;
           } else {
             // 从远程获取代码（使用前端指定的类型）
+            const { codeAuthType, codeAuthToken, codeAuthUsername } = lib;
             this.logger.info(`[${module}] Fetching remote code from ${codeUrl} (type: ${codeType})`);
-            code = await this.remoteCodeFetcher.fetchCode(codeUrl, codeType, codeBranch, codePath);
+            this.logger.info(
+              `[${module}] Auth config: type=${codeAuthType || 'none'}, hasToken=${!!codeAuthToken}, hasUsername=${!!codeAuthUsername}`,
+            );
+            code = await this.remoteCodeFetcher.fetchCode(
+              codeUrl,
+              codeType,
+              codeBranch,
+              codePath,
+              codeAuthType,
+              codeAuthToken,
+              codeAuthUsername,
+            );
 
             // 更新缓存
             const libRepo = this.app.db.getRepository('cloudLibraries');

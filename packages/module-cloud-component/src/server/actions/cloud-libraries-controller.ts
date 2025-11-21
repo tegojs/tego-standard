@@ -1,11 +1,15 @@
 import { Action, actions, Context, Controller, Inject, InjectLog, Logger, Next } from '@tego/server';
 
 import { CloudCompiler } from '../services/cloud-compiler';
+import { RemoteCodeFetcher } from '../services/remote-code-fetcher';
 
 @Controller('cloudLibraries')
 export class CloudLibrariesController {
   @Inject(() => CloudCompiler)
   compiler: CloudCompiler;
+
+  @Inject(() => RemoteCodeFetcher)
+  remoteCodeFetcher: RemoteCodeFetcher;
 
   @InjectLog()
   private logger: Logger;
@@ -155,6 +159,54 @@ export class CloudLibrariesController {
       });
       // 重新抛出错误，让上层处理
       throw error;
+    }
+  }
+
+  @Action('syncRemoteCode')
+  async syncRemoteCode(ctx: Context, next: Next) {
+    const params = ctx.action.params.values || ctx.action.params || {};
+    const { codeUrl, codeType, codeBranch = 'main', codePath, codeAuthType, codeAuthToken, codeAuthUsername } = params;
+
+    if (!codeUrl || !codeType) {
+      this.logger.warn('syncRemoteCode: Missing required parameters', { params });
+      ctx.throw(400, 'codeUrl and codeType are required');
+    }
+
+    try {
+      this.logger.info('Syncing remote code', {
+        codeUrl,
+        codeType,
+        codeBranch,
+        codePath,
+      });
+
+      const code = await this.remoteCodeFetcher.fetchCode(
+        codeUrl,
+        codeType,
+        codeBranch,
+        codePath,
+        codeAuthType,
+        codeAuthToken,
+        codeAuthUsername,
+      );
+      ctx.body = {
+        code,
+      };
+
+      await next();
+    } catch (error) {
+      // 如果错误是 ctx.throw 抛出的，直接重新抛出
+      if (ctx.status && ctx.status !== 200) {
+        throw error;
+      }
+
+      this.logger.error('Failed to sync remote code', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        params,
+      });
+
+      ctx.throw(500, `Failed to fetch remote code: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

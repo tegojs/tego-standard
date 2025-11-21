@@ -125,6 +125,7 @@ export default () => {
     'x-decorator': 'FormItem',
     'x-collection-field': 'cloudLibraries.codeType',
     'x-component-props': {},
+    default: 'git',
     enum: [
       { label: '{{t("CDN")}}', value: 'cdn' },
       { label: '{{t("Git")}}', value: 'git' },
@@ -151,6 +152,66 @@ export default () => {
     },
     'x-reactions': [
       {
+        dependencies: ['codeSource', 'codeType'],
+        fulfill: {
+          state: {
+            visible: '{{$deps[0] === "remote"}}',
+            required: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
+          },
+          schema: {
+            'x-validator':
+              '{{$deps[0] === "remote" && $deps[1] === "git" ? [{ required: true, message: t("Code URL is required for Git") }] : []}}',
+          },
+        },
+      },
+    ],
+  },
+
+  gitUrlPreview: {
+    type: 'void',
+    'x-component': 'GitUrlPreview',
+    'x-reactions': [
+      {
+        dependencies: ['codeSource', 'codeType', 'codeUrl'],
+        fulfill: {
+          state: {
+            visible: '{{$deps[0] === "remote" && $deps[1] === "git" && $deps[2]}}',
+          },
+        },
+      },
+    ],
+  },
+
+  syncRemoteCodeButton: {
+    type: 'void',
+    'x-component': 'SyncRemoteCodeButton',
+    'x-reactions': [
+      {
+        dependencies: ['codeSource', 'codeType', 'codeUrl'],
+        fulfill: {
+          state: {
+            visible: '{{$deps[0] === "remote" && $deps[1] && $deps[2]}}',
+          },
+        },
+      },
+    ],
+  },
+
+  codeAuthType: {
+    type: 'string',
+    'x-component': 'CollectionField',
+    'x-decorator': 'FormItem',
+    'x-collection-field': 'cloudLibraries.codeAuthType',
+    title: '{{t("Authentication type")}}',
+    'x-component-props': {},
+    default: 'token',
+    enum: [
+      { label: '{{t("No authentication")}}', value: 'none' },
+      { label: '{{t("Bearer Token")}}', value: 'token' },
+      { label: '{{t("Basic Auth")}}', value: 'basic' },
+    ],
+    'x-reactions': [
+      {
         dependencies: ['codeSource'],
         fulfill: {
           state: {
@@ -161,41 +222,42 @@ export default () => {
     ],
   },
 
-  codeBranch: {
+  codeAuthToken: {
     type: 'string',
     'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
-    'x-collection-field': 'cloudLibraries.codeBranch',
+    'x-collection-field': 'cloudLibraries.codeAuthToken',
+    title: '{{t("Auth token")}}',
     'x-component-props': {
-      placeholder: '{{t("Code branch placeholder")}}',
+      placeholder: '{{t("Auth token placeholder")}}',
     },
-    default: 'main',
     'x-reactions': [
       {
-        dependencies: ['codeSource', 'codeType'],
+        dependencies: ['codeSource', 'codeAuthType'],
         fulfill: {
           state: {
-            visible: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
+            visible: '{{$deps[0] === "remote" && ($deps[1] === "token" || $deps[1] === "basic")}}',
           },
         },
       },
     ],
   },
 
-  codePath: {
+  codeAuthUsername: {
     type: 'string',
     'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
-    'x-collection-field': 'cloudLibraries.codePath',
+    'x-collection-field': 'cloudLibraries.codeAuthUsername',
+    title: '{{t("Auth username")}}',
     'x-component-props': {
-      placeholder: '{{t("Code path placeholder")}}',
+      placeholder: '{{t("Auth username placeholder")}}',
     },
     'x-reactions': [
       {
-        dependencies: ['codeSource', 'codeType'],
+        dependencies: ['codeSource', 'codeAuthType'],
         fulfill: {
           state: {
-            visible: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
+            visible: '{{$deps[0] === "remote" && $deps[1] === "basic"}}',
           },
         },
       },

@@ -54,6 +54,22 @@ export default defineCollection({
       // 缓存远程代码内容和更新时间
     },
     {
+      name: 'codeAuthType',
+      type: 'string',
+      // 认证类型: none, token, basic
+      // none: 无需认证, token: Bearer Token, basic: Basic Auth
+    },
+    {
+      name: 'codeAuthToken',
+      type: 'string',
+      // Bearer Token 或 Basic Auth 的密码（加密存储）
+    },
+    {
+      name: 'codeAuthUsername',
+      type: 'string',
+      // Basic Auth 的用户名
+    },
+    {
       name: 'data',
       type: 'json',
       jsonb: false,

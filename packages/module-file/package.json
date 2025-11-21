@@ -19,7 +19,7 @@
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
-    "@types/koa-multer": "^1.0.4",
+    "@types/koa-multer": "^1.0.5",
     "@types/multer": "^1.4.12",
     "antd": "catalog:",
     "cos-nodejs-sdk-v5": "^2.15.1",

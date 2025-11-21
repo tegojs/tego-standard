@@ -5,6 +5,8 @@ import { VariableOption, WorkflowVariableInput } from '../..';
 import { NAMESPACE_INSTRUCTION_DATA_MAPPING } from '../../../common/constants';
 import { tval } from '../../locale';
 import { Instruction } from '../../nodes/default-node/interface';
+import { ScriptCodeEditor } from './ScriptCodeEditor';
+import { SyncRemoteCodeButton } from './SyncRemoteCodeButton';
 
 export class ScriptInstruction extends Instruction {
   title = tval('Data Mapping');
@@ -105,11 +107,180 @@ export class ScriptInstruction extends Instruction {
       ],
       default: 'ts',
     },
+    codeSource: {
+      type: 'string',
+      title: tval('Code source'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Radio.Group',
+      default: 'local',
+      enum: [
+        { label: tval('Local code'), value: 'local' },
+        { label: tval('Remote code'), value: 'remote' },
+      ],
+    },
+    codeType: {
+      type: 'string',
+      title: tval('Code type'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Radio.Group',
+      default: 'git',
+      enum: [
+        { label: tval('CDN'), value: 'cdn' },
+        { label: tval('Git'), value: 'git' },
+      ],
+      'x-reactions': [
+        {
+          dependencies: ['codeSource'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote"}}',
+            },
+          },
+        },
+      ],
+    },
+    codeUrl: {
+      type: 'string',
+      title: tval('Code URL'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Input',
+      'x-component-props': {
+        placeholder: tval('Code URL placeholder'),
+      },
+      'x-reactions': [
+        {
+          dependencies: ['codeSource', 'codeType'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote"}}',
+              required: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
+            },
+            schema: {
+              'x-validator':
+                '{{$deps[0] === "remote" && $deps[1] === "git" ? [{ required: true, message: tval("Code URL is required for Git") }] : []}}',
+            },
+          },
+        },
+      ],
+    },
+    codeBranch: {
+      type: 'string',
+      title: tval('Code branch'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Input',
+      'x-component-props': {
+        placeholder: tval('Code branch placeholder'),
+      },
+      default: 'main',
+      'x-reactions': [
+        {
+          dependencies: ['codeSource', 'codeType'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
+            },
+          },
+        },
+      ],
+    },
+    codePath: {
+      type: 'string',
+      title: tval('Code path'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Input',
+      'x-component-props': {
+        placeholder: tval('Code path placeholder'),
+      },
+      'x-reactions': [
+        {
+          dependencies: ['codeSource', 'codeType'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
+            },
+          },
+        },
+      ],
+    },
+    codeAuthType: {
+      type: 'string',
+      title: tval('Authentication type'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Radio.Group',
+      default: 'token',
+      enum: [
+        { label: tval('No authentication'), value: 'none' },
+        { label: tval('Bearer Token'), value: 'token' },
+        { label: tval('Basic Auth'), value: 'basic' },
+      ],
+      'x-reactions': [
+        {
+          dependencies: ['codeSource'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote"}}',
+            },
+          },
+        },
+      ],
+    },
+    codeAuthToken: {
+      type: 'string',
+      title: tval('Auth token'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Input.Password',
+      'x-component-props': {
+        placeholder: tval('Auth token placeholder'),
+      },
+      'x-reactions': [
+        {
+          dependencies: ['codeSource', 'codeAuthType'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote" && ($deps[1] === "token" || $deps[1] === "basic")}}',
+            },
+          },
+        },
+      ],
+    },
+    codeAuthUsername: {
+      type: 'string',
+      title: tval('Auth username'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Input',
+      'x-component-props': {
+        placeholder: tval('Auth username placeholder'),
+      },
+      'x-reactions': [
+        {
+          dependencies: ['codeSource', 'codeAuthType'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote" && $deps[1] === "basic"}}',
+            },
+          },
+        },
+      ],
+    },
+    syncRemoteCodeButton: {
+      type: 'void',
+      'x-component': 'SyncRemoteCodeButton',
+      'x-reactions': [
+        {
+          dependencies: ['codeSource', 'codeType', 'codeUrl'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote" && $deps[1] && $deps[2]}}',
+            },
+          },
+        },
+      ],
+    },
     code: {
       type: 'string',
       title: tval('expression'),
       'x-decorator': 'FormItem',
-      'x-component': 'CodeMirror',
+      'x-component': 'ScriptCodeEditor',
       'x-component-props': {
         defaultLanguage: 'typescript',
         height: '50vh',
@@ -227,6 +398,8 @@ export default async function (
   components = {
     ArrayTable,
     WorkflowVariableInput,
+    SyncRemoteCodeButton,
+    ScriptCodeEditor,
   };
 
   useVariables(node, options): VariableOption {

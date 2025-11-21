@@ -94,6 +94,11 @@ const create = {
                       properties: {
                         module: fieldsets.module,
                         name: fieldsets.name,
+                        codeSource: fieldsets.codeSource,
+                        codeType: fieldsets.codeType,
+                        codeUrl: fieldsets.codeUrl,
+                        codeBranch: fieldsets.codeBranch,
+                        codePath: fieldsets.codePath,
                       },
                     },
                   },
@@ -223,6 +228,11 @@ const edit = {
                         tab: tval('Develop'),
                       },
                       properties: {
+                        codeSource: fieldsets.codeSource,
+                        codeType: fieldsets.codeType,
+                        codeUrl: fieldsets.codeUrl,
+                        codeBranch: fieldsets.codeBranch,
+                        codePath: fieldsets.codePath,
                         code: fieldsets.code,
                       },
                     },
@@ -267,6 +277,7 @@ export const table = {
     action: 'list',
     params: {
       pageSize: 20,
+      sort: ['-createdAt'], // 按创建时间倒序排列
     },
     rowKey: 'id',
     showIndex: true,

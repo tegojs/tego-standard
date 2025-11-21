@@ -22,6 +22,38 @@ export default defineCollection({
       defaultValue: '',
     },
     {
+      name: 'codeSource',
+      type: 'string',
+      defaultValue: 'local',
+      // local: 本地代码, remote: 远程代码
+    },
+    {
+      name: 'codeType',
+      type: 'string',
+      // cdn: CDN 地址, git: Git 仓库地址（由前端指定，后端不判断）
+    },
+    {
+      name: 'codeUrl',
+      type: 'string',
+      // 远程代码地址: CDN URL 或 Git 仓库地址
+    },
+    {
+      name: 'codeBranch',
+      type: 'string',
+      defaultValue: 'main',
+      // Git 分支名称，默认为 main
+    },
+    {
+      name: 'codePath',
+      type: 'string',
+      // Git 仓库中的文件路径
+    },
+    {
+      name: 'codeCache',
+      type: 'jsonb',
+      // 缓存远程代码内容和更新时间
+    },
+    {
       name: 'data',
       type: 'json',
       jsonb: false,

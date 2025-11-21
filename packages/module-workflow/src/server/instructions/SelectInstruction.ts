@@ -20,12 +20,17 @@ export class SelectInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
+    const { repository, fields } = this.workflow.app.dataSourceManager.dataSources
       .get(dataSourceName)
       .collectionManager.getCollection(collectionName);
     const { page, pageSize, sort = [], paginate = true, ...options } = processor.getParsedValue(params, node.id);
 
     const appends = options.summary?.includes('.') ? [options.summary] : [];
+    if (options.summary && !options.summary?.includes('.')) {
+      if (['belongsTo', 'hasOne', 'hasMany', 'belongsToMany'].includes(fields.get(options.summary)?.type)) {
+        appends.push(options.summary);
+      }
+    }
 
     let pageArgs = paginate ? utils.pageArgsToLimitArgs(page, pageSize) : {};
     const data = await (multiple ? repository.find : repository.findOne).call(repository, {

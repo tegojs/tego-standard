@@ -1,4 +1,4 @@
-import { Action, actions, Context, Controller, Inject, Next } from '@tego/server';
+import { Action, actions, Context, Controller, Inject, InjectLog, Logger, Next } from '@tego/server';
 
 import { CloudCompiler } from '../services/cloud-compiler';
 
@@ -6,6 +6,9 @@ import { CloudCompiler } from '../services/cloud-compiler';
 export class CloudLibrariesController {
   @Inject(() => CloudCompiler)
   compiler: CloudCompiler;
+
+  @InjectLog()
+  private logger: Logger;
 
   @Action('update')
   async update(ctx: Context, next: Next) {
@@ -77,6 +80,11 @@ export class CloudLibrariesController {
           filterByTk,
           transaction,
         });
+
+        if (!cloudComponent) {
+          throw new Error(`Cloud component with id ${filterByTk} not found`);
+        }
+
         await effectRepo.destroy({
           filter: {
             name: cloudComponent.name,
@@ -90,7 +98,13 @@ export class CloudLibrariesController {
         });
       });
     } catch (error) {
-      console.error('Error deleting cloud component:', error);
+      this.logger.error('Error deleting cloud component:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        filterByTk,
+      });
+      // 重新抛出错误，让上层处理
+      throw error;
     }
   }
 }

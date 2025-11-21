@@ -2,10 +2,11 @@ import { CollectionOptions } from '@tachybase/client';
 
 import ReactEditor from '../components/ComponentEditor';
 import MDEditor from '../components/MarkdownEditor';
+import { tval } from '../locale';
 
 export const collection: CollectionOptions = {
   name: 'cloudLibraries',
-  title: '云类库',
+  title: tval('Cloud Library'),
   hidden: false,
   description: null,
   fields: [
@@ -120,7 +121,7 @@ export const collection: CollectionOptions = {
       uiSchema: {
         type: 'string',
         'x-component': 'Input',
-        title: '组件名称',
+        title: tval('Component name'),
       },
       unique: true,
       primaryKey: false,
@@ -136,14 +137,14 @@ export const collection: CollectionOptions = {
       uiSchema: {
         type: 'string',
         'x-component': ReactEditor,
-        title: '组件代码',
+        title: tval('Component code'),
       },
     },
     {
       name: 'data',
       type: 'json',
       interface: 'json',
-      description: '组件测试数据，可以用来 mock 组件的数据',
+      description: tval('Component test data, can be used to mock component data'),
       collectionName: 'cloudLibraries',
       parentKey: null,
       reverseKey: null,
@@ -157,7 +158,7 @@ export const collection: CollectionOptions = {
           },
         },
         default: '{}',
-        title: '组件数据',
+        title: tval('Component data'),
       },
       jsonb: false,
     },
@@ -172,7 +173,7 @@ export const collection: CollectionOptions = {
       uiSchema: {
         type: 'string',
         'x-component': MDEditor,
-        title: '组件文档',
+        title: tval('Component documentation'),
       },
     },
     {
@@ -189,7 +190,7 @@ export const collection: CollectionOptions = {
         },
         type: 'boolean',
         'x-component': 'Checkbox',
-        title: '是否启用',
+        title: tval('Enable'),
       },
     },
     {
@@ -206,7 +207,7 @@ export const collection: CollectionOptions = {
         },
         type: 'boolean',
         'x-component': 'Checkbox',
-        title: '在客户端加载',
+        title: tval('Load on client'),
       },
     },
     {
@@ -223,7 +224,7 @@ export const collection: CollectionOptions = {
         },
         type: 'boolean',
         'x-component': 'Checkbox',
-        title: '在服务端加载',
+        title: tval('Load on server'),
       },
     },
     {
@@ -237,7 +238,7 @@ export const collection: CollectionOptions = {
       uiSchema: {
         type: 'string',
         'x-component': 'Input',
-        title: '模块名称',
+        title: tval('Module name'),
       },
     },
     {
@@ -251,7 +252,7 @@ export const collection: CollectionOptions = {
       uiSchema: {
         type: 'string',
         'x-component': 'Input',
-        title: '服务端插件',
+        title: tval('Server plugin'),
       },
     },
     {
@@ -265,7 +266,7 @@ export const collection: CollectionOptions = {
       uiSchema: {
         type: 'string',
         'x-component': 'Input',
-        title: '客户端插件',
+        title: tval('Client plugin'),
       },
     },
     {
@@ -279,7 +280,7 @@ export const collection: CollectionOptions = {
       uiSchema: {
         type: 'string',
         'x-component': 'Input',
-        title: '客户端组件',
+        title: tval('Client component'),
       },
     },
   ],

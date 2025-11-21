@@ -1,3 +1,5 @@
+import './polyfills/promise-with-resolvers';
+
 import ReactDOM from 'react-dom/client';
 
 import App from './App';

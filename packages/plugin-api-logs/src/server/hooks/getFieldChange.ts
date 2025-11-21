@@ -1,4 +1,5 @@
 import { ActionParams, Application, IField } from '@tego/server';
+
 import lodash from 'lodash';
 
 function isSameBasic(val1: any, val2: any): boolean {
@@ -136,7 +137,7 @@ export async function getChanged(ctx, filterByTk): Promise<{ changed?: string[];
       changed,
     };
   } catch (err) {
-    ctx.log.error(err);
+    ctx.logger.error(err);
     return {
       error: err.stack,
     };

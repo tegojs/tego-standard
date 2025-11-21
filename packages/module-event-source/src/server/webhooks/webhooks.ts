@@ -146,7 +146,7 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
         changed,
       };
     } catch (err) {
-      ctx.log.error(err);
+      ctx.logger.error(err);
       return {
         error: err.stack,
       };

@@ -524,6 +524,7 @@ export const findFilterTargets = (fieldSchema): FilterTarget => {
   }
   return {};
 };
+
 export const updateFilterTargets = (fieldSchema, targets: FilterTarget['targets']) => {
   while (fieldSchema) {
     if (fieldSchema['x-filter-targets']) {
@@ -543,7 +544,6 @@ export const useFilterBlockActionProps = () => {
   const { getCollectionJoinField } = useCollectionManager_deprecated();
 
   actionField.data = actionField.data || {};
-
   return {
     async onClick() {
       const { targets = [], uid } = findFilterTargets(fieldSchema);

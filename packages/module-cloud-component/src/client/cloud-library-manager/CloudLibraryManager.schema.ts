@@ -94,6 +94,14 @@ const create = {
                       properties: {
                         module: fieldsets.module,
                         name: fieldsets.name,
+                        codeSource: fieldsets.codeSource,
+                        codeType: fieldsets.codeType,
+                        codeUrl: fieldsets.codeUrl,
+                        gitUrlPreview: fieldsets.gitUrlPreview,
+                        codeAuthType: fieldsets.codeAuthType,
+                        codeAuthToken: fieldsets.codeAuthToken,
+                        codeAuthUsername: fieldsets.codeAuthUsername,
+                        syncRemoteCodeButton: fieldsets.syncRemoteCodeButton,
                       },
                     },
                   },
@@ -169,6 +177,10 @@ const edit = {
                               },
                               type: 'void',
                             },
+                            compile: {
+                              type: 'void',
+                              'x-component': 'CompileButton',
+                            },
                             history: {
                               // TODO 查看版本，可以选择特定版本并且覆盖当前信息，不自动发版
                               title: tval('History'),
@@ -223,6 +235,14 @@ const edit = {
                         tab: tval('Develop'),
                       },
                       properties: {
+                        codeSource: fieldsets.codeSource,
+                        codeType: fieldsets.codeType,
+                        codeUrl: fieldsets.codeUrl,
+                        gitUrlPreview: fieldsets.gitUrlPreview,
+                        codeAuthType: fieldsets.codeAuthType,
+                        codeAuthToken: fieldsets.codeAuthToken,
+                        codeAuthUsername: fieldsets.codeAuthUsername,
+                        syncRemoteCodeButton: fieldsets.syncRemoteCodeButton,
                         code: fieldsets.code,
                       },
                     },
@@ -267,6 +287,7 @@ export const table = {
     action: 'list',
     params: {
       pageSize: 20,
+      sort: ['-createdAt'], // 按创建时间倒序排列
     },
     rowKey: 'id',
     showIndex: true,

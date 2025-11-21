@@ -1,28 +1,102 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { css } from '@tachybase/client';
-import { connect } from '@tachybase/schema';
+import { connect, useField, useForm } from '@tachybase/schema';
+import { CodeEditor } from '@tego/client';
 
 import * as Babel from '@babel/standalone';
-import { CodeEditor } from '@tego/client';
 import { useDebounceFn, useKeyPress } from 'ahooks';
 import { Spin, Splitter } from 'antd';
 import parserJavaScript from 'prettier/plugins/babel';
 import prettierPluginEstree from 'prettier/plugins/estree';
 import * as prettier from 'prettier/standalone';
 
+import { CompileCache, CompileError } from '../../types';
+import { useTranslation } from '../locale';
+import { registerCompileFunction } from './CompileButton';
 import ComPreview from './Preview';
 
-/**
- * 组件代码编辑
- */
 export default connect(({ value: code, onChange: setCode }) => {
+  const { t } = useTranslation();
+  const form = useForm();
+  const field = useField();
   const [compileCode, setCompileCode] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const editorRef = useRef<any>(null);
+  const [error, setError] = useState<CompileError | null>(null);
+  const [loading, setLoading] = useState(false); // 初始不加载，等待手动编译
 
-  // 保存后，格式化代码
+  // 检查代码来源，如果是远程代码则设置为只读
+  const codeSource = form.values?.codeSource;
+  const isReadOnly = codeSource === 'remote';
+  // Monaco Editor 类型定义
+  interface MonacoEditor {
+    deltaDecorations?: (oldDecorations: any[], newDecorations: any[]) => any[];
+    getModel?: () => { getLineLength: (lineNumber: number) => number } | null;
+    revealLineInCenter?: (lineNumber: number) => void;
+    updateOptions?: (options: any) => void;
+    [key: string]: any; // 允许访问其他 Monaco Editor 属性
+  }
+
+  const editorRef = useRef<MonacoEditor | null>(null);
+
+  // 使用 useMemo 创建响应式的编辑器选项
+  const editorOptions = useMemo(
+    () => ({
+      lineNumbers: 'on' as const,
+      minimap: {
+        enabled: false,
+      },
+      readOnly: isReadOnly, // 远程代码时设置为只读
+      // 自动补全配置（仅在本地代码模式下启用）
+      quickSuggestions: !isReadOnly
+        ? {
+            other: true,
+            comments: true,
+            strings: true,
+          }
+        : false,
+      suggestOnTriggerCharacters: !isReadOnly,
+      acceptSuggestionOnCommitCharacter: !isReadOnly,
+      acceptSuggestionOnEnter: (!isReadOnly ? 'on' : 'off') as 'on' | 'off',
+      tabCompletion: (!isReadOnly ? 'on' : 'off') as 'on' | 'off',
+      wordBasedSuggestions: (!isReadOnly ? 'allDocuments' : 'off') as 'allDocuments' | 'off',
+      snippetSuggestions: (!isReadOnly ? 'top' : 'none') as 'top' | 'none',
+      // 其他编辑器增强功能
+      autoIndent: (!isReadOnly ? 'full' : 'none') as 'full' | 'none',
+      formatOnPaste: !isReadOnly,
+      formatOnType: !isReadOnly,
+      codeLens: !isReadOnly,
+      folding: true,
+      bracketPairColorization: {
+        enabled: !isReadOnly,
+      },
+    }),
+    [isReadOnly],
+  );
+
+  // 监听 codeSource 变化，动态更新编辑器的只读状态
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (editor) {
+      // 尝试使用 updateOptions 方法（Monaco Editor 的标准方法）
+      if (typeof editor.updateOptions === 'function') {
+        editor.updateOptions(editorOptions);
+      } else {
+        // 如果 updateOptions 不存在，尝试直接访问编辑器实例
+        // Monaco Editor 的实例通常可以通过 getEditor 或直接访问
+        const monacoEditor = (editor as any).getEditor?.() || editor;
+        if (monacoEditor && typeof monacoEditor.updateOptions === 'function') {
+          monacoEditor.updateOptions(editorOptions);
+        }
+      }
+    }
+  }, [codeSource, isReadOnly, editorOptions]);
+  // 编译缓存：避免重复编译相同代码
+  const compileCacheRef = useRef<CompileCache | null>(null);
+
+  // 保存后，格式化代码（仅在非只读模式下启用）
   useKeyPress(['meta.s', 'ctrl.s'], async (event) => {
+    if (isReadOnly) {
+      return; // 只读模式下禁用格式化
+    }
     try {
       event.stopPropagation();
       event.preventDefault();
@@ -41,39 +115,196 @@ export default connect(({ value: code, onChange: setCode }) => {
         endOfLine: 'auto', // 行尾风格
       });
       setCode(formatted);
-      setError('');
-    } catch (error: any) {
-      setError(error.message);
-      console.error(error);
+      setError(null);
+    } catch (error: unknown) {
+      const parsedError = parseBabelError(error);
+      setError(parsedError);
+      markErrorInEditor(parsedError);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[ComponentEditor] Format error:', error);
+      }
     }
   });
 
-  // 实时保存代码
+  // 实时保存代码（仅在非只读模式下启用）
   const onChange = (value: string = '') => {
+    if (isReadOnly) {
+      return; // 只读模式下不允许修改
+    }
     setCode(value);
   };
 
-  // 编译代码
-  const handleCompile = async () => {
-    if (!code) return;
+  // 解析 Babel 错误信息
+  const parseBabelError = (error: unknown): CompileError => {
+    const err = error as { message?: string; loc?: { line?: number; column?: number } };
+    const errorMessage: CompileError = {
+      message: err?.message || String(error),
+      rawMessage: err?.message || String(error),
+    };
+
+    // 尝试从错误信息中提取行号和列号
+    if (err?.loc) {
+      errorMessage.line = err.loc.line;
+      errorMessage.column = err.loc.column;
+    } else if (err?.message) {
+      // 尝试从错误消息中解析行号 (例如: "Unexpected token (5:10)")
+      const lineMatch = err.message.match(/\((\d+):(\d+)\)/);
+      if (lineMatch) {
+        errorMessage.line = parseInt(lineMatch[1], 10);
+        errorMessage.column = parseInt(lineMatch[2], 10);
+      }
+    }
+
+    // 格式化错误消息
+    if (errorMessage.line && errorMessage.column) {
+      errorMessage.message =
+        t('Location: Line {line}, Column {column}', {
+          line: errorMessage.line,
+          column: errorMessage.column,
+        }) + `: ${errorMessage.rawMessage}`;
+    } else if (errorMessage.line) {
+      errorMessage.message =
+        t('Location: Line {line}', {
+          line: errorMessage.line,
+        }) + `: ${errorMessage.rawMessage}`;
+    }
+
+    return errorMessage;
+  };
+
+  // 在编辑器中标记错误位置
+  const markErrorInEditor = (error: CompileError) => {
+    if (!editorRef.current || !error.line) return;
+
+    try {
+      const editor = editorRef.current;
+      const monaco = (window as any).monaco;
+
+      if (monaco && editor.getModel) {
+        const model = editor.getModel();
+        if (model) {
+          // 清除之前的标记
+          const decorations = editor.deltaDecorations([], []);
+
+          // 添加新的错误标记
+          const lineNumber = error.line;
+          const column = error.column || 1;
+          const endColumn = model.getLineLength(lineNumber) + 1;
+
+          editor.deltaDecorations(decorations, [
+            {
+              range: new monaco.Range(lineNumber, column, lineNumber, endColumn),
+              options: {
+                isWholeLine: !error.column,
+                className: 'error-line',
+                glyphMarginClassName: 'error-glyph',
+                hoverMessage: { value: error.rawMessage || error.message },
+              },
+            },
+          ]);
+
+          // 跳转到错误行
+          editor.revealLineInCenter(lineNumber);
+        }
+      }
+    } catch (e) {
+      // 如果编辑器 API 不可用，忽略
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[ComponentEditor] Failed to mark error in editor:', e);
+      }
+    }
+  };
+
+  // 编译代码（带缓存）
+  const handleCompile = React.useCallback(async () => {
+    if (!code) {
+      setCompileCode('');
+      setError(null);
+      setLoading(false);
+      compileCacheRef.current = null;
+      return;
+    }
+
+    // 检查缓存
+    if (compileCacheRef.current && compileCacheRef.current.code === code) {
+      setCompileCode(compileCacheRef.current.result);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const result = Babel.transform(code, {
         filename: 'file.tsx',
         presets: [['env', { modules: 'amd' }], 'react', 'typescript'],
-      }).code;
-      setLoading(false);
-      setCompileCode(result);
-      setError('');
-    } catch (error: any) {
-      setError(error.message);
-      setLoading(false);
-      console.error(error);
-    }
-  };
+      });
 
+      if (!result || !result.code) {
+        throw new Error(t('Compilation failed: No code generated'));
+      }
+
+      // 更新缓存
+      compileCacheRef.current = {
+        code,
+        result: result.code,
+        timestamp: Date.now(),
+      };
+
+      setLoading(false);
+      setCompileCode(result.code);
+      setError(null);
+
+      // 清除编辑器中的错误标记
+      if (editorRef.current) {
+        try {
+          const editor = editorRef.current;
+          if (editor.deltaDecorations) {
+            editor.deltaDecorations([], []);
+          }
+        } catch (e) {
+          // 忽略
+        }
+      }
+    } catch (error: unknown) {
+      const parsedError = parseBabelError(error);
+      setError(parsedError);
+      setLoading(false);
+      // 清除缓存（编译失败）
+      compileCacheRef.current = null;
+
+      // 在编辑器中标记错误
+      markErrorInEditor(parsedError);
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[ComponentEditor] Compilation error:', error);
+      }
+    }
+  }, [code, t]);
+
+  // 检查代码来源，决定是否自动编译
+  const isLocalCode = codeSource === 'local' || !codeSource;
+
+  // 仅在非本地代码模式下自动编译（远程代码模式保持实时编译以预览）
   useEffect(() => {
-    handleCompile();
-  }, [code]);
+    if (!isLocalCode && code) {
+      setLoading(true);
+      handleCompile();
+    }
+  }, [code, isLocalCode, handleCompile]);
+
+  // 手动触发编译的函数（供编译按钮使用）
+  const triggerCompile = React.useCallback(() => {
+    if (code) {
+      setLoading(true);
+      handleCompile();
+    }
+  }, [code, handleCompile]);
+
+  // 注册编译函数到全局注册表
+  useEffect(() => {
+    const unregister = registerCompileFunction(triggerCompile);
+    return unregister;
+  }, [triggerCompile]);
 
   const { run } = useDebounceFn(onChange, { wait: 500 });
 
@@ -89,23 +320,50 @@ export default connect(({ value: code, onChange: setCode }) => {
             defaultLanguage="typescript"
             value={code}
             onChange={(value) => {
-              setLoading(true);
+              if (isReadOnly) {
+                return; // 只读模式下不允许修改
+              }
+              // 本地代码模式下不自动触发编译
+              if (!isLocalCode) {
+                setLoading(true);
+              }
               run(value);
             }}
-            options={{
-              lineNumbers: 'on',
-              minimap: {
-                enabled: false,
-              },
-            }}
+            options={editorOptions}
             height="100%"
             onMount={(editor) => (editorRef.current = editor)}
           />
         </Splitter.Panel>
         <Splitter.Panel defaultSize="50%">
-          <Spin spinning={loading} tip="正在编译中...">
-            <ComPreview compileCode={compileCode} />
-            {error && <p style={{ color: 'red', lineHeight: '30px', padding: 30 }}>{error}</p>}
+          <Spin spinning={loading} tip={t('Compiling...')}>
+            {error ? (
+              <div
+                style={{
+                  padding: '20px',
+                  backgroundColor: '#fff2f0',
+                  border: '1px solid #ffccc7',
+                  borderRadius: '4px',
+                  margin: '20px',
+                }}
+              >
+                <h3 style={{ color: '#ff4d4f', marginTop: 0, marginBottom: '12px' }}>{t('Compilation error')}</h3>
+                <p style={{ color: '#ff4d4f', lineHeight: '24px', margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {error.message}
+                </p>
+                {error.line && (
+                  <p style={{ color: '#8c8c8c', fontSize: '12px', marginTop: '8px', marginBottom: 0 }}>
+                    {error.column
+                      ? t('Location: Line {line}, Column {column}', {
+                          line: error.line,
+                          column: error.column,
+                        })
+                      : t('Location: Line {line}', { line: error.line })}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <ComPreview compileCode={compileCode} />
+            )}
           </Spin>
         </Splitter.Panel>
       </Splitter>

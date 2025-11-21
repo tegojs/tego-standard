@@ -7,6 +7,7 @@ import Topo from '@hapi/topo';
 
 import { getModuleMappings, resolveModuleName } from '../config/module-mapping';
 import { CloudCompiler } from './cloud-compiler';
+import { RemoteCodeFetcher } from './remote-code-fetcher';
 
 @Service()
 export class CloudLibrariesService {
@@ -22,6 +23,9 @@ export class CloudLibrariesService {
   @Inject(() => CloudCompiler)
   private compiler: CloudCompiler;
 
+  @Inject(() => RemoteCodeFetcher)
+  private remoteCodeFetcher: RemoteCodeFetcher;
+
   async compileLibraries() {
     const libRepo = this.app.db.getRepository('cloudLibraries');
     const libs = await libRepo.find({
@@ -35,6 +39,12 @@ export class CloudLibrariesService {
       const {
         name,
         code: debugCode,
+        codeSource = 'local',
+        codeType,
+        codeUrl,
+        codeBranch = 'main',
+        codePath,
+        codeCache,
         module,
         isClient,
         isServer,
@@ -46,10 +56,59 @@ export class CloudLibrariesService {
         versions,
       } = lib;
 
-      // load specified version
-      let code = debugCode;
-      if (version && version !== 'debug') {
-        code = versions[Number[version]].code;
+      // 根据代码来源确定使用哪份代码
+      let code: string;
+
+      if (codeSource === 'remote' && codeUrl && codeType) {
+        // 代码来源为远程：使用远程代码
+        try {
+          // 检查缓存
+          if (this.remoteCodeFetcher.isCacheValid(codeCache)) {
+            this.logger.info(`[${module}] Using cached remote code`);
+            code = codeCache.content;
+          } else {
+            // 从远程获取代码（使用前端指定的类型）
+            this.logger.info(`[${module}] Fetching remote code from ${codeUrl} (type: ${codeType})`);
+            code = await this.remoteCodeFetcher.fetchCode(codeUrl, codeType, codeBranch, codePath);
+
+            // 更新缓存
+            const libRepo = this.app.db.getRepository('cloudLibraries');
+            await libRepo.update({
+              filterByTk: lib.id,
+              values: {
+                codeCache: {
+                  content: code,
+                  timestamp: Date.now(),
+                },
+              },
+            });
+            this.logger.info(`[${module}] Remote code fetched and cached successfully`);
+          }
+        } catch (error) {
+          this.logger.error(`[${module}] Failed to fetch remote code`, {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          // 如果远程获取失败，使用缓存或本地代码作为后备
+          if (codeCache?.content) {
+            this.logger.warn(`[${module}] Using cached code as fallback`);
+            code = codeCache.content;
+          } else {
+            this.logger.warn(`[${module}] Remote code fetch failed, falling back to local code`);
+            // 降级到本地代码
+            code = debugCode;
+            if (version && version !== 'debug') {
+              code = versions[Number[version]].code;
+            }
+          }
+        }
+      } else {
+        // 代码来源为本地：使用本地代码
+        code = debugCode;
+        // load specified version
+        if (version && version !== 'debug') {
+          code = versions[Number[version]].code;
+        }
+        this.logger.debug(`[${module}] Using local code (source: ${codeSource || 'local'})`);
       }
 
       const clientCode = this.compiler.toAmd(code);

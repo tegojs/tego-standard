@@ -12,7 +12,121 @@ import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
 
 export class ScriptInstruction extends Instruction {
   async run(node: FlowNodeModel, input: any, processor: Processor) {
-    const { sourceArray, type, code = '', model } = node.config;
+    const {
+      sourceArray,
+      type,
+      code = '',
+      model,
+      codeSource = 'local',
+      codeType,
+      codeUrl,
+      codeBranch = 'main',
+      codePath,
+      codeAuthType,
+      codeAuthToken,
+      codeAuthUsername,
+    } = node.config;
+
+    // 如果配置了远程代码，先从远程获取代码
+    let actualCode = code;
+    if (codeSource === 'remote' && codeUrl && codeType) {
+      try {
+        const app = processor.options.plugin.app;
+        let remoteCodeFetcher;
+
+        // 尝试获取 RemoteCodeFetcher 服务
+        try {
+          const cloudComponentPlugin = app.pm.get('@tego/module-cloud-component');
+          if (cloudComponentPlugin) {
+            remoteCodeFetcher = app.getService('RemoteCodeFetcher');
+          }
+        } catch (error) {
+          try {
+            remoteCodeFetcher = app.getService('RemoteCodeFetcher');
+          } catch (e) {
+            app.logger.warn('RemoteCodeFetcher service not found, using fallback implementation');
+          }
+        }
+
+        if (remoteCodeFetcher) {
+          // 使用 RemoteCodeFetcher 服务
+          actualCode = await remoteCodeFetcher.fetchCode(
+            codeUrl,
+            codeType,
+            codeBranch,
+            codePath,
+            codeAuthType,
+            codeAuthToken,
+            codeAuthUsername,
+          );
+        } else {
+          // 使用简单的 HTTP 请求实现
+          const http = require('node:http');
+          const https = require('node:https');
+          const { URL } = require('node:url');
+
+          const urlObj = new URL(codeUrl);
+          const client = urlObj.protocol === 'https:' ? https : http;
+
+          actualCode = await new Promise<string>((resolve, reject) => {
+            const headers: Record<string, string> = {
+              'User-Agent': 'TegoWorkflow/1.0',
+            };
+
+            if (codeAuthType === 'token' && codeAuthToken) {
+              headers['Authorization'] = `Bearer ${codeAuthToken}`;
+            } else if (codeAuthType === 'basic' && codeAuthUsername && codeAuthToken) {
+              const credentials = Buffer.from(`${codeAuthUsername}:${codeAuthToken}`).toString('base64');
+              headers['Authorization'] = `Basic ${credentials}`;
+            }
+
+            const request = client.get(
+              {
+                hostname: urlObj.hostname,
+                port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+                path: urlObj.pathname + urlObj.search,
+                headers,
+                timeout: 10000,
+              },
+              (res) => {
+                if (res.statusCode !== 200) {
+                  reject(new Error(`Failed to fetch: HTTP ${res.statusCode}`));
+                  return;
+                }
+
+                let data = '';
+                res.on('data', (chunk) => {
+                  data += chunk;
+                });
+
+                res.on('end', () => {
+                  resolve(data);
+                });
+              },
+            );
+
+            request.on('error', reject);
+            request.on('timeout', () => {
+              request.destroy();
+              reject(new Error('Request timeout'));
+            });
+          });
+        }
+      } catch (error) {
+        const app = processor.options.plugin.app;
+        app.logger.error('Failed to fetch remote code for script node', {
+          error: error instanceof Error ? error.message : String(error),
+          nodeId: node.id,
+          codeUrl,
+        });
+        // 如果远程获取失败，使用本地代码或抛出错误
+        if (!code) {
+          throw new Error(`Failed to fetch remote code: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        // 如果本地有代码，继续使用本地代码
+        actualCode = code;
+      }
+    }
     // 1. 获取数据源
     let data = {};
 
@@ -54,13 +168,13 @@ export class ScriptInstruction extends Instruction {
       let result = {};
       switch (type) {
         case 'jsonata':
-          result = await convertByJSONata(code, data);
+          result = await convertByJSONata(actualCode, data);
           break;
         case 'js':
-          result = await convertByJsCode(code, data);
+          result = await convertByJsCode(actualCode, data);
           break;
         case 'ts':
-          result = await convertByTsCode(code, data, processor);
+          result = await convertByTsCode(actualCode, data, processor);
           break;
         default:
       }

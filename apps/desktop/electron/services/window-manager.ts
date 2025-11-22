@@ -17,7 +17,11 @@ let mainWindow: BrowserWindow | null = null;
 function checkServer(port: string): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const req = http.get(`http://localhost:${port}`, (res: http.IncomingMessage) => {
-      resolve(res.statusCode === 200 || res.statusCode === 304);
+      // 消费响应数据，避免资源泄漏
+      res.on('data', () => {});
+      res.on('end', () => {
+        resolve(res.statusCode === 200 || res.statusCode === 304);
+      });
     });
     req.on('error', () => {
       resolve(false);

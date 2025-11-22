@@ -11,3 +11,8 @@ node_modules/
 app/
 web-dist-temp/
 
+temp-dmg/
+
+# Build resources (binary files)
+build/node/
+

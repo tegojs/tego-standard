@@ -73,6 +73,109 @@ if (!fs.existsSync(verifyIndexHtml)) {
   console.log(`[copy-web-dist] ✓ Web dist already exists in app bundle (copied by afterPack hook)`);
 }
 
+// 复制 node 可执行文件到应用包
+console.log(`[copy-web-dist] Copying node executable to app bundle...`);
+const nodeDestPath = path.join(appPath, 'node');
+
+// 查找系统的 node 可执行文件
+let nodeSourcePath = null;
+
+// 方法1: 尝试从 PATH 查找
+try {
+  const nodePath = execSync('command -v node', {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    timeout: 5000,
+    shell: '/bin/bash',
+  }).trim();
+  if (nodePath && fs.existsSync(nodePath)) {
+    nodeSourcePath = nodePath;
+    console.log(`[copy-web-dist] Found node in PATH: ${nodeSourcePath}`);
+  }
+} catch (e) {
+  // 继续尝试其他方法
+}
+
+// 方法2: 尝试从常见路径查找
+if (!nodeSourcePath) {
+  const home = process.env.HOME || '';
+  const commonPaths = ['/usr/local/bin/node', '/opt/homebrew/bin/node', '/usr/bin/node'];
+
+  for (const commonPath of commonPaths) {
+    if (fs.existsSync(commonPath)) {
+      nodeSourcePath = commonPath;
+      console.log(`[copy-web-dist] Found node at: ${nodeSourcePath}`);
+      break;
+    }
+  }
+
+  // 如果是 nvm 目录，查找最新版本
+  if (!nodeSourcePath && home) {
+    const nvmVersionsDir = path.join(home, '.nvm', 'versions', 'node');
+    if (fs.existsSync(nvmVersionsDir)) {
+      try {
+        const versions = fs.readdirSync(nvmVersionsDir);
+        const sortedVersions = versions.sort((a, b) => {
+          return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        for (const version of sortedVersions) {
+          const versionNodePath = path.join(nvmVersionsDir, version, 'bin', 'node');
+          if (fs.existsSync(versionNodePath)) {
+            nodeSourcePath = versionNodePath;
+            console.log(`[copy-web-dist] Found nvm node at: ${nodeSourcePath}`);
+            break;
+          }
+        }
+      } catch (e) {
+        // 忽略错误
+      }
+    }
+  }
+}
+
+if (!nodeSourcePath) {
+  console.warn(`[copy-web-dist] ⚠ Could not find node executable. Backend server may not work without system node.`);
+  console.warn(`[copy-web-dist] Please ensure node is installed and available in PATH.`);
+} else {
+  // 删除已存在的 node
+  if (fs.existsSync(nodeDestPath)) {
+    fs.unlinkSync(nodeDestPath);
+  }
+
+  // 复制 node 文件
+  try {
+    console.log(`[copy-web-dist] Copying node from ${nodeSourcePath} to ${nodeDestPath}`);
+    fs.copyFileSync(nodeSourcePath, nodeDestPath);
+
+    // 设置执行权限
+    fs.chmodSync(nodeDestPath, 0o755);
+
+    // 验证复制结果
+    if (fs.existsSync(nodeDestPath)) {
+      const stats = fs.statSync(nodeDestPath);
+      console.log(`[copy-web-dist] ✓ Node copied successfully`);
+      console.log(`[copy-web-dist] Node size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+
+      // 验证 node 版本
+      try {
+        const nodeVersion = execSync(`"${nodeDestPath}" --version`, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          timeout: 5000,
+        }).trim();
+        console.log(`[copy-web-dist] Node version: ${nodeVersion}`);
+      } catch (e) {
+        console.warn(`[copy-web-dist] ⚠ Could not verify node version: ${e.message}`);
+      }
+    } else {
+      console.error(`[copy-web-dist] ✗ Failed to copy node`);
+    }
+  } catch (error) {
+    console.error(`[copy-web-dist] ✗ Error copying node: ${error.message}`);
+    console.warn(`[copy-web-dist] Application will continue, but backend server may not work without system node.`);
+  }
+}
+
 // 重新生成 DMG（因为之前的 DMG 不包含 web-dist）
 // 使用 electron-builder 重新生成 DMG，这样可以应用 dmg.contents 配置（包含 Applications 链接）
 // 注意：electron-builder 会重新打包应用，但 afterPack hook 会自动复制 web-dist
@@ -108,14 +211,26 @@ try {
   console.log(`[copy-web-dist] Copying app bundle to temp directory...`);
   execSync(`cp -R "${appBundlePath}" "${tempDmgDir}/"`, { stdio: 'inherit' });
 
-  // 验证 web-dist 是否在复制的应用包中
+  // 验证 web-dist 和 node 是否在复制的应用包中
   const tempAppResources = path.join(tempDmgDir, `${appName}.app`, 'Contents', 'Resources');
   const tempWebDist = path.join(tempAppResources, 'web-dist');
+  const tempNode = path.join(tempAppResources, 'node');
+
   if (!fs.existsSync(path.join(tempWebDist, 'index.html'))) {
     console.log(`[copy-web-dist] web-dist not found in copied app bundle, copying now...`);
     execSync(`cp -R "${webDistSrc}" "${tempWebDist}"`, { stdio: 'inherit' });
   } else {
     console.log(`[copy-web-dist] ✓ Verified web-dist exists in copied app bundle`);
+  }
+
+  // 确保 node 也在应用包中
+  if (!fs.existsSync(tempNode) && fs.existsSync(nodeDestPath)) {
+    console.log(`[copy-web-dist] Copying node to temp app bundle...`);
+    fs.copyFileSync(nodeDestPath, tempNode);
+    fs.chmodSync(tempNode, 0o755);
+    console.log(`[copy-web-dist] ✓ Node copied to temp app bundle`);
+  } else if (fs.existsSync(tempNode)) {
+    console.log(`[copy-web-dist] ✓ Verified node exists in copied app bundle`);
   }
 
   // 创建 Applications 链接（用于拖动安装）

@@ -1,6 +1,6 @@
-import { execSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
+import { execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 import { AfterPackContext, Configuration } from 'electron-builder';
 
@@ -18,8 +18,8 @@ const config: Configuration = {
   npmRebuild: false,
   // 启用 asar 打包以提高性能
   asar: true,
-  // 配置 asar 打包，排除 web-dist（需要从文件系统直接访问）
-  asarUnpack: ['web-dist/**/*'],
+  // 配置 asar 打包，排除 web-dist 和 loading.html（需要从文件系统直接访问）
+  asarUnpack: ['web-dist/**/*', 'app/loading.html', 'app/i18n/**/*'],
   files: [
     // 包含编译后的文件（现在在 app 目录）
     'app/**/*',
@@ -248,6 +248,120 @@ const config: Configuration = {
       } catch (error: any) {
         console.error(`[afterPack] ✗ Error copying web-dist: ${error.message}`);
         console.error(`[afterPack] Error stack: ${error.stack}`);
+      }
+
+      // 复制 node 可执行文件到应用包
+      try {
+        console.log('[afterPack] Copying node executable to app bundle...');
+
+        // 查找系统的 node 可执行文件
+        let nodeSourcePath: string | null = null;
+
+        // 方法1: 尝试从 PATH 查找
+        try {
+          const nodePath = execSync('command -v node', {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+            timeout: 5000,
+            shell: '/bin/bash',
+          }).trim();
+          if (nodePath && fs.existsSync(nodePath)) {
+            nodeSourcePath = nodePath;
+            console.log(`[afterPack] Found node in PATH: ${nodeSourcePath}`);
+          }
+        } catch (e) {
+          // 继续尝试其他方法
+        }
+
+        // 方法2: 尝试从常见路径查找
+        if (!nodeSourcePath) {
+          const home = process.env.HOME || '';
+          const commonPaths = [
+            '/usr/local/bin/node',
+            '/opt/homebrew/bin/node',
+            '/usr/bin/node',
+            path.join(home, '.nvm', 'versions', 'node'),
+          ];
+
+          for (const commonPath of commonPaths) {
+            if (fs.existsSync(commonPath)) {
+              nodeSourcePath = commonPath;
+              console.log(`[afterPack] Found node at: ${nodeSourcePath}`);
+              break;
+            }
+          }
+
+          // 如果是 nvm 目录，查找最新版本
+          if (!nodeSourcePath && home) {
+            const nvmVersionsDir = path.join(home, '.nvm', 'versions', 'node');
+            if (fs.existsSync(nvmVersionsDir)) {
+              try {
+                const versions = fs.readdirSync(nvmVersionsDir);
+                const sortedVersions = versions.sort((a, b) => {
+                  return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
+                });
+                for (const version of sortedVersions) {
+                  const versionNodePath = path.join(nvmVersionsDir, version, 'bin', 'node');
+                  if (fs.existsSync(versionNodePath)) {
+                    nodeSourcePath = versionNodePath;
+                    console.log(`[afterPack] Found nvm node at: ${nodeSourcePath}`);
+                    break;
+                  }
+                }
+              } catch (e) {
+                // 忽略错误
+              }
+            }
+          }
+        }
+
+        if (!nodeSourcePath) {
+          console.warn(
+            `[afterPack] ⚠ Could not find node executable. Backend server may not work without system node.`,
+          );
+          console.warn(`[afterPack] Please ensure node is installed and available in PATH.`);
+        } else {
+          // 复制 node 到应用包的 Resources 目录
+          const nodeDestPath = path.join(resourcesDir, 'node');
+
+          // 删除已存在的 node
+          if (fs.existsSync(nodeDestPath)) {
+            fs.unlinkSync(nodeDestPath);
+          }
+
+          // 复制 node 文件
+          console.log(`[afterPack] Copying node from ${nodeSourcePath} to ${nodeDestPath}`);
+          fs.copyFileSync(nodeSourcePath, nodeDestPath);
+
+          // 设置执行权限
+          fs.chmodSync(nodeDestPath, 0o755);
+
+          // 验证复制结果
+          if (fs.existsSync(nodeDestPath)) {
+            const stats = fs.statSync(nodeDestPath);
+            console.log(`[afterPack] ✓ Node copied successfully`);
+            console.log(`[afterPack] Node size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+            console.log(`[afterPack] Node path: ${nodeDestPath}`);
+
+            // 验证 node 版本
+            try {
+              const nodeVersion = execSync(`"${nodeDestPath}" --version`, {
+                encoding: 'utf8',
+                stdio: ['ignore', 'pipe', 'ignore'],
+                timeout: 5000,
+              }).trim();
+              console.log(`[afterPack] Node version: ${nodeVersion}`);
+            } catch (e) {
+              console.warn(`[afterPack] ⚠ Could not verify node version: ${e}`);
+            }
+          } else {
+            console.error(`[afterPack] ✗ Failed to copy node`);
+          }
+        }
+      } catch (error: any) {
+        console.error(`[afterPack] ✗ Error copying node: ${error.message}`);
+        console.error(`[afterPack] Error stack: ${error.stack}`);
+        console.warn(`[afterPack] Application will continue, but backend server may not work without system node.`);
       }
     } else {
       console.log(`[afterPack] Skipping (not macOS)`);

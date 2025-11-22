@@ -38,24 +38,124 @@ function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean): void
   }
 
   const appPort = process.env.APP_PORT || '3000';
+  // 用于跟踪重定向，避免无限循环
+  const redirectHistory = new Set<string>();
+
+  // 添加响应头拦截器，确保 CORS 头正确设置
+  window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    // 如果是插件模块请求，确保 CORS 头正确设置
+    if (details.url.includes('/static/plugins/') || details.url.includes('@tachybase/')) {
+      const responseHeaders = {
+        ...details.responseHeaders,
+        'Access-Control-Allow-Origin': ['*'],
+        'Access-Control-Allow-Methods': ['GET', 'HEAD', 'OPTIONS'],
+        'Access-Control-Allow-Headers': ['Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
+        'Access-Control-Expose-Headers': ['Content-Length', 'Content-Type'],
+      };
+      callback({ responseHeaders });
+      return;
+    }
+    callback({});
+  });
+
   window.webContents.session.webRequest.onBeforeRequest((details, callback) => {
     const url = details.url;
 
-    // 修复包含 index.html/ 的 app:// 路径
-    // 例如：app://index.html/static/plugins/... -> app://static/plugins/...
+    // 第一步：如果已经是 http://localhost:3000 的请求，直接放行（不需要任何处理）
+    if (url.startsWith(`http://localhost:${appPort}/`) || url.startsWith(`http://127.0.0.1:${appPort}/`)) {
+      callback({});
+      return;
+    }
+
+    // 第二步：优先处理插件模块请求（必须在协议处理器之前）
+    // 检查是否是插件模块路径（包含 /static/plugins/ 或 @tachybase/）
+    if (url.includes('/static/plugins/') || url.includes('@tachybase/')) {
+      // 提取路径部分，处理多种可能的格式：
+      // - app://static/plugins/...
+      // - app://index.html/static/plugins/...
+      // - http://index.html/static/plugins/...
+      let path = url;
+
+      // 移除协议前缀（app:// 或 http://）
+      path = path.replace(/^(app|http):\/\//, '');
+
+      // 移除 index.html/ 前缀（如果存在）
+      path = path.replace(/^index\.html\//, '');
+
+      // 移除开头的斜杠（如果有）
+      if (path.startsWith('/')) {
+        path = path.slice(1);
+      }
+
+      // 确保路径以 static/plugins/ 开头
+      if (path.startsWith('static/plugins/')) {
+        // 保留查询参数（如果有）
+        const redirectUrl = `http://localhost:${appPort}/${path}`;
+        log(`[Electron] [Plugin] Redirecting: ${url} -> ${redirectUrl}`);
+        callback({ redirectURL: redirectUrl });
+        return;
+      }
+    }
+
+    // 修复包含 index.html/ 的 app:// 路径（非插件路径）
+    // 例如：app://index.html/api/... -> app://api/...
+    // 注意：app://index.html/ 应该由协议处理器处理，不需要重定向
     if (url.startsWith('app://') && url.includes('index.html/')) {
+      // 如果只是 app://index.html/（末尾只有斜杠），让协议处理器处理，不重定向
+      // 协议处理器会将 app://index.html/ 正确处理为 index.html
+      if (url === 'app://index.html/') {
+        log(`[Electron] Allowing app://index.html/ to be handled by protocol handler`);
+        callback({});
+        return;
+      }
+
+      // 避免无限重定向：如果 URL 已经在重定向历史中，直接允许请求
+      if (redirectHistory.has(url)) {
+        log(`[Electron] Avoiding redirect loop for ${url}, allowing request`);
+        redirectHistory.clear(); // 清除历史，允许正常请求
+        callback({});
+        return;
+      }
+
+      // 移除 index.html/ 前缀（例如：app://index.html/api/... -> app://api/...）
       const fixedUrl = url.replace(/app:\/\/index\.html\//, 'app://');
+
+      // 记录重定向历史
+      redirectHistory.add(url);
+      if (redirectHistory.size > 10) {
+        // 限制历史大小，避免内存泄漏
+        const first = redirectHistory.values().next().value;
+        if (first) {
+          redirectHistory.delete(first);
+        }
+      }
+
       log(`[Electron] Fixing path: ${url} -> ${fixedUrl}`);
       callback({ redirectURL: fixedUrl });
       return;
     }
 
+    // 如果请求成功，清除重定向历史
+    if (!url.includes('index.html/')) {
+      redirectHistory.clear();
+    }
+
+    // 处理 WebSocket 请求（ws:// 协议）
+    if (url.startsWith('ws://') && (url.includes('index.html') || needsRedirect(url))) {
+      const redirectUrl = redirectApiUrl(url, appPort);
+      log(`[Electron] Redirecting WebSocket request: ${url} -> ${redirectUrl}`);
+      callback({ redirectURL: redirectUrl });
+      return;
+    }
+
+    // 第三步：处理其他需要重定向的 API 请求（不包括插件模块，已在上面处理）
     if (isApiRequest(url) && needsRedirect(url)) {
       const redirectUrl = redirectApiUrl(url, appPort);
       log(`[Electron] Redirecting API request: ${url} -> ${redirectUrl}`);
       callback({ redirectURL: redirectUrl });
       return;
     }
+
     callback({});
   });
 }
@@ -200,20 +300,65 @@ function handleDevServerWait(window: BrowserWindow, startUrl: string, webPort: s
  * 获取 loading 页面路径
  */
 function getLoadingPagePath(): string {
-  const possiblePaths = [
-    path.join(__dirname, 'loading.html'),
-    path.join(process.resourcesPath, 'app', 'loading.html'),
-    path.join(app.getAppPath(), 'loading.html'),
-  ];
+  // 在打包后的应用中，loading.html 在 app.asar/app/loading.html
+  // 在开发环境中，loading.html 在 electron/loading.html
+  const possiblePaths: string[] = [];
 
+  if (app.isPackaged) {
+    // 生产环境：尝试多个可能的路径
+    const appPath = app.getAppPath();
+
+    // 方法1: 尝试从 asar 中读取（Electron 可以直接读取 asar 中的文件）
+    if (appPath.endsWith('.asar')) {
+      possiblePaths.push(
+        path.join(appPath, 'app', 'loading.html'), // app.asar/app/loading.html
+      );
+    }
+
+    // 方法2: 尝试解包后的路径（如果 asarUnpack 生效）
+    possiblePaths.push(
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'app', 'loading.html'), // 解包后的路径
+      path.join(process.resourcesPath, 'app', 'loading.html'), // 直接解包到 Resources/app
+    );
+
+    // 方法3: 使用 app:// 协议（通过协议处理器加载）
+    // 这样可以确保能访问到 asar 中的文件
+    const appProtocolPath = 'app://loading.html';
+    log(`[Electron] Will try app:// protocol: ${appProtocolPath}`);
+    // 先尝试文件路径，如果都失败，最后使用 app:// 协议
+  } else {
+    // 开发环境：在 electron 目录中查找
+    possiblePaths.push(
+      path.join(__dirname, '..', 'loading.html'), // electron/loading.html
+      path.join(__dirname, 'loading.html'), // 备用路径
+    );
+  }
+
+  log(`[Electron] Searching for loading.html in ${possiblePaths.length} possible paths...`);
   for (const possiblePath of possiblePaths) {
-    if (fs.existsSync(possiblePath)) {
+    log(`[Electron] Checking: ${possiblePath}`);
+    try {
+      // 直接尝试读取文件（因为 asar 中的文件 fs.existsSync 可能无法检测）
+      fs.accessSync(possiblePath, fs.constants.F_OK);
       // 使用 file:// 协议，确保路径正确
-      return `file://${possiblePath}`;
+      const fileUrl = `file://${possiblePath}`;
+      log(`[Electron] ✓ Found loading.html at: ${possiblePath}`);
+      return fileUrl;
+    } catch (e) {
+      // 文件不存在或无法访问，继续尝试下一个路径
+      log(`[Electron]   - Not accessible: ${possiblePath}`);
     }
   }
 
+  // 如果文件路径都找不到，尝试使用 app:// 协议（通过协议处理器加载）
+  // 这样可以访问 asar 中的文件
+  if (app.isPackaged) {
+    log(`[Electron] Using app:// protocol to load loading.html`);
+    return 'app://loading.html';
+  }
+
   // 如果找不到，返回一个简单的 data URL
+  log(`[Electron] ⚠ loading.html not found, using fallback data URL`, 'warn');
   return 'data:text/html;charset=utf-8,<html><body style="font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;background:#667eea;color:#fff"><div style="text-align:center"><h1>Starting Service...</h1><p>Please wait</p></div></body></html>';
 }
 
@@ -261,6 +406,14 @@ function handleProductionServerWait(window: BrowserWindow, startUrl: string): vo
   // 先加载 loading 页面
   const loadingPath = getLoadingPagePath();
   log(`[Electron] Loading loading page: ${loadingPath}`);
+
+  // 在加载 loading 页面之前，确保窗口可见
+  // 这样可以避免白屏，用户可以看到 loading 页面
+  if (!window.isVisible()) {
+    window.show();
+    log(`[Electron] Window shown for loading page`);
+  }
+
   window.loadURL(loadingPath);
 
   // 等待 loading 页面加载完成
@@ -346,8 +499,55 @@ function handleProductionLoadErrors(window: BrowserWindow, startUrl: string): vo
  */
 export function createWindow(isDev: boolean): BrowserWindow {
   // 创建浏览器窗口
-  // preload 路径：在编译后，__dirname 指向 app/ 目录，preload.js 也在同一目录
-  const preloadPath = path.join(__dirname, 'preload.js');
+  // preload 路径：在编译后，__dirname 指向 app/services/ 目录
+  // preload.js 在 app/ 目录下，需要向上查找
+  let preloadPath: string;
+  if (isDev) {
+    // 开发环境：从 electron/services/ 目录向上找到 electron/preload.ts
+    preloadPath = path.join(__dirname, '..', 'preload.js');
+  } else {
+    // 生产环境：preload 脚本在 asar 中
+    // app.getAppPath() 在 asar 环境中返回 asar 文件路径（如 /path/to/app.asar）
+    // preload.js 在 asar 内部的 app/preload.js
+    const appPath = app.getAppPath();
+
+    // 如果 appPath 以 .asar 结尾，说明在 asar 中，preload 路径应该是 app/preload.js
+    // 如果不在 asar 中，直接使用 appPath/preload.js
+    if (appPath.endsWith('.asar')) {
+      // 在 asar 中：preload 路径应该是相对于 asar 根目录的 app/preload.js
+      preloadPath = path.join(appPath, 'app', 'preload.js');
+    } else {
+      // 不在 asar 中：直接使用 appPath/preload.js
+      preloadPath = path.join(appPath, 'preload.js');
+    }
+
+    log(`[Electron] Preload path: ${preloadPath} (appPath: ${appPath})`);
+
+    // 验证文件是否存在
+    if (!fs.existsSync(preloadPath)) {
+      log(`[Electron] ⚠ Preload file not found at ${preloadPath}, trying alternative paths...`, 'warn');
+
+      // 尝试其他可能的路径
+      const alternatives = [
+        path.join(appPath, 'preload.js'), // 如果 appPath 已经是 asar/app
+        path.join(__dirname, '..', 'preload.js'), // 从 services 目录向上
+        path.join(process.resourcesPath, 'app.asar', 'app', 'preload.js'), // 使用 process.resourcesPath
+      ];
+
+      for (const altPath of alternatives) {
+        if (fs.existsSync(altPath)) {
+          preloadPath = altPath;
+          log(`[Electron] Using alternative preload path: ${preloadPath}`);
+          break;
+        }
+      }
+
+      if (!fs.existsSync(preloadPath)) {
+        log(`[Electron] ❌ Preload file not found at any of the attempted paths`, 'error');
+        log(`[Electron] Tried: ${[preloadPath, ...alternatives].join(', ')}`, 'error');
+      }
+    }
+  }
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -363,7 +563,9 @@ export function createWindow(isDev: boolean): BrowserWindow {
     },
     titleBarStyle: process.platform === 'darwin' ? 'default' : 'default',
     frame: true,
-    show: false, // 先不显示，等加载完成后再显示
+    // 在生产环境中，立即显示窗口以显示 loading 页面，避免白屏
+    // 在开发环境中，等待 ready-to-show 事件
+    show: !isDev,
   });
 
   // 设置 API 请求拦截器
@@ -402,20 +604,58 @@ export function createWindow(isDev: boolean): BrowserWindow {
   // 开发环境下，等待服务器就绪后再加载
   if (isDev) {
     handleDevServerWait(mainWindow, startUrl, webPort);
-  } else {
-    // 生产环境：先显示 loading 页面，检查后端服务器状态
-    handleProductionServerWait(mainWindow, startUrl);
-  }
 
-  // 窗口准备好后显示
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
-
-    // 开发环境下打开开发者工具
-    if (isDev) {
+    // 窗口准备好后显示
+    mainWindow.once('ready-to-show', () => {
+      mainWindow?.show();
       mainWindow?.webContents.openDevTools();
+    });
+  } else {
+    // 生产环境：检查后端服务器是否已经在运行
+    // 如果已经在运行，直接加载主应用；如果未运行，显示 loading 页面
+    const appPort = parseInt(process.env.APP_PORT || '3000', 10);
+
+    // 异步检查服务器状态（不阻塞窗口创建）
+    checkBackendServer(appPort)
+      .then((isRunning) => {
+        const window = mainWindow;
+        if (!window) {
+          log(`[Electron] Window was closed before server check completed`, 'warn');
+          return;
+        }
+
+        if (isRunning) {
+          // 后端服务器已经在运行，直接加载主应用
+          log(`[Electron] Backend server is already running, loading main application directly...`);
+          window.loadURL(startUrl);
+          handleProductionLoadErrors(window, startUrl);
+        } else {
+          // 后端服务器未运行，显示 loading 页面并等待服务器启动
+          log(`[Electron] Backend server is not running, showing loading page...`);
+          handleProductionServerWait(window, startUrl);
+        }
+      })
+      .catch((error) => {
+        // 检查失败，显示 loading 页面（保守策略）
+        const window = mainWindow;
+        if (!window) {
+          log(`[Electron] Window was closed before server check completed`, 'warn');
+          return;
+        }
+        log(`[Electron] Failed to check backend server status: ${error.message}, showing loading page...`, 'warn');
+        handleProductionServerWait(window, startUrl);
+      });
+
+    // 窗口准备好后立即显示（不等待内容加载完成）
+    mainWindow.once('ready-to-show', () => {
+      mainWindow?.show();
+    });
+
+    // 如果 ready-to-show 已经触发，立即显示
+    if (mainWindow.webContents.isLoading() === false) {
+      mainWindow.show();
     }
-  });
+  }
 
   // 处理窗口关闭
   mainWindow.on('closed', () => {

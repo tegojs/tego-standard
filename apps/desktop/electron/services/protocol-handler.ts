@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { protocol } from 'electron';
+import { app, protocol } from 'electron';
 
 import { log } from '../utils/logger';
 import { findWebDistPath } from '../utils/path-finder';
@@ -51,6 +51,33 @@ function processHtmlContent(htmlContent: string): string {
   // 处理 /static/ 路径（插件静态资源）
   htmlContent = htmlContent.replace(/(href|src)="\/static\/([^"]+)"/g, '$1="app://static/$2"');
 
+  // 在 Electron 中注入 WebSocket URL 配置
+  // 这样 WebSocket 客户端会使用正确的 URL，而不需要修改共享代码
+  const appPort = process.env.APP_PORT || '3000';
+  const wsConfigScript = `
+    <script>
+      // Electron 桌面应用配置：设置 WebSocket URL
+      // 在 app:// 协议中，location.hostname 是 'index.html'，需要手动指定 localhost
+      (function() {
+        if (window.location.protocol === 'app:') {
+          window.__tachybase_ws_url__ = 'ws://localhost:${appPort}';
+          window.__tachybase_api_base_url__ = window.__tachybase_api_base_url__ || 'http://localhost:${appPort}/api/';
+        }
+      })();
+    </script>
+  `;
+
+  // 在 </head> 标签之前注入配置脚本
+  if (htmlContent.includes('</head>')) {
+    htmlContent = htmlContent.replace('</head>', `${wsConfigScript}</head>`);
+  } else if (htmlContent.includes('<body')) {
+    // 如果没有 </head>，在 <body> 之前注入
+    htmlContent = htmlContent.replace('<body', `${wsConfigScript}<body`);
+  } else {
+    // 如果都没有，在开头注入
+    htmlContent = wsConfigScript + htmlContent;
+  }
+
   return htmlContent;
 }
 
@@ -79,7 +106,15 @@ function handleProtocolRequest(
   // 例如：index.html/static/plugins/... -> static/plugins/...
   if (url.startsWith('index.html/')) {
     url = url.replace(/^index\.html\//, '');
-    log(`[Electron] Fixed path: ${request.url} -> ${url}`);
+    log(`[Electron] Fixed path: ${request.url} -> app://${url}`);
+  }
+
+  // 如果路径是 /static/plugins/ 或包含 @tachybase/，不应该由协议处理器处理
+  // 这些路径应该由请求拦截器重定向到后端服务器
+  if (url.startsWith('static/plugins/') || url.includes('@tachybase/')) {
+    log(`[Electron] Skipping protocol handler for plugin path: ${request.url} (should be redirected to backend)`);
+    callback({ error: -6 }); // ERR_FILE_NOT_FOUND，让请求拦截器处理
+    return;
   }
 
   // 处理根路径和 index.html
@@ -91,6 +126,52 @@ function handleProtocolRequest(
   const queryIndex = url.indexOf('?');
   if (queryIndex !== -1) {
     url = url.substring(0, queryIndex);
+  }
+
+  // 特殊处理：loading.html 在 app.asar/app/loading.html，不在 web-dist 中
+  if (url === 'loading.html') {
+    const appPath = app.getAppPath();
+    let loadingPath: string | null = null;
+
+    // 尝试多个可能的路径
+    const possibleLoadingPaths = [
+      path.join(appPath, 'app', 'loading.html'), // app.asar/app/loading.html
+      path.join(process.resourcesPath, 'app.asar', 'app', 'loading.html'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'app', 'loading.html'),
+      path.join(process.resourcesPath, 'app', 'loading.html'),
+    ];
+
+    for (const possiblePath of possibleLoadingPaths) {
+      try {
+        // 尝试读取文件（因为 asar 中的文件 fs.existsSync 可能无法检测）
+        fs.accessSync(possiblePath, fs.constants.F_OK);
+        loadingPath = possiblePath;
+        log(`[Electron] Found loading.html at: ${loadingPath}`);
+        break;
+      } catch (e) {
+        // 继续尝试下一个路径
+      }
+    }
+
+    if (loadingPath) {
+      try {
+        let htmlContent = fs.readFileSync(loadingPath, 'utf8');
+        // loading.html 不需要修改内容（不像 index.html 需要修改静态资源路径）
+        callback({
+          data: Buffer.from(htmlContent, 'utf8'),
+          mimeType: 'text/html',
+        });
+        return;
+      } catch (error: any) {
+        log(`[Electron] Error reading loading.html: ${error.message}`, 'error');
+        callback({ error: -6 });
+        return;
+      }
+    } else {
+      log(`[Electron] loading.html not found in any location`, 'error');
+      callback({ error: -6 });
+      return;
+    }
   }
 
   const filePath = path.join(webDistBasePath, url);

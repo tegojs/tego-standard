@@ -1,0 +1,13 @@
+# Electron
+dist/
+release/
+*.dmg
+*.zip
+
+# Dependencies
+node_modules/
+
+# Compiled files (TypeScript output)
+app/
+web-dist-temp/
+

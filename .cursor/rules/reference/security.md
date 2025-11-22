@@ -1,3 +1,13 @@
+---
+description: Security development guidelines for authentication, authorization, and vulnerability prevention
+globs:
+  - packages/module-auth/src/**/*.ts
+  - packages/module-acl/src/**/*.ts
+  - packages/plugin-api-keys/src/**/*.ts
+  - packages/*/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
 # Security Guidelines / 安全开发指南
 
 This document provides comprehensive security guidelines for the Tego project.

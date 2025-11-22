@@ -1,3 +1,13 @@
+---
+description: Database patterns and Prisma best practices for data modeling and queries
+globs:
+  - packages/module-*/src/**/*.ts
+  - **/prisma/**/*.ts
+  - **/schema.prisma
+  - **/database/**/*.ts
+alwaysApply: false
+---
+
 # Database Patterns and Best Practices / 数据库模式和最佳实践
 
 ## Purpose / 目的

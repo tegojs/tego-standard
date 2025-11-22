@@ -1,3 +1,13 @@
+---
+description: Project overview, tech stack, and package management configuration for Tego/Tachybase monorepo
+globs:
+  - package.json
+  - pnpm-workspace.yaml
+  - apps/**/package.json
+  - packages/**/package.json
+alwaysApply: true
+---
+
 # Tego/Tachybase Project Configuration / 项目配置
 
 ## Project Overview / 项目概述

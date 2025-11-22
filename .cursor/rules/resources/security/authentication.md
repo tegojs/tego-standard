@@ -1,3 +1,11 @@
+---
+description: Authentication security guidelines - token security, password security, session management
+globs:
+  - packages/module-auth/src/**/*.ts
+  - packages/*/src/**/auth/**/*.ts
+alwaysApply: false
+---
+
 # Authentication / 认证
 
 ## Overview / 概述

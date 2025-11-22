@@ -1,3 +1,10 @@
+---
+description: Performance optimization guidelines for database, frontend, and API
+globs:
+  - packages/*/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
 # Performance Optimization Guidelines / 性能优化指南
 
 This document provides performance optimization guidelines for the Tego project.

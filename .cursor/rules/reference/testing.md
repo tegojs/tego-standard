@@ -1,3 +1,13 @@
+---
+description: Testing patterns and best practices for Vitest/Playwright
+globs:
+  - **/*.test.ts
+  - **/*.spec.ts
+  - **/__tests__/**/*.ts
+  - **/e2e/**/*.ts
+alwaysApply: false
+---
+
 # Testing Guidelines / 测试指南
 
 This document provides comprehensive testing guidelines for the Tego project, covering unit tests, integration tests, and E2E tests.

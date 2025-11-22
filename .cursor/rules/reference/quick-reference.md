@@ -1,3 +1,13 @@
+---
+description: Quick reference guide for common development tasks and patterns
+globs:
+  - packages/**/*.ts
+  - packages/**/*.tsx
+  - apps/**/*.ts
+  - apps/**/*.tsx
+alwaysApply: false
+---
+
 # Quick Reference / 快速参考
 
 A quick reference guide for common development tasks and patterns.

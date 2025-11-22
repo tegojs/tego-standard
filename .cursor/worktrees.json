@@ -1,0 +1,16 @@
+{
+  "delete-worktree-unix": ["echo '🧹 Cleaning up worktree...'", "echo '✅ Worktree cleanup completed'"],
+  "delete-worktree-windows": ["echo 🧹 Cleaning up worktree...", "echo ✅ Worktree cleanup completed"],
+  "setup-worktree-unix": [
+    "echo '🚀 Setting up worktree...'",
+    "pnpm install",
+    "echo '✅ Worktree setup completed!'",
+    "echo '💡 Tip: Run \"pnpm dev\" to start development server'"
+  ],
+  "setup-worktree-windows": [
+    "echo 🚀 Setting up worktree...",
+    "pnpm install",
+    "echo ✅ Worktree setup completed!",
+    "echo 💡 Tip: Run \"pnpm dev\" to start development server"
+  ]
+}

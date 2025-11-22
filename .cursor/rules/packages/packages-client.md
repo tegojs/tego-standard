@@ -1,3 +1,11 @@
+---
+description: Specific rules for @tachybase/client package development
+globs:
+  - packages/client/src/**/*.ts
+  - packages/client/src/**/*.tsx
+alwaysApply: false
+---
+
 # Client Package Rules / Client 包规则
 
 This file contains specific rules for the `packages/client` directory.

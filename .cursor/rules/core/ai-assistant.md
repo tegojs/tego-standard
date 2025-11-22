@@ -1,3 +1,13 @@
+---
+description: AI-assisted development guidelines and best practices (Includes critical i18n checklist)
+globs:
+  - packages/**/*.ts
+  - packages/**/*.tsx
+  - apps/**/*.ts
+  - apps/**/*.tsx
+alwaysApply: true
+---
+
 # AI Assistant Guide / AI 辅助开发指南
 
 ## Code Generation / 代码生成

@@ -1,3 +1,13 @@
+---
+description: Mandatory lint error checking rules after code modifications
+globs:
+  - packages/**/*.ts
+  - packages/**/*.tsx
+  - apps/**/*.ts
+  - apps/**/*.tsx
+alwaysApply: true
+---
+
 # Lint Error Check Rules / Lint 错误检查规则
 
 ## Mandatory Rule / 必须规则

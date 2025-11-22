@@ -1,3 +1,10 @@
+---
+description: Performance monitoring and profiling strategies
+globs:
+  - packages/*/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
 # Performance Monitoring / 性能监控
 
 ## Overview / 概述

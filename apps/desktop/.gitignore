@@ -9,6 +9,7 @@ node_modules/
 
 # Compiled files (TypeScript output)
 app/
+main.js
 web-dist-temp/
 
 temp-dmg/

@@ -26,6 +26,8 @@ export async function checkBackendServer(port: number = 3000): Promise<boolean> 
         // 但需要确保连接成功建立
         res.on('data', () => {}); // 消费响应数据
         res.on('end', () => {
+          // 响应完成后销毁请求，释放 socket 连接
+          req.destroy();
           resolve(true);
         });
       },
@@ -374,26 +376,62 @@ export async function startBackendServer(): Promise<void> {
       shell: false,
     });
 
-    // 记录服务器输出
-    serverProcess.stdout?.on('data', (data: Buffer) => {
+    // 记录服务器输出（保存监听器引用以便清理）
+    const onStdoutData = (data: Buffer) => {
       const output = data.toString().trim();
       if (output) {
         log(`[Backend Server] ${output}`);
       }
-    });
+    };
 
-    serverProcess.stderr?.on('data', (data: Buffer) => {
+    const onStderrData = (data: Buffer) => {
       const output = data.toString().trim();
       if (output) {
         log(`[Backend Server] ${output}`, 'error');
       }
-    });
+    };
+
+    serverProcess.stdout?.on('data', onStdoutData);
+    serverProcess.stderr?.on('data', onStderrData);
 
     // 等待服务器启动
-    await waitForServerStart(parseInt(appPort, 10), serverProcess);
+    try {
+      await waitForServerStart(parseInt(appPort, 10), serverProcess);
+
+      // 启动成功后，添加持续监听器用于记录进程退出日志
+      if (serverProcess) {
+        serverProcess.once('exit', (code: number | null, signal: string | null) => {
+          log(`[Electron] Backend server process exited with code ${code}, signal ${signal}`);
+          serverProcess = null;
+        });
+
+        serverProcess.once('error', (error: Error) => {
+          log(`[Electron] Backend server process error: ${error.message}`, 'error');
+          serverProcess = null;
+        });
+      }
+    } catch (waitError: any) {
+      // 如果等待服务器启动失败，移除监听器并清理
+      if (serverProcess) {
+        serverProcess.stdout?.removeAllListeners('data');
+        serverProcess.stderr?.removeAllListeners('data');
+        serverProcess = null;
+      }
+      throw waitError;
+    }
   } catch (error: any) {
     log(`[Electron] Error starting backend server: ${error.message}`, 'error');
-    serverProcess = null;
+    // 在异常情况下确保清理
+    if (serverProcess) {
+      // 如果监听器已经添加，尝试移除（可能在某些错误情况下监听器还未添加）
+      try {
+        serverProcess.stdout?.removeAllListeners('data');
+        serverProcess.stderr?.removeAllListeners('data');
+      } catch {
+        // 忽略清理错误
+      }
+      serverProcess = null;
+    }
     throw error;
   }
 }
@@ -408,7 +446,7 @@ async function waitForServerStart(port: number, process: ChildProcess): Promise<
   let exitCode: number | null = null;
   let exitSignal: string | null = null;
 
-  // 监听进程退出事件
+  // 监听进程退出事件（使用 once() 防止内存泄漏，只在启动期间监听）
   const exitHandler = (code: number | null, signal: string | null) => {
     processExited = true;
     exitCode = code;
@@ -416,13 +454,14 @@ async function waitForServerStart(port: number, process: ChildProcess): Promise<
     log(`[Electron] Backend server process exited with code ${code}, signal ${signal}`);
     serverProcess = null;
   };
-  process.on('exit', exitHandler);
+  process.once('exit', exitHandler);
 
-  process.on('error', (error) => {
+  const errorHandler = (error: Error) => {
     log(`[Electron] Failed to start backend server: ${error.message}`, 'error');
     processExited = true;
     serverProcess = null;
-  });
+  };
+  process.once('error', errorHandler);
 
   while (retries > 0) {
     // 检查进程是否还在运行
@@ -440,7 +479,8 @@ async function waitForServerStart(port: number, process: ChildProcess): Promise<
     const isRunning = await checkBackendServer(port);
     if (isRunning) {
       log(`[Electron] ✓ Backend server started successfully on port ${port}`);
-      // exitHandler 会继续监听进程退出，用于记录日志
+      // 启动成功后，移除启动期间的监听器（使用 once() 已自动移除）
+      // 持续监听进程退出由 startBackendServer 中的全局监听器处理
       return;
     }
 

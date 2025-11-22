@@ -19,6 +19,7 @@ export function needsRedirect(url: string): boolean {
     url.startsWith('app://') ||
     url.includes('index.html/') ||
     url.startsWith('ws://index.html') ||
+    url.startsWith('wss://index.html') ||
     url.startsWith('http://index.html')
   );
 }
@@ -27,9 +28,13 @@ export function needsRedirect(url: string): boolean {
  * 重定向 API 请求 URL
  */
 export function redirectApiUrl(url: string, port: string = '3000'): string {
-  // WebSocket 请求使用 ws:// 协议
-  if (url.includes('/ws') || url.startsWith('ws://')) {
-    // 处理 ws://index.html/ws 或 app://index.html/ws
+  // WebSocket 请求（检测并保留 ws:// 或 wss:// 协议）
+  if (url.includes('/ws') || url.startsWith('ws://') || url.startsWith('wss://')) {
+    // 检测原始协议（ws 或 wss）
+    const isSecure = url.startsWith('wss://');
+    const protocol = isSecure ? 'wss' : 'ws';
+
+    // 处理 ws://index.html/ws、wss://index.html/ws 或 app://index.html/ws
     // 提取路径和查询参数
     const pathMatch = url.match(/(\/ws[^?]*)(\?.*)?/);
     let query = pathMatch?.[2] || '';
@@ -42,9 +47,9 @@ export function redirectApiUrl(url: string, port: string = '3000'): string {
     }
 
     if (pathMatch) {
-      return `ws://localhost:${port}${pathMatch[1]}${query}`;
+      return `${protocol}://localhost:${port}${pathMatch[1]}${query}`;
     } else {
-      return `ws://localhost:${port}/ws${query}`;
+      return `${protocol}://localhost:${port}/ws${query}`;
     }
   } else {
     // HTTP 请求使用 http:// 协议

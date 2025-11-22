@@ -20,6 +20,8 @@ function checkServer(port: string): Promise<boolean> {
       // 消费响应数据，避免资源泄漏
       res.on('data', () => {});
       res.on('end', () => {
+        // 响应完成后销毁请求，释放 socket 连接
+        req.destroy();
         resolve(res.statusCode === 200 || res.statusCode === 304);
       });
     });
@@ -146,8 +148,8 @@ function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean): void
       redirectHistory.clear();
     }
 
-    // 处理 WebSocket 请求（ws:// 协议）
-    if (url.startsWith('ws://') && (url.includes('index.html') || needsRedirect(url))) {
+    // 处理 WebSocket 请求（ws:// 或 wss:// 协议）
+    if ((url.startsWith('ws://') || url.startsWith('wss://')) && (url.includes('index.html') || needsRedirect(url))) {
       const redirectUrl = redirectApiUrl(url, appPort);
       log(`[Electron] Redirecting WebSocket request: ${url} -> ${redirectUrl}`);
       callback({ redirectURL: redirectUrl });
@@ -170,41 +172,69 @@ function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean): void
  * 设置开发环境监控
  */
 function setupDevMonitoring(window: BrowserWindow): void {
-  window.webContents.on('did-start-loading', () => {
+  // 保存监听器引用以便清理
+  const onDidStartLoading = () => {
     log('[Electron] Page started loading');
-  });
+  };
 
-  window.webContents.on('did-stop-loading', () => {
+  const onDidStopLoading = () => {
     log('[Electron] Page stopped loading');
-  });
+  };
 
-  // 监听所有网络请求
-  window.webContents.session.webRequest.onBeforeRequest((details, callback) => {
+  const onBeforeRequest = (
+    details: Electron.OnBeforeRequestListenerDetails,
+    callback: (response: Electron.CallbackResponse) => void,
+  ) => {
     if (isApiRequest(details.url)) {
       log(`[Electron] Request: ${details.method} ${details.url}`);
     }
     callback({});
-  });
+  };
 
-  // 监听请求响应
-  window.webContents.session.webRequest.onCompleted((details) => {
+  const onCompleted = (details: Electron.OnCompletedListenerDetails) => {
     if (isApiRequest(details.url)) {
       log(`[Electron] Response: ${details.statusCode} ${details.method} ${details.url}`);
     }
-  });
+  };
 
-  // 监听请求失败
-  window.webContents.session.webRequest.onErrorOccurred((details) => {
+  const onErrorOccurred = (details: Electron.OnErrorOccurredListenerDetails) => {
     if (details.error !== 'net::ERR_ABORTED') {
       log(`[Electron] Request error: ${details.error} for ${details.url}`, 'error');
     }
-  });
+  };
 
-  // 监听控制台消息
-  window.webContents.on('console-message', (event, level, message) => {
+  const onConsoleMessage = (event: Electron.Event, level: number, message: string) => {
     if (level === 2 || level === 3) {
       // error or warning
       log(`[Renderer ${level === 2 ? 'ERROR' : 'WARN'}]: ${message}`, level === 2 ? 'error' : 'warn');
+    }
+  };
+
+  // 添加监听器
+  window.webContents.on('did-start-loading', onDidStartLoading);
+  window.webContents.on('did-stop-loading', onDidStopLoading);
+  window.webContents.session.webRequest.onBeforeRequest(onBeforeRequest);
+  window.webContents.session.webRequest.onCompleted(onCompleted);
+  window.webContents.session.webRequest.onErrorOccurred(onErrorOccurred);
+  window.webContents.on('console-message', onConsoleMessage);
+
+  // 窗口关闭时清理所有监听器，防止内存泄漏
+  window.once('close', () => {
+    if (window.webContents && !window.webContents.isDestroyed()) {
+      // 移除 webContents 事件监听器
+      window.webContents.removeListener('did-start-loading', onDidStartLoading);
+      window.webContents.removeListener('did-stop-loading', onDidStopLoading);
+      window.webContents.removeListener('console-message', onConsoleMessage);
+
+      // 移除 webRequest 监听器（通过传递 null 来移除）
+      try {
+        window.webContents.session.webRequest.onBeforeRequest(null);
+        window.webContents.session.webRequest.onCompleted(null);
+        window.webContents.session.webRequest.onErrorOccurred(null);
+      } catch (error) {
+        // 如果移除失败，记录警告但不抛出错误
+        log(`[Electron] Failed to remove webRequest listeners: ${error}`, 'warn');
+      }
     }
   });
 }
@@ -281,23 +311,33 @@ function handleDevServerWait(window: BrowserWindow, startUrl: string, webPort: s
   startServerWatch();
 
   // 页面加载完成监听
-  window.webContents.on('did-finish-load', () => {
+  const onDidFinishLoad = () => {
     log(`[Electron] Page loaded successfully: ${startUrl}`);
     if (serverReady) {
       log(`[Electron] Server and page are both ready`);
     }
-  });
+  };
 
   // 页面加载失败监听
-  window.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  const onDidFailLoad = (event: Electron.Event, errorCode: number, errorDescription: string) => {
     log(`[Electron] Page load failed: ${errorDescription} (code: ${errorCode})`, 'error');
-  });
+  };
 
-  // 窗口关闭时清理定时器
-  window.on('closed', () => {
+  window.webContents.on('did-finish-load', onDidFinishLoad);
+  window.webContents.on('did-fail-load', onDidFailLoad);
+
+  // 窗口关闭时清理定时器和事件监听器
+  // 使用 'close' 事件而不是 'closed'，因为 'close' 在窗口关闭前触发，此时 webContents 仍然可访问
+  window.on('close', () => {
     if (reloadTimer) {
       clearInterval(reloadTimer);
       reloadTimer = null;
+    }
+    // 移除 webContents 事件监听器，防止内存泄漏
+    // 在 'close' 事件中，webContents 仍然可访问
+    if (window.webContents && !window.webContents.isDestroyed()) {
+      window.webContents.removeListener('did-finish-load', onDidFinishLoad);
+      window.webContents.removeListener('did-fail-load', onDidFailLoad);
     }
   });
 }
@@ -549,8 +589,9 @@ export function createWindow(isDev: boolean): BrowserWindow {
       }
 
       if (!fs.existsSync(preloadPath)) {
-        log(`[Electron] ❌ Preload file not found at any of the attempted paths`, 'error');
-        log(`[Electron] Tried: ${[preloadPath, ...alternatives].join(', ')}`, 'error');
+        const errorMsg = `Preload file not found at any of the attempted paths. Tried: ${[preloadPath, ...alternatives].join(', ')}`;
+        log(`[Electron] ❌ ${errorMsg}`, 'error');
+        throw new Error(errorMsg);
       }
     }
   }

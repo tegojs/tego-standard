@@ -3,8 +3,10 @@ import * as path from 'node:path';
 
 import { app } from 'electron';
 
-// 判断是否为开发环境
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+// 判断是否为开发环境（延迟评估，确保 app.isPackaged 已正确初始化）
+function isDev(): boolean {
+  return process.env.NODE_ENV === 'development' || !app.isPackaged;
+}
 
 // 日志文件流（仅在生产环境）
 let logFile: fs.WriteStream | null = null;
@@ -15,7 +17,7 @@ export type LogLevel = 'log' | 'error' | 'warn';
  * 初始化日志文件（仅在生产环境）
  */
 export function initLogFile(): void {
-  if (!isDev) {
+  if (!isDev()) {
     try {
       const logDir = app.getPath('logs');
       if (!fs.existsSync(logDir)) {
@@ -53,7 +55,7 @@ export function log(message: string, level: LogLevel = 'log'): void {
   }
 
   // 输出到文件（仅在生产环境）
-  if (logFile && !isDev) {
+  if (logFile && !isDev()) {
     logFile.write(logMessage);
   }
 }

@@ -47,21 +47,28 @@ function t(key, lang = null) {
   const keys = key.split('.');
   let value = translations;
 
+  // 首先尝试在当前语言中查找
   for (const k of keys) {
     if (value && typeof value === 'object' && k in value) {
       value = value[k];
     } else {
-      // 如果找不到翻译，回退到英文
-      const enTranslations = locales.en || {};
-      value = enTranslations;
-      for (const enKey of keys) {
-        if (value && typeof value === 'object' && enKey in value) {
-          value = value[enKey];
-        } else {
-          return key; // 如果英文也找不到，返回键名
-        }
-      }
+      // 如果找不到，回退到英文
+      value = null;
       break;
+    }
+  }
+
+  // 如果当前语言中找不到，尝试英文
+  if (value === null || (typeof value !== 'string' && typeof value !== 'object')) {
+    const enTranslations = locales.en || {};
+    value = enTranslations;
+    for (const enKey of keys) {
+      if (value && typeof value === 'object' && enKey in value) {
+        value = value[enKey];
+      } else {
+        // 如果英文也找不到，返回键名
+        return key;
+      }
     }
   }
 

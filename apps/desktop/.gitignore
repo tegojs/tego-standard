@@ -11,6 +11,7 @@ node_modules/
 app/
 main.js
 web-dist-temp/
+.build-temp/
 
 temp-dmg/
 

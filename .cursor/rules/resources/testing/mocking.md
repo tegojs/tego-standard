@@ -1,3 +1,11 @@
+---
+description: Mocking patterns for testing - database, server, and API mocks
+globs:
+  - **/*.test.ts
+  - **/*.spec.ts
+alwaysApply: false
+---
+
 # Mocking Patterns / 模拟模式
 
 ## Overview / 概述

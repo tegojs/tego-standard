@@ -1,3 +1,11 @@
+---
+description: Authorization security guidelines - role-based access control and permissions
+globs:
+  - packages/module-acl/src/**/*.ts
+  - packages/*/src/**/acl/**/*.ts
+alwaysApply: false
+---
+
 # Authorization / 授权
 
 ## Overview / 概述

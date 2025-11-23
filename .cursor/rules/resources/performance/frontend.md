@@ -1,3 +1,11 @@
+---
+description: Frontend performance optimization - React optimization, code splitting, lazy loading
+globs:
+  - packages/*/src/**/*.tsx
+  - packages/client/src/**/*.tsx
+alwaysApply: false
+---
+
 # Frontend Performance / 前端性能
 
 ## Overview / 概述

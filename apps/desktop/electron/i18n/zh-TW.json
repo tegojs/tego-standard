@@ -1,0 +1,12 @@
+{
+  "status": {
+    "checking": "正在檢查服務狀態",
+    "starting": "正在啟動後端服務",
+    "waiting": "正在等待服務響應",
+    "initializing": "服務正在初始化",
+    "almostDone": "即將完成",
+    "ready": "服務已就緒，正在載入應用"
+  },
+  "subtitle": "請稍候，正在初始化後端服務",
+  "title": "正在啟動服務"
+}

@@ -63,6 +63,22 @@ plugins/*
 .git/logs/**
 .git/info/**
 
+# Electron 构建产物
+apps/desktop/dist/
+apps/desktop/release/
+apps/desktop/app/
+apps/desktop/web-dist-temp/
+apps/desktop/temp-dmg/
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# IDE 配置（可选，如果不想被索引）
+.vscode/
+.idea/
+
 # 其他
 .local
 docs-repo-temp/

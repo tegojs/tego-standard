@@ -1,3 +1,11 @@
+---
+description: Database performance optimization - query optimization, indexing, caching
+globs:
+  - packages/*/src/**/*.ts
+  - **/prisma/**/*.ts
+alwaysApply: false
+---
+
 # Database Performance / 数据库性能
 
 ## Overview / 概述

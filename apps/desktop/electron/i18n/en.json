@@ -1,0 +1,12 @@
+{
+  "status": {
+    "checking": "Checking service status",
+    "starting": "Starting backend service",
+    "waiting": "Waiting for service response",
+    "initializing": "Service is initializing",
+    "almostDone": "Almost done",
+    "ready": "Service is ready, loading application"
+  },
+  "subtitle": "Please wait, initializing backend service",
+  "title": "Starting Service"
+}

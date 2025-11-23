@@ -1,3 +1,12 @@
+---
+description: Integration testing patterns for testing component interactions
+globs:
+  - **/*.test.ts
+  - **/*.spec.ts
+  - **/__tests__/**/*.ts
+alwaysApply: false
+---
+
 # Integration Tests / 集成测试
 
 ## Overview / 概述

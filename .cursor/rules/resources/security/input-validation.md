@@ -1,3 +1,10 @@
+---
+description: Input validation security guidelines - preventing injection attacks and data corruption (Always validate)
+globs:
+  - packages/*/src/**/*.ts
+alwaysApply: true
+---
+
 # Input Validation / 输入验证
 
 ## Overview / 概述

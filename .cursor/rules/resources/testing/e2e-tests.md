@@ -1,3 +1,11 @@
+---
+description: End-to-end testing patterns using Playwright
+globs:
+  - **/e2e/**/*.ts
+  - **/__e2e__/**/*.ts
+alwaysApply: false
+---
+
 # E2E Tests / E2E 测试
 
 ## Overview / 概述

@@ -1,3 +1,12 @@
+---
+description: Unit testing patterns and best practices for testing individual functions and components
+globs:
+  - **/*.test.ts
+  - **/*.spec.ts
+  - **/__tests__/**/*.ts
+alwaysApply: false
+---
+
 # Unit Tests / 单元测试
 
 ## Overview / 概述

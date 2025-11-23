@@ -156,10 +156,12 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
 
 ## Compatibility / 兼容性
 
-- **Cursor Version / Cursor 版本**: Supports `.cursor/rules/` directory structure
-  支持 `.cursor/rules/` 目录结构
-- **Project Version / 项目版本**: 1.4.5
+- **Cursor Version / Cursor 版本**: Supports `.cursor/rules/` directory structure with frontmatter
+  支持带 frontmatter 的 `.cursor/rules/` 目录结构
+- **Project Version / 项目版本**: 1.6.0
 - **Last Updated / 最后更新**: 2025-01-27
+- **Configuration Version / 配置版本**: 2.0.0 (with frontmatter and enhanced permissions)
+  配置版本：2.0.0（带 frontmatter 和增强权限）
 - **Skills / 技能**: 8 skills configured (backend, frontend, database, client, i18n, testing, performance, security)
   配置了 8 个技能（后端、前端、数据库、客户端、国际化、测试、性能、安全）
 
@@ -168,6 +170,8 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
 - [Cursor Official Docs](https://docs.cursor.com/)
 - [Cursor Rules Documentation](https://docs.cursor.com/context/rules-for-ai)
 - [Cursor CLI Configuration](https://docs.cursor.com/cli/reference/configuration)
+- [Cursor Hooks Documentation](https://docs.cursor.com/agent/hooks)
+- [Cursor Worktrees Configuration](https://docs.cursor.com/) - Worktree setup scripts
 
 ## Support / 支持
 

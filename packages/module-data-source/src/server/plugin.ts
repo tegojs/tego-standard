@@ -571,16 +571,7 @@ export class PluginDataSourceManagerServer extends Plugin {
     });
   }
 
-  async load() {
-    const collectionsDir = resolve(__dirname, 'collections');
-    const dataSourcesCollection = this.db.getCollection('dataSources');
-    if (!dataSourcesCollection) {
-      await this.db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/module-data-source',
-      });
-    }
-  }
+  async load() {}
 }
 
 export default PluginDataSourceManagerServer;

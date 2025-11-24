@@ -75,15 +75,6 @@ export class ModuleInstrumentationServer extends Plugin {
   }
 
   async load() {
-    const collectionsDir = resolve(__dirname, 'collections');
-    const trackingConfigCollection = this.db.getCollection('trackingConfig');
-    if (!trackingConfigCollection) {
-      await this.db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/module-instrumentation',
-      });
-    }
-
     if (isMainThread) {
       this.addServerTrackingListener();
     }

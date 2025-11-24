@@ -12,16 +12,7 @@ import { CloudLibrariesService } from './services/cloud-libraries-service';
   Services: [CloudLibrariesService, CloudCompiler],
 })
 export class ModuleCloudComponentServer extends Plugin {
-  async load() {
-    const collectionsDir = resolve(__dirname, 'collections');
-    const cloudLibrariesCollection = this.db.getCollection('cloudLibraries');
-    if (!cloudLibrariesCollection) {
-      await this.db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/module-cloud-component',
-      });
-    }
-  }
+  async load() {}
 }
 
 export default ModuleCloudComponentServer;

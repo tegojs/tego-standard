@@ -31,15 +31,6 @@ export default class PluginBackupRestoreServer extends Plugin {
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
 
   async load() {
-    const collectionsDir = resolve(__dirname, 'collections');
-    const autoBackupCollection = this.db.getCollection(COLLECTION_AUTOBACKUP);
-    if (!autoBackupCollection) {
-      await this.db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/module-backup',
-      });
-    }
-
     this.app.resourcer.define(backupFilesResourcer);
 
     // 处理 WebSocket signIn 消息，设置用户标签

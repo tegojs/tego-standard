@@ -3,9 +3,9 @@ export const isMain = () => {
 };
 
 export const currentProcessNum = () => {
-  if (typeof ctx.tego.environment.getVariables().NODE_APP_INSTANCE === 'undefined') {
+  if (typeof process.env.NODE_APP_INSTANCE === 'undefined') {
     return '0';
   } else {
-    return ctx.tego.environment.getVariables().NODE_APP_INSTANCE;
+    return process.env.NODE_APP_INSTANCE;
   }
 };

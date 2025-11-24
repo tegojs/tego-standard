@@ -1,0 +1,20 @@
+# Electron
+dist/
+release/
+*.dmg
+*.zip
+
+# Dependencies
+node_modules/
+
+# Compiled files (TypeScript output)
+app/
+main.js
+web-dist-temp/
+.build-temp/
+
+temp-dmg/
+
+# Build resources (binary files)
+build/node/
+

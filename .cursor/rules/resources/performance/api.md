@@ -1,3 +1,11 @@
+---
+description: API performance optimization - response compression, request batching, caching
+globs:
+  - packages/*/src/server/**/*.ts
+  - packages/*/src/**/api/**/*.ts
+alwaysApply: false
+---
+
 # API Performance / API 性能
 
 ## Overview / 概述

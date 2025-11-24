@@ -1,3 +1,10 @@
+---
+description: Common security vulnerabilities and prevention strategies
+globs:
+  - packages/*/src/**/*.ts
+alwaysApply: false
+---
+
 # Common Vulnerabilities / 常见漏洞
 
 ## Overview / 概述

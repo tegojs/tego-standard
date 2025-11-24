@@ -1,0 +1,11 @@
+src/
+*.ts
+*.tsx
+!*.d.ts
+tsconfig.json
+README.md
+.cursor/
+.vscode/
+node_modules/
+*.log
+.DS_Store

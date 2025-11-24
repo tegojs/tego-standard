@@ -1,0 +1,18 @@
+{
+  "Available Fields": "可用字段",
+  "Data Collection": "数据集合",
+  "Describe what kind of report you want to generate, e.g., \"Generate a user list report\"": "描述您想要生成的报表类型，例如：\"生成用户列表报表\"",
+  "Example: Generate a user list report, or Generate a report of all orders in the last month": "示例：生成用户列表报表，或生成上个月的所有订单报表",
+  "Failed to download report": "下载报表失败",
+  "Failed to generate report": "生成报表失败",
+  "Field Name": "字段名称",
+  "Field Title": "字段标题",
+  "Field Type": "字段类型",
+  "Generate Report": "生成报表",
+  "Please enter a prompt": "请输入提示词",
+  "Prompt": "提示词",
+  "Report Generator": "报表生成器",
+  "Report generated successfully. Count: {{count}}": "报表生成成功，共 {{count}} 条记录",
+  "Select a data collection, or leave empty to auto-detect from prompt": "选择数据集合，或留空以从提示词自动识别",
+  "Select or leave empty for auto-detection": "选择或留空以自动识别"
+}

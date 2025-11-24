@@ -170,8 +170,8 @@ importers:
         specifier: ^1.24.0
         version: 1.24.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/pro-components':
         specifier: 2.8.9
         version: 2.8.9(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(rc-field-form@2.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -357,8 +357,8 @@ importers:
   packages/module-acl:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -420,8 +420,8 @@ importers:
   packages/module-auth:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -465,8 +465,8 @@ importers:
   packages/module-backup:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@hapi/topo':
         specifier: ^6.0.2
         version: 6.0.2
@@ -726,8 +726,8 @@ importers:
   packages/module-data-source:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -777,8 +777,8 @@ importers:
   packages/module-env-secrets:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -825,8 +825,8 @@ importers:
   packages/module-event-source:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -867,8 +867,8 @@ importers:
   packages/module-file:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@aws-sdk/client-s3':
         specifier: ^3.850.0
         version: 3.850.0
@@ -933,8 +933,8 @@ importers:
   packages/module-hera:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1014,8 +1014,8 @@ importers:
   packages/module-instrumentation:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@antv/g2':
         specifier: ^5.3.5
         version: 5.3.5
@@ -1056,8 +1056,8 @@ importers:
         specifier: 1.4.10
         version: 1.4.10
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1107,8 +1107,8 @@ importers:
   packages/module-multi-app:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1275,8 +1275,8 @@ importers:
   packages/module-web:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1380,8 +1380,8 @@ importers:
   packages/module-workflow:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@babel/core':
         specifier: 7.27.4
         version: 7.27.4
@@ -1497,8 +1497,8 @@ importers:
   packages/plugin-action-bulk-edit:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1659,8 +1659,8 @@ importers:
   packages/plugin-action-import:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1728,8 +1728,8 @@ importers:
   packages/plugin-action-share:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@emotion/css':
         specifier: ^11.13.5
         version: 11.13.5
@@ -1878,8 +1878,8 @@ importers:
   packages/plugin-ai-chat:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/x':
         specifier: ^1.6.0
         version: 1.6.0(@types/node@20.17.10)(antd@5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.44.2)(typescript@5.9.3)(vite@7.2.2(@types/node@20.17.10)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.0)(tsx@4.20.6)(yaml@2.8.1))
@@ -1956,8 +1956,8 @@ importers:
   packages/plugin-api-logs:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -1989,8 +1989,8 @@ importers:
   packages/plugin-audit-logs:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2019,8 +2019,8 @@ importers:
   packages/plugin-auth-cas:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2061,8 +2061,8 @@ importers:
         specifier: 1.4.10
         version: 1.4.10
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2112,8 +2112,8 @@ importers:
   packages/plugin-auth-oidc:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2196,8 +2196,8 @@ importers:
   packages/plugin-auth-saml:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@node-saml/node-saml':
         specifier: ^4.0.5
         version: 4.0.5
@@ -2268,8 +2268,8 @@ importers:
   packages/plugin-auth-wechat:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2301,8 +2301,8 @@ importers:
   packages/plugin-auth-wecom:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2334,8 +2334,8 @@ importers:
   packages/plugin-block-calendar:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2382,8 +2382,8 @@ importers:
   packages/plugin-block-charts:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/plots':
         specifier: ^2.6.3
         version: 2.6.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2439,8 +2439,8 @@ importers:
   packages/plugin-block-comments:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2472,8 +2472,8 @@ importers:
   packages/plugin-block-gantt:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ctrl/tinycolor':
         specifier: ^4.2.0
         version: 4.2.0
@@ -2505,8 +2505,8 @@ importers:
   packages/plugin-block-kanban:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2544,8 +2544,8 @@ importers:
         specifier: ^0.0.10
         version: 0.0.10
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@googlemaps/js-api-loader':
         specifier: ^1.16.8
         version: 1.16.8
@@ -2598,8 +2598,8 @@ importers:
   packages/plugin-block-presentation:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2631,8 +2631,8 @@ importers:
   packages/plugin-block-step-form:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2664,8 +2664,8 @@ importers:
   packages/plugin-data-source-common:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2715,8 +2715,8 @@ importers:
   packages/plugin-department:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2785,8 +2785,8 @@ importers:
   packages/plugin-devtools:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2920,8 +2920,8 @@ importers:
   packages/plugin-field-markdown-vditor:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -2992,8 +2992,8 @@ importers:
   packages/plugin-field-snapshot:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3028,8 +3028,8 @@ importers:
   packages/plugin-form-design:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ctrl/tinycolor':
         specifier: ^4.2.0
         version: 4.2.0
@@ -3091,8 +3091,8 @@ importers:
   packages/plugin-i18n-editor:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3130,8 +3130,8 @@ importers:
   packages/plugin-icon-pickerv2:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3160,8 +3160,8 @@ importers:
   packages/plugin-log-viewer:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3376,8 +3376,8 @@ importers:
   packages/plugin-pagespy:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@huolala-tech/page-spy-browser':
         specifier: ^2.2.5
         version: 2.2.5
@@ -3412,8 +3412,8 @@ importers:
   packages/plugin-password-policy:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3556,8 +3556,8 @@ importers:
   packages/plugin-prototype-wechat-official-account:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3655,8 +3655,8 @@ importers:
         specifier: ^1.24.0
         version: 1.24.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@arvinxu/layout-kit':
         specifier: ^1.4.0
         version: 1.4.0(@babel/core@7.28.5)(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1)
@@ -3724,8 +3724,8 @@ importers:
   packages/plugin-workflow-analysis:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -3757,8 +3757,8 @@ importers:
   packages/plugin-workflow-approval:
     devDependencies:
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
@@ -21592,26 +21592,6 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tachybase/acl@1.3.54-alpha.8':
-    dependencies:
-      '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.3.54-alpha.8
-      '@tachybase/utils': 1.3.54-alpha.8
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      minimatch: 5.1.6
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/acl@1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -21655,26 +21635,6 @@ snapshots:
   '@tachybase/acl@1.3.54-alpha.8(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.3.54-alpha.8(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.3.54-alpha.8
-      '@tachybase/utils': 1.3.54-alpha.8
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      minimatch: 5.1.6
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@tachybase/acl@1.3.54-alpha.8(pg@8.16.3)':
-    dependencies:
-      '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.3.54-alpha.8
       '@tachybase/utils': 1.3.54-alpha.8
       koa-compose: 4.1.0
@@ -21755,25 +21715,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.3.54-alpha.8':
-    dependencies:
-      '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.3.54-alpha.8
-      '@tachybase/utils': 1.3.54-alpha.8
-      jsonwebtoken: 8.5.1
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/auth@1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -21831,25 +21772,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.3.54-alpha.8(pg@8.16.3)':
-    dependencies:
-      '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.3.54-alpha.8
-      '@tachybase/utils': 1.3.54-alpha.8
-      jsonwebtoken: 8.5.1
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/cache@1.3.54-alpha.8':
     dependencies:
       bloom-filters: 3.0.4
@@ -21883,7 +21805,7 @@ snapshots:
 
   '@tachybase/data-source@1.3.54-alpha.8':
     dependencies:
-      '@tachybase/acl': 1.3.54-alpha.8
+      '@tachybase/acl': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.3.54-alpha.8
@@ -21971,7 +21893,7 @@ snapshots:
 
   '@tachybase/data-source@1.3.54-alpha.8(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.3.54-alpha.8(pg@8.16.3)
+      '@tachybase/acl': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.3.54-alpha.8
@@ -22318,9 +22240,9 @@ snapshots:
   '@tego/core@1.3.54-alpha.8':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.3.54-alpha.8
+      '@tachybase/acl': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.3.54-alpha.8
+      '@tachybase/auth': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.3.54-alpha.8
       '@tachybase/data-source': 1.3.54-alpha.8
       '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22538,9 +22460,9 @@ snapshots:
   '@tego/core@1.3.54-alpha.8(pg@8.16.3)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.3.54-alpha.8(pg@8.16.3)
+      '@tachybase/acl': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.3.54-alpha.8(pg@8.16.3)
+      '@tachybase/auth': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.3.54-alpha.8
       '@tachybase/data-source': 1.3.54-alpha.8(pg@8.16.3)
       '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22673,9 +22595,9 @@ snapshots:
 
   '@tego/server@1.3.54-alpha.8':
     dependencies:
-      '@tachybase/acl': 1.3.54-alpha.8
+      '@tachybase/acl': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.3.54-alpha.8
+      '@tachybase/auth': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.3.54-alpha.8
       '@tachybase/data-source': 1.3.54-alpha.8
       '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22760,9 +22682,9 @@ snapshots:
 
   '@tego/server@1.3.54-alpha.8(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.3.54-alpha.8(pg@8.16.3)
+      '@tachybase/acl': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.3.54-alpha.8(pg@8.16.3)
+      '@tachybase/auth': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.3.54-alpha.8
       '@tachybase/data-source': 1.3.54-alpha.8(pg@8.16.3)
       '@tachybase/database': 1.3.54-alpha.8(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)

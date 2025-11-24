@@ -49,15 +49,6 @@ export class PluginDataSourceManagerServer extends Plugin {
       DataSourceModel,
     });
 
-    // 注册 data sources 相关的 collections（必须在 beforeLoad 中定义，以便在 afterStart 等事件中可以使用）
-    this.db.collection(dataSourcesCollection);
-    this.db.collection(dataSourcesCollectionsCollection);
-    this.db.collection(dataSourcesFieldsCollection);
-    this.db.collection(dataSourcesRolesCollection);
-    this.db.collection(dataSourcesRolesResourcesCollection);
-    this.db.collection(dataSourcesRolesResourcesActionsCollection);
-    this.db.collection(dataSourcesRolesResourcesScopesCollection);
-
     this.app.db.on('dataSourcesFields.beforeCreate', async (model, options) => {
       const validatePresent = (name: string) => {
         if (!model.get(name)) {

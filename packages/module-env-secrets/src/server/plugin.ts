@@ -21,11 +21,6 @@ export class PluginEnvironmentVariablesServer extends Plugin {
     }
   }
 
-  async beforeLoad() {
-    // 注册 environmentVariables collection（必须在 beforeLoad 中定义，以便 load 方法中可以使用）
-    this.db.collection(environmentVariablesCollection);
-  }
-
   async load() {
     this.registerACL();
     this.onEnvironmentSaved();

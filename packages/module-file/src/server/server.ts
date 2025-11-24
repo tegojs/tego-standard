@@ -60,9 +60,6 @@ export default class PluginFileManager extends Plugin {
         options.model = 'FileModel';
       }
     });
-
-    // 定义 storages collection（必须在 beforeLoad 中定义，因为 load() 中需要访问）
-    this.db.collection(storagesCollection);
     this.app.on('afterStart', async () => {
       await this.loadStorages();
     });

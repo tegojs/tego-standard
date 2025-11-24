@@ -1,4 +1,5 @@
 import { Collection, Database, MagicAttributeModel, SyncOptions, Transactionable } from '@tego/server';
+
 import lodash from 'lodash';
 import { QueryInterfaceDropTableOptions } from 'sequelize';
 
@@ -58,8 +59,6 @@ export class CollectionModel extends MagicAttributeModel {
       if (!collectionOptions.dumpRules) {
         lodash.set(collectionOptions, 'dumpRules.group', 'custom');
       }
-
-      collection = this.db.collection(collectionOptions);
     }
 
     if (!skipField) {

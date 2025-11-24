@@ -119,13 +119,6 @@ export class PluginACL extends Plugin {
       RoleModel,
     });
 
-    // 注册 roles 相关的 collections（必须在 beforeLoad 中定义，因为其他模块的 collections 会引用 roles）
-    this.db.collection(rolesCollection);
-    this.db.collection(rolesResourcesCollection);
-    this.db.collection(rolesResourcesActionsCollection);
-    this.db.collection(rolesResourcesScopesCollection);
-    this.db.collection(rolesUsersCollection);
-
     this.app.acl.registerSnippet({
       name: `pm.${this.name}.roles`,
       actions: [

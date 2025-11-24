@@ -86,15 +86,6 @@ export default class PluginWorkflowServer extends Plugin {
     this.addFeature(PluginWorkflowNoticeServer);
   }
 
-  async beforeLoad() {
-    // 注册 workflow 相关的 collections（必须在 beforeLoad 中定义，以便 load 和 beforeStart 中可以使用）
-    this.db.collection(workflowsCollectionFactory());
-    this.db.collection(executionsCollection);
-    this.db.collection(jobsCollection);
-    this.db.collection(flowNodesCollection);
-    this.db.collection(workflowCategoriesCollection);
-  }
-
   getLogger(workflowId: ID): Logger {
     const now = new Date();
     const date = `${now.getFullYear()}-${`0${now.getMonth() + 1}`.slice(-2)}-${`0${now.getDate()}`.slice(-2)}`;

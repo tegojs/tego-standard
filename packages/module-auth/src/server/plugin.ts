@@ -47,9 +47,6 @@ export class PluginAuthServer extends Plugin {
     this.app.i18n.addResources('en-US', namespace, enUS);
 
     this.app.db.registerModels({ AuthModel });
-
-    // 注册 tokenBlacklist collection（必须在 beforeLoad 中定义，以便 TokenBlacklistService 可以使用）
-    this.db.collection(tokenBlacklistCollection);
   }
 
   async load() {

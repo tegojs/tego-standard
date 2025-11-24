@@ -24,10 +24,6 @@ export class PluginWebhook extends Plugin {
       EventSourceModel: EventSourceModel,
       WebhookCategories: WebhookCategories,
     });
-
-    // 注册 collections（必须在 beforeLoad 中定义，以便 load 方法中可以使用）
-    this.db.collection(webhooksCollection);
-    this.db.collection(webhookCategoriesCollection);
   }
 
   async load() {

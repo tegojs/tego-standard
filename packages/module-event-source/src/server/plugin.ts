@@ -13,11 +13,6 @@ export class ModuleEventSourceServer extends Plugin {
     this.addFeature(PluginWebhook);
   }
 
-  async beforeLoad() {
-    // 注册 customEventSources collection（必须在 beforeLoad 中定义，以便其他地方可以使用）
-    this.db.collection(customEventSourcesCollection);
-  }
-
   async load() {
     // 给customEventSources添加权限
     this.app.acl.registerSnippet({

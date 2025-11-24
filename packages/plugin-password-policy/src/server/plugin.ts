@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { IpFilterController } from './actions/IpFilterController';
@@ -24,6 +25,15 @@ import { PasswordStrengthService } from './services/PasswordStrengthService';
 })
 export class PluginPasswordPolicyServer extends Plugin {
   async load() {
+    const collectionsDir = resolve(__dirname, 'collections');
+    const passwordAttemptCollection = this.db.getCollection('passwordAttempt');
+    if (!passwordAttemptCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/plugin-password-policy',
+      });
+    }
+
     this.app.acl.registerSnippet({
       name: `pm.security.password-attempt`,
       actions: ['passwordAttempt:*'],

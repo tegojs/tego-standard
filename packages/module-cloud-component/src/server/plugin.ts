@@ -1,4 +1,6 @@
+import { resolve } from 'node:path';
 import { InjectedPlugin, Plugin } from '@tego/server';
+
 import _ from 'lodash';
 
 import { CloudLibrariesController } from './actions/cloud-libraries-controller';
@@ -9,6 +11,17 @@ import { CloudLibrariesService } from './services/cloud-libraries-service';
   Controllers: [CloudLibrariesController],
   Services: [CloudLibrariesService, CloudCompiler],
 })
-export class ModuleCloudComponentServer extends Plugin {}
+export class ModuleCloudComponentServer extends Plugin {
+  async load() {
+    const collectionsDir = resolve(__dirname, 'collections');
+    const cloudLibrariesCollection = this.db.getCollection('cloudLibraries');
+    if (!cloudLibrariesCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-cloud-component',
+      });
+    }
+  }
+}
 
 export default ModuleCloudComponentServer;

@@ -1,5 +1,5 @@
+import { resolve } from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-
 import { Context, InjectedPlugin, Plugin } from '@tego/server';
 
 import { TrackingController } from './actions/tracking-controller';
@@ -13,7 +13,19 @@ export class ModuleInstrumentationServer extends Plugin {
   serverTrackingFilter: ServerTrackingFilter = null;
   async addServerTrackingListener() {
     this.app.on('afterStart', async () => {
-      const SignInTracking = await this.app.db.getRepository('trackingConfig').findOne({
+      const trackingConfigCollection = this.app.db.getCollection('trackingConfig');
+      if (!trackingConfigCollection) {
+        this.app.logger.warn('Collection trackingConfig is not defined');
+        return;
+      }
+
+      const repository = trackingConfigCollection.repository;
+      if (!repository) {
+        this.app.logger.warn('Repository for trackingConfig is not available');
+        return;
+      }
+
+      const SignInTracking = await repository.findOne({
         filter: {
           title: 'sign-in',
           resourceName: 'auth',
@@ -21,7 +33,7 @@ export class ModuleInstrumentationServer extends Plugin {
         },
       });
       if (!SignInTracking) {
-        await this.app.db.getRepository('trackingConfig').create({
+        await repository.create({
           values: {
             title: 'sign-in',
             resourceName: 'auth',
@@ -63,6 +75,15 @@ export class ModuleInstrumentationServer extends Plugin {
   }
 
   async load() {
+    const collectionsDir = resolve(__dirname, 'collections');
+    const trackingConfigCollection = this.db.getCollection('trackingConfig');
+    if (!trackingConfigCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-instrumentation',
+      });
+    }
+
     if (isMainThread) {
       this.addServerTrackingListener();
     }

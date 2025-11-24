@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
-
+import { resolve } from 'node:path';
 import { DumpRulesGroupType, Plugin } from '@tego/server';
+
 import parser from 'cron-parser';
 
 import { COLLECTION_AUTOBACKUP } from '../constants';
@@ -30,9 +31,30 @@ export default class PluginBackupRestoreServer extends Plugin {
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
 
   async load() {
+    const collectionsDir = resolve(__dirname, 'collections');
+    const autoBackupCollection = this.db.getCollection(COLLECTION_AUTOBACKUP);
+    if (!autoBackupCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-backup',
+      });
+    }
+
     this.app.resourcer.define(backupFilesResourcer);
     this.app.on('afterStart', async (app) => {
-      const cronJobs = await app.db.getRepository(COLLECTION_AUTOBACKUP).find({
+      const collection = app.db.getCollection(COLLECTION_AUTOBACKUP);
+      if (!collection) {
+        app.logger.warn(`Collection ${COLLECTION_AUTOBACKUP} is not defined`);
+        return;
+      }
+
+      const repository = collection.repository;
+      if (!repository) {
+        app.logger.warn(`Repository for ${COLLECTION_AUTOBACKUP} is not available`);
+        return;
+      }
+
+      const cronJobs = await repository.find({
         filter: { enabled: true },
       });
       this.inspect(cronJobs);

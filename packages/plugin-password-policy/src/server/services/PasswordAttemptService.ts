@@ -1,5 +1,4 @@
 import { createContext, Script } from 'node:vm';
-
 import {
   App,
   Application,
@@ -13,6 +12,7 @@ import {
   PasswordField,
   Service,
 } from '@tego/server';
+
 import * as geoip from 'geoip-lite';
 
 import { LOCK_SECONDS, NAMESPACE, WINDOW_SECONDS } from '../../constants';
@@ -68,7 +68,19 @@ export class PasswordAttemptService {
 
     this.app.on('afterStart', async () => {
       // 从配置中读取参数
-      const config = await this.db.getRepository('passwordAttempt').findOne();
+      const passwordAttemptCollection = this.db.getCollection('passwordAttempt');
+      if (!passwordAttemptCollection) {
+        this.logger.warn('Collection passwordAttempt is not defined');
+        return;
+      }
+
+      const repository = passwordAttemptCollection.repository;
+      if (!repository) {
+        this.logger.warn('Repository for passwordAttempt is not available');
+        return;
+      }
+
+      const config = await repository.findOne();
       await this.refreshConfig(config);
 
       // 初始化锁定用户缓存

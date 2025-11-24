@@ -1,9 +1,9 @@
 import { createContext, Script } from 'node:vm';
+import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import * as babelParser from '@babel/parser';
 import traverse from '@babel/traverse';
 import Topo from '@hapi/topo';
-import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import { CloudCompiler } from './cloud-compiler';
 
@@ -22,14 +22,36 @@ export class CloudLibrariesService {
   private compiler: CloudCompiler;
 
   async compileLibraries() {
-    const libRepo = this.app.db.getRepository('cloudLibraries');
+    const cloudLibrariesCollection = this.app.db.getCollection('cloudLibraries');
+    if (!cloudLibrariesCollection) {
+      this.logger.warn('Collection cloudLibraries is not defined');
+      return;
+    }
+
+    const libRepo = cloudLibrariesCollection.repository;
+    if (!libRepo) {
+      this.logger.warn('Repository for cloudLibraries is not available');
+      return;
+    }
+
     const libs = await libRepo.find({
       filter: {
         enabled: true,
       },
     });
 
-    const repo = this.app.db.getRepository('effectLibraries');
+    const effectLibrariesCollection = this.app.db.getCollection('effectLibraries');
+    if (!effectLibrariesCollection) {
+      this.logger.warn('Collection effectLibraries is not defined');
+      return;
+    }
+
+    const repo = effectLibrariesCollection.repository;
+    if (!repo) {
+      this.logger.warn('Repository for effectLibraries is not available');
+      return;
+    }
+
     for (const lib of libs) {
       const {
         name,

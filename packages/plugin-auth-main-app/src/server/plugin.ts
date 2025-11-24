@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { AuthMainAppController } from './actions/authMainApp';
@@ -12,7 +13,17 @@ export class PluginAuthMainAppServer extends Plugin {
 
   async beforeLoad() {}
 
-  async load() {}
+  async load() {
+    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
+    const collectionsDir = resolve(__dirname, 'collections');
+    const authMainAppConfigCollection = this.db.getCollection('authMainAppConfig');
+    if (!authMainAppConfigCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/plugin-auth-main-app',
+      });
+    }
+  }
 
   async install() {}
 

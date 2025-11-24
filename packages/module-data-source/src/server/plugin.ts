@@ -383,7 +383,19 @@ export class PluginDataSourceManagerServer extends Plugin {
     });
 
     this.app.on('afterStart', async (app: Application) => {
-      const dataSourcesRecords: DataSourceModel[] = await this.app.db.getRepository('dataSources').find({
+      const dataSourcesCollection = this.app.db.getCollection('dataSources');
+      if (!dataSourcesCollection) {
+        this.app.logger.warn('Collection dataSources is not defined');
+        return;
+      }
+
+      const repository = dataSourcesCollection.repository;
+      if (!repository) {
+        this.app.logger.warn('Repository for dataSources is not available');
+        return;
+      }
+
+      const dataSourcesRecords: DataSourceModel[] = await repository.find({
         filter: {
           enabled: true,
         },
@@ -560,7 +572,14 @@ export class PluginDataSourceManagerServer extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
+    const collectionsDir = resolve(__dirname, 'collections');
+    const dataSourcesCollection = this.db.getCollection('dataSources');
+    if (!dataSourcesCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-data-source',
+      });
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { CronJobsController } from './actions/cron-jobs-controller';
@@ -18,6 +19,15 @@ export class PluginCronJobServer extends Plugin {
   }
 
   async load() {
+    const collectionsDir = resolve(__dirname, 'collections');
+    const cronJobsCollection = this.db.getCollection('cronJobs');
+    if (!cronJobsCollection) {
+      await this.db.import({
+        directory: collectionsDir,
+        from: this.options.packageName || '@tachybase/module-cron',
+      });
+    }
+
     this.app.acl.registerSnippet({
       name: 'pm.system-services.cron',
       actions: ['cronJobs:*'],

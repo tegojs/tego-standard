@@ -25,7 +25,19 @@ export class StaticScheduleTrigger {
 
   async load() {
     this.app.on('afterStart', async (app) => {
-      const cronJobs = await app.db.getRepository('cronJobs').find({
+      const cronJobsCollection = app.db.getCollection('cronJobs');
+      if (!cronJobsCollection) {
+        this.logger.warn('Collection cronJobs is not defined');
+        return;
+      }
+
+      const repository = cronJobsCollection.repository;
+      if (!repository) {
+        this.logger.warn('Repository for cronJobs is not available');
+        return;
+      }
+
+      const cronJobs = await repository.find({
         filter: { mode: SCHEDULE_MODE.STATIC, enabled: true },
       });
       this.inspect(cronJobs);

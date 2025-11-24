@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { Plugin } from '@tego/server';
 
 import initActions from './actions';
+import storagesCollection from './collections/storages';
 import { FileModel } from './FileModel';
 import { getStorageConfig } from './storages';
 
@@ -59,18 +60,21 @@ export default class PluginFileManager extends Plugin {
         options.model = 'FileModel';
       }
     });
+
+    // 定义 storages collection（必须在 beforeLoad 中定义，因为 load() 中需要访问）
+    this.db.collection(storagesCollection);
     this.app.on('afterStart', async () => {
       await this.loadStorages();
     });
   }
 
   async load() {
-    const storagesCollectionAfterImport = this.db.getCollection('storages');
-    if (!storagesCollectionAfterImport) {
+    const storagesCollection = this.db.getCollection('storages');
+    if (!storagesCollection) {
       throw new Error('Collection storages is not defined after import');
     }
 
-    const Storage = storagesCollectionAfterImport.model;
+    const Storage = storagesCollection.model;
     Storage.afterSave(async (m, { transaction }) => {
       await this.loadStorages({ transaction });
     });

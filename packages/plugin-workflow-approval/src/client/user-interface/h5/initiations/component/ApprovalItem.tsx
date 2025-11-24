@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
-import { useAPIClient, useCollectionManager, useCompile, useCurrentUserContext } from '@tachybase/client';
+import { Pagination, useAPIClient, useCollectionManager, useCompile, useCurrentUserContext } from '@tachybase/client';
 import { observer } from '@tachybase/schema';
 
 import { useDeepCompareEffect } from 'ahooks';
@@ -24,9 +24,29 @@ export const ApprovalItem = observer((props) => {
   const inputFilter = contextFilter['key'] === 'userInitiations' ? contextFilter['inputFilter'] : '';
   const cm = useCollectionManager();
   const compile = useCompile();
+  const [page, setPage] = useState({
+    pageSize: 10,
+    current: 1,
+  });
+  const [total, setTotal] = useState();
   useDeepCompareEffect(() => {
-    changService(api, setData, user, { ...params?.[tabKey], ...filter }, t, setDefaultData, cm, compile);
-  }, [filter, params]);
+    changService(
+      api,
+      setData,
+      user,
+      { ...params?.[tabKey], ...filter },
+      t,
+      setDefaultData,
+      cm,
+      compile,
+      page,
+      setTotal,
+    );
+  }, [filter, params, page]);
+
+  const onChange = (page, pageSize) => {
+    setPage({ pageSize, current: page });
+  };
   useEffect(() => {
     if (inputFilter && defaultData.length) {
       const filterData = defaultData.filter((value) => {
@@ -99,6 +119,15 @@ export const ApprovalItem = observer((props) => {
       ) : (
         <Empty description="暂无数据" />
       )}
+      <Pagination
+        defaultCurrent={1}
+        total={total}
+        align="end"
+        pageSize={page.pageSize}
+        current={page.current}
+        onChange={onChange}
+        style={{ backgroundColor: 'white' }}
+      />
     </div>
   );
 });
@@ -108,11 +137,11 @@ const approvalTodoListStatus = (item, t) => {
   return approvalStatusEnums.find((value) => value.value === status);
 };
 
-const changService = (api, setData, user, filter, t, setDefaultData, cm, compile) => {
+const changService = (api, setData, user, filter, t, setDefaultData, cm, compile, page, setTotal) => {
   api
     .request({
       url: 'approvals:listCentralized',
-      params: { paginate: false, appends: ['workflow'], filter },
+      params: { pageSize: page.pageSize, page: page.current, appends: ['workflow'], filter },
     })
     .then((res) => {
       const result = res.data?.data.map((item) => {
@@ -136,6 +165,7 @@ const changService = (api, setData, user, filter, t, setDefaultData, cm, compile
         return Date.parse(b.createdAt) - Date.parse(a.createdAt);
       });
       setData(result);
+      setTotal(res.data?.meta?.count);
       setDefaultData(result);
     })
     .catch(() => {

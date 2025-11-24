@@ -42,7 +42,7 @@ export default {
       const rows = await Promise.all(
         backupFiles.slice((page - 1) * pageSize, page * pageSize).map(async (file) => {
           // if file is lock file, remove lock extension
-          return await Dumper.getFileStatus(file.endsWith('.lock') ? file.replace('.lock', '') : file, ctx.app.name);
+          return await Dumper.getFileStatus(file.endsWith('.lock') ? file.replace('.lock', '') : file, ctx.tego.name);
         }),
       );
 

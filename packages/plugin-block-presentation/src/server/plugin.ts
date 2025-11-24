@@ -9,8 +9,6 @@ export class IframeBlockPlugin extends Plugin {
   beforeLoad() {}
 
   async load() {
-    await this.importCollections(path.resolve(__dirname, 'collections'));
-
     this.app.resourcer.registerActions({
       'iframeHtml:getHtml': getHtml,
     });

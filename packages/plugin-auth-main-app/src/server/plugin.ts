@@ -13,17 +13,7 @@ export class PluginAuthMainAppServer extends Plugin {
 
   async beforeLoad() {}
 
-  async load() {
-    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
-    const collectionsDir = resolve(__dirname, 'collections');
-    const authMainAppConfigCollection = this.db.getCollection('authMainAppConfig');
-    if (!authMainAppConfigCollection) {
-      await this.db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/plugin-auth-main-app',
-      });
-    }
-  }
+  async load() {}
 
   async install() {}
 

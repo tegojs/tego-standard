@@ -24,8 +24,6 @@ export class CustomRequestPlugin extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
-
     this.app.resourcer.define({
       name: 'customRequests',
       actions: {

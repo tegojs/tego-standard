@@ -200,16 +200,6 @@ export default class PluginWorkflowServer extends Plugin {
   async load() {
     const { db, options } = this;
 
-    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
-    const collectionsDir = path.resolve(__dirname, './collections');
-    const workflowsCollection = db.getCollection('workflows');
-    if (!workflowsCollection) {
-      await db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/module-workflow',
-      });
-    }
-
     initActions(this);
     this.initTriggers(options.triggers);
     this.initInstructions(options.instructions);

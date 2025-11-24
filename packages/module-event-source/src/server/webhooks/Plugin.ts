@@ -26,16 +26,6 @@ export class PluginWebhook extends Plugin {
   }
 
   async load() {
-    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
-    const collectionsDir = path.resolve(__dirname, '../collections');
-    const webhooksCollection = this.db.getCollection(EVENT_SOURCE_COLLECTION);
-    if (!webhooksCollection) {
-      await this.db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/module-event-source',
-      });
-    }
-
     const gateway = Gateway.getInstance();
     this.ws = gateway['wsServer'];
 

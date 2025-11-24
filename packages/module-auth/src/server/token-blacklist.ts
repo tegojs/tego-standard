@@ -11,14 +11,7 @@ export class TokenBlacklistService implements ITokenBlacklistService {
   cacheKey = 'token-black-list';
 
   constructor(protected plugin: AuthPlugin) {
-    const collection = plugin.db.getCollection('tokenBlacklist');
-    if (!collection) {
-      throw new Error('Collection tokenBlacklist is not defined');
-    }
-    this.repo = collection.repository;
-    if (!this.repo) {
-      throw new Error('Repository for tokenBlacklist is not available');
-    }
+    this.repo = plugin.db.getRepository('tokenBlacklist');
 
     // Try to create a bloom filter and cache blocked tokens in it
     plugin.app.on('beforeStart', async () => {

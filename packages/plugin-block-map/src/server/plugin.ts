@@ -25,8 +25,6 @@ export class MapPlugin extends Plugin {
   }
 
   async load() {
-    await this.importCollections(path.resolve(__dirname, 'collections'));
-
     this.app.resourcer.define({
       name: 'map-configuration',
       actions: {

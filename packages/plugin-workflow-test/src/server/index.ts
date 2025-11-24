@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { createMockServer, mockDatabase, MockServer } from '@tachybase/test';
-
 import { ApplicationOptions, Plugin, Resourcer, SequelizeDataSource, uid } from '@tego/server';
 
 import functions from './functions';
@@ -76,7 +75,5 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
 }
 
 export default class WorkflowTestPlugin extends Plugin {
-  async load() {
-    await this.importCollections(path.resolve(__dirname, 'collections'));
-  }
+  async load() {}
 }

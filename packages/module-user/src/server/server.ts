@@ -165,7 +165,6 @@ export default class PluginUsersServer extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
     this.db.addMigrations({
       namespace: 'users',
       directory: resolve(__dirname, 'migrations'),

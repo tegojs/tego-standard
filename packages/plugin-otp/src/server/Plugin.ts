@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { Context, HandlerType, Op, Plugin, Registry } from '@tego/server';
 
 import { namespace, Provider } from '.';
@@ -122,8 +121,6 @@ export default class PluginOtp extends Plugin {
     const { app, db, options } = this;
 
     app.i18n.addResources('zh-CN', namespace, zhCN);
-
-    await this.importCollections(path.resolve(__dirname, 'collections'));
 
     await initProviders(this);
     initActions(this);

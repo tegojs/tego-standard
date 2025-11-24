@@ -271,27 +271,9 @@ export class CollectionManagerPlugin extends Plugin {
   }
 
   async load() {
-    // 如果基类的 loadCollections() 没有导入 collections（packageName 未设置），手动导入
-    const collectionsDir = path.resolve(__dirname, './collections');
-    const collectionsCollection = this.db.getCollection('collections');
-    if (!collectionsCollection) {
-      await this.db.import({
-        directory: collectionsDir,
-        from: this.options.packageName || '@tachybase/module-collection',
-      });
-    }
+    this.app.db.getRepository<CollectionRepository>('collections').setApp(this.app);
 
-    const repository = this.db.getRepository<CollectionRepository>('collections');
-    if (!repository) {
-      throw new Error('CollectionRepository for collections is not available');
-    }
-    repository.setApp(this.app);
-
-    const errorHandlerPlugin = this.app.pm.get('error-handler') as PluginErrorHandler | undefined;
-    if (!errorHandlerPlugin) {
-      this.app.logger.warn('error-handler plugin is not available');
-      return;
-    }
+    const errorHandlerPlugin = this.app.getPlugin<PluginErrorHandler>('error-handler');
     errorHandlerPlugin.errorHandler.register(
       (err) => {
         return err instanceof UniqueConstraintError;

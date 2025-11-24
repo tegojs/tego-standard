@@ -7,15 +7,35 @@
 
 ## [未发布]
 
+### ✨ 新增
+
+- 添加选择节点 ([#286](https://github.com/tegojs/tego-standard/pull/286)) [d7a683f](https://github.com/tegojs/tego-standard/commit/d7a683f3dfe5ee65cbbb9a88e6dd5fabf3bb45f5) (@dududuna)
+- **workflow**: 将启用的切换添加到工作流程和 Webhook ([#287](https://github.com/tegojs/tego-standard/pull/287)) [76f9fb7](https://github.com/tegojs/tego-standard/commit/76f9fb78110fbf6b4e2ae5b106a2f99fa6d3d1f3) (@bai.zixv)
+
 ### 🐛 修复
 
-- 导出当前表函数并添加过滤条件([#271](https://github.com/tegojs/tego-standard/pull/271)) [2be25ab](https://github.com/tegojs/tego-standard/commit/2be25ab69a7951cfc46102726460f71bf5b01c6e) (@dududuna)
-- 审批添加返回并更新审批导航路径 ([#265](https://github.com/tegojs/tego-standard/pull/265)) [ed0091c](https://github.com/tegojs/tego-standard/commit/ed0091cb6b48d604e3c0f0f239e6211f6517059d) (@dududuna)
+- **web**: 使用解析器 polyfill 添加承诺 ([#291](https://github.com/tegojs/tego-standard/pull/291)) [a9d5d3a](https://github.com/tegojs/tego-standard/commit/a9d5d3a40f2cfd88e065de8e082a441d544b1bd4) (@bai.zixv)
+- 表过滤器([#288](https://github.com/tegojs/tego-standard/pull/288)) [fe2a98b](https://github.com/tegojs/tego-standard/commit/fe2a98bacd2fe3600358e07b0ddf8c501f553761) (@dududuna)
 
 
 
+## [1.6.0] - 2025-11-20
 
+### ✨ 新增
 
+- 在 event & perf(workflow) 之后调整资源操作的事件源代码：调整执行时间的工作流代码 ([#285](https://github.com/tegojs/tego-standard/pull/285)) (@bai.zixv)
+- 添加备份进度和下载进度 & 杂务：游标规则更新 & 杂务：更新 github 工作流程 ([#280](https://github.com/tegojs/tego-standard/pull/280)) (@bai.zixv)
+- 审批摘要支持数组类型数据 & feat: 更改工作流程和审批列表页面的列显示 ([#239](https://github.com/tegojs/tego-standard/pull/239)) (@bai.zixv)
+- 添加光标挂钩以进行自动格式化和翻译同步([#282](https://github.com/tegojs/tego-standard/pull/282)) (@bai.zixv)
+
+### 🐛 修复
+
+- **workflow**: 修复同步审批工作流程 ([#284](https://github.com/tegojs/tego-standard/pull/284)) (@bai.zixv)
+- **backup**: 修复备份进度超时检查 ([#283](https://github.com/tegojs/tego-standard/pull/283)) (@bai.zixv)
+- **workflow-approval**: 测试逻辑 & 修复（工作流）：useAction 字符串引用 & 修复（工作流）：重复的工作流类别默认值 & 修复（数据源）：集合表列宽 & 杂项（光标）：更新 lint 检查规则 ([#279](https://github.com/tegojs/tego-standard/pull/279)) (@bai.zixv)
+- 批准抄送详细信息 ([#269](https://github.com/tegojs/tego-standard/pull/269)) (@dududuna)
+- 导出当前表函数并添加过滤条件([#271](https://github.com/tegojs/tego-standard/pull/271)) (@dududuna)
+- 审批添加返回并更新审批导航路径 ([#265](https://github.com/tegojs/tego-standard/pull/265)) (@dududuna)
 
 ## [1.5.1] - 2025-11-13
 
@@ -2829,7 +2849,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.5.1...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1
 [1.5.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.0
 [1.4.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.4.0

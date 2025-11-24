@@ -109,6 +109,8 @@ export const approvals = {
         ...instance,
         ...data,
       },
+      collection,
+      app: context.app,
     });
     Object.keys(model.associations).forEach((key) => {
       delete instance[key];
@@ -141,6 +143,8 @@ export const approvals = {
     const summary = getSummary({
       summaryConfig,
       data: data,
+      collection,
+      app: context.app,
     });
 
     context.action.mergeParams({

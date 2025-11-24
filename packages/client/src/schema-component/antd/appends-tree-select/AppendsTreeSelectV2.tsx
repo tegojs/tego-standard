@@ -38,10 +38,12 @@ type CallScope = {
   compile?(value: string): string;
   getCollectionFields?(name: any, dataSource?: string): CollectionFieldOptions_deprecated[];
   filter(field): boolean;
+  needLeaf?: boolean;
 };
 
-function loadChildren(this, option) {
-  const result = getCollectionFieldOptions.call(this, option.field.target, option);
+function loadChildren(this: CallScope, option) {
+  const needLeaf = this.needLeaf ?? false;
+  const result = getCollectionFieldOptions.call(this, option.field.target, option, { needLeaf });
   if (result.length) {
     if (!result.some((item) => isAssociation(item.field))) {
       option.isLeaf = true;
@@ -70,11 +72,14 @@ function getCollectionFieldOptions(
   const [dataSourceName, collectionName] = parseCollectionName(collection);
   const rawFields = this.getCollectionFields(collectionName, dataSourceName);
   const fields = needLeaf ? rawFields : rawFields.filter(isAssociation);
-  const boundLoadChildren = loadChildren.bind(this);
+  const boundLoadChildren = loadChildren.bind({ ...this, needLeaf });
   return fields.filter(this.filter).map((field) => {
     const key = parentNode ? `${parentNode.value ? `${parentNode.value}.` : ''}${field.name}` : field.name;
     const fieldTitle = this.compile(field.uiSchema?.title) ?? field.name;
-    const isLeaf = !this.getCollectionFields(field.target).filter(isAssociation).filter(this.filter).length;
+    // 当 needLeaf 为 true 时，也要考虑普通字段来判断是否是叶子节点
+    const targetFields = field.target ? this.getCollectionFields(field.target) : [];
+    const availableFields = needLeaf ? targetFields : targetFields.filter(isAssociation);
+    const isLeaf = !availableFields.filter(this.filter).length;
     return {
       pId: parentNode?.key ?? null,
       id: key,
@@ -145,9 +150,14 @@ export const AppendsTreeSelectV2 = (props: Omit<TreeSelectProps, 'suffixIcon'> &
     const tData =
       propsLoadData === null
         ? []
-        : getCollectionFieldOptions.call({ compile, getCollectionFields, filter }, collectionString, parentNode, {
-            needLeaf,
-          });
+        : getCollectionFieldOptions.call(
+            { compile, getCollectionFields, filter, needLeaf },
+            collectionString,
+            parentNode,
+            {
+              needLeaf,
+            },
+          );
 
     const map = tData.reduce((result, item) => Object.assign(result, { [item.value]: item }), {});
     if (parentNode) {

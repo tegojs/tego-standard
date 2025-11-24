@@ -7,12 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- add select node ([#286](https://github.com/tegojs/tego-standard/pull/286)) [d7a683f](https://github.com/tegojs/tego-standard/commit/d7a683f3dfe5ee65cbbb9a88e6dd5fabf3bb45f5) (@dududuna)
+- **workflow**: add enabled toggle to workflow and webhook ([#287](https://github.com/tegojs/tego-standard/pull/287)) [76f9fb7](https://github.com/tegojs/tego-standard/commit/76f9fb78110fbf6b4e2ae5b106a2f99fa6d3d1f3) (@bai.zixv)
+
 ### 🐛 Fixed
 
-- export the current table function and add filtering criteria ([#271](https://github.com/tegojs/tego-standard/pull/271)) [2be25ab](https://github.com/tegojs/tego-standard/commit/2be25ab69a7951cfc46102726460f71bf5b01c6e) (@dududuna)
-- approval add return and update approval navigation path ([#265](https://github.com/tegojs/tego-standard/pull/265)) [ed0091c](https://github.com/tegojs/tego-standard/commit/ed0091cb6b48d604e3c0f0f239e6211f6517059d) (@dududuna)
+- **web**: add promise with resolvers polyfill ([#291](https://github.com/tegojs/tego-standard/pull/291)) [a9d5d3a](https://github.com/tegojs/tego-standard/commit/a9d5d3a40f2cfd88e065de8e082a441d544b1bd4) (@bai.zixv)
+- table filter ([#288](https://github.com/tegojs/tego-standard/pull/288)) [fe2a98b](https://github.com/tegojs/tego-standard/commit/fe2a98bacd2fe3600358e07b0ddf8c501f553761) (@dududuna)
 
 
+
+## [1.6.0] - 2025-11-20
+
+### ✨ Added
+
+- adjust event source code for resource operation after event & perf(workflow): adjust workflow code for executed time ([#285](https://github.com/tegojs/tego-standard/pull/285)) (@bai.zixv)
+- add backup progress and download progress & chore: cursor rules update & chore: update github workflow ([#280](https://github.com/tegojs/tego-standard/pull/280)) (@bai.zixv)
+- approval summary support array type data & feat: change the column display of workflow and approval list pages ([#239](https://github.com/tegojs/tego-standard/pull/239)) (@bai.zixv)
+- add cursor hooks for auto formatting and translation sync ([#282](https://github.com/tegojs/tego-standard/pull/282)) (@bai.zixv)
+
+### 🐛 Fixed
+
+- **workflow**: fix sync approval workflow ([#284](https://github.com/tegojs/tego-standard/pull/284)) (@bai.zixv)
+- **backup**: fix timeout check for backup progress ([#283](https://github.com/tegojs/tego-standard/pull/283)) (@bai.zixv)
+- **workflow-approval**: test logic & fix(workflow): useAction string reference & fix(workflow): duplicate workflow category default value & fix(data-source): collection table column width & chore(cursor): update lint check rules ([#279](https://github.com/tegojs/tego-standard/pull/279)) (@bai.zixv)
+- approval cc details ([#269](https://github.com/tegojs/tego-standard/pull/269)) (@dududuna)
+- export the current table function and add filtering criteria ([#271](https://github.com/tegojs/tego-standard/pull/271)) (@dududuna)
+- approval add return and update approval navigation path ([#265](https://github.com/tegojs/tego-standard/pull/265)) (@dududuna)
 
 ## [1.5.1] - 2025-11-13
 
@@ -2826,7 +2849,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1
 [1.5.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.0
 [1.4.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.4.0

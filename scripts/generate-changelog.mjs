@@ -124,8 +124,9 @@ function generateChangelogEntryEN(grouped, version, date) {
     lines.push('### ⚠️ Breaking Changes', '');
     grouped.breaking.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const description = convertPRNumbersToLinks(item.description);
       const author = item.author ? ` (@${item.author})` : '';
-      lines.push(`- ${scope}${item.description}${author}`);
+      lines.push(`- ${scope}${description}${author}`);
     });
     lines.push('');
   }
@@ -135,8 +136,9 @@ function generateChangelogEntryEN(grouped, version, date) {
     lines.push('### ✨ Added', '');
     grouped.feat.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const description = convertPRNumbersToLinks(item.description);
       const author = item.author ? ` (@${item.author})` : '';
-      lines.push(`- ${scope}${item.description}${author}`);
+      lines.push(`- ${scope}${description}${author}`);
     });
     lines.push('');
   }
@@ -146,8 +148,9 @@ function generateChangelogEntryEN(grouped, version, date) {
     lines.push('### 🐛 Fixed', '');
     grouped.fix.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const description = convertPRNumbersToLinks(item.description);
       const author = item.author ? ` (@${item.author})` : '';
-      lines.push(`- ${scope}${item.description}${author}`);
+      lines.push(`- ${scope}${description}${author}`);
     });
     lines.push('');
   }
@@ -158,8 +161,9 @@ function generateChangelogEntryEN(grouped, version, date) {
     lines.push('### 🔄 Changed', '');
     changed.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const description = convertPRNumbersToLinks(item.description);
       const author = item.author ? ` (@${item.author})` : '';
-      lines.push(`- ${scope}${item.description}${author}`);
+      lines.push(`- ${scope}${description}${author}`);
     });
     lines.push('');
   }
@@ -169,8 +173,9 @@ function generateChangelogEntryEN(grouped, version, date) {
     lines.push('### 📝 Documentation', '');
     grouped.docs.forEach((item) => {
       const scope = item.scope ? `**${item.scope}**: ` : '';
+      const description = convertPRNumbersToLinks(item.description);
       const author = item.author ? ` (@${item.author})` : '';
-      lines.push(`- ${scope}${item.description}${author}`);
+      lines.push(`- ${scope}${description}${author}`);
     });
     lines.push('');
   }
@@ -197,13 +202,15 @@ function generateChangelogEntryEN(grouped, version, date) {
     lines.push('### 🔧 Other', '');
     other.forEach((item) => {
       if (typeof item === 'string') {
-        lines.push(`- ${item}`);
+        const converted = convertPRNumbersToLinks(item);
+        lines.push(`- ${converted}`);
       } else if (item && typeof item === 'object') {
         const scope = item.scope ? `**${item.scope}**: ` : '';
         const description = item.description || item.full || '';
         if (description) {
+          const converted = convertPRNumbersToLinks(description);
           const author = item.author ? ` (@${item.author})` : '';
-          lines.push(`- ${scope}${description}${author}`);
+          lines.push(`- ${scope}${converted}${author}`);
         }
       }
     });
@@ -236,7 +243,8 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
         translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符，稍后替换
       } else {
-        lines.push(`- ${scope}${item.description}${author}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${author}`);
       }
     });
     lines.push('');
@@ -252,7 +260,8 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
         translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}${author}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${author}`);
       }
     });
     lines.push('');
@@ -268,7 +277,8 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
         translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}${author}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${author}`);
       }
     });
     lines.push('');
@@ -285,7 +295,8 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
         translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}${author}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${author}`);
       }
     });
     lines.push('');
@@ -301,7 +312,8 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
         translations.push({ text: item.description, scope, lineIndex: lines.length, author });
         lines.push(''); // 占位符
       } else {
-        lines.push(`- ${scope}${item.description}${author}`);
+        const description = convertPRNumbersToLinks(item.description);
+        lines.push(`- ${scope}${description}${author}`);
       }
     });
     lines.push('');
@@ -333,7 +345,8 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
           translations.push({ text: item, scope: '', lineIndex: lines.length, isString: true });
           lines.push(''); // 占位符
         } else {
-          lines.push(`- ${item}`);
+          const converted = convertPRNumbersToLinks(item);
+          lines.push(`- ${converted}`);
         }
       } else if (item && typeof item === 'object') {
         const scope = item.scope ? `**${item.scope}**: ` : '';
@@ -344,7 +357,8 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
             translations.push({ text: description, scope, lineIndex: lines.length, author });
             lines.push(''); // 占位符
           } else {
-            lines.push(`- ${scope}${description}${author}`);
+            const converted = convertPRNumbersToLinks(description);
+            lines.push(`- ${scope}${converted}${author}`);
           }
         }
       }
@@ -360,12 +374,14 @@ async function generateChangelogEntryZH(grouped, version, date, autoTranslate = 
     // 替换占位符
     translations.forEach((translation, index) => {
       const translated = translatedTexts[index];
+      // 在翻译后应用 PR 链接转换
+      const translatedWithLinks = convertPRNumbersToLinks(translated);
       const author = translation.author || '';
       const lineIndex = translation.lineIndex;
       if (translation.isString) {
-        lines[lineIndex] = `- ${translated}${author}`;
+        lines[lineIndex] = `- ${translatedWithLinks}${author}`;
       } else {
-        lines[lineIndex] = `- ${translation.scope}${translated}${author}`;
+        lines[lineIndex] = `- ${translation.scope}${translatedWithLinks}${author}`;
       }
     });
   }

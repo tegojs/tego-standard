@@ -38,13 +38,17 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          if git diff --quiet CHANGELOG.md CHANGELOG.zh-CN.md; then
+          # Check changes relative to HEAD (not staged area)
+          if git diff --quiet HEAD CHANGELOG.md CHANGELOG.zh-CN.md; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "No changelog changes detected"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "Changelog changes detected"
-            git diff CHANGELOG.md CHANGELOG.zh-CN.md
+            echo "Changes in CHANGELOG.md:"
+            git diff HEAD CHANGELOG.md || true
+            echo "Changes in CHANGELOG.zh-CN.md:"
+            git diff HEAD CHANGELOG.zh-CN.md || true
           fi
 
       - name: Commit changes
@@ -52,11 +56,10 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(changelog): update [Unreleased] section"
-          file_pattern: |
-            CHANGELOG.md
-            CHANGELOG.zh-CN.md
+          file_pattern: 'CHANGELOG.md CHANGELOG.zh-CN.md'
           commit_user_name: github-actions[bot]
           commit_user_email: github-actions[bot]@users.noreply.github.com
+          skip_dirty_check: true
 
   sync-unreleased-to-docs:
     needs: update-unreleased

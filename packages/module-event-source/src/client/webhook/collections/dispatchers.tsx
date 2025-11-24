@@ -135,7 +135,7 @@ export const dispatchers: CollectionOptions = {
         'x-component': 'CodeMirror',
         'x-component-props': {
           defaultValue:
-            '// ctx.action.params can get user query\n// ctx.action.params.values can get user body\n// const { changed, data, error } = await ctx.getChanged(); can get changed fields and raw data\n// ctx.body to pass your data to workflow or to client who invoke this.\n// ctx.body = ctx.action.params.values\n// ctx.body=ctx.model',
+            '// ctx.action.params can get user query\n// ctx.action.params.values can get user body\n// const { changed, data, error } = await ctx.getChanged(); can get changed fields and raw data\n// ctx.originalBody can get action response data (available in resource after events)\n// ctx.body to pass your data to workflow or to client who invoke this.\n// ctx.body = ctx.action.params.values\n// ctx.body = ctx.originalBody  // use action response data\n// ctx.body=ctx.model',
         },
       } as ISchema,
     },
@@ -148,8 +148,8 @@ export const dispatchers: CollectionOptions = {
         type: 'string',
         required: true,
         enum: [
-          { label: tval('On'), value: true, color: '#52c41a' },
-          { label: tval('Off'), value: false },
+          { label: tval('Effective'), value: true, color: '#52c41a' },
+          { label: tval('Ineffective'), value: false, color: '#d9d9d9' },
         ],
         'x-component': 'Radio.Group',
         'x-decorator': 'FormItem',

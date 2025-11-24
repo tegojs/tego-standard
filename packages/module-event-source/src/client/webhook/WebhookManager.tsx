@@ -24,6 +24,7 @@ import {
   WorkflowSelect,
 } from '@tachybase/client';
 import {
+  EnabledStatusFilter,
   ExecutionLink,
   ExecutionRetryAction,
   executionSchema,
@@ -53,9 +54,9 @@ import { useWebhookCategoryContext, WebhookCategoryContext } from '../provider/W
 import { dispatchers } from './collections/dispatchers';
 import { webhookCategories } from './collections/webhookCategories';
 import { AddWebhookCategory } from './components/AddWebhookCategory';
-import { ColumnExecutedTime } from './components/ColumnExecutedTime';
 import { EditWebhookCategory } from './components/EditWebookCategory';
 import { TypeContainer } from './components/TypeContainer';
+import { WorkflowKeyColumn, WorkflowTitleProvider } from './components/WorkflowKeyColumn';
 
 const tag = observable({ value: '', item: {} });
 
@@ -159,7 +160,7 @@ const properties = {
     'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
     'x-decorator-props': {
-      tooltip: 'ctx.request\nctx.body\nlib.JSON\nlib.Math\nlib.dayjs',
+      tooltip: 'ctx.request\nctx.body\nctx.originalBody (action response data)\nlib.JSON\nlib.Math\nlib.dayjs',
     },
     'x-collection-field': 'webhooks.code',
   },
@@ -693,7 +694,11 @@ const WebhooksTabaCardItem = ({ children }) => {
                     />
                   </Dropdown>
                 ),
-                children: <CardItem>{children}</CardItem>,
+                children: (
+                  <CardItem>
+                    <WorkflowTitleProvider>{children}</WorkflowTitleProvider>
+                  </CardItem>
+                ),
               };
             })}
         />
@@ -736,6 +741,11 @@ const schema: ISchema = {
             fuzzySearch: {
               type: 'void',
               'x-component': 'FuzzySearchInput',
+              'x-align': 'left',
+            },
+            statusFilter: {
+              type: 'void',
+              'x-component': 'EnabledStatusFilter',
               'x-align': 'left',
             },
             refresh: {
@@ -833,7 +843,6 @@ const schema: ISchema = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
               },
@@ -856,26 +865,21 @@ const schema: ISchema = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 width: 20,
+                align: 'center',
               },
+              title: tval('Status'),
               properties: {
                 enabled: {
-                  type: 'boolean',
-                  'x-collection-field': 'webhooks.enabled',
-                  'x-component': 'CollectionField',
+                  type: 'void',
+                  'x-component': 'EnabledToggle',
                   'x-component-props': {
-                    ellipsis: true,
-                  },
-                  'x-read-pretty': true,
-                  'x-decorator': null,
-                  'x-decorator-props': {
-                    labelStyle: {
-                      display: 'none',
-                    },
+                    resource: 'webhooks',
                   },
                 },
               },
             },
             workflowKeyColumn: {
+              title: tval('Workflow'),
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
@@ -884,23 +888,12 @@ const schema: ISchema = {
               },
               properties: {
                 workflowKey: {
-                  'x-collection-field': 'webhooks.workflowKey',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
+                  type: 'string',
+                  'x-component': 'WorkflowKeyColumn',
                   'x-decorator': 'OpenDrawer',
                   'x-decorator-props': {
-                    component: ({ children, onClick }) => {
-                      const webhook = useCollectionRecordData();
-                      return (
-                        <Space size="small">
-                          {children}
-                          {webhook.workflowKey ? (
-                            <Button type="link" onClick={onClick} style={{ padding: 0, marginLeft: '-4px' }}>
-                              ({lang('View executions')})
-                            </Button>
-                          ) : null}
-                        </Space>
-                      );
+                    component: ({ onClick }) => {
+                      return <WorkflowKeyColumn onClick={onClick} />;
                     },
                   },
                   properties: {
@@ -932,27 +925,6 @@ const schema: ISchema = {
                 },
               },
             },
-            executedTime: {
-              type: 'void',
-              'x-decorator': 'TableV2.Column.Decorator',
-              'x-component': 'TableV2.Column',
-              title: tval('Finally executed on'),
-              'x-component-props': {
-                sorter: true,
-                width: 20,
-                align: 'center',
-                style: {
-                  display: 'grid',
-                  placeItems: 'center',
-                },
-              },
-              properties: {
-                executedTime: {
-                  type: 'string',
-                  'x-component': 'ColumnExecutedTime',
-                },
-              },
-            },
             effectColumn: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
@@ -960,7 +932,9 @@ const schema: ISchema = {
               'x-component-props': {
                 width: 20,
                 sorter: true,
+                align: 'center',
               },
+              title: tval('Real effect'),
               properties: {
                 effect: {
                   type: 'boolean',
@@ -1118,6 +1092,7 @@ export const WebhookManager = () => {
           useShowAlertProps,
           useWebhookCategoryContext,
           useCreateFormBlockProps,
+          lang,
         }}
         components={{
           Alert: withDynamicSchemaProps(AntdAlert),
@@ -1130,7 +1105,8 @@ export const WebhookManager = () => {
           TypeContainer,
           AddWebhookCategory,
           EditWebhookCategory,
-          ColumnExecutedTime,
+          WorkflowKeyColumn,
+          EnabledStatusFilter,
         }}
       />
     </ExtendCollectionsProvider>

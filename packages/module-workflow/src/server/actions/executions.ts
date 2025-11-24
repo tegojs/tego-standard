@@ -2,6 +2,7 @@ import { actions, Context, Next, Op, utils } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
 import Plugin from '../Plugin';
+import { triggerWorkflowAndGetExecution } from '../utils';
 
 export async function destroy(context: Context, next) {
   context.action.mergeParams({
@@ -87,11 +88,25 @@ export async function retry(context: Context, next: Next) {
   if (!workflow) {
     context.throw(404, context.t('Associated workflow not found.', { ns: 'workflow' }));
   }
+
   try {
-    const result = await plugin.trigger(workflow, execution.context, { httpContext: context });
-    context.app.logger.info(result);
+    const newExecution = await triggerWorkflowAndGetExecution(
+      plugin,
+      workflow,
+      execution.context,
+      { httpContext: context, transaction: context.transaction },
+      context.db,
+    );
+
+    if (!newExecution) {
+      context.state.messages.push({
+        message: context.t('Failed to create execution', { ns: 'workflow' }),
+      });
+      return context.throw(500, context.t('Failed to create execution', { ns: 'workflow' }));
+    }
+
     context.state.messages.push({ message: context.t('Execute ended', { ns: 'workflow' }) });
-    context.body = { executionId: execution.id };
+    context.body = newExecution;
   } catch (error) {
     context.app.logger.error(`Failed to retry execution ${execution.id}: ${error.message}`);
     context.throw(500, context.t('Failed to retry execution', { ns: 'workflow' }));

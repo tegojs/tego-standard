@@ -225,10 +225,15 @@ export class WebhookController {
   }
 
   async action(ctx: Context, action: { code: string }) {
+    // 兼容旧逻辑：
+    // - body: 保持为空字符串，确保现有脚本行为不变
+    // - originalBody: 保存 action 执行后的响应数据，供脚本访问（资源操作后事件可用）
+    //   脚本可以通过 ctx.originalBody 获取 action 的响应，然后决定是否赋值给 ctx.body 传递给工作流
     const webhookCtx = {
       request: ctx.request,
       action: ctx.action,
       body: '',
+      originalBody: ctx.body, // action 执行后的响应数据，可用于资源操作后事件获取 action 结果
       getChanged: getChanged(ctx),
     };
     try {

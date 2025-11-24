@@ -7,9 +7,18 @@ import { getCronLocale } from './cron';
 import { getCronstrueLocale } from './cronstrue';
 
 async function getLang(ctx: Context) {
-  const SystemSetting = ctx.db.getRepository('systemSettings');
-  const systemSetting = await SystemSetting.findOne();
-  const enabledLanguages: string[] = systemSetting.get('enabledLanguages') || [];
+  const systemSettingsCollection = ctx.db.getCollection('systemSettings');
+  if (!systemSettingsCollection) {
+    return ctx.tego.environment.getVariables().APP_LANG || 'en-US';
+  }
+
+  const repository = systemSettingsCollection.repository;
+  if (!repository) {
+    return ctx.tego.environment.getVariables().APP_LANG || 'en-US';
+  }
+
+  const systemSetting = await repository.findOne();
+  const enabledLanguages: string[] = systemSetting?.get('enabledLanguages') || [];
   const currentUser = ctx.state.currentUser;
   let lang = enabledLanguages?.[0] || ctx.tego.environment.getVariables().APP_LANG || 'en-US';
   if (enabledLanguages.includes(currentUser?.appLang)) {
@@ -122,8 +131,14 @@ export class ModuleWeb extends Plugin {
       name: 'app',
       actions: {
         async getInfo(ctx, next) {
-          const SystemSetting = ctx.db.getRepository('systemSettings');
-          const systemSetting = await SystemSetting.findOne();
+          const systemSettingsCollection = ctx.db.getCollection('systemSettings');
+          let systemSetting = null;
+          if (systemSettingsCollection) {
+            const repository = systemSettingsCollection.repository;
+            if (repository) {
+              systemSetting = await repository.findOne();
+            }
+          }
           const enabledLanguages: string[] = systemSetting.get('enabledLanguages') || [];
           const currentUser = ctx.state.currentUser;
           let lang = enabledLanguages?.[0] || ctx.tego.environment.getVariables().APP_LANG || 'en-US';

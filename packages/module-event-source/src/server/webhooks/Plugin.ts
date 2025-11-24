@@ -1,5 +1,7 @@
 import { Context, Gateway, Next, Plugin, Registry, WSServer } from '@tego/server';
 
+import webhookCategoriesCollection from '../collections/webhookCategories';
+import webhooksCollection from '../collections/webhooks';
 import { EVENT_SOURCE_COLLECTION, EVENT_SOURCE_REALTIME } from '../constants';
 import { EventSourceModel } from '../model/EventSourceModel';
 import { WebhookCategories } from '../model/WebhookCategories';
@@ -22,6 +24,10 @@ export class PluginWebhook extends Plugin {
       EventSourceModel: EventSourceModel,
       WebhookCategories: WebhookCategories,
     });
+
+    // 注册 collections（必须在 beforeLoad 中定义，以便 load 方法中可以使用）
+    this.db.collection(webhooksCollection);
+    this.db.collection(webhookCategoriesCollection);
   }
 
   async load() {

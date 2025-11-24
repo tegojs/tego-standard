@@ -9,6 +9,11 @@ import { availableActionResource } from './actions/available-actions';
 import { checkAction } from './actions/role-check';
 import { roleCollectionsResource } from './actions/role-collections';
 import { setDefaultRole } from './actions/user-setDefaultRole';
+import rolesCollection from './collections/roles';
+import rolesUsersCollection from './collections/roles-users';
+import rolesResourcesCollection from './collections/rolesResources';
+import rolesResourcesActionsCollection from './collections/rolesResourcesActions';
+import rolesResourcesScopesCollection from './collections/rolesResourcesScopes';
 import { setCurrentRole } from './middlewares/setCurrentRole';
 import { createWithACLMetaMiddleware } from './middlewares/with-acl-meta';
 import { RoleModel } from './model/RoleModel';
@@ -113,6 +118,13 @@ export class PluginACL extends Plugin {
       RoleResourceModel,
       RoleModel,
     });
+
+    // 注册 roles 相关的 collections（必须在 beforeLoad 中定义，因为其他模块的 collections 会引用 roles）
+    this.db.collection(rolesCollection);
+    this.db.collection(rolesResourcesCollection);
+    this.db.collection(rolesResourcesActionsCollection);
+    this.db.collection(rolesResourcesScopesCollection);
+    this.db.collection(rolesUsersCollection);
 
     this.app.acl.registerSnippet({
       name: `pm.${this.name}.roles`,

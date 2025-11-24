@@ -10,6 +10,7 @@ import lodash from 'lodash';
 import { CollectionRepository } from '.';
 import { collectionImportExportMeta } from './actions/collectionImportExportMeta';
 import collectionsCollection from './collections/collections';
+import fieldsCollection from './collections/fields';
 import {
   afterCreateForForeignKeyField,
   afterCreateForReverseField,
@@ -48,8 +49,10 @@ export class CollectionManagerPlugin extends Plugin {
       FieldModel,
     });
 
-    // 定义 collections collection（必须在 beforeLoad 中定义，因为 beforeLoad 中需要监听 collections.beforeCreate 事件）
+    // 定义 collections 和 fields collection（必须在 beforeLoad 中定义，因为 beforeLoad 中需要监听 collections.beforeCreate 事件，
+    // 且 loadCollections 需要查询 collections 及其关联的 fields）
     this.db.collection(collectionsCollection);
+    this.db.collection(fieldsCollection);
 
     this.db.addMigrations({
       namespace: 'collection-manager',

@@ -1,5 +1,7 @@
 import { Plugin } from '@tego/server';
 
+import environmentVariablesCollection from './collections/environmentVariables';
+
 export class PluginEnvironmentVariablesServer extends Plugin {
   updated = false;
 
@@ -17,6 +19,11 @@ export class PluginEnvironmentVariablesServer extends Plugin {
       this.app.environment.removeVariable(name);
       this.updated = true;
     }
+  }
+
+  async beforeLoad() {
+    // 注册 environmentVariables collection（必须在 beforeLoad 中定义，以便 load 方法中可以使用）
+    this.db.collection(environmentVariablesCollection);
   }
 
   async load() {

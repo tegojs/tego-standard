@@ -1,6 +1,7 @@
 import { Application, InjectedPlugin, Plugin, PluginOptions } from '@tego/server';
 
 import { CustomEventSourceController } from './actions/CustomEventSourceController';
+import customEventSourcesCollection from './collections/customEventSources';
 import { PluginWebhook } from './webhooks/Plugin';
 
 @InjectedPlugin({
@@ -10,6 +11,11 @@ export class ModuleEventSourceServer extends Plugin {
   constructor(app: Application, options?: PluginOptions) {
     super(app, options);
     this.addFeature(PluginWebhook);
+  }
+
+  async beforeLoad() {
+    // 注册 customEventSources collection（必须在 beforeLoad 中定义，以便其他地方可以使用）
+    this.db.collection(customEventSourcesCollection);
   }
 
   async load() {

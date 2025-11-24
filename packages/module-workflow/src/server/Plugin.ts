@@ -4,6 +4,11 @@ import { Application, Logger, LoggerOptions, Op, Plugin, PluginOptions, Registry
 import { LRUCache } from 'lru-cache';
 
 import initActions from './actions';
+import executionsCollection from './collections/executions';
+import flowNodesCollection from './collections/flow_nodes';
+import jobsCollection from './collections/jobs';
+import workflowCategoriesCollection from './collections/workflowCategories';
+import workflowsCollectionFactory from './collections/workflows';
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
 import PluginWorkflowJSParseServer from './features/_deprecated-js-parse/plugin';
 import PluginWorkflowJSONParseServer from './features/_deprecated-json-parse/plugin';
@@ -79,6 +84,15 @@ export default class PluginWorkflowServer extends Plugin {
     this.addFeature(PluginOmniTrigger);
     this.addFeature(PluginTriggerInstruction);
     this.addFeature(PluginWorkflowNoticeServer);
+  }
+
+  async beforeLoad() {
+    // 注册 workflow 相关的 collections（必须在 beforeLoad 中定义，以便 load 和 beforeStart 中可以使用）
+    this.db.collection(workflowsCollectionFactory());
+    this.db.collection(executionsCollection);
+    this.db.collection(jobsCollection);
+    this.db.collection(flowNodesCollection);
+    this.db.collection(workflowCategoriesCollection);
   }
 
   getLogger(workflowId: ID): Logger {

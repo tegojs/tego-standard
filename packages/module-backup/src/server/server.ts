@@ -1,5 +1,3 @@
-import { execSync } from 'node:child_process';
-import { resolve } from 'node:path';
 import { DumpRulesGroupType, Gateway, Plugin } from '@tego/server';
 
 import parser from 'cron-parser';

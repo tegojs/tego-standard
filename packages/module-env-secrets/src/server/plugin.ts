@@ -1,4 +1,3 @@
-import path from 'node:path';
 import { Plugin } from '@tego/server';
 
 export class PluginEnvironmentVariablesServer extends Plugin {

@@ -23,7 +23,6 @@ export class CloudLibrariesService {
 
   async compileLibraries() {
     const libRepo = this.app.db.getRepository('cloudLibraries');
-
     const libs = await libRepo.find({
       filter: {
         enabled: true,
@@ -31,7 +30,6 @@ export class CloudLibrariesService {
     });
 
     const repo = this.app.db.getRepository('effectLibraries');
-
     for (const lib of libs) {
       const {
         name,

@@ -22,17 +22,7 @@ export class CloudLibrariesService {
   private compiler: CloudCompiler;
 
   async compileLibraries() {
-    const cloudLibrariesCollection = this.app.db.getCollection('cloudLibraries');
-    if (!cloudLibrariesCollection) {
-      this.logger.warn('Collection cloudLibraries is not defined');
-      return;
-    }
-
-    const libRepo = cloudLibrariesCollection.repository;
-    if (!libRepo) {
-      this.logger.warn('Repository for cloudLibraries is not available');
-      return;
-    }
+    const libRepo = this.app.db.getRepository('cloudLibraries');
 
     const libs = await libRepo.find({
       filter: {
@@ -40,17 +30,7 @@ export class CloudLibrariesService {
       },
     });
 
-    const effectLibrariesCollection = this.app.db.getCollection('effectLibraries');
-    if (!effectLibrariesCollection) {
-      this.logger.warn('Collection effectLibraries is not defined');
-      return;
-    }
-
-    const repo = effectLibrariesCollection.repository;
-    if (!repo) {
-      this.logger.warn('Repository for effectLibraries is not available');
-      return;
-    }
+    const repo = this.app.db.getRepository('effectLibraries');
 
     for (const lib of libs) {
       const {

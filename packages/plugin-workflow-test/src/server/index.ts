@@ -74,6 +74,4 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
   return app;
 }
 
-export default class WorkflowTestPlugin extends Plugin {
-  async load() {}
-}
+export default class WorkflowTestPlugin extends Plugin {}

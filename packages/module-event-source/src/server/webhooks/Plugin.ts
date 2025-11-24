@@ -1,4 +1,3 @@
-import path from 'node:path';
 import { Context, Gateway, Next, Plugin, Registry, WSServer } from '@tego/server';
 
 import { EVENT_SOURCE_COLLECTION, EVENT_SOURCE_REALTIME } from '../constants';
@@ -83,18 +82,7 @@ export class PluginWebhook extends Plugin {
   }
 
   async loadEventSources() {
-    const collection = this.db.getCollection(EVENT_SOURCE_COLLECTION);
-    if (!collection) {
-      this.app.logger.warn(`Collection ${EVENT_SOURCE_COLLECTION} is not defined`);
-      return;
-    }
-
-    const repo = collection.repository;
-    if (!repo) {
-      this.app.logger.warn(`Repository for ${EVENT_SOURCE_COLLECTION} is not available`);
-      return;
-    }
-
+    const repo = this.db.getRepository(EVENT_SOURCE_COLLECTION);
     const list = (await repo.find({
       filter: {
         enabled: true,

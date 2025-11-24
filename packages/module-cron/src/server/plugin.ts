@@ -1,4 +1,3 @@
-import { resolve } from 'node:path';
 import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { CronJobsController } from './actions/cron-jobs-controller';

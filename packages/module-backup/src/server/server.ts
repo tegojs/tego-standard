@@ -91,19 +91,7 @@ export default class PluginBackupRestoreServer extends Plugin {
     }
 
     this.app.on('afterStart', async (app) => {
-      const collection = app.db.getCollection(COLLECTION_AUTOBACKUP);
-      if (!collection) {
-        app.logger.warn(`Collection ${COLLECTION_AUTOBACKUP} is not defined`);
-        return;
-      }
-
-      const repository = collection.repository;
-      if (!repository) {
-        app.logger.warn(`Repository for ${COLLECTION_AUTOBACKUP} is not available`);
-        return;
-      }
-
-      const cronJobs = await repository.find({
+      const cronJobs = await app.db.getRepository(COLLECTION_AUTOBACKUP).find({
         filter: { enabled: true },
       });
       this.inspect(cronJobs);

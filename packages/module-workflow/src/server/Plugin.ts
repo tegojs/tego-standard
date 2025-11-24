@@ -92,7 +92,7 @@ export default class PluginWorkflowServer extends Plugin {
     const logger = this.createLogger({
       dirname: path.join('workflows', date),
       filename: `${workflowId}.log`,
-      transports: ctx.tego.environment.getVariables().APP_ENV !== 'production' ? ['console'] : ['file'],
+      transports: process.env.APP_ENV !== 'production' ? ['console'] : ['file'],
     } as LoggerOptions);
 
     this.loggerCache.set(key, logger);
@@ -256,18 +256,7 @@ export default class PluginWorkflowServer extends Plugin {
     //   * add hooks for create/update[enabled]/delete workflow to add/remove specific hooks
     this.app.on('beforeStart', async () => {
       const collection = db.getCollection('workflows');
-      if (!collection) {
-        this.app.logger.warn('Collection workflows is not defined');
-        return;
-      }
-
-      const repository = collection.repository;
-      if (!repository) {
-        this.app.logger.warn('Repository for workflows is not available');
-        return;
-      }
-
-      const workflows = await repository.find({
+      const workflows = await collection.repository.find({
         filter: { enabled: true },
       });
 

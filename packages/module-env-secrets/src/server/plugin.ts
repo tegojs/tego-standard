@@ -189,19 +189,8 @@ export class PluginEnvironmentVariablesServer extends Plugin {
   }
 
   async loadVariables() {
-    const collection = this.db.getCollection('environmentVariables');
-    if (!collection) {
-      this.app.logger.warn('Collection environmentVariables is not defined');
-      return;
-    }
-
-    const repository = collection.repository;
-    if (!repository) {
-      this.app.logger.warn('Repository for environmentVariables is not available');
-      return;
-    }
-
-    const r = await collection.existsInDb();
+    const repository = this.db.getRepository('environmentVariables');
+    const r = await repository.collection.existsInDb();
     if (!r) {
       return;
     }

@@ -1,4 +1,3 @@
-import { resolve } from 'node:path';
 import { isMainThread } from 'node:worker_threads';
 import { Context, InjectedPlugin, Plugin } from '@tego/server';
 
@@ -13,19 +12,7 @@ export class ModuleInstrumentationServer extends Plugin {
   serverTrackingFilter: ServerTrackingFilter = null;
   async addServerTrackingListener() {
     this.app.on('afterStart', async () => {
-      const trackingConfigCollection = this.app.db.getCollection('trackingConfig');
-      if (!trackingConfigCollection) {
-        this.app.logger.warn('Collection trackingConfig is not defined');
-        return;
-      }
-
-      const repository = trackingConfigCollection.repository;
-      if (!repository) {
-        this.app.logger.warn('Repository for trackingConfig is not available');
-        return;
-      }
-
-      const SignInTracking = await repository.findOne({
+      const SignInTracking = await this.app.db.getRepository('trackingConfig').findOne({
         filter: {
           title: 'sign-in',
           resourceName: 'auth',
@@ -33,7 +20,7 @@ export class ModuleInstrumentationServer extends Plugin {
         },
       });
       if (!SignInTracking) {
-        await repository.create({
+        await this.app.db.getRepository('trackingConfig').create({
           values: {
             title: 'sign-in',
             resourceName: 'auth',

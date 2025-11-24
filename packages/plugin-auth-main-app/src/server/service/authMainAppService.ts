@@ -22,19 +22,7 @@ export class AuthMainAppService {
 
     this.app.on('afterStart', async () => {
       await this.checkInstall();
-      const collection = this.db.getCollection(COLLECTION_AUTH_MAIN_APP_CONFIG);
-      if (!collection) {
-        this.logger.warn(`Collection ${COLLECTION_AUTH_MAIN_APP_CONFIG} is not defined`);
-        return;
-      }
-
-      const repository = collection.repository;
-      if (!repository) {
-        this.logger.warn(`Repository for ${COLLECTION_AUTH_MAIN_APP_CONFIG} is not available`);
-        return;
-      }
-
-      const config = await repository.findOne();
+      const config = await this.db.getRepository(COLLECTION_AUTH_MAIN_APP_CONFIG).findOne();
       if (config) {
         this.selfSignIn = config.selfSignIn ?? true;
         this.authMainApp = config.authMainApp ?? true;
@@ -48,18 +36,7 @@ export class AuthMainAppService {
   }
 
   async checkInstall() {
-    const collection = this.db.getCollection(COLLECTION_AUTH_MAIN_APP_CONFIG);
-    if (!collection) {
-      this.logger.warn(`Collection ${COLLECTION_AUTH_MAIN_APP_CONFIG} is not defined`);
-      return;
-    }
-
-    const repo = collection.repository;
-    if (!repo) {
-      this.logger.warn(`Repository for ${COLLECTION_AUTH_MAIN_APP_CONFIG} is not available`);
-      return;
-    }
-
+    const repo = this.db.getRepository(COLLECTION_AUTH_MAIN_APP_CONFIG);
     const existOne = await repo.findOne();
     if (!existOne) {
       await repo.create({

@@ -1,4 +1,3 @@
-import { resolve } from 'node:path';
 import { InjectedPlugin, Plugin } from '@tego/server';
 
 import _ from 'lodash';
@@ -11,8 +10,6 @@ import { CloudLibrariesService } from './services/cloud-libraries-service';
   Controllers: [CloudLibrariesController],
   Services: [CloudLibrariesService, CloudCompiler],
 })
-export class ModuleCloudComponentServer extends Plugin {
-  async load() {}
-}
+export class ModuleCloudComponentServer extends Plugin {}
 
 export default ModuleCloudComponentServer;

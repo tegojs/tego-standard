@@ -6,7 +6,7 @@ import SwiperSvg from './swiper.svg';
 import TabSearchSvg from './tab-search.svg';
 
 let convert = (encoded: string) => decodeURI(encoded).replace('data:image/svg+xml,', '');
-if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production') {
   convert = (encoded: string) => atob(encoded.replace('data:image/svg+xml;base64,', ''));
 }
 

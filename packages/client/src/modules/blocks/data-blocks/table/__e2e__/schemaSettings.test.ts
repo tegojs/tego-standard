@@ -78,7 +78,7 @@ test.describe('table block schema settings', () => {
 
   test.describe('enable drag and drop sorting', () => {
     // 该用例在 CI 并发环境下容易报错，原因未知，通过增加重试次数可以解决
-    test.describe.configure({ retries: ctx.tego.environment.getVariables().CI ? 4 : 0 });
+    test.describe.configure({ retries: process.env.CI ? 4 : 0 });
     test('enable drag and drop sorting', async ({ page, mockPage, mockRecords }) => {
       const nocoPage = await mockPage(oneTableBlockWithAddNewAndViewAndEditAndBasicFields).waitForInit();
       const records = await mockRecords('general', 3);
@@ -194,7 +194,7 @@ test.describe('table block schema settings', () => {
 
   test.describe('set default sorting rules', () => {
     // 该用例在 CI 并发环境下容易报错，原因未知，通过增加重试次数可以解决
-    test.describe.configure({ retries: ctx.tego.environment.getVariables().CI ? 4 : 0 });
+    test.describe.configure({ retries: process.env.CI ? 4 : 0 });
     test('set default sorting rules', async ({ page, mockPage, mockRecords }) => {
       const nocoPage = await mockPage(oneTableBlockWithAddNewAndViewAndEditAndBasicFields).waitForInit();
       const records = await mockRecords('general', 3);

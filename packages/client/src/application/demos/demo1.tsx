@@ -78,7 +78,7 @@ class TachybasePresetPlugin extends Plugin {
 
 const app = new Application({
   apiClient: {
-    baseURL: ctx.tego.environment.getVariables().API_BASE_URL,
+    baseURL: process.env.API_BASE_URL,
   },
   router: {
     type: 'hash',

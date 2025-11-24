@@ -38,7 +38,7 @@ export const useFieldServiceFilter = (filter, originalFilter?) => {
           const variableName = getVariableName(value);
           const variable = findVariable(variableName);
 
-          if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !variable) {
+          if (process.env.NODE_ENV !== 'production' && !variable) {
             throw new Error(`useServiceOptions: can not find variable ${variableName}`);
           }
 

@@ -102,7 +102,7 @@ test.describe('Configuration Page Path Jump Workflow Management Page', () => {
 
     // 3、预期结果：跳转路径正确
     await page.waitForLoadState('networkidle');
-    expect(page.url()).toBe(`${ctx.tego.environment.getVariables().APP_BASE_URL}/admin/settings/workflow`);
+    expect(page.url()).toBe(`${process.env.APP_BASE_URL}/admin/settings/workflow`);
 
     // 4、后置处理：删除工作流
     await apiDeleteWorkflow(workflowId);
@@ -165,7 +165,7 @@ test.describe('Configuration Page Path Jump Workflow Management Page', () => {
 
     // 3、预期结果：跳转路径正确
     await page.waitForLoadState('networkidle');
-    expect(page.url()).toBe(`${ctx.tego.environment.getVariables().APP_BASE_URL}/admin/settings/workflow`);
+    expect(page.url()).toBe(`${process.env.APP_BASE_URL}/admin/settings/workflow`);
 
     // 4、后置处理：删除工作流
     await apiDeleteWorkflow(workflowId);
@@ -223,7 +223,7 @@ test.describe('Configuration Page Path Jump Workflow Management Page', () => {
 
     // 3、预期结果：跳转路径正确
     await page.waitForLoadState('networkidle');
-    expect(page.url()).toBe(`${ctx.tego.environment.getVariables().APP_BASE_URL}/admin/settings/workflow`);
+    expect(page.url()).toBe(`${process.env.APP_BASE_URL}/admin/settings/workflow`);
 
     // 4、后置处理：删除工作流
     await apiDeleteWorkflow(workflowId);
@@ -281,7 +281,7 @@ test.describe('Configuration Page Path Jump Workflow Management Page', () => {
 
     // 3、预期结果：跳转路径正确
     await page.waitForLoadState('networkidle');
-    // expect(page.url()).toBe(`${ctx.tego.environment.getVariables().APP_BASE_URL}/admin/settings/workflow`);
+    // expect(page.url()).toBe(`${process.env.APP_BASE_URL}/admin/settings/workflow`);
 
     // 4、后置处理：删除工作流
     await apiDeleteWorkflow(workflowId);

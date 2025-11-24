@@ -508,7 +508,7 @@ export const SchemaSettingsItem: FC<SchemaSettingsItemProps> = (props) => {
 
   const { name } = useSchemaSettingsItem();
 
-  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !title) {
+  if (process.env.NODE_ENV !== 'production' && !title) {
     throw new Error('SchemaSettingsItem must have a title');
   }
 

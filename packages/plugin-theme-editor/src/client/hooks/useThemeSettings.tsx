@@ -49,11 +49,11 @@ function Label() {
     return null;
   }
 
-  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !currentUser) {
+  if (process.env.NODE_ENV !== 'production' && !currentUser) {
     throw new Error('Please check if provide `CurrentUserProvider` in your app.');
   }
 
-  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !systemSettings) {
+  if (process.env.NODE_ENV !== 'production' && !systemSettings) {
     throw new Error('Please check if provide `SystemSettingsProvider` in your app.');
   }
 

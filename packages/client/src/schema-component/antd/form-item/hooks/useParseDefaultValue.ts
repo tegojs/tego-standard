@@ -71,7 +71,7 @@ const useParseDefaultValue = () => {
         field.loading = true;
         const collectionField = !fieldSchema.name.toString().includes('.') && getField(fieldSchema.name);
 
-        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
           if (!collectionField) {
             console.error(`useParseDefaultValue: can not find field ${fieldSchema.name}`);
           }

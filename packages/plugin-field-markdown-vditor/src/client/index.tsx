@@ -17,7 +17,7 @@ export class PluginFieldMarkdownVditorClient extends Plugin {
   }
 
   getCDN() {
-    if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       // 开发模式下使用远程 cdn
       return 'https://unpkg.com/vditor@3.10.4';
     }

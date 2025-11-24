@@ -109,7 +109,7 @@ export const usePropsAPIRegular = () => {
         const value = originalAssignedValues[key];
         const collectionField = getField(key);
 
-        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
           if (!collectionField) {
             throw new Error(`usePropsAPIRegular: field "${key}" not found in collection "${name}"`);
           }

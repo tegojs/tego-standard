@@ -38,7 +38,7 @@ export function useParsedFilter({ filterOption }: { filterOption: any }) {
           const variableName = getVariableName(value);
           const variable = findVariable(variableName);
 
-          if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !variable) {
+          if (process.env.NODE_ENV !== 'production' && !variable) {
             throw new Error(`useParsedFilter: can not find variable ${variableName}`);
           }
 

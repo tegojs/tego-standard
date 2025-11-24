@@ -164,7 +164,7 @@ export function useCollectValuesToSubmit() {
       const value = originalAssignedValues[key];
       const collectionField = getField(key);
 
-      if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+      if (process.env.NODE_ENV !== 'production') {
         if (!collectionField) {
           throw new Error(`field "${key}" not found in collection "${name}"`);
         }
@@ -437,7 +437,7 @@ export const useAssociationCreateActionProps = () => {
         const value = originalAssignedValues[key];
         const collectionField = getField(key);
 
-        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
           if (!collectionField) {
             throw new Error(`useAssociationCreateActionProps: field "${key}" not found in collection "${name}"`);
           }
@@ -697,7 +697,7 @@ export const useCustomizeUpdateActionProps = () => {
         const value = originalAssignedValues[key];
         const collectionField = getField(key);
 
-        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
           if (!collectionField) {
             throw new Error(`useCustomizeUpdateActionProps: field "${key}" not found in collection "${name}"`);
           }
@@ -883,7 +883,7 @@ export const useUpdateActionProps = () => {
         const value = originalAssignedValues[key];
         const collectionField = getField(key);
 
-        if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
           if (!collectionField) {
             throw new Error(`useUpdateActionProps: field "${key}" not found in collection "${name}"`);
           }

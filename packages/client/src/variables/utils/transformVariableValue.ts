@@ -28,7 +28,7 @@ export const transformVariableValue = (value: any, deps: Deps) => {
     if (Array.isArray(value)) {
       return value.map((item) => {
         if (!_.isObject(item)) {
-          if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+          if (process.env.NODE_ENV !== 'production') {
             throw new Error(`transformVariableValue: chinaRegion field value should be an array of object`);
           }
         }
@@ -45,7 +45,7 @@ export const transformVariableValue = (value: any, deps: Deps) => {
       });
     }
 
-    if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       throw new Error(`transformVariableValue: chinaRegion field value should be an array`);
     }
   }

@@ -5,7 +5,7 @@ const TYPE_TO_ACTION = {
   belongsToMany: 'list?pageSize=9999',
 };
 export const getAction = (type: string) => {
-  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production' && !(type in TYPE_TO_ACTION)) {
+  if (process.env.NODE_ENV !== 'production' && !(type in TYPE_TO_ACTION)) {
     throw new Error(`VariablesProvider: unknown type: ${type}`);
   }
 

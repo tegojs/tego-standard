@@ -64,7 +64,7 @@ export const InternaPopoverNester = observer(
     };
     const { getAriaLabel } = useGetAriaLabelOfPopover();
 
-    if (ctx.tego.environment.getVariables().__E2E__) {
+    if (process.env.__E2E__) {
       useSetAriaLabelForPopover(visible);
     }
 

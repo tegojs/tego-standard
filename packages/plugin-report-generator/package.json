@@ -1,0 +1,30 @@
+{
+  "name": "@tachybase/plugin-report-generator",
+  "displayName": "Report Generator",
+  "version": "1.6.0",
+  "description": "Generate reports based on natural language prompts using system data",
+  "keywords": [
+    "Reports",
+    "Data Analysis"
+  ],
+  "license": "Apache-2.0",
+  "main": "./dist/server/index.js",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {
+    "@tachybase/client": "workspace:*",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
+    "dayjs": "catalog:",
+    "file-saver": "^2.0.5",
+    "lodash": "4.17.21",
+    "node-xlsx": "^0.24.0",
+    "react": "catalog:",
+    "react-i18next": "16.2.1"
+  },
+  "description.zh-CN": "基于自然语言提示词，使用系统数据生成报表",
+  "displayName.zh-CN": "报表生成器"
+}

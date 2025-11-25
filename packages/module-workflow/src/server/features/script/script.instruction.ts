@@ -9,6 +9,7 @@ import _ from 'lodash';
 import qrcode from 'qrcode';
 
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
+import { getRemoteCodeFetcher } from '../../utils/get-remote-code-fetcher';
 
 export class ScriptInstruction extends Instruction {
   async run(node: FlowNodeModel, input: any, processor: Processor) {
@@ -20,8 +21,6 @@ export class ScriptInstruction extends Instruction {
       codeSource = 'local',
       codeType,
       codeUrl,
-      codeBranch = 'main',
-      codePath,
       codeAuthType,
       codeAuthToken,
       codeAuthUsername,
@@ -32,29 +31,16 @@ export class ScriptInstruction extends Instruction {
     if (codeSource === 'remote' && codeUrl && codeType) {
       try {
         const app = processor.options.plugin.app;
-        let remoteCodeFetcher;
-
-        // 尝试获取 RemoteCodeFetcher 服务
-        try {
-          const cloudComponentPlugin = app.pm.get('@tego/module-cloud-component');
-          if (cloudComponentPlugin) {
-            remoteCodeFetcher = app.getService('RemoteCodeFetcher');
-          }
-        } catch (error) {
-          try {
-            remoteCodeFetcher = app.getService('RemoteCodeFetcher');
-          } catch (e) {
-            app.logger.warn('RemoteCodeFetcher service not found, using fallback implementation');
-          }
-        }
+        // 获取 workflow 模块的 RemoteCodeFetcher 服务
+        const remoteCodeFetcher = getRemoteCodeFetcher(app);
 
         if (remoteCodeFetcher) {
-          // 使用 RemoteCodeFetcher 服务
+          // 使用 RemoteCodeFetcher 服务（使用默认分支和路径）
           actualCode = await remoteCodeFetcher.fetchCode(
             codeUrl,
             codeType,
-            codeBranch,
-            codePath,
+            undefined, // codeBranch - 使用默认值 'main'
+            undefined, // codePath - 使用默认值
             codeAuthType,
             codeAuthToken,
             codeAuthUsername,

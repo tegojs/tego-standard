@@ -163,40 +163,15 @@ export class ScriptInstruction extends Instruction {
         },
       ],
     },
-    codeBranch: {
-      type: 'string',
-      title: tval('Code branch'),
-      'x-decorator': 'FormItem',
-      'x-component': 'Input',
-      'x-component-props': {
-        placeholder: tval('Code branch placeholder'),
-      },
-      default: 'main',
+    syncRemoteCodeButton: {
+      type: 'void',
+      'x-component': 'SyncRemoteCodeButton',
       'x-reactions': [
         {
           dependencies: ['codeSource', 'codeType'],
           fulfill: {
             state: {
-              visible: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
-            },
-          },
-        },
-      ],
-    },
-    codePath: {
-      type: 'string',
-      title: tval('Code path'),
-      'x-decorator': 'FormItem',
-      'x-component': 'Input',
-      'x-component-props': {
-        placeholder: tval('Code path placeholder'),
-      },
-      'x-reactions': [
-        {
-          dependencies: ['codeSource', 'codeType'],
-          fulfill: {
-            state: {
-              visible: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
+              visible: '{{$deps[0] === "remote" && $deps[1]}}',
             },
           },
         },
@@ -257,20 +232,6 @@ export class ScriptInstruction extends Instruction {
           fulfill: {
             state: {
               visible: '{{$deps[0] === "remote" && $deps[1] === "basic"}}',
-            },
-          },
-        },
-      ],
-    },
-    syncRemoteCodeButton: {
-      type: 'void',
-      'x-component': 'SyncRemoteCodeButton',
-      'x-reactions': [
-        {
-          dependencies: ['codeSource', 'codeType', 'codeUrl'],
-          fulfill: {
-            state: {
-              visible: '{{$deps[0] === "remote" && $deps[1] && $deps[2]}}',
             },
           },
         },

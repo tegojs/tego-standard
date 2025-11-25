@@ -39,8 +39,6 @@ export const SyncRemoteCodeButton: React.FC = () => {
         codeSource: syncCodeSource,
         codeType: syncCodeType,
         codeUrl: syncCodeUrl,
-        codeBranch = 'main',
-        codePath,
         codeAuthType = 'token',
         codeAuthToken,
         codeAuthUsername,
@@ -62,8 +60,6 @@ export const SyncRemoteCodeButton: React.FC = () => {
             values: {
               codeUrl: syncCodeUrl,
               codeType: syncCodeType,
-              codeBranch,
-              codePath,
               codeAuthType,
               codeAuthToken,
               codeAuthUsername,
@@ -110,18 +106,24 @@ export const SyncRemoteCodeButton: React.FC = () => {
   );
 
   const handleSync = async () => {
+    // 从表单获取最新值
+    const currentValues = form.values || {};
+    const currentCodeSource = currentValues.codeSource;
+    const currentCodeType = currentValues.codeType;
+    const currentCodeUrl = currentValues.codeUrl;
+
     // 验证必填字段
-    if (codeSource !== 'remote') {
+    if (currentCodeSource !== 'remote') {
       message.warning(lang('Please select remote code source first'));
       return;
     }
 
-    if (!codeType) {
+    if (!currentCodeType) {
       message.warning(lang('Please select code type first'));
       return;
     }
 
-    if (!codeUrl) {
+    if (!currentCodeUrl || !currentCodeUrl.trim()) {
       message.warning(lang('Code URL is required for Git'));
       return;
     }
@@ -163,8 +165,8 @@ export const SyncRemoteCodeButton: React.FC = () => {
     }
   }, [codeSource]);
 
-  // 只在远程代码且已填写必要信息时显示按钮
-  if (codeSource !== 'remote' || !codeType || !codeUrl) {
+  // 只在远程代码且已选择代码类型时显示按钮
+  if (codeSource !== 'remote' || !codeType) {
     return null;
   }
 

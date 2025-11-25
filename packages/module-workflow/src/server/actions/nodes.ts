@@ -11,6 +11,7 @@ import {
 } from '@tego/server';
 
 import type { WorkflowModel } from '../types';
+import { getRemoteCodeFetcher } from '../utils/get-remote-code-fetcher';
 
 export async function create(context: Context, next) {
   const { db } = context;
@@ -368,93 +369,90 @@ export async function moveDown(context: Context, next) {
  */
 export async function syncRemoteCode(context: Context, next: Next) {
   const params = context.action.params.values || context.action.params || {};
-  const { codeUrl, codeType, codeBranch = 'main', codePath, codeAuthType, codeAuthToken, codeAuthUsername } = params;
+  const { codeUrl, codeType, codeAuthType, codeAuthToken, codeAuthUsername } = params;
 
   if (!codeUrl || !codeType) {
     context.throw(400, 'codeUrl and codeType are required');
   }
 
   try {
-    // 尝试获取云组件插件的 RemoteCodeFetcher 服务
-    let remoteCodeFetcher;
-    try {
-      const cloudComponentPlugin = context.app.pm.get('@tego/module-cloud-component');
-      if (cloudComponentPlugin) {
-        remoteCodeFetcher = context.app.getService('RemoteCodeFetcher');
-      }
-    } catch (error) {
-      // 如果云组件插件未安装，尝试直接获取服务
-      try {
-        remoteCodeFetcher = context.app.getService('RemoteCodeFetcher');
-      } catch (e) {
-        // 如果服务不存在，创建一个简单的实现
-        context.logger.warn('RemoteCodeFetcher service not found, using fallback implementation');
-      }
+    // 获取 workflow 模块的 RemoteCodeFetcher 服务
+    const remoteCodeFetcher = getRemoteCodeFetcher(context.app);
+
+    // Git 类型必须使用 WorkflowRemoteCodeFetcher 服务
+    if (codeType === 'git' && !remoteCodeFetcher) {
+      context.throw(500, 'WorkflowRemoteCodeFetcher service is required for Git type.');
+      return;
     }
 
     if (!remoteCodeFetcher) {
-      // 如果无法获取服务，使用简单的 HTTP 请求实现
-      const http = require('node:http');
-      const https = require('node:https');
-      const { URL } = require('node:url');
+      // 如果无法获取服务且是 CDN 类型，使用简单的 HTTP 请求实现
+      if (codeType === 'cdn') {
+        const http = require('node:http');
+        const https = require('node:https');
+        const { URL } = require('node:url');
 
-      const urlObj = new URL(codeUrl);
-      const client = urlObj.protocol === 'https:' ? https : http;
+        const urlObj = new URL(codeUrl);
+        const client = urlObj.protocol === 'https:' ? https : http;
 
-      const code = await new Promise<string>((resolve, reject) => {
-        const headers: Record<string, string> = {
-          'User-Agent': 'TegoWorkflow/1.0',
-        };
+        const code = await new Promise<string>((resolve, reject) => {
+          const headers: Record<string, string> = {
+            'User-Agent': 'TegoWorkflow/1.0',
+          };
 
-        if (codeAuthType === 'token' && codeAuthToken) {
-          headers['Authorization'] = `Bearer ${codeAuthToken}`;
-        } else if (codeAuthType === 'basic' && codeAuthUsername && codeAuthToken) {
-          const credentials = Buffer.from(`${codeAuthUsername}:${codeAuthToken}`).toString('base64');
-          headers['Authorization'] = `Basic ${credentials}`;
-        }
+          if (codeAuthType === 'token' && codeAuthToken) {
+            headers['Authorization'] = `Bearer ${codeAuthToken}`;
+          } else if (codeAuthType === 'basic' && codeAuthUsername && codeAuthToken) {
+            const credentials = Buffer.from(`${codeAuthUsername}:${codeAuthToken}`).toString('base64');
+            headers['Authorization'] = `Basic ${credentials}`;
+          }
 
-        const request = client.get(
-          {
-            hostname: urlObj.hostname,
-            port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
-            path: urlObj.pathname + urlObj.search,
-            headers,
-            timeout: 10000,
-          },
-          (res) => {
-            if (res.statusCode !== 200) {
-              reject(new Error(`Failed to fetch: HTTP ${res.statusCode}`));
-              return;
-            }
+          const request = client.get(
+            {
+              hostname: urlObj.hostname,
+              port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+              path: urlObj.pathname + urlObj.search,
+              headers,
+              timeout: 10000,
+            },
+            (res) => {
+              if (res.statusCode !== 200) {
+                reject(new Error(`Failed to fetch: HTTP ${res.statusCode}`));
+                return;
+              }
 
-            let data = '';
-            res.on('data', (chunk) => {
-              data += chunk;
-            });
+              let data = '';
+              res.on('data', (chunk) => {
+                data += chunk;
+              });
 
-            res.on('end', () => {
-              resolve(data);
-            });
-          },
-        );
+              res.on('end', () => {
+                resolve(data);
+              });
+            },
+          );
 
-        request.on('error', reject);
-        request.on('timeout', () => {
-          request.destroy();
-          reject(new Error('Request timeout'));
+          request.on('error', reject);
+          request.on('timeout', () => {
+            request.destroy();
+            reject(new Error('Request timeout'));
+          });
         });
-      });
 
-      context.body = {
-        code,
-      };
+        context.body = {
+          code,
+        };
+      } else {
+        context.throw(500, `Unsupported code type: ${codeType}. RemoteCodeFetcher service is required.`);
+        return;
+      }
     } else {
-      // 使用 RemoteCodeFetcher 服务
+      // 使用 RemoteCodeFetcher 服务（使用默认分支和路径）
       const code = await remoteCodeFetcher.fetchCode(
         codeUrl,
         codeType,
-        codeBranch,
-        codePath,
+        undefined, // codeBranch - 使用默认值 'main'
+        undefined, // codePath - 使用默认值
         codeAuthType,
         codeAuthToken,
         codeAuthUsername,

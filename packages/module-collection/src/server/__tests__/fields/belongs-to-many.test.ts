@@ -205,15 +205,15 @@ describe('belongsToMany', () => {
     });
 
     expect(throughCollection.get('sortable')).toEqual(false);
-    const collectionManagerSchema = ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA;
-    const mainSchema = ctx.tego.environment.getVariables().DB_SCHEMA || 'public';
+    const collectionManagerSchema = process.env.COLLECTION_MANAGER_SCHEMA;
+    const mainSchema = db.options.schema || 'public';
 
     if (collectionManagerSchema && mainSchema !== collectionManagerSchema && db.inDialect('postgres')) {
       expect(throughCollection.get('schema')).toEqual(collectionManagerSchema);
 
       const tableName = db.getCollection('post_tags').model.tableName;
 
-      const mainSchema = ctx.tego.environment.getVariables().DB_SCHEMA || 'public';
+      const mainSchema = db.options.schema || 'public';
 
       const tableExists = async (tableName: string, schema: string) => {
         const sql = `SELECT EXISTS(SELECT 1 FROM information_schema.tables

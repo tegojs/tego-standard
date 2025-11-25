@@ -37,7 +37,7 @@ pgOnly()('set collection schema', () => {
     const collection2 = await db.getRepository('collections').findOne({});
 
     expect(collection2.options.schema).toEqual(
-      ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA || app.db.options.schema || 'public',
+      process.env.COLLECTION_MANAGER_SCHEMA || app.db.options.schema || 'public',
     );
   });
 });

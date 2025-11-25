@@ -10,9 +10,9 @@ describe('actions', () => {
   let pluginUser;
 
   beforeEach(async () => {
-    ctx.tego.environment.getVariables().INIT_ROOT_EMAIL = 'test@tachybase.com';
-    ctx.tego.environment.getVariables().INIT_ROOT_PASSWORD = '123456';
-    ctx.tego.environment.getVariables().INIT_ROOT_NICKNAME = 'Test';
+    process.env.INIT_ROOT_EMAIL = 'test@tachybase.com';
+    process.env.INIT_ROOT_PASSWORD = '123456';
+    process.env.INIT_ROOT_NICKNAME = 'Test';
     app = await createMockServer({
       plugins: ['auth', 'users'],
     });
@@ -21,7 +21,7 @@ describe('actions', () => {
     pluginUser = app.pm.get('users');
     adminUser = await db.getRepository('users').findOne({
       filter: {
-        email: ctx.tego.environment.getVariables().INIT_ROOT_EMAIL,
+        email: process.env.INIT_ROOT_EMAIL,
       },
     });
 

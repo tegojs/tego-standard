@@ -314,7 +314,7 @@ describe('workflow > instructions > request', () => {
         {
           userId: typeof user.id,
         },
-        ctx.tego.environment.getVariables().APP_KEY,
+        process.env.APP_KEY,
         {
           expiresIn: '1d',
         },

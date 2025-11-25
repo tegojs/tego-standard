@@ -6,8 +6,7 @@ import lodash from 'lodash';
 import Migrator from '../../migrations/20221121111113-update-id-to-bigint';
 import { createApp } from '../index';
 
-const excludeSqlite = () =>
-  ctx.tego.environment.getVariables().DB_DIALECT !== 'sqlite' ? describe.skip : describe.skip;
+const excludeSqlite = () => (process.env.DB_DIALECT !== 'sqlite' ? describe.skip : describe.skip);
 
 excludeSqlite()('update id to bigint  test', () => {
   let app: MockServer;

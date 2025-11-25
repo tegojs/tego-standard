@@ -15,11 +15,11 @@ if (!isMainThread) {
 const loggerOptions = {
   system: {
     transports: getLoggerTransport(),
-    level: ctx.tego.environment.getVariables().LOGGER_LEVEL || 'info',
+    level: process.env.LOGGER_LEVEL || 'info',
   },
   request: {
     transports: getLoggerTransport(),
-    level: ctx.tego.environment.getVariables().LOGGER_LEVEL || 'info',
+    level: process.env.LOGGER_LEVEL || 'info',
   },
 } as AppLoggerOptions;
 

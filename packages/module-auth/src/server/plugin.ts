@@ -27,7 +27,7 @@ export class PluginAuthServer extends Plugin {
         name: 'auth-token-controller',
         prefix: 'auth-token-controller',
       });
-      const tokenController = new TokenController({ cache, app: this.app, logger: this.app.log });
+      const tokenController = new TokenController({ cache, app: this.app, logger: this.app.logger });
 
       this.app.authManager.setTokenControlService(tokenController);
       const tokenPolicyRepo = this.app.db.getRepository(tokenPolicyCollectionName);

@@ -61,7 +61,7 @@ export class DingtalkAuth extends BaseAuth {
     const clientId = this.options?.dingtalk?.clientId;
     const app = this.ctx.tego.name;
     const redirectUrl = encodeURIComponent(
-      `${this.ctx.protocol}://${this.ctx.host}${ctx.tego.environment.getVariables().API_BASE_PATH}dingtalk:redirect`,
+      `${this.ctx.protocol}://${this.ctx.host}${process.env.API_BASE_PATH}dingtalk:redirect`,
     );
     // TODO: 如果后续有登录后绑定的场景，服务端需要校验 state
     const state = encodeURIComponent(`redirect=${redirect}&app=${app}&name=${this.ctx.headers['x-authenticator']}`);

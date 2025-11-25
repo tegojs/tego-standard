@@ -27,7 +27,7 @@ export class ApplicationModel extends Model {
     } as ApplicationOptions;
 
     const suffix = appKeySuffix || appName;
-    const subSecret = md5(ctx.tego.environment.getVariables().APP_KEY) + '_' + suffix;
+    const subSecret = md5(process.env.APP_KEY) + '_' + suffix;
     if (subAppOptions.authManager?.jwt?.secret) {
       subAppOptions.authManager.jwt.secret = subSecret;
     } else {

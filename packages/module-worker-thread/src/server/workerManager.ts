@@ -91,7 +91,7 @@ export class WorkerManager {
   }
 
   private async addWorker() {
-    const maxMemory = ctx.tego.environment.getVariables().WORKER_MAX_MEMORY || 4096;
+    const maxMemory = process.env.WORKER_MAX_MEMORY || 4096;
     const maxOldSpaceSize = `--max-old-space-size=${maxMemory}`;
     let worker: Worker;
     if (this.isProd) {

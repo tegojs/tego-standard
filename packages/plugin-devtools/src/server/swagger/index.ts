@@ -82,7 +82,7 @@ export class SwaggerManager {
   }
 
   getURL(pathname: string) {
-    return ctx.tego.environment.getVariables().API_BASE_PATH + pathname;
+    return process.env.API_BASE_PATH + pathname;
   }
 
   async getUrls() {

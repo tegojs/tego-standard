@@ -18,9 +18,9 @@ const ProjectRoot = process.cwd();
 
 function getUmiConfig() {
   const { APP_PORT, API_BASE_URL, APP_PUBLIC_PATH } = process.env;
-  const API_BASE_PATH = ctx.tego.environment.getVariables().API_BASE_PATH || '/api/';
-  const EXTENSION_UI_BASE_PATH = ctx.tego.environment.getVariables().EXTENSION_UI_BASE_PATH || '/adapters/';
-  const PROXY_TARGET_URL = ctx.tego.environment.getVariables().PROXY_TARGET_URL || `http://127.0.0.1:${APP_PORT}`;
+  const API_BASE_PATH = process.env.API_BASE_PATH || '/api/';
+  const EXTENSION_UI_BASE_PATH = process.env.EXTENSION_UI_BASE_PATH || '/adapters/';
+  const PROXY_TARGET_URL = process.env.PROXY_TARGET_URL || `http://127.0.0.1:${APP_PORT}`;
   const LOCAL_STORAGE_BASE_URL = 'storage/uploads/';
   const STATIC_PATH = 'static/';
 
@@ -47,13 +47,13 @@ function getUmiConfig() {
       return memo;
     }, {}),
     define: {
-      'ctx.tego.environment.getVariables().APP_PUBLIC_PATH': ctx.tego.environment.getVariables().APP_PUBLIC_PATH,
-      'ctx.tego.environment.getVariables().WS_PATH': ctx.tego.environment.getVariables().WS_PATH,
-      'ctx.tego.environment.getVariables().API_BASE_URL': API_BASE_URL || API_BASE_PATH,
-      'ctx.tego.environment.getVariables().APP_ENV': ctx.tego.environment.getVariables().APP_ENV,
-      'ctx.tego.environment.getVariables().VERSION': version,
-      'ctx.tego.environment.getVariables().WEBSOCKET_URL': ctx.tego.environment.getVariables().WEBSOCKET_URL,
-      'ctx.tego.environment.getVariables().__E2E__': ctx.tego.environment.getVariables().__E2E__,
+      'process.env.APP_PUBLIC_PATH': process.env.APP_PUBLIC_PATH,
+      'process.env.WS_PATH': process.env.WS_PATH,
+      'process.env.API_BASE_URL': API_BASE_URL || API_BASE_PATH,
+      'process.env.APP_ENV': process.env.APP_ENV,
+      'process.env.VERSION': version,
+      'process.env.WEBSOCKET_URL': process.env.WEBSOCKET_URL,
+      'process.env.__E2E__': process.env.__E2E__,
     },
     // only proxy when using `umi dev`
     // if the assets are built, will not proxy
@@ -144,7 +144,7 @@ class IndexGenerator {
 
   generate() {
     this.generatePluginContent();
-    if (ctx.tego.environment.getVariables().NODE_ENV === 'production') return;
+    if (process.env.NODE_ENV === 'production') return;
     this.pluginsPath.forEach((pluginPath) => {
       if (!_existsSync(pluginPath)) {
         return;
@@ -182,7 +182,7 @@ export default function devDynamicImport(packageName: string): Promise<any> {
     }
     mkdirSync(this.outputPath);
     const validPluginPaths = this.pluginsPath.filter((pluginsPath) => _existsSync(pluginsPath));
-    if (!validPluginPaths.length || ctx.tego.environment.getVariables().NODE_ENV === 'production') {
+    if (!validPluginPaths.length || process.env.NODE_ENV === 'production') {
       writeFileSync(this.indexPath, this.emptyIndexContent);
       return;
     }
@@ -213,7 +213,7 @@ export default function devDynamicImport(packageName: string): Promise<any> {
     });
 
     const storagePluginFolders = sync(['*/package.json', '*/*/package.json'], {
-      cwd: ctx.tego.environment.getVariables().PLUGIN_STORAGE_PATH,
+      cwd: process.env.PLUGIN_STORAGE_PATH,
       onlyFiles: true,
       absolute: true,
     });

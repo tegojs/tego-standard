@@ -2,7 +2,7 @@ import { InstallOptions, Plugin } from '@tego/server';
 
 export class SystemSettingsPlugin extends Plugin {
   getInitAppLang(options) {
-    return options?.cliArgs?.[0]?.opts?.lang || ctx.tego.environment.getVariables().INIT_APP_LANG || 'en-US';
+    return options?.cliArgs?.[0]?.opts?.lang || process.env.INIT_APP_LANG || 'en-US';
   }
 
   async install(options?: InstallOptions) {

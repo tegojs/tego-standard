@@ -21,7 +21,7 @@ export class OIDCAuth extends BaseAuth {
     const { http, port } = this.getOptions();
     const protocol = http ? 'http' : 'https';
     const host = port ? `${ctx.hostname}${port ? `:${port}` : ''}` : ctx.host;
-    return `${protocol}://${host}${ctx.tego.environment.getVariables().API_BASE_PATH}oidc:redirect`;
+    return `${protocol}://${host}${process.env.API_BASE_PATH}oidc:redirect`;
   }
 
   getOptions() {

@@ -1,7 +1,7 @@
 import * as others from '../../../packages/module-pdf/src/client';
 
 async function devDynamicImport(packageName: string) {
-  if (ctx.tego.environment.getVariables().NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production') {
     const packageMap = (await import('./.plugins/packageMap.json')).default as Record<string, string>;
     const fileName = packageMap[packageName];
     if (!fileName) {

@@ -21,7 +21,7 @@ export const generate = async (ctx: Context) => {
   });
 
   const rawTemplate = template.get();
-  const templatePath = path.join(ctx.tego.environment.getVariables().PWD, rawTemplate.template[0].get().url);
+  const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
   const data = rawTemplate.testData;
 
   try {
@@ -48,7 +48,7 @@ export const getTags = async (ctx: Context) => {
     appends: ['template'],
   });
   const rawTemplate = template.get();
-  const templatePath = path.join(ctx.tego.environment.getVariables().PWD, rawTemplate.template[0].get().url);
+  const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
 
   try {
     const content = fs.readFileSync(templatePath, 'binary'); //同步读取模板文件的内容

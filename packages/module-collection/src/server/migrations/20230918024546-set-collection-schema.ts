@@ -20,10 +20,7 @@ export default class extends Migration {
     });
 
     for (const collection of userCollections) {
-      await collection.set(
-        'schema',
-        ctx.tego.environment.getVariables().COLLECTION_MANAGER_SCHEMA || this.db.options.schema || 'public',
-      );
+      await collection.set('schema', process.env.COLLECTION_MANAGER_SCHEMA || this.db.options.schema || 'public');
       await collection.save();
     }
 

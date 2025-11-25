@@ -234,7 +234,7 @@ describe('acl', () => {
   it('should not destroy default roles when user is root user', async () => {
     const rootUser = await db.getRepository('users').findOne({
       filter: {
-        email: ctx.tego.environment.getVariables().INIT_ROOT_EMAIL,
+        email: process.env.INIT_ROOT_EMAIL,
       },
     });
     const userPlugin = app.pm.get('users') as UsersPlugin;

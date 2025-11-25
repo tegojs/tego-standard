@@ -131,7 +131,7 @@ export default class Processor {
             ? {
                 message: err.message,
                 stack:
-                  ctx.tego.environment.getVariables().NODE_ENV === 'production'
+                  process.env.NODE_ENV === 'production'
                     ? 'Error stack will not be shown under "production" environment, please check logs.'
                     : err.stack,
               }

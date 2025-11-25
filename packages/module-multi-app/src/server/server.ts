@@ -149,7 +149,7 @@ const defaultAppOptionsFactory = (appName: string, mainApp: Application, preset:
     },
     plugins: [preset],
     resourcer: {
-      prefix: ctx.tego.environment.getVariables().API_BASE_PATH,
+      prefix: process.env.API_BASE_PATH,
     },
   };
 };

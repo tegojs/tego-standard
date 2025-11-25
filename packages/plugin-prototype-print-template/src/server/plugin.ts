@@ -11,9 +11,9 @@ import { addConversionJob } from './actions/producer';
 const execPromise = util.promisify(exec);
 
 const redisOptions = {
-  port: Number(ctx.tego.environment.getVariables().REDIS_PORT || 6379),
-  host: ctx.tego.environment.getVariables().REDIS_HOST || 'localhost',
-  password: ctx.tego.environment.getVariables().REDIS_PASSWORD || '',
+  port: Number(process.env.REDIS_PORT || 6379),
+  host: process.env.REDIS_HOST || 'localhost',
+  password: process.env.REDIS_PASSWORD || '',
 };
 
 async function convertDocxToPdf(wordFilePath: string, outputDir: string, job: any, db: Database): Promise<string> {
@@ -78,7 +78,7 @@ export class PluginPrintTemplateServer extends Plugin {
     this.app.use(require('koa-bodyparser')());
 
     const worker = new Worker(
-      ctx.tego.environment.getVariables().MSG_QUEUE_NAME || 'default',
+      process.env.MSG_QUEUE_NAME || 'default',
       async (job) => {
         if (!job.data.wordFilePath || !job.data.outputDir) {
           console.error('Invalid job data:', job.data);

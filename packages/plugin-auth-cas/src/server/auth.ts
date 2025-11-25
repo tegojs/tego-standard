@@ -20,7 +20,7 @@ export class CASAuth extends BaseAuth {
     const opts = this.options || {};
     return {
       ...opts,
-      serviceUrl: `${opts.serviceDomain}${ctx.tego.environment.getVariables().API_BASE_PATH}cas:service`,
+      serviceUrl: `${opts.serviceDomain}${process.env.API_BASE_PATH}cas:service`,
     };
   }
 

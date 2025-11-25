@@ -314,11 +314,11 @@ export class PluginMockCollectionsServer extends Plugin {
 
     // create external database
     let client = new Client({
-      user: ctx.tego.environment.getVariables().DB_USER,
-      password: ctx.tego.environment.getVariables().DB_PASSWORD,
-      host: ctx.tego.environment.getVariables().DB_HOST,
-      database: ctx.tego.environment.getVariables().DB_DATABASE,
-      port: parseInt(ctx.tego.environment.getVariables().DB_PORT),
+      user: this.app.db.options.username,
+      password: this.app.db.options.password,
+      host: this.app.db.options.host,
+      database: this.app.db.options.database,
+      port: this.app.db.options.port,
     });
 
     await client.connect();
@@ -328,11 +328,11 @@ export class PluginMockCollectionsServer extends Plugin {
 
     // import sql import external database
     client = new Client({
-      user: ctx.tego.environment.getVariables().DB_USER,
-      password: ctx.tego.environment.getVariables().DB_PASSWORD,
-      host: ctx.tego.environment.getVariables().DB_HOST,
+      user: this.app.db.options.username,
+      password: this.app.db.options.password,
+      host: this.app.db.options.host,
       database: externalDB,
-      port: parseInt(ctx.tego.environment.getVariables().DB_PORT),
+      port: this.app.db.options.port,
     });
 
     await client.connect();

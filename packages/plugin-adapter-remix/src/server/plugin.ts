@@ -16,7 +16,7 @@ export class PluginAdapterRemixServer extends Plugin {
 
     const prefix = '/adapters/remix';
 
-    const remixPath = path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, 'storage/remix');
+    const remixPath = path.join(process.env.TEGO_RUNTIME_HOME, 'storage/remix');
     if (!fs.existsSync(remixPath)) {
       fs.mkdirSync(remixPath, { recursive: true });
     }

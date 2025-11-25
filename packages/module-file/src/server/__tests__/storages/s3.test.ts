@@ -6,7 +6,7 @@ import { getApp, requestFile } from '..';
 import { FILE_FIELD_NAME } from '../../constants';
 import s3Storage from '../../storages/s3';
 
-const itif = ctx.tego.environment.getVariables().AWS_SECRET_ACCESS_KEY ? it : it.skip;
+const itif = process.env.AWS_SECRET_ACCESS_KEY ? it : it.skip;
 
 describe('storage:s3', () => {
   let app: MockServer;

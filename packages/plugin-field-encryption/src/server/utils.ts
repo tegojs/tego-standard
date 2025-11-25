@@ -2,7 +2,7 @@ import crypto, { BinaryLike, CipherKey } from 'node:crypto';
 
 const algorithm: string = 'aes-256-cbc';
 
-const keyString = ctx.tego.environment.getVariables().ENCRYPTION_KEY || '12345678901234567890123456789012';
+const keyString = process.env.ENCRYPTION_KEY || '12345678901234567890123456789012';
 
 const key = Buffer.from(keyString, 'utf8') as unknown as CipherKey;
 

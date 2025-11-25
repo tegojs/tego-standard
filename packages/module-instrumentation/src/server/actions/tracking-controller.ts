@@ -9,7 +9,7 @@ export class TrackingController {
   @Action('create', { acl: 'public' })
   async create(ctx: Context, next: () => Promise<any>) {
     const repo = await ctx.db.getRepository('trackingEvents');
-    const version = ctx.tego.environment.getVariables().npm_package_version;
+    const version = process.env.npm_package_version;
     const currentTime = new Date().toISOString();
     const currentUserId = ctx.auth?.user?.id || null;
     const values = ctx.action.params.values.values

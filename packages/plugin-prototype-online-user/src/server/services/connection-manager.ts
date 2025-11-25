@@ -37,7 +37,7 @@ export class ConnectionManager {
   async load() {
     if (!this.app.online) {
       const all = createClient({
-        url: ctx.tego.environment.getVariables().REDIS_URL ?? 'redis://127.0.0.1:6379',
+        url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
       });
       const pub = all.duplicate();
       const sub = all.duplicate();

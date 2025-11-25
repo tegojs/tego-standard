@@ -2,7 +2,6 @@ import { resolve } from 'node:path';
 import { Plugin } from '@tego/server';
 
 import initActions from './actions';
-import storagesCollection from './collections/storages';
 import { FileModel } from './FileModel';
 import { getStorageConfig } from './storages';
 

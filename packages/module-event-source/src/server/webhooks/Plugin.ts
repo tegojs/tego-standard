@@ -1,7 +1,5 @@
 import { Context, Gateway, Next, Plugin, Registry, WSServer } from '@tego/server';
 
-import webhookCategoriesCollection from '../collections/webhookCategories';
-import webhooksCollection from '../collections/webhooks';
 import { EVENT_SOURCE_COLLECTION, EVENT_SOURCE_REALTIME } from '../constants';
 import { EventSourceModel } from '../model/EventSourceModel';
 import { WebhookCategories } from '../model/WebhookCategories';

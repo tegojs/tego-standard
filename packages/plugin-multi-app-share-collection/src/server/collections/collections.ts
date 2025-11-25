@@ -1,4 +1,4 @@
-import { CollectionOptions, extendCollection } from '@tego/server';
+import { extendCollection } from '@tego/server';
 
 export default extendCollection({
   name: 'collections',

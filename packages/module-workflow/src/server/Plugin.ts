@@ -4,11 +4,6 @@ import { Application, Logger, LoggerOptions, Op, Plugin, PluginOptions, Registry
 import { LRUCache } from 'lru-cache';
 
 import initActions from './actions';
-import executionsCollection from './collections/executions';
-import flowNodesCollection from './collections/flow_nodes';
-import jobsCollection from './collections/jobs';
-import workflowCategoriesCollection from './collections/workflowCategories';
-import workflowsCollectionFactory from './collections/workflows';
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
 import PluginWorkflowJSParseServer from './features/_deprecated-js-parse/plugin';
 import PluginWorkflowJSONParseServer from './features/_deprecated-json-parse/plugin';

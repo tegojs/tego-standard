@@ -17,9 +17,7 @@ export class PluginAdapterBullmqServer extends Plugin {
       password: process.env.REDIS_PASSWORD || '',
     };
 
-    const defaultQueue = new Queue(process.env.MSG_QUEUE_NAME || 'default', {
-      connection: redisOptions,
-    });
+    const defaultQueue = new Queue(process.env.MSG_QUEUE_NAME || 'default', { connection: redisOptions });
 
     const serverAdapter = new KoaAdapter();
     createBullBoard({

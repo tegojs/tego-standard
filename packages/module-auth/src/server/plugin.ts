@@ -6,7 +6,6 @@ import { namespace, presetAuthenticator, presetAuthType } from '../preset';
 import authActions from './actions/auth';
 import authenticatorsActions from './actions/authenticators';
 import { BasicAuth } from './basic-auth';
-import tokenBlacklistCollection from './collections/token-blacklist';
 import { enUS, zhCN } from './locale';
 import { AuthModel } from './model/authenticator';
 import { Storer } from './storer';

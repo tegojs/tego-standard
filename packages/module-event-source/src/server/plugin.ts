@@ -1,7 +1,6 @@
 import { Application, InjectedPlugin, Plugin, PluginOptions } from '@tego/server';
 
 import { CustomEventSourceController } from './actions/CustomEventSourceController';
-import customEventSourcesCollection from './collections/customEventSources';
 import { PluginWebhook } from './webhooks/Plugin';
 
 @InjectedPlugin({

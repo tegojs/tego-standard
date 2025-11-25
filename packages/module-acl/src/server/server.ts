@@ -9,11 +9,6 @@ import { availableActionResource } from './actions/available-actions';
 import { checkAction } from './actions/role-check';
 import { roleCollectionsResource } from './actions/role-collections';
 import { setDefaultRole } from './actions/user-setDefaultRole';
-import rolesCollection from './collections/roles';
-import rolesUsersCollection from './collections/roles-users';
-import rolesResourcesCollection from './collections/rolesResources';
-import rolesResourcesActionsCollection from './collections/rolesResourcesActions';
-import rolesResourcesScopesCollection from './collections/rolesResourcesScopes';
 import { setCurrentRole } from './middlewares/setCurrentRole';
 import { createWithACLMetaMiddleware } from './middlewares/with-acl-meta';
 import { RoleModel } from './model/RoleModel';
@@ -77,7 +72,9 @@ export class PluginACL extends Plugin {
   }
 
   async writeRolesToACL(options) {
-    const roles = (await this.app.db.getRepository('roles').find()) as RoleModel[];
+    const roles = (await this.app.db.getRepository('roles').find({
+      appends: ['resources', 'resources.actions'],
+    })) as RoleModel[];
 
     for (const role of roles) {
       await this.writeRoleToACL(role, options);

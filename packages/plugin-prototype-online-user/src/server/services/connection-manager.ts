@@ -15,7 +15,7 @@ type WSEventHandler = (ws: WebSocket & { id: string }, ...args: any[]) => Promis
 @Service()
 export class ConnectionManager {
   // private redisClient = createClient({
-  //   url: ctx.tego.environment.getVariables().REDIS_URL ?? 'redis://127.0.0.1:6379',
+  //   url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
   // });
   // private redisPubClient = this.app.online.app.duplicate();
   // private redisSubClient = this.app.online.app.duplicate();

@@ -1,15 +1,7 @@
-import { resolve } from 'node:path';
 import { Application, Plugin } from '@tego/server';
 
 import lodash from 'lodash';
 
-import dataSourcesCollection from './collections/data-sources';
-import dataSourcesCollectionsCollection from './collections/data-sources-collections';
-import dataSourcesFieldsCollection from './collections/data-sources-fields';
-import dataSourcesRolesCollection from './collections/data-sources-roles';
-import dataSourcesRolesResourcesCollection from './collections/data-sources-roles-resources';
-import dataSourcesRolesResourcesActionsCollection from './collections/data-sources-roles-resources-actions';
-import dataSourcesRolesResourcesScopesCollection from './collections/data-sources-roles-resources-scopes';
 import { DataSourcesRolesResourcesModel } from './models/connections-roles-resources';
 import { DataSourcesRolesResourcesActionModel } from './models/connections-roles-resources-action';
 import { DataSourceModel } from './models/data-source';

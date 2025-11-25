@@ -1,7 +1,5 @@
 import { Plugin } from '@tego/server';
 
-import environmentVariablesCollection from './collections/environmentVariables';
-
 export class PluginEnvironmentVariablesServer extends Plugin {
   updated = false;
 

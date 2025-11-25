@@ -9,8 +9,6 @@ import lodash from 'lodash';
 
 import { CollectionRepository } from '.';
 import { collectionImportExportMeta } from './actions/collectionImportExportMeta';
-import collectionsCollection from './collections/collections';
-import fieldsCollection from './collections/fields';
 import {
   afterCreateForForeignKeyField,
   afterCreateForReverseField,

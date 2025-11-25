@@ -67,7 +67,7 @@ export class FontManager {
         url: 'https://assets.tachybase.com/fonts/SourceHanSansCN-Heavy.otf',
       },
     ];
-    const fontsDir = path.join(ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME, 'storage', 'fonts');
+    const fontsDir = path.join(process.env.TEGO_RUNTIME_HOME, 'storage', 'fonts');
     const isExists = await fs.exists(fontsDir);
     if (!isExists) {
       fs.mkdir(fontsDir);

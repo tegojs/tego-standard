@@ -165,7 +165,7 @@ export class CloudLibrariesService {
       const dependencies = [];
 
       // 遍历 AST 节点
-      traverse(ast, {
+      traverse(ast as any, {
         CallExpression(path) {
           const callee = path.get('callee');
           if (callee.isIdentifier({ name: 'require' })) {

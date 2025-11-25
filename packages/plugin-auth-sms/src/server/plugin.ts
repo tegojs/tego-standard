@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-import VerificationPlugin from '@tachybase/plugin-otp';
 import { InstallOptions, Plugin } from '@tego/server';
 
 import { authType } from '../constants';
@@ -17,7 +16,7 @@ export class SmsAuthPlugin extends Plugin {
       },
     });
 
-    const verificationPlugin: VerificationPlugin = this.app.pm.get('otp');
+    const verificationPlugin = this.app.pm.get('otp') as any;
     if (!verificationPlugin) {
       this.app.logger.warn('sms-auth: @tachybase/plugin-otp is required');
       return;

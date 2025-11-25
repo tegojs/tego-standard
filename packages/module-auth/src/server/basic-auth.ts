@@ -149,6 +149,10 @@ export class BasicAuth extends BaseAuth {
       }
     }
     if (code && phone) {
+      const verificationPlugin = ctx.tego.pm.get('otp') as any;
+      if (!verificationPlugin) {
+        ctx.throw(500, 'Verification plugin not found');
+      }
       try {
         await verificationPlugin.intercept(ctx, async () => {});
       } catch (e) {

@@ -20,8 +20,7 @@ export class DingtalkAuth extends BaseAuth {
     const dingtalkClient = new DingtalkClient({
       clientId: this.options?.dingtalk?.clientId,
       clientSecret: this.options?.clientSecret,
-      ctx: this.ctx,
-    });
+    } as any);
     const accessToken = await dingtalkClient.getAccessToken(authCode);
     if (!accessToken) {
       ctx.throw(401, ctx.t('Failed to get accessToken', { ns: namespace }));

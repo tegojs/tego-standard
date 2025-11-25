@@ -4,10 +4,11 @@ const MiddlewareOrderResource = {
   name: 'middlewares',
   actions: {
     get: async (ctx: Context, next: () => Promise<any>) => {
+      const app = ctx.tego as any;
       const data = [
         {
           name: 'use-middleware',
-          items: ctx.tego.middleware._items,
+          items: app._middleware._items,
         },
         {
           name: 'acl-middlewares',
@@ -15,7 +16,7 @@ const MiddlewareOrderResource = {
         },
         {
           name: 'resourcer-middlewares',
-          items: ctx.tego.resourcer.middlewares._items,
+          items: (ctx.tego.resourcer as any).middlewares._items,
         },
       ];
       const mergedItems = [];

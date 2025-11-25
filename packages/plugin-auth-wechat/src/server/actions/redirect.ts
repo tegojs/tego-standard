@@ -3,6 +3,7 @@ import { AppSupervisor, Context, Next } from '@tego/server';
 import dayjs from 'dayjs';
 
 import { AUTH_TIMEOUT_MINUTE } from '../../constants';
+import { WeChatAuth } from '../wechat-auth';
 
 export const redirect = async (ctx: Context, next: Next) => {
   let { state } = ctx.request.query;
@@ -32,7 +33,8 @@ export const redirect = async (ctx: Context, next: Next) => {
       if (!user) {
         ctx.throw(401, 'Bind user failed: no user found');
       }
-      await auth.bindUser(user.userId);
+      const wechatAuth = (await ctx.tego.authManager.get(authenticator, ctx)) as WeChatAuth;
+      await wechatAuth.bindUser(user.userId);
       ctx.redirect(`${prefix}${redirect}`);
     } catch (error) {
       ctx.logger.error('WeChat auth error', { error });

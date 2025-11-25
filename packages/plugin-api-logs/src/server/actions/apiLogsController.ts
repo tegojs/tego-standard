@@ -1,5 +1,7 @@
 import { Action, Context, Controller, Next } from '@tego/server';
 
+import type { PluginApiLogsServer } from '../plugin';
+
 @Controller('apiLogsConfig')
 export class ApiLogsController {
   @Action('tablesync', { acl: 'private' })
@@ -37,8 +39,8 @@ export class ApiLogsController {
     }
     try {
       await apiLogsRepo.createMany({ records: collectionsToInsert, hooks: false });
-      const plugin = ctx.tego.pm.get('api-logs');
-      await plugin.apiFilter?.load();
+      const plugin = ctx.tego.pm.get('api-logs') as unknown as PluginApiLogsServer | undefined;
+      await plugin?.apiFilter?.load();
     } catch (error) {
       ctx.throw(error?.response?.data?.error?.message || 'request error');
     }

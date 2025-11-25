@@ -1,4 +1,4 @@
-import { extendCollection } from '@tego/server';
+import { CollectionOptions, extendCollection } from '@tego/server';
 
 export default extendCollection({
   name: 'collections',
@@ -14,4 +14,4 @@ export default extendCollection({
       foreignKey: 'collectionName',
     },
   ],
-});
+}) as any;

@@ -1,6 +1,17 @@
-import { Context, MultipleRelationRepository, Op, Repository, utils } from '@tego/server';
+import {
+  Context,
+  Inject,
+  InjectLog,
+  Logger,
+  MultipleRelationRepository,
+  Next,
+  Op,
+  Repository,
+  utils,
+} from '@tego/server';
 
 import type { WorkflowModel } from '../types';
+import { getRemoteCodeFetcher } from '../utils/get-remote-code-fetcher';
 
 export async function create(context: Context, next) {
   const { db } = context;
@@ -350,4 +361,115 @@ export async function moveDown(context: Context, next) {
   context.body = instance;
 
   await next();
+}
+
+/**
+ * 同步远程代码
+ * 从远程地址获取代码并返回
+ */
+export async function syncRemoteCode(context: Context, next: Next) {
+  const params = context.action.params.values || context.action.params || {};
+  const { codeUrl, codeType, codeAuthType, codeAuthToken, codeAuthUsername } = params;
+
+  if (!codeUrl || !codeType) {
+    context.throw(400, 'codeUrl and codeType are required');
+  }
+
+  try {
+    // 获取 workflow 模块的 RemoteCodeFetcher 服务
+    const remoteCodeFetcher = getRemoteCodeFetcher(context.app);
+
+    // Git 类型必须使用 WorkflowRemoteCodeFetcher 服务
+    if (codeType === 'git' && !remoteCodeFetcher) {
+      context.throw(500, 'WorkflowRemoteCodeFetcher service is required for Git type.');
+      return;
+    }
+
+    if (!remoteCodeFetcher) {
+      // 如果无法获取服务且是 CDN 类型，使用简单的 HTTP 请求实现
+      if (codeType === 'cdn') {
+        const http = require('node:http');
+        const https = require('node:https');
+        const { URL } = require('node:url');
+
+        const urlObj = new URL(codeUrl);
+        const client = urlObj.protocol === 'https:' ? https : http;
+
+        const code = await new Promise<string>((resolve, reject) => {
+          const headers: Record<string, string> = {
+            'User-Agent': 'TegoWorkflow/1.0',
+          };
+
+          if (codeAuthType === 'token' && codeAuthToken) {
+            headers['Authorization'] = `Bearer ${codeAuthToken}`;
+          } else if (codeAuthType === 'basic' && codeAuthUsername && codeAuthToken) {
+            const credentials = Buffer.from(`${codeAuthUsername}:${codeAuthToken}`).toString('base64');
+            headers['Authorization'] = `Basic ${credentials}`;
+          }
+
+          const request = client.get(
+            {
+              hostname: urlObj.hostname,
+              port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+              path: urlObj.pathname + urlObj.search,
+              headers,
+              timeout: 10000,
+            },
+            (res) => {
+              if (res.statusCode !== 200) {
+                reject(new Error(`Failed to fetch: HTTP ${res.statusCode}`));
+                return;
+              }
+
+              let data = '';
+              res.on('data', (chunk) => {
+                data += chunk;
+              });
+
+              res.on('end', () => {
+                resolve(data);
+              });
+            },
+          );
+
+          request.on('error', reject);
+          request.on('timeout', () => {
+            request.destroy();
+            reject(new Error('Request timeout'));
+          });
+        });
+
+        context.body = {
+          code,
+        };
+      } else {
+        context.throw(500, `Unsupported code type: ${codeType}. RemoteCodeFetcher service is required.`);
+        return;
+      }
+    } else {
+      // 使用 RemoteCodeFetcher 服务（使用默认分支和路径）
+      const code = await remoteCodeFetcher.fetchCode(
+        codeUrl,
+        codeType,
+        undefined, // codeBranch - 使用默认值 'main'
+        undefined, // codePath - 使用默认值
+        codeAuthType,
+        codeAuthToken,
+        codeAuthUsername,
+      );
+      context.body = {
+        code,
+      };
+    }
+
+    await next();
+  } catch (error) {
+    context.logger.error('Failed to sync remote code', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      params,
+    });
+
+    context.throw(500, `Failed to fetch remote code: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }

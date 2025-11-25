@@ -7,6 +7,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "useDefineForClassFields": true,
+    "types": ["node"],
 
     /* modules */
     "module": "ESNext",
@@ -21,5 +22,5 @@
     "noUnusedParameters": true
   },
   "exclude": ["node_modules"],
-  "include": ["src/"]
+  "include": ["src/", "rsbuild.config.ts"]
 }

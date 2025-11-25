@@ -298,21 +298,50 @@ export async function startBackendServer(): Promise<void> {
 
         // 直接运行 tego 的 JavaScript 入口文件，而不是 shell 脚本
         // tego 脚本最终会执行: node node_modules/tego/bin/tego.js start
+        // 优先查找 tego.js，因为直接运行可以避免 shell 脚本的路径解析问题
         const tegoJsPath = path.join(projectRoot, 'node_modules', 'tego', 'bin', 'tego.js');
-        if (fs.existsSync(tegoJsPath)) {
-          args = [tegoJsPath, 'start'];
-          log(`[Electron] Using node to run tego.js: ${nodePath} ${tegoJsPath} start`);
+
+        // 如果 tego.js 不存在，也检查 .pnpm 目录（pnpm isolated 模式）
+        let actualTegoJsPath = tegoJsPath;
+        if (!fs.existsSync(tegoJsPath)) {
+          // 检查 .pnpm 目录
+          const pnpmPath = path.join(projectRoot, 'node_modules', '.pnpm');
+          if (fs.existsSync(pnpmPath)) {
+            try {
+              const pnpmEntries = fs.readdirSync(pnpmPath);
+              for (const entry of pnpmEntries) {
+                if (entry.startsWith('tego@')) {
+                  const tegoPnpmPath = path.join(pnpmPath, entry, 'node_modules', 'tego', 'bin', 'tego.js');
+                  if (fs.existsSync(tegoPnpmPath)) {
+                    actualTegoJsPath = tegoPnpmPath;
+                    log(`[Electron] Found tego.js in .pnpm directory: ${actualTegoJsPath}`);
+                    break;
+                  }
+                }
+              }
+            } catch (err) {
+              log(`[Electron] Error searching .pnpm directory: ${err}`, 'warn');
+            }
+          }
+        }
+
+        if (fs.existsSync(actualTegoJsPath)) {
+          args = [actualTegoJsPath, 'start'];
+          log(`[Electron] Using node to run tego.js: ${nodePath} ${actualTegoJsPath} start`);
         } else {
           // 如果找不到 tego.js，尝试查找 .bin/tego 脚本（作为备选）
+          // 但需要设置正确的工作目录和 PATH，以确保脚本能正确解析模块路径
           const tegoBinPath = path.join(projectRoot, 'node_modules', '.bin', 'tego');
           if (fs.existsSync(tegoBinPath)) {
             // tego 是一个 shell 脚本，需要用 shell 来执行
             // 但脚本内部会调用 node，所以需要确保 PATH 中包含 node
+            // 同时需要确保工作目录正确，以便脚本能正确解析模块路径
             nodePathForEnv = nodePath; // 保存 node 路径，用于设置 PATH
             executablePath = '/bin/sh';
             args = [tegoBinPath, 'start'];
             log(`[Electron] Using shell to run tego script: /bin/sh ${tegoBinPath} start`);
             log(`[Electron] Node path for PATH: ${nodePath}`);
+            log(`[Electron] Working directory will be: ${projectRoot}`);
           } else {
             const errorMsg =
               'Could not find tego executable. Please ensure the backend server dependencies are installed.';

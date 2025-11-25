@@ -5,6 +5,73 @@ const appPort = process.env.APP_PORT || '3000';
 const apiBaseUrl = `http://localhost:${appPort}`;
 const wsBaseUrl = `ws://localhost:${appPort}`;
 
+// TextEncoder/TextDecoder polyfill for Electron
+// 确保在渲染进程中 TextEncoder 和 TextDecoder 可用
+// 虽然现代浏览器和 Node.js 都支持它们，但在某些 Electron 环境中可能需要 polyfill
+(function () {
+  const globalObj = globalThis as any;
+
+  // 确保 TextEncoder 和 TextDecoder 在全局范围内可用
+  // 优先使用 Node.js 的 util.TextEncoder，因为它更可靠
+  let TextEncoderClass: typeof TextEncoder | null = null;
+  let TextDecoderClass: typeof TextDecoder | null = null;
+
+  // 首先尝试使用 Node.js 的 util.TextEncoder
+  try {
+    const util = require('node:util');
+    if (util.TextEncoder && typeof util.TextEncoder === 'function') {
+      TextEncoderClass = util.TextEncoder;
+      TextDecoderClass = util.TextDecoder;
+      console.log('[Preload] TextEncoder/TextDecoder loaded from Node.js util');
+    }
+  } catch (e) {
+    // Node.js util 不可用，继续尝试其他方式
+  }
+
+  // 如果 Node.js util 不可用，尝试使用浏览器内置的实现
+  if (!TextEncoderClass) {
+    try {
+      if (typeof globalObj.TextEncoder === 'function') {
+        TextEncoderClass = globalObj.TextEncoder;
+        TextDecoderClass = globalObj.TextDecoder;
+        console.log('[Preload] TextEncoder/TextDecoder already available in global scope');
+      } else if (typeof window !== 'undefined' && typeof window.TextEncoder === 'function') {
+        TextEncoderClass = window.TextEncoder;
+        TextDecoderClass = window.TextDecoder;
+        console.log('[Preload] TextEncoder/TextDecoder loaded from window');
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+  }
+
+  // 如果找到了 TextEncoder 和 TextDecoder，确保它们在全局范围内可用
+  if (TextEncoderClass && TextDecoderClass) {
+    // 确保它们是构造函数
+    try {
+      const testEncoder = new TextEncoderClass();
+      const testDecoder = new TextDecoderClass();
+      if (testEncoder && testDecoder) {
+        // 在多个全局对象上设置，确保所有代码都能访问
+        globalObj.TextEncoder = TextEncoderClass;
+        globalObj.TextDecoder = TextDecoderClass;
+
+        // 也在 window 对象上设置（如果存在）
+        if (typeof window !== 'undefined') {
+          (window as any).TextEncoder = TextEncoderClass;
+          (window as any).TextDecoder = TextDecoderClass;
+        }
+
+        console.log('[Preload] TextEncoder/TextDecoder polyfill installed and verified');
+      }
+    } catch (e) {
+      console.warn('[Preload] TextEncoder/TextDecoder verification failed:', e);
+    }
+  } else {
+    console.warn('[Preload] Could not find TextEncoder/TextDecoder implementation');
+  }
+})();
+
 // 修复 window.location，避免生成错误的 WebSocket URL
 // 在 app:// 协议下，location.hostname 可能是 'index.html'，需要修复
 // 注意：location.hostname 可能是不可配置的，所以不能直接重定义

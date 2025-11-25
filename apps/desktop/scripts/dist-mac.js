@@ -3,7 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { getDesktopDir, getProjectRoot } = require('./utils/paths');
+const { getDesktopDir, getProjectRoot, getAppResourcesPath } = require('./utils/paths');
+const { detectAppName } = require('./utils/app-detector');
 const { createLogPrefix, step, success, error, log, warn } = require('./utils/logger');
 
 const logPrefix = createLogPrefix('dist-mac');
@@ -56,6 +57,76 @@ function checkDependencies() {
 }
 
 /**
+ * 验证打包后的应用中是否包含 sqlite3 原生模块
+ * 使用优化的检查方式，避免深度递归遍历大量文件
+ * @param {string} appName - 应用名称
+ */
+function verifySqlite3NativeModule(appName) {
+  step(logPrefix, 'verify-sqlite3');
+  const resourcesPath = getAppResourcesPath(appName);
+  const backendPath = path.join(resourcesPath, 'backend');
+  const nodeModulesPath = path.join(backendPath, 'node_modules');
+
+  if (!fs.existsSync(backendPath)) {
+    error(logPrefix, `Backend directory not found at: ${backendPath}`);
+    return false;
+  }
+
+  // 优化的检查：只检查最常见的路径，避免深度递归
+  const checkPaths = [
+    // hoisted 模式下的直接路径
+    path.join(nodeModulesPath, 'sqlite3', 'build', 'Release', 'node_sqlite3.node'),
+    path.join(nodeModulesPath, 'sqlite3', 'build', 'Debug', 'node_sqlite3.node'),
+    // .pnpm 模式下的路径（只检查 sqlite3 包）
+    // 先查找 sqlite3 包的位置
+  ];
+
+  // 检查直接路径
+  for (const checkPath of checkPaths) {
+    if (fs.existsSync(checkPath)) {
+      success(logPrefix, `sqlite3 native module verified at: ${path.relative(resourcesPath, checkPath)}`);
+      return true;
+    }
+  }
+
+  // 如果直接路径没找到，尝试在 .pnpm 中查找 sqlite3 包
+  const pnpmPath = path.join(nodeModulesPath, '.pnpm');
+  if (fs.existsSync(pnpmPath)) {
+    try {
+      // 只读取 .pnpm 目录的第一层，查找 sqlite3 包
+      const pnpmEntries = fs.readdirSync(pnpmPath);
+      for (const entry of pnpmEntries) {
+        if (entry.startsWith('sqlite3@')) {
+          const sqlite3PnpmPath = path.join(pnpmPath, entry, 'node_modules', 'sqlite3');
+          // 检查常见的构建输出路径
+          const pnpmCheckPaths = [
+            path.join(sqlite3PnpmPath, 'build', 'Release', 'node_sqlite3.node'),
+            path.join(sqlite3PnpmPath, 'build', 'Debug', 'node_sqlite3.node'),
+            path.join(sqlite3PnpmPath, 'lib', 'binding', 'node-v127-darwin-arm64', 'node_sqlite3.node'),
+            path.join(sqlite3PnpmPath, 'compiled', '22.16.0', 'darwin', 'arm64', 'node_sqlite3.node'),
+          ];
+          for (const pnpmCheckPath of pnpmCheckPaths) {
+            if (fs.existsSync(pnpmCheckPath)) {
+              success(logPrefix, `sqlite3 native module verified at: ${path.relative(resourcesPath, pnpmCheckPath)}`);
+              return true;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // 忽略读取错误，继续其他检查
+      log(logPrefix, `Warning: Could not check .pnpm directory: ${e.message}`, 'warn');
+    }
+  }
+
+  // 如果所有检查都失败
+  error(logPrefix, 'sqlite3 native module not found in packaged app');
+  error(logPrefix, 'This will cause runtime errors when starting the backend server.');
+  error(logPrefix, 'Please ensure sqlite3 is built during prepare-backend step.');
+  return false;
+}
+
+/**
  * 执行构建步骤
  * @param {string} name - 步骤名称
  * @param {string} command - 命令
@@ -72,7 +143,35 @@ function runStep(name, command, options = {}) {
   });
 }
 
+/**
+ * 检查并提示文件描述符限制
+ */
+function checkFileDescriptorLimit() {
+  try {
+    // 尝试获取当前限制
+    const { execSync } = require('child_process');
+    const ulimitOutput = execSync('ulimit -n', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const currentLimit = parseInt(ulimitOutput, 10);
+
+    // macOS 默认限制通常是 256，对于大型项目可能不够
+    if (currentLimit < 1024) {
+      warn(logPrefix, `Current file descriptor limit is ${currentLimit}, which may be too low for large builds.`);
+      warn(logPrefix, 'To increase the limit, run: ulimit -n 1024');
+      warn(logPrefix, 'Or add to ~/.zshrc: ulimit -n 1024');
+      warn(logPrefix, 'Then restart your terminal or run: source ~/.zshrc');
+    } else {
+      log(logPrefix, `File descriptor limit: ${currentLimit} (OK)`);
+    }
+  } catch (e) {
+    // 忽略错误，继续执行
+    log(logPrefix, 'Could not check file descriptor limit', 'warn');
+  }
+}
+
 try {
+  // 检查文件描述符限制
+  checkFileDescriptorLimit();
+
   // 检查依赖是否已安装
   log(logPrefix, 'Checking dependencies...');
   if (!checkDependencies()) {
@@ -172,6 +271,13 @@ try {
 
   // 复制 node 可执行文件到应用包
   runStep('copy-node-executable', 'node scripts/copy-node-executable.js');
+
+  // 验证 sqlite3 原生模块是否已包含在打包的应用中
+  const appName = detectAppName();
+  if (!verifySqlite3NativeModule(appName)) {
+    error(logPrefix, 'Build verification failed: sqlite3 native module missing');
+    process.exit(1);
+  }
 
   // 创建 DMG 安装包
   runStep('create-dmg', 'node scripts/create-dmg.js');

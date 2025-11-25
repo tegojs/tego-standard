@@ -5,7 +5,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { getProjectRoot } = require('./utils/paths');
 const { removeDirectory, ensureDirectory } = require('./utils/file-operations');
-const { createLogPrefix, success, error, log } = require('./utils/logger');
+const { createLogPrefix, success, error, log, warn } = require('./utils/logger');
 
 const logPrefix = createLogPrefix('prepare-backend');
 
@@ -503,6 +503,111 @@ if (!fs.existsSync(chalkPath)) {
     // chalk 可能不是必需的，只记录警告
     log(logPrefix, `Warning: Could not install chalk: ${err.message}`);
   }
+}
+
+// 检查并构建 sqlite3 原生模块（如果需要）
+// 由于使用了 --ignore-scripts，sqlite3 的原生模块可能没有被构建
+log(logPrefix, 'Checking sqlite3 native module...');
+
+// 查找 sqlite3 包的实际位置
+let sqlite3Path = path.join(nodeModulesPath, 'sqlite3');
+let sqlite3ActualPath = sqlite3Path;
+
+// 检查 .pnpm 目录中的 sqlite3（如果使用 isolated 模式）
+const pnpmPath = path.join(nodeModulesPath, '.pnpm');
+if (!fs.existsSync(sqlite3Path) && fs.existsSync(pnpmPath)) {
+  try {
+    const pnpmEntries = fs.readdirSync(pnpmPath);
+    for (const entry of pnpmEntries) {
+      if (entry.startsWith('sqlite3@')) {
+        const sqlite3PnpmPath = path.join(pnpmPath, entry, 'node_modules', 'sqlite3');
+        if (fs.existsSync(sqlite3PnpmPath)) {
+          sqlite3ActualPath = sqlite3PnpmPath;
+          log(logPrefix, `Found sqlite3 package at: ${sqlite3ActualPath}`);
+          break;
+        }
+      }
+    }
+  } catch (err) {
+    log(logPrefix, `Warning: Could not search .pnpm directory: ${err.message}`);
+  }
+}
+
+// 检查 sqlite3 是否已安装
+if (fs.existsSync(sqlite3ActualPath)) {
+  // 检查原生模块是否已构建
+  const sqlite3BuildPath = path.join(sqlite3ActualPath, 'build', 'Release', 'node_sqlite3.node');
+  if (!fs.existsSync(sqlite3BuildPath)) {
+    log(logPrefix, 'sqlite3 native module not found, attempting to build...');
+
+    // 获取系统 Node.js 路径（用于构建原生模块，确保 ABI 兼容性）
+    const systemNodePath = process.execPath;
+    log(logPrefix, `Using system Node.js to build sqlite3: ${systemNodePath}`);
+    log(logPrefix, 'This ensures ABI compatibility with the bundled Node.js used at runtime.');
+
+    try {
+      log(logPrefix, 'Rebuilding sqlite3 with system Node.js...');
+
+      // 尝试直接使用 node-gyp 构建
+      log(logPrefix, 'Attempting direct node-gyp build...');
+
+      // 查找 node-gyp 的路径
+      let nodeGypPath;
+      try {
+        // 尝试从全局 node_modules 查找
+        nodeGypPath = require.resolve('node-gyp');
+      } catch (err) {
+        // 如果找不到，尝试使用 npx
+        nodeGypPath = 'npx';
+      }
+
+      const buildEnv = { ...process.env };
+      if (nodeGypPath !== 'npx') {
+        buildEnv.npm_config_node_gyp = nodeGypPath;
+      }
+
+      // 使用 node-gyp rebuild 或 npx node-gyp rebuild
+      const buildCommand = nodeGypPath === 'npx' ? 'npx node-gyp rebuild' : 'node-gyp rebuild';
+      execSync(buildCommand, {
+        cwd: sqlite3ActualPath,
+        stdio: 'inherit',
+        env: buildEnv,
+      });
+
+      // 验证构建结果（基于实际路径）
+      const actualBuildPath = path.join(sqlite3ActualPath, 'build', 'Release', 'node_sqlite3.node');
+      if (fs.existsSync(actualBuildPath)) {
+        success(logPrefix, 'sqlite3 native module built successfully');
+      } else {
+        // 检查其他可能的构建输出路径
+        const alternativePaths = [
+          path.join(sqlite3ActualPath, 'build', 'Debug', 'node_sqlite3.node'),
+          path.join(sqlite3ActualPath, 'lib', 'binding', 'node-v127-darwin-arm64', 'node_sqlite3.node'),
+        ];
+
+        let found = false;
+        for (const altPath of alternativePaths) {
+          if (fs.existsSync(altPath)) {
+            success(logPrefix, `sqlite3 native module found at: ${altPath}`);
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          warn(logPrefix, 'sqlite3 native module build completed, but output file not found at expected location');
+          warn(logPrefix, 'This may cause runtime errors. The module may be built in a different location.');
+        }
+      }
+    } catch (err) {
+      warn(logPrefix, `Failed to build sqlite3 native module: ${err.message}`);
+      warn(logPrefix, 'The application may still work if sqlite3 is built elsewhere or using a different method.');
+    }
+  } else {
+    success(logPrefix, 'sqlite3 native module already built');
+  }
+} else {
+  log(logPrefix, 'sqlite3 package not found, skipping native module build');
 }
 
 success(logPrefix, 'Backend prepared successfully');

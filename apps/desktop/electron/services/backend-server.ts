@@ -521,6 +521,9 @@ export async function startBackendServer(): Promise<void> {
       }
     }
 
+    // 在启动服务器之前，检查应用是否已安装，如果没有则自动安装
+    await ensureApplicationInstalled(projectRoot, executablePath, nodePathForEnv, env);
+
     log(`[Electron] Starting backend server with PATH: ${env.PATH.substring(0, 200)}...`);
     log(`[Electron] Using executable: ${executablePath}`);
     log(`[Electron] Args: ${args.join(' ')}`);
@@ -591,6 +594,126 @@ export async function startBackendServer(): Promise<void> {
       serverProcess = null;
     }
     throw error;
+  }
+}
+
+/**
+ * 确保应用已安装，如果没有安装则自动运行 install 命令
+ */
+async function ensureApplicationInstalled(
+  projectRoot: string,
+  executablePath: string,
+  nodePathForEnv: string | null,
+  env: Record<string, string>,
+): Promise<void> {
+  log(`[Electron] Checking if application is installed...`);
+
+  // 查找 tego.js 路径（用于运行 install 命令）
+  let tegoJsPath: string | null = null;
+  const tegoJsPathStandard = path.join(projectRoot, 'node_modules', 'tego', 'bin', 'tego.js');
+
+  if (fs.existsSync(tegoJsPathStandard)) {
+    tegoJsPath = tegoJsPathStandard;
+  } else {
+    // 检查 .pnpm 目录
+    const pnpmPath = path.join(projectRoot, 'node_modules', '.pnpm');
+    if (fs.existsSync(pnpmPath)) {
+      try {
+        const pnpmEntries = fs.readdirSync(pnpmPath);
+        for (const entry of pnpmEntries) {
+          if (entry.startsWith('tego@')) {
+            const tegoPnpmPath = path.join(pnpmPath, entry, 'node_modules', 'tego', 'bin', 'tego.js');
+            if (fs.existsSync(tegoPnpmPath)) {
+              tegoJsPath = tegoPnpmPath;
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        log(`[Electron] Error searching .pnpm directory: ${err}`, 'warn');
+      }
+    }
+  }
+
+  if (!tegoJsPath) {
+    log(`[Electron] ⚠ Could not find tego.js, skipping install check`, 'warn');
+    return;
+  }
+
+  // 使用 node 运行 tego.js install 来检查应用是否已安装
+  // 如果应用未安装，install 命令会安装它
+  // 优先使用 nodePathForEnv，如果不存在则尝试从 executablePath 或 PATH 中查找 node
+  let nodePath: string | null = nodePathForEnv || null;
+
+  // 如果 nodePathForEnv 不存在，检查 executablePath 是否是 node
+  if (!nodePath && executablePath && executablePath.includes('node') && !executablePath.includes('tego')) {
+    nodePath = executablePath;
+  }
+
+  // 如果还是找不到，尝试从 PATH 中查找
+  if (!nodePath) {
+    try {
+      const foundNodePath = execSync('command -v node', {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 5000,
+        shell: '/bin/bash',
+        env,
+      }).trim();
+      if (foundNodePath && fs.existsSync(foundNodePath) && !foundNodePath.includes('()')) {
+        nodePath = foundNodePath;
+      }
+    } catch (error) {
+      // 忽略错误
+    }
+  }
+
+  if (!nodePath) {
+    log(`[Electron] ⚠ Could not find node path, skipping install check`, 'warn');
+    return;
+  }
+
+  try {
+    log(`[Electron] Running tego install to ensure application is installed...`);
+    log(`[Electron] Database path: ${env.DB_STORAGE || 'not set'}`);
+    log(`[Electron] Database dialect: ${env.DB_DIALECT || 'not set'}`);
+
+    // 执行 tego install 命令，这会初始化数据库表结构
+    // 类似于 web 端的 pnpm tachybase install
+    const installOutput = execSync(`${nodePath} ${tegoJsPath} install`, {
+      cwd: projectRoot,
+      env,
+      stdio: 'pipe', // 使用 pipe 捕获输出以便调试
+      timeout: 120000, // 120 秒超时（数据库初始化可能需要更长时间）
+      encoding: 'utf8',
+    });
+
+    // 如果 install 命令有输出，记录它（可能包含有用的信息）
+    if (installOutput && installOutput.trim()) {
+      log(`[Electron] Install output: ${installOutput.substring(0, 500)}`);
+    }
+
+    log(`[Electron] ✓ Application installation verified and database initialized`);
+  } catch (error: any) {
+    // 如果 install 命令失败，记录详细错误信息
+    const errorMessage = error.message || String(error);
+    const errorOutput = error.stdout || error.stderr || '';
+
+    log(`[Electron] ⚠ Install command failed: ${errorMessage}`, 'error');
+    if (errorOutput) {
+      log(`[Electron] Install error output: ${errorOutput.substring(0, 1000)}`, 'error');
+    }
+
+    // 检查是否是数据库相关的错误
+    // 如果是首次启动且数据库文件不存在，这是正常的，可以继续
+    // 但如果是其他错误，应该记录警告
+    if (errorMessage.includes('no such table') || errorMessage.includes('SQLITE_ERROR')) {
+      log(`[Electron] ⚠ Database initialization error detected. This may be expected on first run.`, 'warn');
+      log(`[Electron] The application will attempt to create tables during startup.`, 'warn');
+    } else {
+      log(`[Electron] ⚠ Install failed but continuing with server start...`, 'warn');
+      log(`[Electron] If you encounter database errors, try running 'tego install' manually.`, 'warn');
+    }
   }
 }
 

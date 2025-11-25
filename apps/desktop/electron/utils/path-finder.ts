@@ -140,3 +140,176 @@ export function findWebDistIndexHtml(): string | null {
 
   return null;
 }
+
+/**
+ * 获取用户目录下的 .tachybase-desktop 配置目录路径
+ * 如果目录不存在，会自动创建
+ */
+export function getUserConfigDir(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || '';
+  if (!home) {
+    throw new Error('Cannot determine user home directory');
+  }
+
+  const userConfigDir = path.join(home, '.tachybase-desktop');
+
+  // 确保目录存在
+  if (!fs.existsSync(userConfigDir)) {
+    log(`[PathFinder] Creating user config directory: ${userConfigDir}`);
+    fs.mkdirSync(userConfigDir, { recursive: true });
+  }
+
+  return userConfigDir;
+}
+
+/**
+ * 获取用户目录下的 .env 文件路径
+ */
+export function getUserEnvPath(): string {
+  return path.join(getUserConfigDir(), '.env');
+}
+
+/**
+ * 获取用户目录下的数据库文件路径
+ */
+export function getUserDatabasePath(): string {
+  const userConfigDir = getUserConfigDir();
+  const dbDir = path.join(userConfigDir, 'db');
+
+  // 确保数据库目录存在
+  if (!fs.existsSync(dbDir)) {
+    log(`[PathFinder] Creating database directory: ${dbDir}`);
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+
+  return path.join(dbDir, 'tachybase.sqlite');
+}
+
+/**
+ * 获取 Electron 应用的版本号
+ * 优先从 app.getVersion() 获取，如果不可用则从 package.json 读取
+ */
+export function getElectronAppVersion(): string {
+  try {
+    // 优先使用 Electron 的 app.getVersion()（打包后的应用会使用这个）
+    if (app && typeof app.getVersion === 'function') {
+      const version = app.getVersion();
+      if (version && version !== '0.0.0') {
+        return version;
+      }
+    }
+  } catch (error) {
+    // 忽略错误，继续尝试其他方法
+  }
+
+  try {
+    // 如果 app.getVersion() 不可用，从 apps/desktop/package.json 读取
+    const desktopPackageJsonPath = path.join(__dirname, '..', '..', 'package.json');
+    if (fs.existsSync(desktopPackageJsonPath)) {
+      const packageJson = JSON.parse(fs.readFileSync(desktopPackageJsonPath, 'utf8'));
+      if (packageJson.version) {
+        return packageJson.version;
+      }
+    }
+  } catch (error: any) {
+    log(`[PathFinder] ⚠ Failed to read Electron app version: ${error.message}`, 'warn');
+  }
+
+  return '1.0.0'; // 默认版本
+}
+
+/**
+ * 初始化用户配置目录结构
+ * 在应用首次启动或安装后调用，创建必要的目录和配置文件
+ */
+export function initializeUserConfig(): void {
+  try {
+    const userConfigDir = getUserConfigDir();
+    const userEnvPath = getUserEnvPath();
+    const userDatabasePath = getUserDatabasePath();
+    const logsDir = path.join(userConfigDir, 'logs');
+
+    log(`[PathFinder] Initializing user config directory: ${userConfigDir}`);
+
+    // 确保所有必要的目录存在
+    const dbDir = path.dirname(userDatabasePath);
+    if (!fs.existsSync(dbDir)) {
+      log(`[PathFinder] Creating database directory: ${dbDir}`);
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+
+    if (!fs.existsSync(logsDir)) {
+      log(`[PathFinder] Creating logs directory: ${logsDir}`);
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+
+    // 如果 .env 文件不存在，从应用包内或项目根目录的 .env.example 创建默认配置
+    if (!fs.existsSync(userEnvPath)) {
+      log(`[PathFinder] .env file not found, creating default configuration...`);
+
+      let envExamplePath: string | null = null;
+
+      // 如果是打包后的应用，必须从应用包内读取 .env.example
+      if (app.isPackaged) {
+        const resourcesPath = process.resourcesPath;
+        const bundledEnvExample = path.join(resourcesPath, 'backend', '.env.example');
+        if (fs.existsSync(bundledEnvExample)) {
+          envExamplePath = bundledEnvExample;
+          log(`[PathFinder] Found .env.example in app bundle`);
+        } else {
+          throw new Error(
+            `.env.example not found in app bundle at ${bundledEnvExample}. The application was not packaged correctly.`,
+          );
+        }
+      } else {
+        // 开发环境：从项目根目录读取
+        const projectRoot = findProjectRoot();
+        if (projectRoot) {
+          const projectEnvExample = path.join(projectRoot, '.env.example');
+          if (fs.existsSync(projectEnvExample)) {
+            envExamplePath = projectEnvExample;
+            log(`[PathFinder] Found .env.example in project root`);
+          } else {
+            throw new Error(`.env.example not found in project root at ${projectEnvExample}.`);
+          }
+        } else {
+          throw new Error(`Cannot find project root to load .env.example in development mode.`);
+        }
+      }
+
+      if (!envExamplePath || !fs.existsSync(envExamplePath)) {
+        throw new Error(`.env.example not found. Please ensure it exists.`);
+      }
+
+      let defaultEnvContent: string;
+      try {
+        defaultEnvContent = fs.readFileSync(envExamplePath, 'utf8');
+        log(`[PathFinder] Loaded .env.example from: ${envExamplePath}`);
+      } catch (error: any) {
+        throw new Error(`Failed to read .env.example: ${error.message}`);
+      }
+
+      // 修改配置内容，将相对路径改为用户目录下的路径
+      // 替换 DB_STORAGE 为相对路径（因为会在启动时转换为绝对路径）
+      let modifiedContent = defaultEnvContent
+        .replace(/DB_STORAGE=.*/g, `DB_STORAGE=db/tachybase.sqlite`)
+        .replace(/LOGGER_BASE_PATH=.*/g, `LOGGER_BASE_PATH=logs`);
+
+      // 写入用户目录下的 .env 文件
+      fs.writeFileSync(userEnvPath, modifiedContent, 'utf8');
+      log(`[PathFinder] ✓ Created default .env file at: ${userEnvPath}`);
+    } else {
+      log(`[PathFinder] .env file already exists: ${userEnvPath}`);
+    }
+
+    log(`[PathFinder] ✓ User config directory initialized successfully`);
+    log(`[PathFinder]   - Config directory: ${userConfigDir}`);
+    log(`[PathFinder]   - Database: ${userDatabasePath}`);
+    log(`[PathFinder]   - Logs: ${logsDir}`);
+    log(`[PathFinder]   - Env file: ${userEnvPath}`);
+  } catch (error: any) {
+    log(`[PathFinder] ⚠ Failed to initialize user config: ${error.message}`, 'error');
+    log(`[PathFinder] Error stack: ${error.stack}`, 'error');
+    throw error;
+  }
+}

@@ -6,7 +6,13 @@ import * as path from 'node:path';
 import { app } from 'electron';
 
 import { log } from '../utils/logger';
-import { findProjectRoot } from '../utils/path-finder';
+import {
+  findProjectRoot,
+  getElectronAppVersion,
+  getUserConfigDir,
+  getUserDatabasePath,
+  getUserEnvPath,
+} from '../utils/path-finder';
 
 let serverProcess: ChildProcess | null = null;
 
@@ -98,28 +104,69 @@ export async function startBackendServer(): Promise<void> {
   // 1. 应用包中的 node（在构建时从系统复制到 Resources/node）- 最可靠
   // 2. 系统的 node（从 PATH 或常见路径查找）- 作为备选
 
-  // 查找项目根目录
-  const projectRoot = findProjectRoot();
+  // 对于打包后的应用，必须使用应用包内的后端服务器资源
+  // 后端服务器已打包到 Resources/backend 目录中
 
-  if (!projectRoot) {
-    log(`[Electron] ⚠ Could not find project root directory. Backend server will not be started.`, 'error');
-    log(`[Electron] In packaged applications, the backend server must be started separately.`, 'error');
-    log(`[Electron] Please ensure the backend server is running on port ${appPort}`, 'error');
-    log(`[Electron] You can start it manually by:`, 'error');
-    log(`[Electron]   1. Navigate to the project root directory`, 'error');
-    log(`[Electron]   2. Run: tego start`, 'error');
-    log(`[Electron] Or set PROJECT_ROOT environment variable to point to the project root.`, 'error');
-    throw new Error(
-      `Could not find project root directory. Please start the backend server manually on port ${appPort}.`,
-    );
+  let projectRoot: string | null = null;
+
+  // 如果是打包后的应用，必须使用应用包内的后端服务器
+  if (app.isPackaged) {
+    // 应用包内的后端服务器路径
+    const resourcesPath = process.resourcesPath;
+    const backendPath = path.join(resourcesPath, 'backend');
+
+    // 添加调试日志
+    log(`[Electron] Checking backend server at: ${backendPath}`);
+    log(`[Electron] Resources path: ${resourcesPath}`);
+    log(`[Electron] Backend path exists: ${fs.existsSync(backendPath)}`);
+
+    const packageJsonPath = path.join(backendPath, 'package.json');
+    log(`[Electron] Package.json path: ${packageJsonPath}`);
+    log(`[Electron] Package.json exists: ${fs.existsSync(packageJsonPath)}`);
+
+    // 检查应用包内是否有后端服务器
+    if (fs.existsSync(packageJsonPath)) {
+      projectRoot = backendPath;
+      log(`[Electron] Using bundled backend server at: ${projectRoot}`);
+    } else {
+      // 打包后的应用必须包含后端服务器，如果不存在则报错
+      log(`[Electron] ✗ Bundled backend server not found at: ${backendPath}`, 'error');
+      log(`[Electron] ✗ This is a packaged application, backend server must be bundled in the app.`, 'error');
+      log(`[Electron] ✗ Please rebuild the application to include the backend server.`, 'error');
+      // 列出 Resources 目录内容以便调试
+      try {
+        const resourcesContents = fs.existsSync(resourcesPath) ? fs.readdirSync(resourcesPath) : [];
+        log(`[Electron] Resources directory contents: ${resourcesContents.slice(0, 20).join(', ')}`, 'error');
+      } catch (e) {
+        log(`[Electron] Could not read resources directory: ${e}`, 'error');
+      }
+      throw new Error(
+        `Bundled backend server not found. The application was not packaged correctly. Please rebuild the application.`,
+      );
+    }
+  } else {
+    // 开发环境：使用项目根目录
+    projectRoot = findProjectRoot();
+
+    if (!projectRoot) {
+      log(`[Electron] ⚠ Could not find project root directory. Backend server will not be started.`, 'error');
+      log(`[Electron] In development mode, the project root directory must be accessible.`, 'error');
+      log(
+        `[Electron] Please ensure you are running from the project root or set PROJECT_ROOT environment variable.`,
+        'error',
+      );
+      throw new Error(
+        `Could not find project root directory. Please ensure the project root is accessible or set PROJECT_ROOT environment variable.`,
+      );
+    }
   }
 
   if (!fs.existsSync(path.join(projectRoot, 'package.json'))) {
-    log(`[Electron] ⚠ Invalid project root directory: ${projectRoot}`, 'error');
-    throw new Error(`Invalid project root directory: ${projectRoot}`);
+    log(`[Electron] ⚠ Invalid backend server directory: ${projectRoot}`, 'error');
+    throw new Error(`Invalid backend server directory: ${projectRoot}`);
   }
 
-  log(`[Electron] Project root: ${projectRoot}`);
+  log(`[Electron] Backend server directory: ${projectRoot}`);
 
   try {
     // 启动后端服务器
@@ -356,12 +403,94 @@ export async function startBackendServer(): Promise<void> {
     const pathArray = existingPath.split(path.delimiter).filter(Boolean);
     const combinedPaths = [...new Set([...pathArray, ...defaultPaths])]; // 去重
 
-    const env = {
+    // 获取用户目录下的配置路径
+    let userConfigDir: string;
+    let userDatabasePath: string;
+    let userEnvPath: string;
+    try {
+      userConfigDir = getUserConfigDir();
+      userDatabasePath = getUserDatabasePath();
+      userEnvPath = getUserEnvPath();
+      log(`[Electron] User config directory: ${userConfigDir}`);
+      log(`[Electron] User database path: ${userDatabasePath}`);
+      log(`[Electron] User env path: ${userEnvPath}`);
+    } catch (error: any) {
+      log(`[Electron] ⚠ Failed to get user config directory: ${error.message}`, 'error');
+      log(`[Electron] Will use project root configuration instead`, 'warn');
+      userConfigDir = '';
+      userDatabasePath = '';
+      userEnvPath = '';
+    }
+
+    // 获取 Electron 应用版本
+    const electronAppVersion = getElectronAppVersion();
+    log(`[Electron] Electron app version: ${electronAppVersion}`);
+
+    // 构建环境变量，优先使用用户目录下的配置
+    const env: Record<string, string> = {
       ...process.env,
       APP_PORT: appPort,
       NODE_ENV: 'production',
       PATH: combinedPaths.join(path.delimiter),
+      // 传递 Electron 应用版本给后端服务器
+      ELECTRON_APP_VERSION: electronAppVersion,
     };
+
+    // 如果用户目录下有 .env 文件，先读取并合并到环境变量中
+    if (userEnvPath && fs.existsSync(userEnvPath)) {
+      log(`[Electron] Found user .env file: ${userEnvPath}`);
+      // 读取用户 .env 文件并合并到环境变量中
+      try {
+        const envContent = fs.readFileSync(userEnvPath, 'utf8');
+        const envLines = envContent.split('\n');
+        for (const line of envLines) {
+          const trimmedLine = line.trim();
+          // 跳过注释和空行
+          if (!trimmedLine || trimmedLine.startsWith('#')) {
+            continue;
+          }
+          // 解析 KEY=VALUE 格式
+          const equalIndex = trimmedLine.indexOf('=');
+          if (equalIndex > 0) {
+            const key = trimmedLine.substring(0, equalIndex).trim();
+            const value = trimmedLine.substring(equalIndex + 1).trim();
+            // 移除引号（如果有）
+            const cleanValue = value.replace(/^["']|["']$/g, '');
+            // 如果环境变量中还没有设置，则使用 .env 文件中的值
+            if (key && !process.env[key]) {
+              env[key] = cleanValue;
+            }
+          }
+        }
+        log(`[Electron] Loaded environment variables from user .env file`);
+      } catch (error: any) {
+        log(`[Electron] ⚠ Failed to read user .env file: ${error.message}`, 'warn');
+      }
+    } else {
+      log(`[Electron] User .env file not found, using default configuration`);
+    }
+
+    // 强制设置数据库路径为用户目录下的路径（覆盖 .env 文件中的设置）
+    if (userDatabasePath) {
+      env.DB_STORAGE = userDatabasePath;
+      env.DB_DIALECT = 'sqlite';
+      log(`[Electron] Using user database: ${userDatabasePath}`);
+    }
+
+    // 如果设置了日志路径，将其转换为用户目录下的绝对路径
+    if (userConfigDir) {
+      if (env.LOGGER_BASE_PATH) {
+        // 如果是相对路径，转换为用户目录下的绝对路径
+        if (!path.isAbsolute(env.LOGGER_BASE_PATH)) {
+          env.LOGGER_BASE_PATH = path.join(userConfigDir, env.LOGGER_BASE_PATH);
+          log(`[Electron] Using user logs directory: ${env.LOGGER_BASE_PATH}`);
+        }
+      } else {
+        // 如果没有设置日志路径，使用用户目录下的默认路径
+        env.LOGGER_BASE_PATH = path.join(userConfigDir, 'logs');
+        log(`[Electron] Using default user logs directory: ${env.LOGGER_BASE_PATH}`);
+      }
+    }
 
     log(`[Electron] Starting backend server with PATH: ${env.PATH.substring(0, 200)}...`);
     log(`[Electron] Using executable: ${executablePath}`);

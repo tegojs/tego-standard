@@ -1,14 +1,12 @@
-import { execSync } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-
-import { AfterPackContext, Configuration } from 'electron-builder';
+import { Configuration } from 'electron-builder';
 
 const config: Configuration = {
   appId: 'com.tachybase.app',
   // 明确设置产品名称，避免使用 package.json 中的 @tego/desktop
   // 这确保生成的应用名称不包含 @ 符号，避免 macOS 兼容性问题
   productName: 'Tachybase',
+  // 全局设置输出文件名格式，避免使用 package.json 中的 @tego/desktop
+  artifactName: '${productName}-${version}-${arch}.${ext}',
   directories: {
     output: 'dist',
     buildResources: 'build',
@@ -18,8 +16,8 @@ const config: Configuration = {
   npmRebuild: false,
   // 启用 asar 打包以提高性能
   asar: true,
-  // 配置 asar 打包，排除 web-dist 和 loading.html（需要从文件系统直接访问）
-  asarUnpack: ['web-dist/**/*', 'app/loading.html', 'app/i18n/**/*'],
+  // 配置 asar 打包，排除 web-dist、backend 和 loading.html（需要从文件系统直接访问）
+  asarUnpack: ['web-dist/**/*', 'backend/**/*', 'app/loading.html', 'app/i18n/**/*'],
   files: [
     // 包含编译后的文件（现在在 app 目录）
     'app/**/*',
@@ -38,17 +36,24 @@ const config: Configuration = {
     '!build/**/*',
     '!dist/**/*', // 排除 dist 目录（web 构建产物）
     '!web-dist-temp/**/*', // 排除临时目录
+    '!backend-temp/**/*', // 排除临时目录
   ],
   // 明确指定 main 文件路径（相对于打包后的应用根目录）
   extraMetadata: {
     main: 'app/main.js',
   },
-  // 使用 extraFiles 将临时目录复制到 Resources/web-dist
-  // 临时目录由 prepare-web-dist.js 脚本在打包前创建
-  extraFiles: [
+  // 使用 extraResources 直接从源目录包含资源文件
+  // electron-builder 会自动处理文件复制，无需手动创建临时目录
+  // 注意：extraResources 中的路径是相对于配置文件所在目录的
+  extraResources: [
     {
-      from: path.resolve(__dirname, 'web-dist-temp'),
+      from: '../web/dist',
       to: 'web-dist',
+      filter: ['**/*'],
+    },
+    {
+      from: 'backend-temp',
+      to: 'backend',
       filter: ['**/*'],
     },
   ],
@@ -76,8 +81,7 @@ const config: Configuration = {
       // 确保 Bundle ID 正确
       CFBundleIdentifier: 'com.tachybase.app',
     },
-    // 确保应用名称正确（不包含 @ 符号）
-    artifactName: '${productName}-${version}-${arch}.${ext}',
+    // artifactName 已在全局配置中设置，使用全局配置即可
   },
   dmg: {
     // 标准 DMG 拖动安装配置
@@ -120,254 +124,11 @@ const config: Configuration = {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
   },
-  // 在打包后自动复制 web-dist
-  afterPack: async (context: AfterPackContext) => {
-    console.log('[afterPack] Hook started');
-    const { appOutDir, packager } = context;
-    const platformName = packager.platform.name;
-    console.log(`[afterPack] Platform: ${platformName}, appOutDir: ${appOutDir}`);
-
-    // 只在 macOS 上执行
-    if (platformName === 'darwin') {
-      // 尝试多个可能的源路径
-      // __dirname 是 electron-builder.config.ts 所在的目录（apps/desktop）
-      const configDir = __dirname;
-      const possibleSources = [
-        path.resolve(configDir, '../web/dist'), // apps/web/dist
-        path.resolve(configDir, 'web-dist-temp'), // apps/desktop/web-dist-temp
-      ];
-
-      console.log(`[afterPack] Config directory: ${configDir}`);
-      console.log(`[afterPack] Checking possible sources: ${possibleSources.join(', ')}`);
-
-      let webDistSrc: string | null = null;
-      for (const src of possibleSources) {
-        const exists = fs.existsSync(src);
-        const hasIndex = exists && fs.existsSync(path.join(src, 'index.html'));
-        console.log(`[afterPack] Checking ${src}: exists=${exists}, hasIndex=${hasIndex}`);
-        if (exists && hasIndex) {
-          webDistSrc = src;
-          console.log(`[afterPack] ✓ Found web-dist source at: ${webDistSrc}`);
-          break;
-        }
-      }
-
-      if (!webDistSrc) {
-        console.error(`[afterPack] ✗ Web dist source not found in any of: ${possibleSources.join(', ')}`);
-        // 列出所有可能的路径供调试
-        possibleSources.forEach((src) => {
-          const exists = fs.existsSync(src);
-          console.error(`[afterPack]   - ${src}: ${exists ? 'exists' : 'NOT FOUND'}`);
-          if (exists) {
-            try {
-              const contents = fs.readdirSync(src);
-              console.error(`[afterPack]     Contents: ${contents.slice(0, 5).join(', ')}...`);
-            } catch (e) {
-              console.error(`[afterPack]     Cannot read directory: ${e}`);
-            }
-          }
-        });
-        return;
-      }
-
-      // 查找 .app 文件（appOutDir 可能直接是 .app 目录，或者包含 .app 目录）
-      let appBundlePath: string;
-      if (appOutDir.endsWith('.app')) {
-        appBundlePath = appOutDir;
-        console.log(`[afterPack] appOutDir is .app: ${appBundlePath}`);
-      } else {
-        // 在 appOutDir 中查找 .app 文件
-        console.log(`[afterPack] Searching for .app in: ${appOutDir}`);
-        const files = fs.readdirSync(appOutDir);
-        console.log(`[afterPack] Files in appOutDir: ${files.join(', ')}`);
-        const appFile = files.find((f) => f.endsWith('.app'));
-        if (!appFile) {
-          console.error(`[afterPack] ✗ .app file not found in ${appOutDir}`);
-          console.error(`[afterPack] Available files: ${files.join(', ')}`);
-          return;
-        }
-        appBundlePath = path.join(appOutDir, appFile);
-        console.log(`[afterPack] Found .app: ${appBundlePath}`);
-      }
-
-      const resourcesDir = path.join(appBundlePath, 'Contents', 'Resources');
-      const webDistDest = path.join(resourcesDir, 'web-dist');
-
-      console.log('[afterPack] Copying web-dist to app bundle...');
-      console.log(`[afterPack] Source: ${webDistSrc}`);
-      console.log(`[afterPack] Destination: ${webDistDest}`);
-      console.log(`[afterPack] App bundle: ${appBundlePath}`);
-      console.log(`[afterPack] Resources dir: ${resourcesDir}`);
-
-      if (!fs.existsSync(resourcesDir)) {
-        console.error(`[afterPack] ✗ Resources directory not found at ${resourcesDir}`);
-        // 列出 appBundlePath 的内容
-        if (fs.existsSync(appBundlePath)) {
-          try {
-            const contents = fs.readdirSync(appBundlePath);
-            console.error(`[afterPack] Contents of app bundle: ${contents.join(', ')}`);
-          } catch (e) {
-            console.error(`[afterPack] Cannot read app bundle: ${e}`);
-          }
-        }
-        return;
-      }
-
-      // 删除已存在的 web-dist
-      if (fs.existsSync(webDistDest)) {
-        console.log(`[afterPack] Removing existing web-dist directory`);
-        fs.rmSync(webDistDest, { recursive: true, force: true });
-      }
-
-      // 复制 web-dist
-      try {
-        console.log(`[afterPack] Executing: cp -R "${webDistSrc}" "${webDistDest}"`);
-        execSync(`cp -R "${webDistSrc}" "${webDistDest}"`, { stdio: 'inherit' });
-
-        // 验证复制结果
-        const indexHtmlPath = path.join(webDistDest, 'index.html');
-        console.log(`[afterPack] Verifying copy result...`);
-        console.log(`[afterPack] webDistDest exists: ${fs.existsSync(webDistDest)}`);
-        console.log(`[afterPack] index.html exists: ${fs.existsSync(indexHtmlPath)}`);
-
-        if (fs.existsSync(webDistDest) && fs.existsSync(indexHtmlPath)) {
-          console.log(`[afterPack] ✓ Web dist copied successfully`);
-          console.log(`[afterPack] ✓ index.html found at ${indexHtmlPath}`);
-        } else {
-          console.error(`[afterPack] ✗ Failed to copy web-dist or index.html not found`);
-          // 列出目标目录的内容
-          if (fs.existsSync(resourcesDir)) {
-            try {
-              const contents = fs.readdirSync(resourcesDir);
-              console.error(`[afterPack] Contents of Resources directory: ${contents.join(', ')}`);
-            } catch (e) {
-              console.error(`[afterPack] Cannot read Resources directory: ${e}`);
-            }
-          }
-        }
-      } catch (error: any) {
-        console.error(`[afterPack] ✗ Error copying web-dist: ${error.message}`);
-        console.error(`[afterPack] Error stack: ${error.stack}`);
-      }
-
-      // 复制 node 可执行文件到应用包
-      try {
-        console.log('[afterPack] Copying node executable to app bundle...');
-
-        // 查找系统的 node 可执行文件
-        let nodeSourcePath: string | null = null;
-
-        // 方法1: 尝试从 PATH 查找
-        try {
-          const nodePath = execSync('command -v node', {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore'],
-            timeout: 5000,
-            shell: '/bin/bash',
-          }).trim();
-          if (nodePath && fs.existsSync(nodePath)) {
-            nodeSourcePath = nodePath;
-            console.log(`[afterPack] Found node in PATH: ${nodeSourcePath}`);
-          }
-        } catch (e) {
-          // 继续尝试其他方法
-        }
-
-        // 方法2: 尝试从常见路径查找
-        if (!nodeSourcePath) {
-          const home = process.env.HOME || '';
-          const commonPaths = [
-            '/usr/local/bin/node',
-            '/opt/homebrew/bin/node',
-            '/usr/bin/node',
-            path.join(home, '.nvm', 'versions', 'node'),
-          ];
-
-          for (const commonPath of commonPaths) {
-            if (fs.existsSync(commonPath)) {
-              nodeSourcePath = commonPath;
-              console.log(`[afterPack] Found node at: ${nodeSourcePath}`);
-              break;
-            }
-          }
-
-          // 如果是 nvm 目录，查找最新版本
-          if (!nodeSourcePath && home) {
-            const nvmVersionsDir = path.join(home, '.nvm', 'versions', 'node');
-            if (fs.existsSync(nvmVersionsDir)) {
-              try {
-                const versions = fs.readdirSync(nvmVersionsDir);
-                const sortedVersions = versions.sort((a, b) => {
-                  return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
-                });
-                for (const version of sortedVersions) {
-                  const versionNodePath = path.join(nvmVersionsDir, version, 'bin', 'node');
-                  if (fs.existsSync(versionNodePath)) {
-                    nodeSourcePath = versionNodePath;
-                    console.log(`[afterPack] Found nvm node at: ${nodeSourcePath}`);
-                    break;
-                  }
-                }
-              } catch (e) {
-                // 忽略错误
-              }
-            }
-          }
-        }
-
-        if (!nodeSourcePath) {
-          console.warn(
-            `[afterPack] ⚠ Could not find node executable. Backend server may not work without system node.`,
-          );
-          console.warn(`[afterPack] Please ensure node is installed and available in PATH.`);
-        } else {
-          // 复制 node 到应用包的 Resources 目录
-          const nodeDestPath = path.join(resourcesDir, 'node');
-
-          // 删除已存在的 node
-          if (fs.existsSync(nodeDestPath)) {
-            fs.unlinkSync(nodeDestPath);
-          }
-
-          // 复制 node 文件
-          console.log(`[afterPack] Copying node from ${nodeSourcePath} to ${nodeDestPath}`);
-          fs.copyFileSync(nodeSourcePath, nodeDestPath);
-
-          // 设置执行权限
-          fs.chmodSync(nodeDestPath, 0o755);
-
-          // 验证复制结果
-          if (fs.existsSync(nodeDestPath)) {
-            const stats = fs.statSync(nodeDestPath);
-            console.log(`[afterPack] ✓ Node copied successfully`);
-            console.log(`[afterPack] Node size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
-            console.log(`[afterPack] Node path: ${nodeDestPath}`);
-
-            // 验证 node 版本
-            try {
-              const nodeVersion = execSync(`"${nodeDestPath}" --version`, {
-                encoding: 'utf8',
-                stdio: ['ignore', 'pipe', 'ignore'],
-                timeout: 5000,
-              }).trim();
-              console.log(`[afterPack] Node version: ${nodeVersion}`);
-            } catch (e) {
-              console.warn(`[afterPack] ⚠ Could not verify node version: ${e}`);
-            }
-          } else {
-            console.error(`[afterPack] ✗ Failed to copy node`);
-          }
-        }
-      } catch (error: any) {
-        console.error(`[afterPack] ✗ Error copying node: ${error.message}`);
-        console.error(`[afterPack] Error stack: ${error.stack}`);
-        console.warn(`[afterPack] Application will continue, but backend server may not work without system node.`);
-      }
-    } else {
-      console.log(`[afterPack] Skipping (not macOS)`);
-    }
-    console.log('[afterPack] Hook completed');
-  },
+  // 注意：
+  // - web-dist 通过 extraResources 直接从 ../web/dist 包含（无需临时目录）
+  // - backend 通过 extraResources 从 backend-temp 包含（由 prepare-backend.js 执行 pnpm install --prod 准备）
+  // - node 可执行文件由 copy-node-executable.js 在打包后复制
+  // - DMG 创建由 create-dmg.js 在打包后执行
 };
 
 export default config;

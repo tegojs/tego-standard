@@ -7,48 +7,41 @@ const wsBaseUrl = `ws://localhost:${appPort}`;
 
 // 修复 window.location，避免生成错误的 WebSocket URL
 // 在 app:// 协议下，location.hostname 可能是 'index.html'，需要修复
-// 使用立即执行的函数确保在页面加载前就修复
+// 注意：location.hostname 可能是不可配置的，所以不能直接重定义
+// 我们通过拦截 WebSocket 和 API 请求来修复 URL，而不是修改 location 对象
 (function () {
   const globalWindow = globalThis as any;
 
   // 等待 window 对象可用
   if (typeof globalWindow !== 'undefined') {
-    // 使用 Object.defineProperty 修复 location.hostname
     try {
       // 先尝试获取原始的 location 对象
       const location = globalWindow.location || (globalWindow.window && globalWindow.window.location);
 
       if (location) {
-        // 保存原始值
+        // 检查 hostname 是否为 'index.html'
         const originalHostname = location.hostname;
 
-        // 如果 hostname 是 'index.html'，修复它
         if (originalHostname === 'index.html' || !originalHostname || originalHostname === '') {
+          // 由于 location.hostname 可能是不可配置的，我们不能直接重定义它
+          // 相反，我们在 window 对象上设置一个辅助属性，供应用代码使用
+          // 同时通过拦截 WebSocket 和 fetch/XMLHttpRequest 来修复 URL
           try {
-            Object.defineProperty(location, 'hostname', {
-              get: () => 'localhost',
-              configurable: true,
-              enumerable: true,
+            // 设置一个辅助属性，供应用代码使用
+            Object.defineProperty(globalWindow, '__tachybase_location_hostname__', {
+              value: 'localhost',
+              writable: false,
+              configurable: false,
+              enumerable: false,
             });
-            console.log('[Preload] Fixed location.hostname to localhost');
+            console.log('[Preload] Set __tachybase_location_hostname__ to localhost');
           } catch (e) {
-            console.warn('[Preload] Could not override location.hostname:', e);
+            console.warn('[Preload] Could not set __tachybase_location_hostname__:', e);
           }
-        }
-
-        // 也修复 host 属性
-        try {
-          Object.defineProperty(location, 'host', {
-            get: () => 'localhost',
-            configurable: true,
-            enumerable: true,
-          });
-        } catch (e) {
-          // 忽略
         }
       }
     } catch (e) {
-      console.warn('[Preload] Error fixing location:', e);
+      console.warn('[Preload] Error checking location:', e);
     }
   }
 })();

@@ -111,14 +111,30 @@ export function findWebDistPath(): string | null {
     path.join(process.resourcesPath, 'web-dist'),
     path.join(__dirname, '..', 'web-dist'),
     path.join(app.getAppPath(), 'web-dist'),
+    // 尝试从 app.asar 中查找
+    path.join(process.resourcesPath, 'app.asar', 'web-dist'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'web-dist'),
+    // 尝试从应用包中查找
+    path.join(app.getAppPath(), '..', 'web-dist'),
+    path.join(process.resourcesPath, '..', 'web-dist'),
   ];
 
+  log(`[PathFinder] Searching for web-dist directory...`);
   for (const possiblePath of possibleWebDistPaths) {
-    if (fs.existsSync(possiblePath) && fs.existsSync(path.join(possiblePath, 'index.html'))) {
-      return possiblePath;
+    const normalizedPath = path.resolve(possiblePath);
+    log(`[PathFinder] Checking: ${normalizedPath}`);
+    if (fs.existsSync(normalizedPath)) {
+      const indexHtmlPath = path.join(normalizedPath, 'index.html');
+      if (fs.existsSync(indexHtmlPath)) {
+        log(`[PathFinder] ✓ Found web-dist at: ${normalizedPath}`);
+        return normalizedPath;
+      } else {
+        log(`[PathFinder] Directory exists but index.html not found: ${indexHtmlPath}`);
+      }
     }
   }
 
+  log(`[PathFinder] ⚠ Could not find web-dist directory in any of the checked paths`, 'warn');
   return null;
 }
 

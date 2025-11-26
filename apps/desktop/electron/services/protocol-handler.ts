@@ -19,6 +19,7 @@ function handleProtocolRequest(
   const appPort = process.env.APP_PORT || '3000';
   let url = request.url.replace(/^app:\/\//, '');
 
+  // 处理三个斜杠的情况（app:///path -> app://path）
   if (url.startsWith('/')) {
     url = url.slice(1);
   }
@@ -29,10 +30,14 @@ function handleProtocolRequest(
 
   // 移除 hostname 前缀（如 index.html、admin 等）
   // 匹配格式：hostname/ 或 hostname:port/
+  // 注意：只移除真正的 hostname，不要移除 assets/ 这样的路径前缀
   const originalUrl = url;
-  url = url.replace(/^[^/]+(?::\d+)?\//, '');
-  if (url !== originalUrl) {
-    log(`[Electron] Removed hostname prefix: ${request.url} -> app://${url}`);
+  // 只有当路径包含 / 时才尝试移除 hostname（避免误移除 assets/ 前缀）
+  if (url.includes('/') && !url.startsWith('assets/') && !url.startsWith('static/')) {
+    url = url.replace(/^[^/]+(?::\d+)?\//, '');
+    if (url !== originalUrl) {
+      log(`[Electron] Removed hostname prefix: ${request.url} -> app://${url}`);
+    }
   }
 
   // 处理 index.html/ 前缀（可能是从 SPA 路由产生的）

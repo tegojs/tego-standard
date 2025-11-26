@@ -12,7 +12,7 @@ apps/desktop/
 │   └── tsconfig.json     # TypeScript 配置
 ├── build/                # 构建资源
 │   └── entitlements.mac.plist  # macOS 权限配置
-├── electron-builder.config.ts   # 打包配置
+├── electron-builder.config.js   # 打包配置
 └── package.json          # 项目配置
 ```
 
@@ -110,7 +110,7 @@ pnpm dist:mac
 - **开发环境**: 连接到 `apps/web` 的开发服务器
 - **生产环境**: 加载 `apps/web/dist` 的构建产物
 
-### 打包配置 (`electron-builder.config.ts`)
+### 打包配置 (`electron-builder.config.js`)
 
 - **应用 ID**: `com.tachybase.app`
 - **产品名称**: `Tachybase`

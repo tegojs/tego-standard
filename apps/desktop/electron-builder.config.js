@@ -1,6 +1,10 @@
-// electron-builder 配置文件（JavaScript 版本）
-// electron-builder 不支持 TypeScript 配置文件，所以需要 JavaScript 版本
+// electron-builder 配置文件
+// 注意：electron-builder 不支持 TypeScript 配置文件，所以使用 JavaScript 版本
+// 使用 JSDoc 注释提供类型提示和 IDE 支持
 
+/**
+ * @type {import('electron-builder').Configuration}
+ */
 const config = {
   appId: 'com.tachybase.app',
   // 明确设置产品名称，避免使用 package.json 中的 @tego/desktop
@@ -30,7 +34,6 @@ const config = {
     '!*.ts',
     '!*.tsx',
     '!tsconfig.json',
-    '!electron-builder.config.ts',
     '!electron-builder.config.js',
     '!README.md',
     '!DESKTOP_APP_GUIDE.md',

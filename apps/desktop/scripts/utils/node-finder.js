@@ -80,7 +80,34 @@ function verifyNodeVersion(nodePath, logPrefix) {
   }
 }
 
+/**
+ * 获取 node 可执行文件的路径并确保 PATH 环境变量包含它
+ * @returns {string} 更新后的 PATH 环境变量
+ */
+function ensureNodeInPath() {
+  try {
+    // 获取当前 node 可执行文件的路径
+    const nodePath = process.execPath;
+    const nodeDir = path.dirname(nodePath);
+
+    // 获取当前的 PATH
+    const currentPath = process.env.PATH || '';
+
+    // 如果 node 目录不在 PATH 中，则添加它
+    if (!currentPath.includes(nodeDir)) {
+      const separator = process.platform === 'win32' ? ';' : ':';
+      return `${nodeDir}${separator}${currentPath}`;
+    }
+
+    return currentPath;
+  } catch (err) {
+    // 如果获取失败，返回原始 PATH
+    return process.env.PATH || '';
+  }
+}
+
 module.exports = {
   findNodeExecutable,
   verifyNodeVersion,
+  ensureNodeInPath,
 };

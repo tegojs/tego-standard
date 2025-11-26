@@ -126,30 +126,73 @@ interface GetPluginsOption {
  * @internal
  */
 export async function getPlugins(options: GetPluginsOption): Promise<Array<[string, typeof Plugin]>> {
+  console.log('[getPlugins] Starting with options:', {
+    hasRequirejs: !!options.requirejs,
+    hasDevDynamicImport: !!options.devDynamicImport,
+    pluginDataType: typeof options.pluginData,
+    isArray: Array.isArray(options.pluginData),
+    pluginDataLength: options.pluginData?.length,
+    pluginData: options.pluginData,
+  });
+
   const { requirejs, pluginData, devDynamicImport } = options;
-  if (!pluginData || !Array.isArray(pluginData) || pluginData.length === 0) return [];
+
+  if (!pluginData || !Array.isArray(pluginData) || pluginData.length === 0) {
+    console.log('[getPlugins] Early return: no valid pluginData');
+    return [];
+  }
+
+  console.log(
+    '[getPlugins] Processing plugins:',
+    pluginData.map((p) => p?.packageName || 'unknown'),
+  );
 
   const res: Array<[string, typeof Plugin]> = [];
 
   const resolveDevPlugins: Record<string, unknown> = {};
   if (devDynamicImport) {
-    for (const plugin of pluginData) {
-      const pluginModule = await devDynamicImport(plugin.packageName);
-      if (pluginModule) {
-        res.push([plugin.name, pluginModule.default]);
-        resolveDevPlugins[plugin.packageName] = pluginModule;
+    console.log('[getPlugins] Using devDynamicImport for plugins');
+    try {
+      for (const plugin of pluginData) {
+        console.log('[getPlugins] Loading dev plugin:', plugin?.packageName);
+        const pluginModule = await devDynamicImport(plugin.packageName);
+        if (pluginModule) {
+          console.log('[getPlugins] Dev plugin loaded successfully:', plugin.packageName);
+          res.push([plugin.name, pluginModule.default]);
+          resolveDevPlugins[plugin.packageName] = pluginModule;
+        } else {
+          console.warn('[getPlugins] Dev plugin returned null/undefined:', plugin.packageName);
+        }
       }
+      defineDevPlugins(resolveDevPlugins);
+    } catch (error) {
+      console.error('[getPlugins] Error during dev plugin loading:', error);
+      throw error;
     }
-    defineDevPlugins(resolveDevPlugins);
   }
 
   const remotePlugins = pluginData.filter((item) => !resolveDevPlugins[item.packageName]);
 
+  console.log(
+    '[getPlugins] Remote plugins to load:',
+    remotePlugins.map((p) => p?.packageName || 'unknown'),
+  );
+
   if (remotePlugins.length === 0) {
+    console.log('[getPlugins] No remote plugins to load, returning:', res.length, 'plugins');
     return res;
   }
 
-  const remotePluginList = await getRemotePlugins(requirejs, remotePlugins);
-  res.push(...remotePluginList);
+  try {
+    console.log('[getPlugins] Loading remote plugins via requirejs');
+    const remotePluginList = await getRemotePlugins(requirejs, remotePlugins);
+    console.log('[getPlugins] Remote plugins loaded:', remotePluginList.length);
+    res.push(...remotePluginList);
+  } catch (error) {
+    console.error('[getPlugins] Error loading remote plugins:', error);
+    throw error;
+  }
+
+  console.log('[getPlugins] Completed, total plugins:', res.length);
   return res;
 }

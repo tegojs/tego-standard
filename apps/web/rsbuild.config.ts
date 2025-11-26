@@ -1,54 +1,25 @@
-// @ts-ignore - Node.js built-in modules
-import * as path from 'node:path';
-// @ts-ignore - Node.js built-in modules
-import { fileURLToPath } from 'node:url';
-// @ts-ignore - @tego/devkit may not have type definitions
-// Import from the actual package path to avoid catalog resolution issues during build
-import { getUmiConfig, IndexGenerator } from '@tachybase/plugin-devkit/src/server/utils';
+import path from 'node:path';
+import { getUmiConfig, IndexGenerator } from '@tego/devkit';
 
-import { defineConfig, type RsbuildConfig } from '@rsbuild/core';
+import { defineConfig } from '@rsbuild/core';
 import { pluginLess } from '@rsbuild/plugin-less';
 import { pluginNodePolyfill } from '@rsbuild/plugin-node-polyfill';
 import { pluginReact } from '@rsbuild/plugin-react';
 
-// 获取当前文件的目录路径（ES 模块中替代 __dirname）
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 确保使用项目根目录，而不是当前工作目录
-// 从 rsbuild.config.ts 的位置（apps/web）向上查找项目根目录
-function detectProjectRoot() {
-  let dir = __dirname; // apps/web
-  const { parse, dirname } = path;
-  const { existsSync } = require('node:fs');
-  const filesystemRoot = parse(dir).root;
-
-  while (dir && dir !== filesystemRoot) {
-    if (existsSync(path.join(dir, 'pnpm-workspace.yaml'))) {
-      return dir;
-    }
-    dir = dirname(dir);
-  }
-
-  // 如果没找到，从 apps/web 向上两级应该是项目根目录
-  return path.resolve(__dirname, '../..');
-}
-
-const projectRoot = detectProjectRoot();
 const config = getUmiConfig();
-const pluginDirs = ['packages'].map((item) => path.join(projectRoot, item));
+
+const pluginDirs = ['packages'].map((item) => path.join(process.cwd(), item));
 
 const outputPluginPath = path.join(__dirname, 'src/.plugins');
 const indexGenerator = new IndexGenerator(outputPluginPath, pluginDirs);
 indexGenerator.generate();
 
-const rsDefined: Record<string, string> = {};
-const configDefine = config.define as Record<string, unknown>;
-for (const key in configDefine) {
-  rsDefined[key] = JSON.stringify(configDefine[key]);
+const rsDefined = {};
+for (const key in config.define) {
+  rsDefined[key] = JSON.stringify(config.define[key]);
 }
 
-const rsbuildConfig: RsbuildConfig = defineConfig({
+export default defineConfig({
   html: {
     title: 'Tachybase',
     inject: 'body',
@@ -84,7 +55,6 @@ const rsbuildConfig: RsbuildConfig = defineConfig({
         process.env.REACT_APP_CLICK_TO_COMPONENT_EDITOR,
       ),
     },
-    include: [path.join(projectRoot, 'packages')],
   },
   dev: {
     hmr: false,
@@ -112,91 +82,22 @@ const rsbuildConfig: RsbuildConfig = defineConfig({
   plugins: [pluginReact(), pluginLess(), pluginNodePolyfill()],
   resolve: {
     alias: {
-      ...Object.fromEntries(
-        Object.entries(config.alias).map(([key, value]) => {
-          if (typeof value === 'string') {
-            let absolutePath = path.isAbsolute(value) ? value : path.resolve(projectRoot, value);
-            if (absolutePath.includes('/apps/web/')) {
-              absolutePath = absolutePath.replace('/apps/web/', '/');
-            }
-            return [key, absolutePath];
-          }
-          return [key, value];
-        }),
-      ),
-      i18next: path.join(__dirname, 'src/polyfills/i18next-keyFromSelector.ts'),
-      'react-i18next': require.resolve('react-i18next') as string,
-      '@swc/helpers/_/_tagged_template_literal': require.resolve(
-        '@swc/helpers/esm/_tagged_template_literal.js',
-      ) as string,
-      '@swc/helpers/_/_define_property': require.resolve('@swc/helpers/esm/_define_property.js') as string,
-      util: path.join(__dirname, 'src/polyfills/util-polyfill.ts'),
+      ...config.alias,
+      // TODO：暂时只对这个库做处理
+      i18next: require.resolve('i18next'),
+      'react-i18next': require.resolve('react-i18next'),
     },
-    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },
   tools: {
-    rspack: (rspackConfig: any) => {
-      if (!rspackConfig.module) {
-        rspackConfig.module = {};
+    rspack: (config) => {
+      if (!config.resolve) {
+        config.resolve = {};
       }
-      if (!rspackConfig.module.parser) {
-        rspackConfig.module.parser = {};
-      }
-      if (!rspackConfig.module.parser.javascript) {
-        rspackConfig.module.parser.javascript = {};
-      }
-      rspackConfig.module.parser.javascript.reexportExportsPresence = false;
-      rspackConfig.module.parser.javascript.exportsPresence = false;
-
-      if (!rspackConfig.optimization) {
-        rspackConfig.optimization = {};
-      }
-      if (!rspackConfig.optimization.moduleIds) {
-        rspackConfig.optimization.moduleIds = 'deterministic';
-      }
-      rspackConfig.optimization.moduleConcatenation = false;
-
-      if (!rspackConfig.resolve) {
-        rspackConfig.resolve = {};
-      }
-      if (!rspackConfig.resolve.byDependency) {
-        rspackConfig.resolve.byDependency = {};
-      }
-      if (!rspackConfig.resolve.byDependency.esm) {
-        rspackConfig.resolve.byDependency.esm = {};
-      }
-      rspackConfig.resolve.byDependency.esm.exportsPresence = false;
-
-      rspackConfig.resolve.fallback = {
-        ...rspackConfig.resolve.fallback,
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
         worker_threads: false,
-        http2: false,
       };
-      if (!rspackConfig.resolve.modules) {
-        rspackConfig.resolve.modules = [];
-      }
-      const packagesPath = path.join(projectRoot, 'packages');
-      if (!rspackConfig.resolve.modules.includes(packagesPath)) {
-        rspackConfig.resolve.modules.unshift(packagesPath);
-      }
-      const nodeModulesPath = path.join(projectRoot, 'node_modules');
-      if (!rspackConfig.resolve.modules.includes(nodeModulesPath)) {
-        rspackConfig.resolve.modules.push(nodeModulesPath);
-      }
-      if (!rspackConfig.resolve.modules.includes('node_modules')) {
-        rspackConfig.resolve.modules.push('node_modules');
-      }
-
-      // Add special alias for polyfill to import original i18next without circular dependency
-      if (!rspackConfig.resolve.alias) {
-        rspackConfig.resolve.alias = {};
-      }
-      // Use a special name that the polyfill can use to import the original module
-      rspackConfig.resolve.alias['i18next-original'] = require.resolve('i18next');
-
-      return rspackConfig;
+      return config;
     },
   },
 });
-
-export default rsbuildConfig;

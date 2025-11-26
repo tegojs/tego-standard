@@ -72,10 +72,10 @@ const wsBaseUrl = `ws://localhost:${appPort}`;
   }
 })();
 
-// 修复 window.location，避免生成错误的 WebSocket URL
-// 在 app:// 协议下，location.hostname 可能是 'index.html'，需要修复
-// 注意：location.hostname 可能是不可配置的，所以不能直接重定义
-// 我们通过拦截 WebSocket 和 API 请求来修复 URL，而不是修改 location 对象
+// 修复 window.location，避免生成错误的 WebSocket URL 和插件路径
+// 在 app:// 协议下，location.hostname 可能是 'index.html' 或其他值（如 'admin'），需要修复
+// 注意：location.hostname 和 location.origin 可能是不可配置的，所以不能直接重定义
+// 我们通过拦截 WebSocket、API 请求和资源加载来修复 URL，而不是修改 location 对象
 (function () {
   const globalWindow = globalThis as any;
 
@@ -86,24 +86,42 @@ const wsBaseUrl = `ws://localhost:${appPort}`;
       const location = globalWindow.location || (globalWindow.window && globalWindow.window.location);
 
       if (location) {
-        // 检查 hostname 是否为 'index.html'
+        // 检查 hostname 是否为 'index.html' 或其他非标准值
         const originalHostname = location.hostname;
+        const isDesktop = location.protocol === 'app:';
 
-        if (originalHostname === 'index.html' || !originalHostname || originalHostname === '') {
-          // 由于 location.hostname 可能是不可配置的，我们不能直接重定义它
-          // 相反，我们在 window 对象上设置一个辅助属性，供应用代码使用
-          // 同时通过拦截 WebSocket 和 fetch/XMLHttpRequest 来修复 URL
+        if (
+          isDesktop &&
+          (originalHostname === 'index.html' ||
+            !originalHostname ||
+            originalHostname === '' ||
+            originalHostname !== 'localhost')
+        ) {
+          // 由于 location.hostname 和 location.origin 可能是不可配置的，我们不能直接重定义它们
+          // 相反，我们在 window 对象上设置辅助属性，供应用代码使用
+          // 同时通过拦截 WebSocket、fetch/XMLHttpRequest 和资源加载来修复 URL
           try {
-            // 设置一个辅助属性，供应用代码使用
+            // 设置辅助属性，供应用代码使用
             Object.defineProperty(globalWindow, '__tachybase_location_hostname__', {
               value: 'localhost',
               writable: false,
               configurable: false,
               enumerable: false,
             });
+
+            // 设置 origin 辅助属性，用于构建正确的 URL
+            const appPort = process.env.APP_PORT || '3000';
+            Object.defineProperty(globalWindow, '__tachybase_location_origin__', {
+              value: `http://localhost:${appPort}`,
+              writable: false,
+              configurable: false,
+              enumerable: false,
+            });
+
             console.log('[Preload] Set __tachybase_location_hostname__ to localhost');
+            console.log('[Preload] Set __tachybase_location_origin__ to http://localhost:' + appPort);
           } catch (e) {
-            console.warn('[Preload] Could not set __tachybase_location_hostname__:', e);
+            console.warn('[Preload] Could not set location helper properties:', e);
           }
         }
       }

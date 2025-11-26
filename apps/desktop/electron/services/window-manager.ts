@@ -78,6 +78,7 @@ function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean): void
     if (url.includes('/static/plugins/') || url.includes('@tachybase/')) {
       // 提取路径部分，处理多种可能的格式：
       // - app://static/plugins/...
+      // - app://admin/static/plugins/...
       // - app://index.html/static/plugins/...
       // - http://index.html/static/plugins/...
       // - ws://index.html/static/plugins/...
@@ -87,8 +88,10 @@ function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean): void
       // 移除协议前缀（app://、http://、https://、ws:// 或 wss://）
       path = path.replace(/^(app|http|https|ws|wss):\/\//, '');
 
-      // 移除 index.html/ 前缀（如果存在）
-      path = path.replace(/^index\.html\//, '');
+      // 移除可能的 hostname 前缀（如 admin/、index.html/ 等）
+      // 匹配格式：hostname/path 或 hostname:port/path
+      path = path.replace(/^[^/]+(?::\d+)?\//, ''); // 移除 hostname:port/ 或 hostname/
+      path = path.replace(/^index\.html\//, ''); // 移除 index.html/ 前缀（如果还存在）
 
       // 移除开头的斜杠（如果有）
       if (path.startsWith('/')) {

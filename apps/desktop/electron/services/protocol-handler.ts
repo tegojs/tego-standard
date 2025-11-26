@@ -89,7 +89,7 @@ function handleProtocolRequest(
   callback: (response: Electron.ProtocolResponse) => void,
   webDistBasePath: string,
 ): void {
-  // 解析 URL：app:///path 或 app://path
+  // 解析 URL：app:///path 或 app://path 或 app://hostname/path
   let url = request.url.replace(/^app:\/\//, ''); // 移除 'app://' 前缀
 
   // 移除开头的斜杠（如果有）
@@ -100,6 +100,14 @@ function handleProtocolRequest(
   // 移除尾部的斜杠（如果有）
   if (url.endsWith('/')) {
     url = url.slice(0, -1);
+  }
+
+  // 移除可能的 hostname 前缀（如 admin/、index.html/ 等）
+  // 匹配格式：hostname/path 或 hostname:port/path
+  const originalUrl = url;
+  url = url.replace(/^[^/]+(?::\d+)?\//, ''); // 移除 hostname:port/ 或 hostname/
+  if (url !== originalUrl) {
+    log(`[Electron] Removed hostname prefix: ${request.url} -> app://${url}`);
   }
 
   // 处理包含 index.html/ 的路径（错误路径，需要修正）

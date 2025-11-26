@@ -82,6 +82,19 @@ function prepareStartupArgs(projectRoot: string): {
   if (!tegoJsPath) {
     const tegoBinPath = path.join(projectRoot, 'node_modules', '.bin', 'tego');
     if (fs.existsSync(tegoBinPath)) {
+      // 使用 wrapper 脚本（优先从 backend 目录查找）
+      const wrapperPathInBackend = path.join(projectRoot, 'scripts', 'tego-wrapper.js');
+      const wrapperPathInApp = path.join(__dirname, '..', '..', 'scripts', 'prepare-backend', 'tego-wrapper.js');
+      const wrapperPath = fs.existsSync(wrapperPathInBackend) ? wrapperPathInBackend : wrapperPathInApp;
+
+      if (fs.existsSync(wrapperPath)) {
+        log(`[Electron] Using tego wrapper: ${wrapperPath}`);
+        return {
+          executablePath: nodePath,
+          args: [wrapperPath, tegoBinPath, 'start'],
+          nodePathForEnv: nodePath,
+        };
+      }
       return {
         executablePath: '/bin/sh',
         args: [tegoBinPath, 'start'],
@@ -89,6 +102,22 @@ function prepareStartupArgs(projectRoot: string): {
       };
     }
     throw new Error('Could not find tego executable.');
+  }
+
+  // 使用 wrapper 脚本（优先从 backend 目录查找，因为构建时会被复制到那里）
+  const wrapperPathInBackend = path.join(projectRoot, 'scripts', 'tego-wrapper.js');
+  const wrapperPathInApp = path.join(__dirname, '..', '..', 'scripts', 'prepare-backend', 'tego-wrapper.js');
+  const wrapperPath = fs.existsSync(wrapperPathInBackend) ? wrapperPathInBackend : wrapperPathInApp;
+
+  if (fs.existsSync(wrapperPath)) {
+    log(`[Electron] Using tego wrapper: ${wrapperPath}`);
+    return {
+      executablePath: nodePath,
+      args: [wrapperPath, tegoJsPath, 'start'],
+      nodePathForEnv: nodePath,
+    };
+  } else {
+    log(`[Electron] ⚠ Tego wrapper not found, using direct tego start`, 'warn');
   }
 
   return {
@@ -146,7 +175,7 @@ export async function startBackendServer(): Promise<void> {
 
   try {
     const { executablePath, args, nodePathForEnv } = prepareStartupArgs(projectRoot);
-    const env = buildEnvironmentVariables(nodePathForEnv);
+    const env = buildEnvironmentVariables(nodePathForEnv, projectRoot);
 
     await ensureApplicationInstalled(projectRoot, executablePath, nodePathForEnv, env);
 

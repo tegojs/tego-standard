@@ -31,6 +31,11 @@ async function main() {
       {
         cwd: projectRoot,
         silent: false,
+        env: {
+          ...process.env,
+          // 使用 --filter 和 --no-frozen-lockfile 避免触发全局 workspace 检查和 catalog 清理
+          // 这样可以防止 pnpm 自动修改 pnpm-workspace.yaml
+        },
       },
     ),
     createCommandTask('Copying assets', 'node scripts/copy-assets.js', {

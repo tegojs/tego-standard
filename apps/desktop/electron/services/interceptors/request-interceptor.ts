@@ -6,6 +6,14 @@ import { isApiRequest, needsRedirect, redirectApiUrl } from '../../utils/url-red
 
 /**
  * 设置 CORS 响应头拦截器
+ *
+ * 在 Electron 中，CORS 的处理逻辑：
+ * 1. 虽然我们在 onBeforeRequest 中会将 app:// 协议的请求重定向到 http://localhost:port，
+ *    但浏览器仍然会进行 CORS 检查（因为请求是从 app:// 协议发起的）
+ * 2. 为了确保所有请求都能正常工作，我们需要为所有本地 API 请求添加 CORS 头
+ * 3. 在 Electron 本地应用中，我们可以安全地允许所有来源和所有请求头
+ *
+ * 注意：CORS 规范要求明确列出所有允许的请求头，不能使用通配符
  */
 function setupCorsHeaders(window: BrowserWindow): void {
   const appPort = getAppPort();
@@ -17,25 +25,41 @@ function setupCorsHeaders(window: BrowserWindow): void {
     const isLocalhost = url.includes(`localhost:${appPort}`) || url.includes(`127.0.0.1:${appPort}`);
 
     // 为所有本地 API 请求设置 CORS 头
+    // 在 Electron 本地应用中，允许所有来源是安全的
     if (isApiRequest && isLocalhost) {
+      // 基础允许的请求头列表
+      const baseAllowedHeaders = [
+        'Content-Type',
+        'Accept',
+        'Origin',
+        'X-Requested-With',
+        'Authorization',
+        'X-With-ACL-Meta',
+        'X-Role',
+        'x-timezone',
+        'X-Timezone',
+        'x-hostname',
+        'X-Hostname',
+      ];
+
+      // 在 Electron 中，onHeadersReceived 的 details 没有 requestHeaders 属性
+      // 由于这是本地应用，我们可以直接允许所有常见的自定义头
+      // 如果需要动态处理，应该在 onBeforeRequest 中处理预检请求
+      const allowedHeaders = baseAllowedHeaders;
+
       const responseHeaders = {
         ...details.responseHeaders,
+        // 允许所有来源（Electron 本地应用，安全性由应用本身控制）
         'Access-Control-Allow-Origin': ['*'],
         'Access-Control-Allow-Methods': ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
-        'Access-Control-Allow-Headers': [
-          'Content-Type',
-          'Accept',
-          'Origin',
-          'X-Requested-With',
-          'Authorization',
-          'X-With-ACL-Meta',
-          'X-Role',
-        ],
+        // 明确列出所有允许的请求头（CORS 规范要求）
+        'Access-Control-Allow-Headers': allowedHeaders,
         'Access-Control-Allow-Credentials': ['true'],
         'Access-Control-Expose-Headers': ['Content-Length', 'Content-Type', 'X-Total-Count'],
       };
 
       // 处理 OPTIONS 预检请求
+      // 在 Electron 中，预检请求仍然会发生，我们需要正确处理
       if (details.method === 'OPTIONS') {
         callback({
           responseHeaders,

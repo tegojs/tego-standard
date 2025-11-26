@@ -28,34 +28,56 @@ export function setupWebSocketInterceptor(): void {
         wsUrl.startsWith('ws://index.html') ||
         wsUrl.startsWith('wss://index.html') ||
         wsUrl.startsWith('http://index.html') ||
-        wsUrl.includes('index.html:');
+        wsUrl.includes('index.html:') ||
+        /^(ws|wss):\/\/index\.html/.test(wsUrl);
 
       if (needsFullRedirect) {
-        let path = '/ws';
-        let query = '';
+        // 使用正则表达式提取协议、路径和查询参数
+        // 匹配格式：ws://index.html:port/path?query
+        const wsMatch = wsUrl.match(/^(ws|wss):\/\/index\.html(?::\d+)?(\/[^?]*)?(\?.*)?/);
 
-        // 提取路径和查询参数
-        const pathMatch = wsUrl.match(/(\/ws[^?]*)(\?.*)?/);
-        if (pathMatch) {
-          path = pathMatch[1];
-          query = pathMatch[2] || '';
-        } else {
-          const generalPathMatch = wsUrl.match(/\/([^?]+)(\?.*)?/);
-          if (generalPathMatch) {
-            path = `/${generalPathMatch[1]}`;
-            query = generalPathMatch[2] || '';
+        if (wsMatch) {
+          const protocol = wsMatch[1];
+          const path = wsMatch[2] || '/ws';
+          let query = wsMatch[3] || '';
+
+          // 修复查询参数中的 hostname
+          if (query) {
+            query = query
+              .replace(/__hostname=index\.html/g, '__hostname=localhost')
+              .replace(/hostname=index\.html/g, 'hostname=localhost');
           }
-        }
 
-        // 修复查询参数中的 hostname
-        if (query) {
-          query = query
-            .replace(/__hostname=index\.html/g, '__hostname=localhost')
-            .replace(/hostname=index\.html/g, 'hostname=localhost');
-        }
+          wsUrl = `${wsBaseUrl}${path}${query}`;
+          console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
+        } else {
+          // 回退到原来的逻辑
+          let path = '/ws';
+          let query = '';
 
-        wsUrl = `${wsBaseUrl}${path}${query}`;
-        console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
+          // 提取路径和查询参数
+          const pathMatch = wsUrl.match(/(\/ws[^?]*)(\?.*)?/);
+          if (pathMatch) {
+            path = pathMatch[1];
+            query = pathMatch[2] || '';
+          } else {
+            const generalPathMatch = wsUrl.match(/\/([^?]+)(\?.*)?/);
+            if (generalPathMatch) {
+              path = `/${generalPathMatch[1]}`;
+              query = generalPathMatch[2] || '';
+            }
+          }
+
+          // 修复查询参数中的 hostname
+          if (query) {
+            query = query
+              .replace(/__hostname=index\.html/g, '__hostname=localhost')
+              .replace(/hostname=index\.html/g, 'hostname=localhost');
+          }
+
+          wsUrl = `${wsBaseUrl}${path}${query}`;
+          console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
+        }
       } else if (isDesktop) {
         // 处理其他需要修复的 WebSocket URL
         wsUrl = wsUrl

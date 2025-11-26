@@ -1,0 +1,173 @@
+#!/usr/bin/env node
+
+/**
+ * tego wrapper 脚本
+ * 在启动 tego 前，将 PLUGIN_PATHS 环境变量解析为数组并设置到 globals
+ * 因为 tego 期望 PLUGIN_PATHS 是数组，但环境变量只能是字符串
+ */
+
+// 设置 NODE_PATH 以确保能找到模块
+// wrapper 脚本在 backend/scripts/ 目录，需要找到 backend/node_modules 中的模块
+const path = require('path');
+const fs = require('fs');
+
+// 获取 backend 目录（wrapper 脚本在 backend/scripts/tego-wrapper.js）
+const backendDir = path.resolve(__dirname, '..');
+
+// 查找 node_modules 目录
+const nodeModulesPath = path.join(backendDir, 'node_modules');
+if (fs.existsSync(nodeModulesPath)) {
+  // 将 node_modules 路径添加到 NODE_PATH
+  const currentNodePath = process.env.NODE_PATH || '';
+  const nodePaths = currentNodePath ? currentNodePath.split(path.delimiter) : [];
+  if (!nodePaths.includes(nodeModulesPath)) {
+    nodePaths.unshift(nodeModulesPath);
+    process.env.NODE_PATH = nodePaths.join(path.delimiter);
+  }
+}
+
+// 将 packages/@tachybase 目录添加到 NODE_PATH，这样 Node.js 的 require 才能找到插件
+// 因为 tego 通过 PLUGIN_PATHS 找到 package.json，但 require 需要从 NODE_PATH 加载模块
+// require('@tachybase/plugin-name') 会在 NODE_PATH 中查找 @tachybase/plugin-name
+// 所以我们需要将 packages/@tachybase 的父目录（packages）添加到 NODE_PATH
+const packagesPath = path.join(backendDir, 'packages');
+if (fs.existsSync(packagesPath)) {
+  const currentNodePath = process.env.NODE_PATH || '';
+  const nodePaths = currentNodePath ? currentNodePath.split(path.delimiter) : [];
+  if (!nodePaths.includes(packagesPath)) {
+    nodePaths.push(packagesPath);
+    process.env.NODE_PATH = nodePaths.join(path.delimiter);
+    console.log(`[Tego Wrapper] Added packages to NODE_PATH: ${packagesPath}`);
+    console.log(`[Tego Wrapper] Node.js require('@tachybase/plugin-name') will search in: ${packagesPath}/@tachybase/`);
+  }
+}
+
+// 必须在 require tego 之前设置 globals
+// 使用更可靠的方法来查找模块（支持 pnpm 的 .pnpm 结构）
+let TachybaseGlobal;
+
+// 首先尝试在 pnpm 的 .pnpm 目录中查找（这是最可靠的方法，因为 pnpm 使用 isolated 模式）
+const pnpmDir = path.join(nodeModulesPath, '.pnpm');
+if (fs.existsSync(pnpmDir)) {
+  try {
+    // 查找 @tachybase+globals@* 目录
+    const entries = fs.readdirSync(pnpmDir);
+    const globalsEntry = entries.find((entry) => entry.startsWith('@tachybase+globals@'));
+    if (globalsEntry) {
+      const globalsPath = path.join(pnpmDir, globalsEntry, 'node_modules', '@tachybase', 'globals');
+      if (fs.existsSync(globalsPath)) {
+        const packageJsonPath = path.join(globalsPath, 'package.json');
+        if (fs.existsSync(packageJsonPath)) {
+          // 直接使用绝对路径 require（最可靠的方法）
+          // 注意：模块可能使用 default export，需要处理
+          const globalsModule = require(globalsPath);
+          TachybaseGlobal = globalsModule.default || globalsModule;
+          console.log(`[Tego Wrapper] ✓ Found @tachybase/globals at: ${globalsPath}`);
+        } else {
+          console.error(`[Tego Wrapper] ✗ Error: package.json not found at: ${packageJsonPath}`);
+        }
+      } else {
+        console.error(`[Tego Wrapper] ✗ Error: Globals path does not exist: ${globalsPath}`);
+      }
+    } else {
+      console.error(`[Tego Wrapper] ✗ Error: Could not find @tachybase+globals@* in .pnpm directory`);
+      console.error(`[Tego Wrapper] Available entries (first 10): ${entries.slice(0, 10).join(', ')}...`);
+    }
+  } catch (err) {
+    console.error(`[Tego Wrapper] ✗ Error searching .pnpm directory: ${err.message}`);
+    console.error(`[Tego Wrapper] Error stack: ${err.stack}`);
+  }
+}
+
+// 如果还没有找到，尝试直接 require（可能在某些配置下有效）
+if (!TachybaseGlobal) {
+  try {
+    const globalsModule = require('@tachybase/globals');
+    TachybaseGlobal = globalsModule.default || globalsModule;
+    console.log(`[Tego Wrapper] ✓ Found @tachybase/globals via direct require`);
+  } catch (err) {
+    // 最后尝试使用 require.resolve（在 pnpm isolated 模式下通常无效）
+    try {
+      const globalsPath = require.resolve('@tachybase/globals', { paths: [nodeModulesPath, backendDir] });
+      const globalsModule = require(globalsPath);
+      TachybaseGlobal = globalsModule.default || globalsModule;
+      console.log(`[Tego Wrapper] ✓ Found @tachybase/globals via require.resolve: ${globalsPath}`);
+    } catch (resolveErr) {
+      console.error(`[Tego Wrapper] ✗ Error: Cannot find @tachybase/globals module`);
+      console.error(`[Tego Wrapper] Backend dir: ${backendDir}`);
+      console.error(`[Tego Wrapper] Node modules path: ${nodeModulesPath}`);
+      console.error(`[Tego Wrapper] Node modules exists: ${fs.existsSync(nodeModulesPath)}`);
+      console.error(`[Tego Wrapper] .pnpm dir exists: ${fs.existsSync(pnpmDir)}`);
+      if (fs.existsSync(pnpmDir)) {
+        const entries = fs.readdirSync(pnpmDir);
+        console.error(`[Tego Wrapper] .pnpm entries count: ${entries.length}`);
+        const globalsEntries = entries.filter((e) => e.includes('globals'));
+        console.error(`[Tego Wrapper] Entries containing 'globals': ${globalsEntries.join(', ')}`);
+      }
+      console.error(`[Tego Wrapper] Original error: ${resolveErr.message}`);
+      throw resolveErr;
+    }
+  }
+}
+
+// 验证模块是否成功加载
+if (!TachybaseGlobal) {
+  console.error(`[Tego Wrapper] ✗ Fatal: TachybaseGlobal is still undefined after all attempts`);
+  process.exit(1);
+}
+
+// 从环境变量获取 PLUGIN_PATHS
+const pluginPathsEnv = process.env.PLUGIN_PATHS;
+
+if (pluginPathsEnv) {
+  let pluginPaths;
+
+  // 尝试解析为 JSON（如果设置了 JSON 格式）
+  try {
+    pluginPaths = JSON.parse(pluginPathsEnv);
+    if (!Array.isArray(pluginPaths)) {
+      // 如果不是数组，尝试按分隔符分割
+      const separator = process.platform === 'win32' ? ';' : ':';
+      pluginPaths = pluginPathsEnv.split(separator).filter(Boolean);
+    }
+  } catch (e) {
+    // 如果不是 JSON，按分隔符分割
+    const separator = process.platform === 'win32' ? ';' : ':';
+    pluginPaths = pluginPathsEnv.split(separator).filter(Boolean);
+  }
+
+  // 设置到 globals（必须在 getInstance 之前设置）
+  // 注意：我们需要在 initData 中设置，而不是在 getInstance 之后
+  // 因为 getInstance 会使用 initData 初始化
+  const initData = {
+    PLUGIN_PATHS: pluginPaths,
+  };
+  const globals = TachybaseGlobal.getInstance(initData);
+
+  console.log(`[Tego Wrapper] Set PLUGIN_PATHS as array with ${pluginPaths.length} path(s):`);
+  pluginPaths.forEach((path, index) => {
+    console.log(`[Tego Wrapper]   ${index + 1}. ${path}`);
+  });
+}
+
+// 获取 tego 路径和参数
+// process.argv[0] = node
+// process.argv[1] = tego-wrapper.js
+// process.argv[2] = tego.js 路径
+// process.argv[3+] = tego 的参数（如 'start'）
+
+const tegoPath = process.argv[2];
+const tegoArgs = process.argv.slice(3);
+
+if (!tegoPath) {
+  console.error('[Tego Wrapper] Error: tego path not provided');
+  process.exit(1);
+}
+
+// 修改 process.argv，让 tego 认为它是直接启动的
+// 保留 node 和 tego.js 路径，移除 wrapper 脚本路径
+process.argv = [process.argv[0], tegoPath, ...tegoArgs];
+
+// 使用 require 加载 tego（这会执行 tego 的代码）
+// tego.js 会读取 process.argv 来处理命令行参数
+require(tegoPath);

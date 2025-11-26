@@ -16,6 +16,7 @@ const { verifyDependencies } = require('./dependency-checker');
 const { checkFileDescriptorLimit } = require('./file-descriptor-checker');
 const { prepareTsconfigPaths, verifyWebBuild } = require('./web-build-verifier');
 const { verifySqlite3NativeModule } = require('./sqlite3-verifier');
+const { backupWorkspaceYaml, restoreWorkspaceYaml } = require('../utils/workspace-protector');
 
 const logPrefix = createLogPrefix('dist-mac');
 const desktopDir = getDesktopDir();
@@ -25,6 +26,12 @@ const desktopDir = getDesktopDir();
  */
 function createDistMacTasks() {
   return createTaskList([
+    {
+      title: 'Backing up pnpm-workspace.yaml',
+      task: async () => {
+        backupWorkspaceYaml();
+      },
+    },
     {
       title: 'Checking file descriptor limit',
       task: async () => {
@@ -106,6 +113,12 @@ function createDistMacTasks() {
       cwd: desktopDir,
       silent: false,
     }),
+    {
+      title: 'Restoring pnpm-workspace.yaml',
+      task: async () => {
+        restoreWorkspaceYaml();
+      },
+    },
   ]);
 }
 

@@ -62,3 +62,4 @@ overrides:
   strip-ansi: 'catalog:'
   tego: 'catalog:'
   wrap-ansi: 'catalog:'
+  chalk: 'catalog:'

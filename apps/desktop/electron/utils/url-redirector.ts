@@ -1,3 +1,5 @@
+import { getAppPort } from './config';
+
 /**
  * 检查是否是 API 请求
  * 注意：/static/plugins/ 路径由插件模块处理逻辑单独处理，不在这里判断
@@ -27,7 +29,7 @@ export function needsRedirect(url: string): boolean {
 /**
  * 重定向 API 请求 URL
  */
-export function redirectApiUrl(url: string, port: string = '3000'): string {
+export function redirectApiUrl(url: string, port: string = getAppPort()): string {
   // WebSocket 请求（检测并保留 ws:// 或 wss:// 协议）
   if (url.includes('/ws') || url.startsWith('ws://') || url.startsWith('wss://')) {
     // 检测原始协议（ws 或 wss）

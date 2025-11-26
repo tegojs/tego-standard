@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron';
 
+import { getAppPort } from '../../utils/config';
 import { log } from '../../utils/logger';
 import { isApiRequest, needsRedirect, redirectApiUrl } from '../../utils/url-redirector';
 
@@ -7,19 +8,46 @@ import { isApiRequest, needsRedirect, redirectApiUrl } from '../../utils/url-red
  * 设置 CORS 响应头拦截器
  */
 function setupCorsHeaders(window: BrowserWindow): void {
+  const appPort = getAppPort();
+
   window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    // 如果是插件模块请求，确保 CORS 头正确设置
-    if (details.url.includes('/static/plugins/') || details.url.includes('@tachybase/')) {
+    const url = details.url;
+    const isApiRequest =
+      url.includes('/api/') || url.includes('/ws') || url.includes('/adapters/') || url.includes('/static/');
+    const isLocalhost = url.includes(`localhost:${appPort}`) || url.includes(`127.0.0.1:${appPort}`);
+
+    // 为所有本地 API 请求设置 CORS 头
+    if (isApiRequest && isLocalhost) {
       const responseHeaders = {
         ...details.responseHeaders,
         'Access-Control-Allow-Origin': ['*'],
-        'Access-Control-Allow-Methods': ['GET', 'HEAD', 'OPTIONS'],
-        'Access-Control-Allow-Headers': ['Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
-        'Access-Control-Expose-Headers': ['Content-Length', 'Content-Type'],
+        'Access-Control-Allow-Methods': ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+        'Access-Control-Allow-Headers': [
+          'Content-Type',
+          'Accept',
+          'Origin',
+          'X-Requested-With',
+          'Authorization',
+          'X-With-ACL-Meta',
+          'X-Role',
+        ],
+        'Access-Control-Allow-Credentials': ['true'],
+        'Access-Control-Expose-Headers': ['Content-Length', 'Content-Type', 'X-Total-Count'],
       };
+
+      // 处理 OPTIONS 预检请求
+      if (details.method === 'OPTIONS') {
+        callback({
+          responseHeaders,
+          statusLine: 'HTTP/1.1 204 No Content',
+        });
+        return;
+      }
+
       callback({ responseHeaders });
       return;
     }
+
     callback({});
   });
 }
@@ -92,7 +120,7 @@ export function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean
     return;
   }
 
-  const appPort = process.env.APP_PORT || '3000';
+  const appPort = getAppPort();
   const redirectHistory = new Set<string>();
 
   setupCorsHeaders(window);

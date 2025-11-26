@@ -15,8 +15,11 @@ const projectRoot = getProjectRoot();
 const desktopDir = getDesktopDir();
 
 // 从环境变量获取端口，默认值
-const webPort = process.env.WEB_PORT || process.env.PORT || '31000';
-const appPort = process.env.APP_PORT || '3000';
+// 注意：这里不能使用 config.ts，因为这是 Node.js 脚本，不是 Electron 代码
+const DEFAULT_WEB_PORT = '31000';
+const DEFAULT_APP_PORT = '30000';
+const webPort = process.env.WEB_PORT || process.env.PORT || DEFAULT_WEB_PORT;
+const appPort = process.env.APP_PORT || DEFAULT_APP_PORT;
 
 async function main() {
   title('Starting Development Mode');

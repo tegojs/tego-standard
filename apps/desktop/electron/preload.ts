@@ -3,9 +3,10 @@ import { contextBridge } from 'electron';
 import { setupLocationFix } from './preload/location-fix';
 import { setupTextEncoderPolyfill } from './preload/polyfills';
 import { setupWebSocketInterceptor } from './preload/websocket-interceptor';
+import { getAppPort } from './utils/config';
 
 // 获取 API 端口
-const appPort = process.env.APP_PORT || '3000';
+const appPort = getAppPort();
 const apiBaseUrl = `http://localhost:${appPort}`;
 const wsBaseUrl = `ws://localhost:${appPort}`;
 

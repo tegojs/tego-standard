@@ -1,9 +1,11 @@
 import * as http from 'node:http';
 
+import { getAppPortNumber } from '../../utils/config';
+
 /**
  * 检查后端服务器是否运行
  */
-export async function checkBackendServer(port: number = 3000): Promise<boolean> {
+export async function checkBackendServer(port: number = getAppPortNumber()): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const req = http.get(
       `http://localhost:${port}/`,

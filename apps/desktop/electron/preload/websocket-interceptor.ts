@@ -1,10 +1,12 @@
+import { getAppPort } from '../utils/config';
+
 /**
  * 拦截 WebSocket 构造函数，修复 WebSocket URL
  */
 export function setupWebSocketInterceptor(): void {
   const globalObj = globalThis as any;
   const OriginalWebSocket = globalObj.WebSocket;
-  const appPort = process.env.APP_PORT || '3000';
+  const appPort = getAppPort();
   const wsBaseUrl = `ws://localhost:${appPort}`;
 
   if (!OriginalWebSocket) {
@@ -20,16 +22,19 @@ export function setupWebSocketInterceptor(): void {
         typeof window !== 'undefined' &&
         (window.location.protocol === 'app:' || window.location.hostname === 'index.html');
 
+      // 检查是否需要重定向（包括 ws://index.html:port 格式）
       const needsFullRedirect =
         wsUrl.startsWith('app://') ||
         wsUrl.startsWith('ws://index.html') ||
         wsUrl.startsWith('wss://index.html') ||
-        wsUrl.startsWith('http://index.html');
+        wsUrl.startsWith('http://index.html') ||
+        wsUrl.includes('index.html:');
 
       if (needsFullRedirect) {
         let path = '/ws';
         let query = '';
 
+        // 提取路径和查询参数
         const pathMatch = wsUrl.match(/(\/ws[^?]*)(\?.*)?/);
         if (pathMatch) {
           path = pathMatch[1];
@@ -42,6 +47,7 @@ export function setupWebSocketInterceptor(): void {
           }
         }
 
+        // 修复查询参数中的 hostname
         if (query) {
           query = query
             .replace(/__hostname=index\.html/g, '__hostname=localhost')
@@ -51,17 +57,22 @@ export function setupWebSocketInterceptor(): void {
         wsUrl = `${wsBaseUrl}${path}${query}`;
         console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
       } else if (isDesktop) {
+        // 处理其他需要修复的 WebSocket URL
         wsUrl = wsUrl
           .replace(/^(ws|wss):\/\/index\.html(:\d+)?/, (match, protocol, port) => {
             return `${protocol}://localhost${port || `:${appPort}`}`;
           })
+          .replace(/^(ws|wss):\/\/index\.html:(\d+)/, (match, protocol, port) => {
+            return `${protocol}://localhost:${port}`;
+          })
           .replace(/^(ws|wss):\/\/([^/:]+)(:\d+)/, (match, protocol, hostname, port) => {
-            if (hostname === 'index.html' || hostname === window.location.hostname) {
+            if (hostname === 'index.html' || (typeof window !== 'undefined' && hostname === window.location.hostname)) {
               return `${protocol}://localhost${port}`;
             }
             return match;
           });
 
+        // 修复查询参数中的 hostname
         wsUrl = wsUrl
           .replace(/__hostname=index\.html/g, '__hostname=localhost')
           .replace(/hostname=index\.html/g, 'hostname=localhost');

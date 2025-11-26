@@ -1,8 +1,10 @@
+import { getAppPort } from '../../utils/config';
+
 /**
  * 处理 HTML 文件，修改静态资源路径
  */
 export function processHtmlContent(htmlContent: string): string {
-  const appPort = process.env.APP_PORT || '3000';
+  const appPort = getAppPort();
 
   // 将静态资源的绝对路径转换为 app:// 协议
   // 匹配 href="/assets/..." 或 href="/global.css" 等格式

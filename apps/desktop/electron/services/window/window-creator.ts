@@ -3,6 +3,7 @@ import * as path from 'node:path';
 
 import { app, BrowserWindow, shell } from 'electron';
 
+import { getAppPortNumber, getWebPort } from '../../utils/config';
 import { log } from '../../utils/logger';
 import { findWebDistIndexHtml } from '../../utils/path-finder';
 import { checkBackendServer } from '../backend-server';
@@ -14,7 +15,7 @@ import { handleDevServerWait, handleProductionServerWait } from './server-waiter
  * 获取启动 URL
  */
 function getStartUrl(isDev: boolean): string {
-  const webPort = process.env.WEB_PORT || '31000';
+  const webPort = getWebPort();
   return isDev ? `http://localhost:${webPort}` : `app://index.html`;
 }
 
@@ -96,7 +97,7 @@ export function createWindow(isDev: boolean): BrowserWindow {
   }
 
   const startUrl = getStartUrl(isDev);
-  const webPort = process.env.WEB_PORT || '31000';
+  const webPort = getWebPort();
 
   log(`[Electron] Loading URL: ${startUrl}`);
   log(`[Electron] Environment: ${isDev ? 'development' : 'production'}`);
@@ -125,7 +126,7 @@ export function createWindow(isDev: boolean): BrowserWindow {
       mainWindow?.webContents.openDevTools();
     });
   } else {
-    const appPort = parseInt(process.env.APP_PORT || '3000', 10);
+    const appPort = getAppPortNumber();
 
     checkBackendServer(appPort)
       .then((isRunning) => {

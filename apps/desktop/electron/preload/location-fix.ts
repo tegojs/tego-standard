@@ -1,3 +1,5 @@
+import { getAppPort } from '../utils/config';
+
 /**
  * 修复 window.location，避免生成错误的 WebSocket URL 和插件路径
  */
@@ -27,7 +29,7 @@ export function setupLocationFix(): void {
               enumerable: false,
             });
 
-            const appPort = process.env.APP_PORT || '3000';
+            const appPort = getAppPort();
             Object.defineProperty(globalWindow, '__tachybase_location_origin__', {
               value: `http://localhost:${appPort}`,
               writable: false,

@@ -4,6 +4,7 @@ import * as path from 'node:path';
 
 import { BrowserWindow } from 'electron';
 
+import { getAppPortNumber } from '../../utils/config';
 import { log } from '../../utils/logger';
 import { checkBackendServer } from '../backend-server';
 import { getLoadingPagePath } from './loading-handler';
@@ -144,7 +145,7 @@ export function updateLoadingProgress(
  * 处理生产环境的服务器等待逻辑
  */
 export function handleProductionServerWait(window: BrowserWindow, startUrl: string): void {
-  const appPort = parseInt(process.env.APP_PORT || '3000', 10);
+  const appPort = getAppPortNumber();
   let checkCount = 0;
   let serverReady = false;
   const maxChecks = 60;

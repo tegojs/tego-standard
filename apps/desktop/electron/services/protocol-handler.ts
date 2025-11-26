@@ -3,6 +3,7 @@ import * as path from 'node:path';
 
 import { app, protocol } from 'electron';
 
+import { getAppPort } from '../utils/config';
 import { log } from '../utils/logger';
 import { findWebDistPath } from '../utils/path-finder';
 import { processHtmlContent } from './protocol/html-processor';
@@ -16,7 +17,7 @@ function handleProtocolRequest(
   callback: (response: Electron.ProtocolResponse) => void,
   webDistBasePath: string,
 ): void {
-  const appPort = process.env.APP_PORT || '3000';
+  const appPort = getAppPort();
   let url = request.url.replace(/^app:\/\//, '');
 
   // 处理三个斜杠的情况（app:///path -> app://path）

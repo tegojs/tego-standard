@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import { getAppPort } from '../../utils/config';
 import { log } from '../../utils/logger';
 import { getElectronAppVersion, getUserConfigDir, getUserDatabasePath, getUserEnvPath } from '../../utils/path-finder';
 
@@ -8,7 +9,7 @@ import { getElectronAppVersion, getUserConfigDir, getUserDatabasePath, getUserEn
  * 构建环境变量配置
  */
 export function buildEnvironmentVariables(nodePathForEnv: string | null): Record<string, string> {
-  const appPort = process.env.APP_PORT || '3000';
+  const appPort = getAppPort();
   const home = process.env.HOME || '';
 
   // 构建 PATH

@@ -4,6 +4,7 @@ import * as path from 'node:path';
 
 import { app } from 'electron';
 
+import { getAppPort } from '../../utils/config';
 import { log } from '../../utils/logger';
 import { findProjectRoot } from '../../utils/path-finder';
 import { ensureApplicationInstalled } from './app-installer';
@@ -106,7 +107,7 @@ export async function startBackendServer(): Promise<void> {
     return;
   }
 
-  const appPort = process.env.APP_PORT || '3000';
+  const appPort = getAppPort();
   const port = parseInt(appPort, 10);
 
   // 检查服务器是否已经在运行

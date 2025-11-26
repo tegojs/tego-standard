@@ -8,6 +8,7 @@
 const Listr = require('listr');
 const { execSync } = require('child_process');
 const { getDesktopDir } = require('./paths');
+const { findPnpmCommand } = require('./node-finder');
 const chalk = require('chalk');
 
 /**
@@ -35,19 +36,40 @@ function createCommandTask(title, command, options = {}) {
     title: chalk.bold(title),
     task: async (ctx, task) => {
       const desktopDir = getDesktopDir();
-      const cmd = typeof command === 'function' ? command(ctx) : command;
+      let cmd = typeof command === 'function' ? command(ctx) : command;
+
+      // 如果命令以 'pnpm' 开头，尝试查找 pnpm 路径
+      if (cmd.trim().startsWith('pnpm ')) {
+        const pnpmCmd = findPnpmCommand();
+        cmd = cmd.replace(/^pnpm /, `${pnpmCmd} `);
+      }
 
       try {
-        execSync(cmd, {
+        // 构建 execSync 选项，确保正确的优先级
+        const execOptions = {
           cwd: options.cwd || desktopDir,
           stdio: options.silent ? 'pipe' : 'inherit',
           env: { ...process.env, ...options.env },
-          ...options,
-        });
+        };
+
+        // 合并其他选项（但排除已设置的选项）
+        const { cwd, env, silent, ...otherOptions } = options;
+        Object.assign(execOptions, otherOptions);
+
+        execSync(cmd, execOptions);
         task.title = `${chalk.green('✓')} ${title}`;
       } catch (err) {
         task.title = `${chalk.red('✗')} ${title}`;
-        throw new Error(err.message || err);
+        // 提供更详细的错误信息
+        const errorMessage = err.message || err.toString();
+        let errorOutput = '';
+        if (err.stderr) {
+          errorOutput = err.stderr.toString();
+        } else if (err.stdout) {
+          errorOutput = err.stdout.toString();
+        }
+        const fullError = errorOutput ? `${errorMessage}\n${errorOutput}` : errorMessage;
+        throw new Error(fullError);
       }
     },
   };
@@ -84,6 +106,10 @@ async function runTasks(taskList) {
     return true;
   } catch (err) {
     console.error(chalk.red(`\n✗ Task failed: ${err.message}`));
+    // 如果有堆栈信息，也打印出来（在非生产环境）
+    if (process.env.NODE_ENV !== 'production' && err.stack) {
+      console.error(chalk.gray(err.stack));
+    }
     return false;
   }
 }

@@ -1,37 +1,12 @@
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
+
 import { BrowserWindow } from 'electron';
 
 import { log } from '../../utils/logger';
 import { checkBackendServer } from '../backend-server';
 import { getLoadingPagePath } from './loading-handler';
-
-/**
- * 处理生产环境的加载错误
- */
-function handleProductionLoadErrors(window: BrowserWindow, startUrl: string): void {
-  window.webContents.on('did-finish-load', () => {
-    log(`[Electron] Page loaded successfully: ${startUrl}`);
-  });
-
-  window.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    log(`[Electron] Failed to load: ${validatedURL}`, 'error');
-    log(`[Electron] Error code: ${errorCode}, Description: ${errorDescription}`, 'error');
-
-    if (errorCode === -3 || errorDescription.includes('ERR_FILE_NOT_FOUND')) {
-      log(`[Electron] File not found. Checking resources path: ${process.resourcesPath}`, 'error');
-      log(`[Electron] Expected web-dist at: ${path.join(process.resourcesPath, 'web-dist/index.html')}`, 'error');
-
-      try {
-        const resourcesContents = fs.readdirSync(process.resourcesPath);
-        log(`[Electron] Contents of Resources directory: ${JSON.stringify(resourcesContents)}`, 'error');
-      } catch (e) {
-        log(`[Electron] Failed to read Resources directory: ${e}`, 'error');
-      }
-    }
-  });
-}
 
 /**
  * 检查服务器是否就绪

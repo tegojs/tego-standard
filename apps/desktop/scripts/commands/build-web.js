@@ -8,6 +8,7 @@
 const { getProjectRoot } = require('../utils/paths');
 const { createLogPrefix, title, success, error } = require('../utils/logger');
 const { createTaskList, createCommandTask, runTasks } = require('../utils/task-runner');
+const { findPnpmCommand } = require('../utils/node-finder');
 
 const logPrefix = createLogPrefix('build-web');
 const projectRoot = getProjectRoot();
@@ -15,8 +16,9 @@ const projectRoot = getProjectRoot();
 async function main() {
   title('Building Web Application');
 
+  const pnpmCmd = findPnpmCommand();
   const tasks = createTaskList([
-    createCommandTask('Building @tego/web', 'pnpm build @tego/web', {
+    createCommandTask('Building @tego/web', `${pnpmCmd} build @tego/web`, {
       cwd: projectRoot,
       silent: false,
     }),

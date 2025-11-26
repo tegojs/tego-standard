@@ -49,6 +49,17 @@ function createDistMacTasks() {
         verifyWebBuild();
       },
     },
+    createCommandTask('Building web application', 'node scripts/commands/build-web.js', {
+      cwd: desktopDir,
+      silent: false,
+    }),
+    createCommandTask('Building desktop application', 'node scripts/commands/build.js', {
+      cwd: desktopDir,
+      silent: false,
+      env: {
+        NODE_ENV: 'production',
+      },
+    }),
     createCommandTask('Preparing backend', 'node scripts/prepare-backend/index.js', {
       cwd: desktopDir,
       silent: false,

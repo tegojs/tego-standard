@@ -28,14 +28,16 @@ function setupCorsHeaders(window: BrowserWindow): void {
  * 处理插件模块请求重定向
  */
 function handlePluginRequest(url: string, appPort: string): string | null {
-  if (!url.includes('/static/plugins/') && !url.includes('@tachybase/')) {
+  // 检查是否是插件路径
+  const isPluginPath = url.includes('/static/plugins/') || url.includes('@tachybase/');
+  if (!isPluginPath) {
     return null;
   }
 
   let path = url;
   // 移除协议前缀
   path = path.replace(/^(app|http|https|ws|wss):\/\//, '');
-  // 移除 hostname 前缀
+  // 移除 hostname 前缀（包括 admin、localhost 等）
   path = path.replace(/^[^/]+(?::\d+)?\//, '');
   path = path.replace(/^index\.html\//, '');
   // 移除开头的斜杠
@@ -43,8 +45,12 @@ function handlePluginRequest(url: string, appPort: string): string | null {
     path = path.slice(1);
   }
 
+  // 检查是否是插件路径（移除 hostname 后）
   if (path.startsWith('static/plugins/')) {
-    return `http://localhost:${appPort}/${path}`;
+    // 保留查询参数
+    const queryIndex = url.indexOf('?');
+    const queryString = queryIndex !== -1 ? url.substring(queryIndex) : '';
+    return `http://localhost:${appPort}/${path}${queryString}`;
   }
 
   return null;
@@ -100,10 +106,10 @@ export function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean
       return;
     }
 
-    // 处理插件模块请求
+    // 处理插件模块请求（优先处理，在协议处理器之前）
     const pluginRedirect = handlePluginRequest(url, appPort);
     if (pluginRedirect) {
-      log(`[Electron] [Plugin] Redirecting: ${url} -> ${pluginRedirect}`);
+      log(`[Electron] [Plugin] Interceptor redirecting: ${url} -> ${pluginRedirect}`);
       callback({ redirectURL: pluginRedirect });
       return;
     }

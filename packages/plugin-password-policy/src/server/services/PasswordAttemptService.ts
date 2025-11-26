@@ -431,7 +431,7 @@ export class PasswordAttemptService {
 
     this.app.resourcer.use(
       async (ctx: Context, next: Next) => {
-        if (this.config.strictLock && ctx.state.currentUser) {
+        if (this.config?.strictLock && ctx.state.currentUser) {
           // 使用缓存检查用户是否被锁定
           const userId = ctx.state.currentUser.id;
           const isLocked = await this.isUserLocked(userId);

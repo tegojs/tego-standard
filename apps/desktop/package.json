@@ -8,7 +8,7 @@
   "main": "./app/main.js",
   "scripts": {
     "build": "cd ../.. && (node node_modules/.pnpm/typescript@5.8.3/node_modules/typescript/bin/tsc -p apps/desktop/electron/tsconfig.json --skipLibCheck || true) && cd apps/desktop && node scripts/copy-assets.js",
-    "build:web": "cd ../.. && pnpm --filter @tego/web build",
+    "build:web": "cd ../.. && pnpm build @tego/web",
     "dev": "node scripts/check-port.js && pnpm build && concurrently \"cd ../.. && cross-env PORT=${WEB_PORT:-31000} WEB_PORT=${WEB_PORT:-31000} APP_PORT=${APP_PORT:-3000} pnpm exec -- rsbuild dev --open --config rsbuild.config.ts --root apps/web\" \"cd ../.. && cross-env APP_PORT=${APP_PORT:-3000} pnpm dev-server\" \"wait-on http-get://localhost:${WEB_PORT:-31000} && cross-env NODE_ENV=development WEB_PORT=${WEB_PORT:-31000} pnpm electron:dev\"",
     "dist": "pnpm build && pnpm build:web && node scripts/prepare-backend.js && cross-env ELECTRON_SKIP_BINARY_DOWNLOAD=1 electron-builder --config.npmRebuild=false && node scripts/cleanup-backend.js",
     "dist:mac": "node scripts/prepare-web-build.js && pnpm build && (pnpm build:web || echo 'Web build failed, but continuing...') && node scripts/dist-mac.js",

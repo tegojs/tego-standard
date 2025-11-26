@@ -128,14 +128,19 @@ if (OriginalWebSocket) {
       let wsUrl = typeof url === 'string' ? url : url.toString();
       const originalUrl = wsUrl;
 
-      // 检查是否需要重定向
-      const needsRedirect =
-        wsUrl.includes('index.html') ||
+      // 检测 desktop 环境
+      const isDesktop =
+        typeof window !== 'undefined' &&
+        (window.location.protocol === 'app:' || window.location.hostname === 'index.html');
+
+      // 检查是否需要完全重定向（app:// 协议或包含 index.html 的完整 URL）
+      const needsFullRedirect =
         wsUrl.startsWith('app://') ||
         wsUrl.startsWith('ws://index.html') ||
+        wsUrl.startsWith('wss://index.html') ||
         wsUrl.startsWith('http://index.html');
 
-      if (needsRedirect) {
+      if (needsFullRedirect) {
         // 提取路径和查询参数
         let path = '/ws';
         let query = '';
@@ -164,12 +169,29 @@ if (OriginalWebSocket) {
         // 构建新的 WebSocket URL
         wsUrl = `${wsBaseUrl}${path}${query}`;
         console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
-      } else {
-        // 即使不需要重定向，也检查查询参数中的 hostname
-        const queryMatch = wsUrl.match(/\?.*/);
-        if (queryMatch && queryMatch[0].includes('__hostname=index.html')) {
-          wsUrl = wsUrl.replace(/__hostname=index\.html/g, '__hostname=localhost');
-          console.log(`[Preload] Fixed hostname in WebSocket URL: ${wsUrl}`);
+      } else if (isDesktop) {
+        // 在 desktop 环境下，修复 URL 中的 hostname
+        // 处理 ws://index.html:port 或 ws://hostname:port 的情况
+        wsUrl = wsUrl
+          .replace(/^(ws|wss):\/\/index\.html(:\d+)?/, (match, protocol, port) => {
+            return `${protocol}://localhost${port || `:${appPort}`}`;
+          })
+          .replace(/^(ws|wss):\/\/([^/:]+)(:\d+)/, (match, protocol, hostname, port) => {
+            // 如果 hostname 不是 localhost 且不是有效的域名，替换为 localhost
+            if (hostname === 'index.html' || hostname === window.location.hostname) {
+              return `${protocol}://localhost${port}`;
+            }
+            return match;
+          });
+
+        // 修复查询参数中的 hostname
+        wsUrl = wsUrl
+          .replace(/__hostname=index\.html/g, '__hostname=localhost')
+          .replace(/hostname=index\.html/g, 'hostname=localhost');
+
+        // 如果 URL 被修改了，记录日志
+        if (wsUrl !== originalUrl) {
+          console.log(`[Preload] Fixed hostname in WebSocket URL: ${originalUrl} -> ${wsUrl}`);
         }
       }
 

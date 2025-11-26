@@ -180,19 +180,42 @@ function handleProtocolRequest(
   log(`[Electron] Protocol request: ${request.url} -> ${url} -> ${filePath}`);
 
   if (!fs.existsSync(filePath)) {
-    log(`[Electron] File not found: app://${url} (${filePath})`, 'error');
-    // 列出目录内容以便调试
-    try {
-      const dir = path.dirname(filePath);
-      if (fs.existsSync(dir)) {
-        const files = fs.readdirSync(dir);
-        log(`[Electron] Directory contents: ${files.join(', ')}`, 'error');
-      }
-    } catch (e) {
-      // 忽略错误
+    // 检查是否是静态资源（有文件扩展名）
+    const ext = path.extname(url).toLowerCase();
+    const isStaticResource = ext && ext !== '' && Object.keys(MIME_TYPES).includes(ext);
+
+    // 如果是静态资源且不存在，返回错误
+    if (isStaticResource) {
+      log(`[Electron] Static resource not found: app://${url} (${filePath})`, 'error');
+      callback({ error: -6 }); // ERR_FILE_NOT_FOUND
+      return;
     }
-    callback({ error: -6 }); // ERR_FILE_NOT_FOUND
-    return;
+
+    // 如果不是静态资源（可能是前端路由），返回 index.html 让前端路由系统处理
+    // 这是单页应用（SPA）的标准做法
+    log(`[Electron] Route path not found, serving index.html for SPA routing: app://${url}`);
+    const indexHtmlPath = path.join(webDistBasePath, 'index.html');
+
+    if (!fs.existsSync(indexHtmlPath)) {
+      log(`[Electron] index.html not found at: ${indexHtmlPath}`, 'error');
+      callback({ error: -6 });
+      return;
+    }
+
+    try {
+      let htmlContent = fs.readFileSync(indexHtmlPath, 'utf8');
+      htmlContent = processHtmlContent(htmlContent);
+
+      callback({
+        data: Buffer.from(htmlContent, 'utf8'),
+        mimeType: 'text/html',
+      });
+      return;
+    } catch (error: any) {
+      log(`[Electron] Error reading index.html: ${error.message}`, 'error');
+      callback({ error: -6 });
+      return;
+    }
   }
 
   try {

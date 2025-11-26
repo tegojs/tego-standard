@@ -1,6 +1,7 @@
-import { Configuration } from 'electron-builder';
+// electron-builder 配置文件（JavaScript 版本）
+// electron-builder 不支持 TypeScript 配置文件，所以需要 JavaScript 版本
 
-const config: Configuration = {
+const config = {
   appId: 'com.tachybase.app',
   // 明确设置产品名称，避免使用 package.json 中的 @tego/desktop
   // 这确保生成的应用名称不包含 @ 符号，避免 macOS 兼容性问题
@@ -30,6 +31,7 @@ const config: Configuration = {
     '!*.tsx',
     '!tsconfig.json',
     '!electron-builder.config.ts',
+    '!electron-builder.config.js',
     '!README.md',
     '!DESKTOP_APP_GUIDE.md',
     '!scripts/**/*',
@@ -131,4 +133,4 @@ const config: Configuration = {
   // - DMG 创建由 create-dmg.js 在打包后执行
 };
 
-export default config;
+module.exports = config;

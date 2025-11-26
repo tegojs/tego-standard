@@ -5,50 +5,110 @@ const appPort = process.env.APP_PORT || '3000';
 const apiBaseUrl = `http://localhost:${appPort}`;
 const wsBaseUrl = `ws://localhost:${appPort}`;
 
+// TextEncoder/TextDecoder polyfill for Electron
+// 确保在渲染进程中 TextEncoder 和 TextDecoder 可用
+// 虽然现代浏览器和 Node.js 都支持它们，但在某些 Electron 环境中可能需要 polyfill
+(function () {
+  const globalObj = globalThis as any;
+
+  // 确保 TextEncoder 和 TextDecoder 在全局范围内可用
+  // 优先使用 Node.js 的 util.TextEncoder，因为它更可靠
+  let TextEncoderClass: typeof TextEncoder | null = null;
+  let TextDecoderClass: typeof TextDecoder | null = null;
+
+  // 首先尝试使用 Node.js 的 util.TextEncoder
+  try {
+    const util = require('node:util');
+    if (util.TextEncoder && typeof util.TextEncoder === 'function') {
+      TextEncoderClass = util.TextEncoder;
+      TextDecoderClass = util.TextDecoder;
+      console.log('[Preload] TextEncoder/TextDecoder loaded from Node.js util');
+    }
+  } catch (e) {
+    // Node.js util 不可用，继续尝试其他方式
+  }
+
+  // 如果 Node.js util 不可用，尝试使用浏览器内置的实现
+  if (!TextEncoderClass) {
+    try {
+      if (typeof globalObj.TextEncoder === 'function') {
+        TextEncoderClass = globalObj.TextEncoder;
+        TextDecoderClass = globalObj.TextDecoder;
+        console.log('[Preload] TextEncoder/TextDecoder already available in global scope');
+      } else if (typeof window !== 'undefined' && typeof window.TextEncoder === 'function') {
+        TextEncoderClass = window.TextEncoder;
+        TextDecoderClass = window.TextDecoder;
+        console.log('[Preload] TextEncoder/TextDecoder loaded from window');
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+  }
+
+  // 如果找到了 TextEncoder 和 TextDecoder，确保它们在全局范围内可用
+  if (TextEncoderClass && TextDecoderClass) {
+    // 确保它们是构造函数
+    try {
+      const testEncoder = new TextEncoderClass();
+      const testDecoder = new TextDecoderClass();
+      if (testEncoder && testDecoder) {
+        // 在多个全局对象上设置，确保所有代码都能访问
+        globalObj.TextEncoder = TextEncoderClass;
+        globalObj.TextDecoder = TextDecoderClass;
+
+        // 也在 window 对象上设置（如果存在）
+        if (typeof window !== 'undefined') {
+          (window as any).TextEncoder = TextEncoderClass;
+          (window as any).TextDecoder = TextDecoderClass;
+        }
+
+        console.log('[Preload] TextEncoder/TextDecoder polyfill installed and verified');
+      }
+    } catch (e) {
+      console.warn('[Preload] TextEncoder/TextDecoder verification failed:', e);
+    }
+  } else {
+    console.warn('[Preload] Could not find TextEncoder/TextDecoder implementation');
+  }
+})();
+
 // 修复 window.location，避免生成错误的 WebSocket URL
 // 在 app:// 协议下，location.hostname 可能是 'index.html'，需要修复
-// 使用立即执行的函数确保在页面加载前就修复
+// 注意：location.hostname 可能是不可配置的，所以不能直接重定义
+// 我们通过拦截 WebSocket 和 API 请求来修复 URL，而不是修改 location 对象
 (function () {
   const globalWindow = globalThis as any;
 
   // 等待 window 对象可用
   if (typeof globalWindow !== 'undefined') {
-    // 使用 Object.defineProperty 修复 location.hostname
     try {
       // 先尝试获取原始的 location 对象
       const location = globalWindow.location || (globalWindow.window && globalWindow.window.location);
 
       if (location) {
-        // 保存原始值
+        // 检查 hostname 是否为 'index.html'
         const originalHostname = location.hostname;
 
-        // 如果 hostname 是 'index.html'，修复它
         if (originalHostname === 'index.html' || !originalHostname || originalHostname === '') {
+          // 由于 location.hostname 可能是不可配置的，我们不能直接重定义它
+          // 相反，我们在 window 对象上设置一个辅助属性，供应用代码使用
+          // 同时通过拦截 WebSocket 和 fetch/XMLHttpRequest 来修复 URL
           try {
-            Object.defineProperty(location, 'hostname', {
-              get: () => 'localhost',
-              configurable: true,
-              enumerable: true,
+            // 设置一个辅助属性，供应用代码使用
+            Object.defineProperty(globalWindow, '__tachybase_location_hostname__', {
+              value: 'localhost',
+              writable: false,
+              configurable: false,
+              enumerable: false,
             });
-            console.log('[Preload] Fixed location.hostname to localhost');
+            console.log('[Preload] Set __tachybase_location_hostname__ to localhost');
           } catch (e) {
-            console.warn('[Preload] Could not override location.hostname:', e);
+            console.warn('[Preload] Could not set __tachybase_location_hostname__:', e);
           }
-        }
-
-        // 也修复 host 属性
-        try {
-          Object.defineProperty(location, 'host', {
-            get: () => 'localhost',
-            configurable: true,
-            enumerable: true,
-          });
-        } catch (e) {
-          // 忽略
         }
       }
     } catch (e) {
-      console.warn('[Preload] Error fixing location:', e);
+      console.warn('[Preload] Error checking location:', e);
     }
   }
 })();

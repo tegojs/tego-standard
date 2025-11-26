@@ -1,8 +1,8 @@
 import React from 'react';
 import { useFieldSchema } from '@tachybase/schema';
+import { usePrefixCls } from '@tego/client';
 
 import { css } from '@emotion/css';
-import { usePrefixCls } from '@tego/client';
 import { Image, Typography } from 'antd';
 import { InputProps, TextAreaProps } from 'antd/es/input';
 import cls from 'classnames';
@@ -20,8 +20,6 @@ const _Input = (props: InputProps & { ellipsis?: any }) => {
     <div
       className={cls(prefixCls, props.className)}
       style={{
-        display: 'flex',
-        alignItems: 'center',
         overflowWrap: 'break-word',
         whiteSpace: 'normal',
         ...props.style,

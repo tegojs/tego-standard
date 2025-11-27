@@ -40,6 +40,11 @@ export function setupWebSocketInterceptor(): void {
           window.location.hostname === 'index.html' ||
           window.location.hostname === 'admin');
 
+      // 在桌面环境中，始终记录所有 WebSocket 连接尝试（用于调试）
+      if (isDesktop) {
+        console.log(`[Preload] WebSocket interceptor called with URL: ${originalUrl} (isDesktop: ${isDesktop})`);
+      }
+
       // 检查是否需要重定向（包括 ws://index.html:port 或 ws://admin:port 格式）
       // 优先检查 URL 开头，然后检查是否包含无效的 hostname
       const hasInvalidHostname =
@@ -53,18 +58,51 @@ export function setupWebSocketInterceptor(): void {
         wsUrl.includes('index.html:') ||
         wsUrl.includes('admin:');
 
-      // 如果 URL 包含无效的 hostname，或者是在桌面环境中，都需要检查和修复
-      const needsFullRedirect =
-        hasInvalidHostname || (isDesktop && (wsUrl.includes('index.html') || wsUrl.includes('admin')));
+      // 检查查询参数中是否包含无效的 hostname
+      const hasInvalidHostnameInQuery =
+        /[?&]__hostname=(index\.html|admin)(&|$)/.test(wsUrl) || /[?&]hostname=(index\.html|admin)(&|$)/.test(wsUrl);
 
-      // 调试日志 - 记录所有包含 index.html 或 admin 的 WebSocket 连接尝试
-      if (hasInvalidHostname || (isDesktop && (wsUrl.includes('index.html') || wsUrl.includes('admin')))) {
+      // 检查路径是否正确（应该是 /ws，而不是 / 或其他）
+      const urlObj = new URL(wsUrl);
+      const needsPathFix = isDesktop && urlObj.pathname !== '/ws' && urlObj.pathname !== '/ws/';
+
+      const needsFullRedirect =
+        hasInvalidHostname ||
+        (isDesktop && (wsUrl.includes('index.html') || wsUrl.includes('admin'))) ||
+        hasInvalidHostnameInQuery;
+
+      // 调试日志
+      if (isDesktop && (hasInvalidHostnameInQuery || needsPathFix || hasInvalidHostname)) {
         console.log(
-          `[Preload] WebSocket interceptor called with URL: ${originalUrl} (isDesktop: ${isDesktop}, needsFullRedirect: ${needsFullRedirect})`,
+          `[Preload] WebSocket URL needs fix: hasInvalidHostname=${hasInvalidHostname}, hasInvalidHostnameInQuery=${hasInvalidHostnameInQuery}, needsPathFix=${needsPathFix}`,
         );
       }
 
-      if (needsFullRedirect) {
+      // 如果查询参数中包含无效的 hostname，直接修复（不需要匹配完整的 URL 格式）
+      if (hasInvalidHostnameInQuery && !hasInvalidHostname) {
+        // URL 格式正确（如 ws://localhost:30000/?__hostname=index.html），只需要修复查询参数和路径
+        const urlObj = new URL(wsUrl);
+        // 修复路径
+        if (needsPathFix) {
+          urlObj.pathname = '/ws';
+        }
+        // 修复查询参数
+        const searchParams = urlObj.searchParams;
+        if (searchParams.has('__hostname')) {
+          const hostname = searchParams.get('__hostname');
+          if (hostname === 'index.html' || hostname === 'admin') {
+            searchParams.set('__hostname', 'localhost');
+          }
+        }
+        if (searchParams.has('hostname')) {
+          const hostname = searchParams.get('hostname');
+          if (hostname === 'index.html' || hostname === 'admin') {
+            searchParams.set('hostname', 'localhost');
+          }
+        }
+        wsUrl = urlObj.toString();
+        console.log(`[Preload] Fixed hostname in query params and path: ${originalUrl} -> ${wsUrl}`);
+      } else if (needsFullRedirect) {
         // 使用正则表达式提取协议、路径和查询参数
         // 匹配格式：ws://index.html:port/path?query 或 ws://index.html/path?query
         // 也匹配 ws://admin:port/path?query 或 ws://admin/path?query
@@ -168,11 +206,13 @@ export function setupWebSocketInterceptor(): void {
           });
 
         // 修复查询参数中的 hostname（包括 admin）
+        // 使用更精确的正则表达式，确保只替换查询参数中的值，而不是 URL 其他部分
+        const originalWsUrl = wsUrl;
         wsUrl = wsUrl
-          .replace(/__hostname=index\.html/g, '__hostname=localhost')
-          .replace(/hostname=index\.html/g, 'hostname=localhost')
-          .replace(/__hostname=admin/g, '__hostname=localhost')
-          .replace(/hostname=admin/g, 'hostname=localhost');
+          .replace(/([?&])__hostname=index\.html(&|$)/g, '$1__hostname=localhost$2')
+          .replace(/([?&])hostname=index\.html(&|$)/g, '$1hostname=localhost$2')
+          .replace(/([?&])__hostname=admin(&|$)/g, '$1__hostname=localhost$2')
+          .replace(/([?&])hostname=admin(&|$)/g, '$1hostname=localhost$2');
 
         if (wsUrl !== originalUrl) {
           console.log(`[Preload] Fixed hostname in WebSocket URL: ${originalUrl} -> ${wsUrl}`);

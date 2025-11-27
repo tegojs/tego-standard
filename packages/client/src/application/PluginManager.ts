@@ -193,18 +193,49 @@ export class PluginManager {
    * @internal
    */
   async load() {
+    console.log('[PluginManager.load] Starting plugin initialization...');
     await this.initPlugins;
+    console.log('[PluginManager.load] ✓ All plugins initialized, total:', this.pluginInstances.size);
 
+    console.log('[PluginManager.load] === Phase 1: beforeLoad ===');
     for (const plugin of this.pluginInstances.values()) {
-      await plugin.beforeLoad();
+      const pluginName = plugin.constructor.name;
+      try {
+        console.log(`[PluginManager.load] Calling ${pluginName}.beforeLoad()`);
+        await plugin.beforeLoad();
+        console.log(`[PluginManager.load] ✓ ${pluginName}.beforeLoad() completed`);
+      } catch (error) {
+        console.error(`[PluginManager.load] ✗ Error in ${pluginName}.beforeLoad():`, error);
+        throw error;
+      }
     }
 
+    console.log('[PluginManager.load] === Phase 2: load ===');
     for (const plugin of this.pluginInstances.values()) {
-      await plugin.load();
+      const pluginName = plugin.constructor.name;
+      try {
+        console.log(`[PluginManager.load] Calling ${pluginName}.load()`);
+        await plugin.load();
+        console.log(`[PluginManager.load] ✓ ${pluginName}.load() completed`);
+      } catch (error) {
+        console.error(`[PluginManager.load] ✗ Error in ${pluginName}.load():`, error);
+        throw error;
+      }
     }
 
+    console.log('[PluginManager.load] === Phase 3: afterLoad ===');
     for (const plugin of this.pluginInstances.values()) {
-      await plugin.afterLoad();
+      const pluginName = plugin.constructor.name;
+      try {
+        console.log(`[PluginManager.load] Calling ${pluginName}.afterLoad()`);
+        await plugin.afterLoad();
+        console.log(`[PluginManager.load] ✓ ${pluginName}.afterLoad() completed`);
+      } catch (error) {
+        console.error(`[PluginManager.load] ✗ Error in ${pluginName}.afterLoad():`, error);
+        throw error;
+      }
     }
+
+    console.log('[PluginManager.load] ✓ All plugin loading phases completed successfully');
   }
 }

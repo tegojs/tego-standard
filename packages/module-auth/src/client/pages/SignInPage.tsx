@@ -32,6 +32,16 @@ export const useSignInButtons = (authenticators = []) => {
   }
 
   const types = Object.keys(customs);
+
+  // Ensure authenticators is an array
+  if (!Array.isArray(authenticators)) {
+    console.error('[useSignInButtons] authenticators is not an array:', {
+      type: typeof authenticators,
+      value: authenticators,
+    });
+    return [];
+  }
+
   return authenticators
     .filter((authenticator) => types.includes(authenticator.authType))
     .map((authenticator, index) => React.createElement(customs[authenticator.authType], { key: index, authenticator }));
@@ -43,13 +53,23 @@ export const SignInPage = () => {
   useViewport();
   const signInForms = useSignInForms();
   const authenticators = useContext(AuthenticatorsContext);
-  const signInButtons = useSignInButtons(authenticators);
 
-  if (!authenticators.length) {
+  console.log('[SignInPage] authenticators from context:', {
+    type: typeof authenticators,
+    isArray: Array.isArray(authenticators),
+    length: authenticators?.length,
+    value: authenticators,
+  });
+
+  // Ensure authenticators is an array
+  const authenticatorsArray = Array.isArray(authenticators) ? authenticators : [];
+  const signInButtons = useSignInButtons(authenticatorsArray);
+
+  if (!authenticatorsArray.length) {
     return <div style={{ color: '#ccc' }}>{t('No authentication methods available.')}</div>;
   }
 
-  const tabs = authenticators
+  const tabs = authenticatorsArray
     .map((authenticator) => {
       const C = signInForms[authenticator.authType];
       if (!C) {

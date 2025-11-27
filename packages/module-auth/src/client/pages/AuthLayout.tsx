@@ -13,9 +13,42 @@ export function AuthLayout(props: any) {
       .resource('authenticators')
       .publicList()
       .then((res) => {
-        return res?.data?.data || [];
+        console.log('[AuthLayout] API response:', {
+          hasRes: !!res,
+          resType: typeof res,
+          hasData: !!res?.data,
+          dataType: typeof res?.data,
+          hasDataData: !!res?.data?.data,
+          dataDataType: typeof res?.data?.data,
+          dataDataIsArray: Array.isArray(res?.data?.data),
+          hasDataDataData: !!res?.data?.data?.data,
+          dataDataDataType: typeof res?.data?.data?.data,
+          dataDataDataIsArray: Array.isArray(res?.data?.data?.data),
+        });
+
+        // Handle nested data structure: res.data.data.data
+        const dataLevel1 = res?.data?.data;
+        if (Array.isArray(dataLevel1)) {
+          console.log('[AuthLayout] ✓ Using res.data.data (array):', dataLevel1.length, 'items');
+          return dataLevel1;
+        }
+        // If data is nested one more level
+        const dataLevel2 = dataLevel1?.data;
+        if (Array.isArray(dataLevel2)) {
+          console.log('[AuthLayout] ✓ Using res.data.data.data (array):', dataLevel2.length, 'items');
+          return dataLevel2;
+        }
+        console.warn('[AuthLayout] ⚠ No valid array found, returning empty array');
+        return [];
       }),
   );
+
+  console.log('[AuthLayout] Final authenticators:', {
+    authenticatorsType: typeof authenticators,
+    authenticatorsIsArray: Array.isArray(authenticators),
+    authenticatorsLength: authenticators?.length,
+    authenticatorsKeys: authenticators && !Array.isArray(authenticators) ? Object.keys(authenticators) : null,
+  });
 
   if (error) {
     throw error;

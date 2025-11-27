@@ -15,6 +15,9 @@ const config = {
   directories: {
     output: 'dist',
     buildResources: 'build',
+    // 配置缓存目录，加速后续构建
+    // electron-builder 会自动缓存 Electron 二进制文件和依赖
+    cache: process.env.ELECTRON_BUILDER_CACHE || undefined, // 使用环境变量或默认位置
   },
   // 禁用原生模块重建（因为没有使用原生模块）
   buildDependenciesFromSource: false,
@@ -67,7 +70,7 @@ const config = {
     target: [
       {
         target: 'dmg',
-        arch: ['arm64'], // 只构建当前架构，避免 zip 构建错误
+        arch: ['arm64', 'x64'], // 支持两种架构：Apple Silicon (arm64) 和 Intel (x64)
       },
     ],
     icon: 'build/icon.icns',
@@ -132,8 +135,24 @@ const config = {
   // 注意：
   // - web-dist 通过 extraResources 直接从 ../web/dist 包含（无需临时目录）
   // - backend 通过 extraResources 从 backend-temp 包含（由 prepare-backend.js 执行 pnpm install --prod 准备）
-  // - node 可执行文件由 copy-node-executable.js 在打包后复制
-  // - DMG 创建由 create-dmg.js 在打包后执行
+  // - node 可执行文件由 afterPack hook 自动复制
+  // - DMG 创建由 electron-builder 自动处理
+  /**
+   * afterPack hook: 在打包后执行
+   * 用于复制 node 可执行文件到应用包
+   */
+  afterPack: async (context) => {
+    const { copyNodeToApp } = require('./scripts/utils/node-copier-hook');
+    await copyNodeToApp(context);
+  },
+  /**
+   * afterAllArtifactBuild hook: 在所有构建产物创建后执行
+   * 用于清理临时文件和目录
+   */
+  afterAllArtifactBuild: async (context) => {
+    const { cleanupTempFiles } = require('./scripts/utils/cleanup-hook');
+    await cleanupTempFiles(context);
+  },
 };
 
 module.exports = config;

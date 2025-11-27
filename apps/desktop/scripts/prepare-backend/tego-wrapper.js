@@ -31,20 +31,110 @@ if (fs.existsSync(nodeModulesPath)) {
 // require('@tachybase/plugin-name') 会在 NODE_PATH 中查找 @tachybase/plugin-name
 // 所以我们需要将 packages/@tachybase 的父目录（packages）添加到 NODE_PATH
 const packagesPath = path.join(backendDir, 'packages');
+const tachybasePluginsPath = path.join(packagesPath, '@tachybase');
 if (fs.existsSync(packagesPath)) {
   const currentNodePath = process.env.NODE_PATH || '';
   const nodePaths = currentNodePath ? currentNodePath.split(path.delimiter) : [];
+
+  // 添加 packages 目录（这样 require('@tachybase/plugin-name') 会在 packages/@tachybase/plugin-name 中查找）
   if (!nodePaths.includes(packagesPath)) {
     nodePaths.push(packagesPath);
-    process.env.NODE_PATH = nodePaths.join(path.delimiter);
     console.log(`[Tego Wrapper] Added packages to NODE_PATH: ${packagesPath}`);
-    console.log(`[Tego Wrapper] Node.js require('@tachybase/plugin-name') will search in: ${packagesPath}/@tachybase/`);
   }
+
+  // 如果 @tachybase 目录存在，也直接添加到 NODE_PATH（双重保险）
+  if (fs.existsSync(tachybasePluginsPath)) {
+    if (!nodePaths.includes(tachybasePluginsPath)) {
+      nodePaths.push(tachybasePluginsPath);
+      console.log(`[Tego Wrapper] Added @tachybase plugins directory to NODE_PATH: ${tachybasePluginsPath}`);
+    }
+  }
+
+  process.env.NODE_PATH = nodePaths.join(path.delimiter);
+  console.log(`[Tego Wrapper] Final NODE_PATH: ${process.env.NODE_PATH}`);
+  console.log(`[Tego Wrapper] Node.js require('@tachybase/plugin-name') will search in:`);
+  console.log(`[Tego Wrapper]   - ${packagesPath}/@tachybase/plugin-name`);
+  if (fs.existsSync(tachybasePluginsPath)) {
+    console.log(`[Tego Wrapper]   - ${tachybasePluginsPath}/plugin-name`);
+  }
+
+  // 安装模块解析 hook，拦截 @tachybase/plugin-* 的 require 请求
+  // 这可以确保即使在 pnpm isolated 模式下也能找到插件
+  const Module = require('module');
+  const originalResolveFilename = Module._resolveFilename;
+
+  Module._resolveFilename = function (request, parent, isMain, options) {
+    // 如果是 @tachybase/plugin-* 模块，尝试从 packages/@tachybase/ 目录解析
+    if (request.startsWith('@tachybase/plugin-')) {
+      const pluginName = request.replace('@tachybase/', '');
+      const possiblePaths = [
+        path.join(tachybasePluginsPath, pluginName),
+        path.join(packagesPath, '@tachybase', pluginName),
+        path.join(packagesPath, pluginName), // 直接路径（如果符号链接不存在）
+      ];
+
+      for (const pluginPath of possiblePaths) {
+        if (fs.existsSync(pluginPath)) {
+          const packageJsonPath = path.join(pluginPath, 'package.json');
+          if (fs.existsSync(packageJsonPath)) {
+            try {
+              // 尝试解析主入口文件
+              const pkgJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+              let mainFile = pkgJson.main || 'index.js';
+
+              // 如果 main 是相对路径，需要解析
+              if (!path.isAbsolute(mainFile)) {
+                mainFile = path.join(pluginPath, mainFile);
+              }
+
+              // 尝试多个可能的入口文件
+              const possibleMainFiles = [
+                mainFile,
+                path.join(pluginPath, 'index.js'),
+                path.join(pluginPath, 'src', 'index.js'),
+                path.join(pluginPath, 'lib', 'index.js'),
+                path.join(pluginPath, 'dist', 'index.js'),
+              ];
+
+              for (const mainPath of possibleMainFiles) {
+                if (fs.existsSync(mainPath)) {
+                  const resolvedPath = path.resolve(mainPath);
+                  console.log(`[Tego Wrapper] ✓ Resolved ${request} to ${resolvedPath}`);
+                  return resolvedPath;
+                }
+              }
+
+              // 如果找不到主文件，尝试使用目录路径（让 Node.js 自己查找）
+              // 但需要返回一个文件路径，所以返回 package.json 的路径，然后让原始解析逻辑处理
+              console.log(
+                `[Tego Wrapper] ⚠ Plugin ${request} found at ${pluginPath} but main file not found, using original resolver`,
+              );
+            } catch (err) {
+              // 如果解析失败，继续尝试其他路径
+              console.error(`[Tego Wrapper] ✗ Error resolving ${request} at ${pluginPath}: ${err.message}`);
+            }
+          }
+        }
+      }
+    }
+
+    // 对于其他模块，使用原始解析逻辑
+    return originalResolveFilename.call(this, request, parent, isMain, options);
+  };
+
+  console.log(`[Tego Wrapper] Installed module resolution hook for @tachybase/plugin-* modules`);
 }
 
 // 必须在 require tego 之前设置 globals
 // 使用更可靠的方法来查找模块（支持 pnpm 的 .pnpm 结构）
 let TachybaseGlobal;
+
+// 输出调试信息
+console.log(`[Tego Wrapper] Starting module resolution...`);
+console.log(`[Tego Wrapper] Backend dir: ${backendDir}`);
+console.log(`[Tego Wrapper] Node modules path: ${nodeModulesPath}`);
+console.log(`[Tego Wrapper] Node modules exists: ${fs.existsSync(nodeModulesPath)}`);
+console.log(`[Tego Wrapper] NODE_PATH: ${process.env.NODE_PATH || '(not set)'}`);
 
 // 首先尝试在 pnpm 的 .pnpm 目录中查找（这是最可靠的方法，因为 pnpm 使用 isolated 模式）
 const pnpmDir = path.join(nodeModulesPath, '.pnpm');
@@ -55,6 +145,7 @@ if (fs.existsSync(pnpmDir)) {
     const globalsEntry = entries.find((entry) => entry.startsWith('@tachybase+globals@'));
     if (globalsEntry) {
       const globalsPath = path.join(pnpmDir, globalsEntry, 'node_modules', '@tachybase', 'globals');
+      console.log(`[Tego Wrapper] Trying globals path: ${globalsPath}`);
       if (fs.existsSync(globalsPath)) {
         const packageJsonPath = path.join(globalsPath, 'package.json');
         if (fs.existsSync(packageJsonPath)) {
@@ -71,23 +162,32 @@ if (fs.existsSync(pnpmDir)) {
       }
     } else {
       console.error(`[Tego Wrapper] ✗ Error: Could not find @tachybase+globals@* in .pnpm directory`);
-      console.error(`[Tego Wrapper] Available entries (first 10): ${entries.slice(0, 10).join(', ')}...`);
+      console.error(`[Tego Wrapper] Available entries (first 20): ${entries.slice(0, 20).join(', ')}...`);
+      const globalsEntries = entries.filter((e) => e.includes('globals'));
+      if (globalsEntries.length > 0) {
+        console.error(`[Tego Wrapper] Entries containing 'globals': ${globalsEntries.join(', ')}`);
+      }
     }
   } catch (err) {
     console.error(`[Tego Wrapper] ✗ Error searching .pnpm directory: ${err.message}`);
     console.error(`[Tego Wrapper] Error stack: ${err.stack}`);
   }
+} else {
+  console.error(`[Tego Wrapper] ✗ Error: .pnpm directory does not exist: ${pnpmDir}`);
 }
 
 // 如果还没有找到，尝试直接 require（可能在某些配置下有效）
 if (!TachybaseGlobal) {
   try {
+    console.log(`[Tego Wrapper] Trying direct require('@tachybase/globals')...`);
     const globalsModule = require('@tachybase/globals');
     TachybaseGlobal = globalsModule.default || globalsModule;
     console.log(`[Tego Wrapper] ✓ Found @tachybase/globals via direct require`);
   } catch (err) {
+    console.error(`[Tego Wrapper] ✗ Direct require failed: ${err.message}`);
     // 最后尝试使用 require.resolve（在 pnpm isolated 模式下通常无效）
     try {
+      console.log(`[Tego Wrapper] Trying require.resolve with paths: ${nodeModulesPath}, ${backendDir}`);
       const globalsPath = require.resolve('@tachybase/globals', { paths: [nodeModulesPath, backendDir] });
       const globalsModule = require(globalsPath);
       TachybaseGlobal = globalsModule.default || globalsModule;
@@ -105,6 +205,7 @@ if (!TachybaseGlobal) {
         console.error(`[Tego Wrapper] Entries containing 'globals': ${globalsEntries.join(', ')}`);
       }
       console.error(`[Tego Wrapper] Original error: ${resolveErr.message}`);
+      console.error(`[Tego Wrapper] Error stack: ${resolveErr.stack}`);
       throw resolveErr;
     }
   }

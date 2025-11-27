@@ -87,17 +87,30 @@ export class WebSocketClient {
     const subApp = getSubAppName(this.app.getPublicPath());
     const queryString = subApp ? `?__appName=${subApp}` : `?__hostname=${hostname}`;
     const wsPath = this.options.basename || '/ws';
+
+    // 检查 hostname 是否被修复过（通过 __tachybase_location_hostname__ 或 hostnameFixer）
+    // 如果 hostname 与 window.location.hostname 不同，说明被修复过，应该使用修复后的 hostname
+    const originalHostname = window.location.hostname;
+    const hostnameWasFixed = hostname !== originalHostname;
+
     if (this.options.url) {
       const url = new URL(this.options.url);
-      if (url.hostname === 'localhost') {
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        return `${protocol}://${hostname}:${url.port}${wsPath}${queryString}`;
+      if (hostnameWasFixed) {
+        // hostname 被修复过，使用修复后的 hostname
+        const protocol = url.protocol === 'wss:' ? 'wss' : 'ws';
+        const port = url.port || '';
+        const host = port ? `${hostname}:${port}` : hostname;
+        return `${protocol}://${host}${wsPath}${queryString}`;
       }
       return `${this.options.url}${queryString}`;
     }
     try {
       const url = new URL(apiBaseURL);
-      return `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}${wsPath}${queryString}`;
+      // 如果 hostname 被修复过，使用修复后的 hostname；否则使用 url.hostname 保持通用逻辑
+      const finalHostname = hostnameWasFixed ? hostname : url.hostname;
+      const port = url.port || '';
+      const host = port ? `${finalHostname}:${port}` : finalHostname;
+      return `${url.protocol === 'https:' ? 'wss' : 'ws'}://${host}${wsPath}${queryString}`;
     } catch (error) {
       // 使用 location.host（包含端口）而不是 hostname:port，避免端口为空时生成无效 URL
       let port = location.port;

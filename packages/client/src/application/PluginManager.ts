@@ -110,7 +110,7 @@ export class PluginManager {
     });
 
     let processedCount = 0;
-    for await (const [name, pluginClass] of plugins) {
+    for (const [name, pluginClass] of plugins) {
       processedCount++;
       console.log(`[PluginManager.initRemotePlugins] Processing plugin ${processedCount}/${plugins.length}:`, {
         name,

@@ -189,7 +189,7 @@ export async function getPlugins(options: GetPluginsOption): Promise<Array<[stri
   if (devDynamicImport) {
     console.log('[getPlugins] Processing dev plugins in development mode...');
     let devPluginCount = 0;
-    for await (const plugin of pluginData) {
+    for (const plugin of pluginData) {
       devPluginCount++;
       console.log(`[getPlugins] Dev plugin ${devPluginCount}/${pluginData.length}:`, {
         packageName: plugin?.packageName,

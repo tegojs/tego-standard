@@ -8,46 +8,46 @@ import { AuthenticatorsContext } from '../authenticator';
 export function AuthLayout(props: any) {
   const { data } = useSystemSettings();
   const api = useAPIClient();
-  const { data: authenticators = [], error } = useRequest(() =>
-    api
+
+  console.log('[AuthLayout] Component rendering, about to call useRequest');
+
+  const { data: authenticators = [], error } = useRequest(() => {
+    console.log('[AuthLayout] useRequest factory function called');
+    return api
       .resource('authenticators')
       .publicList()
       .then((res) => {
-        console.log('[AuthLayout] API response:', {
+        console.log('[AuthLayout] API response received:', {
+          fullResponse: res,
           hasRes: !!res,
           resType: typeof res,
+          resKeys: res ? Object.keys(res) : null,
           hasData: !!res?.data,
           dataType: typeof res?.data,
+          dataKeys: res?.data ? Object.keys(res.data) : null,
+          dataValue: res?.data,
           hasDataData: !!res?.data?.data,
           dataDataType: typeof res?.data?.data,
           dataDataIsArray: Array.isArray(res?.data?.data),
-          hasDataDataData: !!res?.data?.data?.data,
-          dataDataDataType: typeof res?.data?.data?.data,
-          dataDataDataIsArray: Array.isArray(res?.data?.data?.data),
+          dataDataValue: res?.data?.data,
         });
 
-        // Handle nested data structure: res.data.data.data
-        const dataLevel1 = res?.data?.data;
-        if (Array.isArray(dataLevel1)) {
-          console.log('[AuthLayout] ✓ Using res.data.data (array):', dataLevel1.length, 'items');
-          return dataLevel1;
-        }
-        // If data is nested one more level
-        const dataLevel2 = dataLevel1?.data;
-        if (Array.isArray(dataLevel2)) {
-          console.log('[AuthLayout] ✓ Using res.data.data.data (array):', dataLevel2.length, 'items');
-          return dataLevel2;
-        }
-        console.warn('[AuthLayout] ⚠ No valid array found, returning empty array');
-        return [];
-      }),
-  );
+        const result = res?.data?.data || [];
+        console.log('[AuthLayout] Returning from then():', {
+          resultType: typeof result,
+          resultIsArray: Array.isArray(result),
+          resultValue: result,
+        });
+        return result;
+      });
+  });
 
-  console.log('[AuthLayout] Final authenticators:', {
+  console.log('[AuthLayout] After useRequest:', {
     authenticatorsType: typeof authenticators,
     authenticatorsIsArray: Array.isArray(authenticators),
     authenticatorsLength: authenticators?.length,
     authenticatorsKeys: authenticators && !Array.isArray(authenticators) ? Object.keys(authenticators) : null,
+    authenticatorsValue: authenticators,
   });
 
   if (error) {

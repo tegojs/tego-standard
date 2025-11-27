@@ -14,9 +14,11 @@ export function setupLocationFix(): void {
         const originalHostname = location.hostname;
         const isDesktop = location.protocol === 'app:';
 
+        // 在 Electron 环境中，hostname 可能是 index.html、admin 或其他值，需要统一修复为 localhost
+        const invalidHostnames = ['index.html', 'admin'];
         if (
           isDesktop &&
-          (originalHostname === 'index.html' ||
+          (invalidHostnames.includes(originalHostname) ||
             !originalHostname ||
             originalHostname === '' ||
             originalHostname !== 'localhost')

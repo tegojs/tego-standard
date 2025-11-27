@@ -27,32 +27,41 @@ export function setupWebSocketInterceptor(): void {
 
       const isDesktop =
         typeof window !== 'undefined' &&
-        (window.location.protocol === 'app:' || window.location.hostname === 'index.html');
+        (window.location.protocol === 'app:' ||
+          window.location.hostname === 'index.html' ||
+          window.location.hostname === 'admin');
 
-      // 检查是否需要重定向（包括 ws://index.html:port 格式）
+      // 检查是否需要重定向（包括 ws://index.html:port 或 ws://admin:port 格式）
       const needsFullRedirect =
         wsUrl.startsWith('app://') ||
         wsUrl.startsWith('ws://index.html') ||
         wsUrl.startsWith('wss://index.html') ||
         wsUrl.startsWith('http://index.html') ||
+        wsUrl.startsWith('ws://admin') ||
+        wsUrl.startsWith('wss://admin') ||
         wsUrl.includes('index.html:') ||
-        /^(ws|wss):\/\/index\.html/.test(wsUrl);
+        wsUrl.includes('admin:') ||
+        /^(ws|wss):\/\/index\.html/.test(wsUrl) ||
+        /^(ws|wss):\/\/admin/.test(wsUrl);
 
       if (needsFullRedirect) {
         // 使用正则表达式提取协议、路径和查询参数
         // 匹配格式：ws://index.html:port/path?query 或 ws://index.html/path?query
-        const wsMatch = wsUrl.match(/^(ws|wss):\/\/index\.html(?::\d+)?(\/[^?]*)?(\?.*)?/);
+        // 也匹配 ws://admin:port/path?query 或 ws://admin/path?query
+        const wsMatch = wsUrl.match(/^(ws|wss):\/\/(index\.html|admin)(?::\d+)?(\/[^?]*)?(\?.*)?/);
 
         if (wsMatch) {
           const protocol = wsMatch[1];
-          const path = wsMatch[2] || '/ws';
-          let query = wsMatch[3] || '';
+          const path = wsMatch[3] || '/ws'; // 组3是路径（组2是hostname）
+          let query = wsMatch[4] || ''; // 组4是查询参数
 
-          // 修复查询参数中的 hostname
+          // 修复查询参数中的 hostname（包括 admin）
           if (query) {
             query = query
               .replace(/__hostname=index\.html/g, '__hostname=localhost')
-              .replace(/hostname=index\.html/g, 'hostname=localhost');
+              .replace(/hostname=index\.html/g, 'hostname=localhost')
+              .replace(/__hostname=admin/g, '__hostname=localhost')
+              .replace(/hostname=admin/g, 'hostname=localhost');
           }
 
           wsUrl = `${wsBaseUrl}${path}${query}`;
@@ -76,11 +85,13 @@ export function setupWebSocketInterceptor(): void {
             }
           }
 
-          // 修复查询参数中的 hostname
+          // 修复查询参数中的 hostname（包括 admin）
           if (query) {
             query = query
               .replace(/__hostname=index\.html/g, '__hostname=localhost')
-              .replace(/hostname=index\.html/g, 'hostname=localhost');
+              .replace(/hostname=index\.html/g, 'hostname=localhost')
+              .replace(/__hostname=admin/g, '__hostname=localhost')
+              .replace(/hostname=admin/g, 'hostname=localhost');
           }
 
           wsUrl = `${wsBaseUrl}${path}${query}`;
@@ -95,17 +106,31 @@ export function setupWebSocketInterceptor(): void {
           .replace(/^(ws|wss):\/\/index\.html:(\d+)/, (match, protocol, port) => {
             return `${protocol}://localhost:${port}`;
           })
+          .replace(/^(ws|wss):\/\/admin(:\d+)?/, (match, protocol, port) => {
+            return `${protocol}://localhost${port || `:${appPort}`}`;
+          })
+          .replace(/^(ws|wss):\/\/admin:(\d+)/, (match, protocol, port) => {
+            return `${protocol}://localhost:${port}`;
+          })
           .replace(/^(ws|wss):\/\/([^/:]+)(:\d+)/, (match, protocol, hostname, port) => {
-            if (hostname === 'index.html' || (typeof window !== 'undefined' && hostname === window.location.hostname)) {
+            if (
+              hostname === 'index.html' ||
+              hostname === 'admin' ||
+              (typeof window !== 'undefined' &&
+                (window.location.hostname === 'index.html' || window.location.hostname === 'admin') &&
+                hostname === window.location.hostname)
+            ) {
               return `${protocol}://localhost${port}`;
             }
             return match;
           });
 
-        // 修复查询参数中的 hostname
+        // 修复查询参数中的 hostname（包括 admin）
         wsUrl = wsUrl
           .replace(/__hostname=index\.html/g, '__hostname=localhost')
-          .replace(/hostname=index\.html/g, 'hostname=localhost');
+          .replace(/hostname=index\.html/g, 'hostname=localhost')
+          .replace(/__hostname=admin/g, '__hostname=localhost')
+          .replace(/hostname=admin/g, 'hostname=localhost');
 
         if (wsUrl !== originalUrl) {
           console.log(`[Preload] Fixed hostname in WebSocket URL: ${originalUrl} -> ${wsUrl}`);

@@ -85,6 +85,9 @@ if (fs.existsSync(packagesPath)) {
   };
 
   Module._resolveFilename = function (request, parent, isMain, options) {
+    // 检查是否是 locale 文件请求（这些文件可能不存在，失败时应该静默处理）
+    const isLocaleRequest = request.includes('/locale/');
+
     // 如果是 @tachybase/* 模块，尝试从多个位置解析
     if (request.startsWith('@tachybase/')) {
       const fullRequest = request;
@@ -135,8 +138,15 @@ if (fs.existsSync(packagesPath)) {
     try {
       return originalResolveFilename.call(this, request, parent, isMain, options);
     } catch (err) {
-      // 如果原始解析也失败，且是 @tachybase/* 模块，提供更详细的错误信息
+      // 如果原始解析也失败，且是 @tachybase/* 模块
       if (request.startsWith('@tachybase/')) {
+        // 对于 locale 文件，如果找不到是正常的（不是所有模块都有 locale），只在调试模式下输出错误
+        if (isLocaleRequest && !process.env.DEBUG_TEGO_WRAPPER) {
+          // 静默处理 locale 文件解析失败，直接抛出错误让调用者处理
+          throw err;
+        }
+
+        // 对于非 locale 文件或其他重要模块，输出详细的错误信息
         const parentPath = parent ? parent.filename || parent.id || 'unknown' : 'unknown';
         console.error(`[Tego Wrapper] ✗ Failed to resolve ${request} via original resolver`);
         console.error(`[Tego Wrapper] Parent: ${parentPath}`);

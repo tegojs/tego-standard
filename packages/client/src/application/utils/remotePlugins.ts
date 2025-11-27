@@ -133,7 +133,7 @@ export async function getPlugins(options: GetPluginsOption): Promise<Array<[stri
 
   const resolveDevPlugins: Record<string, unknown> = {};
   if (devDynamicImport) {
-    for (const plugin of pluginData) {
+    for await (const plugin of pluginData) {
       const pluginModule = await devDynamicImport(plugin.packageName);
       if (pluginModule) {
         res.push([plugin.name, pluginModule.default]);

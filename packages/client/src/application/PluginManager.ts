@@ -120,15 +120,42 @@ export class PluginManager {
         pluginListIsArray: Array.isArray(pluginList),
       });
 
-      const info = pluginList.find((item) => item.name === name);
-      await this.add(pluginClass, info);
+      try {
+        const info = pluginList.find((item) => item.name === name);
+        console.log(`[PluginManager.initRemotePlugins] Found plugin info for ${name}:`, {
+          hasInfo: !!info,
+          infoKeys: info ? Object.keys(info) : [],
+        });
+
+        await this.add(pluginClass, info);
+        console.log(`[PluginManager.initRemotePlugins] ✓ Successfully added plugin: ${name}`);
+      } catch (error) {
+        console.error(`[PluginManager.initRemotePlugins] ✗ Error adding plugin ${name}:`, {
+          error,
+          errorMessage: error?.message,
+          errorStack: error?.stack,
+          pluginClass,
+        });
+        throw error; // 重新抛出错误以保持原有行为
+      }
     }
 
     console.log(`[PluginManager.initRemotePlugins] ✓ Successfully processed all ${processedCount} plugins`);
   }
 
   async add<T = any>(plugin: typeof Plugin, opts: PluginOptions<T> = {}) {
+    console.log('[PluginManager.add] Adding plugin:', {
+      pluginName: plugin?.name,
+      optsName: opts?.name,
+      optsPackageName: opts?.packageName,
+      optsKeys: Object.keys(opts || {}),
+    });
+
     const instance = this.getInstance(plugin, opts);
+    console.log('[PluginManager.add] Plugin instance created:', {
+      instanceType: typeof instance,
+      instanceConstructor: instance?.constructor?.name,
+    });
 
     this.pluginInstances.set(plugin, instance);
 
@@ -140,7 +167,9 @@ export class PluginManager {
       this.pluginsAliases[opts.packageName] = instance;
     }
 
+    console.log('[PluginManager.add] Calling instance.afterAdd()');
     await instance.afterAdd();
+    console.log('[PluginManager.add] instance.afterAdd() completed');
   }
 
   get<T extends typeof Plugin>(PluginClass: T): InstanceType<T>;

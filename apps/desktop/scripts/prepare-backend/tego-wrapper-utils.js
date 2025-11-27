@@ -49,6 +49,40 @@ function findModuleInPnpm(baseModuleName, pnpmDir) {
 }
 
 /**
+ * 生成可能的目录名变体（处理目录名和 package.json 名称不匹配的情况）
+ * @param {string} baseModuleName - 基础模块名
+ * @returns {string[]} 可能的目录名列表
+ */
+function generatePossibleDirectoryNames(baseModuleName) {
+  const variants = [baseModuleName];
+
+  // 处理 prototype 插件：plugin-auth-lark -> plugin-auth-prototype-lark
+  if (baseModuleName.startsWith('plugin-auth-') && !baseModuleName.includes('prototype')) {
+    const pluginName = baseModuleName.replace('plugin-auth-', '');
+    variants.push(`plugin-auth-prototype-${pluginName}`);
+  }
+
+  // 处理 demos 插件：plugin-demos-game-runesweeper -> plugin-prototype-game-runesweeper
+  if (baseModuleName.startsWith('plugin-demos-')) {
+    const rest = baseModuleName.replace('plugin-demos-', '');
+    variants.push(`plugin-prototype-${rest}`);
+  }
+
+  // 处理其他 prototype 插件：plugin-online-user -> plugin-prototype-online-user
+  if (
+    baseModuleName.startsWith('plugin-') &&
+    !baseModuleName.includes('prototype') &&
+    !baseModuleName.startsWith('plugin-auth-') &&
+    !baseModuleName.startsWith('plugin-demos-')
+  ) {
+    const pluginName = baseModuleName.replace('plugin-', '');
+    variants.push(`plugin-prototype-${pluginName}`);
+  }
+
+  return variants;
+}
+
+/**
  * 从 packages 目录中查找模块路径
  * @param {string} baseModuleName - 基础模块名
  * @param {string} packagesPath - packages 目录路径
@@ -59,11 +93,18 @@ function findModuleInPackages(baseModuleName, packagesPath, tachybasePluginsPath
   const absoluteTachybasePluginsPath = path.resolve(tachybasePluginsPath);
   const absolutePackagesPath = path.resolve(packagesPath);
 
-  const possiblePaths = [
-    path.join(absolutePackagesPath, baseModuleName),
-    path.join(absoluteTachybasePluginsPath, baseModuleName),
-    path.join(absolutePackagesPath, '@tachybase', baseModuleName),
-  ];
+  // 生成可能的目录名变体
+  const possibleDirectoryNames = generatePossibleDirectoryNames(baseModuleName);
+
+  // 为每个目录名变体生成可能的路径
+  const possiblePaths = [];
+  for (const dirName of possibleDirectoryNames) {
+    possiblePaths.push(
+      path.join(absolutePackagesPath, dirName),
+      path.join(absoluteTachybasePluginsPath, dirName),
+      path.join(absolutePackagesPath, '@tachybase', dirName),
+    );
+  }
 
   for (const modulePath of possiblePaths) {
     const absoluteModulePath = path.resolve(modulePath);
@@ -245,11 +286,18 @@ function resolveModuleMainFromPackages(moduleName, packagesPath, tachybasePlugin
   const absoluteTachybasePluginsPath = path.resolve(tachybasePluginsPath);
   const absolutePackagesPath = path.resolve(packagesPath);
 
-  const possiblePaths = [
-    path.join(absolutePackagesPath, moduleName), // 最可能的路径（实际位置）
-    path.join(absoluteTachybasePluginsPath, moduleName),
-    path.join(absolutePackagesPath, '@tachybase', moduleName),
-  ];
+  // 生成可能的目录名变体
+  const possibleDirectoryNames = generatePossibleDirectoryNames(moduleName);
+
+  // 为每个目录名变体生成可能的路径
+  const possiblePaths = [];
+  for (const dirName of possibleDirectoryNames) {
+    possiblePaths.push(
+      path.join(absolutePackagesPath, dirName), // 最可能的路径（实际位置）
+      path.join(absoluteTachybasePluginsPath, dirName),
+      path.join(absolutePackagesPath, '@tachybase', dirName),
+    );
+  }
 
   for (const modulePath of possiblePaths) {
     const absoluteModulePath = path.resolve(modulePath);

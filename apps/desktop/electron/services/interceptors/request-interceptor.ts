@@ -40,6 +40,8 @@ function setupCorsHeaders(window: BrowserWindow): void {
         'X-Timezone',
         'x-hostname',
         'X-Hostname',
+        'x-authenticator',
+        'X-Authenticator',
       ];
 
       // 在 Electron 中，onHeadersReceived 的 details 没有 requestHeaders 属性

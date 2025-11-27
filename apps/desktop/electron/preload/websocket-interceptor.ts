@@ -18,6 +18,11 @@ export function setupWebSocketInterceptor(): void {
       let wsUrl = typeof url === 'string' ? url : url.toString();
       const originalUrl = wsUrl;
 
+      // 调试日志
+      if (wsUrl.includes('index.html')) {
+        console.log(`[Preload] WebSocket interceptor called with URL: ${originalUrl}`);
+      }
+
       const isDesktop =
         typeof window !== 'undefined' &&
         (window.location.protocol === 'app:' || window.location.hostname === 'index.html');
@@ -33,7 +38,7 @@ export function setupWebSocketInterceptor(): void {
 
       if (needsFullRedirect) {
         // 使用正则表达式提取协议、路径和查询参数
-        // 匹配格式：ws://index.html:port/path?query
+        // 匹配格式：ws://index.html:port/path?query 或 ws://index.html/path?query
         const wsMatch = wsUrl.match(/^(ws|wss):\/\/index\.html(?::\d+)?(\/[^?]*)?(\?.*)?/);
 
         if (wsMatch) {
@@ -51,16 +56,17 @@ export function setupWebSocketInterceptor(): void {
           wsUrl = `${wsBaseUrl}${path}${query}`;
           console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
         } else {
-          // 回退到原来的逻辑
+          // 回退到原来的逻辑：尝试从 URL 中提取路径和查询参数
           let path = '/ws';
           let query = '';
 
-          // 提取路径和查询参数
+          // 尝试提取路径和查询参数（支持多种格式）
           const pathMatch = wsUrl.match(/(\/ws[^?]*)(\?.*)?/);
           if (pathMatch) {
             path = pathMatch[1];
             query = pathMatch[2] || '';
           } else {
+            // 尝试提取任何路径
             const generalPathMatch = wsUrl.match(/\/([^?]+)(\?.*)?/);
             if (generalPathMatch) {
               path = `/${generalPathMatch[1]}`;
@@ -123,4 +129,7 @@ export function setupWebSocketInterceptor(): void {
   });
 
   globalObj.WebSocket = InterceptedWebSocket;
+
+  // 验证拦截器已安装
+  console.log('[Preload] WebSocket interceptor installed successfully');
 }

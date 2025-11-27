@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "chalk": "catalog:",
+    "chalk": "4.1.2",
     "commander": "^12.1.0",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",

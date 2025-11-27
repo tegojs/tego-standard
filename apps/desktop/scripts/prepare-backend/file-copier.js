@@ -17,7 +17,10 @@ const BACKEND_ITEMS_TO_COPY = [
 /**
  * 需要复制到 backend 的脚本文件（用于运行时）
  */
-const BACKEND_SCRIPTS_TO_COPY = [{ src: path.join(__dirname, 'tego-wrapper.js'), dest: 'scripts/tego-wrapper.js' }];
+const BACKEND_SCRIPTS_TO_COPY = [
+  { src: path.join(__dirname, 'tego-wrapper.js'), dest: 'scripts/tego-wrapper.js' },
+  { src: path.join(__dirname, 'tego-wrapper-utils.js'), dest: 'scripts/tego-wrapper-utils.js' },
+];
 
 /**
  * 创建 @tachybase 目录结构，让 tego 能够通过 PLUGIN_PATHS 找到插件

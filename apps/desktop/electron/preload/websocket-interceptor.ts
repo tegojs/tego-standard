@@ -10,15 +10,17 @@ export function setupWebSocketInterceptor(): void {
   const wsBaseUrl = `ws://localhost:${appPort}`;
 
   if (!OriginalWebSocket) {
+    console.warn('[Preload] WebSocket not available, cannot install interceptor');
     return;
   }
 
+  // 立即替换全局 WebSocket，确保在页面脚本执行前就生效
   const InterceptedWebSocket = class extends OriginalWebSocket {
     constructor(url: string | URL, protocols?: string | string[]) {
       let wsUrl = typeof url === 'string' ? url : url.toString();
       const originalUrl = wsUrl;
 
-      // 调试日志
+      // 调试日志 - 记录所有包含 index.html 的 WebSocket 连接尝试
       if (wsUrl.includes('index.html')) {
         console.log(`[Preload] WebSocket interceptor called with URL: ${originalUrl}`);
       }
@@ -128,8 +130,39 @@ export function setupWebSocketInterceptor(): void {
     }
   });
 
-  globalObj.WebSocket = InterceptedWebSocket;
+  // 立即替换全局 WebSocket
+  // 使用 defineProperty 确保拦截器不能被覆盖
+  try {
+    Object.defineProperty(globalObj, 'WebSocket', {
+      value: InterceptedWebSocket,
+      writable: true,
+      configurable: true,
+    });
 
-  // 验证拦截器已安装
-  console.log('[Preload] WebSocket interceptor installed successfully');
+    // 也替换 window.WebSocket（如果存在）
+    if (typeof window !== 'undefined') {
+      Object.defineProperty(window, 'WebSocket', {
+        value: InterceptedWebSocket,
+        writable: true,
+        configurable: true,
+      });
+    }
+
+    // 验证拦截器已安装
+    console.log('[Preload] WebSocket interceptor installed successfully');
+
+    // 验证替换是否成功
+    if (globalObj.WebSocket === InterceptedWebSocket) {
+      console.log('[Preload] WebSocket interceptor verified: global WebSocket replaced');
+    } else {
+      console.warn('[Preload] WebSocket interceptor warning: replacement may have failed');
+    }
+  } catch (error) {
+    // 如果 defineProperty 失败，回退到直接赋值
+    console.warn('[Preload] Failed to use defineProperty, falling back to direct assignment');
+    globalObj.WebSocket = InterceptedWebSocket;
+    if (typeof window !== 'undefined') {
+      (window as any).WebSocket = InterceptedWebSocket;
+    }
+  }
 }

@@ -13,11 +13,18 @@ import { isApiRequest, needsRedirect, redirectApiUrl } from '../../utils/url-red
  * 2. 为了确保所有请求都能正常工作，我们需要为所有本地 API 请求添加 CORS 头
  * 3. 在 Electron 本地应用中，我们可以安全地允许所有来源和所有请求头
  *
- * 注意：CORS 规范要求明确列出所有允许的请求头，不能使用通配符
+ * 最佳实践：
+ * - 在 onHeadersReceived 中为所有请求添加 CORS 头
+ * - 使用基础请求头列表 + 动态读取预检请求头的方式
+ * - 这样可以避免手动维护请求头列表，自动支持所有自定义请求头
+ *
+ * @param window - BrowserWindow 实例
+ * @param preflightHeaders - 预检请求头存储 Map（由 setupApiRequestInterceptor 传入）
  */
-function setupCorsHeaders(window: BrowserWindow): void {
+function setupCorsHeaders(window: BrowserWindow, preflightHeaders: Map<string, string[]>): void {
   const appPort = getAppPort();
 
+  // 在 onHeadersReceived 中设置 CORS 响应头
   window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url;
     const isApiRequest =
@@ -27,27 +34,44 @@ function setupCorsHeaders(window: BrowserWindow): void {
     // 为所有本地 API 请求设置 CORS 头
     // 在 Electron 本地应用中，允许所有来源是安全的
     if (isApiRequest && isLocalhost) {
-      // 基础允许的请求头列表
+      // 基础允许的请求头列表（标准请求头 + 已知的自定义请求头）
       const baseAllowedHeaders = [
+        // 标准请求头
         'Content-Type',
         'Accept',
         'Origin',
         'X-Requested-With',
         'Authorization',
-        'X-With-ACL-Meta',
-        'X-Role',
-        'x-timezone',
+        // Tachybase 自定义请求头（包含大小写变体以确保兼容性）
+        'X-App',
+        'x-app',
+        'X-Locale',
+        'x-locale',
         'X-Timezone',
-        'x-hostname',
+        'x-timezone',
         'X-Hostname',
-        'x-authenticator',
+        'x-hostname',
         'X-Authenticator',
+        'x-authenticator',
+        'X-Role',
+        'x-role',
+        'X-With-ACL-Meta',
+        'X-With-Acl-Meta',
+        'x-with-acl-meta',
       ];
 
-      // 在 Electron 中，onHeadersReceived 的 details 没有 requestHeaders 属性
-      // 由于这是本地应用，我们可以直接允许所有常见的自定义头
-      // 如果需要动态处理，应该在 onBeforeRequest 中处理预检请求
-      const allowedHeaders = baseAllowedHeaders;
+      // 尝试从预检请求中获取动态请求头
+      const dynamicHeaders = preflightHeaders.get(url) || [];
+
+      // 合并基础请求头和动态请求头，去重
+      const allHeadersSet = new Set([...baseAllowedHeaders, ...dynamicHeaders]);
+      const allowedHeaders = Array.from(allHeadersSet);
+
+      // 清理已处理的预检请求（避免内存泄漏）
+      if (details.method === 'OPTIONS') {
+        // 延迟清理，确保响应已发送
+        setTimeout(() => preflightHeaders.delete(url), 1000);
+      }
 
       const responseHeaders = {
         ...details.responseHeaders,
@@ -149,8 +173,37 @@ export function setupApiRequestInterceptor(window: BrowserWindow, isDev: boolean
   const appPort = getAppPort();
   const redirectHistory = new Set<string>();
 
-  setupCorsHeaders(window);
+  // 存储预检请求的请求头（用于动态 CORS 处理）
+  const preflightHeaders = new Map<string, string[]>();
 
+  // 先设置 CORS 响应头处理器
+  setupCorsHeaders(window, preflightHeaders);
+
+  // 在 onBeforeSendHeaders 中处理 OPTIONS 预检请求，动态读取请求头
+  // 注意：onBeforeSendHeaders 可以访问 requestHeaders，而 onBeforeRequest 不能
+  window.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    const url = details.url;
+    const isApiRequest =
+      url.includes('/api/') || url.includes('/ws') || url.includes('/adapters/') || url.includes('/static/');
+    const isLocalhost = url.includes(`localhost:${appPort}`) || url.includes(`127.0.0.1:${appPort}`);
+
+    // 处理 OPTIONS 预检请求：动态读取请求头
+    if (details.method === 'OPTIONS' && isApiRequest && isLocalhost && details.requestHeaders) {
+      // 读取 Access-Control-Request-Headers，动态获取请求头列表
+      const requestedHeaders = details.requestHeaders['access-control-request-headers'];
+      if (requestedHeaders) {
+        // 将请求头列表存储起来，供 onHeadersReceived 使用
+        const headersArray = Array.isArray(requestedHeaders)
+          ? requestedHeaders.flatMap((h) => h.split(',').map((s) => s.trim()))
+          : requestedHeaders.split(',').map((s) => s.trim());
+        preflightHeaders.set(url, headersArray);
+      }
+    }
+
+    callback({ requestHeaders: details.requestHeaders });
+  });
+
+  // 设置请求拦截器（处理 URL 重定向）
   window.webContents.session.webRequest.onBeforeRequest((details, callback) => {
     const url = details.url;
 

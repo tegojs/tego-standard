@@ -171,14 +171,7 @@ export class ModuleCloudComponentClient extends Plugin {
         },
       },
     });
-
-    // 确保 libraries 始终是数组
-    let libraries = data?.data || [];
-    if (!Array.isArray(libraries)) {
-      console.warn('[CloudComponent] API response data is not an array:', libraries);
-      libraries = [];
-    }
-
+    const libraries = data?.data || [];
     const blobUrls: string[] = [];
 
     // 配置模块路径

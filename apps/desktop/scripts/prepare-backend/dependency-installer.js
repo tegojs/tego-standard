@@ -35,8 +35,12 @@ function restoreWorkspaceYaml(workspaceYamlExists, workspaceYamlBackup, workspac
  */
 function createNpmrc(backendTemp, logPrefix) {
   const npmrcPath = path.join(backendTemp, '.npmrc');
-  fs.writeFileSync(npmrcPath, 'node-linker=hoisted\nlink-workspace-packages=false\n', 'utf8');
-  log(logPrefix, 'Created .npmrc with node-linker=hoisted and link-workspace-packages=false');
+  // 配置 .npmrc：
+  // - node-linker=hoisted: 使用提升的 node_modules 结构
+  // - link-workspace-packages=false: 不链接 workspace 包
+  // - lockfile=false: 禁用 lockfile，避免创建或修改 pnpm-lock.yaml
+  fs.writeFileSync(npmrcPath, 'node-linker=hoisted\nlink-workspace-packages=false\nlockfile=false\n', 'utf8');
+  log(logPrefix, 'Created .npmrc with node-linker=hoisted, link-workspace-packages=false, and lockfile=false');
 }
 
 /**
@@ -63,10 +67,19 @@ function installProductionDependencies(backendTemp, packageJsonPath, logPrefix) 
     createNpmrc(backendTemp, logPrefix);
 
     try {
-      execSync('pnpm install --prod --ignore-scripts --ignore-workspace --no-frozen-lockfile', {
+      // 使用 --no-lockfile 避免创建或修改 lockfile
+      // 设置环境变量确保 pnpm 不会向上查找 workspace 和 lockfile
+      const installEnv = {
+        ...process.env,
+        NODE_ENV: 'production',
+        // 禁用 lockfile，避免修改项目根目录的 pnpm-lock.yaml
+        PNPM_LOCKFILE: 'false',
+      };
+
+      execSync('pnpm install --prod --ignore-scripts --ignore-workspace --no-lockfile', {
         cwd: backendTemp,
         stdio: 'inherit',
-        env: { ...process.env, NODE_ENV: 'production' },
+        env: installEnv,
       });
       success(logPrefix, 'Dependencies installed successfully');
     } finally {

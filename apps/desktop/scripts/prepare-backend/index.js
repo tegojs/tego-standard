@@ -13,7 +13,6 @@ const { copyBackendFiles, prepareTempDirectory } = require('./file-copier');
 const { processPackageJson } = require('./package-processor');
 const { installProductionDependencies } = require('./dependency-installer');
 const { verifyTegoInstallation } = require('./tego-verifier');
-const { checkAndInstallChalk } = require('./chalk-installer');
 const { buildSqlite3NativeModule } = require('./sqlite3-builder');
 
 const logPrefix = createLogPrefix('prepare-backend');
@@ -56,12 +55,6 @@ function createPrepareBackendTasks() {
       task: async () => {
         const packageJsonPath = path.join(backendTemp, 'package.json');
         verifyTegoInstallation(backendTemp, packageJsonPath, logPrefix);
-      },
-    },
-    {
-      title: 'Checking and installing chalk',
-      task: async () => {
-        checkAndInstallChalk(backendTemp, logPrefix);
       },
     },
     {

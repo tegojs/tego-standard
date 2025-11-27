@@ -15,9 +15,8 @@ const config = {
   directories: {
     output: 'dist',
     buildResources: 'build',
-    // 配置缓存目录，加速后续构建
-    // electron-builder 会自动缓存 Electron 二进制文件和依赖
-    cache: process.env.ELECTRON_BUILDER_CACHE || undefined, // 使用环境变量或默认位置
+    // 注意：electron-builder 25.1.8 不再支持 directories.cache 配置
+    // 缓存目录由 electron-builder 自动管理
   },
   // 禁用原生模块重建（因为没有使用原生模块）
   buildDependenciesFromSource: false,

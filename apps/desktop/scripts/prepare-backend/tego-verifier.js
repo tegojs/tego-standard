@@ -72,10 +72,18 @@ function installTegoExplicitly(backendTemp, packageJsonPath, nodeModulesPath, lo
       }
 
       log(logPrefix, `Installing tego@${tegoVersion} using pnpm add...`);
-      execSync(`pnpm add tego@${tegoVersion} --save-prod --ignore-scripts --ignore-workspace`, {
+      // 使用 --no-lockfile 避免创建或修改 lockfile
+      const installEnv = {
+        ...process.env,
+        NODE_ENV: 'production',
+        // 禁用 lockfile，避免修改项目根目录的 pnpm-lock.yaml
+        PNPM_LOCKFILE: 'false',
+      };
+
+      execSync(`pnpm add tego@${tegoVersion} --save-prod --ignore-scripts --ignore-workspace --no-lockfile`, {
         cwd: backendTemp,
         stdio: 'inherit',
-        env: { ...process.env, NODE_ENV: 'production' },
+        env: installEnv,
       });
 
       success(logPrefix, 'tego installed successfully');

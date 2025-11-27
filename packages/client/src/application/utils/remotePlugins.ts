@@ -127,7 +127,7 @@ interface GetPluginsOption {
  */
 export async function getPlugins(options: GetPluginsOption): Promise<Array<[string, typeof Plugin]>> {
   const { requirejs, pluginData, devDynamicImport } = options;
-  if (!pluginData || !Array.isArray(pluginData) || pluginData.length === 0) return [];
+  if (pluginData.length === 0) return [];
 
   const res: Array<[string, typeof Plugin]> = [];
 

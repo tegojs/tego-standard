@@ -47,13 +47,13 @@ try {
   console.log('✓ web build completed');
 } catch (err) {
   console.error('✗ web build failed:', err.message);
-  console.log('Continuing with dist-mac.js (it will create a placeholder if web build failed)');
+  console.log('Continuing with dist-mac (it will create a placeholder if web build failed)');
 }
 
 // 测试步骤 4: dist-mac
 console.log('\n=== Step 4: dist-mac ===');
 try {
-  execSync('node scripts/dist-mac.js', {
+  execSync('node scripts/dist-mac/index.js', {
     cwd: desktopDir,
     stdio: 'inherit',
   });

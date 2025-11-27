@@ -29,29 +29,79 @@ function getWebDistSrc() {
 /**
  * 获取应用包 Resources 目录路径
  * @param {string} appName - 应用名称
+ * @param {string} arch - 架构 ('arm64' | 'x64')，如果不提供则尝试自动检测
  */
-function getAppResourcesPath(appName) {
+function getAppResourcesPath(appName, arch) {
   const desktopDir = getDesktopDir();
-  return path.resolve(desktopDir, `dist/mac-arm64/${appName}.app/Contents/Resources`);
+  const detectedArch = arch || detectArchitecture(desktopDir, appName);
+  return path.resolve(desktopDir, `dist/mac-${detectedArch}/${appName}.app/Contents/Resources`);
 }
 
 /**
  * 获取应用包路径
  * @param {string} appName - 应用名称
+ * @param {string} arch - 架构 ('arm64' | 'x64')，如果不提供则尝试自动检测
  */
-function getAppBundlePath(appName) {
+function getAppBundlePath(appName, arch) {
   const desktopDir = getDesktopDir();
-  return path.resolve(desktopDir, `dist/mac-arm64/${appName}.app`);
+  const detectedArch = arch || detectArchitecture(desktopDir, appName);
+  return path.resolve(desktopDir, `dist/mac-${detectedArch}/${appName}.app`);
 }
 
 /**
  * 获取 DMG 路径
  * @param {string} appName - 应用名称
  * @param {string} version - 版本号
+ * @param {string} arch - 架构 ('arm64' | 'x64')，如果不提供则尝试自动检测
  */
-function getDmgPath(appName, version) {
+function getDmgPath(appName, version, arch) {
   const desktopDir = getDesktopDir();
-  return path.resolve(desktopDir, `dist/${appName}-${version}-arm64.dmg`);
+  const detectedArch = arch || detectArchitecture(desktopDir, appName);
+  return path.resolve(desktopDir, `dist/${appName}-${version}-${detectedArch}.dmg`);
+}
+
+/**
+ * 检测架构（自动检测已构建的架构）
+ * @param {string} desktopDir - desktop 目录
+ * @param {string} appName - 应用名称
+ * @returns {string} 架构 ('arm64' | 'x64')
+ */
+function detectArchitecture(desktopDir, appName) {
+  const fs = require('fs');
+  // 优先检测 arm64（Apple Silicon）
+  const arm64Path = path.resolve(desktopDir, `dist/mac-arm64/${appName}.app`);
+  if (fs.existsSync(arm64Path)) {
+    return 'arm64';
+  }
+  // 回退到 x64（Intel）
+  const x64Path = path.resolve(desktopDir, `dist/mac-x64/${appName}.app`);
+  if (fs.existsSync(x64Path)) {
+    return 'x64';
+  }
+  // 默认返回当前系统架构
+  return process.arch === 'arm64' ? 'arm64' : 'x64';
+}
+
+/**
+ * 获取所有已构建的架构
+ * @param {string} desktopDir - desktop 目录
+ * @param {string} appName - 应用名称
+ * @returns {string[]} 架构列表
+ */
+function getBuiltArchitectures(desktopDir, appName) {
+  const fs = require('fs');
+  const architectures = [];
+  const arm64Path = path.resolve(desktopDir, `dist/mac-arm64/${appName}.app`);
+  const x64Path = path.resolve(desktopDir, `dist/mac-x64/${appName}.app`);
+
+  if (fs.existsSync(arm64Path)) {
+    architectures.push('arm64');
+  }
+  if (fs.existsSync(x64Path)) {
+    architectures.push('x64');
+  }
+
+  return architectures;
 }
 
 module.exports = {
@@ -61,4 +111,6 @@ module.exports = {
   getAppResourcesPath,
   getAppBundlePath,
   getDmgPath,
+  detectArchitecture,
+  getBuiltArchitectures,
 };

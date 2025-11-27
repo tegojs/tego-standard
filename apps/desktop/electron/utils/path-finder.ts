@@ -107,18 +107,62 @@ export function findProjectRoot(): string | null {
  * 查找 web-dist 目录
  */
 export function findWebDistPath(): string | null {
+  // 注意：由于 asarUnpack 配置，web-dist 会被解包到 app.asar.unpacked 目录
+  // 在 macOS 打包后的应用中，路径优先级：
+  // 1. process.resourcesPath/app.asar.unpacked/web-dist (解包后的资源)
+  // 2. process.resourcesPath/web-dist (如果直接放在 Resources 中)
+  // 3. 开发环境的相对路径
   const possibleWebDistPaths = [
+    // 优先检查解包后的路径（生产环境，asarUnpack 解包）
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'web-dist'),
+    // 检查直接放在 Resources 中的路径（如果 asarUnpack 未生效）
     path.join(process.resourcesPath, 'web-dist'),
+    // 开发环境路径
     path.join(__dirname, '..', 'web-dist'),
     path.join(app.getAppPath(), 'web-dist'),
+    // 其他可能的路径
+    path.join(process.resourcesPath, 'app.asar', 'web-dist'),
+    path.join(app.getAppPath(), '..', 'web-dist'),
+    path.join(process.resourcesPath, '..', 'web-dist'),
   ];
 
+  log(`[PathFinder] Searching for web-dist directory...`);
+  log(`[PathFinder] process.resourcesPath: ${process.resourcesPath}`);
+  log(`[PathFinder] app.getAppPath(): ${app.getAppPath()}`);
+  log(`[PathFinder] __dirname: ${__dirname}`);
+
   for (const possiblePath of possibleWebDistPaths) {
-    if (fs.existsSync(possiblePath) && fs.existsSync(path.join(possiblePath, 'index.html'))) {
-      return possiblePath;
+    const normalizedPath = path.resolve(possiblePath);
+    log(`[PathFinder] Checking: ${normalizedPath}`);
+    if (fs.existsSync(normalizedPath)) {
+      const indexHtmlPath = path.join(normalizedPath, 'index.html');
+      if (fs.existsSync(indexHtmlPath)) {
+        log(`[PathFinder] ✓ Found web-dist at: ${normalizedPath}`);
+        // 验证 assets 目录是否存在
+        const assetsPath = path.join(normalizedPath, 'assets');
+        if (fs.existsSync(assetsPath)) {
+          const assetsCount = fs.readdirSync(assetsPath).length;
+          log(`[PathFinder] ✓ Assets directory exists with ${assetsCount} files`);
+        } else {
+          log(`[PathFinder] ⚠ Assets directory not found at: ${assetsPath}`, 'warn');
+        }
+        return normalizedPath;
+      } else {
+        log(`[PathFinder] Directory exists but index.html not found: ${indexHtmlPath}`);
+      }
     }
   }
 
+  log(`[PathFinder] ⚠ Could not find web-dist directory in any of the checked paths`, 'warn');
+  // 列出 Resources 目录内容以便调试
+  try {
+    if (fs.existsSync(process.resourcesPath)) {
+      const resourcesContents = fs.readdirSync(process.resourcesPath);
+      log(`[PathFinder] Resources directory contents: ${resourcesContents.join(', ')}`, 'error');
+    }
+  } catch (e) {
+    log(`[PathFinder] Could not read Resources directory: ${e}`, 'error');
+  }
   return null;
 }
 

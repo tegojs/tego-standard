@@ -16,6 +16,6 @@
     "types": ["node"],
     "typeRoots": ["../../../node_modules/@types", "../../../node_modules"]
   },
-  "exclude": ["node_modules", "dist", "app"],
+  "exclude": ["node_modules", "dist", "app", "preload.ts", "preload/**/*"],
   "include": ["**/*.ts"]
 }

@@ -41,15 +41,6 @@ export function setupLocationFix(): void {
                 configurable: false,
                 enumerable: false,
               });
-
-              if (needsFix) {
-                console.log(
-                  '[Preload] Set __tachybase_location_hostname__ to localhost (fixed from ' + originalHostname + ')',
-                );
-              } else {
-                console.log('[Preload] Set __tachybase_location_hostname__ to localhost');
-              }
-              console.log('[Preload] Set __tachybase_location_origin__ to http://localhost:' + appPort);
             } catch (e) {
               console.warn('[Preload] Could not set location helper properties:', e);
             }

@@ -3,7 +3,6 @@ import { contextBridge } from 'electron';
 import { setupLocationFix } from './preload/location-fix';
 import { setupTextEncoderPolyfill } from './preload/polyfills';
 import { setupWebSocketClientFix } from './preload/websocket-client-fix';
-import { setupWebSocketInterceptor } from './preload/websocket-interceptor';
 import { getAppPort } from './utils/config';
 
 // 获取 API 端口
@@ -17,11 +16,8 @@ setupTextEncoderPolyfill();
 // 修复 location
 setupLocationFix();
 
-// 修复 WebSocketClient 的 hostname（在源头修复，避免生成错误的 URL）
+// 修复 WebSocketClient 的 hostname
 setupWebSocketClientFix();
-
-// 拦截 WebSocket（作为备用方案）
-setupWebSocketInterceptor();
 
 // 获取修复函数和 location hostname，以便通过 contextBridge 暴露
 const globalWindow = globalThis as any;
@@ -45,12 +41,10 @@ contextBridge.exposeInMainWorld('electron', {
 
 // 暴露 WebSocketClient 修复相关的全局属性到页面脚本的 window 对象
 // 在上下文隔离模式下，需要通过 contextBridge 来桥接
-// contextBridge 可以传递函数，所以我们可以直接传递修复函数
 contextBridge.exposeInMainWorld('__tachybase_location_hostname__', locationHostname);
 contextBridge.exposeInMainWorld('__tachybase_location_origin__', locationOrigin);
 if (typeof hostnameFixer === 'function') {
   contextBridge.exposeInMainWorld('__tachybase_fix_websocket_hostname__', hostnameFixer);
-  console.log('[Preload] Exposed __tachybase_fix_websocket_hostname__ via contextBridge');
 }
 
 // 类型声明

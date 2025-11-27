@@ -70,92 +70,42 @@ export class WebSocketClient {
       return;
     }
 
-    // 优先使用 __tachybase_location_hostname__（在 Electron 环境中由 preload 脚本设置）
-    // 如果不存在，则使用 window.location.hostname
     const locationHostname = (window as any).__tachybase_location_hostname__;
     const windowHostname = window.location.hostname;
     let hostname = locationHostname || windowHostname;
 
-    console.log('[WebSocketClient] getURL() called', {
-      locationHostname,
-      windowHostname,
-      initialHostname: hostname,
-      protocol: window.location.protocol,
-      hasFixFunction: typeof (window as any).__tachybase_fix_websocket_hostname__ === 'function',
-      fixFunctionType: typeof (window as any).__tachybase_fix_websocket_hostname__,
-    });
-
     // 扩展机制：允许外部环境（如 Electron desktop）提供 hostname 修复函数
-    // 这个机制使得 WebSocketClient 可以在不修改通用代码的情况下，适配特定环境的需求
     const hostnameFixer = (window as any).__tachybase_fix_websocket_hostname__;
     if (typeof hostnameFixer === 'function') {
-      console.log('[WebSocketClient] Calling hostname fixer with hostname:', hostname);
       const fixedHostname = hostnameFixer(hostname);
-      console.log('[WebSocketClient] Hostname fixer returned:', fixedHostname);
       if (fixedHostname && typeof fixedHostname === 'string') {
         hostname = fixedHostname;
-        console.log('[WebSocketClient] Hostname updated to:', hostname);
-      } else {
-        console.log('[WebSocketClient] Hostname fixer returned invalid value, keeping original:', hostname);
       }
-    } else {
-      console.log('[WebSocketClient] Hostname fixer not available or not a function', {
-        hostnameFixer,
-        type: typeof hostnameFixer,
-      });
     }
 
     const subApp = getSubAppName(this.app.getPublicPath());
     const queryString = subApp ? `?__appName=${subApp}` : `?__hostname=${hostname}`;
     const wsPath = this.options.basename || '/ws';
-
-    // 检查 hostname 是否被修复过（通过 __tachybase_location_hostname__ 或 hostnameFixer）
-    // 如果 hostname 与 window.location.hostname 不同，说明被修复过，应该使用修复后的 hostname
-    const originalHostname = window.location.hostname;
-    const hostnameWasFixed = hostname !== originalHostname;
-
-    console.log('[WebSocketClient] URL construction', {
-      subApp,
-      queryString,
-      wsPath,
-      originalHostname,
-      finalHostname: hostname,
-      hostnameWasFixed,
-      optionsUrl: this.options.url,
-      apiBaseURL,
-    });
+    const hostnameWasFixed = hostname !== window.location.hostname;
 
     if (this.options.url) {
       const url = new URL(this.options.url);
-      let finalUrl: string;
       if (hostnameWasFixed) {
-        // hostname 被修复过，使用修复后的 hostname
         const protocol = url.protocol === 'wss:' ? 'wss' : 'ws';
         const port = url.port || '';
         const host = port ? `${hostname}:${port}` : hostname;
-        finalUrl = `${protocol}://${host}${wsPath}${queryString}`;
-      } else {
-        finalUrl = `${this.options.url}${queryString}`;
+        return `${protocol}://${host}${wsPath}${queryString}`;
       }
-      console.log('[WebSocketClient] Final WebSocket URL (from options.url):', finalUrl);
-      return finalUrl;
+      return `${this.options.url}${queryString}`;
     }
+
     try {
       const url = new URL(apiBaseURL);
-      // 如果 hostname 被修复过，使用修复后的 hostname；否则使用 url.hostname 保持通用逻辑
       const finalHostname = hostnameWasFixed ? hostname : url.hostname;
       const port = url.port || '';
       const host = port ? `${finalHostname}:${port}` : finalHostname;
-      const finalUrl = `${url.protocol === 'https:' ? 'wss' : 'ws'}://${host}${wsPath}${queryString}`;
-      console.log('[WebSocketClient] Final WebSocket URL (from apiBaseURL):', finalUrl, {
-        apiBaseURL,
-        urlHostname: url.hostname,
-        finalHostname,
-        hostnameWasFixed,
-      });
-      return finalUrl;
+      return `${url.protocol === 'https:' ? 'wss' : 'ws'}://${host}${wsPath}${queryString}`;
     } catch (error) {
-      // 使用 location.host（包含端口）而不是 hostname:port，避免端口为空时生成无效 URL
       let port = location.port;
       if (!port && apiBaseURL) {
         try {
@@ -166,15 +116,7 @@ export class WebSocketClient {
         }
       }
       const host = port ? `${hostname}:${port}` : hostname;
-      const finalUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${host}${wsPath}${queryString}`;
-      console.log('[WebSocketClient] Final WebSocket URL (fallback from location):', finalUrl, {
-        error: error instanceof Error ? error.message : String(error),
-        locationHost: location.host,
-        locationHostname: location.hostname,
-        port,
-        hostname,
-      });
-      return finalUrl;
+      return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${host}${wsPath}${queryString}`;
     }
   }
 

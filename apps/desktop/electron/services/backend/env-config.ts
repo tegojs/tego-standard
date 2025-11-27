@@ -187,5 +187,79 @@ export function buildEnvironmentVariables(
     log(`[Electron] Checked paths: ${possiblePackagesPaths.join(', ')}`, 'warn');
   }
 
+  // 设置 NODE_PATH，确保 worker thread 和其他子进程能够找到 @tachybase/* 模块
+  // 这是 desktop 应用特定的配置，确保在打包环境中 worker thread 能正确解析模块
+  // 虽然 tego-wrapper.js 也会设置 NODE_PATH，但在这里提前设置可以确保：
+  // 1. Worker thread 启动时就能使用正确的 NODE_PATH
+  // 2. 即使不使用 wrapper 脚本，NODE_PATH 也能正确设置
+  // 3. 在打包环境中，使用绝对路径确保 worker thread 能找到模块（因为代码在 app.asar 内部，但 node_modules 在外部）
+  if (backendProjectRoot) {
+    // 使用绝对路径，确保在打包环境中也能正确解析
+    // 在打包环境中，backendProjectRoot 是 Resources/backend
+    // 在开发环境中，backendProjectRoot 是项目根目录
+    const nodeModulesPath = path.resolve(backendProjectRoot, 'node_modules');
+    const packagesPath = path.resolve(backendProjectRoot, 'packages');
+    const tachybasePluginsPath = path.resolve(packagesPath, '@tachybase');
+
+    const nodePaths: string[] = [];
+    const existingNodePath = process.env.NODE_PATH || '';
+    if (existingNodePath) {
+      // 将现有路径也转换为绝对路径
+      const existingPaths = existingNodePath.split(path.delimiter).filter(Boolean);
+      for (const existingPath of existingPaths) {
+        const absolutePath = path.isAbsolute(existingPath) ? existingPath : path.resolve(existingPath);
+        if (!nodePaths.includes(absolutePath)) {
+          nodePaths.push(absolutePath);
+        }
+      }
+    }
+
+    // 添加 node_modules 路径（用于查找 @tachybase/globals 等核心模块）
+    // 使用绝对路径，优先级最高（放在最前面）
+    // 这是最关键的路径，worker thread 需要通过它找到 @tachybase/globals
+    if (fs.existsSync(nodeModulesPath)) {
+      if (!nodePaths.includes(nodeModulesPath)) {
+        nodePaths.unshift(nodeModulesPath);
+        log(`[Electron] Added node_modules to NODE_PATH: ${nodeModulesPath}`);
+      }
+
+      // 验证关键模块是否存在（用于调试）
+      const globalsPath = path.join(nodeModulesPath, '@tachybase', 'globals');
+      if (fs.existsSync(globalsPath)) {
+        log(`[Electron] ✓ Verified @tachybase/globals exists at: ${globalsPath}`);
+      } else {
+        log(`[Electron] ⚠ @tachybase/globals not found at: ${globalsPath}`, 'warn');
+        // 检查是否是 pnpm 的 isolated 模式
+        const pnpmDir = path.join(nodeModulesPath, '.pnpm');
+        if (fs.existsSync(pnpmDir)) {
+          log(`[Electron] Found .pnpm directory, using pnpm isolated mode`);
+        }
+      }
+    } else {
+      log(`[Electron] ⚠ node_modules directory not found at: ${nodeModulesPath}`, 'warn');
+    }
+
+    // 添加 packages 路径（用于查找插件）
+    if (fs.existsSync(packagesPath) && !nodePaths.includes(packagesPath)) {
+      nodePaths.push(packagesPath);
+      log(`[Electron] Added packages to NODE_PATH: ${packagesPath}`);
+    }
+
+    // 添加 @tachybase 路径（双重保险）
+    if (fs.existsSync(tachybasePluginsPath) && !nodePaths.includes(tachybasePluginsPath)) {
+      nodePaths.push(tachybasePluginsPath);
+      log(`[Electron] Added @tachybase plugins directory to NODE_PATH: ${tachybasePluginsPath}`);
+    }
+
+    if (nodePaths.length > 0) {
+      env.NODE_PATH = nodePaths.join(path.delimiter);
+      log(`[Electron] Set NODE_PATH (${nodePaths.length} paths): ${env.NODE_PATH}`);
+    } else {
+      log(`[Electron] ⚠ No valid paths found for NODE_PATH`, 'warn');
+    }
+  } else {
+    log(`[Electron] ⚠ backendProjectRoot not provided, cannot set NODE_PATH`, 'warn');
+  }
+
   return env;
 }

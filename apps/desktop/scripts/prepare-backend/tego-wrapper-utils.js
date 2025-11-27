@@ -150,20 +150,38 @@ function generatePossibleSubPaths(baseModulePath, subPath) {
 function resolveSubPath(baseModulePath, subPath) {
   const possibleSubPaths = generatePossibleSubPaths(baseModulePath, subPath);
 
+  // Node.js 支持的扩展名（按优先级排序）
+  const extensions = ['', '.js', '.json', '.node'];
+
   // 尝试每个可能的路径
   for (const subPathToTry of possibleSubPaths) {
     const absoluteSubPath = path.resolve(subPathToTry);
-    // 检查是否是文件
-    if (fs.existsSync(absoluteSubPath) && fs.statSync(absoluteSubPath).isFile()) {
-      return absoluteSubPath;
-    }
-    // 检查是否是目录，尝试添加 index.js
-    if (fs.existsSync(absoluteSubPath) && fs.statSync(absoluteSubPath).isDirectory()) {
-      const indexFiles = [path.join(absoluteSubPath, 'index.js'), path.join(absoluteSubPath, 'index.json')];
-      for (const indexFile of indexFiles) {
-        if (fs.existsSync(indexFile)) {
-          return indexFile;
+
+    // 首先尝试直接路径（可能是文件或目录）
+    if (fs.existsSync(absoluteSubPath)) {
+      const stats = fs.statSync(absoluteSubPath);
+      // 如果是文件，直接返回
+      if (stats.isFile()) {
+        return absoluteSubPath;
+      }
+      // 如果是目录，尝试查找 index 文件
+      if (stats.isDirectory()) {
+        const indexFiles = [path.join(absoluteSubPath, 'index.js'), path.join(absoluteSubPath, 'index.json')];
+        for (const indexFile of indexFiles) {
+          if (fs.existsSync(indexFile)) {
+            return indexFile;
+          }
         }
+      }
+    }
+
+    // 如果直接路径不存在，尝试添加扩展名（用于 locale 文件等）
+    // 例如：@tachybase/module-acl/src/locale/en-US -> .../dist/locale/en-US.json
+    for (const ext of extensions) {
+      if (ext === '') continue; // 已经尝试过了
+      const pathWithExt = absoluteSubPath + ext;
+      if (fs.existsSync(pathWithExt) && fs.statSync(pathWithExt).isFile()) {
+        return pathWithExt;
       }
     }
   }

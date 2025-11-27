@@ -20,8 +20,8 @@ export function setupWebSocketInterceptor(): void {
       let wsUrl = typeof url === 'string' ? url : url.toString();
       const originalUrl = wsUrl;
 
-      // 调试日志 - 记录所有包含 index.html 的 WebSocket 连接尝试
-      if (wsUrl.includes('index.html')) {
+      // 调试日志 - 记录所有包含 index.html 或 admin 的 WebSocket 连接尝试
+      if (wsUrl.includes('index.html') || wsUrl.includes('admin')) {
         console.log(`[Preload] WebSocket interceptor called with URL: ${originalUrl}`);
       }
 
@@ -57,11 +57,15 @@ export function setupWebSocketInterceptor(): void {
 
           // 修复查询参数中的 hostname（包括 admin）
           if (query) {
+            const originalQuery = query;
             query = query
               .replace(/__hostname=index\.html/g, '__hostname=localhost')
               .replace(/hostname=index\.html/g, 'hostname=localhost')
               .replace(/__hostname=admin/g, '__hostname=localhost')
               .replace(/hostname=admin/g, 'hostname=localhost');
+            if (query !== originalQuery) {
+              console.log(`[Preload] Fixed query params: ${originalQuery} -> ${query}`);
+            }
           }
 
           wsUrl = `${wsBaseUrl}${path}${query}`;

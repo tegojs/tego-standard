@@ -1,5 +1,4 @@
 import { define, observable } from '@tachybase/schema';
-
 import { getSubAppName } from '@tego/client';
 
 import { Application } from './Application';
@@ -50,14 +49,19 @@ export class WebSocketClient {
     if (!apiBaseURL) {
       return;
     }
+
+    // 优先使用 __tachybase_location_hostname__（在 Electron 环境中由 preload 脚本设置）
+    // 如果不存在，则使用 window.location.hostname
+    const hostname = (window as any).__tachybase_location_hostname__ || window.location.hostname;
+
     const subApp = getSubAppName(this.app.getPublicPath());
-    const queryString = subApp ? `?__appName=${subApp}` : `?__hostname=${window.location.hostname}`;
+    const queryString = subApp ? `?__appName=${subApp}` : `?__hostname=${hostname}`;
     const wsPath = this.options.basename || '/ws';
     if (this.options.url) {
       const url = new URL(this.options.url);
       if (url.hostname === 'localhost') {
         const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        return `${protocol}://${location.hostname}:${url.port}${wsPath}${queryString}`;
+        return `${protocol}://${hostname}:${url.port}${wsPath}${queryString}`;
       }
       return `${this.options.url}${queryString}`;
     }
@@ -65,7 +69,9 @@ export class WebSocketClient {
       const url = new URL(apiBaseURL);
       return `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}${wsPath}${queryString}`;
     } catch (error) {
-      return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${wsPath}${queryString}`;
+      // 使用 location.host（包含端口）而不是 hostname:port，避免端口为空时生成无效 URL
+      const host = location.port ? `${hostname}:${location.port}` : hostname;
+      return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${host}${wsPath}${queryString}`;
     }
   }
 

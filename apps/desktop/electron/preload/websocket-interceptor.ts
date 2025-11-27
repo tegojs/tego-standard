@@ -17,13 +17,22 @@ export function setupWebSocketInterceptor(): void {
   // 立即替换全局 WebSocket，确保在页面脚本执行前就生效
   const InterceptedWebSocket = class extends OriginalWebSocket {
     constructor(url: string | URL, protocols?: string | string[]) {
-      let wsUrl = typeof url === 'string' ? url : url.toString();
-      const originalUrl = wsUrl;
-
-      // 调试日志 - 记录所有包含 index.html 或 admin 的 WebSocket 连接尝试
-      if (wsUrl.includes('index.html') || wsUrl.includes('admin')) {
-        console.log(`[Preload] WebSocket interceptor called with URL: ${originalUrl}`);
+      // 统一处理 URL，确保无论是字符串还是 URL 对象都能正确转换
+      let wsUrl: string;
+      try {
+        if (typeof url === 'string') {
+          wsUrl = url;
+        } else if (url instanceof URL) {
+          // URL 对象转换为字符串，使用 href 属性确保获取完整 URL
+          wsUrl = url.href;
+        } else {
+          wsUrl = String(url);
+        }
+      } catch (e) {
+        console.warn('[Preload] Error converting WebSocket URL:', e);
+        wsUrl = String(url);
       }
+      const originalUrl = wsUrl;
 
       const isDesktop =
         typeof window !== 'undefined' &&
@@ -32,20 +41,28 @@ export function setupWebSocketInterceptor(): void {
           window.location.hostname === 'admin');
 
       // 检查是否需要重定向（包括 ws://index.html:port 或 ws://admin:port 格式）
-      // 使用更宽松的匹配条件，确保能捕获所有包含 index.html 或 admin 的 URL
-      const needsFullRedirect =
-        wsUrl.startsWith('app://') ||
+      // 优先检查 URL 开头，然后检查是否包含无效的 hostname
+      const hasInvalidHostname =
         wsUrl.startsWith('ws://index.html') ||
         wsUrl.startsWith('wss://index.html') ||
-        wsUrl.startsWith('http://index.html') ||
+        wsUrl.startsWith('app://') ||
         wsUrl.startsWith('ws://admin') ||
         wsUrl.startsWith('wss://admin') ||
-        wsUrl.includes('index.html:') ||
-        wsUrl.includes('admin:') ||
         /^(ws|wss):\/\/index\.html/.test(wsUrl) ||
         /^(ws|wss):\/\/admin/.test(wsUrl) ||
-        // 额外检查：如果 URL 中包含 index.html 或 admin，且是桌面环境，也需要重定向
-        (isDesktop && (wsUrl.includes('index.html') || wsUrl.includes('admin')));
+        wsUrl.includes('index.html:') ||
+        wsUrl.includes('admin:');
+
+      // 如果 URL 包含无效的 hostname，或者是在桌面环境中，都需要检查和修复
+      const needsFullRedirect =
+        hasInvalidHostname || (isDesktop && (wsUrl.includes('index.html') || wsUrl.includes('admin')));
+
+      // 调试日志 - 记录所有包含 index.html 或 admin 的 WebSocket 连接尝试
+      if (hasInvalidHostname || (isDesktop && (wsUrl.includes('index.html') || wsUrl.includes('admin')))) {
+        console.log(
+          `[Preload] WebSocket interceptor called with URL: ${originalUrl} (isDesktop: ${isDesktop}, needsFullRedirect: ${needsFullRedirect})`,
+        );
+      }
 
       if (needsFullRedirect) {
         // 使用正则表达式提取协议、路径和查询参数
@@ -55,9 +72,11 @@ export function setupWebSocketInterceptor(): void {
         const wsMatch = wsUrl.match(/^(ws|wss):\/\/(index\.html|admin)(?::(\d+))?(\/[^?]*)?(\?.*)?/);
 
         if (wsMatch) {
-          const protocol = wsMatch[1];
+          // 组1是协议 (ws 或 wss)
           // 组2是hostname (index.html 或 admin)
           // 组3是端口号（如果存在）
+          // 组4是路径（如果存在）
+          // 组5是查询参数（如果存在）
           const path = wsMatch[4] || '/ws'; // 组4是路径
           let query = wsMatch[5] || ''; // 组5是查询参数
 
@@ -77,22 +96,30 @@ export function setupWebSocketInterceptor(): void {
           wsUrl = `${wsBaseUrl}${path}${query}`;
           console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
         } else {
-          // 回退到原来的逻辑：尝试从 URL 中提取路径和查询参数
+          // 回退逻辑：尝试从 URL 中提取路径和查询参数
+          // 这种情况可能发生在 URL 格式不完全匹配正则表达式时
           console.log(`[Preload] WebSocket URL regex match failed, using fallback logic for: ${originalUrl}`);
           let path = '/ws';
           let query = '';
 
           // 尝试提取路径和查询参数（支持多种格式）
-          const pathMatch = wsUrl.match(/(\/ws[^?]*)(\?.*)?/);
-          if (pathMatch) {
-            path = pathMatch[1];
-            query = pathMatch[2] || '';
+          // 首先尝试匹配 /ws 路径
+          const wsPathMatch = wsUrl.match(/(\/ws[^?]*)(\?.*)?/);
+          if (wsPathMatch) {
+            path = wsPathMatch[1];
+            query = wsPathMatch[2] || '';
           } else {
-            // 尝试提取任何路径
+            // 尝试提取任何路径（以 / 开头）
             const generalPathMatch = wsUrl.match(/\/([^?]+)(\?.*)?/);
             if (generalPathMatch) {
               path = `/${generalPathMatch[1]}`;
               query = generalPathMatch[2] || '';
+            } else {
+              // 如果都没有匹配到，尝试从 URL 中提取查询参数
+              const queryMatch = wsUrl.match(/\?.*/);
+              if (queryMatch) {
+                query = queryMatch[0];
+              }
             }
           }
 
@@ -173,10 +200,12 @@ export function setupWebSocketInterceptor(): void {
   // 立即替换全局 WebSocket
   // 使用 defineProperty 确保拦截器不能被覆盖
   try {
+    // 先尝试替换 globalThis/globalObj
     Object.defineProperty(globalObj, 'WebSocket', {
       value: InterceptedWebSocket,
       writable: true,
       configurable: true,
+      enumerable: true,
     });
 
     // 也替换 window.WebSocket（如果存在）
@@ -185,6 +214,7 @@ export function setupWebSocketInterceptor(): void {
         value: InterceptedWebSocket,
         writable: true,
         configurable: true,
+        enumerable: true,
       });
     }
 
@@ -192,17 +222,25 @@ export function setupWebSocketInterceptor(): void {
     console.log('[Preload] WebSocket interceptor installed successfully');
 
     // 验证替换是否成功
-    if (globalObj.WebSocket === InterceptedWebSocket) {
-      console.log('[Preload] WebSocket interceptor verified: global WebSocket replaced');
+    const globalReplaced = globalObj.WebSocket === InterceptedWebSocket;
+    const windowReplaced = typeof window === 'undefined' || window.WebSocket === InterceptedWebSocket;
+
+    if (globalReplaced && windowReplaced) {
+      console.log('[Preload] WebSocket interceptor verified: global and window WebSocket replaced');
     } else {
-      console.warn('[Preload] WebSocket interceptor warning: replacement may have failed');
+      console.warn(`[Preload] WebSocket interceptor warning: global=${globalReplaced}, window=${windowReplaced}`);
     }
   } catch (error) {
     // 如果 defineProperty 失败，回退到直接赋值
-    console.warn('[Preload] Failed to use defineProperty, falling back to direct assignment');
-    globalObj.WebSocket = InterceptedWebSocket;
-    if (typeof window !== 'undefined') {
-      (window as any).WebSocket = InterceptedWebSocket;
+    console.warn('[Preload] Failed to use defineProperty, falling back to direct assignment:', error);
+    try {
+      globalObj.WebSocket = InterceptedWebSocket;
+      if (typeof window !== 'undefined') {
+        (window as any).WebSocket = InterceptedWebSocket;
+      }
+      console.log('[Preload] WebSocket interceptor installed via direct assignment');
+    } catch (e) {
+      console.error('[Preload] Failed to install WebSocket interceptor:', e);
     }
   }
 }

@@ -19,7 +19,7 @@
     "@tego/devkit": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "i18next": "23.16.8",
+    "i18next": "25.6.3",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-i18next": "16.2.1",

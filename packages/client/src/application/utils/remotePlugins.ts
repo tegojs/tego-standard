@@ -132,38 +132,19 @@ export async function getPlugins(options: GetPluginsOption): Promise<Array<[stri
     pluginDataType: typeof options.pluginData,
     isArray: Array.isArray(options.pluginData),
     pluginDataLength: options.pluginData?.length,
-    pluginDataConstructor: options.pluginData?.constructor?.name,
     pluginData: options.pluginData,
   });
 
   const { requirejs, pluginData, devDynamicImport } = options;
 
-  // 尝试规范化 pluginData
-  let normalizedPluginData = pluginData;
-  if (pluginData && !Array.isArray(pluginData)) {
-    console.warn('[getPlugins] pluginData is not array, attempting normalization', {
-      type: typeof pluginData,
-      keys: Object.keys(pluginData as any).slice(0, 10),
-    });
-    // 尝试提取嵌套的数组
-    if ('data' in (pluginData as any)) {
-      normalizedPluginData = (pluginData as any).data;
-      console.log('[getPlugins] Extracted .data property, isArray:', Array.isArray(normalizedPluginData));
-    }
-  }
-
-  if (!normalizedPluginData || !Array.isArray(normalizedPluginData) || normalizedPluginData.length === 0) {
-    console.log('[getPlugins] Early return: no valid pluginData', {
-      hasData: !!normalizedPluginData,
-      isArray: Array.isArray(normalizedPluginData),
-      length: (normalizedPluginData as any)?.length,
-    });
+  if (!pluginData || !Array.isArray(pluginData) || pluginData.length === 0) {
+    console.log('[getPlugins] Early return: no valid pluginData');
     return [];
   }
 
   console.log(
     '[getPlugins] Processing plugins:',
-    normalizedPluginData.map((p) => p?.packageName || 'unknown'),
+    pluginData.map((p) => p?.packageName || 'unknown'),
   );
 
   const res: Array<[string, typeof Plugin]> = [];
@@ -172,7 +153,7 @@ export async function getPlugins(options: GetPluginsOption): Promise<Array<[stri
   if (devDynamicImport) {
     console.log('[getPlugins] Using devDynamicImport for plugins');
     try {
-      for (const plugin of normalizedPluginData) {
+      for (const plugin of pluginData) {
         console.log('[getPlugins] Loading dev plugin:', plugin?.packageName);
         const pluginModule = await devDynamicImport(plugin.packageName);
         if (pluginModule) {
@@ -190,7 +171,7 @@ export async function getPlugins(options: GetPluginsOption): Promise<Array<[stri
     }
   }
 
-  const remotePlugins = normalizedPluginData.filter((item) => !resolveDevPlugins[item.packageName]);
+  const remotePlugins = pluginData.filter((item) => !resolveDevPlugins[item.packageName]);
 
   console.log(
     '[getPlugins] Remote plugins to load:',

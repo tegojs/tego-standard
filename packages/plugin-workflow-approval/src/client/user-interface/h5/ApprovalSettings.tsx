@@ -1,4 +1,10 @@
-import { SchemaSettings, SchemaSettingsDataScope, useDesignable, useFormBlockContext } from '@tachybase/client';
+import {
+  removeNullCondition,
+  SchemaSettings,
+  SchemaSettingsDataScope,
+  useDesignable,
+  useFormBlockContext,
+} from '@tachybase/client';
 import { useField, useFieldSchema } from '@tachybase/schema';
 
 import _ from 'lodash';
@@ -22,6 +28,7 @@ export const ApprovalSettings = new SchemaSettings({
         } else if (tabKey && !field.componentProps.params) {
           defaultFilter = field.componentProps.parantParams?.[tabKey];
         }
+
         return {
           collectionName,
           defaultFilter: tabKey ? defaultFilter : fieldSchema?.['x-component-props']?.params || {},
@@ -31,12 +38,10 @@ export const ApprovalSettings = new SchemaSettings({
             if (tabKey) {
               params = { ...field.componentProps?.params };
               params[tabKey] = {
-                ...field.componentProps?.params?.[tabKey],
                 ...filter,
               };
             } else {
               params = {
-                ...field.componentProps?.params,
                 ...filter,
               };
             }

@@ -124,16 +124,20 @@ if (fs.existsSync(packagesPath)) {
         }
       }
 
-      // 优先级 2: 从 packages/@tachybase/ 目录查找（用于插件）
-      if (moduleName.startsWith('plugin-')) {
+      // 优先级 2: 从 packages/ 目录查找（用于 module-* 和 plugin-* 模块）
+      // module-* 和 plugin-* 模块都在 packages/ 目录下，不在 packages/@tachybase/ 下
+      if (moduleName.startsWith('plugin-') || moduleName.startsWith('module-')) {
         // 使用绝对路径，确保无论从哪个路径加载都能找到
         const absoluteTachybasePluginsPath = path.resolve(hookTachybasePluginsPath);
         const absolutePackagesPath = path.resolve(hookPackagesPath);
 
+        // 可能的路径：
+        // 1. packages/module-name 或 packages/plugin-name（实际位置）
+        // 2. packages/@tachybase/module-name 或 packages/@tachybase/plugin-name（如果存在符号链接）
         const possiblePaths = [
+          path.join(absolutePackagesPath, moduleName), // 最可能的路径（实际位置）
           path.join(absoluteTachybasePluginsPath, moduleName),
           path.join(absolutePackagesPath, '@tachybase', moduleName),
-          path.join(absolutePackagesPath, moduleName), // 直接路径（如果符号链接不存在）
         ];
 
         for (const modulePath of possiblePaths) {
@@ -154,6 +158,7 @@ if (fs.existsSync(packagesPath)) {
                   path.join(absoluteModulePath, 'src', 'index.js'),
                   path.join(absoluteModulePath, 'lib', 'index.js'),
                   path.join(absoluteModulePath, 'dist', 'index.js'),
+                  path.join(absoluteModulePath, 'dist', 'server', 'index.js'), // 某些模块的入口在 dist/server/index.js
                 ];
 
                 for (const mainPath of possibleMainFiles) {

@@ -46,13 +46,62 @@ export class PluginManager {
 
   private async initRemotePlugins() {
     const res = await this.app.apiClient.request({ url: 'pm:listEnabled' });
+
+    // 详细日志:API 响应结构
+    console.log('[PluginManager.initRemotePlugins] Raw API response:', {
+      hasRes: !!res,
+      resType: typeof res,
+      resKeys: res ? Object.keys(res).slice(0, 10) : [],
+      hasData: !!res?.data,
+      dataType: typeof res?.data,
+      dataKeys: res?.data ? Object.keys(res.data).slice(0, 10) : [],
+      dataIsArray: Array.isArray(res?.data),
+      hasDataData: !!res?.data?.data,
+      dataDataType: typeof res?.data?.data,
+      dataDataIsArray: Array.isArray(res?.data?.data),
+      dataDataConstructor: res?.data?.data?.constructor?.name,
+      dataDataKeys:
+        res?.data?.data && typeof res?.data?.data === 'object' ? Object.keys(res.data.data).slice(0, 10) : [],
+    });
+
     const pluginList: PluginData[] = res?.data?.data || [];
+
+    // 详细日志:提取的 pluginList
+    console.log('[PluginManager.initRemotePlugins] Extracted pluginList:', {
+      pluginListType: typeof pluginList,
+      pluginListIsArray: Array.isArray(pluginList),
+      pluginListConstructor: pluginList?.constructor?.name,
+      pluginListLength: Array.isArray(pluginList) ? pluginList.length : 'N/A',
+      pluginListKeys:
+        typeof pluginList === 'object' && !Array.isArray(pluginList) ? Object.keys(pluginList).slice(0, 10) : [],
+      firstItem: Array.isArray(pluginList) && pluginList.length > 0 ? pluginList[0] : null,
+      hasFindMethod: typeof pluginList?.find === 'function',
+    });
+
     const plugins = await getPlugins({
       requirejs: this.app.requirejs,
       pluginData: pluginList,
       devDynamicImport: this.app.devDynamicImport,
     });
+
+    // 详细日志:getPlugins 返回结果
+    console.log('[PluginManager.initRemotePlugins] getPlugins returned:', {
+      pluginsType: typeof plugins,
+      pluginsIsArray: Array.isArray(plugins),
+      pluginsLength: Array.isArray(plugins) ? plugins.length : 'N/A',
+      pluginsConstructor: plugins?.constructor?.name,
+      firstPlugin: Array.isArray(plugins) && plugins.length > 0 ? plugins[0] : null,
+    });
+
     for await (const [name, pluginClass] of plugins) {
+      console.log('[PluginManager.initRemotePlugins] Processing plugin:', {
+        name,
+        pluginClassType: typeof pluginClass,
+        aboutToCallFind: true,
+        pluginListType: typeof pluginList,
+        pluginListIsArray: Array.isArray(pluginList),
+      });
+
       const info = pluginList.find((item) => item.name === name);
       await this.add(pluginClass, info);
     }

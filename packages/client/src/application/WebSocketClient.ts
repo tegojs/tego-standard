@@ -70,7 +70,16 @@ export class WebSocketClient {
       return `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}${wsPath}${queryString}`;
     } catch (error) {
       // 使用 location.host（包含端口）而不是 hostname:port，避免端口为空时生成无效 URL
-      const host = location.port ? `${hostname}:${location.port}` : hostname;
+      let port = location.port;
+      if (!port && apiBaseURL) {
+        try {
+          const apiUrl = new URL(apiBaseURL);
+          port = apiUrl.port;
+        } catch (e) {
+          // 忽略错误
+        }
+      }
+      const host = port ? `${hostname}:${port}` : hostname;
       return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${host}${wsPath}${queryString}`;
     }
   }

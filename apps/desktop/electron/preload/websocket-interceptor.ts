@@ -32,6 +32,7 @@ export function setupWebSocketInterceptor(): void {
           window.location.hostname === 'admin');
 
       // 检查是否需要重定向（包括 ws://index.html:port 或 ws://admin:port 格式）
+      // 使用更宽松的匹配条件，确保能捕获所有包含 index.html 或 admin 的 URL
       const needsFullRedirect =
         wsUrl.startsWith('app://') ||
         wsUrl.startsWith('ws://index.html') ||
@@ -42,18 +43,23 @@ export function setupWebSocketInterceptor(): void {
         wsUrl.includes('index.html:') ||
         wsUrl.includes('admin:') ||
         /^(ws|wss):\/\/index\.html/.test(wsUrl) ||
-        /^(ws|wss):\/\/admin/.test(wsUrl);
+        /^(ws|wss):\/\/admin/.test(wsUrl) ||
+        // 额外检查：如果 URL 中包含 index.html 或 admin，且是桌面环境，也需要重定向
+        (isDesktop && (wsUrl.includes('index.html') || wsUrl.includes('admin')));
 
       if (needsFullRedirect) {
         // 使用正则表达式提取协议、路径和查询参数
         // 匹配格式：ws://index.html:port/path?query 或 ws://index.html/path?query
         // 也匹配 ws://admin:port/path?query 或 ws://admin/path?query
-        const wsMatch = wsUrl.match(/^(ws|wss):\/\/(index\.html|admin)(?::\d+)?(\/[^?]*)?(\?.*)?/);
+        // 改进的正则：明确捕获端口号（如果存在）
+        const wsMatch = wsUrl.match(/^(ws|wss):\/\/(index\.html|admin)(?::(\d+))?(\/[^?]*)?(\?.*)?/);
 
         if (wsMatch) {
           const protocol = wsMatch[1];
-          const path = wsMatch[3] || '/ws'; // 组3是路径（组2是hostname）
-          let query = wsMatch[4] || ''; // 组4是查询参数
+          // 组2是hostname (index.html 或 admin)
+          // 组3是端口号（如果存在）
+          const path = wsMatch[4] || '/ws'; // 组4是路径
+          let query = wsMatch[5] || ''; // 组5是查询参数
 
           // 修复查询参数中的 hostname（包括 admin）
           if (query) {
@@ -72,6 +78,7 @@ export function setupWebSocketInterceptor(): void {
           console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
         } else {
           // 回退到原来的逻辑：尝试从 URL 中提取路径和查询参数
+          console.log(`[Preload] WebSocket URL regex match failed, using fallback logic for: ${originalUrl}`);
           let path = '/ws';
           let query = '';
 
@@ -91,15 +98,19 @@ export function setupWebSocketInterceptor(): void {
 
           // 修复查询参数中的 hostname（包括 admin）
           if (query) {
+            const originalQuery = query;
             query = query
               .replace(/__hostname=index\.html/g, '__hostname=localhost')
               .replace(/hostname=index\.html/g, 'hostname=localhost')
               .replace(/__hostname=admin/g, '__hostname=localhost')
               .replace(/hostname=admin/g, 'hostname=localhost');
+            if (query !== originalQuery) {
+              console.log(`[Preload] Fixed query params in fallback: ${originalQuery} -> ${query}`);
+            }
           }
 
           wsUrl = `${wsBaseUrl}${path}${query}`;
-          console.log(`[Preload] WebSocket URL redirected: ${originalUrl} -> ${wsUrl}`);
+          console.log(`[Preload] WebSocket URL redirected (fallback): ${originalUrl} -> ${wsUrl}`);
         }
       } else if (isDesktop) {
         // 处理其他需要修复的 WebSocket URL

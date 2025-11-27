@@ -2,6 +2,7 @@ import { contextBridge } from 'electron';
 
 import { setupLocationFix } from './preload/location-fix';
 import { setupTextEncoderPolyfill } from './preload/polyfills';
+import { setupWebSocketClientFix } from './preload/websocket-client-fix';
 import { setupWebSocketInterceptor } from './preload/websocket-interceptor';
 import { getAppPort } from './utils/config';
 
@@ -16,7 +17,10 @@ setupTextEncoderPolyfill();
 // 修复 location
 setupLocationFix();
 
-// 拦截 WebSocket
+// 修复 WebSocketClient 的 hostname（在源头修复，避免生成错误的 URL）
+setupWebSocketClientFix();
+
+// 拦截 WebSocket（作为备用方案）
 setupWebSocketInterceptor();
 
 // 暴露受保护的方法给渲染进程

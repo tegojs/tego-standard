@@ -3,6 +3,26 @@ import { getSubAppName } from '@tego/client';
 
 import { Application } from './Application';
 
+/**
+ * WebSocketClient hostname 修复函数类型
+ * 允许外部环境（如 Electron desktop）提供自定义的 hostname 修复逻辑
+ *
+ * @param hostname - 原始 hostname
+ * @returns 修复后的 hostname，如果返回 null/undefined 或非字符串值，则使用原值
+ */
+type HostnameFixer = (hostname: string) => string | null | undefined;
+
+declare global {
+  interface Window {
+    /**
+     * WebSocketClient hostname 修复函数（可选）
+     * 由特定环境（如 Electron desktop preload 脚本）提供
+     * 用于在生成 WebSocket URL 时修复 hostname
+     */
+    __tachybase_fix_websocket_hostname__?: HostnameFixer;
+  }
+}
+
 export type WebSocketClientOptions = {
   reconnectInterval?: number;
   reconnectAttempts?: number;
@@ -52,7 +72,17 @@ export class WebSocketClient {
 
     // 优先使用 __tachybase_location_hostname__（在 Electron 环境中由 preload 脚本设置）
     // 如果不存在，则使用 window.location.hostname
-    const hostname = (window as any).__tachybase_location_hostname__ || window.location.hostname;
+    let hostname = (window as any).__tachybase_location_hostname__ || window.location.hostname;
+
+    // 扩展机制：允许外部环境（如 Electron desktop）提供 hostname 修复函数
+    // 这个机制使得 WebSocketClient 可以在不修改通用代码的情况下，适配特定环境的需求
+    const hostnameFixer = window.__tachybase_fix_websocket_hostname__;
+    if (typeof hostnameFixer === 'function') {
+      const fixedHostname = hostnameFixer(hostname);
+      if (fixedHostname && typeof fixedHostname === 'string') {
+        hostname = fixedHostname;
+      }
+    }
 
     const subApp = getSubAppName(this.app.getPublicPath());
     const queryString = subApp ? `?__appName=${subApp}` : `?__hostname=${hostname}`;

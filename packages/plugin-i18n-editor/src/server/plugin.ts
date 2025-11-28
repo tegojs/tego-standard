@@ -109,32 +109,27 @@ export class LocalizationManagementPlugin extends Plugin {
       await next();
       const { resourceName, actionName } = ctx.action;
       if (resourceName === 'app' && actionName === 'getLang') {
-        try {
-          const pluginETag = await this.resources.getETag(ctx.get('X-Locale') || 'zh-CN');
-          const responseETag = ctx.response.get('ETag') || '';
-          if (ctx.status === 304 && responseETag && responseETag.substring(37 + 2, 37 + 36 + 2) === pluginETag) {
-            ctx.status = 304;
-            return;
-          }
-          ctx.status = 200;
-          ctx.res.setHeader('ETag', `W/${responseETag.substring(0 + 2, 36 + 2)}-${pluginETag}`);
-          const custom = await this.resources.getResources(ctx.get('X-Locale') || 'zh-CN');
-          const appLang = ctx.body;
-          const resources = { ...appLang.resources };
-          Object.keys(custom).forEach((key) => {
-            const module = key.replace('resources.', '');
-            const resource = appLang.resources[module];
-            const customResource = custom[key];
-            resources[module] = resource ? deepmerge(resource, customResource) : customResource;
-          });
-          ctx.body = {
-            ...appLang,
-            resources,
-          };
-        } catch (error) {
-          // 如果数据库连接已关闭或其他错误，记录日志但不影响请求
-          this.app.logger.warn('Failed to get i18n translations:', error.message);
+        const pluginETag = await this.resources.getETag(ctx.get('X-Locale') || 'zh-CN');
+        const responseETag = ctx.response.get('ETag') || '';
+        if (ctx.status === 304 && responseETag && responseETag.substring(37 + 2, 37 + 36 + 2) === pluginETag) {
+          ctx.status = 304;
+          return;
         }
+        ctx.status = 200;
+        ctx.res.setHeader('ETag', `W/${responseETag.substring(0 + 2, 36 + 2)}-${pluginETag}`);
+        const custom = await this.resources.getResources(ctx.get('X-Locale') || 'zh-CN');
+        const appLang = ctx.body;
+        const resources = { ...appLang.resources };
+        Object.keys(custom).forEach((key) => {
+          const module = key.replace('resources.', '');
+          const resource = appLang.resources[module];
+          const customResource = custom[key];
+          resources[module] = resource ? deepmerge(resource, customResource) : customResource;
+        });
+        ctx.body = {
+          ...appLang,
+          resources,
+        };
       }
     });
   }

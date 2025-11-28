@@ -130,7 +130,6 @@ interface GetPluginsOption {
  */
 export async function getPlugins(options: GetPluginsOption): Promise<Array<[string, typeof Plugin]>> {
   const { requirejs, pluginData, devDynamicImport } = options;
-
   if (pluginData.length === 0) {
     console.warn('[getPlugins] ⚠ Early return: pluginData.length === 0');
     return [];
@@ -140,7 +139,7 @@ export async function getPlugins(options: GetPluginsOption): Promise<Array<[stri
 
   const resolveDevPlugins: Record<string, unknown> = {};
   if (devDynamicImport) {
-    for (const plugin of pluginData) {
+    for await (const plugin of pluginData) {
       const pluginModule = await devDynamicImport(plugin.packageName);
       if (pluginModule) {
         res.push([plugin.name, pluginModule.default]);

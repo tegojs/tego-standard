@@ -59,6 +59,8 @@ export class CollectionModel extends MagicAttributeModel {
       if (!collectionOptions.dumpRules) {
         lodash.set(collectionOptions, 'dumpRules.group', 'custom');
       }
+
+      collection = this.db.collection(collectionOptions);
     }
 
     if (!skipField) {

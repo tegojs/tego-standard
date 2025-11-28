@@ -32,7 +32,9 @@ export function AuthLayout(props: any) {
           dataDataValue: res?.data?.data,
         });
 
-        const result = res?.data?.data || [];
+        // api.resource().publicList() already unwraps once: returns { data: [...] }
+        // So res.data is the array directly
+        const result = res?.data || [];
         console.log('[AuthLayout] Returning from then():', {
           resultType: typeof result,
           resultIsArray: Array.isArray(result),
@@ -45,7 +47,7 @@ export function AuthLayout(props: any) {
   console.log('[AuthLayout] After useRequest:', {
     authenticatorsType: typeof authenticators,
     authenticatorsIsArray: Array.isArray(authenticators),
-    authenticatorsLength: authenticators?.length,
+    authenticatorsLength: Array.isArray(authenticators) ? authenticators.length : 'N/A',
     authenticatorsKeys: authenticators && !Array.isArray(authenticators) ? Object.keys(authenticators) : null,
     authenticatorsValue: authenticators,
   });

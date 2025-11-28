@@ -316,8 +316,8 @@ export const collection: CollectionOptions = {
         'x-component': 'Select',
         title: tval('Code type'),
         enum: [
-          { label: tval('CDN'), value: 'cdn' },
           { label: tval('Git'), value: 'git' },
+          { label: tval('CDN'), value: 'cdn' },
         ],
       },
     },

@@ -366,10 +366,12 @@ export async function moveDown(context: Context, next) {
 /**
  * 同步远程代码
  * 从远程地址获取代码并返回
+ * 注意：此函数用于手动同步，总是获取最新代码，不检查缓存
+ * 缓存机制在 script.instruction.ts 中的节点执行时使用
  */
 export async function syncRemoteCode(context: Context, next: Next) {
   const params = context.action.params.values || context.action.params || {};
-  const { codeUrl, codeType, codeAuthType, codeAuthToken, codeAuthUsername } = params;
+  const { codeUrl, codeType, codeBranch = 'main', codeAuthType, codeAuthToken, codeAuthUsername } = params;
 
   if (!codeUrl || !codeType) {
     context.throw(400, 'codeUrl and codeType are required');
@@ -384,6 +386,11 @@ export async function syncRemoteCode(context: Context, next: Next) {
       context.throw(500, 'WorkflowRemoteCodeFetcher service is required for Git type.');
       return;
     }
+
+    // 手动同步总是获取最新代码，不检查缓存
+    context.logger.info(
+      `Syncing remote code (force refresh): ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
+    );
 
     if (!remoteCodeFetcher) {
       // 如果无法获取服务且是 CDN 类型，使用简单的 HTTP 请求实现
@@ -447,11 +454,11 @@ export async function syncRemoteCode(context: Context, next: Next) {
         return;
       }
     } else {
-      // 使用 RemoteCodeFetcher 服务（使用默认分支和路径）
+      // 使用 RemoteCodeFetcher 服务（使用配置的分支和路径）
       const code = await remoteCodeFetcher.fetchCode(
         codeUrl,
         codeType,
-        undefined, // codeBranch - 使用默认值 'main'
+        codeBranch || 'main', // 使用配置的分支，默认为 'main'
         undefined, // codePath - 使用默认值
         codeAuthType,
         codeAuthToken,

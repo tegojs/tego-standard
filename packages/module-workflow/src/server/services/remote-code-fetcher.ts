@@ -352,4 +352,16 @@ export class WorkflowRemoteCodeFetcher {
       throw new Error(`Unsupported code type: ${codeType}. Must be 'cdn' or 'git'`);
     }
   }
+
+  /**
+   * 检查缓存是否有效（默认缓存 1 小时）
+   * @param cache 缓存对象，包含 content 和 timestamp
+   * @param maxAge 最大缓存时间（毫秒），默认 1 小时 (3600000ms)
+   */
+  isCacheValid(cache: { content: string; timestamp: number } | null, maxAge: number = 3600000): boolean {
+    if (!cache) {
+      return false;
+    }
+    return Date.now() - cache.timestamp < maxAge;
+  }
 }

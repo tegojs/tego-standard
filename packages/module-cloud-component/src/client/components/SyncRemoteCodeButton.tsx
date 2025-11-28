@@ -63,8 +63,8 @@ export const SyncRemoteCodeButton: React.FC = () => {
             values: {
               codeUrl: syncCodeUrl,
               codeType: syncCodeType,
-              codeBranch,
-              codePath,
+              codeBranch: syncCodeType === 'git' ? codeBranch : undefined,
+              codePath: syncCodeType === 'git' ? codePath : undefined,
               codeAuthType,
               codeAuthToken,
               codeAuthUsername,

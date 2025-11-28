@@ -53,23 +53,13 @@ export const SignInPage = () => {
   useViewport();
   const signInForms = useSignInForms();
   const authenticators = useContext(AuthenticatorsContext);
+  const signInButtons = useSignInButtons(authenticators);
 
-  console.log('[SignInPage] authenticators from context:', {
-    type: typeof authenticators,
-    isArray: Array.isArray(authenticators),
-    length: authenticators?.length,
-    value: authenticators,
-  });
-
-  // Ensure authenticators is an array
-  const authenticatorsArray = Array.isArray(authenticators) ? authenticators : [];
-  const signInButtons = useSignInButtons(authenticatorsArray);
-
-  if (!authenticatorsArray.length) {
+  if (!authenticators.length) {
     return <div style={{ color: '#ccc' }}>{t('No authentication methods available.')}</div>;
   }
 
-  const tabs = authenticatorsArray
+  const tabs = authenticators
     .map((authenticator) => {
       const C = signInForms[authenticator.authType];
       if (!C) {

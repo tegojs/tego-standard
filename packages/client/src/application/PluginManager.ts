@@ -46,53 +46,7 @@ export class PluginManager {
 
   private async initRemotePlugins() {
     const res = await this.app.apiClient.request({ url: 'pm:listEnabled' });
-
-    // 详细日志:API 响应结构
-    console.log('[PluginManager.initRemotePlugins] Raw API response:', {
-      hasRes: !!res,
-      resType: typeof res,
-      resKeys: res ? Object.keys(res).slice(0, 10) : [],
-      hasData: !!res?.data,
-      dataType: typeof res?.data,
-      dataKeys: res?.data ? Object.keys(res.data).slice(0, 10) : [],
-      dataIsArray: Array.isArray(res?.data),
-      hasDataData: !!res?.data?.data,
-      dataDataType: typeof res?.data?.data,
-      dataDataIsArray: Array.isArray(res?.data?.data),
-      dataDataConstructor: res?.data?.data?.constructor?.name,
-      dataDataKeys:
-        res?.data?.data && typeof res?.data?.data === 'object' ? Object.keys(res.data.data).slice(0, 10) : [],
-    });
-
-    // 修复:处理嵌套的 {data: {data: [...]}} 结构
-    let pluginList: PluginData[] = [];
-    if (Array.isArray(res?.data?.data)) {
-      // 标准结构: {data: {data: [...]}}
-      pluginList = res.data.data;
-      console.log('[PluginManager.initRemotePlugins] ✓ Used standard structure: res.data.data (array)');
-    } else if (res?.data?.data && typeof res.data.data === 'object' && Array.isArray((res.data.data as any).data)) {
-      // 嵌套结构: {data: {data: {data: [...]}}}
-      pluginList = (res.data.data as any).data;
-      console.log('[PluginManager.initRemotePlugins] ✓ Extracted nested .data property: res.data.data.data (array)');
-    } else if (Array.isArray(res?.data)) {
-      // 简化结构: {data: [...]}
-      pluginList = res.data;
-      console.log('[PluginManager.initRemotePlugins] ✓ Used simplified structure: res.data (array)');
-    } else {
-      console.error('[PluginManager.initRemotePlugins] ✗ Failed to extract array from API response!');
-    }
-
-    // 详细日志:提取的 pluginList
-    console.log('[PluginManager.initRemotePlugins] Extracted pluginList:', {
-      pluginListType: typeof pluginList,
-      pluginListIsArray: Array.isArray(pluginList),
-      pluginListConstructor: pluginList?.constructor?.name,
-      pluginListLength: Array.isArray(pluginList) ? pluginList.length : 'N/A',
-      pluginListKeys:
-        typeof pluginList === 'object' && !Array.isArray(pluginList) ? Object.keys(pluginList).slice(0, 10) : [],
-      firstItem: Array.isArray(pluginList) && pluginList.length > 0 ? pluginList[0] : null,
-      hasFindMethod: typeof pluginList?.find === 'function',
-    });
+    const pluginList: PluginData[] = res?.data?.data || [];
 
     const plugins = await getPlugins({
       requirejs: this.app.requirejs,
@@ -100,35 +54,12 @@ export class PluginManager {
       devDynamicImport: this.app.devDynamicImport,
     });
 
-    // 详细日志:getPlugins 返回结果
-    console.log('[PluginManager.initRemotePlugins] getPlugins returned:', {
-      pluginsType: typeof plugins,
-      pluginsIsArray: Array.isArray(plugins),
-      pluginsLength: Array.isArray(plugins) ? plugins.length : 'N/A',
-      pluginsConstructor: plugins?.constructor?.name,
-      firstPlugin: Array.isArray(plugins) && plugins.length > 0 ? plugins[0] : null,
-    });
-
     let processedCount = 0;
     for (const [name, pluginClass] of plugins) {
       processedCount++;
-      console.log(`[PluginManager.initRemotePlugins] Processing plugin ${processedCount}/${plugins.length}:`, {
-        name,
-        pluginClassType: typeof pluginClass,
-        aboutToCallFind: true,
-        pluginListType: typeof pluginList,
-        pluginListIsArray: Array.isArray(pluginList),
-      });
-
       try {
         const info = pluginList.find((item) => item.name === name);
-        console.log(`[PluginManager.initRemotePlugins] Found plugin info for ${name}:`, {
-          hasInfo: !!info,
-          infoKeys: info ? Object.keys(info) : [],
-        });
-
         await this.add(pluginClass, info);
-        console.log(`[PluginManager.initRemotePlugins] ✓ Successfully added plugin: ${name}`);
       } catch (error) {
         console.error(`[PluginManager.initRemotePlugins] ✗ Error adding plugin ${name}:`, {
           error,
@@ -139,23 +70,10 @@ export class PluginManager {
         throw error; // 重新抛出错误以保持原有行为
       }
     }
-
-    console.log(`[PluginManager.initRemotePlugins] ✓ Successfully processed all ${processedCount} plugins`);
   }
 
   async add<T = any>(plugin: typeof Plugin, opts: PluginOptions<T> = {}) {
-    console.log('[PluginManager.add] Adding plugin:', {
-      pluginName: plugin?.name,
-      optsName: opts?.name,
-      optsPackageName: opts?.packageName,
-      optsKeys: Object.keys(opts || {}),
-    });
-
     const instance = this.getInstance(plugin, opts);
-    console.log('[PluginManager.add] Plugin instance created:', {
-      instanceType: typeof instance,
-      instanceConstructor: instance?.constructor?.name,
-    });
 
     this.pluginInstances.set(plugin, instance);
 
@@ -167,9 +85,7 @@ export class PluginManager {
       this.pluginsAliases[opts.packageName] = instance;
     }
 
-    console.log('[PluginManager.add] Calling instance.afterAdd()');
     await instance.afterAdd();
-    console.log('[PluginManager.add] instance.afterAdd() completed');
   }
 
   get<T extends typeof Plugin>(PluginClass: T): InstanceType<T>;
@@ -193,49 +109,18 @@ export class PluginManager {
    * @internal
    */
   async load() {
-    console.log('[PluginManager.load] Starting plugin initialization...');
     await this.initPlugins;
-    console.log('[PluginManager.load] ✓ All plugins initialized, total:', this.pluginInstances.size);
 
-    console.log('[PluginManager.load] === Phase 1: beforeLoad ===');
     for (const plugin of this.pluginInstances.values()) {
-      const pluginName = plugin.constructor.name;
-      try {
-        console.log(`[PluginManager.load] Calling ${pluginName}.beforeLoad()`);
-        await plugin.beforeLoad();
-        console.log(`[PluginManager.load] ✓ ${pluginName}.beforeLoad() completed`);
-      } catch (error) {
-        console.error(`[PluginManager.load] ✗ Error in ${pluginName}.beforeLoad():`, error);
-        throw error;
-      }
+      await plugin.beforeLoad();
     }
 
-    console.log('[PluginManager.load] === Phase 2: load ===');
     for (const plugin of this.pluginInstances.values()) {
-      const pluginName = plugin.constructor.name;
-      try {
-        console.log(`[PluginManager.load] Calling ${pluginName}.load()`);
-        await plugin.load();
-        console.log(`[PluginManager.load] ✓ ${pluginName}.load() completed`);
-      } catch (error) {
-        console.error(`[PluginManager.load] ✗ Error in ${pluginName}.load():`, error);
-        throw error;
-      }
+      await plugin.load();
     }
 
-    console.log('[PluginManager.load] === Phase 3: afterLoad ===');
     for (const plugin of this.pluginInstances.values()) {
-      const pluginName = plugin.constructor.name;
-      try {
-        console.log(`[PluginManager.load] Calling ${pluginName}.afterLoad()`);
-        await plugin.afterLoad();
-        console.log(`[PluginManager.load] ✓ ${pluginName}.afterLoad() completed`);
-      } catch (error) {
-        console.error(`[PluginManager.load] ✗ Error in ${pluginName}.afterLoad():`, error);
-        throw error;
-      }
+      await plugin.afterLoad();
     }
-
-    console.log('[PluginManager.load] ✓ All plugin loading phases completed successfully');
   }
 }

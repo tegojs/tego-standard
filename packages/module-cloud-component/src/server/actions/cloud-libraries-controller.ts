@@ -162,6 +162,12 @@ export class CloudLibrariesController {
     }
   }
 
+  /**
+   * 同步远程代码
+   * 从远程地址获取代码并返回
+   * 注意：此函数用于手动同步，总是获取最新代码，不检查缓存
+   * 缓存机制在 cloud-libraries-service.ts 中的编译时使用
+   */
   @Action('syncRemoteCode')
   async syncRemoteCode(ctx: Context, next: Next) {
     const params = ctx.action.params.values || ctx.action.params || {};
@@ -173,12 +179,10 @@ export class CloudLibrariesController {
     }
 
     try {
-      this.logger.info('Syncing remote code', {
-        codeUrl,
-        codeType,
-        codeBranch,
-        codePath,
-      });
+      // 手动同步总是获取最新代码，不检查缓存
+      this.logger.info(
+        `Syncing remote code (force refresh): ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
+      );
 
       const code = await this.remoteCodeFetcher.fetchCode(
         codeUrl,

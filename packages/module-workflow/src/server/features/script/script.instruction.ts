@@ -21,6 +21,7 @@ export class ScriptInstruction extends Instruction {
       codeSource = 'local',
       codeType,
       codeUrl,
+      codeBranch = 'main',
       codeAuthType,
       codeAuthToken,
       codeAuthUsername,
@@ -35,16 +36,42 @@ export class ScriptInstruction extends Instruction {
         const remoteCodeFetcher = getRemoteCodeFetcher(app);
 
         if (remoteCodeFetcher) {
-          // 使用 RemoteCodeFetcher 服务（使用默认分支和路径）
-          actualCode = await remoteCodeFetcher.fetchCode(
-            codeUrl,
-            codeType,
-            undefined, // codeBranch - 使用默认值 'main'
-            undefined, // codePath - 使用默认值
-            codeAuthType,
-            codeAuthToken,
-            codeAuthUsername,
-          );
+          // 检查缓存（从 node.config.codeCache 读取）
+          const codeCache = node.config.codeCache as { content: string; timestamp: number } | undefined;
+          if (remoteCodeFetcher.isCacheValid(codeCache || null)) {
+            app.logger.info(`[Workflow Node ${node.id}] Using cached remote code`);
+            actualCode = codeCache!.content;
+          } else {
+            // 从远程获取代码（使用配置的分支和路径）
+            app.logger.info(
+              `[Workflow Node ${node.id}] Fetching remote code from ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
+            );
+            actualCode = await remoteCodeFetcher.fetchCode(
+              codeUrl,
+              codeType,
+              codeBranch || 'main', // 使用配置的分支，默认为 'main'
+              undefined, // codePath - 使用默认值
+              codeAuthType,
+              codeAuthToken,
+              codeAuthUsername,
+            );
+
+            // 更新缓存到节点配置中
+            const nodeRepo = app.db.getRepository('flow_nodes');
+            await nodeRepo.update({
+              filterByTk: node.id,
+              values: {
+                config: {
+                  ...node.config,
+                  codeCache: {
+                    content: actualCode,
+                    timestamp: Date.now(),
+                  },
+                },
+              },
+            });
+            app.logger.info(`[Workflow Node ${node.id}] Remote code fetched and cached successfully`);
+          }
         } else {
           // 使用简单的 HTTP 请求实现
           const http = require('node:http');
@@ -105,12 +132,19 @@ export class ScriptInstruction extends Instruction {
           nodeId: node.id,
           codeUrl,
         });
-        // 如果远程获取失败，使用本地代码或抛出错误
-        if (!code) {
+        // 如果远程获取失败，尝试使用缓存作为后备
+        const codeCache = node.config.codeCache as { content: string; timestamp: number } | undefined;
+        if (codeCache?.content) {
+          app.logger.warn(`[Workflow Node ${node.id}] Using cached code as fallback`);
+          actualCode = codeCache.content;
+        } else if (!code) {
+          // 如果没有缓存也没有本地代码，抛出错误
           throw new Error(`Failed to fetch remote code: ${error instanceof Error ? error.message : String(error)}`);
+        } else {
+          // 如果本地有代码，继续使用本地代码
+          app.logger.warn(`[Workflow Node ${node.id}] Remote code fetch failed, falling back to local code`);
+          actualCode = code;
         }
-        // 如果本地有代码，继续使用本地代码
-        actualCode = code;
       }
     }
     // 1. 获取数据源

@@ -135,6 +135,7 @@
   "Ignore failed request and continue workflow": "실패한 요청을 무시하고 워크플로를 계속합니다",
   "Input request data": "요청 데이터 입력",
   "Insert": "삽입",
+  "Last sync time": "마지막 동기화 시간",
   "Load failed": "로드 실패",
   "Loading": "로딩 중",
   "Loading editor...": "편집기 로드 중...",

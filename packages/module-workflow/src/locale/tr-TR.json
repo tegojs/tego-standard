@@ -52,6 +52,7 @@
   "False": "Yanlış",
   "Fields that are not assigned a value will be set to the default value, and those that do not have a default value are set to null.": "Değer atanmamış alanlar varsayılan değere, varsayılan değeri olmayan alanlar ise null olarak ayarlanır.",
   "Hours": "Saat",
+  "Last sync time": "Son senkronizasyon zamanı",
   "Load failed": "Yükleme başarısız",
   "Loading editor...": "Düzenleyici yükleniyor...",
   "Minutes": "Dakika",

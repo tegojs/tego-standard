@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Icon, useAPIClient } from '@tachybase/client';
+import { Icon, useAPIClient, useFilterByTk } from '@tachybase/client';
 import { useForm } from '@tachybase/schema';
 
 import { Button, message, Typography } from 'antd';
+import dayjs from 'dayjs';
 
 import { useTranslation } from '../locale';
 
@@ -21,6 +22,7 @@ const BUTTON_COLORS = {
 export const SyncRemoteCodeButton: React.FC = () => {
   const form = useForm();
   const apiClient = useAPIClient();
+  const filterByTk = useFilterByTk();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
@@ -30,6 +32,8 @@ export const SyncRemoteCodeButton: React.FC = () => {
   const codeType = form.values?.codeType;
   const codeUrl = form.values?.codeUrl;
   const currentCode = form.values?.code || '';
+  // 从表单值中读取最后同步时间
+  const lastSyncTime = form.values?.lastSyncTime ? new Date(form.values.lastSyncTime) : null;
 
   // 同步函数（支持静默模式）
   const syncCode = React.useCallback(
@@ -67,6 +71,7 @@ export const SyncRemoteCodeButton: React.FC = () => {
               codeAuthType,
               codeAuthToken,
               codeAuthUsername,
+              recordId: filterByTk,
             },
           },
         });
@@ -78,6 +83,7 @@ export const SyncRemoteCodeButton: React.FC = () => {
           form.setValues({
             ...form.values,
             code: remoteCode,
+            lastSyncTime: new Date().toISOString(),
           });
           // 记录同步的代码内容
           syncedCodeRef.current = remoteCode;
@@ -106,7 +112,7 @@ export const SyncRemoteCodeButton: React.FC = () => {
         }
       }
     },
-    [form, apiClient, t],
+    [form, apiClient, t, filterByTk],
   );
 
   const handleSync = async () => {
@@ -170,8 +176,12 @@ export const SyncRemoteCodeButton: React.FC = () => {
       </Button>
       <div>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {t('Sync status')}:{' '}
-          <Text type={isSynced ? 'success' : 'warning'}>{isSynced ? t('Synced') : t('Not synced')}</Text>
+          {t('Last sync time')}:{' '}
+          {lastSyncTime ? (
+            <Text type="success">{dayjs(lastSyncTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+          ) : (
+            <Text type="secondary">-</Text>
+          )}
         </Text>
       </div>
     </div>

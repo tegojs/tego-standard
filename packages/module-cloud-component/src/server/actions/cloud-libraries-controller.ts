@@ -171,7 +171,16 @@ export class CloudLibrariesController {
   @Action('syncRemoteCode')
   async syncRemoteCode(ctx: Context, next: Next) {
     const params = ctx.action.params.values || ctx.action.params || {};
-    const { codeUrl, codeType, codeBranch = 'main', codePath, codeAuthType, codeAuthToken, codeAuthUsername } = params;
+    const {
+      codeUrl,
+      codeType,
+      codeBranch = 'main',
+      codePath,
+      codeAuthType,
+      codeAuthToken,
+      codeAuthUsername,
+      recordId,
+    } = params;
 
     if (!codeUrl || !codeType) {
       this.logger.warn('syncRemoteCode: Missing required parameters', { params });
@@ -196,6 +205,25 @@ export class CloudLibrariesController {
       ctx.body = {
         code,
       };
+
+      // 如果提供了记录 ID 且同步成功，更新记录的最后同步时间
+      if (recordId && code) {
+        try {
+          const repository = ctx.db.getRepository('cloudLibraries');
+          await repository.update({
+            filterByTk: recordId,
+            values: {
+              lastSyncTime: new Date(),
+            },
+          });
+        } catch (error) {
+          // 记录错误但不影响同步结果
+          this.logger.warn('Failed to update lastSyncTime', {
+            error: error instanceof Error ? error.message : String(error),
+            recordId,
+          });
+        }
+      }
 
       await next();
     } catch (error) {

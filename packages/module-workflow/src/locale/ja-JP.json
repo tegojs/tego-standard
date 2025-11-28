@@ -52,6 +52,7 @@
   "False": "偽",
   "Fields that are not assigned a value will be set to the default value, and those that do not have a default value are set to null.": "値が割り当てられていないフィールドはデフォルト値に設定され、デフォルト値がないフィールドは null に設定されます",
   "Hours": "時",
+  "Last sync time": "最後の同期時刻",
   "Load failed": "読み込みに失敗しました",
   "Loading editor...": "エディターを読み込み中...",
   "Minutes": "分",

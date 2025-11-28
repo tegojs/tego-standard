@@ -371,7 +371,7 @@ export async function moveDown(context: Context, next) {
  */
 export async function syncRemoteCode(context: Context, next: Next) {
   const params = context.action.params.values || context.action.params || {};
-  const { codeUrl, codeType, codeBranch = 'main', codeAuthType, codeAuthToken, codeAuthUsername } = params;
+  const { codeUrl, codeType, codeBranch = 'main', codeAuthType, codeAuthToken, codeAuthUsername, nodeId } = params;
 
   if (!codeUrl || !codeType) {
     context.throw(400, 'codeUrl and codeType are required');
@@ -467,6 +467,41 @@ export async function syncRemoteCode(context: Context, next: Next) {
       context.body = {
         code,
       };
+    }
+
+    // 如果提供了节点 ID 且同步成功，更新节点的代码缓存和最后同步时间
+    if (nodeId && context.body?.code) {
+      try {
+        const repository = context.db.getRepository('flow_nodes');
+        const node = await repository.findOne({
+          filterByTk: nodeId,
+        });
+        if (node) {
+          const currentConfig = node.get('config') || {};
+          // 深拷贝配置对象，避免直接修改原始对象
+          const config = JSON.parse(JSON.stringify(currentConfig));
+          const syncTime = new Date().toISOString();
+          // 更新最后同步时间（和 codeUrl、code 等字段在同一层级）
+          config.lastSyncTime = syncTime;
+          // 同时更新代码缓存的时间戳（用于缓存验证）
+          config.codeCache = {
+            content: context.body.code,
+            timestamp: Date.now(),
+          };
+          await repository.update({
+            filterByTk: nodeId,
+            values: {
+              config,
+            },
+          });
+        }
+      } catch (error) {
+        // 记录错误但不影响同步结果
+        context.logger.warn('Failed to update lastSyncTime and codeCache', {
+          error: error instanceof Error ? error.message : String(error),
+          nodeId,
+        });
+      }
     }
 
     await next();

@@ -75,6 +75,7 @@
   "Ignore fail request and continue workflow": "Ignorer l'échec de la requête et continuer le workflow",
   "Input request data": "Entrée des données de requête",
   "Insert": "Insérer",
+  "Last sync time": "Dernière heure de synchronisation",
   "Load failed": "Échec du chargement",
   "Loading": "Chargement",
   "Loading editor...": "Chargement de l'éditeur...",

@@ -15,11 +15,12 @@ export function useProps() {
         console.log('[CustomAuthLayout.useProps] API response:', {
           res,
           resData: res?.data,
-          isArray: Array.isArray(res?.data),
+          resDataData: res?.data?.data,
+          isArray: Array.isArray(res?.data?.data),
         });
-        // api.resource().publicList() already unwraps once: returns { data: [...] }
-        // So res.data is the array directly
-        const result = res.data || [];
+        // api.resource().publicList() returns the full response body: { data: { data: [...] } }
+        // So res.data.data is the array
+        const result = res.data?.data || [];
         console.log('[CustomAuthLayout.useProps] Returning:', {
           resultType: typeof result,
           isArray: Array.isArray(result),

@@ -24,7 +24,6 @@ export const SyncRemoteCodeButton: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const syncedCodeRef = useRef<string | null>(null);
-  const autoSyncedRef = useRef(false); // 标记是否已经自动同步过
 
   const codeSource = form.values?.codeSource;
   const codeType = form.values?.codeType;
@@ -143,29 +142,6 @@ export const SyncRemoteCodeButton: React.FC = () => {
       setIsSynced(false);
     }
   }, [currentCode]);
-
-  // 弹窗打开时自动静默同步远程代码
-  useEffect(() => {
-    // 当表单值加载完成且满足同步条件时，自动执行静默同步
-    if (codeSource === 'remote' && codeType && codeUrl && !autoSyncedRef.current) {
-      // 延迟执行，确保表单数据已完全加载
-      const timer = setTimeout(() => {
-        autoSyncedRef.current = true;
-        syncCode(true);
-      }, 300);
-
-      return () => {
-        clearTimeout(timer);
-      };
-    }
-  }, [codeSource, codeType, codeUrl, syncCode]);
-
-  // 当表单重置时（如关闭弹窗后重新打开），重置自动同步标记
-  useEffect(() => {
-    if (!codeSource || codeSource !== 'remote') {
-      autoSyncedRef.current = false;
-    }
-  }, [codeSource]);
 
   // 只在远程代码且已选择代码类型时显示按钮
   if (codeSource !== 'remote' || !codeType) {

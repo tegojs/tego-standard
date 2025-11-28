@@ -1,3 +1,5 @@
+import { CodeMirror } from '@tego/client';
+
 import * as components from '.';
 import { Plugin } from '../../application/Plugin';
 import * as common from '../common';
@@ -19,6 +21,7 @@ export class AntdSchemaComponentPlugin extends Plugin {
     this.app.addComponents({
       ...(components as any),
       ...common,
+      CodeMirror,
     });
   }
 

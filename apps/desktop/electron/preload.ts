@@ -1,6 +1,7 @@
 import { contextBridge } from 'electron';
 
 import { setupLocationFix } from './preload/location-fix';
+import { setupMonacoEditorFix } from './preload/monaco-editor-fix';
 import { setupTextEncoderPolyfill } from './preload/polyfills';
 import { setupWebSocketClientFix } from './preload/websocket-client-fix';
 import { getAppPort } from './utils/config';
@@ -18,6 +19,9 @@ setupLocationFix();
 
 // 修复 WebSocketClient 的 hostname
 setupWebSocketClientFix();
+
+// 配置 Monaco Editor 使用本地资源（仅在 Electron 环境中）
+setupMonacoEditorFix();
 
 // 获取修复函数和 location hostname，以便通过 contextBridge 暴露
 const globalWindow = globalThis as any;

@@ -8,12 +8,13 @@ import { AuthenticatorsContext } from '../authenticator';
 export function AuthLayout(props: any) {
   const { data } = useSystemSettings();
   const api = useAPIClient();
-
   const { data: authenticators = [], error } = useRequest(() =>
     api
       .resource('authenticators')
       .publicList()
-      .then((res) => res?.data?.data || []),
+      .then((res) => {
+        return res?.data?.data || [];
+      }),
   );
 
   if (error) {

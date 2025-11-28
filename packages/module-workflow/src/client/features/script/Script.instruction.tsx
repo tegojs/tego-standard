@@ -269,7 +269,7 @@ export class ScriptInstruction extends Instruction {
 import { Context, MagicAttributeModel, Transactionable } from '@tego/server';
 
 export default async function (
-  _data: unknown | Array<unknown>,
+  _data: any | Array<any>,
   {
     httpContext: ctx,
     dbModel: model,

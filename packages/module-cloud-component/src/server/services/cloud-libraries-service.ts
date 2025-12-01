@@ -67,9 +67,11 @@ export class CloudLibrariesService {
             this.logger.info(`[${module}] Using cached remote code`);
             code = codeCache.content;
           } else {
-            // 从远程获取代码（使用前端指定的类型）
+            // 从远程获取代码（使用配置的分支和路径）
             const { codeAuthType, codeAuthToken, codeAuthUsername } = lib;
-            this.logger.info(`[${module}] Fetching remote code from ${codeUrl} (type: ${codeType})`);
+            this.logger.info(
+              `[${module}] Fetching remote code from ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
+            );
             this.logger.info(
               `[${module}] Auth config: type=${codeAuthType || 'none'}, hasToken=${!!codeAuthToken}, hasUsername=${!!codeAuthUsername}`,
             );
@@ -165,7 +167,7 @@ export class CloudLibrariesService {
       const dependencies = [];
 
       // 遍历 AST 节点
-      traverse(ast, {
+      traverse(ast as any, {
         CallExpression(path) {
           const callee = path.get('callee');
           if (callee.isIdentifier({ name: 'require' })) {

@@ -23,6 +23,7 @@ export default function ({ app }) {
       destroy: nodes.destroy,
       moveUp: nodes.moveUp,
       moveDown: nodes.moveDown,
+      syncRemoteCode: nodes.syncRemoteCode,
     }),
     ...make('executions', executions),
   });

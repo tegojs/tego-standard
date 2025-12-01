@@ -7,6 +7,7 @@ import { registerCustomProtocol } from './services/protocol-handler';
 import { createWindow, getMainWindow } from './services/window-manager';
 // 工具模块
 import { closeLogFile, initLogFile, log, setupErrorHandlers } from './utils/logger';
+import { initializeUserConfig } from './utils/path-finder';
 
 // 判断是否为开发环境
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -46,6 +47,15 @@ app
     log(`[Electron] Is packaged: ${app.isPackaged}`);
     log(`[Electron] NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
 
+    // 初始化用户配置目录（在 DMG 安装后首次启动时自动创建）
+    // 这会在用户目录下创建 ~/.tachybase-desktop 目录结构
+    try {
+      initializeUserConfig();
+    } catch (error: any) {
+      log(`[Electron] ⚠ Failed to initialize user config: ${error.message}`, 'error');
+      log(`[Electron] Application will continue, but some features may not work correctly.`, 'warn');
+    }
+
     // 注册自定义协议（必须在创建窗口之前）
     registerCustomProtocol(isDev);
 
@@ -64,15 +74,21 @@ app
     // 注意：无论从 Finder 还是命令行启动，都应该启动后端服务器
     if (!isDev) {
       log(`[Electron] Production mode detected, starting backend server...`);
-      // 不等待后端服务器启动，让它在后台启动
+      // 异步启动后端服务器，不阻塞主进程
+      // startBackendServer 内部会等待服务器启动完成（最多 60 秒）
+      // 如果启动失败，会抛出错误，但应用会继续运行
       // loading 页面会检查服务器状态并更新进度
-      startBackendServer().catch((error: any) => {
-        log(`[Electron] ⚠ Failed to start backend server: ${error.message}`, 'error');
-        log(`[Electron] Error stack: ${error.stack}`, 'error');
-        log(`[Electron] Application will continue, but API requests may fail.`, 'warn');
-        log(`[Electron] Please ensure the backend server is running on port 3000`, 'warn');
-        // 继续运行，loading 页面会检测到服务器未启动并显示相应状态
-      });
+      startBackendServer()
+        .then(() => {
+          log(`[Electron] ✓ Backend server started successfully`);
+        })
+        .catch((error: any) => {
+          log(`[Electron] ⚠ Failed to start backend server: ${error.message}`, 'error');
+          log(`[Electron] Error stack: ${error.stack}`, 'error');
+          log(`[Electron] Application will continue, but API requests may fail.`, 'warn');
+          log(`[Electron] Please check the logs for more details.`, 'warn');
+          // 继续运行，loading 页面会检测到服务器未启动并显示相应状态
+        });
     } else {
       log(`[Electron] Development mode detected, backend server should be started separately`);
     }

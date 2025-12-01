@@ -45,3 +45,6 @@ docs-repo-temp/
 
 # 临时文档文件
 *.temp.*
+
+# Workspace 保护脚本的备份文件
+pnpm-workspace.yaml.backup

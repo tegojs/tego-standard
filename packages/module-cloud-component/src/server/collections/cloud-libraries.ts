@@ -70,6 +70,11 @@ export default defineCollection({
       // Basic Auth 的用户名
     },
     {
+      name: 'lastSyncTime',
+      type: 'date',
+      // 最后同步时间
+    },
+    {
       name: 'data',
       type: 'json',
       jsonb: false,

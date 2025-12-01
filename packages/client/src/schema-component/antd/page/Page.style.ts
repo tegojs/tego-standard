@@ -7,7 +7,6 @@ export const useStyles = createStyles(({ css, token }) => {
         flex: none;
       }
       .ant-tabs-tab.ant-tabs-tab.ant-tabs-tab {
-        padding: 0;
         border: none;
         background-color: #ffffff;
       }

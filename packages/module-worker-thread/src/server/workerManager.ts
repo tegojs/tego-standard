@@ -93,6 +93,14 @@ export class WorkerManager {
   private async addWorker() {
     const maxMemory = process.env.WORKER_MAX_MEMORY || 4096;
     const maxOldSpaceSize = `--max-old-space-size=${maxMemory}`;
+
+    // 传递环境变量到 worker thread（包括 NODE_PATH）
+    // NODE_PATH 由 desktop 应用在 env-config.ts 中设置，用于 worker thread 解析 @tachybase/* 模块
+    const workerEnv = {
+      ...process.env,
+      NODE_OPTIONS: maxOldSpaceSize,
+    };
+
     let worker: Worker;
     if (this.isProd) {
       worker = new Worker(path.resolve(__dirname, `${WORKER_FILE}.js`), {
@@ -101,11 +109,7 @@ export class WorkerManager {
           databaseOptions: this.databaseOptions,
           initData: TachybaseGlobal.getInstance().toJSON(),
         },
-        env: {
-          ...process.env,
-
-          NODE_OPTIONS: maxOldSpaceSize,
-        },
+        env: workerEnv,
       });
     } else {
       worker = new Worker(path.resolve(__dirname, '../../worker-starter.js'), {
@@ -115,11 +119,7 @@ export class WorkerManager {
           databaseOptions: this.databaseOptions,
           initData: TachybaseGlobal.getInstance().toJSON(),
         },
-        env: {
-          ...process.env,
-
-          NODE_OPTIONS: maxOldSpaceSize,
-        },
+        env: workerEnv,
       });
     }
 

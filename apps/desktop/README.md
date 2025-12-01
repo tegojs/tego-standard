@@ -12,7 +12,7 @@ apps/desktop/
 │   └── tsconfig.json     # TypeScript 配置
 ├── build/                # 构建资源
 │   └── entitlements.mac.plist  # macOS 权限配置
-├── electron-builder.config.ts   # 打包配置
+├── electron-builder.config.js   # 打包配置
 └── package.json          # 项目配置
 ```
 
@@ -52,9 +52,10 @@ pnpm dev
 2. 等待服务器就绪后启动 Electron 窗口
 
 **端口配置**：
-- 默认端口：`31000`（避免与常用端口冲突）
+- Web 开发服务器默认端口：`31000`（可通过 `WEB_PORT` 环境变量覆盖）
+- 后端 API 服务器默认端口：`30000`（可通过 `APP_PORT` 环境变量覆盖，避免与常用端口冲突）
 - **端口检查**：启动前会自动检查端口是否被占用，如果被占用会直接失败并提示
-- 可通过环境变量自定义：`WEB_PORT=3000 pnpm desktop:dev`
+- 可通过环境变量自定义：`WEB_PORT=3000 APP_PORT=30000 pnpm desktop:dev`
 
 ### 构建和打包
 
@@ -110,7 +111,7 @@ pnpm dist:mac
 - **开发环境**: 连接到 `apps/web` 的开发服务器
 - **生产环境**: 加载 `apps/web/dist` 的构建产物
 
-### 打包配置 (`electron-builder.config.ts`)
+### 打包配置 (`electron-builder.config.js`)
 
 - **应用 ID**: `com.tachybase.app`
 - **产品名称**: `Tachybase`
@@ -118,10 +119,13 @@ pnpm dist:mac
 
 ## 📦 依赖关系
 
-桌面应用依赖于 `apps/web` 的构建产物：
+桌面应用依赖于 `apps/web` 的构建产物和后端服务器：
 
 1. **开发环境**: 通过 HTTP 连接到 Web 开发服务器
-2. **生产环境**: 打包时会将 `apps/web/dist` 复制到应用包中
+2. **生产环境**: 
+   - Web 构建产物通过 `electron-builder` 的 `extraResources` 自动从 `apps/web/dist` 包含
+   - 后端服务器通过 `pnpm install --prod` 在临时目录准备，然后由 `electron-builder` 自动包含
+   - 所有资源文件由 `electron-builder` 自动处理，无需手动复制
 
 ## 🎯 架构优势
 
@@ -155,8 +159,11 @@ tail -n 100 ~/Library/Logs/@tego/desktop/tachybase.log
 
 ## ⚠️ 注意事项
 
-1. **构建顺序**: 打包前需要先构建 Web 应用
+1. **构建顺序**: 打包前需要先构建 Web 应用（`pnpm build:web`）
 2. **路径配置**: 生产环境的路径会自动处理
 3. **图标文件**: 需要准备 `build/icon.icns` 文件
-4. **后端服务器**: 生产环境会自动启动后端服务器（需要项目根目录可访问）
+4. **后端服务器**: 
+   - 打包时会自动执行 `pnpm install --prod` 准备后端依赖
+   - 生产环境会自动启动后端服务器（从应用包内的 `Resources/backend` 启动）
+5. **自动化打包**: 使用 `electron-builder` 的 `files` 和 `extraResources` 配置自动处理所有资源文件，无需手动复制脚本
 

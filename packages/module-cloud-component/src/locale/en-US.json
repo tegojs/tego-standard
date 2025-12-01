@@ -39,6 +39,7 @@
   "Failed to sync remote code": "Failed to sync remote code",
   "Git": "Git",
   "History": "History",
+  "Last sync time": "Last sync time",
   "Load on client": "Load on client",
   "Load on server": "Load on server",
   "Local code": "Local code",

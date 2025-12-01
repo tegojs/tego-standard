@@ -1,3 +1,5 @@
+import { getAppPort } from './config';
+
 /**
  * 检查是否是 API 请求
  * 注意：/static/plugins/ 路径由插件模块处理逻辑单独处理，不在这里判断
@@ -27,7 +29,7 @@ export function needsRedirect(url: string): boolean {
 /**
  * 重定向 API 请求 URL
  */
-export function redirectApiUrl(url: string, port: string = '3000'): string {
+export function redirectApiUrl(url: string, port: string = getAppPort()): string {
   // WebSocket 请求（检测并保留 ws:// 或 wss:// 协议）
   if (url.includes('/ws') || url.startsWith('ws://') || url.startsWith('wss://')) {
     // 检测原始协议（ws 或 wss）
@@ -35,16 +37,9 @@ export function redirectApiUrl(url: string, port: string = '3000'): string {
     const protocol = isSecure ? 'wss' : 'ws';
 
     // 处理 ws://index.html/ws、wss://index.html/ws 或 app://index.html/ws
-    // 提取路径和查询参数
+    // 提取路径和查询参数（保留原始查询参数，不做修复）
     const pathMatch = url.match(/(\/ws[^?]*)(\?.*)?/);
-    let query = pathMatch?.[2] || '';
-
-    // 修复查询参数中的 hostname
-    if (query) {
-      query = query
-        .replace(/__hostname=index\.html/g, '__hostname=localhost')
-        .replace(/hostname=index\.html/g, 'hostname=localhost');
-    }
+    const query = pathMatch?.[2] || '';
 
     if (pathMatch) {
       return `${protocol}://localhost:${port}${pathMatch[1]}${query}`;
@@ -64,24 +59,15 @@ export function redirectApiUrl(url: string, port: string = '3000'): string {
       cleanUrl = '/' + cleanUrl;
     }
 
-    // 提取路径和查询参数
+    // 提取路径和查询参数（保留原始查询参数，不做修复）
     const pathMatch = cleanUrl.match(/(\/api\/[^?]*|\/adapters\/[^?]*|\/static\/[^?]*)(\?.*)?/);
-    let query = pathMatch?.[2] || '';
-
-    // 修复查询参数中的 hostname
-    if (query) {
-      query = query
-        .replace(/__hostname=index\.html/g, '__hostname=localhost')
-        .replace(/hostname=index\.html/g, 'hostname=localhost');
-    }
+    const query = pathMatch?.[2] || '';
 
     if (pathMatch) {
       return `http://localhost:${port}${pathMatch[1]}${query}`;
     } else {
       // 如果没有匹配到路径，尝试直接使用清理后的 URL
-      const redirected = `http://localhost:${port}${cleanUrl}`;
-      // 也修复查询参数
-      return redirected.replace(/__hostname=index\.html/g, '__hostname=localhost');
+      return `http://localhost:${port}${cleanUrl}`;
     }
   }
 }

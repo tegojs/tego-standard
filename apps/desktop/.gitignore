@@ -11,6 +11,7 @@ node_modules/
 app/
 main.js
 web-dist-temp/
+backend-temp/
 .build-temp/
 
 temp-dmg/
@@ -18,3 +19,13 @@ temp-dmg/
 # Build resources (binary files)
 build/node/
 
+# Compiled scripts (from scripts/build)
+app/scripts/
+
+# Compiled TypeScript files in scripts/build
+# 编译后的文件输出到 lib/ 目录
+scripts/build/lib/
+
+# Compiled JavaScript files in electron/
+electron/preload.js
+electron/preload.js.map

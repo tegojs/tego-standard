@@ -389,7 +389,7 @@ function WorkflowSelectComponent({
   return (
     <DataSourceProvider dataSource="main">
       <RemoteSelect
-        manual={true}
+        manual={false}
         placeholder={t('Select workflow', { ns: 'workflow' })}
         fieldNames={{
           label: 'title',

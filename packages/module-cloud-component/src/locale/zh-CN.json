@@ -39,6 +39,7 @@
   "Failed to sync remote code": "同步远程代码失败",
   "Git": "Git",
   "History": "历史",
+  "Last sync time": "最后同步时间",
   "Load on client": "在客户端加载",
   "Load on server": "在服务端加载",
   "Local code": "本地代码",

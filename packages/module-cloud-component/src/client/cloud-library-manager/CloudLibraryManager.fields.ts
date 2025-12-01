@@ -127,8 +127,8 @@ export default () => {
     'x-component-props': {},
     default: 'git',
     enum: [
-      { label: '{{t("CDN")}}', value: 'cdn' },
       { label: '{{t("Git")}}', value: 'git' },
+      { label: '{{t("CDN")}}', value: 'cdn' },
     ],
     'x-reactions': [
       {

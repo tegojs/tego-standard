@@ -125,8 +125,8 @@ export class ScriptInstruction extends Instruction {
       'x-component': 'Radio.Group',
       default: 'git',
       enum: [
-        { label: tval('CDN'), value: 'cdn' },
         { label: tval('Git'), value: 'git' },
+        { label: tval('CDN'), value: 'cdn' },
       ],
       'x-reactions': [
         {
@@ -158,6 +158,26 @@ export class ScriptInstruction extends Instruction {
             schema: {
               'x-validator':
                 '{{$deps[0] === "remote" && $deps[1] === "git" ? [{ required: true, message: tval("Code URL is required for Git") }] : []}}',
+            },
+          },
+        },
+      ],
+    },
+    codeBranch: {
+      type: 'string',
+      title: tval('Code branch'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Input',
+      default: 'main',
+      'x-component-props': {
+        placeholder: tval('Code branch placeholder'),
+      },
+      'x-reactions': [
+        {
+          dependencies: ['codeSource', 'codeType'],
+          fulfill: {
+            state: {
+              visible: '{{$deps[0] === "remote" && $deps[1] === "git"}}',
             },
           },
         },
@@ -249,7 +269,7 @@ export class ScriptInstruction extends Instruction {
 import { Context, MagicAttributeModel, Transactionable } from '@tego/server';
 
 export default async function (
-  _data,
+  _data: any | Array<any>,
   {
     httpContext: ctx,
     dbModel: model,

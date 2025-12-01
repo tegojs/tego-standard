@@ -162,10 +162,25 @@ export class CloudLibrariesController {
     }
   }
 
+  /**
+   * 同步远程代码
+   * 从远程地址获取代码并返回
+   * 注意：此函数用于手动同步，总是获取最新代码，不检查缓存
+   * 缓存机制在 cloud-libraries-service.ts 中的编译时使用
+   */
   @Action('syncRemoteCode')
   async syncRemoteCode(ctx: Context, next: Next) {
     const params = ctx.action.params.values || ctx.action.params || {};
-    const { codeUrl, codeType, codeBranch = 'main', codePath, codeAuthType, codeAuthToken, codeAuthUsername } = params;
+    const {
+      codeUrl,
+      codeType,
+      codeBranch = 'main',
+      codePath,
+      codeAuthType,
+      codeAuthToken,
+      codeAuthUsername,
+      recordId,
+    } = params;
 
     if (!codeUrl || !codeType) {
       this.logger.warn('syncRemoteCode: Missing required parameters', { params });
@@ -173,12 +188,10 @@ export class CloudLibrariesController {
     }
 
     try {
-      this.logger.info('Syncing remote code', {
-        codeUrl,
-        codeType,
-        codeBranch,
-        codePath,
-      });
+      // 手动同步总是获取最新代码，不检查缓存
+      this.logger.info(
+        `Syncing remote code (force refresh): ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
+      );
 
       const code = await this.remoteCodeFetcher.fetchCode(
         codeUrl,
@@ -192,6 +205,25 @@ export class CloudLibrariesController {
       ctx.body = {
         code,
       };
+
+      // 如果提供了记录 ID 且同步成功，更新记录的最后同步时间
+      if (recordId && code) {
+        try {
+          const repository = ctx.db.getRepository('cloudLibraries');
+          await repository.update({
+            filterByTk: recordId,
+            values: {
+              lastSyncTime: new Date(),
+            },
+          });
+        } catch (error) {
+          // 记录错误但不影响同步结果
+          this.logger.warn('Failed to update lastSyncTime', {
+            error: error instanceof Error ? error.message : String(error),
+            recordId,
+          });
+        }
+      }
 
       await next();
     } catch (error) {

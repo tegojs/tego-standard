@@ -80,7 +80,82 @@ function verifyNodeVersion(nodePath, logPrefix) {
   }
 }
 
+/**
+ * 获取 node 可执行文件的路径并确保 PATH 环境变量包含它
+ * @returns {string} 更新后的 PATH 环境变量
+ */
+function ensureNodeInPath() {
+  try {
+    // 获取当前 node 可执行文件的路径
+    const nodePath = process.execPath;
+    const nodeDir = path.dirname(nodePath);
+
+    // 获取当前的 PATH
+    const currentPath = process.env.PATH || '';
+
+    // 如果 node 目录不在 PATH 中，则添加它
+    if (!currentPath.includes(nodeDir)) {
+      const separator = process.platform === 'win32' ? ';' : ':';
+      return `${nodeDir}${separator}${currentPath}`;
+    }
+
+    return currentPath;
+  } catch (err) {
+    // 如果获取失败，返回原始 PATH
+    return process.env.PATH || '';
+  }
+}
+
+/**
+ * 查找 pnpm 可执行文件路径
+ * @returns {string} pnpm 命令（如果找到）或 'pnpm'（回退）
+ */
+function findPnpmCommand() {
+  try {
+    // 方法1: 尝试从 PATH 查找
+    const pnpmPath = execSync('command -v pnpm', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+      shell: '/bin/bash',
+    }).trim();
+    if (pnpmPath && fs.existsSync(pnpmPath)) {
+      return pnpmPath;
+    }
+  } catch (e) {
+    // 继续尝试其他方法
+  }
+
+  // 方法2: 尝试使用 node 执行 pnpm（通过 npx 或 corepack）
+  try {
+    const nodePath = process.execPath;
+    // 尝试通过 corepack 执行
+    const corepackPath = path.join(path.dirname(nodePath), 'corepack');
+    if (fs.existsSync(corepackPath)) {
+      return `${corepackPath} pnpm`;
+    }
+  } catch (e) {
+    // 忽略错误
+  }
+
+  // 方法3: 尝试通过 npx
+  try {
+    const nodePath = process.execPath;
+    const npxPath = path.join(path.dirname(nodePath), 'npx');
+    if (fs.existsSync(npxPath)) {
+      return `${npxPath} pnpm`;
+    }
+  } catch (e) {
+    // 忽略错误
+  }
+
+  // 回退：返回 'pnpm'，让系统尝试查找
+  return 'pnpm';
+}
+
 module.exports = {
   findNodeExecutable,
   verifyNodeVersion,
+  ensureNodeInPath,
+  findPnpmCommand,
 };

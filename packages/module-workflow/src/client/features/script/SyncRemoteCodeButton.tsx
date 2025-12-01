@@ -3,8 +3,10 @@ import { Icon, useAPIClient } from '@tachybase/client';
 import { useForm } from '@tachybase/schema';
 
 import { Button, message, Typography } from 'antd';
+import dayjs from 'dayjs';
 
 import { lang } from '../../locale';
+import { useContextNode } from '../../nodes/default-node/Node.context';
 
 const { Text } = Typography;
 
@@ -21,15 +23,17 @@ const BUTTON_COLORS = {
 export const SyncRemoteCodeButton: React.FC = () => {
   const form = useForm();
   const apiClient = useAPIClient();
+  const node = useContextNode();
   const [loading, setLoading] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const syncedCodeRef = useRef<string | null>(null);
-  const autoSyncedRef = useRef(false); // 标记是否已经自动同步过
 
   const codeSource = form.values?.codeSource;
   const codeType = form.values?.codeType;
   const codeUrl = form.values?.codeUrl;
   const currentCode = form.values?.code || '';
+  // 从节点配置中读取最后同步时间
+  const lastSyncTime = form.values?.lastSyncTime ? new Date(form.values.lastSyncTime) : null;
 
   // 同步函数（支持静默模式）
   const syncCode = React.useCallback(
@@ -39,6 +43,7 @@ export const SyncRemoteCodeButton: React.FC = () => {
         codeSource: syncCodeSource,
         codeType: syncCodeType,
         codeUrl: syncCodeUrl,
+        codeBranch = 'main',
         codeAuthType = 'token',
         codeAuthToken,
         codeAuthUsername,
@@ -60,9 +65,11 @@ export const SyncRemoteCodeButton: React.FC = () => {
             values: {
               codeUrl: syncCodeUrl,
               codeType: syncCodeType,
+              codeBranch: syncCodeType === 'git' ? codeBranch : undefined,
               codeAuthType,
               codeAuthToken,
               codeAuthUsername,
+              nodeId: node?.id,
             },
           },
         });
@@ -74,6 +81,7 @@ export const SyncRemoteCodeButton: React.FC = () => {
           form.setValues({
             ...form.values,
             code: remoteCode,
+            lastSyncTime: new Date().toISOString(),
           });
           // 记录同步的代码内容
           syncedCodeRef.current = remoteCode;
@@ -102,7 +110,7 @@ export const SyncRemoteCodeButton: React.FC = () => {
         }
       }
     },
-    [form, apiClient],
+    [form, apiClient, node?.id],
   );
 
   const handleSync = async () => {
@@ -142,29 +150,6 @@ export const SyncRemoteCodeButton: React.FC = () => {
     }
   }, [currentCode]);
 
-  // 弹窗打开时自动静默同步远程代码
-  useEffect(() => {
-    // 当表单值加载完成且满足同步条件时，自动执行静默同步
-    if (codeSource === 'remote' && codeType && codeUrl && !autoSyncedRef.current) {
-      // 延迟执行，确保表单数据已完全加载
-      const timer = setTimeout(() => {
-        autoSyncedRef.current = true;
-        syncCode(true);
-      }, 300);
-
-      return () => {
-        clearTimeout(timer);
-      };
-    }
-  }, [codeSource, codeType, codeUrl, syncCode]);
-
-  // 当表单重置时（如关闭弹窗后重新打开），重置自动同步标记
-  useEffect(() => {
-    if (!codeSource || codeSource !== 'remote') {
-      autoSyncedRef.current = false;
-    }
-  }, [codeSource]);
-
   // 只在远程代码且已选择代码类型时显示按钮
   if (codeSource !== 'remote' || !codeType) {
     return null;
@@ -195,8 +180,12 @@ export const SyncRemoteCodeButton: React.FC = () => {
       </Button>
       <div>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {lang('Sync status')}:{' '}
-          <Text type={isSynced ? 'success' : 'warning'}>{isSynced ? lang('Synced') : lang('Not synced')}</Text>
+          {lang('Last sync time')}:{' '}
+          {lastSyncTime ? (
+            <Text type="success">{dayjs(lastSyncTime).format('YYYY-MM-DD HH:mm:ss')}</Text>
+          ) : (
+            <Text type="secondary">-</Text>
+          )}
         </Text>
       </div>
     </div>

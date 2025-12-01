@@ -26,3 +26,6 @@ app/scripts/
 # 编译后的文件输出到 lib/ 目录
 scripts/build/lib/
 
+# Compiled JavaScript files in electron/
+electron/preload.js
+electron/preload.js.map

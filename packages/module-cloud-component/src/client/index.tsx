@@ -11,6 +11,9 @@ import * as recharts from 'recharts';
 
 import { CloudLibraryManager } from './cloud-library-manager/CloudLibraryManager';
 import { ProviderCloudComponent } from './CloudComponent.provider';
+import { CompileButton } from './components/CompileButton';
+import { GitUrlPreview } from './components/GitUrlPreview';
+import { SyncRemoteCodeButton } from './components/SyncRemoteCodeButton';
 import { useTranslation } from './locale';
 import { CloudComponentBlock } from './settings/CloudComponentBlock';
 import { cloudComponentBlockInitializerItem } from './settings/InitializerItem';
@@ -40,6 +43,9 @@ export class ModuleCloudComponentClient extends Plugin {
     this.app.use(ProviderCloudComponent);
     this.app.addComponents({
       CloudComponentBlock,
+      GitUrlPreview,
+      SyncRemoteCodeButton,
+      CompileButton,
     });
     this.app.schemaSettingsManager.add(cloudComponentBlockSettings);
     // 添加到页面的 Add block 里
@@ -172,10 +178,13 @@ export class ModuleCloudComponentClient extends Plugin {
       console.warn('[CloudComponent] API response data is not an array:', libraries);
       libraries = [];
     }
+    const blobUrls: string[] = [];
 
+    // 配置模块路径
     for (const library of libraries) {
       const blob = new Blob([library.client], { type: 'application/javascript' });
       const url = URL.createObjectURL(blob);
+      blobUrls.push(url);
       this.app.requirejs.require.config({
         paths: {
           [library.module]: url,
@@ -183,19 +192,50 @@ export class ModuleCloudComponentClient extends Plugin {
       });
     }
 
+    const waitlist: Promise<string | null>[] = [];
+
     // 加载客户端插件
-    const waitlist = [];
     for (const library of libraries) {
       if (!library.clientPlugin) {
         continue;
       }
 
-      new Promise((resolve) => {
-        this.app.requirejs.require([library.module], (m) => {
-          this.app.pm.add(m[library.clientPlugin]);
-          resolve(library.clientPlugin);
-        });
-      });
+      waitlist.push(
+        new Promise((resolve, reject) => {
+          this.app.requirejs.require(
+            [library.module],
+            (m) => {
+              try {
+                if (m?.[library.clientPlugin]) {
+                  this.app.pm.add(m[library.clientPlugin]);
+                  resolve(library.clientPlugin);
+                } else {
+                  const error = new Error(
+                    `[CloudComponent] clientPlugin ${library.clientPlugin} not found in ${library.module}`,
+                  );
+                  if (process.env.NODE_ENV === 'development') {
+                    console.warn(error.message);
+                  }
+                  resolve(null); // 不阻塞其他插件加载
+                }
+              } catch (error) {
+                const errorMsg = `[CloudComponent] Failed to add clientPlugin ${library.clientPlugin} from ${library.module}`;
+                if (process.env.NODE_ENV === 'development') {
+                  console.error(errorMsg, error);
+                }
+                resolve(null); // 不阻塞其他插件加载
+              }
+            },
+            (err) => {
+              const errorMsg = `[CloudComponent] Failed to load module ${library.module} for clientPlugin ${library.clientPlugin}`;
+              if (process.env.NODE_ENV === 'development') {
+                console.error(errorMsg, err);
+              }
+              resolve(null); // 不阻塞其他插件加载
+            },
+          );
+        }),
+      );
     }
 
     const CloudComponentVoid = () => null;
@@ -207,21 +247,53 @@ export class ModuleCloudComponentClient extends Plugin {
       }
       waitlist.push(
         new Promise((resolve) => {
-          this.app.requirejs.require([library.module], (m) => {
-            if (m?.[library.component]) {
-              CloudComponentVoid[library.component] = m[library.component];
-              CloudComponentVoid[library.component][CloudComponentNameKey] = library.name;
-              resolve(library.component);
-            } else {
-              console.warn(`[CloudComponent] component ${library.component} not found in ${library.module}`);
-              resolve('empty component');
-            }
-          });
+          this.app.requirejs.require(
+            [library.module],
+            (m) => {
+              try {
+                if (m?.[library.component]) {
+                  CloudComponentVoid[library.component] = m[library.component];
+                  CloudComponentVoid[library.component][CloudComponentNameKey] = library.name;
+                  resolve(library.component);
+                } else {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.warn(`[CloudComponent] component ${library.component} not found in ${library.module}`);
+                  }
+                  resolve(null); // 不阻塞其他组件加载
+                }
+              } catch (error) {
+                const errorMsg = `[CloudComponent] Failed to register component ${library.component} from ${library.module}`;
+                if (process.env.NODE_ENV === 'development') {
+                  console.error(errorMsg, error);
+                }
+                resolve(null); // 不阻塞其他组件加载
+              }
+            },
+            (err) => {
+              const errorMsg = `[CloudComponent] Failed to load module ${library.module} for component ${library.component}`;
+              if (process.env.NODE_ENV === 'development') {
+                console.error(errorMsg, err);
+              }
+              resolve(null); // 不阻塞其他组件加载
+            },
+          );
         }),
       );
     }
-    await Promise.all(waitlist);
-    this.app.addComponents({ CloudComponentVoid });
+
+    try {
+      await Promise.all(waitlist);
+      this.app.addComponents({ CloudComponentVoid });
+    } catch (error) {
+      // 即使部分加载失败，也继续执行
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[CloudComponent] Some libraries failed to load:', error);
+      }
+      this.app.addComponents({ CloudComponentVoid });
+    }
+
+    // 注意：Blob URLs 在插件生命周期内需要保持，所以不在这里清理
+    // 如果需要清理，应该在插件卸载时处理
   }
 }
 

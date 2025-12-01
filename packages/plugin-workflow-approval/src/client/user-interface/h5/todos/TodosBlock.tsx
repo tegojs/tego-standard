@@ -44,7 +44,7 @@ export const TodosBlock = observer((props) => {
             onChange={(value) => {
               const filter = { ...contextFilter };
               if (!value) {
-                filter.inputFilter = value;
+                filter.inputFilter = '';
                 setContextFilter(filter);
               }
               setChangeInputValue(value);

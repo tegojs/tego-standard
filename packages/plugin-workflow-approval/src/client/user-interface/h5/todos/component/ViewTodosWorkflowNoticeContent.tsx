@@ -79,7 +79,7 @@ export const ViewTodosWorkflowNoticeContent = observer((props) => {
       <div className="approvalContext">
         {noticeData && schemaId ? (
           <ProviderContextWorkflow value={flowContext}>
-            <CollectionProvider name={noticeData['collectionName']}>
+            <CollectionProvider name={noticeData?.['collectionName'] || ''}>
               <ContextApprovalExecution.Provider value={noticeData}>
                 <SchemaComponent
                   components={{
@@ -91,6 +91,7 @@ export const ViewTodosWorkflowNoticeContent = observer((props) => {
                   scope={{
                     usePropsNoticeDetail,
                     useDetailsBlockProps: useWorkflowNoticeFormBlockProps,
+                    useFormBlockProps: usePropsNoticeDetail,
                   }}
                   schema={{
                     type: 'void',

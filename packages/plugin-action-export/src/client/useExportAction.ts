@@ -4,6 +4,7 @@ import {
   useCollection_deprecated,
   useCollectionManager_deprecated,
   useCompile,
+  useTableBlockContext,
 } from '@tachybase/client';
 import { useFieldSchema } from '@tachybase/schema';
 
@@ -14,12 +15,14 @@ import { useTranslation } from 'react-i18next';
 
 export const useExportAction = () => {
   const { service, resource } = useBlockRequestContext();
+  const tableCtx = useTableBlockContext();
   const apiClient = useAPIClient();
   const actionSchema = useFieldSchema();
   const compile = useCompile();
   const { getCollectionJoinField } = useCollectionManager_deprecated();
   const { name, title, getField } = useCollection_deprecated();
   const { t } = useTranslation();
+  const filter = { ...service.params[0]?.filter, ...tableCtx.params?.filter, ...tableCtx.service.params[0]?.filter };
   return {
     async onClick() {
       const { exportSettings } = lodash.cloneDeep(actionSchema?.['x-action-settings'] ?? {});
@@ -40,12 +43,13 @@ export const useExportAction = () => {
         }
       });
       const hide = message.loading(t('Exporting Data...'), 0); // 显示加载状态
+
       try {
         const response = await resource.export(
           {
             title: compile(title),
             appends: service.params[0]?.appends?.join(),
-            filter: JSON.stringify(service.params[0]?.filter),
+            filter: JSON.stringify(filter),
             sort: service.params[0]?.sort,
           },
           {

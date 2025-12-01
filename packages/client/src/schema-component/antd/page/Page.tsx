@@ -247,7 +247,7 @@ const TabItem = (props) => {
     >
       <DragHandlePageTab>
         {schema['x-icon'] && <Icon style={{ marginRight: 8 }} type={schema['x-icon']} />}
-        <span>{schema.title || t('Unnamed')}</span>
+        <span style={{ padding: '6px 16px' }}>{schema.title || t('Unnamed')}</span>
         <div className="tab-designer-wrapper">
           <PageTabDesigner schema={schema} />
         </div>

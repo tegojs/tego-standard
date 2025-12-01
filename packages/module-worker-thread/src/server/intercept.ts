@@ -1,6 +1,5 @@
 import { Module } from 'node:module';
 import { isMainThread, workerData } from 'node:worker_threads';
-import TachybaseGlobal from '@tachybase/globals';
 import { defineLoader } from '@tachybase/loader';
 
 import dayjs from 'dayjs';
@@ -28,6 +27,13 @@ declare module 'node:module' {
 
 // 只有引擎运行模式下非主线程才加载
 if (!isMainThread) {
+  // 在 worker thread 中，使用动态 require 而不是静态 import
+  // 因为静态 import 在模块加载时执行，此时 NODE_PATH 可能还没生效
+  // 动态 require 在运行时执行，此时 NODE_PATH 已经通过环境变量传递过来了
+  // 注意：这里只使用标准的 NODE_PATH 机制，不依赖任何特定应用的环境变量
+  const globalsModule = require('@tachybase/globals');
+  const TachybaseGlobal = globalsModule.default || globalsModule;
+
   const globals = TachybaseGlobal.getInstance(workerData.initData);
   const lookingPaths = globals.get('WORKER_PATHS');
   const whitelists = new Set<string>(globals.get('WORKER_MODULES'));

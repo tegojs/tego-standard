@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Checkbox, DatePicker, useAPIClient, useCompile, useNoticeSub } from '@tachybase/client';
+import { FormItem } from '@tego/client';
 
 import { InboxOutlined, LoadingOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
-import { FormItem } from '@tego/client';
 import {
   Alert,
   App,
@@ -62,7 +62,7 @@ function useUploadProps(props: UploadProps): any {
 
       return {
         abort() {
-          console.log('upload progress is aborted.');
+          // Upload aborted
         },
       };
     },
@@ -377,7 +377,7 @@ const RestoreUpload = (props: any) => {
       }
     },
     onDrop(e) {
-      console.log('Dropped files', e.dataTransfer.files);
+      // Files dropped
     },
   };
 

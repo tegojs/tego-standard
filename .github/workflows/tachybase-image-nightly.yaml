@@ -3,19 +3,19 @@ name: Tegojs Image Nightly
 on:
   workflow_dispatch:
     inputs:
-        docker_tag:
-          description: >
-            Docker tag (optional, auto-calculated if empty).
-            🔹 Production tags (v1.0.0) remain unique.
-            🔹 Test tags get timestamp+commit SHA appended.
-            🔹 Rules:
-              🔸 1) From tag: use tag name (production tags stay unique);
-              🔸 2) From main: use "main-date-commit" (e.g., main-20251112-abc1234) + latest;
-              🔸 3) From other branches: use "date-branch-timestamp-commit" (e.g., 20251112-feat-some-143022-abc1234) + latest
-          required: false
-          default: ''
+      docker_tag:
+        description: >
+          Docker tag (optional, auto-calculated if empty).
+          🔹 Production tags (v1.0.0) remain unique.
+          🔹 Test tags get timestamp+commit SHA appended.
+          🔹 Rules:
+            🔸 1) From tag: use tag name (production tags stay unique);
+            🔸 2) From main: use "main-date-commit" (e.g., main-20251112-abc1234) + latest;
+            🔸 3) From other branches: use "date-timestamp-commit-branch" (e.g., 20251112-143022-abc1234-feat-some) + latest
+        required: false
+        default: ''
 
-run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || (github.ref_type == 'tag' && github.ref_name) || (github.ref_name == 'main') || github.ref_name }}"
+run-name: "Tegojs Image Nightly - Tag: ${{ github.event.inputs.docker_tag || (github.ref_type == 'tag' && github.ref_name) ||'auto-calculated-tag' }}"
 
 jobs:
   docker:
@@ -72,12 +72,12 @@ jobs:
             echo "tag=main-${DATE}-${SHORT_SHA}" >> $GITHUB_OUTPUT
             echo "should_comment_pr=false" >> $GITHUB_OUTPUT
           else
-            # 其他分支，使用当前日期+分支名称+时间戳+commit SHA（保持唯一）
+            # 其他分支，使用当前日期+时间戳+commit SHA+分支名称（保持唯一）
             DATE=$(date +%Y%m%d)
             BRANCH_NAME="${{ github.ref_name }}"
             # 替换分支名称中的 / 为 -，因为 Docker tag 不支持 /
             BRANCH_NAME_SANITIZED=$(echo "$BRANCH_NAME" | tr '/' '-')
-            echo "tag=${DATE}-${BRANCH_NAME_SANITIZED}-${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "tag=${DATE}-${TIMESTAMP}-${SHORT_SHA}-${BRANCH_NAME_SANITIZED}" >> $GITHUB_OUTPUT
             echo "should_comment_pr=true" >> $GITHUB_OUTPUT
           fi
       - name: Update workflow run name
@@ -88,8 +88,12 @@ jobs:
           RUN_ID="${{ github.run_id }}"
           TOKEN="${{ secrets.GITHUB_TOKEN }}"
 
-          # Output docker_tag as notice
+          # Output docker_tag as notice and code block for copy button
           echo "::notice title=Docker Tag::Docker tag: ${DOCKER_TAG}"
+          echo ""
+          echo '```'
+          echo "${DOCKER_TAG}"
+          echo '```'
 
           # Try to update workflow run name
           RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
@@ -181,6 +185,11 @@ jobs:
           **Pull command:**
           \`\`\`bash
           docker pull ${IMAGE_URL}
+          \`\`\`
+
+           **Docker Tag:**
+          \`\`\`bash
+          ${DOCKER_TAG}
           \`\`\`
           EOF
           )

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-action-share",
   "displayName": "Action: Share Externally",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Share pages with external users.",
   "keywords": [
     "Users & permissions"
@@ -13,17 +13,17 @@
     "@ant-design/icons": "^5.6.1",
     "@emotion/css": "^11.13.5",
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
     "antd-style": "3.7.1",
-    "dayjs": "1.11.13",
+    "dayjs": "catalog:",
     "qrcode": "^1.5.4",
     "react-i18next": "16.2.1",
-    "react-router": "6.28.1",
-    "react-router-dom": "6.28.1"
+    "react-router": "catalog:",
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "与外部用户分享页面。",
   "displayName.zh-CN": "动作：对外分享"

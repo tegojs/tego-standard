@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-evaluator-mathjs",
   "displayName": "MathJS Evaluator",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "MathJS evaluator, providing mathematical expression evaluation",
   "keywords": [
     "MathJS"
@@ -9,8 +9,8 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "mathjs": "^10.6.4"
   },
   "description.zh-CN": "MathJS 表达式评估器, 提供数学表达式评估功能",

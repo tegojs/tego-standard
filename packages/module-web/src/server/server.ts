@@ -5,6 +5,7 @@ import { Application, Context, Plugin } from '@tego/server';
 import { getAntdLocale } from './antd';
 import { getCronLocale } from './cron';
 import { getCronstrueLocale } from './cronstrue';
+import { registerPluginStaticFiles } from './plugin-static-files';
 
 async function getLang(ctx: Context) {
   const SystemSetting = ctx.db.getRepository('systemSettings');
@@ -117,6 +118,9 @@ export class ModuleWeb extends Plugin {
     });
     const dialect = this.app.db.sequelize.getDialect();
     const appVersion = readAppVersionFromPackageJson();
+
+    // 注册插件静态文件服务
+    registerPluginStaticFiles(this);
 
     this.app.resourcer.define({
       name: 'app',

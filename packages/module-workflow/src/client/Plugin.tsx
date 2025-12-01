@@ -1,7 +1,7 @@
 import { Plugin } from '@tachybase/client';
-
 import { Registry } from '@tego/client';
 
+import { CollectionTreeSelect } from './components/ColletionTreeSelect';
 import { WorkflowLink } from './components/WorkflowLink';
 import { ExecutionPage } from './ExecutionPage';
 import { PluginAggregate } from './features/aggregate';
@@ -29,6 +29,7 @@ import { Instruction } from './nodes/default-node/interface';
 import DestroyInstruction from './nodes/destroy';
 import EndInstruction from './nodes/end';
 import QueryInstruction from './nodes/query';
+import SelectInstruction from './nodes/select';
 import UpdateInstruction from './nodes/update';
 import UpdateOrCreateInstruction from './nodes/updateOrCreate';
 import { customizeSubmitToWorkflowActionSettings } from './settings/customizeSubmitToWorkflowActionSettings';
@@ -138,6 +139,7 @@ export class PluginWorkflow extends Plugin {
     this.registerInstruction('end', EndInstruction);
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
     this.registerInstruction('query', QueryInstruction);
+    this.registerInstruction('select', SelectInstruction);
     this.registerInstruction('create', CreateInstruction);
     this.registerInstruction('update', UpdateInstruction);
     this.registerInstruction('destroy', DestroyInstruction);
@@ -148,6 +150,7 @@ export class PluginWorkflow extends Plugin {
       WorkflowLink,
       WorkflowPage,
       ExecutionPage,
+      CollectionTreeSelect,
     });
   }
 }

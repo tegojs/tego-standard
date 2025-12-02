@@ -104,8 +104,10 @@ export class DatabaseService {
     let updatedAt: Date | null = null;
 
     if (rowCount > 0) {
-      const hasCreatedAt = collection.hasField('createdAt');
-      const hasUpdatedAt = collection.hasField('updatedAt');
+      // 检查字段是否存在：优先检查 collection.hasField，其次检查 model.rawAttributes
+      const rawAttributes = collection.model.rawAttributes || {};
+      const hasCreatedAt = collection.hasField('createdAt') || 'createdAt' in rawAttributes;
+      const hasUpdatedAt = collection.hasField('updatedAt') || 'updatedAt' in rawAttributes;
 
       if (hasCreatedAt) {
         const createdAtResults = (await this.app.db.sequelize.query(

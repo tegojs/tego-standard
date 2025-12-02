@@ -72,10 +72,15 @@ export default {
       const service = new DatabaseService(ctx.app);
       const tableInfo = await service.getTableInfo(filterByTk);
 
+      // 检查字段是否存在：优先检查 collection.hasField，其次检查 model.rawAttributes
+      const rawAttributes = collection.model.rawAttributes || {};
+      const hasCreatedAt = collection.hasField('createdAt') || 'createdAt' in rawAttributes;
+      const hasUpdatedAt = collection.hasField('updatedAt') || 'updatedAt' in rawAttributes;
+
       ctx.body = {
         ...tableInfo,
-        hasCreatedAt: collection.hasField('createdAt'),
-        hasUpdatedAt: collection.hasField('updatedAt'),
+        hasCreatedAt,
+        hasUpdatedAt,
       };
 
       await next();

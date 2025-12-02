@@ -22,6 +22,10 @@ export interface BackupFilter {
     $gte?: string;
     $lte?: string;
   };
+  id?: {
+    $gte?: number;
+    $lte?: number;
+  };
 }
 
 export interface BackupOptions {
@@ -58,9 +62,28 @@ export class FilteredBackupService {
   /**
    * 生成备份文件名
    */
-  static generateFileName(collectionName: string): string {
+  static generateFileName(collectionName: string, filter?: BackupFilter): string {
     const random = Math.floor(1000 + Math.random() * 9000);
-    return `db-clean_${collectionName}_${dayjs().format('YYYYMMDD_HHmmss')}_${random}.tbdump`;
+    const timestamp = dayjs().format('YYYYMMDD_HHmmss');
+
+    // 构建筛选范围后缀
+    let rangeSuffix = '';
+
+    if (filter?.createdAt?.$gte || filter?.createdAt?.$lte) {
+      const from = filter.createdAt.$gte ? dayjs(filter.createdAt.$gte).format('YYYYMMDD') : 'start';
+      const to = filter.createdAt.$lte ? dayjs(filter.createdAt.$lte).format('YYYYMMDD') : 'end';
+      rangeSuffix = `_createdAt_${from}_${to}`;
+    } else if (filter?.updatedAt?.$gte || filter?.updatedAt?.$lte) {
+      const from = filter.updatedAt.$gte ? dayjs(filter.updatedAt.$gte).format('YYYYMMDD') : 'start';
+      const to = filter.updatedAt.$lte ? dayjs(filter.updatedAt.$lte).format('YYYYMMDD') : 'end';
+      rangeSuffix = `_updatedAt_${from}_${to}`;
+    } else if (filter?.id?.$gte !== undefined || filter?.id?.$lte !== undefined) {
+      const from = filter.id.$gte !== undefined ? filter.id.$gte : 'start';
+      const to = filter.id.$lte !== undefined ? filter.id.$lte : 'end';
+      rangeSuffix = `_id_${from}_${to}`;
+    }
+
+    return `db-clean_${collectionName}${rangeSuffix}_${timestamp}_${random}.tbdump`;
   }
 
   /**
@@ -106,6 +129,19 @@ export class FilteredBackupService {
       if (filter.updatedAt.$lte) {
         whereConditions.push('"updatedAt" <= :updatedAtLte');
         replacements.updatedAtLte = filter.updatedAt.$lte;
+      }
+    }
+
+    // ID 范围筛选
+    if (filter?.id) {
+      const primaryKey = collection.model.primaryKeyAttribute || 'id';
+      if (filter.id.$gte !== undefined) {
+        whereConditions.push(`"${primaryKey}" >= :idGte`);
+        replacements.idGte = filter.id.$gte;
+      }
+      if (filter.id.$lte !== undefined) {
+        whereConditions.push(`"${primaryKey}" <= :idLte`);
+        replacements.idLte = filter.id.$lte;
       }
     }
 
@@ -186,7 +222,7 @@ export class FilteredBackupService {
     await fsPromises.writeFile(path.resolve(collectionDataDir, 'meta'), JSON.stringify(meta), 'utf8');
 
     // 打包文件
-    const backupFileName = fileName || FilteredBackupService.generateFileName(collectionName);
+    const backupFileName = fileName || FilteredBackupService.generateFileName(collectionName, filter);
     const filePath = await this.packDumpedDir(backupFileName, appName);
 
     // 清理临时目录

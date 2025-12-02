@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, useAPIClient } from '@tachybase/client';
 
 import { DeleteOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Card, message, Modal, Space, Spin, Table } from 'antd';
+import { Alert, App, Button, Card, InputNumber, message, Modal, Space, Spin, Table } from 'antd';
 import dayjs from 'dayjs';
 import { saveAs } from 'file-saver';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -23,6 +23,7 @@ interface TableInfo {
 interface FilterState {
   createdAt?: [dayjs.Dayjs | null, dayjs.Dayjs | null];
   updatedAt?: [dayjs.Dayjs | null, dayjs.Dayjs | null];
+  idRange?: [number | null, number | null];
 }
 
 /**
@@ -50,6 +51,17 @@ function buildFilterParams(filter: FilterState): Record<string, any> {
         $gte: start.startOf('day').toISOString(),
         $lte: end.endOf('day').toISOString(),
       };
+    }
+  }
+
+  // ID 范围筛选
+  if (filter.idRange && (filter.idRange[0] !== null || filter.idRange[1] !== null)) {
+    filterParams.id = {};
+    if (filter.idRange[0] !== null) {
+      filterParams.id.$gte = filter.idRange[0];
+    }
+    if (filter.idRange[1] !== null) {
+      filterParams.id.$lte = filter.idRange[1];
     }
   }
 
@@ -292,9 +304,6 @@ export const TableDetail = () => {
           {/* 筛选面板 */}
           <Card size="small" title={t('Filter')}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              {!tableInfo.hasCreatedAt && !tableInfo.hasUpdatedAt && (
-                <Alert message={t('No time fields')} type="warning" showIcon />
-              )}
               {tableInfo.hasCreatedAt && (
                 <div>
                   <label>{t('Created At Range')}: </label>
@@ -326,6 +335,40 @@ export const TableDetail = () => {
                     style={{ width: 400 }}
                   />
                 </div>
+              )}
+              {/* ID 范围筛选 - 适用于没有时间字段的表 */}
+              <div>
+                <label>{t('ID Range')}: </label>
+                <Space>
+                  <InputNumber
+                    placeholder={t('Min ID')}
+                    value={filter.idRange?.[0]}
+                    onChange={(value) => {
+                      setFilter((prev) => ({
+                        ...prev,
+                        idRange: [value, prev.idRange?.[1] ?? null],
+                      }));
+                    }}
+                    style={{ width: 150 }}
+                    min={0}
+                  />
+                  <span>-</span>
+                  <InputNumber
+                    placeholder={t('Max ID')}
+                    value={filter.idRange?.[1]}
+                    onChange={(value) => {
+                      setFilter((prev) => ({
+                        ...prev,
+                        idRange: [prev.idRange?.[0] ?? null, value],
+                      }));
+                    }}
+                    style={{ width: 150 }}
+                    min={0}
+                  />
+                </Space>
+              </div>
+              {!tableInfo.hasCreatedAt && !tableInfo.hasUpdatedAt && (
+                <Alert message={t('No time fields, use ID range filter')} type="info" showIcon />
               )}
             </Space>
           </Card>

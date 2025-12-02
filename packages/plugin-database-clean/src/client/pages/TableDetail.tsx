@@ -25,6 +25,37 @@ interface FilterState {
   updatedAt?: [dayjs.Dayjs | null, dayjs.Dayjs | null];
 }
 
+/**
+ * 构建筛选参数
+ */
+function buildFilterParams(filter: FilterState): Record<string, any> {
+  const filterParams: Record<string, any> = {};
+
+  if (filter.createdAt && filter.createdAt[0] && filter.createdAt[1]) {
+    const start = dayjs(filter.createdAt[0]);
+    const end = dayjs(filter.createdAt[1]);
+    if (start.isValid() && end.isValid()) {
+      filterParams.createdAt = {
+        $gte: start.startOf('day').toISOString(),
+        $lte: end.endOf('day').toISOString(),
+      };
+    }
+  }
+
+  if (filter.updatedAt && filter.updatedAt[0] && filter.updatedAt[1]) {
+    const start = dayjs(filter.updatedAt[0]);
+    const end = dayjs(filter.updatedAt[1]);
+    if (start.isValid() && end.isValid()) {
+      filterParams.updatedAt = {
+        $gte: start.startOf('day').toISOString(),
+        $lte: end.endOf('day').toISOString(),
+      };
+    }
+  }
+
+  return filterParams;
+}
+
 export const TableDetail = () => {
   const { t } = useTranslation();
   const apiClient = useAPIClient();
@@ -57,15 +88,15 @@ export const TableDetail = () => {
   useEffect(() => {
     if (tableName) {
       loadTableInfo();
-      loadTableData();
     }
   }, [tableName]);
 
+  // 只有当 tableInfo 加载完成后，才加载数据
   useEffect(() => {
-    if (tableName) {
+    if (tableName && tableInfo) {
       loadTableData();
     }
-  }, [pagination.current, pagination.pageSize, filter]);
+  }, [tableName, tableInfo, pagination.current, pagination.pageSize, filter]);
 
   const loadTableInfo = async () => {
     if (!tableName) return;
@@ -84,19 +115,7 @@ export const TableDetail = () => {
     setLoading(true);
     try {
       // 构建筛选条件
-      const filterParams: any = {};
-      if (filter.createdAt && filter.createdAt[0] && filter.createdAt[1]) {
-        filterParams.createdAt = {
-          $gte: filter.createdAt[0].startOf('day').toISOString(),
-          $lte: filter.createdAt[1].endOf('day').toISOString(),
-        };
-      }
-      if (filter.updatedAt && filter.updatedAt[0] && filter.updatedAt[1]) {
-        filterParams.updatedAt = {
-          $gte: filter.updatedAt[0].startOf('day').toISOString(),
-          $lte: filter.updatedAt[1].endOf('day').toISOString(),
-        };
-      }
+      const filterParams = buildFilterParams(filter);
 
       const response = await resource.data({
         filterByTk: tableName,
@@ -124,19 +143,7 @@ export const TableDetail = () => {
     setBackupLoading(true);
     try {
       // 构建筛选条件
-      const filterParams: any = {};
-      if (filter.createdAt && filter.createdAt[0] && filter.createdAt[1]) {
-        filterParams.createdAt = {
-          $gte: filter.createdAt[0].startOf('day').toISOString(),
-          $lte: filter.createdAt[1].endOf('day').toISOString(),
-        };
-      }
-      if (filter.updatedAt && filter.updatedAt[0] && filter.updatedAt[1]) {
-        filterParams.updatedAt = {
-          $gte: filter.updatedAt[0].startOf('day').toISOString(),
-          $lte: filter.updatedAt[1].endOf('day').toISOString(),
-        };
-      }
+      const filterParams = buildFilterParams(filter);
 
       const response = await resource.backup({
         values: {
@@ -202,19 +209,7 @@ export const TableDetail = () => {
     setCleanLoading(true);
     try {
       // 构建筛选条件
-      const filterParams: any = {};
-      if (filter.createdAt && filter.createdAt[0] && filter.createdAt[1]) {
-        filterParams.createdAt = {
-          $gte: filter.createdAt[0].startOf('day').toISOString(),
-          $lte: filter.createdAt[1].endOf('day').toISOString(),
-        };
-      }
-      if (filter.updatedAt && filter.updatedAt[0] && filter.updatedAt[1]) {
-        filterParams.updatedAt = {
-          $gte: filter.updatedAt[0].startOf('day').toISOString(),
-          $lte: filter.updatedAt[1].endOf('day').toISOString(),
-        };
-      }
+      const filterParams = buildFilterParams(filter);
 
       const response = await resource.clean({
         values: {

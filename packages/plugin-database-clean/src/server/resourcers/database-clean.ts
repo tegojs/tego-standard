@@ -107,11 +107,30 @@ export default {
       const limit = Number(pageSize);
       const offset = (Number(page) - 1) * limit;
 
+      // 动态构建排序字段，只使用存在的字段
+      let sortFields: string[] = [];
+      if (sort) {
+        sortFields = Array.isArray(sort) ? sort : [sort];
+      } else {
+        // 默认排序：优先使用存在的时间字段
+        if (collection.hasField('updatedAt')) {
+          sortFields.push('-updatedAt');
+        }
+        if (collection.hasField('createdAt')) {
+          sortFields.push('-createdAt');
+        }
+        // 如果都没有，使用主键倒序
+        if (sortFields.length === 0) {
+          const primaryKey = collection.model.primaryKeyAttribute || 'id';
+          sortFields.push(`-${primaryKey}`);
+        }
+      }
+
       const [rows, count] = await repository.findAndCount({
         filter: filter || {},
         limit,
         offset,
-        sort: sort || ['-createdAt', '-updatedAt'],
+        sort: sortFields,
       });
 
       ctx.body = {

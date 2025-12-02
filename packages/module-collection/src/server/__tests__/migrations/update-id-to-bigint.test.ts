@@ -97,7 +97,7 @@ excludeSqlite()('update id to bigint  test', () => {
     assertInteger(usersTableInfo.id.type);
 
     const migration = new Migrator({ db } as MigrationContext);
-    migration.context.app = app;
+    migration.context.tego = app;
     await migration.up();
 
     //@ts-ignore

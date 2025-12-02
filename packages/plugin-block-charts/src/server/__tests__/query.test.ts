@@ -249,7 +249,7 @@ describe('query', () => {
     beforeEach(() => {
       const cache = new MockCache();
       ctx = {
-        app: {
+        tego: {
           cacheManager: {
             getCache: () => cache,
           },
@@ -271,7 +271,7 @@ describe('query', () => {
           },
         },
       };
-      const cache = context.app.cacheManager.getCache();
+      const cache = context.tego.cacheManager.getCache();
       expect(cache.get(key)).toBeUndefined();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
@@ -293,7 +293,7 @@ describe('query', () => {
           },
         },
       };
-      const cache = context.app.cacheManager.getCache();
+      const cache = context.tego.cacheManager.getCache();
       cache.set(key, value);
       expect(cache.get(key)).toBeDefined();
       await compose([cacheMiddleware, query])(context, async () => {});
@@ -315,7 +315,7 @@ describe('query', () => {
           },
         },
       };
-      const cache = context.app.cacheManager.getCache();
+      const cache = context.tego.cacheManager.getCache();
       expect(cache.get(key)).toBeUndefined();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();

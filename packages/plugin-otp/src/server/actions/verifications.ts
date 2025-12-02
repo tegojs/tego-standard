@@ -9,29 +9,29 @@ import { CODE_STATUS_UNUSED } from '../constants';
 
 const asyncRandomInt = promisify(randomInt);
 
-export async function create(context: Context, next: Next) {
-  const plugin = context.app.pm.get('otp') as Plugin;
+export async function create(ctx: Context, next: Next) {
+  const plugin = ctx.tego.pm.get('otp') as Plugin;
 
-  const { values } = context.action.params;
+  const { values } = ctx.action.params;
   const interceptor = plugin.interceptors.get(values?.type);
   if (!interceptor) {
-    return context.throw(400, 'Invalid action type');
+    return ctx.throw(400, 'Invalid action type');
   }
 
   const providerItem = await plugin.getDefault();
   if (!providerItem) {
     console.error(`[otp] no provider for action (${values.type}) provided`);
-    return context.throw(500);
+    return ctx.throw(500);
   }
 
-  const receiver = interceptor.getReceiver(context);
+  const receiver = interceptor.getReceiver(ctx);
   if (!receiver) {
-    return context.throw(400, {
+    return ctx.throw(400, {
       code: 'InvalidReceiver',
-      message: context.t('Not a valid cellphone number, please re-enter', { ns: namespace }),
+      message: ctx.t('Not a valid cellphone number, please re-enter', { ns: namespace }),
     });
   }
-  const VerificationModel = context.db.getModel('verifications');
+  const VerificationModel = ctx.db.getModel('verifications');
   const record = await VerificationModel.findOne({
     where: {
       type: values.type,
@@ -44,19 +44,19 @@ export async function create(context: Context, next: Next) {
   });
   if (record) {
     const seconds = dayjs(record.get('expiresAt')).diff(dayjs(), 'seconds');
-    // return context.throw(429, { code: 'RateLimit', message: context.t('Please don\'t retry in {{time}}', { time: moment().locale('zh').to(record.get('expiresAt')) }) });
-    return context.throw(429, {
+    // return ctx.throw(429, { code: 'RateLimit', message: ctx.t('Please don\'t retry in {{time}}', { time: moment().locale('zh').to(record.get('expiresAt')) }) });
+    return ctx.throw(429, {
       code: 'RateLimit',
-      message: context.t("Please don't retry in {{time}} seconds", { time: seconds, ns: namespace }),
+      message: ctx.t("Please don't retry in {{time}} seconds", { time: seconds, ns: namespace }),
     });
   }
 
   const code = (<number>await asyncRandomInt(999999)).toString(10).padStart(6, '0');
   if (interceptor.validate) {
     try {
-      await interceptor.validate(context, receiver);
+      await interceptor.validate(ctx, receiver);
     } catch (err) {
-      return context.throw(400, { code: 'InvalidReceiver', message: err.message });
+      return ctx.throw(400, { code: 'InvalidReceiver', message: err.message });
     }
   }
 
@@ -70,17 +70,17 @@ export async function create(context: Context, next: Next) {
     switch (error.name) {
       case 'InvalidReceiver':
         // TODO: message should consider email and other providers, maybe use "receiver"
-        return context.throw(400, {
+        return ctx.throw(400, {
           code: 'InvalidReceiver',
-          message: context.t('Not a valid cellphone number, please re-enter', { ns: namespace }),
+          message: ctx.t('Not a valid cellphone number, please re-enter', { ns: namespace }),
         });
       case 'RateLimit':
-        return context.throw(429, context.t('You are trying so frequently, please slow down', { ns: namespace }));
+        return ctx.throw(429, ctx.t('You are trying so frequently, please slow down', { ns: namespace }));
       default:
         console.error(error);
-        return context.throw(
+        return ctx.throw(
           500,
-          context.t('Verification send failed, please try later or contact to administrator', { ns: namespace }),
+          ctx.t('Verification send failed, please try later or contact to administrator', { ns: namespace }),
         );
     }
   }
@@ -95,7 +95,7 @@ export async function create(context: Context, next: Next) {
     providerId: providerItem.get('id'),
   };
 
-  context.action.mergeParams(
+  ctx.action.mergeParams(
     {
       values: data,
     },
@@ -104,9 +104,9 @@ export async function create(context: Context, next: Next) {
     },
   );
 
-  await actions.create(context, async () => {
-    const { body: result } = context;
-    context.body = {
+  await actions.create(ctx, async () => {
+    const { body: result } = ctx;
+    ctx.body = {
       id: result.id,
       expiresAt: result.expiresAt,
     };

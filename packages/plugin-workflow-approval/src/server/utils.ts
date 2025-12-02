@@ -24,9 +24,9 @@ export function findUniqueObjects(
 }
 
 // 根据 workflowId 获取 workflow
-export async function getWorkflow(context, workflowId) {
+export async function getWorkflow(ctx, workflowId) {
   if (workflowId) {
-    return await context.db.getRepository('workflows').findOne({
+    return await ctx.db.getRepository('workflows').findOne({
       filterByTk: workflowId,
     });
   }
@@ -34,9 +34,9 @@ export async function getWorkflow(context, workflowId) {
 }
 
 // 根据 workflowKey 获取 最新可用的 workflow
-export async function getWorkflowByKey(context, workflowKey) {
+export async function getWorkflowByKey(ctx, workflowKey) {
   if (workflowKey) {
-    return await context.db.getRepository('workflows').findOne({
+    return await ctx.db.getRepository('workflows').findOne({
       filter: {
         key: workflowKey,
         enabled: true,

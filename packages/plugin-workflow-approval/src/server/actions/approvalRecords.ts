@@ -5,29 +5,29 @@ import { ERROR_CODE_MAP } from '../constants/error-code';
 import { APPROVAL_ACTION_STATUS } from '../constants/status';
 
 export const approvalRecords = {
-  async listCentralized(context, next) {
-    const centralizedApprovalFlow = await context.db.getRepository('workflows').find({
+  async listCentralized(ctx, next) {
+    const centralizedApprovalFlow = await ctx.db.getRepository('workflows').find({
       filter: {
         type: 'approval',
         'config.centralized': true,
       },
       fields: ['id'],
     });
-    context.action.mergeParams({
+    ctx.action.mergeParams({
       filter: {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
       },
     });
 
-    return actions.list(context, next);
+    return actions.list(ctx, next);
   },
-  async submit(context, next) {
-    const repository = utils.getRepositoryFromParams(context);
-    const { filterByTk, values } = context.action.params;
+  async submit(ctx, next) {
+    const repository = utils.getRepositoryFromParams(ctx);
+    const { filterByTk, values } = ctx.action.params;
     const { data, status, needUpdateRecord } = values || {};
-    const { currentUser } = context.state;
+    const { currentUser } = ctx.state;
     if (!currentUser) {
-      return context.throw(401);
+      return ctx.throw(401);
     }
     const approvalRecord = await repository.findOne({
       filterByTk,
@@ -35,25 +35,25 @@ export const approvalRecords = {
         userId: currentUser == null ? void 0 : currentUser.id,
       },
       appends: ['job', 'node', 'execution', 'workflow', 'approval'],
-      context,
+      context: ctx,
     });
     if (!approvalRecord) {
-      return context.throw(404);
+      return ctx.throw(404);
     }
 
     // NOTE: 为了更改设定, 让切换版本后, 已经在进程中的审批流程也可以执行下去. 所以这里先注释掉.
     // 原设定是, 切换版本后, 已经在流程中的, 置为未处理状态, 然后禁止继续执行.
     switch (true) {
       // case !approvalRecord.workflow.enabled:
-      //   return context.throw(400, ERROR_CODE_MAP['not_enable_workflow']);
+      //   return ctx.throw(400, ERROR_CODE_MAP['not_enable_workflow']);
       case approvalRecord.execution?.status:
-        return context.throw(400, ERROR_CODE_MAP['execution_finished']);
+        return ctx.throw(400, ERROR_CODE_MAP['execution_finished']);
       case approvalRecord.job?.status:
-        return context.throw(400, ERROR_CODE_MAP['job_finished']);
+        return ctx.throw(400, ERROR_CODE_MAP['job_finished']);
       case approvalRecord.status !== APPROVAL_ACTION_STATUS.PENDING:
-        return context.throw(400, ERROR_CODE_MAP['not_approval_pending']);
+        return ctx.throw(400, ERROR_CODE_MAP['not_approval_pending']);
       case !needUpdateRecord && !(approvalRecord.node.config.actions ?? []).includes(status):
-        return context.throw(400, ERROR_CODE_MAP['not_need_update']);
+        return ctx.throw(400, ERROR_CODE_MAP['not_need_update']);
       default:
         break;
     }
@@ -65,13 +65,13 @@ export const approvalRecords = {
       summary: approvalRecord.approval.summary,
       collectionName: approvalRecord.approval.collectionName,
     });
-    context.body = approvalRecord.get();
-    context.status = 202;
+    ctx.body = approvalRecord.get();
+    ctx.status = 202;
     await next();
     approvalRecord.execution.workflow = approvalRecord.workflow;
     approvalRecord.job.execution = approvalRecord.execution;
     approvalRecord.job.latestUserJob = approvalRecord.get();
-    const workflow = context.app.pm.get(PluginWorkflow);
+    const workflow = ctx.tego.pm.get(PluginWorkflow);
     const processor = workflow.createProcessor(approvalRecord.execution);
     processor.logger.info(
       `approval node (${approvalRecord.nodeId}) action trigger execution (${approvalRecord.execution.id}) to resume`,

@@ -31,7 +31,7 @@ pgOnly()('set collection schema', () => {
     expect(collection.options.schema).toBeUndefined();
 
     const migration = new Migrator({ db } as MigrationContext);
-    migration.context.app = app;
+    migration.context.tego = app;
     await migration.up();
 
     const collection2 = await db.getRepository('collections').findOne({});

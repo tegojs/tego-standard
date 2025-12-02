@@ -175,26 +175,26 @@ export default class ApprovalTrigger extends Trigger {
     await approval.update({ status }, { transaction });
     await approvalExecution.update({ status: execution.status }, { transaction });
   };
-  middleware = async (context, next) => {
-    if (!context.action) {
+  middleware = async (ctx, next) => {
+    if (!ctx.action) {
       return;
     }
     const {
       resourceName,
       actionName,
       params: { triggerWorkflows, beforeWorkflows },
-    } = context.action;
+    } = ctx.action;
     if (beforeWorkflows) {
-      this.collectionTriggerAction(context, beforeWorkflows);
+      this.collectionTriggerAction(ctx, beforeWorkflows);
     }
     if (resourceName === 'workflows' && actionName === 'trigger') {
-      return this.workflowTriggerAction(context, next);
+      return this.workflowTriggerAction(ctx, next);
     }
     await next();
     if (!triggerWorkflows || !['create', 'update'].includes(actionName)) {
       return;
     }
-    this.collectionTriggerAction(context, triggerWorkflows);
+    this.collectionTriggerAction(ctx, triggerWorkflows);
   };
   constructor(workflow) {
     super(workflow);
@@ -204,10 +204,10 @@ export default class ApprovalTrigger extends Trigger {
     db.on('executions.afterUpdate', this.onExecutionUpdate);
     workflow.app.use(this.middleware, { tag: 'workflow-trigger', after: 'dataSource' });
   }
-  async workflowTriggerAction(context, next) {
-    const { triggerWorkflows, values } = context.action.params;
+  async workflowTriggerAction(ctx, next) {
+    const { triggerWorkflows, values } = ctx.action.params;
     if (!triggerWorkflows) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
     const triggers = triggerWorkflows.split(',').map((trigger) => trigger.split('!'));
     const workflowRepo = this.workflow.db.getRepository('workflows');
@@ -219,7 +219,7 @@ export default class ApprovalTrigger extends Trigger {
         enabled: true,
       },
     });
-    context.status = 202;
+    ctx.status = 202;
     await next();
     workflows.forEach(async (workflow) => {
       const trigger = triggers.find((trigger2) => trigger2[0] === workflow.key);
@@ -233,7 +233,7 @@ export default class ApprovalTrigger extends Trigger {
           // createdBy: currentUser.id,
           // updatedById: currentUser.id,
         },
-        context,
+        context: ctx,
       });
       const approvalRepo = this.workflow.db.getRepository('approvals');
       await approvalRepo.create({
@@ -253,12 +253,12 @@ export default class ApprovalTrigger extends Trigger {
             app: this.workflow.app,
           }),
         },
-        context,
+        context: ctx,
       });
     });
   }
-  async collectionTriggerAction(context, workflowList) {
-    const dataSourceHeader = context.get('x-data-source') || 'main';
+  async collectionTriggerAction(ctx, workflowList) {
+    const dataSourceHeader = ctx.get('x-data-source') || 'main';
     const approvalRepo = this.workflow.db.getRepository('approvals');
     const triggers = workflowList.split(',').map((trigger) => trigger.split('!'));
     const triggersKeysMap = new Map(triggers);
@@ -268,7 +268,7 @@ export default class ApprovalTrigger extends Trigger {
     for (const workflow of workflows) {
       const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
       const trigger = triggers.find((trigger2) => trigger2[0] === workflow.key);
-      const { body: data } = context;
+      const { body: data } = ctx;
       if (!data) {
         return;
       }
@@ -300,7 +300,7 @@ export default class ApprovalTrigger extends Trigger {
             }
           }
         }
-        const collection = context.app.dataSourceManager.dataSources
+        const collection = ctx.tego.dataSourceManager.dataSources
           .get(dataSourceName)
           .collectionManager.getCollection(collectionName);
         if (!collection || collection.model !== payload.constructor) {
@@ -318,15 +318,15 @@ export default class ApprovalTrigger extends Trigger {
             // updatedBy: currentUser.id,
             workflowId: workflow.id,
             workflowKey: workflow.key,
-            applicantRoleName: context.state.currentRole,
+            applicantRoleName: ctx.state.currentRole,
             summary: getSummary({
               summaryConfig: workflow.config.summary,
               data: dataCurrent,
               collection,
-              app: context.app,
+              app: ctx.app,
             }),
           },
-          context,
+          context: ctx,
         });
       });
     }

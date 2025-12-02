@@ -77,10 +77,32 @@ export default {
       const hasCreatedAt = collection.hasField('createdAt') || 'createdAt' in rawAttributes;
       const hasUpdatedAt = collection.hasField('updatedAt') || 'updatedAt' in rawAttributes;
 
+      // 获取 ID 范围
+      const primaryKey = collection.model.primaryKeyAttribute || 'id';
+      let minId: number | null = null;
+      let maxId: number | null = null;
+
+      if (tableInfo.rowCount > 0) {
+        try {
+          const idRangeResults = (await ctx.app.db.sequelize.query(
+            `SELECT MIN("${primaryKey}") as min_id, MAX("${primaryKey}") as max_id FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
+            { type: 'SELECT' },
+          )) as Array<{ min_id: number | null; max_id: number | null }>;
+          if (idRangeResults && idRangeResults[0]) {
+            minId = idRangeResults[0].min_id;
+            maxId = idRangeResults[0].max_id;
+          }
+        } catch (e) {
+          // 忽略错误，可能是主键不是数字类型
+        }
+      }
+
       ctx.body = {
         ...tableInfo,
         hasCreatedAt,
         hasUpdatedAt,
+        minId,
+        maxId,
       };
 
       await next();

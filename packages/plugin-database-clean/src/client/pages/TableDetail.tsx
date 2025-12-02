@@ -18,6 +18,8 @@ interface TableInfo {
   updatedAt: Date | null;
   hasCreatedAt: boolean;
   hasUpdatedAt: boolean;
+  minId: number | null;
+  maxId: number | null;
 }
 
 interface FilterState {
@@ -344,26 +346,36 @@ export const TableDetail = () => {
                     placeholder={t('Min ID')}
                     value={filter.idRange?.[0]}
                     onChange={(value) => {
-                      setFilter((prev) => ({
-                        ...prev,
-                        idRange: [value, prev.idRange?.[1] ?? null],
-                      }));
+                      setFilter((prev) => {
+                        // 如果新的最小值大于当前最大值，则调整最大值
+                        const newMax = prev.idRange?.[1];
+                        if (value !== null && newMax !== null && value > newMax) {
+                          return { ...prev, idRange: [value, value] };
+                        }
+                        return { ...prev, idRange: [value, newMax ?? null] };
+                      });
                     }}
                     style={{ width: 150 }}
-                    min={0}
+                    min={tableInfo.minId ?? 0}
+                    max={filter.idRange?.[1] ?? tableInfo.maxId ?? undefined}
                   />
                   <span>-</span>
                   <InputNumber
                     placeholder={t('Max ID')}
                     value={filter.idRange?.[1]}
                     onChange={(value) => {
-                      setFilter((prev) => ({
-                        ...prev,
-                        idRange: [prev.idRange?.[0] ?? null, value],
-                      }));
+                      setFilter((prev) => {
+                        // 如果新的最大值小于当前最小值，则调整最小值
+                        const newMin = prev.idRange?.[0];
+                        if (value !== null && newMin !== null && value < newMin) {
+                          return { ...prev, idRange: [value, value] };
+                        }
+                        return { ...prev, idRange: [newMin ?? null, value] };
+                      });
                     }}
                     style={{ width: 150 }}
-                    min={0}
+                    min={filter.idRange?.[0] ?? tableInfo.minId ?? 0}
+                    max={tableInfo.maxId ?? undefined}
                   />
                 </Space>
               </div>

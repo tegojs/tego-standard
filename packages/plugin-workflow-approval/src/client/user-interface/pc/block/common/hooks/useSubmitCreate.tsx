@@ -10,6 +10,8 @@ import { useField, useForm } from '@tachybase/schema';
 
 import _ from 'lodash';
 
+import { cleanAssociationIds } from '../../../../../common/tools/cleanAssociationIds';
+import { useResubmit } from '../../../common/Resubmit.provider';
 import { useContextApprovalStatus } from '../providers/ActionStatus.provider';
 
 export function useSubmitCreate() {
@@ -21,6 +23,8 @@ export function useSubmitCreate() {
   const status = useContextApprovalStatus();
   const apiClient = useAPIClient();
   const flowContext = useFlowContext();
+  const { isResubmit } = useResubmit();
+  console.log('%c Line:27 🍔 isResubmit', 'font-size:18px;color:#6ec1c2;background:#7f2b82', isResubmit);
   const { workflow } = flowContext || {};
 
   return {
@@ -31,10 +35,17 @@ export function useSubmitCreate() {
         field.data.loading = true;
         delete form.values['createdAt'];
         delete form.values['updatedAt'];
+
+        // 如果是复制操作（有 workflowKey），需要清洗关联字段的 id
+        let dataToSubmit = form.values;
+        if (isResubmit && workflow?.key) {
+          dataToSubmit = cleanAssociationIds(form.values, collection);
+        }
+
         await apiClient.resource('approvals').create({
           values: {
             collectionName: joinCollectionName(collection.dataSource, collection.name),
-            data: form.values,
+            data: dataToSubmit,
             status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
             workflowId: workflow?.id,
             workflowKey: workflow?.key,

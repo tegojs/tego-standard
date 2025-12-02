@@ -26,17 +26,6 @@ export function cleanAssociationIds(data: any, collection?: any): any {
     }
   });
 
-  // 处理外键字段（belongsTo）
-  // 清除所有形如 xxxId 的字段（外键字段），但保留 id, createdById, updatedById
-  Object.keys(cleanedData).forEach((key) => {
-    if (key.endsWith('Id') && key !== 'id' && key !== 'createdById' && key !== 'updatedById') {
-      // 如果值不为 null/undefined，说明是外键字段，需要清除
-      if (cleanedData[key] != null) {
-        delete cleanedData[key];
-      }
-    }
-  });
-
   // 处理关联数组字段（belongsToMany, hasMany）
   // 如果字段在 associationArrayFields 中，或者是数组且包含对象，则清除数组中每个对象的 id
   Object.keys(cleanedData).forEach((key) => {
@@ -51,7 +40,7 @@ export function cleanAssociationIds(data: any, collection?: any): any {
             const cleanedItem = { ...item };
             delete cleanedItem.id;
             // 递归处理嵌套的关联字段
-            return cleanAssociationIds(cleanedItem, collection);
+            return cleanedItem;
           }
           return item;
         });

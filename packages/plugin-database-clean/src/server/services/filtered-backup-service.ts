@@ -221,6 +221,34 @@ export class FilteredBackupService {
 
     await fsPromises.writeFile(path.resolve(collectionDataDir, 'meta'), JSON.stringify(meta), 'utf8');
 
+    // 写入根 meta 文件（恢复时必须的）
+    const rootMeta = {
+      version: this.app.getVersion(),
+      dialect: this.app.db.sequelize.getDialect(),
+      DB_UNDERSCORED: process.env.DB_UNDERSCORED || 'false',
+      DB_SCHEMA: process.env.DB_SCHEMA || '',
+      COLLECTION_MANAGER_SCHEMA: process.env.COLLECTION_MANAGER_SCHEMA || '',
+      DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX || '',
+      // 标记为 database-clean 插件生成的部分备份
+      backupType: 'database-clean',
+      dumpableCollectionsGroupByGroup: {
+        custom: [
+          {
+            name: collectionName,
+            group: 'custom',
+            origin: '@tachybase/plugin-database-clean',
+            title: collectionName,
+            isView: false,
+          },
+        ],
+      },
+      dumpedGroups: ['custom'],
+      delayCollections: [],
+      filter, // 保存筛选条件供参考
+    };
+
+    await fsPromises.writeFile(path.resolve(this.workDir, 'meta'), JSON.stringify(rootMeta), 'utf8');
+
     // 打包文件
     const backupFileName = fileName || FilteredBackupService.generateFileName(collectionName, filter);
     const filePath = await this.packDumpedDir(backupFileName, appName);

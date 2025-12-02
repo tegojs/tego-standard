@@ -12,7 +12,7 @@ export function generateNTemplate(key: string) {
 
 export function useTranslation() {
   const { i18n: appI18n } = useApp();
-  const t = (key: string, props = {}) => appI18n.t(key, { ns: [NAMESPACE, 'core'], nsMode: 'fallback', ...props });
+  const t = (key: string, props = {}) => appI18n.t(key, { ns: [NAMESPACE, 'client'], nsMode: 'fallback', ...props });
   return { t };
 }
 

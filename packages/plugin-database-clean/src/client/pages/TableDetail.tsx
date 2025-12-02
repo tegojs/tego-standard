@@ -70,8 +70,9 @@ export const TableDetail = () => {
   const loadTableInfo = async () => {
     if (!tableName) return;
     try {
-      const { data } = await resource.get({ filterByTk: tableName });
-      setTableInfo(data);
+      const response = await resource.get({ filterByTk: tableName });
+      // Axios 响应格式: response.data = { data: {...} }
+      setTableInfo(response.data?.data);
     } catch (error) {
       message.error(error.message || t('Failed to load table info'));
       navigate('/_admin/system-services/database-clean');
@@ -97,17 +98,19 @@ export const TableDetail = () => {
         };
       }
 
-      const { data } = await resource.data({
+      const response = await resource.data({
         filterByTk: tableName,
         page: pagination.current,
         pageSize: pagination.pageSize,
         filter: Object.keys(filterParams).length > 0 ? filterParams : undefined,
       });
 
-      setDataSource(data.rows || []);
+      // Axios 响应格式: response.data = { data: [...], meta: {...} }
+      const { data: rows, meta } = response.data;
+      setDataSource(Array.isArray(rows) ? rows : []);
       setPagination((prev) => ({
         ...prev,
-        total: data.count || 0,
+        total: meta?.count || 0,
       }));
     } catch (error) {
       message.error(error.message || t('Failed to load table data'));
@@ -135,14 +138,15 @@ export const TableDetail = () => {
         };
       }
 
-      const { data } = await resource.backup({
+      const response = await resource.backup({
         values: {
           collectionName: tableName,
           filter: Object.keys(filterParams).length > 0 ? filterParams : undefined,
         },
       });
 
-      setBackupFileName(data.fileName);
+      // Axios 响应格式: response.data = { data: {...} }
+      setBackupFileName(response.data?.data?.fileName);
       setHasBackedUp(true);
       message.success(t('Backup Success'));
     } catch (error) {
@@ -212,14 +216,15 @@ export const TableDetail = () => {
         };
       }
 
-      const { data } = await resource.clean({
+      const response = await resource.clean({
         values: {
           collectionName: tableName,
           filter: Object.keys(filterParams).length > 0 ? filterParams : undefined,
         },
       });
 
-      message.success(t('Clean Success') + ` (${data.deletedCount} ${t('records deleted')})`);
+      // Axios 响应格式: response.data = { data: {...} }
+      message.success(t('Clean Success') + ` (${response.data?.data?.deletedCount} ${t('records deleted')})`);
       setHasBackedUp(false);
       setBackupFileName(null);
       await loadTableData();

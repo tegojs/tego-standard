@@ -55,16 +55,18 @@ export const TableList = () => {
   const queryTableList = async () => {
     setLoading(true);
     try {
-      const { data } = await resource.list({
+      const response = await resource.list({
         params: {
           page: pagination.current,
           pageSize: pagination.pageSize,
         },
       });
-      setDataSource(data.rows || []);
+      // Axios 响应格式: response.data = { data: [...], meta: {...} }
+      const { data: rows, meta } = response.data;
+      setDataSource(Array.isArray(rows) ? rows : []);
       setPagination((prev) => ({
         ...prev,
-        total: data.count || 0,
+        total: meta?.count || 0,
       }));
     } catch (error) {
       message.error(error.message || t('Failed to load table list'));

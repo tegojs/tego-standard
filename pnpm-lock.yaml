@@ -117,7 +117,7 @@ importers:
         version: 5.8.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.1)(jsdom@16.7.0(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.1)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.1)(jsdom@24.1.1(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.1)
 
   apps/desktop:
     devDependencies:
@@ -421,7 +421,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/jsonwebtoken':
         specifier: ^8.5.9
         version: 8.5.9
@@ -463,7 +463,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
 
   packages/module-auth:
     devDependencies:
@@ -484,7 +484,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -535,7 +535,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/archiver':
         specifier: ^5.3.4
         version: 5.3.4
@@ -649,7 +649,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -724,7 +724,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -760,7 +760,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -799,7 +799,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -844,7 +844,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -865,7 +865,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -898,7 +898,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -937,7 +937,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/koa-multer':
         specifier: ^1.0.4
         version: 1.0.4
@@ -1009,7 +1009,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -1084,7 +1084,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1126,7 +1126,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1174,7 +1174,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -1188,8 +1188,8 @@ importers:
         specifier: 4.17.21
         version: 4.17.21
       mysql2:
-        specifier: ^3.14.3
-        version: 3.14.3
+        specifier: ^3.15.3
+        version: 3.15.3
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -1244,7 +1244,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -1280,7 +1280,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -1310,7 +1310,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/jsonwebtoken':
         specifier: ^8.5.9
         version: 8.5.9
@@ -1343,7 +1343,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/express':
         specifier: 'catalog:'
         version: 5.0.2
@@ -1424,7 +1424,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1487,7 +1487,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -1571,7 +1571,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1601,7 +1601,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1628,7 +1628,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1664,7 +1664,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1691,7 +1691,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1733,7 +1733,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1778,7 +1778,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       react-to-print:
         specifier: ^2.15.1
         version: 2.15.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1805,7 +1805,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1847,7 +1847,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       bullmq:
         specifier: ^5.56.9
         version: 5.56.9
@@ -1877,7 +1877,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/express':
         specifier: 5.0.2
         version: 5.0.2
@@ -1910,7 +1910,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -1955,7 +1955,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1991,7 +1991,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2030,7 +2030,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2063,7 +2063,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2093,7 +2093,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2135,7 +2135,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2162,7 +2162,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2189,7 +2189,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2228,7 +2228,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2249,7 +2249,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
 
   packages/plugin-auth-saml:
     devDependencies:
@@ -2276,7 +2276,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2312,7 +2312,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2342,7 +2342,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2375,7 +2375,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2408,7 +2408,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2459,7 +2459,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2513,7 +2513,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2549,7 +2549,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2579,7 +2579,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2621,7 +2621,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/google.maps':
         specifier: ^3.58.1
         version: 3.58.1
@@ -2672,7 +2672,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2705,7 +2705,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2741,7 +2741,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -2758,8 +2758,8 @@ importers:
         specifier: 4.17.21
         version: 4.17.21
       mysql2:
-        specifier: ^3.14.3
-        version: 3.14.3
+        specifier: ^3.15.3
+        version: 3.15.3
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -2792,7 +2792,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -2838,7 +2838,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
 
   packages/plugin-devtools:
     devDependencies:
@@ -2856,7 +2856,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2880,7 +2880,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       mathjs:
         specifier: ^10.6.4
         version: 10.6.4
@@ -2901,7 +2901,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
 
   packages/plugin-field-china-region:
     devDependencies:
@@ -2919,7 +2919,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/cross-spawn':
         specifier: ^6.0.6
         version: 6.0.6
@@ -2943,7 +2943,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
 
   packages/plugin-field-formula:
     devDependencies:
@@ -2961,7 +2961,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -2994,7 +2994,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3024,7 +3024,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3066,7 +3066,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3108,7 +3108,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3132,7 +3132,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/sequelize':
         specifier: ^4.28.20
         version: 4.28.20
@@ -3171,7 +3171,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3204,7 +3204,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3231,7 +3231,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/tar-fs':
         specifier: ^2.0.4
         version: 2.0.4
@@ -3264,7 +3264,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3291,7 +3291,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)(pg@8.16.3)
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -3321,7 +3321,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -3354,7 +3354,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@vercel/ncc':
         specifier: 0.38.3
         version: 0.38.3
@@ -3414,7 +3414,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3459,7 +3459,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3483,7 +3483,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3507,7 +3507,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       canvas-confetti:
         specifier: ^1.9.3
         version: 1.9.3
@@ -3534,7 +3534,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3573,7 +3573,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       bullmq:
         specifier: ^5.56.9
         version: 5.56.9
@@ -3606,7 +3606,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3630,7 +3630,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/xml2js':
         specifier: ^0.4.14
         version: 0.4.14
@@ -3678,7 +3678,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       minimatch:
         specifier: ^5.1.6
         version: 5.1.6
@@ -3699,7 +3699,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3732,7 +3732,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -3774,7 +3774,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3801,7 +3801,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3837,7 +3837,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
@@ -3891,7 +3891,7 @@ importers:
         version: 1.3.52(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
         specifier: 1.3.52
-        version: 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 1.3.52(encoding@0.1.13)
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -11441,6 +11441,10 @@ packages:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
     engines: {node: '>=0.10.0'}
 
+  iconv-lite@0.7.0:
+    resolution: {integrity: sha512-cf6L2Ds3h57VVmkZe+Pn+5APsT7FpqJtEhhieDCvrE2MK5Qk9MyffgQyuxQTm6BChfeZNtcOLHp9IcWRVcIcBQ==}
+    engines: {node: '>=0.10.0'}
+
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
 
@@ -12391,6 +12395,10 @@ packages:
     resolution: {integrity: sha512-Nv9KddBcQSlQopmBHXSsZVY5xsdlZkdH/Iey0BlcBYggMd4two7cZnKOK9vmy3nY0O5RGH99z1PCeTpPqszUYg==}
     engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
 
+  lru.min@1.1.3:
+    resolution: {integrity: sha512-Lkk/vx6ak3rYkRR0Nhu4lFUT2VDnQSxBe8Hbl7f36358p6ow8Bnvr8lrLt98H8J1aGxfhbX4Fs5tYg2+FTwr5Q==}
+    engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
+
   luxon@3.5.0:
     resolution: {integrity: sha512-rh+Zjr6DNfUYR3bPwJEnuwDdqMbxZW7LOQfUN4B54+Cl+0o5zaU9RJ6bcidfDtC1cWCZXQ+nvX8bf6bAji37QQ==}
     engines: {node: '>=12'}
@@ -12954,6 +12962,10 @@ packages:
 
   mysql2@3.14.3:
     resolution: {integrity: sha512-fD6MLV8XJ1KiNFIF0bS7Msl8eZyhlTDCDl75ajU5SJtpdx9ZPEACulJcqJWr1Y8OYyxsFc4j3+nflpmhxCU5aQ==}
+    engines: {node: '>= 8.0'}
+
+  mysql2@3.15.3:
+    resolution: {integrity: sha512-FBrGau0IXmuqg4haEZRBfHNWB5mUARw6hNwPDXXGg0XzVJ50mr/9hb267lvpVMnhZ1FON3qNd4Xfcez1rbFwSg==}
     engines: {node: '>= 8.0'}
 
   mz@2.7.0:
@@ -22057,10 +22069,52 @@ snapshots:
       - supports-color
       - tedious
 
+  '@tachybase/actions@1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/cache': 1.3.52
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      koa: 2.16.1
+      lodash: 4.17.21
+      sequelize: 6.37.5(mysql2@3.15.3)(pg@8.16.3)
+    transitivePeerDependencies:
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+
   '@tachybase/auth@1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/database': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      jsonwebtoken: 8.5.1
+    transitivePeerDependencies:
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+
+  '@tachybase/auth@1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.3.52
       '@tachybase/utils': 1.3.52
       jsonwebtoken: 8.5.1
@@ -22131,6 +22185,29 @@ snapshots:
       - supports-color
       - tedious
 
+  '@tachybase/data-source@1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      deepmerge: 4.3.1
+      koa-compose: 4.1.0
+      lodash: 4.17.21
+    transitivePeerDependencies:
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+
   '@tachybase/database@1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/logger': 1.3.52
@@ -22151,6 +22228,40 @@ snapshots:
       qs: 6.14.0
       semver: 7.7.2
       sequelize: 6.37.5(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      umzug: 3.8.2
+    transitivePeerDependencies:
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+
+  '@tachybase/database@1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/logger': 1.3.52
+      '@tachybase/utils': 1.3.52
+      async-mutex: 0.5.0
+      chalk: 4.1.2
+      dayjs: 1.11.13
+      debug: 4.4.1(supports-color@5.5.0)
+      deepmerge: 4.3.1
+      dottie: 2.0.6
+      excel-date-to-js: 1.1.5
+      exponential-backoff: 3.1.2
+      flat: 5.0.2
+      glob: 11.0.0
+      lodash: 4.17.21
+      nanoid: 3.3.11
+      node-fetch: 2.7.0(encoding@0.1.13)
+      qs: 6.14.0
+      semver: 7.7.2
+      sequelize: 6.37.5(mysql2@3.15.3)(pg@8.16.3)
       umzug: 3.8.2
     transitivePeerDependencies:
       - encoding
@@ -22313,7 +22424,227 @@ snapshots:
       - monaco-editor
       - react
 
+  '@tego/core@1.3.52(encoding@0.1.13)':
+    dependencies:
+      '@koa/cors': 5.0.0
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.3.52
+      '@tachybase/data-source': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.3.52
+      '@tachybase/globals': 1.3.52
+      '@tachybase/logger': 1.3.52
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      '@types/decompress': 4.2.7
+      '@types/ini': 1.3.34
+      async-mutex: 0.5.0
+      axios: 0.29.0
+      commander: 9.5.0
+      compression: 1.7.5
+      dayjs: 1.11.13
+      decompress: 4.2.1
+      execa: 5.1.1
+      fast-glob: 3.3.3
+      fs-extra: 11.3.2
+      glob: 11.0.0
+      i18next: 23.16.8
+      ini: 4.1.3
+      koa: 2.16.1
+      koa-bodyparser: 4.4.1
+      koa-compose: 4.1.0
+      lodash: 4.17.21
+      nanoid: 3.3.8
+      qs: 6.14.0
+      semver: 7.7.2
+      serve-handler: 6.1.6
+      winston: 3.17.0
+      ws: 8.18.3
+      xpipe: 1.0.8
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
   '@tego/core@1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+    dependencies:
+      '@koa/cors': 5.0.0
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.3.52
+      '@tachybase/data-source': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.3.52
+      '@tachybase/globals': 1.3.52
+      '@tachybase/logger': 1.3.52
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      '@types/decompress': 4.2.7
+      '@types/ini': 1.3.34
+      async-mutex: 0.5.0
+      axios: 0.29.0
+      commander: 9.5.0
+      compression: 1.7.5
+      dayjs: 1.11.13
+      decompress: 4.2.1
+      execa: 5.1.1
+      fast-glob: 3.3.3
+      fs-extra: 11.3.2
+      glob: 11.0.0
+      i18next: 23.16.8
+      ini: 4.1.3
+      koa: 2.16.1
+      koa-bodyparser: 4.4.1
+      koa-compose: 4.1.0
+      lodash: 4.17.21
+      nanoid: 3.3.8
+      qs: 6.14.0
+      semver: 7.7.2
+      serve-handler: 6.1.6
+      winston: 3.17.0
+      ws: 8.18.3
+      xpipe: 1.0.8
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
+  '@tego/core@1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)':
+    dependencies:
+      '@koa/cors': 5.0.0
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.3.52
+      '@tachybase/data-source': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.3.52
+      '@tachybase/globals': 1.3.52
+      '@tachybase/logger': 1.3.52
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      '@types/decompress': 4.2.7
+      '@types/ini': 1.3.34
+      async-mutex: 0.5.0
+      axios: 0.29.0
+      commander: 9.5.0
+      compression: 1.7.5
+      dayjs: 1.11.13
+      decompress: 4.2.1
+      execa: 5.1.1
+      fast-glob: 3.3.3
+      fs-extra: 11.3.2
+      glob: 11.0.0
+      i18next: 23.16.8
+      ini: 4.1.3
+      koa: 2.16.1
+      koa-bodyparser: 4.4.1
+      koa-compose: 4.1.0
+      lodash: 4.17.21
+      nanoid: 3.3.8
+      qs: 6.14.0
+      semver: 7.7.2
+      serve-handler: 6.1.6
+      winston: 3.17.0
+      ws: 8.18.3
+      xpipe: 1.0.8
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
+  '@tego/core@1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)':
+    dependencies:
+      '@koa/cors': 5.0.0
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/auth': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/cache': 1.3.52
+      '@tachybase/data-source': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/di': 1.3.52
+      '@tachybase/globals': 1.3.52
+      '@tachybase/logger': 1.3.52
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      '@types/decompress': 4.2.7
+      '@types/ini': 1.3.34
+      async-mutex: 0.5.0
+      axios: 0.29.0
+      commander: 9.5.0
+      compression: 1.7.5
+      dayjs: 1.11.13
+      decompress: 4.2.1
+      execa: 5.1.1
+      fast-glob: 3.3.3
+      fs-extra: 11.3.2
+      glob: 11.0.0
+      i18next: 23.16.8
+      ini: 4.1.3
+      koa: 2.16.1
+      koa-bodyparser: 4.4.1
+      koa-compose: 4.1.0
+      lodash: 4.17.21
+      nanoid: 3.3.8
+      qs: 6.14.0
+      semver: 7.7.2
+      serve-handler: 6.1.6
+      winston: 3.17.0
+      ws: 8.18.3
+      xpipe: 1.0.8
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
+  '@tego/core@1.3.52(encoding@0.1.13)(pg@8.16.3)':
     dependencies:
       '@koa/cors': 5.0.0
       '@tachybase/acl': 1.3.52
@@ -22422,6 +22753,36 @@ snapshots:
       - webpack-hot-middleware
       - yaml
 
+  '@tego/server@1.3.52(encoding@0.1.13)':
+    dependencies:
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.3.52
+      '@tachybase/data-source': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.3.52
+      '@tachybase/evaluators': 1.3.52
+      '@tachybase/logger': 1.3.52
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      '@tego/core': 1.3.52(encoding@0.1.13)
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
   '@tego/server@1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/acl': 1.3.52
@@ -22435,7 +22796,67 @@ snapshots:
       '@tachybase/logger': 1.3.52
       '@tachybase/resourcer': 1.3.52
       '@tachybase/utils': 1.3.52
-      '@tego/core': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tego/core': 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
+  '@tego/server@1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/auth': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/cache': 1.3.52
+      '@tachybase/data-source': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+      '@tachybase/di': 1.3.52
+      '@tachybase/evaluators': 1.3.52
+      '@tachybase/logger': 1.3.52
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      '@tego/core': 1.3.52(encoding@0.1.13)(mysql2@3.15.3)(pg@8.16.3)
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
+  '@tego/server@1.3.52(encoding@0.1.13)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/acl': 1.3.52
+      '@tachybase/actions': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.3.52
+      '@tachybase/data-source': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.3.52
+      '@tachybase/evaluators': 1.3.52
+      '@tachybase/logger': 1.3.52
+      '@tachybase/resourcer': 1.3.52
+      '@tachybase/utils': 1.3.52
+      '@tego/core': 1.3.52(encoding@0.1.13)(pg@8.16.3)
     transitivePeerDependencies:
       - bufferutil
       - debug
@@ -26835,6 +27256,10 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
+  iconv-lite@0.7.0:
+    dependencies:
+      safer-buffer: 2.1.2
+
   ieee754@1.2.1: {}
 
   ignore-walk@8.0.0:
@@ -27807,6 +28232,8 @@ snapshots:
 
   lru.min@1.1.2: {}
 
+  lru.min@1.1.3: {}
+
   luxon@3.5.0: {}
 
   luxon@3.7.1: {}
@@ -28625,6 +29052,18 @@ snapshots:
       iconv-lite: 0.6.3
       long: 5.3.2
       lru.min: 1.1.2
+      named-placeholders: 1.1.3
+      seq-queue: 0.0.5
+      sqlstring: 2.3.3
+
+  mysql2@3.15.3:
+    dependencies:
+      aws-ssl-profiles: 1.1.2
+      denque: 2.1.0
+      generate-function: 2.3.1
+      iconv-lite: 0.7.0
+      long: 5.3.2
+      lru.min: 1.1.3
       named-placeholders: 1.1.3
       seq-queue: 0.0.5
       sqlstring: 2.3.3
@@ -30980,6 +31419,30 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  sequelize@6.37.5(mysql2@3.15.3)(pg@8.16.3):
+    dependencies:
+      '@types/debug': 4.1.12
+      '@types/validator': 13.11.7
+      debug: 4.4.1(supports-color@5.5.0)
+      dottie: 2.0.6
+      inflection: 1.13.4
+      lodash: 4.17.21
+      moment: 2.30.1
+      moment-timezone: 0.5.48
+      pg-connection-string: 2.9.1
+      retry-as-promised: 7.0.4
+      semver: 7.7.2
+      sequelize-pool: 7.1.0
+      toposort-class: 1.0.1
+      uuid: 8.3.2
+      validator: 13.11.0
+      wkx: 0.5.0
+    optionalDependencies:
+      mysql2: 3.15.3
+      pg: 8.16.3
+    transitivePeerDependencies:
+      - supports-color
+
   serialize-error@7.0.1:
     dependencies:
       type-fest: 0.13.1
@@ -31633,7 +32096,7 @@ snapshots:
       '@tachybase/resourcer': 1.3.52
       '@tachybase/schema': 1.3.52(react@18.3.1)
       '@tachybase/utils': 1.3.52
-      '@tego/core': 1.3.52(encoding@0.1.13)(mariadb@2.5.6)(mysql2@3.14.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tego/core': 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
       '@tego/server': 1.3.52(encoding@0.1.13)(mysql2@3.14.3)(pg@8.16.3)(sqlite3@5.1.7)
       async-mutex: 0.5.0
       axios: 0.29.0

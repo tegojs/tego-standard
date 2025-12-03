@@ -62,15 +62,15 @@ export class CloudLibrariesService {
       if (codeSource === 'remote' && codeUrl && codeType) {
         // 代码来源为远程：使用远程代码
         try {
-          // 检查缓存
-          if (this.remoteCodeFetcher.isCacheValid(codeCache)) {
-            this.logger.info(`[${module}] Using cached remote code`);
+          // 直接使用数据库中的缓存（如果存在）
+          if (codeCache?.content) {
+            this.logger.info(`[${module}] Using cached remote code from database`);
             code = codeCache.content;
           } else {
-            // 从远程获取代码（使用配置的分支和路径）
+            // 缓存不存在，从远程获取代码（使用配置的分支和路径）
             const { codeAuthType, codeAuthToken, codeAuthUsername } = lib;
             this.logger.info(
-              `[${module}] Fetching remote code from ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
+              `[${module}] No cache found, fetching remote code from ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
             );
             this.logger.info(
               `[${module}] Auth config: type=${codeAuthType || 'none'}, hasToken=${!!codeAuthToken}, hasUsername=${!!codeAuthUsername}`,
@@ -85,14 +85,14 @@ export class CloudLibrariesService {
               codeAuthUsername,
             );
 
-            // 更新缓存
+            // 保存缓存到数据库（首次获取时）
             const libRepo = this.app.db.getRepository('cloudLibraries');
             await libRepo.update({
               filterByTk: lib.id,
               values: {
                 codeCache: {
                   content: code,
-                  timestamp: Date.now(),
+                  timestamp: Date.now(), // 保留 timestamp 用于记录，但不用于验证
                 },
               },
             });
@@ -104,7 +104,7 @@ export class CloudLibrariesService {
           });
           // 如果远程获取失败，使用缓存或本地代码作为后备
           if (codeCache?.content) {
-            this.logger.warn(`[${module}] Using cached code as fallback`);
+            this.logger.warn(`[${module}] Remote fetch failed, using cached code as fallback`);
             code = codeCache.content;
           } else {
             this.logger.warn(`[${module}] Remote code fetch failed, falling back to local code`);

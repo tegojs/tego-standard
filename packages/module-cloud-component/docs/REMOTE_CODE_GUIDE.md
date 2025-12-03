@@ -80,12 +80,14 @@ If you choose remote code and configure a Git repository URL:
 
 To improve performance and reduce network requests, the system implements a code caching mechanism:
 
-- **缓存时间 / Cache Duration**: 默认 1 小时 (3600 秒)
-- **缓存更新 / Cache Update**: 当缓存过期时，自动从远程获取最新代码
-- **缓存失效 / Cache Invalidation**: 如果远程获取失败，会使用缓存的代码作为后备
+- **缓存存储 / Cache Storage**: 代码缓存在数据库中，持久化保存
+- **缓存使用 / Cache Usage**: 如果缓存存在，直接使用缓存中的代码
+- **缓存更新 / Cache Update**: 首次获取或手动刷新时，从远程获取最新代码并更新缓存
+- **缓存失效 / Cache Fallback**: 如果远程获取失败，会使用缓存的代码作为后备
 
-- **Cache Duration**: Default 1 hour (3600 seconds)
-- **Cache Update**: Automatically fetches latest code from remote when cache expires
+- **Cache Storage**: Code cache is stored in database, persisted across restarts
+- **Cache Usage**: If cache exists, directly use cached code
+- **Cache Update**: On first fetch or manual refresh, fetch latest code from remote and update cache
 - **Cache Fallback**: Uses cached code if remote fetch fails
 
 ## 使用场景 / Use Cases
@@ -129,12 +131,12 @@ Manage different versions of components through Git branches:
 1. **网络访问 / Network Access**: 确保服务器可以访问配置的远程地址
 2. **代码格式 / Code Format**: 远程代码应该是有效的 TypeScript/React 代码
 3. **安全性 / Security**: 只从可信的远程地址获取代码
-4. **缓存策略 / Cache Strategy**: 如果需要立即获取最新代码，可以手动清除缓存或等待缓存过期
+4. **缓存策略 / Cache Strategy**: 如果需要立即获取最新代码，可以通过 `syncRemoteCode` API 手动刷新缓存
 
 1. **Network Access**: Ensure the server can access the configured remote URL
 2. **Code Format**: Remote code should be valid TypeScript/React code
 3. **Security**: Only fetch code from trusted remote sources
-4. **Cache Strategy**: To get the latest code immediately, manually clear cache or wait for cache expiration
+4. **Cache Strategy**: To get the latest code immediately, manually refresh cache via `syncRemoteCode` API
 
 ## 故障排查 / Troubleshooting
 
@@ -171,10 +173,11 @@ fetchCode(
   codePath?: string         // Git 文件路径（仅 Git 类型需要）
 ): Promise<string>
 
-// 检查缓存是否有效
+// 检查缓存是否有效（已废弃，不再使用时间戳验证）
+// 现在直接使用数据库中的缓存，不检查时间戳
 isCacheValid(
   cache: { content: string; timestamp: number } | null,
   maxAge?: number
-): boolean
+): boolean  // @deprecated 不再使用时间戳验证，直接使用缓存内容
 ```
 

@@ -36,15 +36,15 @@ export class ScriptInstruction extends Instruction {
         const remoteCodeFetcher = getRemoteCodeFetcher(app);
 
         if (remoteCodeFetcher) {
-          // 检查缓存（从 node.config.codeCache 读取）
-          const codeCache = node.config.codeCache as { content: string; timestamp: number } | undefined;
-          if (remoteCodeFetcher.isCacheValid(codeCache || null)) {
-            app.logger.info(`[Workflow Node ${node.id}] Using cached remote code`);
-            actualCode = codeCache!.content;
+          // 直接使用数据库中的缓存（如果存在）
+          const codeCache = node.config.codeCache as { content: string; timestamp?: number } | undefined;
+          if (codeCache?.content) {
+            app.logger.info(`[Workflow Node ${node.id}] Using cached remote code from database`);
+            actualCode = codeCache.content;
           } else {
-            // 从远程获取代码（使用配置的分支和路径）
+            // 缓存不存在，从远程获取代码（使用配置的分支和路径）
             app.logger.info(
-              `[Workflow Node ${node.id}] Fetching remote code from ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
+              `[Workflow Node ${node.id}] No cache found, fetching remote code from ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
             );
             actualCode = await remoteCodeFetcher.fetchCode(
               codeUrl,
@@ -56,7 +56,7 @@ export class ScriptInstruction extends Instruction {
               codeAuthUsername,
             );
 
-            // 更新缓存到节点配置中
+            // 保存缓存到节点配置中（首次获取时）
             const nodeRepo = app.db.getRepository('flow_nodes');
             await nodeRepo.update({
               filterByTk: node.id,
@@ -65,7 +65,7 @@ export class ScriptInstruction extends Instruction {
                   ...node.config,
                   codeCache: {
                     content: actualCode,
-                    timestamp: Date.now(),
+                    timestamp: Date.now(), // 保留 timestamp 用于记录，但不用于验证
                   },
                 },
               },
@@ -73,57 +73,85 @@ export class ScriptInstruction extends Instruction {
             app.logger.info(`[Workflow Node ${node.id}] Remote code fetched and cached successfully`);
           }
         } else {
-          // 使用简单的 HTTP 请求实现
-          const http = require('node:http');
-          const https = require('node:https');
-          const { URL } = require('node:url');
+          // 使用简单的 HTTP 请求实现（fallback，当 RemoteCodeFetcher 服务不可用时）
+          // 先检查缓存
+          const codeCache = node.config.codeCache as { content: string; timestamp?: number } | undefined;
+          if (codeCache?.content) {
+            app.logger.info(`[Workflow Node ${node.id}] Using cached remote code from database (fallback mode)`);
+            actualCode = codeCache.content;
+          } else {
+            // 缓存不存在，使用简单的 HTTP 请求获取代码
+            const http = require('node:http');
+            const https = require('node:https');
+            const { URL } = require('node:url');
 
-          const urlObj = new URL(codeUrl);
-          const client = urlObj.protocol === 'https:' ? https : http;
+            const urlObj = new URL(codeUrl);
+            const client = urlObj.protocol === 'https:' ? https : http;
 
-          actualCode = await new Promise<string>((resolve, reject) => {
-            const headers: Record<string, string> = {
-              'User-Agent': 'TegoWorkflow/1.0',
-            };
-
-            if (codeAuthType === 'token' && codeAuthToken) {
-              headers['Authorization'] = `Bearer ${codeAuthToken}`;
-            } else if (codeAuthType === 'basic' && codeAuthUsername && codeAuthToken) {
-              const credentials = Buffer.from(`${codeAuthUsername}:${codeAuthToken}`).toString('base64');
-              headers['Authorization'] = `Basic ${credentials}`;
-            }
-
-            const request = client.get(
-              {
-                hostname: urlObj.hostname,
-                port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
-                path: urlObj.pathname + urlObj.search,
-                headers,
-                timeout: 10000,
-              },
-              (res) => {
-                if (res.statusCode !== 200) {
-                  reject(new Error(`Failed to fetch: HTTP ${res.statusCode}`));
-                  return;
-                }
-
-                let data = '';
-                res.on('data', (chunk) => {
-                  data += chunk;
-                });
-
-                res.on('end', () => {
-                  resolve(data);
-                });
-              },
+            app.logger.info(
+              `[Workflow Node ${node.id}] No cache found, fetching remote code via HTTP (type: ${codeType}, branch: ${codeBranch || 'main'})`,
             );
 
-            request.on('error', reject);
-            request.on('timeout', () => {
-              request.destroy();
-              reject(new Error('Request timeout'));
+            actualCode = await new Promise<string>((resolve, reject) => {
+              const headers: Record<string, string> = {
+                'User-Agent': 'TegoWorkflow/1.0',
+              };
+
+              if (codeAuthType === 'token' && codeAuthToken) {
+                headers['Authorization'] = `Bearer ${codeAuthToken}`;
+              } else if (codeAuthType === 'basic' && codeAuthUsername && codeAuthToken) {
+                const credentials = Buffer.from(`${codeAuthUsername}:${codeAuthToken}`).toString('base64');
+                headers['Authorization'] = `Basic ${credentials}`;
+              }
+
+              const request = client.get(
+                {
+                  hostname: urlObj.hostname,
+                  port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+                  path: urlObj.pathname + urlObj.search,
+                  headers,
+                  timeout: 10000,
+                },
+                (res) => {
+                  if (res.statusCode !== 200) {
+                    reject(new Error(`Failed to fetch: HTTP ${res.statusCode}`));
+                    return;
+                  }
+
+                  let data = '';
+                  res.on('data', (chunk) => {
+                    data += chunk;
+                  });
+
+                  res.on('end', () => {
+                    resolve(data);
+                  });
+                },
+              );
+
+              request.on('error', reject);
+              request.on('timeout', () => {
+                request.destroy();
+                reject(new Error('Request timeout'));
+              });
             });
-          });
+
+            // 保存缓存到节点配置中（首次获取时）
+            const nodeRepo = app.db.getRepository('flow_nodes');
+            await nodeRepo.update({
+              filterByTk: node.id,
+              values: {
+                config: {
+                  ...node.config,
+                  codeCache: {
+                    content: actualCode,
+                    timestamp: Date.now(), // 保留 timestamp 用于记录，但不用于验证
+                  },
+                },
+              },
+            });
+            app.logger.info(`[Workflow Node ${node.id}] Remote code fetched and cached successfully (fallback mode)`);
+          }
         }
       } catch (error) {
         const app = processor.options.plugin.app;
@@ -133,9 +161,9 @@ export class ScriptInstruction extends Instruction {
           codeUrl,
         });
         // 如果远程获取失败，尝试使用缓存作为后备
-        const codeCache = node.config.codeCache as { content: string; timestamp: number } | undefined;
+        const codeCache = node.config.codeCache as { content: string; timestamp?: number } | undefined;
         if (codeCache?.content) {
-          app.logger.warn(`[Workflow Node ${node.id}] Using cached code as fallback`);
+          app.logger.warn(`[Workflow Node ${node.id}] Remote fetch failed, using cached code as fallback`);
           actualCode = codeCache.content;
         } else if (!code) {
           // 如果没有缓存也没有本地代码，抛出错误

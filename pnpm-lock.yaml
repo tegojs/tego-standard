@@ -117,7 +117,7 @@ importers:
         version: 5.8.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.1)(jsdom@16.7.0(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.1)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.10)(jiti@2.5.1)(jsdom@24.1.1(canvas@2.11.2(encoding@0.1.13)))(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.1)
 
   apps/desktop:
     devDependencies:
@@ -1050,8 +1050,8 @@ importers:
         specifier: ^4.7.0
         version: 4.7.0
       signature_pad:
-        specifier: 4.2.0
-        version: 4.2.0
+        specifier: 5.1.2
+        version: 5.1.2
       throttle-debounce:
         specifier: ^5.0.2
         version: 5.0.2
@@ -15090,8 +15090,8 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
-  signature_pad@4.2.0:
-    resolution: {integrity: sha512-YLWysmaUBaC5wosAKkgbX7XI+LBv2w5L0QUcI6Jc4moHYzv9BUBJtAyNLpWzHjtjKTeWOH6bfP4a4pzf0UinfQ==}
+  signature_pad@5.1.2:
+    resolution: {integrity: sha512-zYmjddQDolKgJnzYRoaMYaGezKaZbwjNBBwk1W7uVY0cyNWW30Izeu9BNVAGEgXvqB6APDJmf783oWTU7W67LQ==}
 
   sigstore@3.1.0:
     resolution: {integrity: sha512-ZpzWAFHIFqyFE56dXqgX/DkDRZdz+rRcjoIk/RQU4IX0wiCv1l8S7ZrXDHcCc+uaf+6o7w3h2l3g6GYG5TKN9Q==}
@@ -31086,7 +31086,7 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  signature_pad@4.2.0: {}
+  signature_pad@5.1.2: {}
 
   sigstore@3.1.0:
     dependencies:

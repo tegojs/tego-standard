@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pagination, useAPIClient, useCollectionManager, useCompile } from '@tachybase/client';
 import { observer } from '@tachybase/schema';
 
 import { useAsyncEffect } from 'ahooks';
 import { Empty, List, Space, Tag } from 'antd-mobile';
+import _ from 'lodash';
 import { useNavigate } from 'react-router-dom';
 
 import { approvalStatusEnums } from '../../../../common/constants/approval-initiation-status-options';
@@ -11,10 +12,12 @@ import { APPROVAL_TODO_STATUS } from '../../../../common/constants/approval-todo
 import { approvalTodoStatusOptions } from '../../../../common/constants/approval-todo-status-options';
 import { useTranslation } from '../../../../locale';
 import { ApprovalsSummary } from '../../common/approval-columns/summary.column';
+import { fuzzySearch } from '../../common/FuzzySearch';
 import { ApprovalPriorityType, ExecutionStatusOptions } from '../../constants';
 
 export const TabApprovalItem = observer((props) => {
   const { filter, params, input, collectionName, tabKey } = props as any;
+
   const api = useAPIClient();
   const [data, setData] = useState([]);
   const { t } = useTranslation();
@@ -25,33 +28,95 @@ export const TabApprovalItem = observer((props) => {
     pageSize: 10,
     current: 1,
   });
-  const [total, setTotal] = useState();
-  useAsyncEffect(async () => {
-    if (collectionName === 'approvalRecords') {
-      changeApprovalRecordsService(api, params?.[tabKey], filter, cm, compile, t, setData, input, page, setTotal);
-    } else if (collectionName === 'users_jobs') {
-      changeUsersJobsService(api, t, cm, compile, input, setData, params?.[tabKey], filter, page, setTotal);
-    } else if (collectionName === 'workflowNotice') {
-      const user = await api.request({ url: 'users:list', params: { paginate: false } });
-      changeWorkflowNoticeService(
-        api,
-        t,
-        cm,
-        compile,
-        input,
-        setData,
-        params?.[tabKey],
-        filter,
-        user?.data?.data,
-        page,
-        setTotal,
-      );
-    }
-  }, [filter, params, input, page]);
+  const [loadData, setLoadData] = useState({
+    loading: false,
+    isEnd: false,
+  });
+  const loadMoreRef = useRef(null);
+  const [user, setUser] = useState([]);
+  const [filteredData, setFilteredData] = useState('');
 
-  const onChange = (page, pageSize) => {
-    setPage({ pageSize, current: page });
-  };
+  useEffect(() => {
+    api.request({ url: 'users:list', params: { paginate: false } }).then((res) => setUser(res.data.data));
+  }, []);
+  useEffect(() => {
+    const mergerFilter = fuzzySearch({ filter, params: params?.[tabKey], input, isInitiationTable: false });
+    if (JSON.stringify(mergerFilter) === filteredData) return;
+    const serviceProps = {
+      api,
+      mergerFilter,
+      cm,
+      compile,
+      t,
+      setData,
+      input,
+      page: { pageSize: 10, current: 1 },
+      data,
+      setLoadData,
+      user,
+      isFilter: true,
+    };
+    if (collectionName === 'approvalRecords') {
+      changeApprovalRecordsService(serviceProps);
+    } else if (collectionName === 'users_jobs') {
+      changeUsersJobsService(serviceProps);
+    } else if (collectionName === 'workflowNotice') {
+      changeWorkflowNoticeService(serviceProps);
+    }
+    setFilteredData(JSON.stringify(mergerFilter));
+    if (page.current !== 1) {
+      setPage({ pageSize: 10, current: 1 });
+    }
+  }, [filter, params, input]);
+
+  useEffect(() => {
+    if (loadData.isEnd) return;
+    if (page.current === 1) return;
+    const mergerFilter = fuzzySearch({ filter, params: params?.[tabKey], input, isInitiationTable: false });
+    const serviceProps = {
+      api,
+      mergerFilter,
+      cm,
+      compile,
+      t,
+      setData,
+      input,
+      page,
+      data,
+      setLoadData,
+      user,
+    };
+    if (collectionName === 'approvalRecords') {
+      changeApprovalRecordsService(serviceProps);
+    } else if (collectionName === 'users_jobs') {
+      changeUsersJobsService(serviceProps);
+    } else if (collectionName === 'workflowNotice') {
+      changeWorkflowNoticeService(serviceProps);
+    }
+  }, [page]);
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    if (loadData.loading) return;
+    if (!data.length) return;
+    if (loadData.isEnd) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadData.loading && !loadData.isEnd) {
+          setPage((prev) => ({ pageSize: prev.pageSize, current: prev.current + 1 }));
+          setLoadData({ loading: true, isEnd: false });
+        }
+      },
+      { threshold: 1 },
+    );
+
+    observer.observe(el);
+
+    return () => {
+      observer.unobserve(el);
+      observer.disconnect();
+    };
+  }, [data.length, loadData]);
   return (
     <div style={{ marginTop: '10px', minHeight: '70vh' }}>
       {data.length ? (
@@ -92,16 +157,13 @@ export const TabApprovalItem = observer((props) => {
           })}
         </List>
       ) : (
-        <Empty description="暂无数据" />
+        <Empty description={`${t('No data available')}`} />
       )}
-      <Pagination
-        defaultCurrent={1}
-        total={total}
-        align="end"
-        pageSize={page.pageSize}
-        current={page.current}
-        onChange={onChange}
-      />
+      {data.length ? (
+        <div ref={loadMoreRef} style={{ textAlign: 'center', padding: 20 }}>
+          {loadData.loading ? `${t('Loading')}...` : loadData.isEnd ? `${t('Bottom reached')}` : `${t('Load more')}`}
+        </div>
+      ) : null}
     </div>
   );
 });
@@ -118,13 +180,14 @@ const approvalTodoListStatus = (item, t) => {
   }
 };
 
-const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setData, input, page, setTotal) => {
+const changeApprovalRecordsService = (serviceProps) => {
+  const { api, mergerFilter, compile, t, setData, page, data, setLoadData, isFilter } = serviceProps;
   api
     .request({
       url: 'approvalRecords:listCentralized',
       params: {
         appends: ['approval.createdBy.nickname', 'execution', 'job', 'node', 'workflow', 'user'],
-        filter: { ...params, ...filter },
+        filter: { ...mergerFilter },
         pageSize: page.pageSize,
         page: page.current,
         sort: ['-createdAt'],
@@ -150,53 +213,33 @@ const changeApprovalRecordsService = (api, params, filter, cm, compile, t, setDa
           priorityColor: priorityType?.color,
         };
       });
-      const filterResult = result.filter((value) => {
-        // 检查标题
-        if (value.title.includes(input)) {
-          return true;
-        }
-        // 检查 summary 中的值
-        const summary = value.summary;
-        if (summary) {
-          if (Array.isArray(summary)) {
-            // 新版数组格式
-            return summary.some((item: any) => {
-              const itemValue = item?.value;
-              if (Array.isArray(itemValue)) {
-                return itemValue.some((v: any) => String(v ?? '').includes(input));
-              }
-              return String(itemValue ?? '').includes(input);
-            });
-          } else if (typeof summary === 'object') {
-            // 旧版对象格式
-            return Object.values(summary).some((v: any) => {
-              const realValue = Object.prototype.toString.call(v) === '[object Object]' ? v?.['name'] : v;
-              return String(realValue ?? '').includes(input);
-            });
-          }
-        }
-        return false;
-      });
-
-      filterResult.sort((a, b) => {
-        return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-      });
-      setTotal(res.data?.meta?.count);
-      setData(filterResult);
+      const filterData = [];
+      if (isFilter) {
+        filterData.push(...result);
+      } else {
+        filterData.push(...data, ...result);
+      }
+      setData([...filterData]);
+      if (page.current === res.data?.meta?.totalPage) {
+        setLoadData({ loading: false, isEnd: true });
+      } else {
+        setLoadData({ loading: false, isEnd: false });
+      }
     })
     .catch(() => {
       console.error;
     });
 };
 
-const changeUsersJobsService = (api, t, cm, compile, input, setData, params, filter, page, setTotal) => {
+const changeUsersJobsService = (serviceProps) => {
+  const { api, compile, setData, mergerFilter, page, data, setLoadData, isFilter } = serviceProps;
   api
     .request({
       url: 'users_jobs:list',
       params: {
         pageSize: page.pageSize,
         page: page.current,
-        filter: { ...params, ...filter },
+        filter: { ...mergerFilter },
         appends: ['execution', 'job', 'node', 'user', 'workflow'],
         sort: ['-createdAt'],
       },
@@ -221,65 +264,33 @@ const changeUsersJobsService = (api, t, cm, compile, input, setData, params, fil
           priorityColor: priorityType?.color,
         };
       });
-      const filterResult = result.filter((value) => {
-        // 检查标题
-        if (value.title.includes(input)) {
-          return true;
-        }
-        // 检查 summary 中的值
-        const summary = value.summary;
-        if (summary) {
-          if (Array.isArray(summary)) {
-            // 新版数组格式
-            return summary.some((item: any) => {
-              const itemValue = item?.value;
-              if (Array.isArray(itemValue)) {
-                return itemValue.some((v: any) => String(v ?? '').includes(input));
-              }
-              return String(itemValue ?? '').includes(input);
-            });
-          } else if (typeof summary === 'object') {
-            // 旧版对象格式
-            return Object.values(summary).some((v: any) => {
-              const realValue = Object.prototype.toString.call(v) === '[object Object]' ? v?.['name'] : v;
-              return String(realValue ?? '').includes(input);
-            });
-          }
-        }
-        return false;
-      });
-
-      filterResult.sort((a, b) => {
-        return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-      });
-      setTotal(res.data?.meta?.count);
-      setData(filterResult);
+      const filterData = [];
+      if (isFilter) {
+        filterData.push(...result);
+      } else {
+        filterData.push(...data, ...result);
+      }
+      setData(filterData);
+      if (page.current === res.data?.meta?.totalPage) {
+        setLoadData({ loading: false, isEnd: true });
+      } else {
+        setLoadData({ loading: false, isEnd: false });
+      }
     })
     .catch(() => {
       console.error;
     });
 };
 
-export const changeWorkflowNoticeService = (
-  api,
-  t,
-  cm,
-  compile,
-  input,
-  setData,
-  params,
-  filter,
-  user,
-  page,
-  setTotal,
-) => {
+export const changeWorkflowNoticeService = (serviceProps) => {
+  const { api, compile, setData, mergerFilter, user, page, data, setLoadData, isFilter } = serviceProps;
   api
     .request({
       url: 'approvalCarbonCopy:listCentralized',
       params: {
         pageSize: page.pageSize,
         page: page.current,
-        filter: { ...params, ...filter },
+        filter: { ...mergerFilter },
         appends: [
           'createdBy.id',
           'createdBy.nickname',
@@ -321,40 +332,18 @@ export const changeWorkflowNoticeService = (
           priorityColor: priorityType?.color,
         };
       });
-
-      const filterResult = result.filter((value) => {
-        // 检查标题
-        if (value.title.includes(input)) {
-          return true;
-        }
-        // 检查 summary 中的值
-        const summary = value.summary;
-        if (summary) {
-          if (Array.isArray(summary)) {
-            // 新版数组格式
-            return summary.some((item: any) => {
-              const itemValue = item?.value;
-              if (Array.isArray(itemValue)) {
-                return itemValue.some((v: any) => String(v ?? '').includes(input));
-              }
-              return String(itemValue ?? '').includes(input);
-            });
-          } else if (typeof summary === 'object') {
-            // 旧版对象格式
-            return Object.values(summary).some((v: any) => {
-              const realValue = Object.prototype.toString.call(v) === '[object Object]' ? v?.['name'] : v;
-              return String(realValue ?? '').includes(input);
-            });
-          }
-        }
-        return false;
-      });
-
-      filterResult.sort((a, b) => {
-        return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-      });
-      setTotal(res.data?.meta?.count);
-      setData(filterResult);
+      const filterData = [];
+      if (isFilter) {
+        filterData.push(...result);
+      } else {
+        filterData.push(...data, ...result);
+      }
+      setData(filterData);
+      if (page.current === res.data?.meta?.totalPage) {
+        setLoadData({ loading: false, isEnd: true });
+      } else {
+        setLoadData({ loading: false, isEnd: false });
+      }
     })
     .catch(() => {
       console.error;

@@ -151,8 +151,9 @@ export class TriggerInstruction extends Instruction {
       } else {
         result = this.mapModel(result, model);
       }
-      prevJob.set('result', result);
     }
+    // 保持向后兼容：即使没有 model 映射，也调用 set 方法
+    prevJob.set('result', result);
 
     prevJob.set('status', prevJob.status);
     return prevJob;

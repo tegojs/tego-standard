@@ -9,8 +9,12 @@
 - 查看白名单数据表的占用大小、数据条数、创建时间、更新时间
 - 查看单个数据表的详细数据（支持分页）
 - 按时间条件筛选数据（支持 createdAt 和 updatedAt）
+- 按 ID 范围筛选数据（适用于没有时间字段的表）
 - 对筛选后的数据进行备份（可选下载）
 - 对筛选后的数据进行物理删除清理
+- 分批清理支持（按批数或每批条数分割，最多 1000 批）
+- VACUUM FULL 支持（清理后释放磁盘空间）
+- 数据库适配器架构（目前支持 PostgreSQL，保留扩展接口）
 
 ### 1.2 技术约束
 
@@ -231,7 +235,9 @@ export const WHITELIST_TABLES = [
   "createdAt": "2024-01-01T00:00:00Z",
   "updatedAt": "2024-12-31T23:59:59Z",
   "hasCreatedAt": true,
-  "hasUpdatedAt": true
+  "hasUpdatedAt": true,
+  "minId": 1,
+  "maxId": 1000
 }
 ```
 
@@ -260,7 +266,9 @@ export const WHITELIST_TABLES = [
   ],
   "page": 1,
   "pageSize": 20,
-  "totalPage": 5
+  "totalPage": 5,
+  "filteredMinId": 1,
+  "filteredMaxId": 100
 }
 ```
 
@@ -307,7 +315,8 @@ export const WHITELIST_TABLES = [
       "$gte": "2024-01-01T00:00:00Z",
       "$lte": "2024-12-31T23:59:59Z"
     }
-  }
+  },
+  "vacuum": true  // 可选：清理后执行 VACUUM FULL 释放磁盘空间
 }
 ```
 
@@ -315,6 +324,7 @@ export const WHITELIST_TABLES = [
 ```json
 {
   "deletedCount": 100,
+  "vacuum": true,
   "status": "success"
 }
 ```
@@ -437,56 +447,68 @@ this.app.acl.registerSnippet({
 packages/plugin-database-clean/
 ├── src/
 │   ├── server/
+│   │   ├── adapters/
+│   │   │   ├── base-adapter.ts           # 数据库适配器基类
+│   │   │   ├── postgres-adapter.ts       # PostgreSQL 适配器
+│   │   │   └── index.ts                  # 适配器工厂
 │   │   ├── constants.ts              # 白名单配置
 │   │   ├── services/
-│   │   │   ├── database-clean-service.ts      # 表信息查询服务
-│   │   │   ├── filtered-backup-service.ts    # 筛选备份服务
-│   │   │   └── clean-service.ts                # 清理服务
+│   │   │   ├── database-service.ts       # 表信息查询和清理服务
+│   │   │   └── filtered-backup-service.ts # 筛选备份服务
 │   │   ├── resourcers/
-│   │   │   └── database-clean.ts              # API 路由定义
+│   │   │   └── database-clean.ts         # API 路由定义
 │   │   ├── utils/
-│   │   │   └── lock.ts                        # 并发控制锁
-│   │   └── plugin.ts                          # 插件主文件
+│   │   │   └── lock.ts                   # 并发控制锁
+│   │   ├── utils.ts                  # SQL 适配工具
+│   │   ├── plugin.ts                 # 插件主文件
+│   │   └── index.ts
 │   ├── client/
 │   │   ├── pages/
-│   │   │   ├── TableList.tsx                  # 列表页面
-│   │   │   └── TableDetail.tsx                # 详情页面
-│   │   ├── components/
-│   │   │   ├── TableSize.tsx                  # 表大小显示组件
-│   │   │   └── FilterPanel.tsx                # 筛选面板组件
-│   │   └── plugin.tsx                         # 客户端插件
+│   │   │   ├── TableList.tsx             # 列表页面
+│   │   │   └── TableDetail.tsx           # 详情页面（包含备份/清理/分批/VACUUM 流程）
+│   │   ├── locale/
+│   │   │   ├── zh-CN.json                # 中文翻译
+│   │   │   ├── en-US.json                # 英文翻译
+│   │   │   └── index.ts
+│   │   └── plugin.tsx                # 客户端插件
 │   └── index.ts
 ├── package.json
-└── README.md
+├── README.md
+├── README.zh-CN.md
+└── REQUIREMENTS.md
 ```
 
-## 9. 实现计划
+## 9. 实现状态
 
-### 9.1 第一阶段：服务端基础功能
+### 9.1 已完成功能
 
-1. 定义白名单常量
-2. 实现数据库清理服务（表信息查询）
-3. 实现筛选备份服务
-4. 实现清理服务
-5. 实现并发控制锁机制
-6. 注册 API 路由
-7. 配置 ACL 权限
+✅ 定义白名单常量
+✅ 数据库适配器架构（PostgreSQL）
+✅ 表信息查询服务
+✅ 筛选备份服务（.tbdump 格式）
+✅ 清理服务
+✅ 并发控制锁机制
+✅ API 路由注册
+✅ ACL 权限配置
+✅ 列表页面
+✅ 详情页面
+✅ 时间范围筛选
+✅ ID 范围筛选
+✅ 备份流程（可选）
+✅ 清理流程
+✅ 分批清理（按批数/每批条数，最多 1000 批）
+✅ 清理进度显示（按钮显示 "(1/100) 清理中..."）
+✅ VACUUM FULL 支持（清理后释放空间）
+✅ 错误处理和提示
+✅ 中英文翻译
 
-### 9.2 第二阶段：前端页面
+### 9.2 待完善功能
 
-1. 实现列表页面
-2. 实现详情页面
-3. 实现筛选组件
-4. 实现备份流程
-5. 实现清理流程
-6. 错误处理和提示
-
-### 9.3 第三阶段：测试和优化
-
-1. 单元测试
-2. 集成测试
-3. 性能优化
-4. 用户体验优化
+❌ 单元测试
+❌ 集成测试
+❌ 其他数据库适配器（MySQL/SQLite 等）
+❌ 备份文件恢复功能（可使用 module-backup 的恢复功能）
+❌ 清理操作审计日志（可选）
 
 ## 10. 注意事项
 
@@ -527,5 +549,5 @@ packages/plugin-database-clean/
 
 - **版本**：1.3.25
 - **创建日期**：2024-01-01
-- **最后更新**：2024-01-01
+- **最后更新**：2024-12-04
 

@@ -356,11 +356,14 @@ export const TableDetail = () => {
               $lte: batch.maxId,
             },
           };
+          // 仅在最后一批时执行 VACUUM FULL
+          const isLastBatch = i === batches.length - 1;
 
           const response = await resource.clean({
             values: {
               collectionName: tableName,
               filter: batchFilter,
+              vacuumFull: isLastBatch && vacuumFull,
             },
           });
 
@@ -379,6 +382,7 @@ export const TableDetail = () => {
           values: {
             collectionName: tableName,
             filter: Object.keys(baseFilter).length > 0 ? baseFilter : undefined,
+            vacuumFull,
           },
         });
 
@@ -386,23 +390,8 @@ export const TableDetail = () => {
       }
 
       message.success(t('Clean Success') + ` (${totalDeletedCount} ${t('records deleted')})`);
-
-      // 如果选择了 VACUUM FULL，执行释放空间操作
       if (vacuumFull) {
-        setVacuumLoading(true);
-        try {
-          await resource.vacuum({
-            values: {
-              collectionName: tableName,
-              full: true,
-            },
-          });
-          message.success(t('Space released successfully'));
-        } catch (error) {
-          message.error(error.message || t('Failed to release space'));
-        } finally {
-          setVacuumLoading(false);
-        }
+        message.success(t('Space released successfully'));
       }
 
       // 重置状态
@@ -577,7 +566,11 @@ export const TableDetail = () => {
               disabled={isProcessing}
               onClick={handleClean}
             >
-              {t('Clean')}
+              {cleanLoading
+                ? cleanProgress
+                  ? `(${cleanProgress.current}/${cleanProgress.total}) ${t('Cleaning...')}`
+                  : t('Cleaning...')
+                : t('Clean')}
             </Button>
           </Space>
 

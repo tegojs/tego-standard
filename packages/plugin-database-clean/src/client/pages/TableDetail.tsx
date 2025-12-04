@@ -768,9 +768,20 @@ export const TableDetail = () => {
 
                   <Alert
                     message={t('Release space warning')}
-                    description={t(
-                      'Releasing space will lock the table and may take a long time for large tables. Other operations on this table will be blocked during the process.',
-                    )}
+                    description={
+                      <>
+                        {t(
+                          'Releasing space will lock the table and may take a long time for large tables. Other operations on this table will be blocked during the process.',
+                        )}
+                        {batchMode !== 'none' && (
+                          <>
+                            <br />
+                            <br />
+                            {t('Space will be released only after the last batch is completed.')}
+                          </>
+                        )}
+                      </>
+                    }
                     type="warning"
                     showIcon
                   />

@@ -2,7 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, useAPIClient } from '@tachybase/client';
 
 import { DeleteOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined, WarningOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Card, InputNumber, message, Modal, Space, Spin, Table, Typography } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  InputNumber,
+  message,
+  Modal,
+  Progress,
+  Radio,
+  Space,
+  Spin,
+  Table,
+  Typography,
+} from 'antd';
 import dayjs from 'dayjs';
 import { saveAs } from 'file-saver';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -90,8 +104,25 @@ export const TableDetail = () => {
   const [backupFileName, setBackupFileName] = useState<string | null>(null);
   const [cleanModalVisible, setCleanModalVisible] = useState(false);
   const [backupDownloadModalVisible, setBackupDownloadModalVisible] = useState(false);
+  const [batchSettingModalVisible, setBatchSettingModalVisible] = useState(false);
   const [vacuumModalVisible, setVacuumModalVisible] = useState(false);
   const [pendingCleanFilter, setPendingCleanFilter] = useState<Record<string, any> | null>(null);
+  // 符合筛选条件的数据的 ID 范围和数量
+  const [filteredDataInfo, setFilteredDataInfo] = useState<{
+    count: number;
+    minId: number | null;
+    maxId: number | null;
+  }>({ count: 0, minId: null, maxId: null });
+  // 分批设置
+  const [batchMode, setBatchMode] = useState<'none' | 'count' | 'size'>('none');
+  const [batchCount, setBatchCount] = useState<number>(10);
+  const [batchSize, setBatchSize] = useState<number>(10000);
+  // 清理进度
+  const [cleanProgress, setCleanProgress] = useState<{
+    current: number;
+    total: number;
+    deletedCount: number;
+  } | null>(null);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
@@ -99,6 +130,9 @@ export const TableDetail = () => {
   });
 
   const [filter, setFilter] = useState<FilterState>({});
+
+  // 是否正在处理中（备份、下载、清理、释放空间）
+  const isProcessing = backupLoading || downloadLoading || cleanLoading || vacuumLoading;
 
   const resource = useMemo(() => {
     return apiClient.resource('databaseClean');
@@ -150,6 +184,12 @@ export const TableDetail = () => {
         ...prev,
         total: meta?.count || 0,
       }));
+      // 保存符合筛选条件的数据信息
+      setFilteredDataInfo({
+        count: meta?.count || 0,
+        minId: meta?.filteredMinId ?? null,
+        maxId: meta?.filteredMaxId ?? null,
+      });
     } catch (error) {
       message.error(error.message || t('Failed to load table data'));
     } finally {
@@ -232,16 +272,16 @@ export const TableDetail = () => {
     const success = await handleDownload(backupFileName!);
     if (success) {
       setBackupDownloadModalVisible(false);
-      // 打开 VACUUM 确认弹窗
-      setVacuumModalVisible(true);
+      // 打开分批设置弹窗
+      setBatchSettingModalVisible(true);
     }
   };
 
   // 跳过下载直接清理
   const handleSkipDownloadAndClean = () => {
     setBackupDownloadModalVisible(false);
-    // 打开 VACUUM 确认弹窗
-    setVacuumModalVisible(true);
+    // 打开分批设置弹窗
+    setBatchSettingModalVisible(true);
   };
 
   // 直接清理（不备份）
@@ -249,7 +289,13 @@ export const TableDetail = () => {
     // 保存当前筛选条件
     setPendingCleanFilter(buildFilterParams(filter));
     setCleanModalVisible(false);
-    // 打开 VACUUM 确认弹窗
+    // 打开分批设置弹窗
+    setBatchSettingModalVisible(true);
+  };
+
+  // 确认分批设置，进入 VACUUM 确认
+  const handleConfirmBatchSetting = () => {
+    setBatchSettingModalVisible(false);
     setVacuumModalVisible(true);
   };
 
@@ -262,19 +308,84 @@ export const TableDetail = () => {
   const doClean = async (vacuumFull = false) => {
     if (!tableName) return;
     setCleanLoading(true);
+    setCleanProgress(null);
+
     try {
       // 使用保存的筛选条件或当前筛选条件
-      const filterParams = pendingCleanFilter || buildFilterParams(filter);
+      const baseFilter = pendingCleanFilter || buildFilterParams(filter);
+      let totalDeletedCount = 0;
 
-      const response = await resource.clean({
-        values: {
-          collectionName: tableName,
-          filter: Object.keys(filterParams).length > 0 ? filterParams : undefined,
-        },
-      });
+      // 计算分批信息
+      const { minId, maxId, count } = filteredDataInfo;
+      let batches: Array<{ minId: number; maxId: number }> = [];
 
-      // Axios 响应格式: response.data = { data: {...} }
-      message.success(t('Clean Success') + ` (${response.data?.data?.deletedCount} ${t('records deleted')})`);
+      if (batchMode !== 'none' && minId !== null && maxId !== null && count > 0) {
+        const idRange = maxId - minId + 1;
+        let numBatches: number;
+
+        if (batchMode === 'count') {
+          numBatches = batchCount;
+        } else {
+          // batchMode === 'size'
+          numBatches = Math.ceil(count / batchSize);
+        }
+
+        // 确保至少 1 批
+        numBatches = Math.max(1, numBatches);
+
+        const batchIdSize = Math.ceil(idRange / numBatches);
+
+        for (let i = 0; i < numBatches; i++) {
+          const batchMinId = minId + i * batchIdSize;
+          const batchMaxId = Math.min(minId + (i + 1) * batchIdSize - 1, maxId);
+          batches.push({ minId: batchMinId, maxId: batchMaxId });
+        }
+      }
+
+      if (batches.length > 1) {
+        // 分批清理
+        setCleanProgress({ current: 0, total: batches.length, deletedCount: 0 });
+
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          const batchFilter = {
+            ...baseFilter,
+            id: {
+              ...baseFilter.id,
+              $gte: batch.minId,
+              $lte: batch.maxId,
+            },
+          };
+
+          const response = await resource.clean({
+            values: {
+              collectionName: tableName,
+              filter: batchFilter,
+            },
+          });
+
+          const deletedCount = response.data?.data?.deletedCount || 0;
+          totalDeletedCount += deletedCount;
+
+          setCleanProgress({
+            current: i + 1,
+            total: batches.length,
+            deletedCount: totalDeletedCount,
+          });
+        }
+      } else {
+        // 不分批，一次性清理
+        const response = await resource.clean({
+          values: {
+            collectionName: tableName,
+            filter: Object.keys(baseFilter).length > 0 ? baseFilter : undefined,
+          },
+        });
+
+        totalDeletedCount = response.data?.data?.deletedCount || 0;
+      }
+
+      message.success(t('Clean Success') + ` (${totalDeletedCount} ${t('records deleted')})`);
 
       // 如果选择了 VACUUM FULL，执行释放空间操作
       if (vacuumFull) {
@@ -297,6 +408,8 @@ export const TableDetail = () => {
       // 重置状态
       setBackupFileName(null);
       setPendingCleanFilter(null);
+      setCleanProgress(null);
+      setBatchMode('none');
       // 重置筛选条件，避免旧的筛选范围超出新数据范围
       setFilter({});
       // 重置分页到第一页
@@ -308,6 +421,7 @@ export const TableDetail = () => {
       message.error(error.message || t('Clean Failed'));
     } finally {
       setCleanLoading(false);
+      setCleanProgress(null);
     }
   };
 
@@ -453,10 +567,16 @@ export const TableDetail = () => {
 
           {/* 操作按钮 */}
           <Space>
-            <Button onClick={loadTableData} icon={<ReloadOutlined />}>
+            <Button onClick={loadTableData} icon={<ReloadOutlined />} disabled={isProcessing}>
               {t('Refresh')}
             </Button>
-            <Button danger icon={<DeleteOutlined />} loading={cleanLoading} onClick={handleClean}>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              loading={cleanLoading}
+              disabled={isProcessing}
+              onClick={handleClean}
+            >
               {t('Clean')}
             </Button>
           </Space>
@@ -470,7 +590,10 @@ export const TableDetail = () => {
               </Space>
             }
             open={cleanModalVisible}
-            onCancel={() => setCleanModalVisible(false)}
+            onCancel={() => !isProcessing && setCleanModalVisible(false)}
+            closable={!isProcessing}
+            maskClosable={!isProcessing}
+            keyboard={!isProcessing}
             footer={null}
             width={500}
           >
@@ -487,11 +610,18 @@ export const TableDetail = () => {
               </Typography.Text>
 
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button onClick={() => setCleanModalVisible(false)}>{t('Cancel')}</Button>
-                <Button icon={<SaveOutlined />} loading={backupLoading} onClick={handleBackupThenClean}>
+                <Button onClick={() => setCleanModalVisible(false)} disabled={isProcessing}>
+                  {t('Cancel')}
+                </Button>
+                <Button
+                  icon={<SaveOutlined />}
+                  loading={backupLoading}
+                  disabled={isProcessing}
+                  onClick={handleBackupThenClean}
+                >
                   {t('Backup then Clean')}
                 </Button>
-                <Button danger icon={<DeleteOutlined />} onClick={handleCleanDirectly}>
+                <Button danger icon={<DeleteOutlined />} disabled={isProcessing} onClick={handleCleanDirectly}>
                   {t('Clean directly')}
                 </Button>
               </Space>
@@ -502,7 +632,10 @@ export const TableDetail = () => {
           <Modal
             title={t('Backup Complete')}
             open={backupDownloadModalVisible}
-            onCancel={() => setBackupDownloadModalVisible(false)}
+            onCancel={() => !isProcessing && setBackupDownloadModalVisible(false)}
+            closable={!isProcessing}
+            maskClosable={!isProcessing}
+            keyboard={!isProcessing}
             footer={null}
             width={450}
           >
@@ -510,15 +643,111 @@ export const TableDetail = () => {
               <Typography.Text>{t('Do you want to download the backup file before cleaning?')}</Typography.Text>
 
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button onClick={() => setBackupDownloadModalVisible(false)}>{t('Cancel')}</Button>
-                <Button onClick={handleSkipDownloadAndClean}>{t('Skip download')}</Button>
+                <Button onClick={() => setBackupDownloadModalVisible(false)} disabled={isProcessing}>
+                  {t('Cancel')}
+                </Button>
+                <Button onClick={handleSkipDownloadAndClean} disabled={isProcessing}>
+                  {t('Skip download')}
+                </Button>
                 <Button
                   type="primary"
                   icon={<DownloadOutlined />}
                   loading={downloadLoading}
+                  disabled={isProcessing && !downloadLoading}
                   onClick={handleDownloadThenClean}
                 >
                   {t('Download and continue')}
+                </Button>
+              </Space>
+            </Space>
+          </Modal>
+
+          {/* 分批设置弹窗 */}
+          <Modal
+            title={t('Batch Settings')}
+            open={batchSettingModalVisible}
+            onCancel={() => !isProcessing && setBatchSettingModalVisible(false)}
+            closable={!isProcessing}
+            maskClosable={!isProcessing}
+            keyboard={!isProcessing}
+            footer={null}
+            width={550}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Typography.Text>
+                {t('Total records to clean')}: <strong>{filteredDataInfo.count.toLocaleString()}</strong>
+              </Typography.Text>
+
+              <Radio.Group value={batchMode} onChange={(e) => setBatchMode(e.target.value)} style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Radio value="none">{t('No batching')}</Radio>
+                  <Radio value="count">
+                    <Space>
+                      {t('Split into')}
+                      <InputNumber
+                        min={2}
+                        max={1000}
+                        value={batchCount}
+                        onChange={(v) => v && setBatchCount(v)}
+                        changeOnWheel
+                        disabled={batchMode !== 'count'}
+                        style={{ width: 80 }}
+                      />
+                      {t('batches')}
+                    </Space>
+                  </Radio>
+                  <Radio value="size">
+                    <Space>
+                      {t('Each batch')}
+                      <InputNumber
+                        min={1000}
+                        max={1000000}
+                        step={1000}
+                        value={batchSize}
+                        onChange={(v) => v && setBatchSize(v)}
+                        changeOnWheel
+                        disabled={batchMode !== 'size'}
+                        style={{ width: 100 }}
+                      />
+                      {t('records')}
+                    </Space>
+                  </Radio>
+                </Space>
+              </Radio.Group>
+
+              {/* 分批提示 */}
+              <Alert
+                type="info"
+                showIcon
+                message={
+                  batchMode === 'none'
+                    ? filteredDataInfo.count > 50000
+                      ? t('Will clean {{count}} records at once. Large data volume may take a long time.', {
+                          count: filteredDataInfo.count.toLocaleString(),
+                        })
+                      : t('Will clean {{count}} records at once.', {
+                          count: filteredDataInfo.count.toLocaleString(),
+                        })
+                    : batchMode === 'count'
+                      ? t('Will clean {{count}} records in {{batches}} batches, {{perBatch}} records per batch.', {
+                          count: filteredDataInfo.count.toLocaleString(),
+                          batches: batchCount,
+                          perBatch: Math.ceil(filteredDataInfo.count / batchCount).toLocaleString(),
+                        })
+                      : t('Will clean {{count}} records in {{batches}} batches, {{perBatch}} records per batch.', {
+                          count: filteredDataInfo.count.toLocaleString(),
+                          batches: Math.ceil(filteredDataInfo.count / batchSize),
+                          perBatch: batchSize.toLocaleString(),
+                        })
+                }
+              />
+
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setBatchSettingModalVisible(false)} disabled={isProcessing}>
+                  {t('Cancel')}
+                </Button>
+                <Button type="primary" onClick={handleConfirmBatchSetting} disabled={isProcessing}>
+                  {t('Next')}
                 </Button>
               </Space>
             </Space>
@@ -533,31 +762,62 @@ export const TableDetail = () => {
               </Space>
             }
             open={vacuumModalVisible}
-            onCancel={() => setVacuumModalVisible(false)}
+            onCancel={() => !isProcessing && setVacuumModalVisible(false)}
+            closable={!isProcessing}
+            maskClosable={!isProcessing}
+            keyboard={!isProcessing}
             footer={null}
             width={550}
           >
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              <Typography.Text>{t('Do you want to release disk space after cleaning?')}</Typography.Text>
+              {/* 清理进度显示 */}
+              {cleanProgress && (
+                <div>
+                  <Typography.Text>
+                    {t('Cleaning progress')}: {cleanProgress.current} / {cleanProgress.total} {t('batches')}
+                  </Typography.Text>
+                  <Progress percent={Math.round((cleanProgress.current / cleanProgress.total) * 100)} status="active" />
+                  <Typography.Text type="secondary">
+                    {t('Deleted')}: {cleanProgress.deletedCount.toLocaleString()} {t('records')}
+                  </Typography.Text>
+                </div>
+              )}
 
-              <Alert
-                message={t('Release space warning')}
-                description={t(
-                  'Releasing space will lock the table and may take a long time for large tables. Other operations on this table will be blocked during the process.',
-                )}
-                type="warning"
-                showIcon
-              />
+              {!cleanProgress && (
+                <>
+                  <Typography.Text>{t('Do you want to release disk space after cleaning?')}</Typography.Text>
 
-              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button onClick={() => setVacuumModalVisible(false)}>{t('Cancel')}</Button>
-                <Button onClick={() => handleConfirmVacuum(false)} loading={cleanLoading}>
-                  {t('Clean only')}
-                </Button>
-                <Button danger onClick={() => handleConfirmVacuum(true)} loading={cleanLoading || vacuumLoading}>
-                  {t('Clean and release space')}
-                </Button>
-              </Space>
+                  <Alert
+                    message={t('Release space warning')}
+                    description={t(
+                      'Releasing space will lock the table and may take a long time for large tables. Other operations on this table will be blocked during the process.',
+                    )}
+                    type="warning"
+                    showIcon
+                  />
+
+                  <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                    <Button onClick={() => setVacuumModalVisible(false)} disabled={isProcessing}>
+                      {t('Cancel')}
+                    </Button>
+                    <Button
+                      onClick={() => handleConfirmVacuum(false)}
+                      loading={cleanLoading}
+                      disabled={isProcessing && !cleanLoading}
+                    >
+                      {t('Clean only')}
+                    </Button>
+                    <Button
+                      danger
+                      onClick={() => handleConfirmVacuum(true)}
+                      loading={cleanLoading || vacuumLoading}
+                      disabled={isProcessing && !(cleanLoading || vacuumLoading)}
+                    >
+                      {t('Clean and release space')}
+                    </Button>
+                  </Space>
+                </>
+              )}
             </Space>
           </Modal>
 

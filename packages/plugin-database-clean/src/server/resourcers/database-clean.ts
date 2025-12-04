@@ -150,12 +150,38 @@ export default {
         sort: sortFields,
       });
 
+      // 获取符合筛选条件的数据的 ID 范围（用于前端分批清理）
+      let filteredMinId: number | null = null;
+      let filteredMaxId: number | null = null;
+
+      if (count > 0) {
+        const primaryKey = collection.model.primaryKeyAttribute || 'id';
+        // 查询符合筛选条件的最小和最大 ID
+        const minResult = await repository.findOne({
+          filter: filter || {},
+          sort: [primaryKey],
+          fields: [primaryKey],
+        });
+        const maxResult = await repository.findOne({
+          filter: filter || {},
+          sort: [`-${primaryKey}`],
+          fields: [primaryKey],
+        });
+
+        if (minResult && maxResult) {
+          filteredMinId = minResult[primaryKey];
+          filteredMaxId = maxResult[primaryKey];
+        }
+      }
+
       ctx.body = {
         count,
         rows,
         page: Number(page),
         pageSize: Number(pageSize),
         totalPage: Math.ceil(count / limit),
+        filteredMinId,
+        filteredMaxId,
       };
 
       await next();

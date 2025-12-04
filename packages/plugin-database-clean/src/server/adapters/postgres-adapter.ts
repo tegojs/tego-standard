@@ -105,4 +105,15 @@ export class PostgresAdapter extends BaseDatabaseAdapter {
 
     return { minId: null, maxId: null };
   }
+
+  async vacuum(collection: Collection, full = false): Promise<void> {
+    const tableName = collection.quotedTableName();
+    if (full) {
+      // VACUUM FULL 会锁表，但能真正释放磁盘空间返还给操作系统
+      await this.app.db.sequelize.query(`VACUUM FULL ANALYZE ${tableName}`);
+    } else {
+      // 普通 VACUUM 不锁表，标记空间可重用并更新统计信息
+      await this.app.db.sequelize.query(`VACUUM ANALYZE ${tableName}`);
+    }
+  }
 }

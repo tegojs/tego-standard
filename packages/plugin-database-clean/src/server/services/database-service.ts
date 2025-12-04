@@ -147,4 +147,18 @@ export class DatabaseService {
       deletedCount: result,
     };
   }
+
+  /**
+   * 执行 VACUUM 操作以释放磁盘空间
+   * @param collectionName 集合名称
+   * @param full 是否使用 VACUUM FULL（会锁表但真正释放空间）
+   */
+  async vacuum(collectionName: string, full = false): Promise<void> {
+    const collection = this.app.db.getCollection(collectionName);
+    if (!collection) {
+      throw new Error(`Collection ${collectionName} not found`);
+    }
+
+    await this.adapter.vacuum(collection, full);
+  }
 }

@@ -311,5 +311,55 @@ export default {
 
       await next();
     },
+
+    /**
+     * 执行 VACUUM 释放磁盘空间
+     */
+    async vacuum(ctx: Context, next: Next) {
+      const { collectionName, full } = ctx.action.params.values as {
+        collectionName: string;
+        full?: boolean;
+      };
+
+      if (!collectionName) {
+        ctx.throw(400, 'Collection name is required');
+        return;
+      }
+
+      const collection = ctx.app.db.getCollection(collectionName);
+      if (!collection) {
+        ctx.throw(404, `Collection ${collectionName} not found`);
+        return;
+      }
+
+      if (!WHITELIST_TABLES.includes(collectionName)) {
+        ctx.throw(403, `Collection ${collectionName} is not in whitelist`);
+        return;
+      }
+
+      const lock = new DatabaseCleanLock(ctx.app);
+      const locked = await lock.acquire(collectionName);
+
+      if (!locked) {
+        ctx.throw(409, `Collection ${collectionName} is being processed`);
+        return;
+      }
+
+      try {
+        const service = new DatabaseService(ctx.app);
+        await service.vacuum(collectionName, full);
+
+        ctx.body = {
+          status: 'success',
+          full: !!full,
+        };
+      } catch (error) {
+        ctx.throw(500, `VACUUM failed: ${error.message}`);
+      } finally {
+        await lock.release(collectionName);
+      }
+
+      await next();
+    },
   },
 };

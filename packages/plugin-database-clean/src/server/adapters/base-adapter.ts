@@ -62,4 +62,11 @@ export abstract class BaseDatabaseAdapter {
    * @param collection 集合对象
    */
   abstract getIdRange(collection: Collection): Promise<IdRangeInfo>;
+
+  /**
+   * 执行 VACUUM 操作以释放磁盘空间
+   * @param collection 集合对象
+   * @param full 是否使用 VACUUM FULL（会锁表但真正释放空间）
+   */
+  abstract vacuum(collection: Collection, full?: boolean): Promise<void>;
 }

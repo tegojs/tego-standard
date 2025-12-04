@@ -84,9 +84,14 @@ export const TableDetail = () => {
   const [dataSource, setDataSource] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   const [cleanLoading, setCleanLoading] = useState(false);
+  const [vacuumLoading, setVacuumLoading] = useState(false);
   const [backupFileName, setBackupFileName] = useState<string | null>(null);
   const [cleanModalVisible, setCleanModalVisible] = useState(false);
+  const [backupDownloadModalVisible, setBackupDownloadModalVisible] = useState(false);
+  const [vacuumModalVisible, setVacuumModalVisible] = useState(false);
+  const [pendingCleanFilter, setPendingCleanFilter] = useState<Record<string, any> | null>(null);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
@@ -182,6 +187,7 @@ export const TableDetail = () => {
   const handleDownload = async (fileName?: string) => {
     const fileToDownload = fileName || backupFileName;
     if (!fileToDownload) return;
+    setDownloadLoading(true);
     try {
       const data = await apiClient.request({
         url: 'databaseClean:download',
@@ -194,8 +200,12 @@ export const TableDetail = () => {
       const blob = new Blob([data.data]);
       saveAs(blob, fileToDownload);
       message.success(t('Download') + ' ' + t('Success'));
+      return true;
     } catch (error) {
       message.error(error.message || t('Download') + ' ' + t('Failed'));
+      return false;
+    } finally {
+      setDownloadLoading(false);
     }
   };
 
@@ -208,36 +218,53 @@ export const TableDetail = () => {
   const handleBackupThenClean = async () => {
     const fileName = await handleBackup();
     if (fileName) {
-      // 询问是否下载
-      modal.confirm({
-        title: t('Backup Complete'),
-        content: t('Do you want to download the backup file before cleaning?'),
-        okText: t('Download and Clean'),
-        cancelText: t('Clean directly'),
-        onOk: async () => {
-          await handleDownload(fileName);
-          await doClean();
-        },
-        onCancel: async () => {
-          await doClean();
-        },
-      });
+      setBackupFileName(fileName);
+      // 保存当前筛选条件
+      setPendingCleanFilter(buildFilterParams(filter));
+      // 关闭清理确认弹窗，打开下载确认弹窗
       setCleanModalVisible(false);
+      setBackupDownloadModalVisible(true);
     }
+  };
+
+  // 下载后继续清理
+  const handleDownloadThenClean = async () => {
+    const success = await handleDownload(backupFileName!);
+    if (success) {
+      setBackupDownloadModalVisible(false);
+      // 打开 VACUUM 确认弹窗
+      setVacuumModalVisible(true);
+    }
+  };
+
+  // 跳过下载直接清理
+  const handleSkipDownloadAndClean = () => {
+    setBackupDownloadModalVisible(false);
+    // 打开 VACUUM 确认弹窗
+    setVacuumModalVisible(true);
   };
 
   // 直接清理（不备份）
   const handleCleanDirectly = async () => {
+    // 保存当前筛选条件
+    setPendingCleanFilter(buildFilterParams(filter));
     setCleanModalVisible(false);
-    await doClean();
+    // 打开 VACUUM 确认弹窗
+    setVacuumModalVisible(true);
   };
 
-  const doClean = async () => {
+  // 执行清理（带可选的 VACUUM FULL）
+  const handleConfirmVacuum = async (vacuumFull: boolean) => {
+    setVacuumModalVisible(false);
+    await doClean(vacuumFull);
+  };
+
+  const doClean = async (vacuumFull = false) => {
     if (!tableName) return;
     setCleanLoading(true);
     try {
-      // 构建筛选条件
-      const filterParams = buildFilterParams(filter);
+      // 使用保存的筛选条件或当前筛选条件
+      const filterParams = pendingCleanFilter || buildFilterParams(filter);
 
       const response = await resource.clean({
         values: {
@@ -249,8 +276,27 @@ export const TableDetail = () => {
       // Axios 响应格式: response.data = { data: {...} }
       message.success(t('Clean Success') + ` (${response.data?.data?.deletedCount} ${t('records deleted')})`);
 
+      // 如果选择了 VACUUM FULL，执行释放空间操作
+      if (vacuumFull) {
+        setVacuumLoading(true);
+        try {
+          await resource.vacuum({
+            values: {
+              collectionName: tableName,
+              full: true,
+            },
+          });
+          message.success(t('Space released successfully'));
+        } catch (error) {
+          message.error(error.message || t('Failed to release space'));
+        } finally {
+          setVacuumLoading(false);
+        }
+      }
+
       // 重置状态
       setBackupFileName(null);
+      setPendingCleanFilter(null);
       // 重置筛选条件，避免旧的筛选范围超出新数据范围
       setFilter({});
       // 重置分页到第一页
@@ -447,6 +493,69 @@ export const TableDetail = () => {
                 </Button>
                 <Button danger icon={<DeleteOutlined />} onClick={handleCleanDirectly}>
                   {t('Clean directly')}
+                </Button>
+              </Space>
+            </Space>
+          </Modal>
+
+          {/* 备份下载确认弹窗 */}
+          <Modal
+            title={t('Backup Complete')}
+            open={backupDownloadModalVisible}
+            onCancel={() => setBackupDownloadModalVisible(false)}
+            footer={null}
+            width={450}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Typography.Text>{t('Do you want to download the backup file before cleaning?')}</Typography.Text>
+
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setBackupDownloadModalVisible(false)}>{t('Cancel')}</Button>
+                <Button onClick={handleSkipDownloadAndClean}>{t('Skip download')}</Button>
+                <Button
+                  type="primary"
+                  icon={<DownloadOutlined />}
+                  loading={downloadLoading}
+                  onClick={handleDownloadThenClean}
+                >
+                  {t('Download and continue')}
+                </Button>
+              </Space>
+            </Space>
+          </Modal>
+
+          {/* VACUUM 确认弹窗 */}
+          <Modal
+            title={
+              <Space>
+                <WarningOutlined style={{ color: '#faad14' }} />
+                {t('Release disk space')}
+              </Space>
+            }
+            open={vacuumModalVisible}
+            onCancel={() => setVacuumModalVisible(false)}
+            footer={null}
+            width={550}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Typography.Text>{t('Do you want to release disk space after cleaning?')}</Typography.Text>
+
+              <Alert
+                message={t('Release space warning')}
+                description={t(
+                  'Releasing space will lock the table and may take a long time for large tables. Other operations on this table will be blocked during the process.',
+                )}
+                type="warning"
+                showIcon
+              />
+
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setVacuumModalVisible(false)}>{t('Cancel')}</Button>
+                <Button onClick={() => handleConfirmVacuum(false)} loading={cleanLoading}>
+                  {t('Clean only')}
+                </Button>
+                <Button danger onClick={() => handleConfirmVacuum(true)} loading={cleanLoading || vacuumLoading}>
+                  {t('Clean and release space')}
                 </Button>
               </Space>
             </Space>

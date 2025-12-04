@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, useAPIClient } from '@tachybase/client';
 
-import { DeleteOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Card, InputNumber, message, Modal, Space, Spin, Table } from 'antd';
+import { DeleteOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined, WarningOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Card, InputNumber, message, Modal, Space, Spin, Table, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { saveAs } from 'file-saver';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -86,7 +86,7 @@ export const TableDetail = () => {
   const [backupLoading, setBackupLoading] = useState(false);
   const [cleanLoading, setCleanLoading] = useState(false);
   const [backupFileName, setBackupFileName] = useState<string | null>(null);
-  const [hasBackedUp, setHasBackedUp] = useState(false);
+  const [cleanModalVisible, setCleanModalVisible] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
@@ -167,55 +167,69 @@ export const TableDetail = () => {
       });
 
       // Axios 响应格式: response.data = { data: {...} }
-      setBackupFileName(response.data?.data?.fileName);
-      setHasBackedUp(true);
+      const fileName = response.data?.data?.fileName;
+      setBackupFileName(fileName);
       message.success(t('Backup Success'));
+      return fileName;
     } catch (error) {
       message.error(error.message || t('Backup Failed'));
+      return null;
     } finally {
       setBackupLoading(false);
     }
   };
 
-  const handleDownload = async () => {
-    if (!backupFileName) return;
+  const handleDownload = async (fileName?: string) => {
+    const fileToDownload = fileName || backupFileName;
+    if (!fileToDownload) return;
     try {
       const data = await apiClient.request({
         url: 'databaseClean:download',
         method: 'get',
         params: {
-          filterByTk: backupFileName,
+          filterByTk: fileToDownload,
         },
         responseType: 'blob',
       });
       const blob = new Blob([data.data]);
-      saveAs(blob, backupFileName);
+      saveAs(blob, fileToDownload);
       message.success(t('Download') + ' ' + t('Success'));
     } catch (error) {
       message.error(error.message || t('Download') + ' ' + t('Failed'));
     }
   };
 
+  // 打开清理确认弹窗
   const handleClean = () => {
-    if (!hasBackedUp) {
-      message.warning(t('Please backup first'));
-      return;
-    }
+    setCleanModalVisible(true);
+  };
 
-    modal.confirm({
-      title: t('Confirm Clean'),
-      content: (
-        <div>
-          <p>{t('Are you sure you want to clean the filtered data?')}</p>
-          <p style={{ color: 'red' }}>{t('This action cannot be undone')}</p>
-        </div>
-      ),
-      okText: t('Clean'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        await doClean();
-      },
-    });
+  // 先备份再清理
+  const handleBackupThenClean = async () => {
+    const fileName = await handleBackup();
+    if (fileName) {
+      // 询问是否下载
+      modal.confirm({
+        title: t('Backup Complete'),
+        content: t('Do you want to download the backup file before cleaning?'),
+        okText: t('Download and Clean'),
+        cancelText: t('Clean directly'),
+        onOk: async () => {
+          await handleDownload(fileName);
+          await doClean();
+        },
+        onCancel: async () => {
+          await doClean();
+        },
+      });
+      setCleanModalVisible(false);
+    }
+  };
+
+  // 直接清理（不备份）
+  const handleCleanDirectly = async () => {
+    setCleanModalVisible(false);
+    await doClean();
   };
 
   const doClean = async () => {
@@ -236,7 +250,6 @@ export const TableDetail = () => {
       message.success(t('Clean Success') + ` (${response.data?.data?.deletedCount} ${t('records deleted')})`);
 
       // 重置状态
-      setHasBackedUp(false);
       setBackupFileName(null);
       // 重置筛选条件，避免旧的筛选范围超出新数据范围
       setFilter({});
@@ -397,24 +410,47 @@ export const TableDetail = () => {
             <Button onClick={loadTableData} icon={<ReloadOutlined />}>
               {t('Refresh')}
             </Button>
-            <Button type="primary" icon={<SaveOutlined />} loading={backupLoading} onClick={handleBackup}>
-              {t('Backup')}
-            </Button>
-            {backupFileName && (
-              <Button icon={<DownloadOutlined />} onClick={handleDownload}>
-                {t('Download')}
-              </Button>
-            )}
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              loading={cleanLoading}
-              onClick={handleClean}
-              disabled={!hasBackedUp}
-            >
+            <Button danger icon={<DeleteOutlined />} loading={cleanLoading} onClick={handleClean}>
               {t('Clean')}
             </Button>
           </Space>
+
+          {/* 清理确认弹窗 */}
+          <Modal
+            title={
+              <Space>
+                <WarningOutlined style={{ color: '#faad14' }} />
+                {t('Confirm Clean')}
+              </Space>
+            }
+            open={cleanModalVisible}
+            onCancel={() => setCleanModalVisible(false)}
+            footer={null}
+            width={500}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Alert
+                message={t('This action cannot be undone')}
+                description={t('Are you sure you want to clean the filtered data?')}
+                type="warning"
+                showIcon
+              />
+
+              <Typography.Text type="secondary">
+                {t('It is recommended to backup before cleaning. You can also clean directly without backup.')}
+              </Typography.Text>
+
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setCleanModalVisible(false)}>{t('Cancel')}</Button>
+                <Button icon={<SaveOutlined />} loading={backupLoading} onClick={handleBackupThenClean}>
+                  {t('Backup then Clean')}
+                </Button>
+                <Button danger icon={<DeleteOutlined />} onClick={handleCleanDirectly}>
+                  {t('Clean directly')}
+                </Button>
+              </Space>
+            </Space>
+          </Modal>
 
           {/* 数据表格 */}
           <Table

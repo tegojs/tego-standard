@@ -1,9 +1,11 @@
 {
+  "Add property": "Özellik ekle",
   "Advanced": "Gelişmiş",
   "After record added": "Kayıt eklendikten sonra",
   "After record added or updated": "Kayıt eklendikten veya güncellendikten sonra",
   "After record deleted": "Kayıt silindikten sonra",
   "After record updated": "Kayıt güncellendikten sonra",
+  "Alias": "Takma ad",
   "All statuses": "Tümü",
   "All succeeded": "Hepsi başarılı",
   "Any succeeded": "Herhangi biri başarılı",
@@ -36,6 +38,7 @@
   "Control": "Kontrol",
   "Copy to new version": "Yeni sürüme kopyala",
   "Create record": "Kayıt oluştur",
+  "Data source map": "Veri kaynağı haritası",
   "Days": "Gün",
   "Disabled status": "Devre dışı",
   "End": "Son",
@@ -51,7 +54,10 @@
   "Failed to retry execution": "Yeniden yürütme başarısız",
   "False": "Yanlış",
   "Fields that are not assigned a value will be set to the default value, and those that do not have a default value are set to null.": "Değer atanmamış alanlar varsayılan değere, varsayılan değeri olmayan alanlar ise null olarak ayarlanır.",
+  "Get specific data from JSON result of any node BY js code or json code;": "Herhangi bir düğümün JSON sonucundan js kodu veya json kodu ile belirli verileri alın;",
   "Hours": "Saat",
+  "If the type of query result is object or array of object, could map the properties which to be accessed in subsequent nodes.": "Sorgu sonucunun türü nesne veya nesne dizisi ise, sonraki düğümlerde erişilecek özellikler eşlenebilir.",
+  "Label": "Etiket",
   "Last sync time": "Son senkronizasyon zamanı",
   "Load failed": "Yükleme başarısız",
   "Loading editor...": "Düzenleyici yükleniyor...",
@@ -73,6 +79,8 @@
   "Parallel branch": "Paralel dal",
   "Please enter code...": "Lütfen kod girin...",
   "Please select collection first": "Lütfen önce koleksiyonu seçin",
+  "Properties mapping": "Özellik eşleme",
+  "Property path": "Özellik yolu",
   "Query record": "Sorgu kaydı",
   "Repeat limit": "Tekrarlama limiti",
   "Repeat mode": "Tekrarlama modu",
@@ -99,5 +107,6 @@
   "Update record": "Kayıt güncelle",
   "Version": "Sürüm",
   "Weeks": "Hafta",
-  "Workflow": "İş Akışı"
+  "Workflow": "İş Akışı",
+  "keyName": "Anahtar adı"
 }

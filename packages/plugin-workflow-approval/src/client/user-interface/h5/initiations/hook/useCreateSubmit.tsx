@@ -5,6 +5,7 @@ import { Toast } from 'antd-mobile';
 import _ from 'lodash';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { cleanAssociationIds } from '../../../../common/tools/cleanAssociationIds';
 import { useContextApprovalExecution } from '../../context/ApprovalExecution';
 import { useContextApprovalStatus } from '../component/ViewActionInitiationsContent';
 import { useResubmit } from '../provider/Resubmit.provider';
@@ -29,10 +30,17 @@ export function useCreateSubmit() {
         field.data.loading = true;
         delete from.values['createdAt'];
         delete from.values['updatedAt'];
+
+        // 如果是复制操作（resubmit），需要清洗关联字段的 id
+        let dataToSubmit = from.values;
+        if (isResubmit && workflow?.key) {
+          dataToSubmit = cleanAssociationIds(from.values, collection);
+        }
+
         const res = await apiClient.resource('approvals').create({
           values: {
             collectionName: joinCollectionName(collection.dataSource, collection.name),
-            data: from.values,
+            data: dataToSubmit,
             status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
             workflowId: isResubmit ? workflow.id : workflowId,
             workflowKey: isResubmit ? workflow.key : undefined, // 普通的创建,并不需要 key, 也拿不到 key

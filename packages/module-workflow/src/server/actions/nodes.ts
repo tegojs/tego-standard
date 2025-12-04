@@ -366,8 +366,8 @@ export async function moveDown(context: Context, next) {
 /**
  * 同步远程代码
  * 从远程地址获取代码并返回
- * 注意：此函数用于手动同步，总是获取最新代码，不检查缓存
- * 缓存机制在 script.instruction.ts 中的节点执行时使用
+ * 注意：此函数用于手动同步，总是获取最新代码并更新缓存
+ * 缓存机制在 script.instruction.ts 中的节点执行时使用（直接使用数据库中的缓存，不检查时间戳）
  */
 export async function syncRemoteCode(context: Context, next: Next) {
   const params = context.action.params.values || context.action.params || {};
@@ -483,7 +483,7 @@ export async function syncRemoteCode(context: Context, next: Next) {
           const syncTime = new Date().toISOString();
           // 更新最后同步时间（和 codeUrl、code 等字段在同一层级）
           config.lastSyncTime = syncTime;
-          // 同时更新代码缓存的时间戳（用于缓存验证）
+          // 同时更新代码缓存（timestamp 用于记录，不用于验证）
           config.codeCache = {
             content: context.body.code,
             timestamp: Date.now(),

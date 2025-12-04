@@ -2,21 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, useAPIClient } from '@tachybase/client';
 
 import { DeleteOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined, WarningOutlined } from '@ant-design/icons';
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  InputNumber,
-  message,
-  Modal,
-  Progress,
-  Radio,
-  Space,
-  Spin,
-  Table,
-  Typography,
-} from 'antd';
+import { Alert, App, Button, Card, InputNumber, Modal, Progress, Radio, Space, Spin, Table, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { saveAs } from 'file-saver';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -92,7 +78,7 @@ export const TableDetail = () => {
   const params = useParams();
   // 从路径中提取表名，路径格式：/admin/settings/system-services/database-clean/:tableName
   const tableName = params.tableName || location.pathname.split('/').pop();
-  const { modal, notification } = App.useApp();
+  const { message, modal, notification } = App.useApp();
 
   const [tableInfo, setTableInfo] = useState<TableInfo | null>(null);
   const [dataSource, setDataSource] = useState<any[]>([]);

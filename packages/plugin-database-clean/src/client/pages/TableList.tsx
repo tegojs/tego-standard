@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, useAPIClient } from '@tachybase/client';
 
 import { ReloadOutlined } from '@ant-design/icons';
-import { App, Button, Card, message, Space, Table } from 'antd';
+import { App, Button, Card, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
@@ -32,6 +32,7 @@ export const TableList = () => {
   const { t } = useTranslation();
   const apiClient = useAPIClient();
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const [dataSource, setDataSource] = useState<TableInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({

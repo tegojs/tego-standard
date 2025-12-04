@@ -1,7 +1,6 @@
 import { Application } from '@tego/server';
 
-import { QueryTypes } from 'sequelize';
-
+import { BaseDatabaseAdapter, DatabaseAdapterFactory } from '../adapters';
 import { WHITELIST_TABLES } from '../constants';
 
 export interface TableInfo {
@@ -19,16 +18,17 @@ export interface CleanOptions {
 }
 
 export class DatabaseService {
-  constructor(private app: Application) {}
+  private adapter: BaseDatabaseAdapter;
+
+  constructor(private app: Application) {
+    // 获取数据库适配器（如果不支持会抛出错误）
+    this.adapter = DatabaseAdapterFactory.getAdapter(app);
+  }
 
   /**
    * 获取白名单中的表列表
    */
   async getWhitelistTables(): Promise<TableInfo[]> {
-    if (!this.app.db.inDialect('postgres')) {
-      throw new Error('Database clean plugin only supports PostgreSQL');
-    }
-
     const tables: TableInfo[] = [];
     const existingCollections = new Set<string>();
 
@@ -74,30 +74,12 @@ export class DatabaseService {
       throw new Error(`Collection ${collectionName} is not in whitelist`);
     }
 
-    const schema = collection.collectionSchema() || 'public';
-    const tableName = collection.model.tableName;
+    // 使用适配器获取表大小
+    const sizeInfo = await this.adapter.getTableSize(collection);
+    const size = sizeInfo.totalSize;
 
-    // 获取表大小（包括索引）
-    const sizeResults = (await this.app.db.sequelize.query(
-      `SELECT pg_total_relation_size('${schema}."${tableName}"') as pg_total_relation_size`,
-      { type: QueryTypes.SELECT },
-    )) as Array<{ pg_total_relation_size: string | number }>;
-
-    if (!sizeResults || sizeResults.length === 0 || !sizeResults[0]) {
-      throw new Error(`Failed to get table size for ${tableName}`);
-    }
-    const size = parseInt(String(sizeResults[0].pg_total_relation_size), 10) || 0;
-
-    // 获取行数
-    const countResults = (await this.app.db.sequelize.query(
-      `SELECT COUNT(*) as count FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-      { type: QueryTypes.SELECT },
-    )) as Array<{ count: string | number }>;
-
-    if (!countResults || countResults.length === 0 || !countResults[0]) {
-      throw new Error(`Failed to get row count for ${tableName}`);
-    }
-    const rowCount = parseInt(String(countResults[0].count), 10) || 0;
+    // 使用适配器获取行数
+    const rowCount = await this.adapter.getRowCount(collection);
 
     // 获取创建时间和更新时间
     let createdAt: Date | null = null;
@@ -109,34 +91,11 @@ export class DatabaseService {
       const hasCreatedAt = collection.hasField('createdAt') || 'createdAt' in rawAttributes;
       const hasUpdatedAt = collection.hasField('updatedAt') || 'updatedAt' in rawAttributes;
 
-      if (hasCreatedAt) {
-        const createdAtResults = (await this.app.db.sequelize.query(
-          `SELECT MIN("createdAt") as min FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-          { type: QueryTypes.SELECT },
-        )) as Array<{ min: Date | null }>;
-        if (createdAtResults && createdAtResults.length > 0 && createdAtResults[0]) {
-          createdAt = createdAtResults[0].min;
-        }
-      }
+      // 使用适配器获取时间范围
+      const timeRange = await this.adapter.getTimeRange(collection, hasCreatedAt, hasUpdatedAt);
 
-      if (hasUpdatedAt) {
-        const updatedAtResults = (await this.app.db.sequelize.query(
-          `SELECT MAX("updatedAt") as max FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-          { type: QueryTypes.SELECT },
-        )) as Array<{ max: Date | null }>;
-        if (updatedAtResults && updatedAtResults.length > 0 && updatedAtResults[0]) {
-          updatedAt = updatedAtResults[0].max;
-        }
-      } else if (hasCreatedAt) {
-        // 如果没有 updatedAt，使用 createdAt 的最大值
-        const maxCreatedAtResults = (await this.app.db.sequelize.query(
-          `SELECT MAX("createdAt") as max FROM ${collection.isParent() ? 'ONLY' : ''} ${collection.quotedTableName()}`,
-          { type: QueryTypes.SELECT },
-        )) as Array<{ max: Date | null }>;
-        if (maxCreatedAtResults && maxCreatedAtResults.length > 0 && maxCreatedAtResults[0]) {
-          updatedAt = maxCreatedAtResults[0].max;
-        }
-      }
+      createdAt = timeRange.minCreatedAt;
+      updatedAt = timeRange.maxUpdatedAt || timeRange.maxCreatedAt;
     }
 
     return {
@@ -150,7 +109,20 @@ export class DatabaseService {
   }
 
   /**
+   * 获取表的 ID 范围
+   */
+  async getIdRange(collectionName: string): Promise<{ minId: number | null; maxId: number | null }> {
+    const collection = this.app.db.getCollection(collectionName);
+    if (!collection) {
+      throw new Error(`Collection ${collectionName} not found`);
+    }
+
+    return await this.adapter.getIdRange(collection);
+  }
+
+  /**
    * 清理符合筛选条件的数据
+   * 注意：清理操作使用通用的 repository.destroy，不依赖特定数据库
    */
   async cleanData(options: CleanOptions): Promise<{ deletedCount: number }> {
     const { collectionName, filter } = options;
@@ -166,7 +138,7 @@ export class DatabaseService {
 
     const repository = this.app.db.getRepository(collectionName);
 
-    // 使用 repository.destroy 进行删除
+    // 使用 repository.destroy 进行删除（通用方法，不依赖特定数据库）
     const result = await repository.destroy({
       filter: filter || {},
     });

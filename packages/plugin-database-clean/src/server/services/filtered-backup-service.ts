@@ -9,6 +9,7 @@ import archiver from 'archiver';
 import dayjs from 'dayjs';
 import lodash from 'lodash';
 
+import { DatabaseAdapterFactory } from '../adapters';
 import { sqlAdapter } from '../utils';
 
 const finished = util.promisify(stream.finished);
@@ -90,6 +91,9 @@ export class FilteredBackupService {
    * 备份单个集合的筛选数据
    */
   async backupCollection(options: BackupOptions): Promise<{ fileName: string; filePath: string }> {
+    // 检查数据库是否支持（如果不支持会抛出错误）
+    DatabaseAdapterFactory.getAdapter(this.app);
+
     const { collectionName, filter, fileName, appName } = options;
     const collection = this.app.db.getCollection(collectionName);
     if (!collection) {

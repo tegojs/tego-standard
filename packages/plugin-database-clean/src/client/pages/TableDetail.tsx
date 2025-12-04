@@ -234,9 +234,16 @@ export const TableDetail = () => {
 
       // Axios 响应格式: response.data = { data: {...} }
       message.success(t('Clean Success') + ` (${response.data?.data?.deletedCount} ${t('records deleted')})`);
+
+      // 重置状态
       setHasBackedUp(false);
       setBackupFileName(null);
-      await loadTableData();
+      // 重置筛选条件，避免旧的筛选范围超出新数据范围
+      setFilter({});
+      // 重置分页到第一页
+      setPagination((prev) => ({ ...prev, current: 1 }));
+
+      // 重新加载表信息（会更新 minId、maxId 等）
       await loadTableInfo();
     } catch (error) {
       message.error(error.message || t('Clean Failed'));

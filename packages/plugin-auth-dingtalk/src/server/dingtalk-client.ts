@@ -1,14 +1,16 @@
+import { Context } from '@tego/server';
+
 import ContactClient, { GetUserHeaders } from '@alicloud/dingtalk/contact_1_0';
 import OAuthClient, { GetUserTokenRequest } from '@alicloud/dingtalk/oauth2_1_0';
 import { Config } from '@alicloud/openapi-client';
 import Util, { RuntimeOptions } from '@alicloud/tea-util';
 
 export class DingtalkClient {
-  config;
-  ctx;
-  constructor(config) {
+  config: Config;
+  ctx: Context;
+  constructor(config: Config) {
     this.config = config;
-    this.ctx = config?.ctx;
+    this.ctx = config.ctx;
   }
   createAuthClient() {
     const config = new Config({});
@@ -35,7 +37,7 @@ export class DingtalkClient {
       return response?.body?.accessToken || '';
     } catch (err) {
       if (!Util.empty(err.code) && !Util.empty(err.message)) {
-        this.ctx?.log.debug(`DingTalk get accessToken error code:${err.code}, message:${err.message}`);
+        this.ctx.logger.warn(`DingTalk get accessToken error code:${err.code}, message:${err.message}`);
       }
       return '';
     }
@@ -49,7 +51,7 @@ export class DingtalkClient {
       return response?.body || {};
     } catch (err) {
       if (!Util.empty(err.code) && !Util.empty(err.message)) {
-        this.ctx?.log.debug(`DingTalk get userInfo error code:${err.code}, message:${err.message}`);
+        this.ctx.logger.warn(`DingTalk get userInfo error code:${err.code}, message:${err.message}`);
       }
       return {};
     }

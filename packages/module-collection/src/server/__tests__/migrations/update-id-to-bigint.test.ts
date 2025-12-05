@@ -1,6 +1,6 @@
 import { MockServer } from '@tachybase/test';
-
 import { Database, MigrationContext } from '@tego/server';
+
 import lodash from 'lodash';
 
 import Migrator from '../../migrations/20221121111113-update-id-to-bigint';
@@ -97,7 +97,7 @@ excludeSqlite()('update id to bigint  test', () => {
     assertInteger(usersTableInfo.id.type);
 
     const migration = new Migrator({ db } as MigrationContext);
-    migration.context.app = app;
+    migration.context.tego = app;
     await migration.up();
 
     //@ts-ignore

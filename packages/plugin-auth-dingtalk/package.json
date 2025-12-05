@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-auth-dingtalk",
   "displayName": "Auth: Ding Talk",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "dingding authentication.",
   "keywords": [
     "Authentication"
@@ -13,7 +13,7 @@
     "@alicloud/dingtalk": "^2.2.27",
     "@alicloud/openapi-client": "0.4.15",
     "@alicloud/tea-util": "1.4.10",
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
     "@tachybase/test": "catalog:",

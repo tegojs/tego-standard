@@ -14,7 +14,7 @@ function make(name, mod) {
   );
 }
 export function init({ app }) {
-  app.actions({
+  app.resourcer.registerActions({
     ...make('workflows', workflows),
     ...make('approvals', approvals),
     ...make('approvalRecords', approvalRecords),

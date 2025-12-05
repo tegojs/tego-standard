@@ -15,7 +15,7 @@ export class CasPlugin extends Plugin {
       auth: CASAuth,
     });
 
-    this.app.resource({
+    this.app.resourcer.define({
       name: 'cas',
       actions: {
         service,

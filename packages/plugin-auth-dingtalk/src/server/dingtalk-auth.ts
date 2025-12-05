@@ -20,8 +20,7 @@ export class DingtalkAuth extends BaseAuth {
     const dingtalkClient = new DingtalkClient({
       clientId: this.options?.dingtalk?.clientId,
       clientSecret: this.options?.clientSecret,
-      ctx: this.ctx,
-    });
+    } as any);
     const accessToken = await dingtalkClient.getAccessToken(authCode);
     if (!accessToken) {
       ctx.throw(401, ctx.t('Failed to get accessToken', { ns: namespace }));
@@ -59,7 +58,7 @@ export class DingtalkAuth extends BaseAuth {
   }
   async getAuthUrl(redirect) {
     const clientId = this.options?.dingtalk?.clientId;
-    const app = this.ctx.app.name;
+    const app = this.ctx.tego.name;
     const redirectUrl = encodeURIComponent(
       `${this.ctx.protocol}://${this.ctx.host}${process.env.API_BASE_PATH}dingtalk:redirect`,
     );

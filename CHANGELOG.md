@@ -7,35 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.1] - 2025-12-05
+
 ### ✨ Added
 
-- **workflow**: support sync remote code ([#292](https://github.com/tegojs/tego-standard/pull/292)) [2a79416](https://github.com/tegojs/tego-standard/commit/2a7941662c5b8433b5f47cb07e3caaa8b52c2f99) (@bai.zixv)
-- **cloud-component**: support remote code ([#290](https://github.com/tegojs/tego-standard/pull/290)) [39b7a26](https://github.com/tegojs/tego-standard/commit/39b7a264cedbe58ea6386d28768de727887d6128) (@bai.zixv)
-- mobile pagination and translation ([#294](https://github.com/tegojs/tego-standard/pull/294)) [7eb1c50](https://github.com/tegojs/tego-standard/commit/7eb1c50b9eabe9ca496dad09230cdb34eada374a) (@dududuna)
-- **desktop**: support desktop app & chore(cursor): update cursor rules ([#293](https://github.com/tegojs/tego-standard/pull/293)) [6a16214](https://github.com/tegojs/tego-standard/commit/6a1621490fd11dd9f40275a35ad3d7ba3cf070ca) (@bai.zixv)
-- add select node ([#286](https://github.com/tegojs/tego-standard/pull/286)) [d7a683f](https://github.com/tegojs/tego-standard/commit/d7a683f3dfe5ee65cbbb9a88e6dd5fabf3bb45f5) (@dududuna)
-- **workflow**: add enabled toggle to workflow and webhook ([#287](https://github.com/tegojs/tego-standard/pull/287)) [76f9fb7](https://github.com/tegojs/tego-standard/commit/76f9fb78110fbf6b4e2ae5b106a2f99fa6d3d1f3) (@bai.zixv)
+- core update ([#295](https://github.com/tegojs/tego-standard/pull/295)) (@TomyJan)
+- **module-workflow**: support sub-workflow trigger, source mapping and properties mapping ([#314](https://github.com/tegojs/tego-standard/pull/314)) (@bai.zixv)
+- **workflow**: support sync remote code ([#292](https://github.com/tegojs/tego-standard/pull/292)) (@bai.zixv)
+- **cloud-component**: support remote code ([#290](https://github.com/tegojs/tego-standard/pull/290)) (@bai.zixv)
+- mobile pagination and translation ([#294](https://github.com/tegojs/tego-standard/pull/294)) (@dududuna)
+- **desktop**: support desktop app & chore(cursor): update cursor rules ([#293](https://github.com/tegojs/tego-standard/pull/293)) (@bai.zixv)
+- add select node ([#286](https://github.com/tegojs/tego-standard/pull/286)) (@dududuna)
+- **workflow**: add enabled toggle to workflow and webhook ([#287](https://github.com/tegojs/tego-standard/pull/287)) (@bai.zixv)
 
 ### 🐛 Fixed
 
-- workflow select component [925c6aa](https://github.com/tegojs/tego-standard/commit/925c6aa62b64acfa4c7bb1242f837e15d7eb75bc) (@bai.zixv)
-- remote script code sync time [bcb0e69](https://github.com/tegojs/tego-standard/commit/bcb0e6978b9b299d2c107b91ac6bf8fa90b6ae46) (@bai.zixv)
-- script instruction code editor type [495598d](https://github.com/tegojs/tego-standard/commit/495598d8958c2d05fbe5077c123f2d4d96ef3f9c) (@bai.zixv)
-- **cloud-component & workflow**: fix remote code fetching logic ([#308](https://github.com/tegojs/tego-standard/pull/308)) [24eac1f](https://github.com/tegojs/tego-standard/commit/24eac1fd4ac5f4afa7d77c441d1e3c8d44b29583) (@bai.zixv)
-- **client**: fix code mirror component ([#309](https://github.com/tegojs/tego-standard/pull/309)) [80270bc](https://github.com/tegojs/tego-standard/commit/80270bc72d368e4e22842bd296f108c620ffc553) (@bai.zixv)
-- **desktop & workflow**: fix monaco editor loading error ([#307](https://github.com/tegojs/tego-standard/pull/307)) [c40df59](https://github.com/tegojs/tego-standard/commit/c40df597c2dac8a34184cb30cb63fa197a225f6e) (@bai.zixv)
-- setting conditions for approval data range on mobile devices ([#304](https://github.com/tegojs/tego-standard/pull/304)) [e0c3872](https://github.com/tegojs/tego-standard/commit/e0c38729d72e7b7fa5899b4bfff9611573d5b782) (@dududuna)
-- single line text in the table with invalid counterpart method ([#303](https://github.com/tegojs/tego-standard/pull/303)) [43339ac](https://github.com/tegojs/tego-standard/commit/43339acfddaae47caf2cd9d3c55697b93599639b) (@dududuna)
-- incorrect label style ([#298](https://github.com/tegojs/tego-standard/pull/298)) [f839294](https://github.com/tegojs/tego-standard/commit/f8392942c0dddbc962e145fb69607684f5a6503d) (@dududuna)
-- modify approval field title ([#299](https://github.com/tegojs/tego-standard/pull/299)) [2bc9e3a](https://github.com/tegojs/tego-standard/commit/2bc9e3ab23dc77e1045bcc9ceec24ebbd05260f4) (@dududuna)
-- **web**: add promise with resolvers polyfill ([#291](https://github.com/tegojs/tego-standard/pull/291)) [a9d5d3a](https://github.com/tegojs/tego-standard/commit/a9d5d3a40f2cfd88e065de8e082a441d544b1bd4) (@bai.zixv)
-- table filter ([#288](https://github.com/tegojs/tego-standard/pull/288)) [fe2a98b](https://github.com/tegojs/tego-standard/commit/fe2a98bacd2fe3600358e07b0ddf8c501f553761) (@dududuna)
+- **module-workflow**: fix TriggerInstruction compatibility (@bai.zixv)
+- **module-workflow&module-cloud-component**: fixed remote code fetching cache ([#313](https://github.com/tegojs/tego-standard/pull/313)) (@bai.zixv)
+- **workflow-approval**: fixed cleanAssociationIds ([#311](https://github.com/tegojs/tego-standard/pull/311)) (@bai.zixv)
+- workflow select component (@bai.zixv)
+- remote script code sync time (@bai.zixv)
+- script instruction code editor type (@bai.zixv)
+- **cloud-component & workflow**: fix remote code fetching logic ([#308](https://github.com/tegojs/tego-standard/pull/308)) (@bai.zixv)
+- **client**: fix code mirror component ([#309](https://github.com/tegojs/tego-standard/pull/309)) (@bai.zixv)
+- **desktop & workflow**: fix monaco editor loading error ([#307](https://github.com/tegojs/tego-standard/pull/307)) (@bai.zixv)
+- setting conditions for approval data range on mobile devices ([#304](https://github.com/tegojs/tego-standard/pull/304)) (@dududuna)
+- single line text in the table with invalid counterpart method ([#303](https://github.com/tegojs/tego-standard/pull/303)) (@dududuna)
+- incorrect label style ([#298](https://github.com/tegojs/tego-standard/pull/298)) (@dududuna)
+- modify approval field title ([#299](https://github.com/tegojs/tego-standard/pull/299)) (@dududuna)
+- **web**: add promise with resolvers polyfill ([#291](https://github.com/tegojs/tego-standard/pull/291)) (@bai.zixv)
+- table filter ([#288](https://github.com/tegojs/tego-standard/pull/288)) (@dududuna)
 
 ### 🔄 Changed
 
-- **cloud-component**: optimize cloud component optimization plan ([#289](https://github.com/tegojs/tego-standard/pull/289)) [ebf33db](https://github.com/tegojs/tego-standard/commit/ebf33dbb03976ebb4c6fa97a6a58746eb6e19da1) (@bai.zixv)
-
-
+- **cloud-component**: optimize cloud component optimization plan ([#289](https://github.com/tegojs/tego-standard/pull/289)) (@bai.zixv)
 
 ## [1.6.0] - 2025-11-20
 
@@ -2867,7 +2874,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.1
 [1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1
 [1.5.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.0

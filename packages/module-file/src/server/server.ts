@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { Plugin } from '@tego/server';
 
 import initActions from './actions';
@@ -66,9 +65,12 @@ export default class PluginFileManager extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, './collections'));
+    const storagesCollection = this.db.getCollection('storages');
+    if (!storagesCollection) {
+      throw new Error('Collection storages is not defined after import');
+    }
 
-    const Storage = this.db.getModel('storages');
+    const Storage = storagesCollection.model;
     Storage.afterSave(async (m, { transaction }) => {
       await this.loadStorages({ transaction });
     });

@@ -11,13 +11,13 @@ export function getWorkflowData(workflow: any): { id?: number; key?: string } {
 
 /**
  * 查询单个工作流的最新执行时间
- * @param context 上下文对象
+ * @param ctx 上下文对象
  * @param workflowId 工作流 ID（优先使用，可利用外键索引）
  * @param workflowKey 工作流 Key（备用）
  * @returns UTC ISO 格式的时间字符串，如果不存在则返回 null
  */
 export async function getLatestExecutedTimeForWorkflow(
-  context: Context,
+  ctx: Context,
   workflowId?: number,
   workflowKey?: string,
 ): Promise<string | null> {
@@ -26,7 +26,7 @@ export async function getLatestExecutedTimeForWorkflow(
   }
 
   try {
-    const ExecutionRepo = context.db.getRepository('executions');
+    const ExecutionRepo = ctx.db.getRepository('executions');
     const filter: any = {};
 
     // 优先使用 workflowId（可以利用外键索引提高查询性能）
@@ -40,12 +40,12 @@ export async function getLatestExecutedTimeForWorkflow(
       filter,
       fields: ['id', 'key', 'createdAt', 'workflowId'],
       sort: ['-createdAt'],
-      context,
+      context: ctx,
     });
 
     return latestExecution?.createdAt ? dayjs(latestExecution.createdAt).utc().toISOString() : null;
   } catch (error) {
-    context.log.error('Failed to fetch latest executed time:', error);
+    ctx.log.error('Failed to fetch latest executed time:', error);
     return null;
   }
 }
@@ -63,26 +63,26 @@ export function setLatestExecutedTime(row: any, executedTime: string | null) {
 
 /**
  * 查询单个工作流关联的事件源名称
- * @param context 上下文对象
+ * @param ctx 上下文对象
  * @param workflowKey 工作流 Key
  * @returns 事件源名称，如果不存在则返回 null
  */
-export async function getEventSourceNameForWorkflow(context: Context, workflowKey?: string): Promise<string | null> {
+export async function getEventSourceNameForWorkflow(ctx: Context, workflowKey?: string): Promise<string | null> {
   if (!workflowKey) {
     return null;
   }
 
   try {
-    const WebhookRepo = context.db.getRepository('webhooks');
+    const WebhookRepo = ctx.db.getRepository('webhooks');
     const eventSource = await WebhookRepo.findOne({
       filter: { workflowKey },
       fields: ['id', 'name'],
-      context,
+      context: ctx,
     });
 
     return eventSource?.name || null;
   } catch (error) {
-    context.log.error('Failed to fetch event source name:', error);
+    ctx.log.error('Failed to fetch event source name:', error);
     return null;
   }
 }
@@ -101,13 +101,13 @@ export function setEventSourceName(row: any, eventSourceName: string | null) {
 /**
  * 查询单个工作流的分类信息
  * 优先从 workflow 对象中获取已加载的分类数据（通过 appends），如果不存在则查询数据库
- * @param context 上下文对象
+ * @param ctx 上下文对象
  * @param workflow 工作流对象（可能包含已加载的分类数据）
  * @param workflowKey 工作流 Key（用于查询数据库）
  * @returns 分类信息数组，格式：{ id, name, color? }[]
  */
 export async function getCategoriesForWorkflow(
-  context: Context,
+  ctx: Context,
   workflow?: any,
   workflowKey?: string,
 ): Promise<Array<{ id: number; name: string; color?: string }> | null> {
@@ -133,14 +133,14 @@ export async function getCategoriesForWorkflow(
   }
 
   try {
-    const WorkflowCategoryRepo = context.db.getRepository('workflowCategory');
-    const CategoryRepo = context.db.getRepository('workflowCategories');
+    const WorkflowCategoryRepo = ctx.db.getRepository('workflowCategory');
+    const CategoryRepo = ctx.db.getRepository('workflowCategories');
 
     // 查询中间表获取分类 ID 列表
     const workflowCategories = await WorkflowCategoryRepo.find({
       filter: { workflowKey: key },
       fields: ['categoryId'],
-      context,
+      context: ctx,
     });
 
     if (!workflowCategories || workflowCategories.length === 0) {
@@ -163,7 +163,7 @@ export async function getCategoriesForWorkflow(
       filter: { id: categoryIds },
       fields: ['id', 'name', 'color'],
       sort: ['sort'],
-      context,
+      context: ctx,
     });
 
     return categories.map((cat: any) => {
@@ -175,7 +175,7 @@ export async function getCategoriesForWorkflow(
       };
     });
   } catch (error) {
-    context.log.error('Failed to fetch categories:', error);
+    ctx.log.error('Failed to fetch categories:', error);
     return null;
   }
 }

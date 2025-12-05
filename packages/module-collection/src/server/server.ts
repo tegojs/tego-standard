@@ -2,8 +2,8 @@ import path from 'node:path';
 import * as process from 'node:process';
 import { isMainThread } from 'node:worker_threads';
 import PluginErrorHandler from '@tachybase/module-error-handler';
-
 import { Filter, InheritedCollection, Plugin, UniqueConstraintError } from '@tego/server';
+
 import { Mutex } from 'async-mutex';
 import lodash from 'lodash';
 
@@ -237,7 +237,7 @@ export class CollectionManagerPlugin extends Plugin {
     });
 
     const loadCollections = async () => {
-      this.log.debug('loading custom collections', { method: 'loadCollections' });
+      this.app.logger.debug('loading custom collections', { method: 'loadCollections' });
       this.app.setMaintainingMessage('loading custom collections');
       await this.app.db.getRepository<CollectionRepository>('collections').load({
         filter: this.loadFilter,
@@ -271,8 +271,7 @@ export class CollectionManagerPlugin extends Plugin {
   }
 
   async load() {
-    await this.importCollections(path.resolve(__dirname, './collections'));
-    this.db.getRepository<CollectionRepository>('collections').setApp(this.app);
+    this.app.db.getRepository<CollectionRepository>('collections').setApp(this.app);
 
     const errorHandlerPlugin = this.app.getPlugin<PluginErrorHandler>('error-handler');
     errorHandlerPlugin.errorHandler.register(
@@ -296,9 +295,9 @@ export class CollectionManagerPlugin extends Plugin {
       { tag: 'setReverseFieldOnFieldChange' },
     );
 
-    this.app.resource(viewResourcer);
-    this.app.resource(sqlResourcer);
-    this.app.actions(collectionActions);
+    this.app.resourcer.define(viewResourcer);
+    this.app.resourcer.define(sqlResourcer);
+    this.app.resourcer.registerActions(collectionActions);
 
     const handleFieldSource = (fields) => {
       for (const field of lodash.castArray(fields)) {

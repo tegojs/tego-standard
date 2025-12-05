@@ -4,7 +4,7 @@ export default {
   async ['collections:setFields'](ctx, next) {
     const { filterByTk, values } = ctx.action.params;
 
-    const transaction = await ctx.app.db.sequelize.transaction();
+    const transaction = await ctx.tego.db.sequelize.transaction();
 
     try {
       const fields = values.fields?.map((f) => {
@@ -12,7 +12,7 @@ export default {
         return f;
       });
 
-      const db = ctx.app.db as Database;
+      const db = ctx.tego.db as Database;
 
       const collectionModel = await db.getRepository('collections').findOne({
         filter: {

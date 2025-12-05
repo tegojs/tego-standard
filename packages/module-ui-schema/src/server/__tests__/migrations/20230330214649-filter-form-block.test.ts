@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
 
 import { UiSchemaRepository } from '../..';
@@ -41,7 +40,7 @@ describe.skip('migration-20230330214649-filter-form-block', () => {
       },
     });
     const migration = new Migration({ db: app.db } as any);
-    migration.context.app = {
+    migration.context.tego = {
       version: {
         satisfies: async (v) => true,
       },

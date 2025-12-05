@@ -109,7 +109,7 @@ export async function startAll(ctx: Context, next: Next) {
       }),
     ).finally(() => {
       const message = `${messageTitle}: ${count}/${all}`;
-      ctx.app.noticeManager.notify(NOTIFY_STATUS_EVENT_KEY, { level: 'info', message });
+      ctx.tego.noticeManager.notify(NOTIFY_STATUS_EVENT_KEY, { level: 'info', message });
     });
   }
   ctx.body = {
@@ -139,7 +139,7 @@ export async function stopAll(ctx: Context, next: Next) {
   if (all) {
     Promise.allSettled(promises).finally(() => {
       const message = `${messageTitle}: ${count}/${all}`;
-      ctx.app.noticeManager.notify(NOTIFY_STATUS_EVENT_KEY, { level: 'info', message });
+      ctx.tego.noticeManager.notify(NOTIFY_STATUS_EVENT_KEY, { level: 'info', message });
     });
   }
   ctx.body = {

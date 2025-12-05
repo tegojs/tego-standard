@@ -183,6 +183,11 @@ export const TableDetail = () => {
     }
   };
 
+  // 统一刷新函数：同时刷新表信息（统计数据）和表数据
+  const handleRefresh = async () => {
+    await Promise.all([loadTableInfo(), loadTableData()]);
+  };
+
   const handleBackup = async () => {
     if (!tableName) return;
     setBackupLoading(true);
@@ -390,8 +395,8 @@ export const TableDetail = () => {
       // 重置分页到第一页
       setPagination((prev) => ({ ...prev, current: 1 }));
 
-      // 重新加载表信息（会更新 minId、maxId 等）
-      await loadTableInfo();
+      // 重新加载表信息和表数据
+      await handleRefresh();
     } catch (error) {
       message.error(error.message || t('Clean Failed'));
     } finally {
@@ -542,7 +547,7 @@ export const TableDetail = () => {
 
           {/* 操作按钮 */}
           <Space>
-            <Button onClick={loadTableData} icon={<ReloadOutlined />} disabled={isProcessing}>
+            <Button onClick={handleRefresh} icon={<ReloadOutlined />} disabled={isProcessing}>
               {t('Refresh')}
             </Button>
             <Button

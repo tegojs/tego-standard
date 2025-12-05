@@ -17,7 +17,7 @@ export default {
     async list(ctx: Context, next: Next) {
       const { page = DEFAULT_PAGE, pageSize = DEFAULT_PER_PAGE, sort } = ctx.action.params;
 
-      const service = new DatabaseService(ctx.app);
+      const service = new DatabaseService(ctx.tego);
       const tables = await service.getWhitelistTables();
 
       // 排序（默认按 updatedAt 倒序，如果没有则按 createdAt）
@@ -58,7 +58,7 @@ export default {
         return;
       }
 
-      const collection = ctx.app.db.getCollection(filterByTk);
+      const collection = ctx.tego.db.getCollection(filterByTk);
       if (!collection) {
         ctx.throw(404, `Collection ${filterByTk} not found`);
         return;
@@ -69,7 +69,7 @@ export default {
         return;
       }
 
-      const service = new DatabaseService(ctx.app);
+      const service = new DatabaseService(ctx.tego);
       const tableInfo = await service.getTableInfo(filterByTk);
 
       // 检查字段是否存在：优先检查 collection.hasField，其次检查 model.rawAttributes
@@ -109,7 +109,7 @@ export default {
         return;
       }
 
-      const collection = ctx.app.db.getCollection(filterByTk);
+      const collection = ctx.tego.db.getCollection(filterByTk);
       if (!collection) {
         ctx.throw(404, `Collection ${filterByTk} not found`);
         return;
@@ -120,7 +120,7 @@ export default {
         return;
       }
 
-      const repository = ctx.app.db.getRepository(filterByTk);
+      const repository = ctx.tego.db.getRepository(filterByTk);
       const limit = Number(pageSize);
       const offset = (Number(page) - 1) * limit;
 
@@ -201,7 +201,7 @@ export default {
         return;
       }
 
-      const collection = ctx.app.db.getCollection(collectionName);
+      const collection = ctx.tego.db.getCollection(collectionName);
       if (!collection) {
         ctx.throw(404, `Collection ${collectionName} not found`);
         return;
@@ -212,7 +212,7 @@ export default {
         return;
       }
 
-      const lock = new DatabaseCleanLock(ctx.app);
+      const lock = new DatabaseCleanLock(ctx.tego);
       const locked = await lock.acquire(collectionName);
 
       if (!locked) {
@@ -221,11 +221,11 @@ export default {
       }
 
       try {
-        const backupService = new FilteredBackupService(ctx.app);
+        const backupService = new FilteredBackupService(ctx.tego);
         const result = await backupService.backupCollection({
           collectionName,
           filter,
-          appName: ctx.app.name,
+          appName: ctx.tego.name,
         });
 
         ctx.body = {
@@ -257,7 +257,7 @@ export default {
         return;
       }
 
-      const collection = ctx.app.db.getCollection(collectionName);
+      const collection = ctx.tego.db.getCollection(collectionName);
       if (!collection) {
         ctx.throw(404, `Collection ${collectionName} not found`);
         return;
@@ -268,7 +268,7 @@ export default {
         return;
       }
 
-      const lock = new DatabaseCleanLock(ctx.app);
+      const lock = new DatabaseCleanLock(ctx.tego);
       const locked = await lock.acquire(collectionName);
 
       if (!locked) {
@@ -277,7 +277,7 @@ export default {
       }
 
       try {
-        const cleanService = new DatabaseService(ctx.app);
+        const cleanService = new DatabaseService(ctx.tego);
         const result = await cleanService.cleanData({
           collectionName,
           filter,
@@ -311,10 +311,10 @@ export default {
       }
 
       const storageDir = path.resolve(
-        process.env.TEGO_RUNTIME_HOME || process.cwd(),
+        ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME || process.cwd(),
         'storage',
         'backups',
-        ctx.app.name !== 'main' ? ctx.app.name : '',
+        ctx.tego.name !== 'main' ? ctx.tego.name : '',
       );
 
       const filePath = path.resolve(storageDir, filterByTk);

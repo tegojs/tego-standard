@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { InstallOptions, Plugin } from '@tego/server';
 
 import { getHtml } from './actions';
@@ -10,9 +9,7 @@ export class IframeBlockPlugin extends Plugin {
   beforeLoad() {}
 
   async load() {
-    await this.importCollections(path.resolve(__dirname, 'collections'));
-
-    this.app.actions({
+    this.app.resourcer.registerActions({
       'iframeHtml:getHtml': getHtml,
     });
 

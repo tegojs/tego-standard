@@ -1,6 +1,6 @@
 import { MockServer } from '@tachybase/test';
-
 import { ACL, Database, HasManyRepository } from '@tego/server';
+
 import UsersPlugin from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';
@@ -146,7 +146,7 @@ describe('association field acl', () => {
       },
     });
 
-    const userPlugin = app.getPlugin('users') as UsersPlugin;
+    const userPlugin = app.pm.get('users') as UsersPlugin;
     userAgent = app.agent().login(user);
 
     adminAgent = app.agent().login(admin);

@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
 
 describe('create with exception', () => {
@@ -16,7 +15,7 @@ describe('create with exception', () => {
   });
 
   it('should handle not null error', async () => {
-    const collection = app.collection({
+    const collection = app.db.collection({
       name: 'users',
       fields: [
         {
@@ -50,7 +49,7 @@ describe('create with exception', () => {
   });
 
   it('should handle unique error', async () => {
-    const collection = app.collection({
+    const collection = app.db.collection({
       name: 'users',
       fields: [
         {
@@ -93,7 +92,7 @@ describe('create with exception', () => {
   });
 
   it('should render error with field title', async () => {
-    const collection = app.collection({
+    const collection = app.db.collection({
       name: 'users',
       fields: [
         {
@@ -123,7 +122,7 @@ describe('create with exception', () => {
   });
 
   it('should handle unique error with raw sql', async () => {
-    const userCollection = app.collection({
+    const userCollection = app.db.collection({
       name: 'users',
       autoGenId: false,
       timestamps: false,

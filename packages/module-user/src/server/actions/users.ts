@@ -12,7 +12,7 @@ export async function updateProfile(ctx: Context, next: Next) {
   }
   const UserRepo = ctx.db.getRepository('users');
   if (values?.code) {
-    const verificationPlugin: any = ctx.app.getPlugin('otp');
+    const verificationPlugin: any = ctx.tego.getPlugin('otp');
     try {
       await verificationPlugin.intercept(ctx, async () => {});
     } catch (e) {

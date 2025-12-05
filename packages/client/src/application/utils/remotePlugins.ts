@@ -112,7 +112,10 @@ export function getRemotePlugins(
   });
 
   return new Promise((resolve, reject) => {
-    requirejs.requirejs(packageNames, processRemotePlugins(pluginData, resolve), reject);
+    requirejs.requirejs(packageNames, processRemotePlugins(pluginData, resolve), (error) => {
+      console.error('[getRemotePlugins] requirejs error:', error);
+      reject(error);
+    });
   });
 }
 
@@ -127,7 +130,10 @@ interface GetPluginsOption {
  */
 export async function getPlugins(options: GetPluginsOption): Promise<Array<[string, typeof Plugin]>> {
   const { requirejs, pluginData, devDynamicImport } = options;
-  if (pluginData.length === 0) return [];
+  if (pluginData.length === 0) {
+    console.warn('[getPlugins] ⚠ Early return: pluginData.length === 0');
+    return [];
+  }
 
   const res: Array<[string, typeof Plugin]> = [];
 

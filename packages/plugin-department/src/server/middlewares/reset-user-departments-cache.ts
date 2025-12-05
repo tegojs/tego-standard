@@ -3,7 +3,7 @@ import type { Context, Next } from '@tego/server';
 export const resetUserDepartmentsCache = async (ctx: Context, next: Next) => {
   await next();
   const { associatedName, resourceName, associatedIndex, actionName, values } = ctx.action.params;
-  const cache = ctx.app.cache;
+  const cache = ctx.tego.cache;
   if (
     associatedName === 'departments' &&
     resourceName === 'members' &&

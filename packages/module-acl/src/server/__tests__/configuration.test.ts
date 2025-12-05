@@ -1,6 +1,6 @@
 import { MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
+
 import UsersPlugin from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';
@@ -47,7 +47,7 @@ describe('configuration', () => {
       },
     });
 
-    const userPlugin = app.getPlugin('users') as UsersPlugin;
+    const userPlugin = app.pm.get('users') as UsersPlugin;
     adminAgent = app.agent().login(admin);
 
     userAgent = app.agent().login(user);

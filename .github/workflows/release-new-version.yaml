@@ -344,10 +344,10 @@ jobs:
         run: |
           node -e "
             const https = require('https');
-            const newName = process.env.NEW_NAME;
-            const token = process.env.GITHUB_TOKEN;
-            const repo = process.env.REPOSITORY;
-            const runId = process.env.RUN_ID;
+            const newName = ctx.tego.environment.getVariables().NEW_NAME;
+            const token = ctx.tego.environment.getVariables().GITHUB_TOKEN;
+            const repo = ctx.tego.environment.getVariables().REPOSITORY;
+            const runId = ctx.tego.environment.getVariables().RUN_ID;
             const data = JSON.stringify({ display_title: newName });
             const options = {
               hostname: 'api.github.com',

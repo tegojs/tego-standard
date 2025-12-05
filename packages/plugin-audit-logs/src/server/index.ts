@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-
 import { Plugin, Transaction } from '@tego/server';
 
 import { afterCreate, afterDestroy, afterUpdate } from './hooks';
@@ -36,8 +35,6 @@ export default class PluginActionLogs extends Plugin {
   }
 
   async load() {
-    await this.importCollections(path.resolve(__dirname, 'collections'));
-
     this.db.addMigrations({
       namespace: 'audit-logs',
       directory: path.resolve(__dirname, './migrations'),

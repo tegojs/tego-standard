@@ -1,6 +1,6 @@
 import path from 'node:path';
-
 import { Application, AppSupervisor, Database, Gateway, IDatabaseOptions, Plugin, Transactionable } from '@tego/server';
+
 import lodash from 'lodash';
 
 import { NOTIFY_STATUS_EVENT_KEY } from '../constants';

@@ -26,20 +26,20 @@ export async function checkAction(ctx, next) {
     },
   });
 
-  let role = ctx.app.acl.getRole(currentRole);
+  let role = ctx.tego.acl.getRole(currentRole);
 
   if (!role) {
-    await ctx.app.emitAsync('acl:writeRoleToACL', roleInstance);
-    role = ctx.app.acl.getRole(currentRole);
+    await ctx.tego.emitAsync('acl:writeRoleToACL', roleInstance);
+    role = ctx.tego.acl.getRole(currentRole);
   }
 
-  const availableActions = ctx.app.acl.getAvailableActions();
+  const availableActions = ctx.tego.acl.getAvailableActions();
 
   ctx.body = {
     ...role.toJSON(),
     availableActions: [...availableActions.keys()],
     resources: [...role.resources.keys()],
-    actionAlias: map2obj(ctx.app.acl.actionAlias),
+    actionAlias: map2obj(ctx.tego.acl.actionAlias),
     allowAll: currentRole === 'root',
     allowConfigure: roleInstance.get('allowConfigure'),
     allowMenuItemIds: roleInstance.get('menuUiSchemas').map((uiSchema) => uiSchema.get('x-uid')),

@@ -5,7 +5,7 @@ export default {
   actions: {
     async get(ctx, next) {
       const { filterByTk, schema } = ctx.action.params;
-      const db = ctx.app.db as Database;
+      const db = ctx.tego.db as Database;
 
       const fields = await ViewFieldInference.inferFields({
         db,
@@ -29,7 +29,7 @@ export default {
     },
 
     list: async function (ctx, next) {
-      const db = ctx.app.db as Database;
+      const db = ctx.tego.db as Database;
       const dbViews = await db.queryInterface.listViews();
 
       const viewCollections = Array.from(db.collections.values()).filter((collection) => collection.isView());
@@ -62,11 +62,11 @@ export default {
       const limit = 1 * pageSize;
 
       const sql = `SELECT *
-                   FROM ${ctx.app.db.utils.quoteTable(
-                     ctx.app.db.utils.addSchema(filterByTk, schema),
+                   FROM ${ctx.tego.db.utils.quoteTable(
+                     ctx.tego.db.utils.addSchema(filterByTk, schema),
                    )} LIMIT ${limit} OFFSET ${offset}`;
 
-      const rawValues = await ctx.app.db.sequelize.query(sql, { type: 'SELECT' });
+      const rawValues = await ctx.tego.db.sequelize.query(sql, { type: 'SELECT' });
 
       if (fieldTypes) {
         for (const raw of rawValues) {
@@ -77,12 +77,12 @@ export default {
 
           for (const fieldName of Object.keys(fieldTypes)) {
             const fieldType = fieldTypes[fieldName];
-            const FieldClass = ctx.app.db.fieldTypes.get(fieldType);
+            const FieldClass = ctx.tego.db.fieldTypes.get(fieldType);
 
             const fieldOptions = new FieldClass(
               { name: fieldName },
               {
-                db: ctx.app.db,
+                db: ctx.tego.db,
               },
             ).options;
 

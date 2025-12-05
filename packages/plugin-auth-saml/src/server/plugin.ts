@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { InstallOptions, Plugin } from '@tego/server';
 
 import { authType } from '../constants';
@@ -27,7 +26,7 @@ export class SAMLPlugin extends Plugin {
     });
 
     // 注册接口
-    this.app.resource({
+    this.app.resourcer.define({
       name: 'saml',
       actions: {
         redirect,

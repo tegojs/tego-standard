@@ -18,7 +18,7 @@ const rolesRemoteCollectionsResourcer = {
       const { filter } = ctx.action.params;
       const { dataSourceKey } = filter;
 
-      const dataSource = ctx.app.dataSourceManager.dataSources.get(dataSourceKey);
+      const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceKey);
 
       const collectionRepository = new FullDataRepository<any>(dataSource.collectionManager.getCollections());
 
@@ -32,7 +32,7 @@ const rolesRemoteCollectionsResourcer = {
       const filterTitle = lodash.get(filterByTitle, 'title.$includes')?.toLowerCase();
       const filterName = lodash.get(filterByName, 'name.$includes')?.toLowerCase();
 
-      const roleResources = await ctx.app.db.getRepository('dataSourcesRolesResources').find({
+      const roleResources = await ctx.tego.db.getRepository('dataSourcesRolesResources').find({
         filter: {
           roleName: role,
           dataSourceKey,

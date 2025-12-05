@@ -8,7 +8,7 @@ import { WorkerWebInfo } from './workerTypes';
 export class WorkerWebController {
   @Action('info', { acl: 'private' })
   async info(ctx: Context, next: Next) {
-    const app = ctx.app as Application;
+    const app = ctx.tego as Application;
     if (!app.worker) {
       ctx.body = {
         preset: 0,
@@ -38,7 +38,7 @@ export class WorkerWebController {
     if (count < 0) {
       ctx.throw(400, ctx.t('Invalid worker count', { ns: NAMESPACE }));
     }
-    const app = ctx.app as Application;
+    const app = ctx.tego as Application;
     const countMax = app.name === 'main' ? WORKER_COUNT_MAX : WORKER_COUNT_MAX_SUB;
     if (count > countMax) {
       ctx.throw(400, ctx.t('Too many workers', { ns: NAMESPACE }));
@@ -55,7 +55,7 @@ export class WorkerWebController {
 
   @Action('restartAllForcely', { acl: 'private' })
   async restartAllForcely(ctx: Context, next: Next) {
-    const app = ctx.app as Application;
+    const app = ctx.tego as Application;
     await app.worker.restartAllForcely();
     ctx.body = {
       success: true,

@@ -1,4 +1,5 @@
 import { Plugin } from '@tego/server';
+
 import _ from 'lodash';
 
 import { HttpCollection } from './services/http-collection';
@@ -17,14 +18,14 @@ export class PluginHttpDatasource extends Plugin {
           if (!actionOptions.type) {
             _.set(actionOptions, 'type', 'list');
           }
-          const dataSource = ctx.app.dataSourceManager.dataSources.get(sourceId) as HttpDataSource;
+          const dataSource = ctx.tego.dataSourceManager.dataSources.get(sourceId) as HttpDataSource;
           ctx.body = await HttpCollection.runAction({
             dataSource,
             actionOptions,
             parseField: inferFields,
             runAsDebug: debug,
             debugVars,
-            environment: ctx.app.environment,
+            environment: ctx.tego.environment,
           });
           await next();
         },

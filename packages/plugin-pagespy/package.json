@@ -8,7 +8,7 @@
   ],
   "main": "dist/server/index.js",
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@huolala-tech/page-spy-browser": "^2.2.5",
     "@huolala-tech/page-spy-plugin-data-harbor": "^2.2.5",
     "@huolala-tech/page-spy-plugin-rrweb": "^2.2.3",

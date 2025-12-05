@@ -53,8 +53,18 @@ export class PluginManager {
       devDynamicImport: this.app.devDynamicImport,
     });
     for await (const [name, pluginClass] of plugins) {
-      const info = pluginList.find((item) => item.name === name);
-      await this.add(pluginClass, info);
+      try {
+        const info = pluginList.find((item) => item.name === name);
+        await this.add(pluginClass, info);
+      } catch (error) {
+        console.error(`[PluginManager.initRemotePlugins] ✗ Error adding plugin ${name}:`, {
+          error,
+          errorMessage: error?.message,
+          errorStack: error?.stack,
+          pluginClass,
+        });
+        throw error; // 重新抛出错误以保持原有行为
+      }
     }
   }
 

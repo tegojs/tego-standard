@@ -32,21 +32,21 @@ export class OmniTrigger extends Trigger {
     );
     workflow.app.resourcer.use(this.middleware, { tag: 'workflowTrigger', after: 'acl' });
   }
-  triggerAction = async (context, next) => {
+  triggerAction = async (ctx, next) => {
     const {
       params: { filterByTk, values, triggerWorkflows = '', filter, resourceName, actionName },
-    } = context.action;
+    } = ctx.action;
 
     if (actionName !== 'trigger' || resourceName === 'workflows') {
       return next();
     }
-    const { currentUser, currentRole } = context.state;
+    const { currentUser, currentRole } = ctx.state;
     const { model: UserModel } = this.workflow.db.getCollection('users');
     const userInfo = {
       user: UserModel.build(currentUser).desensitize(),
       roleName: currentRole,
     };
-    const dataSourceHeader = context.get('x-data-source');
+    const dataSourceHeader = ctx.get('x-data-source');
     const jointCollectionName = joinCollectionName(dataSourceHeader, resourceName);
     const triggerWorkflowsMap = new Map();
     const triggerWorkflowsArray = [];
@@ -83,7 +83,7 @@ export class OmniTrigger extends Trigger {
       const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
       const dataPath = triggerWorkflowsMap.get(workflow.key);
       const event = [workflow];
-      const { repository } = context.app.dataSourceManager.dataSources
+      const { repository } = ctx.tego.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
       const formData = dataPath ? _.get(values, dataPath) : values;
@@ -110,9 +110,9 @@ export class OmniTrigger extends Trigger {
       (workflow.sync ? syncGroup : asyncGroup).push(event);
     }
     for (const event of syncGroup) {
-      const processor = await this.workflow.trigger(event[0], event[1], { httpContext: context });
+      const processor = await this.workflow.trigger(event[0], event[1], { httpContext: ctx });
       if (!processor) {
-        return context.throw(500);
+        return ctx.throw(500);
       }
       const { lastSavedJob, nodesMap } = processor;
       const lastNode = nodesMap.get(lastSavedJob?.nodeId);
@@ -124,17 +124,17 @@ export class OmniTrigger extends Trigger {
       }
       if (processor.execution.status < EXECUTION_STATUS.STARTED) {
         if (lastNode?.type !== 'end') {
-          return context.throw(
+          return ctx.throw(
             500,
-            context.t('Workflow on your action failed, please contact the administrator', { ns: 'workflow' }),
+            ctx.t('Workflow on your action failed, please contact the administrator', { ns: 'workflow' }),
           );
         }
         const err = new CustomActionInterceptionError('Request is intercepted by workflow');
         err.status = 400;
-        err.messages = context.state.messages;
-        return context.throw(err.status, err);
+        err.messages = ctx.state.messages;
+        return ctx.throw(err.status, err);
       }
-      return context.throw(500, 'Workflow on your action hangs, please contact the administrator');
+      return ctx.throw(500, 'Workflow on your action hangs, please contact the administrator');
     }
     for (const event of asyncGroup) {
       this.workflow.trigger(event[0], event[1]);
@@ -142,19 +142,19 @@ export class OmniTrigger extends Trigger {
     await next();
   };
 
-  middleware = async (context: Context, next: Next) => {
+  middleware = async (ctx: Context, next: Next) => {
     const {
       resourceName,
       actionName,
       params: { triggerWorkflows, beforeWorkflows },
-    } = context.action;
+    } = ctx.action;
 
     if (beforeWorkflows) {
-      await this.trigger(context, beforeWorkflows, 'before');
+      await this.trigger(ctx, beforeWorkflows, 'before');
     }
 
     if (resourceName === 'workflows' && actionName === 'trigger') {
-      return this.triggerAction(context, next);
+      return this.triggerAction(ctx, next);
     }
 
     await next();
@@ -168,17 +168,17 @@ export class OmniTrigger extends Trigger {
     }
 
     // TODO: 此处如果执行错误应该怎么办
-    return this.trigger(context, triggerWorkflows);
+    return this.trigger(ctx, triggerWorkflows);
   };
 
-  private async trigger(context: Context, workflowList: string, order: 'after' | 'before' = 'after') {
+  private async trigger(ctx: Context, workflowList: string, order: 'after' | 'before' = 'after') {
     if (!workflowList) {
       return;
     }
-    const { values } = context.action.params;
-    const dataSourceHeader = context.get('x-data-source') || 'main';
+    const { values } = ctx.action.params;
+    const dataSourceHeader = ctx.get('x-data-source') || 'main';
 
-    const { currentUser, currentRole } = context.state;
+    const { currentUser, currentRole } = ctx.state;
     const { model: UserModel } = this.workflow.db.getCollection('users');
     const userInfo = {
       user: UserModel.build(currentUser).desensitize(),
@@ -204,19 +204,19 @@ export class OmniTrigger extends Trigger {
       const [dataSourceName, collectionName] = parseCollectionName(collection);
       const trigger = triggers.find((trigger) => trigger[0] === workflow.key);
       const event = [workflow];
-      if (context.action.resourceName !== 'workflows') {
+      if (ctx.action.resourceName !== 'workflows') {
         if (order === 'before') {
-          event.push({ data: context.action.params, ...userInfo });
+          event.push({ data: ctx.action.params, ...userInfo });
           (workflow.sync ? syncGroup : asyncGroup).push(event);
           continue;
         }
-        if (!context.body) {
+        if (!ctx.body) {
           continue;
         }
         if (dataSourceName !== dataSourceHeader) {
           continue;
         }
-        const { body: data } = context;
+        const { body: data } = ctx;
         for (const row of Array.isArray(data) ? data : [data]) {
           let payload = row;
           if (trigger[1]) {
@@ -246,7 +246,7 @@ export class OmniTrigger extends Trigger {
           event.push({ data: toJSON(payload), ...userInfo });
         }
       } else {
-        const { model, repository } = (<any>context.app).dataSourceManager.dataSources
+        const { model, repository } = (<any>ctx.tego).dataSourceManager.dataSources
           .get(dataSourceName)
           .collectionManager.getCollection(collectionName);
         let data = trigger[1] ? get(values, trigger[1]) : values;
@@ -267,7 +267,7 @@ export class OmniTrigger extends Trigger {
     }
 
     for (const event of syncGroup) {
-      await this.workflow.trigger(event[0], event[1], { httpContext: context });
+      await this.workflow.trigger(event[0], event[1], { httpContext: ctx });
     }
 
     for (const event of asyncGroup) {

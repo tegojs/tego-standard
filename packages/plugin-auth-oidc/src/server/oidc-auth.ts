@@ -1,6 +1,6 @@
 import { AuthModel } from '@tachybase/module-auth';
-
 import { AuthConfig, BaseAuth } from '@tego/server';
+
 import { Issuer } from 'openid-client';
 
 import { cookieName } from '../constants';

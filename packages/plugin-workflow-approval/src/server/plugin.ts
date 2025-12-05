@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { PluginWorkflow } from '@tachybase/module-workflow';
-
 import { Plugin } from '@tego/server';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../common/constants';
@@ -31,9 +30,6 @@ export class PluginWorkflowApproval extends Plugin {
       context: {
         plugin: this,
       },
-    });
-    await db.import({
-      directory: path.resolve(__dirname, 'collections'),
     });
     init(this);
     this.app.acl.allow('workflows', ['listApprovalFlows'], 'loggedIn');

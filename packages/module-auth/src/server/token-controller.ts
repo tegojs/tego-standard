@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import {
   Application,
   AuthError,
@@ -13,6 +12,7 @@ import {
   TokenPolicyConfig,
   type SystemLogger,
 } from '@tego/server';
+
 import ms from 'ms';
 
 import {

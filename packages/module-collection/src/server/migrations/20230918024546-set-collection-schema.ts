@@ -7,7 +7,7 @@ export default class extends Migration {
       return;
     }
 
-    if (this.context.app.name !== 'main') {
+    if (this.context.tego.name !== 'main') {
       return;
     }
 
@@ -24,6 +24,6 @@ export default class extends Migration {
       await collection.save();
     }
 
-    await this.context.app.emitAsync('loadCollections');
+    await this.context.tego.emitAsync('loadCollections');
   }
 }

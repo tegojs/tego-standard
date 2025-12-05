@@ -32,6 +32,16 @@ export const useSignInButtons = (authenticators = []) => {
   }
 
   const types = Object.keys(customs);
+
+  // Ensure authenticators is an array
+  if (!Array.isArray(authenticators)) {
+    console.error('[useSignInButtons] authenticators is not an array:', {
+      type: typeof authenticators,
+      value: authenticators,
+    });
+    return [];
+  }
+
   return authenticators
     .filter((authenticator) => types.includes(authenticator.authType))
     .map((authenticator, index) => React.createElement(customs[authenticator.authType], { key: index, authenticator }));

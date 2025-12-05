@@ -1,8 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { connect, mapProps, mapReadPretty } from '@tachybase/schema';
-
-import { DeleteOutlined, DownloadOutlined, InboxOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import { Lightbox } from '@tego/client';
+
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  InboxOutlined,
+  LoadingOutlined,
+  PlusOutlined,
+  RotateRightOutlined,
+} from '@ant-design/icons';
 import { Upload as AntdUpload, Button, Modal, Progress, Space, UploadFile } from 'antd';
 import cls from 'classnames';
 import { saveAs } from 'file-saver';
@@ -35,6 +42,7 @@ Upload.Attachment = connect((props: UploadProps) => {
   const images = fileList;
   const [fileIndex, setFileIndex] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [rotate, setRotate] = useState(0);
   const { t } = useTranslation();
   const uploadProps = useUploadProps({ ...props });
   const { wrapSSR, hashId, componentCls: prefixCls } = useStyles();
@@ -126,12 +134,18 @@ Upload.Attachment = connect((props: UploadProps) => {
           prevFile={images[(fileIndex + images.length - 1) % images.length]}
           previewList={previewList}
           onCloseRequest={() => setVisible(false)}
-          onMovePrevRequest={() => setFileIndex((fileIndex + images.length - 1) % images.length)}
-          onMoveNextRequest={() => setFileIndex((fileIndex + 1) % images.length)}
+          onMovePrevRequest={() => {
+            setFileIndex((fileIndex + images.length - 1) % images.length);
+            setRotate(0);
+          }}
+          onMoveNextRequest={() => {
+            setFileIndex((fileIndex + 1) % images.length);
+            setRotate(0);
+          }}
           imageTitle={images[fileIndex]?.title}
           toolbarButtons={[
             <button
-              key={'preview-img'}
+              key={'download'}
               style={{ fontSize: 22, background: 'none', lineHeight: 1 }}
               type="button"
               aria-label="Zoom in"
@@ -139,13 +153,30 @@ Upload.Attachment = connect((props: UploadProps) => {
               className="ril-zoom-in ril__toolbarItemChild ril__builtinButton"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const file = images[fileIndex];
                 saveAs(file.url, `${file.title}${file.extname}`);
               }}
             >
               <DownloadOutlined />
             </button>,
+            <button
+              key={'rotate'}
+              style={{ fontSize: 22, background: 'none', lineHeight: 1 }}
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+              className="ril-zoom-in ril__toolbarItemChild ril__builtinButton"
+              onClick={(e) => {
+                setRotate(rotate + 90);
+              }}
+            >
+              <RotateRightOutlined />
+            </button>,
           ]}
+          otherProps={{
+            style: { transform: `rotate(${rotate}deg)`, transition: 'transform 0.3s' },
+          }}
         />
       )}
     </div>,

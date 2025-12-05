@@ -17,7 +17,7 @@ export const imagePng = {
     );
   },
   checkedComponent: (props) => {
-    const { file } = props;
+    const { file, style } = props;
     return (
       file.imageUrl && (
         <img
@@ -30,6 +30,7 @@ export const imagePng = {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
+            ...style,
           }}
         />
       )

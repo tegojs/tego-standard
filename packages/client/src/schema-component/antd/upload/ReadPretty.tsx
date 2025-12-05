@@ -37,20 +37,6 @@ ReadPretty.File = function File(props: UploadProps) {
   const previewList = app.AttachmentPreviewManager.get();
   useUploadStyleVal(prefixCls);
   useEffect(() => {
-    if (!visible) {
-      const allImgs = document.querySelectorAll('.ril-image-current img, .ril-image img');
-      allImgs.forEach((img) => {
-        (img as HTMLElement).style.transform = '';
-      });
-      return;
-    }
-    const el = document.querySelector('.ril-image-current img') as HTMLElement | null;
-    if (el) {
-      el.style.transition = 'transform 0.3s';
-      el.style.transform = `rotate(${rotate}deg)`;
-    }
-  }, [visible, fileIndex, rotate]);
-  useEffect(() => {
     if (visible) setRotate(0);
   }, [fileIndex]);
   return wrapSSR(
@@ -113,8 +99,14 @@ ReadPretty.File = function File(props: UploadProps) {
             e.stopPropagation();
             setVisible(false);
           }}
-          onMovePrevRequest={() => setFileIndex((fileIndex + images.length - 1) % images.length)}
-          onMoveNextRequest={() => setFileIndex((fileIndex + 1) % images.length)}
+          onMovePrevRequest={() => {
+            setFileIndex((fileIndex + images.length - 1) % images.length);
+            setRotate(0);
+          }}
+          onMoveNextRequest={() => {
+            setFileIndex((fileIndex + 1) % images.length);
+            setRotate(0);
+          }}
           imageTitle={images[fileIndex]?.title}
           toolbarButtons={[
             <button
@@ -147,6 +139,9 @@ ReadPretty.File = function File(props: UploadProps) {
               <RotateRightOutlined />
             </button>,
           ]}
+          otherProps={{
+            style: { transform: `rotate(${rotate}deg)`, transition: 'transform 0.3s' },
+          }}
         />
       )}
     </div>,

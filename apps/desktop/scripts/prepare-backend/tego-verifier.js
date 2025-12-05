@@ -48,7 +48,7 @@ function installTegoExplicitly(backendTemp, packageJsonPath, nodeModulesPath, lo
 
   try {
     const packageJsonAfter = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    const tegoVersion = packageJsonAfter.dependencies?.tego || '1.3.52';
+    const tegoVersion = packageJsonAfter.dependencies?.tego || '1.6.0';
     log(logPrefix, `Installing tego@${tegoVersion} explicitly...`);
 
     if (fs.existsSync(nodeModulesPath)) {

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Field, useField } from '@tachybase/schema';
-
-import { DownloadOutlined } from '@ant-design/icons';
 import { isString, Lightbox } from '@tego/client';
+
+import { DownloadOutlined, RotateRightOutlined } from '@ant-design/icons';
 import { Button, Modal, Space } from 'antd';
 import useUploadStyle from 'antd/es/upload/style';
 import cls from 'classnames';
@@ -31,11 +31,28 @@ ReadPretty.File = function File(props: UploadProps) {
   const app = useApp();
   const [fileIndex, setFileIndex] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [rotate, setRotate] = useState(0);
   const { wrapSSR, hashId, componentCls: prefixCls } = useStyles();
   const useUploadStyleVal = (useUploadStyle as any).default ? (useUploadStyle as any).default : useUploadStyle;
   const previewList = app.AttachmentPreviewManager.get();
-  // 加载 antd 的样式
   useUploadStyleVal(prefixCls);
+  useEffect(() => {
+    if (!visible) {
+      const allImgs = document.querySelectorAll('.ril-image-current img, .ril-image img');
+      allImgs.forEach((img) => {
+        (img as HTMLElement).style.transform = '';
+      });
+      return;
+    }
+    const el = document.querySelector('.ril-image-current img') as HTMLElement | null;
+    if (el) {
+      el.style.transition = 'transform 0.3s';
+      el.style.transform = `rotate(${rotate}deg)`;
+    }
+  }, [visible, fileIndex, rotate]);
+  useEffect(() => {
+    if (visible) setRotate(0);
+  }, [fileIndex]);
   return wrapSSR(
     <div>
       <div
@@ -115,6 +132,19 @@ ReadPretty.File = function File(props: UploadProps) {
               }}
             >
               <DownloadOutlined />
+            </button>,
+            <button
+              key={'rotate'}
+              style={{ fontSize: 22, background: 'none', lineHeight: 1 }}
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+              className="ril-zoom-in ril__toolbarItemChild ril__builtinButton"
+              onClick={(e) => {
+                setRotate(rotate + 90);
+              }}
+            >
+              <RotateRightOutlined />
             </button>,
           ]}
         />

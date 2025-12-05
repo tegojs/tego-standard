@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- add deprecation warning for legacy commands ([#317](https://github.com/tegojs/tego-standard/pull/317)) [f8de79c](https://github.com/tegojs/tego-standard/commit/f8de79ceb61b4db22112456923fd016de816915b) (@TomyJan)
+
+### 🐛 Fixed
+
+- **workflow-approval**: fixed workflow not found when workflow is revision ([#320](https://github.com/tegojs/tego-standard/pull/320)) [c1c0676](https://github.com/tegojs/tego-standard/commit/c1c06765d27e5dff11352c5c7b74fb5ef4b9cffd) (@bai.zixv)
+
 
 
 ## [1.6.1] - 2025-12-05

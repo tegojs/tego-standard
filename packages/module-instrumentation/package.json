@@ -1,14 +1,14 @@
 {
   "name": "@tachybase/module-instrumentation",
   "displayName": "Custom instrumentation",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "A module for tracking and instrumentation in Tachybase.",
   "keywords": [
     "Logging and monitoring"
   ],
   "main": "dist/server/index.js",
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@antv/g2": "^5.3.5",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "catalog:",

@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 import { getApp, sleep } from '.';
@@ -19,7 +18,7 @@ describe('verification > Plugin', () => {
     app = await getApp();
     agent = app.agent();
     db = app.db;
-    plugin = <Plugin>app.getPlugin('verification');
+    plugin = <Plugin>app.pm.get('verification');
     VerificationModel = db.getCollection('verifications').model;
     AuthorModel = db.getCollection('authors').model;
     AuthorRepo = db.getCollection('authors').repository;

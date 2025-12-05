@@ -1,3 +1,5 @@
+import { Context } from '@tego/server';
+
 import axios from 'axios';
 
 interface Config {
@@ -8,19 +10,20 @@ interface Config {
 
 export class WorkClient {
   config: Config;
-  ctx: any;
+  ctx: Context;
   accessToken: string = '';
   tokenExpiresAt: number = 0;
+  private readonly weComApiBaseUrl: string = 'https://qyapi.weixin.qq.com/cgi-bin/';
 
   constructor(config: Config) {
     this.config = config;
-    this.ctx = config?.ctx;
+    this.ctx = config.ctx;
   }
 
   private async fetchNewAccessToken(): Promise<void> {
     try {
       const response = await axios.get(
-        `https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${this.config.clientId}&corpsecret=${this.config.clientSecret}`,
+        `${this.weComApiBaseUrl}gettoken?corpid=${this.config.clientId}&corpsecret=${this.config.clientSecret}`,
       );
       const data = response.data;
       this.accessToken = data.access_token;
@@ -41,22 +44,22 @@ export class WorkClient {
   async getUserInfo(accessToken: string, code: string): Promise<any> {
     try {
       const response = await axios.get(
-        `https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token=${accessToken}&code=${code}`,
+        `${this.weComApiBaseUrl}user/getuserinfo?access_token=${accessToken}&code=${code}`,
       );
       const userId = response.data.UserId;
 
       if (userId) {
         const userDetailResponse = await axios.post(
-          `https://qyapi.weixin.qq.com/cgi-bin/user/get?access_token=${accessToken}&userid=${userId}`,
+          `${this.weComApiBaseUrl}user/get?access_token=${accessToken}&userid=${userId}`,
         );
         return userDetailResponse.data;
       } else {
-        this.ctx?.log.debug(`get userInfo error message: ${response.data.errmsg}`);
+        this.ctx.logger.debug(`get userInfo error message: ${response.data.errmsg}`);
         return {};
       }
     } catch (err) {
       if (err.response?.data?.errmsg) {
-        this.ctx?.log.debug(`get userInfo error message: ${err.response.data.errmsg}`);
+        this.ctx.logger.debug(`get userInfo error message: ${err.response.data.errmsg}`);
       }
       return {};
     }

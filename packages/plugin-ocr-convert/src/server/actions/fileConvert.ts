@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { promisify } from 'node:util';
-
 import { Context, Next } from '@tego/server';
+
 import axios from 'axios';
 import Docxtemplater from 'docxtemplater';
 import ExcelJS from 'exceljs';
@@ -30,8 +30,8 @@ async function getTemplateContent(template: string): Promise<Buffer> {
 }
 
 // 将模板文本转成word
-export async function convertToWord(context: Context, next: Next) {
-  const { values } = context.action.params;
+export async function convertToWord(ctx: Context, next: Next) {
+  const { values } = ctx.action.params;
   const { template, data, saveType, fileName } = values;
 
   try {
@@ -47,11 +47,11 @@ export async function convertToWord(context: Context, next: Next) {
     if (saveType === 'file') {
       fs.writeFileSync(fileName, buffer);
     } else {
-      context.body = buffer;
+      ctx.body = buffer;
     }
   } catch (error) {
-    context.status = 500;
-    context.body = {
+    ctx.status = 500;
+    ctx.body = {
       success: false,
       message: `转换Word文档失败: ${error.message}`,
     };
@@ -59,8 +59,8 @@ export async function convertToWord(context: Context, next: Next) {
 }
 
 // 将模板文本转成excel
-export async function convertToExcel(context: Context, next: Next) {
-  const { values } = context.action.params;
+export async function convertToExcel(ctx: Context, next: Next) {
+  const { values } = ctx.action.params;
   const { template, data, saveType, fileName } = values;
 
   try {
@@ -89,11 +89,11 @@ export async function convertToExcel(context: Context, next: Next) {
     if (saveType === 'file') {
       await workbook.xlsx.writeFile(fileName);
     } else {
-      context.body = await workbook.xlsx.writeBuffer();
+      ctx.body = await workbook.xlsx.writeBuffer();
     }
   } catch (error) {
-    context.status = 500;
-    context.body = {
+    ctx.status = 500;
+    ctx.body = {
       success: false,
       message: `转换Excel文档失败: ${error.message}`,
     };

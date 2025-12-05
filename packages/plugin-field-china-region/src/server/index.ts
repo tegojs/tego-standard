@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { Plugin } from '@tego/server';
 
 function getChinaDivisionData(key: string) {
@@ -17,8 +16,6 @@ export class PluginChinaRegion extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
-
     this.app.acl.allow('chinaRegions', 'list', 'loggedIn');
 
     this.app.resourcer.use(

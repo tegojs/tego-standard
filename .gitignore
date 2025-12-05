@@ -33,6 +33,7 @@ esm/
 lib/
 ncc-cache/
 node_modules/
+settings.js
 storage/*
 plugins/*
 tsconfig.paths.json

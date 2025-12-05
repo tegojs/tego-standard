@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { Context, HandlerType, Op, Plugin, Registry } from '@tego/server';
 
 import { namespace, Provider } from '.';
@@ -23,19 +22,19 @@ export default class PluginOtp extends Plugin {
   providers: Registry<typeof Provider> = new Registry();
   interceptors: Registry<Interceptor> = new Registry();
 
-  intercept: HandlerType = async (context, next) => {
-    const { resourceName, actionName, values } = context.action.params;
+  intercept: HandlerType = async (ctx, next) => {
+    const { resourceName, actionName, values } = ctx.action.params;
     const key = `${resourceName}:${actionName}`;
     const interceptor = this.interceptors.get(key);
 
     if (!interceptor) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
 
-    const receiver = interceptor.getReceiver(context);
-    const content = interceptor.getCode ? interceptor.getCode(context) : values.code;
+    const receiver = interceptor.getReceiver(ctx);
+    const content = interceptor.getCode ? interceptor.getCode(ctx) : values.code;
     if (!receiver || !content) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
 
     // check if code match, then call next
@@ -54,14 +53,14 @@ export default class PluginOtp extends Plugin {
     });
 
     if (!item) {
-      return context.throw(400, {
+      return ctx.throw(400, {
         code: 'InvalidVerificationCode',
-        message: context.t('Verification code is invalid', { ns: namespace }),
+        message: ctx.t('Verification code is invalid', { ns: namespace }),
       });
     }
 
     // TODO: code should be removed if exists in values
-    // context.action.mergeParams({
+    // ctx.action.mergeParams({
     //   values: {
 
     //   }
@@ -123,22 +122,20 @@ export default class PluginOtp extends Plugin {
 
     app.i18n.addResources('zh-CN', namespace, zhCN);
 
-    await this.importCollections(path.resolve(__dirname, 'collections'));
-
     await initProviders(this);
     initActions(this);
 
     // add middleware to action
     app.resourcer.use(
-      async (context, next) => {
-        const { resourceName, actionName, values } = context.action.params;
+      async (ctx, next) => {
+        const { resourceName, actionName, values } = ctx.action.params;
         const key = `${resourceName}:${actionName}`;
         const interceptor = this.interceptors.get(key);
         if (!interceptor || interceptor.manual) {
           return next();
         }
 
-        return this.intercept(context, next);
+        return this.intercept(ctx, next);
       },
       { tag: 'dynamicInterceptor' },
     );

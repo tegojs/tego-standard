@@ -6,7 +6,7 @@ import { COLLECTION_AUTH_MAIN_APP_CONFIG, NAMESPACE } from '../../constants';
 export class AuthMainAppController {
   @Action('getMainUser', { acl: 'public' })
   async getMainUser(ctx: Context, next: () => Promise<any>) {
-    if (ctx.app.name === 'main') {
+    if (ctx.tego.name === 'main') {
       ctx.body = {};
       return next();
     }
@@ -29,7 +29,7 @@ export class AuthMainAppController {
     const multiAppRepo = mainApp.db.getRepository('applications');
     const multiApp = await multiAppRepo.findOne({
       filter: {
-        $and: [{ name: ctx.app.name }, { $or: [{ createdById: user.userId }, { partners: { id: user.userId } }] }],
+        $and: [{ name: ctx.tego.name }, { $or: [{ createdById: user.userId }, { partners: { id: user.userId } }] }],
       },
     });
     if (!multiApp) {
@@ -75,7 +75,7 @@ export class AuthMainAppController {
     const currentUserData = currentUser?.dataValues;
     const tokenInfo = await mainApp.authManager.tokenController.add({ userId: currentUserData.id });
     const expiresIn = Math.floor((await mainApp.authManager.tokenController.getConfig()).tokenExpirationTime / 1000);
-    const newToken = ctx.app.authManager.jwt.sign(
+    const newToken = ctx.tego.authManager.jwt.sign(
       {
         userId: currentUserData.id,
         temp: true,
@@ -111,7 +111,7 @@ export class AuthMainAppController {
   @Action('set', { acl: 'public' })
   async set(ctx: Context, next: () => Promise<any>) {
     const { selfSignIn, authMainApp } = ctx.action.params.values;
-    if (ctx.app.name === 'main' && !selfSignIn) {
+    if (ctx.tego.name === 'main' && !selfSignIn) {
       ctx.throw(400, ctx.t('Unable to disable all authenticators in the main application.', { ns: NAMESPACE }));
     }
 

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
 import { Context } from '@tego/server';
+
 import { Queue } from 'bullmq';
 
 import { generate } from './printTemplates';

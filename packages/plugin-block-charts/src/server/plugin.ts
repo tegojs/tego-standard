@@ -1,5 +1,4 @@
 import path, { resolve } from 'node:path';
-
 import { Cache, Container, InstallOptions, Plugin } from '@tego/server';
 
 import { query } from './actions/query';
@@ -11,7 +10,7 @@ export class DataVisualizationPlugin extends Plugin {
   afterAdd() {}
 
   beforeLoad() {
-    this.app.resource({
+    this.app.resourcer.define({
       name: 'charts',
       actions: {
         query,

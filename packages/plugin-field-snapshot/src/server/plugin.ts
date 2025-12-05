@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { InstallOptions, Model, Plugin } from '@tego/server';
 
 import { SnapshotField } from './fields/field-snapshot';
@@ -87,9 +86,6 @@ export class SnapshotFieldPlugin extends Plugin {
   };
 
   async load() {
-    // 导入 collection
-    await this.importCollections(resolve(__dirname, 'collections'));
-
     this.app.db.registerFieldTypes({
       snapshot: SnapshotField,
     });

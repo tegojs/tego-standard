@@ -14,4 +14,4 @@ export default extendCollection({
       foreignKey: 'collectionName',
     },
   ],
-});
+}) as any;

@@ -1,10 +1,12 @@
 import { Application } from '@tego/server';
 
 import { BaseDatabaseAdapter } from './base-adapter';
+import { MysqlAdapter } from './mysql-adapter';
 import { PostgresAdapter } from './postgres-adapter';
+import { SqliteAdapter } from './sqlite-adapter';
 
 // 支持的数据库方言列表
-const SUPPORTED_DIALECTS = ['postgres'] as const;
+const SUPPORTED_DIALECTS = ['postgres', 'mysql', 'sqlite'] as const;
 type SupportedDialect = (typeof SUPPORTED_DIALECTS)[number];
 
 /**
@@ -14,10 +16,8 @@ type SupportedDialect = (typeof SUPPORTED_DIALECTS)[number];
 export class DatabaseAdapterFactory {
   private static adapters: Map<string, new (app: Application) => BaseDatabaseAdapter> = new Map([
     ['postgres', PostgresAdapter],
-    // 未来可以添加其他适配器：
-    // ['mysql', MysqlAdapter],
-    // ['mariadb', MariadbAdapter],
-    // ['sqlite', SqliteAdapter],
+    ['mysql', MysqlAdapter],
+    ['sqlite', SqliteAdapter],
   ]);
 
   /**
@@ -71,4 +71,6 @@ export class DatabaseAdapterFactory {
 
 // 导出所有适配器相关类型和类
 export * from './base-adapter';
+export * from './mysql-adapter';
 export * from './postgres-adapter';
+export * from './sqlite-adapter';

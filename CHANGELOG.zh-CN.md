@@ -7,6 +7,14 @@
 
 ## [未发布]
 
+### ✨ 新增
+
+- 添加旧命令的弃用警告 ([#317](https://github.com/tegojs/tego-standard/pull/317)) [f8de79c](https://github.com/tegojs/tego-standard/commit/f8de79ceb61b4db22112456923fd016de816915b) (@TomyJan)
+
+### 🐛 修复
+
+- **workflow-approval**: 修复了工作流程修订时找不到工作流程的问题 ([#320](https://github.com/tegojs/tego-standard/pull/320)) [c1c0676](https://github.com/tegojs/tego-standard/commit/c1c06765d27e5dff11352c5c7b74fb5ef4b9cffd) (@bai.zixv)
+
 
 
 ## [1.6.1] - 2025-12-05

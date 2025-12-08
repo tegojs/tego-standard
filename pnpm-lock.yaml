@@ -598,7 +598,7 @@ importers:
     devDependencies:
       '@antv/g6':
         specifier: ^5.0.49
-        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6))
+        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       '@babel/core':
         specifier: 7.27.4
         version: 7.27.4
@@ -2779,14 +2779,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.0-alpha.9
-        version: 1.6.0-alpha.9(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
+        specifier: 1.6.0
+        version: 1.6.0(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.0-alpha.9
-        version: 1.6.0-alpha.9(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
+        specifier: 1.6.0
+        version: 1.6.0(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.0-alpha.9
-        version: 1.6.0-alpha.9
+        specifier: 1.6.0
+        version: 1.6.0
       '@types/archiver':
         specifier: ^5.3.4
         version: 5.3.4
@@ -17683,7 +17683,7 @@ snapshots:
       flru: 1.0.2
       pdfast: 0.2.0
 
-  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
       '@antv/algorithm': 0.1.26
       '@antv/component': 2.1.5
@@ -17693,7 +17693,7 @@ snapshots:
       '@antv/g-plugin-dragndrop': 2.0.37
       '@antv/graphlib': 2.0.4
       '@antv/hierarchy': 0.6.14
-      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))
+      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       '@antv/util': 3.3.11
       bubblesets-js: 2.3.4
     transitivePeerDependencies:
@@ -17721,12 +17721,12 @@ snapshots:
 
   '@antv/hierarchy@0.6.14': {}
 
-  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
       '@antv/event-emitter': 0.1.3
       '@antv/graphlib': 2.0.4
       '@antv/util': 3.3.11
-      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6))
+      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
       comlink: 4.4.2
       d3-force: 3.0.0
       d3-force-3d: 3.0.6
@@ -20549,9 +20549,9 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
-  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6))':
+  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
     dependencies:
-      workerize-loader: 2.0.2(webpack@5.99.6)
+      workerize-loader: 2.0.2(webpack@5.99.6(esbuild@0.25.6))
 
   '@napi-rs/canvas-android-arm64@0.1.76':
     optional: true
@@ -22582,26 +22582,6 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tachybase/acl@1.6.0':
-    dependencies:
-      '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.0
-      '@tachybase/utils': 1.6.0
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      minimatch: 5.1.6
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/acl@1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22645,26 +22625,6 @@ snapshots:
   '@tachybase/acl@1.6.0(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.0(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.0
-      '@tachybase/utils': 1.6.0
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      minimatch: 5.1.6
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@tachybase/acl@1.6.0(pg@8.16.3)':
-    dependencies:
-      '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.0
       '@tachybase/utils': 1.6.0
       koa-compose: 4.1.0
@@ -22745,25 +22705,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.0':
-    dependencies:
-      '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.0
-      '@tachybase/utils': 1.6.0
-      jsonwebtoken: 8.5.1
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/auth@1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22821,25 +22762,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.0(pg@8.16.3)':
-    dependencies:
-      '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.0
-      '@tachybase/utils': 1.6.0
-      jsonwebtoken: 8.5.1
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/cache@1.6.0':
     dependencies:
       bloom-filters: 3.0.4
@@ -22873,7 +22795,7 @@ snapshots:
 
   '@tachybase/data-source@1.6.0':
     dependencies:
-      '@tachybase/acl': 1.6.0
+      '@tachybase/acl': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.0
@@ -22961,7 +22883,7 @@ snapshots:
 
   '@tachybase/data-source@1.6.0(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.0(pg@8.16.3)
+      '@tachybase/acl': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.0
@@ -23297,9 +23219,9 @@ snapshots:
   '@tego/core@1.6.0':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.0
+      '@tachybase/acl': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.0
+      '@tachybase/auth': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.0
       '@tachybase/data-source': 1.6.0
       '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23517,9 +23439,9 @@ snapshots:
   '@tego/core@1.6.0(pg@8.16.3)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.0(pg@8.16.3)
+      '@tachybase/acl': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.0(pg@8.16.3)
+      '@tachybase/auth': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.0
       '@tachybase/data-source': 1.6.0(pg@8.16.3)
       '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23652,9 +23574,9 @@ snapshots:
 
   '@tego/server@1.6.0':
     dependencies:
-      '@tachybase/acl': 1.6.0
+      '@tachybase/acl': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.0
+      '@tachybase/auth': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.0
       '@tachybase/data-source': 1.6.0
       '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23739,9 +23661,9 @@ snapshots:
 
   '@tego/server@1.6.0(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.0(pg@8.16.3)
+      '@tachybase/acl': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.0(pg@8.16.3)
+      '@tachybase/auth': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.0
       '@tachybase/data-source': 1.6.0(pg@8.16.3)
       '@tachybase/database': 1.6.0(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -33023,14 +32945,16 @@ snapshots:
       string-kit: 0.19.3
       tree-kit: 0.8.8
 
-  terser-webpack-plugin@5.3.14(webpack@5.99.6):
+  terser-webpack-plugin@5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2
       terser: 5.44.1
-      webpack: 5.99.6
+      webpack: 5.99.6(esbuild@0.25.6)
+    optionalDependencies:
+      esbuild: 0.25.6
 
   terser@5.44.1:
     dependencies:
@@ -33927,7 +33851,7 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.99.6:
+  webpack@5.99.6(esbuild@0.25.6):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -33949,7 +33873,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.0
-      terser-webpack-plugin: 5.3.14(webpack@5.99.6)
+      terser-webpack-plugin: 5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6))
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:
@@ -34088,10 +34012,10 @@ snapshots:
       worker-timers-broker: 6.1.8
       worker-timers-worker: 7.0.71
 
-  workerize-loader@2.0.2(webpack@5.99.6):
+  workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.99.6
+      webpack: 5.99.6(esbuild@0.25.6)
 
   wrap-ansi@7.0.0:
     dependencies:

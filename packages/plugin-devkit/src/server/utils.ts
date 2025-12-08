@@ -162,20 +162,11 @@ function getNodeModulesPath(packageDir) {
 }
 class IndexGenerator {
   tachybaseDir = getNodeModulesPath('@tachybase');
-  private static instance: IndexGenerator | null = null;
-  private static watchers: any[] = [];
-  private generateTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private outputPath: string,
     private pluginsPath: string[],
-  ) {
-    // 实现单例模式,避免重复创建监听器
-    if (IndexGenerator.instance) {
-      return IndexGenerator.instance;
-    }
-    IndexGenerator.instance = this;
-  }
+  ) {}
 
   get indexPath() {
     return join(this.outputPath, 'index.ts');
@@ -192,31 +183,13 @@ class IndexGenerator {
   generate() {
     this.generatePluginContent();
     if (process.env.NODE_ENV === 'production') return;
-
-    // 清理旧的监听器,避免重复监听
-    IndexGenerator.watchers.forEach((watcher) => {
-      try {
-        watcher.close();
-      } catch (e) {
-        // ignore
-      }
-    });
-    IndexGenerator.watchers = [];
-
     this.pluginsPath.forEach((pluginPath) => {
       if (!_existsSync(pluginPath)) {
         return;
       }
-      const watcher = watch(pluginPath, { recursive: false }, () => {
-        // 使用防抖,避免频繁触发
-        if (this.generateTimer) {
-          clearTimeout(this.generateTimer);
-        }
-        this.generateTimer = setTimeout(() => {
-          this.generatePluginContent();
-        }, 300);
+      watch(pluginPath, { recursive: false }, () => {
+        this.generatePluginContent();
       });
-      IndexGenerator.watchers.push(watcher);
     });
   }
 
@@ -242,69 +215,31 @@ export default function devDynamicImport(packageName: string): Promise<any> {
   }
 
   generatePluginContent() {
+    if (_existsSync(this.outputPath)) {
+      rmSync(this.outputPath, { recursive: true, force: true });
+    }
+    mkdirSync(this.outputPath);
     const validPluginPaths = this.pluginsPath.filter((pluginsPath) => _existsSync(pluginsPath));
     if (!validPluginPaths.length || process.env.NODE_ENV === 'production') {
-      if (!_existsSync(this.outputPath)) {
-        mkdirSync(this.outputPath, { recursive: true });
-      }
-      const currentContent = _existsSync(this.indexPath) ? readFileSync(this.indexPath, 'utf-8') : '';
-      if (currentContent !== this.emptyIndexContent) {
-        writeFileSync(this.indexPath, this.emptyIndexContent);
-      }
+      writeFileSync(this.indexPath, this.emptyIndexContent);
       return;
     }
 
     const pluginInfos = validPluginPaths.map((pluginsPath) => this.getContent(pluginsPath)).flat();
 
-    // 确保输出目录存在
-    if (!_existsSync(this.outputPath)) {
-      mkdirSync(this.outputPath, { recursive: true });
-    }
-    if (!_existsSync(this.packagesPath)) {
-      mkdirSync(this.packagesPath, { recursive: true });
-    }
-
-    // index.ts - 只在内容变化时写入
-    const currentIndexContent = _existsSync(this.indexPath) ? readFileSync(this.indexPath, 'utf-8') : '';
-    if (currentIndexContent !== this.indexContent) {
-      writeFileSync(this.indexPath, this.indexContent);
-    }
-
-    // packageMap.json - 只在内容变化时写入
+    // index.ts
+    writeFileSync(this.indexPath, this.indexContent);
+    // packageMap.json
     const packageMapContent = pluginInfos.reduce((memo, item) => {
       memo[item.packageJsonName] = item.pluginFileName + '.ts';
       return memo;
     }, {});
-    const newPackageMapStr = JSON.stringify(packageMapContent, null, 2);
-    const currentPackageMapStr = _existsSync(this.packageMapPath) ? readFileSync(this.packageMapPath, 'utf-8') : '';
-    if (currentPackageMapStr !== newPackageMapStr) {
-      writeFileSync(this.packageMapPath, newPackageMapStr);
-    }
-
-    // packages - 只更新变化的文件
-    const existingFiles = new Set(
-      _existsSync(this.packagesPath) ? sync('*.ts', { cwd: this.packagesPath }).map((f) => f.replace('.ts', '')) : [],
-    );
-
-    const currentFiles = new Set(pluginInfos.map((item) => item.pluginFileName));
-
-    // 删除不再需要的文件
-    for (const fileName of existingFiles) {
-      if (!currentFiles.has(fileName)) {
-        const filePath = join(this.packagesPath, fileName + '.ts');
-        if (_existsSync(filePath)) {
-          rmSync(filePath);
-        }
-      }
-    }
-
-    // 更新或创建需要的文件
+    writeFileSync(this.packageMapPath, JSON.stringify(packageMapContent, null, 2));
+    // packages
+    mkdirSync(this.packagesPath, { recursive: true });
     pluginInfos.forEach((item) => {
       const pluginPackagePath = join(this.packagesPath, item.pluginFileName + '.ts');
-      const currentContent = _existsSync(pluginPackagePath) ? readFileSync(pluginPackagePath, 'utf-8') : '';
-      if (currentContent !== item.exportStatement) {
-        writeFileSync(pluginPackagePath, item.exportStatement);
-      }
+      writeFileSync(pluginPackagePath, item.exportStatement);
     });
   }
 

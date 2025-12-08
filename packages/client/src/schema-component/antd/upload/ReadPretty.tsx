@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Field, useField } from '@tachybase/schema';
-
-import { DownloadOutlined } from '@ant-design/icons';
 import { isString, Lightbox } from '@tego/client';
+
+import { DownloadOutlined, RotateRightOutlined } from '@ant-design/icons';
 import { Button, Modal, Space } from 'antd';
 import useUploadStyle from 'antd/es/upload/style';
 import cls from 'classnames';
@@ -31,10 +31,10 @@ ReadPretty.File = function File(props: UploadProps) {
   const app = useApp();
   const [fileIndex, setFileIndex] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [rotate, setRotate] = useState(0);
   const { wrapSSR, hashId, componentCls: prefixCls } = useStyles();
   const useUploadStyleVal = (useUploadStyle as any).default ? (useUploadStyle as any).default : useUploadStyle;
   const previewList = app.AttachmentPreviewManager.get();
-  // 加载 antd 的样式
   useUploadStyleVal(prefixCls);
   return wrapSSR(
     <div>
@@ -96,8 +96,14 @@ ReadPretty.File = function File(props: UploadProps) {
             e.stopPropagation();
             setVisible(false);
           }}
-          onMovePrevRequest={() => setFileIndex((fileIndex + images.length - 1) % images.length)}
-          onMoveNextRequest={() => setFileIndex((fileIndex + 1) % images.length)}
+          onMovePrevRequest={() => {
+            setFileIndex((fileIndex + images.length - 1) % images.length);
+            setRotate(0);
+          }}
+          onMoveNextRequest={() => {
+            setFileIndex((fileIndex + 1) % images.length);
+            setRotate(0);
+          }}
           imageTitle={images[fileIndex]?.title}
           toolbarButtons={[
             <button
@@ -116,7 +122,23 @@ ReadPretty.File = function File(props: UploadProps) {
             >
               <DownloadOutlined />
             </button>,
+            <button
+              key={'rotate'}
+              style={{ fontSize: 22, background: 'none', lineHeight: 1 }}
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+              className="ril-zoom-in ril__toolbarItemChild ril__builtinButton"
+              onClick={(e) => {
+                setRotate(rotate + 90);
+              }}
+            >
+              <RotateRightOutlined />
+            </button>,
           ]}
+          otherProps={{
+            style: { transform: `rotate(${rotate}deg)`, transition: 'transform 0.3s' },
+          }}
         />
       )}
     </div>,

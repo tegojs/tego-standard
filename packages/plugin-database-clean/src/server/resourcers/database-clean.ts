@@ -311,7 +311,7 @@ export default {
       }
 
       const storageDir = path.resolve(
-        ctx.tego.environment.getVariables().TEGO_RUNTIME_HOME || process.cwd(),
+        process.env.TEGO_RUNTIME_HOME || process.cwd(),
         'storage',
         'backups',
         ctx.tego.name !== 'main' ? ctx.tego.name : '',

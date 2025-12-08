@@ -11,7 +11,7 @@ Database Clean Plugin - View table usage and clean database tables
 - 📦 **Batch Cleaning**: Support batch cleaning for large datasets (split by count or batch size, up to 1000 batches)
 - 🔄 **Space Release**: Optional VACUUM FULL to release disk space after cleaning
 - 🔒 **Security Control**: Whitelist mechanism, only allows operations on specified tables
-- 🏗️ **Database Adapter**: Extensible adapter architecture for future database support (currently PostgreSQL only)
+- 🏗️ **Database Adapter**: Extensible adapter architecture supporting PostgreSQL, MySQL, and SQLite
 
 ## Installation
 
@@ -105,7 +105,7 @@ POST /databaseClean:clean
       "$lte": "2024-12-31T23:59:59Z"
     }
   },
-  "vacuum": true  // Optional: Execute VACUUM FULL after cleaning
+  "vacuumFull": true  // Optional: Execute VACUUM FULL after cleaning (release disk space)
 }
 ```
 
@@ -124,13 +124,11 @@ Backup files use `.tbdump` format (compatible with `module-backup`):
 
 ## Notes
 
-- Currently only supports PostgreSQL database
+- Supports PostgreSQL, MySQL, and SQLite databases
 - Only allows operations on whitelisted tables
 - Backup is optional before cleanup (recommended but not required)
 - Cleanup operations are physical deletions, please use with caution
-- **VACUUM FULL**: Locks the table during execution, may take a long time for large tables
-- **Batch Cleaning**: For large datasets, it's recommended to use batch cleaning to avoid long-running transactions
-
-## Documentation
-
-For detailed requirements and implementation documentation, please refer to [REQUIREMENTS.md](./REQUIREMENTS.md)
+- **VACUUM FULL** (PostgreSQL): Locks the table during execution, may take a long time for large tables
+- **OPTIMIZE TABLE** (MySQL): Reclaims space and defragments the table
+- **VACUUM** (SQLite): Rebuilds the entire database file
+- **Batch Cleaning**: For large datasets (>50,000 records), it's recommended to use batch cleaning to avoid long-running transactions

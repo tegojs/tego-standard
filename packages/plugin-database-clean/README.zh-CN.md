@@ -11,7 +11,7 @@
 - 📦 **分批清理**：支持大数据量分批清理（按批数或每批条数分割，最多 1000 批）
 - 🔄 **空间释放**：清理后可选执行 VACUUM FULL 释放磁盘空间
 - 🔒 **安全控制**：白名单机制，只允许操作指定的表
-- 🏗️ **数据库适配器**：可扩展的适配器架构，便于未来支持其他数据库（目前仅支持 PostgreSQL）
+- 🏗️ **数据库适配器**：可扩展的适配器架构，支持 PostgreSQL、MySQL 和 SQLite
 
 ## 安装
 
@@ -105,7 +105,7 @@ POST /databaseClean:clean
       "$lte": "2024-12-31T23:59:59Z"
     }
   },
-  "vacuum": true  // 可选：清理后执行 VACUUM FULL
+  "vacuumFull": true  // 可选：清理后执行 VACUUM FULL（释放磁盘空间）
 }
 ```
 
@@ -124,15 +124,13 @@ GET /databaseClean:download?filterByTk=db-clean_users_20240101_120000.tbdump
 
 ## 注意事项
 
-- 目前仅支持 PostgreSQL 数据库
+- 支持 PostgreSQL、MySQL 和 SQLite 数据库
 - 只允许操作白名单中的表
 - 清理前备份是可选的（建议备份但不强制）
 - 清理操作是物理删除，请谨慎操作
-- **VACUUM FULL**：执行时会锁定数据表，对于大表可能需要较长时间
-- **分批清理**：对于大数据量，建议使用分批清理以避免长时间事务
-- **索引维护**：PostgreSQL 在执行 DELETE 操作时会自动维护索引，无需手动重建
-
-## 文档
-
-详细的需求和实现文档请参考 [REQUIREMENTS.md](./REQUIREMENTS.md)
+- **VACUUM FULL**（PostgreSQL）：执行时会锁定数据表，对于大表可能需要较长时间
+- **OPTIMIZE TABLE**（MySQL）：回收空间并整理表碎片
+- **VACUUM**（SQLite）：重建整个数据库文件
+- **分批清理**：对于大数据量（超过 5 万条），建议使用分批清理以避免长时间事务
+- **索引维护**：所有数据库在执行 DELETE 操作时会自动维护索引，无需手动重建
 

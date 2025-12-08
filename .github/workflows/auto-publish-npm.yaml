@@ -1,0 +1,180 @@
+name: Auto Publish to NPM
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+run-name: "Publish to NPM - Version: ${{ github.ref_name }}"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+      - name: Check if tag is on main branch
+        id: check_branch
+        run: |
+          # 获取 tag 指向的 commit
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref_name }})
+          # 检查这个 commit 是否在 main 分支上
+          if git branch -r --contains $TAG_COMMIT | grep -q 'origin/main'; then
+            echo "on_main=true" >> $GITHUB_OUTPUT
+            echo "✓ Tag ${{ github.ref_name }} is on main branch"
+          else
+            echo "on_main=false" >> $GITHUB_OUTPUT
+            echo "⚠ Tag ${{ github.ref_name }} is not on main branch, skipping publish"
+          fi
+      - uses: MOZGIII/install-ldid-action@v1
+        if: steps.check_branch.outputs.on_main == 'true'
+        with:
+          tag: v2.1.5-procursus7
+      - name: Setup pnpm
+        if: steps.check_branch.outputs.on_main == 'true'
+        uses: pnpm/action-setup@v4
+      - name: Setup Node.js
+        if: steps.check_branch.outputs.on_main == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install deps
+        if: steps.check_branch.outputs.on_main == 'true'
+        run: pnpm install
+      - name: Build
+        if: steps.check_branch.outputs.on_main == 'true'
+        run: pnpm build
+      - name: Publish
+        if: steps.check_branch.outputs.on_main == 'true'
+        id: publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+
+          # 创建临时文件来记录发布结果
+          SUCCESS_FILE=$(mktemp)
+          FAILED_FILE=$(mktemp)
+          OUTPUT_FILE=$(mktemp)
+
+          # 获取所有需要发布的包列表（只获取有 package.json 且包含 name 字段的包）
+          echo "获取需要发布的包列表..."
+          find packages -name "package.json" -type f | while read pkg_file; do
+            pkg_name=$(jq -r '.name // empty' "$pkg_file" 2>/dev/null)
+            if [ -n "$pkg_name" ] && [ "$pkg_name" != "null" ]; then
+              echo "$pkg_name" >> /tmp/all-packages.txt
+            fi
+          done
+
+          # 如果没有找到包，尝试使用 pnpm list
+          if [ ! -f /tmp/all-packages.txt ] || [ ! -s /tmp/all-packages.txt ]; then
+            pnpm -r list --depth=-1 --json 2>/dev/null | jq -r '.[] | select(.name != null and .name != "null") | .name' | sort -u > /tmp/all-packages.txt || true
+          fi
+
+          TOTAL_PACKAGES=$(wc -l < /tmp/all-packages.txt | tr -d ' ' || echo "0")
+          echo "找到 $TOTAL_PACKAGES 个需要发布的包"
+
+          # 设置允许命令失败但继续执行
+          set +e
+
+          # 执行发布并捕获所有输出
+          echo "开始发布包到 NPM..."
+          pnpm -r publish --provenance --access public --no-git-checks 2>&1 | tee "$OUTPUT_FILE"
+          PUBLISH_EXIT_CODE=${PIPESTATUS[0]}
+
+          set -e
+
+          # 解析输出，找出成功发布的包
+          # pnpm publish 成功时会显示类似 "Published @scope/package@1.0.0" 的信息
+          grep -iE "published|publishing" "$OUTPUT_FILE" | grep -oE '@[^/]+/[^@\s]+@[0-9.]+' | sed 's/@[0-9.]*$//' | sort -u > "$SUCCESS_FILE" || true
+
+          # 如果上面的方法没找到，尝试从输出中提取包名（格式：@scope/package-name）
+          if [ ! -s "$SUCCESS_FILE" ]; then
+            # 从输出中查找包含包名的行
+            grep -oE '@[^/]+/[^@\s/]+' "$OUTPUT_FILE" | grep -v "node_modules" | sort -u | while read pkg; do
+              # 检查这个包是否在 all-packages.txt 中，并且输出中没有错误信息
+              if grep -q "^$pkg$" /tmp/all-packages.txt 2>/dev/null; then
+                # 检查这个包在输出中是否有错误
+                if ! grep -iE "error|failed|denied|unauthorized|forbidden" "$OUTPUT_FILE" | grep -q "$pkg"; then
+                  echo "$pkg" >> "$SUCCESS_FILE"
+                fi
+              fi
+            done
+          fi
+
+          # 找出失败的包
+          # 方法1: 从错误信息中提取包名
+          grep -iE "error|failed|denied|unauthorized|forbidden" "$OUTPUT_FILE" | grep -oE '@[^/]+/[^@\s/]+' | sort -u > "$FAILED_FILE" || true
+
+          # 方法2: 检查所有包，如果不在成功列表中且输出中有相关错误，则标记为失败
+          if [ "$PUBLISH_EXIT_CODE" -ne 0 ]; then
+            while read pkg; do
+              if [ -n "$pkg" ]; then
+                # 如果包不在成功列表中
+                if ! grep -q "^$pkg$" "$SUCCESS_FILE" 2>/dev/null; then
+                  # 检查输出中是否有这个包的特定错误
+                  if grep -iE "error|failed" "$OUTPUT_FILE" | grep -q "$pkg"; then
+                    echo "$pkg" >> "$FAILED_FILE"
+                  fi
+                fi
+              fi
+            done < /tmp/all-packages.txt
+          fi
+
+          # 去重
+          sort -u "$SUCCESS_FILE" -o "$SUCCESS_FILE" 2>/dev/null || true
+          sort -u "$FAILED_FILE" -o "$FAILED_FILE" 2>/dev/null || true
+
+          # 统计数量
+          SUCCESS_COUNT=$(wc -l < "$SUCCESS_FILE" | tr -d ' ' || echo "0")
+          FAILED_COUNT=$(wc -l < "$FAILED_FILE" | tr -d ' ' || echo "0")
+
+          # 读取包名列表
+          SUCCESS_PACKAGES=$(cat "$SUCCESS_FILE" 2>/dev/null | tr '\n' ', ' | sed 's/, $//' || echo "")
+          FAILED_PACKAGES=$(cat "$FAILED_FILE" 2>/dev/null | tr '\n' ', ' | sed 's/, $//' || echo "")
+
+          # 输出到 GitHub outputs
+          echo "success_count=$SUCCESS_COUNT" >> $GITHUB_OUTPUT
+          echo "failed_count=$FAILED_COUNT" >> $GITHUB_OUTPUT
+          {
+            echo "success_packages<<EOF"
+            echo "$SUCCESS_PACKAGES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "failed_packages<<EOF"
+            echo "$FAILED_PACKAGES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          # 生成汇总通知
+          if [ "$SUCCESS_COUNT" -gt 0 ] && [ "$FAILED_COUNT" -eq 0 ]; then
+            echo "::notice title=✅ NPM 发布成功::成功发布 $SUCCESS_COUNT 个包到 NPM"
+          elif [ "$SUCCESS_COUNT" -gt 0 ] && [ "$FAILED_COUNT" -gt 0 ]; then
+            echo "::notice title=⚠️ NPM 发布部分成功::成功发布 $SUCCESS_COUNT 个包，失败 $FAILED_COUNT 个包"
+          elif [ "$FAILED_COUNT" -gt 0 ]; then
+            echo "::notice title=❌ NPM 发布失败::失败 $FAILED_COUNT 个包"
+          fi
+
+          # 输出失败的包列表（成功的包只统计数量，不列出包名）
+          if [ "$FAILED_COUNT" -gt 0 ]; then
+            FAILED_LIST=$(cat "$FAILED_FILE" 2>/dev/null | tr '\n' ', ' | sed 's/, $//' || echo "")
+            if [ -n "$FAILED_LIST" ]; then
+              echo "::notice title=❌ 失败的包 ($FAILED_COUNT 个)::$FAILED_LIST"
+            fi
+          fi
+
+          # 如果有失败的包，退出码为 1
+          if [ "$FAILED_COUNT" -gt 0 ]; then
+            exit 1
+          fi
+

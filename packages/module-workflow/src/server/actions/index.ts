@@ -13,7 +13,7 @@ function make(name, mod) {
 }
 
 export default function ({ app }) {
-  app.actions({
+  app.resourcer.registerActions({
     ...make('workflows', workflows),
     ...make('workflows.nodes', {
       create: nodes.create,
@@ -23,6 +23,7 @@ export default function ({ app }) {
       destroy: nodes.destroy,
       moveUp: nodes.moveUp,
       moveDown: nodes.moveDown,
+      syncRemoteCode: nodes.syncRemoteCode,
     }),
     ...make('executions', executions),
   });

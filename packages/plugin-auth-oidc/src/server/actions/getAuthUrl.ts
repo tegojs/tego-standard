@@ -1,4 +1,5 @@
 import { Context, Next } from '@tego/server';
+
 import { nanoid } from 'nanoid';
 
 import { cookieName } from '../../constants';
@@ -6,7 +7,7 @@ import { OIDCAuth } from '../oidc-auth';
 
 export const getAuthUrl = async (ctx: Context, next: Next) => {
   const { redirect = '' } = ctx.action.params.values || {};
-  const app = ctx.app.name;
+  const app = ctx.tego.name;
   const auth = ctx.auth as OIDCAuth;
   const client = await auth.createOIDCClient();
   const { scope, stateToken } = auth.getOptions();

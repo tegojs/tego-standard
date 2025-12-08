@@ -4,18 +4,20 @@ import {
   cx,
   SchemaComponent,
   TableBlockProvider,
+  tval,
   useApp,
+  useCompile,
   useDocumentTitle,
   useResourceActionContext,
   useResourceContext,
   WorkflowSelect,
 } from '@tachybase/client';
+import { str2moment } from '@tego/client';
 
 import { DownOutlined, EllipsisOutlined, RightOutlined } from '@ant-design/icons';
-import { str2moment } from '@tego/client';
 import { App, Breadcrumb, Button, Dropdown, message, Modal, Result, Spin, Switch } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { CanvasContentWrapper } from './CanvasContentWrapper';
 import { ExecutionLink } from './components/ExecutionLink';
@@ -55,6 +57,10 @@ export function WorkflowCanvas() {
   const [moveKey, setMoveKey] = useState(null);
   const { styles } = useStyles();
   const { modal } = App.useApp();
+  const localUrl = window.location.pathname;
+  const type = localUrl.split('business-components/')[1]?.split('/')[0];
+  const pluginConfig = app.systemSettingsManager.get(`business-components.${type}`) || {};
+  const compile = useCompile();
 
   useEffect(() => {
     const { title } = data?.data ?? {};
@@ -75,7 +81,7 @@ export function WorkflowCanvas() {
 
   function onSwitchVersion({ key }) {
     if (key !== workflow.id) {
-      navigate(getWorkflowDetailPath(key));
+      navigate(getWorkflowDetailPath(key, type));
     }
   }
 
@@ -91,7 +97,7 @@ export function WorkflowCanvas() {
 
   async function onRetry() {
     const {
-      data: { data: executionId },
+      data: { data: execution },
     } = await resource.retry({
       filterByTk: workflow.id,
       filter: {
@@ -99,7 +105,33 @@ export function WorkflowCanvas() {
       },
     });
 
-    navigate(getWorkflowExecutionsPath(executionId.executionId));
+    navigate(getWorkflowExecutionsPath(execution.id, type));
+  }
+
+  async function onTest() {
+    try {
+      const {
+        data: { data: execution },
+      } = await resource.test({
+        filterByTk: workflow.id,
+        filter: {
+          key: workflow.key,
+        },
+        values: {
+          data: {},
+        },
+      });
+
+      if (!execution || !execution.id) {
+        message.error(lang('Failed to create execution'));
+        return;
+      }
+
+      navigate(getWorkflowExecutionsPath(execution.id, type));
+    } catch (error) {
+      console.error('Test execution failed:', error);
+      message.error(error?.response?.data?.message || error?.message || lang('Test execution failed'));
+    }
   }
 
   async function onRevision() {
@@ -117,7 +149,7 @@ export function WorkflowCanvas() {
 
     message.success(t('Operation succeeded'));
 
-    navigate(getWorkflowDetailPath(revision.id));
+    navigate(getWorkflowDetailPath(revision.id, type));
     // setRefreshKey(uid());
   }
 
@@ -137,7 +169,7 @@ export function WorkflowCanvas() {
         navigate(
           workflow.current
             ? app.systemSettingsManager.getRoutePath('workflow')
-            : getWorkflowDetailPath(revisions.find((item) => item.current)?.id),
+            : getWorkflowDetailPath(revisions.find((item) => item.current)?.id, type),
         );
       },
     });
@@ -163,6 +195,8 @@ export function WorkflowCanvas() {
       case 'history':
         setVisible(true);
         return;
+      case 'test':
+        return onTest();
       case 'Retry':
         return onRetry();
       case 'revision':
@@ -197,8 +231,8 @@ export function WorkflowCanvas() {
             items={[
               {
                 title: (
-                  <Link to={app.systemSettingsManager.getRoutePath(`business-components.${NAMESPACE}`)}>
-                    {lang('Workflow')}
+                  <Link to={app.systemSettingsManager.getRoutePath(`business-components.${type}`)}>
+                    {compile(pluginConfig['label'])}
                   </Link>
                 ),
               },
@@ -255,8 +289,14 @@ export function WorkflowCanvas() {
                   role: 'button',
                   'aria-label': 'history',
                   key: 'history',
-                  label: lang('Execution history'),
+                  label: lang('Show execution history'),
                   disabled: !workflow.allExecuted,
+                },
+                {
+                  role: 'button',
+                  'aria-label': 'test',
+                  key: 'test',
+                  label: lang('Execute empty test'),
                 },
                 {
                   role: 'button',

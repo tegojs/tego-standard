@@ -11,5 +11,5 @@ export const ColumnShowCollection = () => {
 
   const showName = collectionName ? `${collection?.options.title}(${collectionName})` : '-';
 
-  return <div style={{ textAlign: 'left' }}>{showName}</div>;
+  return <div style={{ textAlign: 'center' }}>{showName}</div>;
 };

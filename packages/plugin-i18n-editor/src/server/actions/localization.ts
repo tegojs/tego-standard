@@ -1,5 +1,4 @@
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
-
 import { Context, Database, Model, Next, Op } from '@tego/server';
 
 import { NAMESPACE_COLLECTIONS, NAMESPACE_MENUS } from '../constans';
@@ -7,12 +6,12 @@ import LocalizationManagementPlugin from '../plugin';
 import { getTextsFromDBRecord, getTextsFromUISchema } from '../utils';
 
 const getResourcesInstance = async (ctx: Context) => {
-  const plugin = ctx.app.getPlugin(LocalizationManagementPlugin) as LocalizationManagementPlugin;
+  const plugin = ctx.tego.getPlugin(LocalizationManagementPlugin) as LocalizationManagementPlugin;
   return plugin.resources;
 };
 
 export const getResources = async (ctx: Context) => {
-  const resources = await ctx.app.localeManager.getCacheResources(ctx.get('X-Locale') || 'en-US');
+  const resources = await ctx.tego.localeManager.getCacheResources(ctx.get('X-Locale') || 'en-US');
   return { ...resources };
 };
 

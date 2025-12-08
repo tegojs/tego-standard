@@ -8,13 +8,48 @@ import {
   watch,
   writeFileSync,
 } from 'node:fs';
-import { dirname as _dirname, sep as _sep, join, relative, resolve, sep } from 'node:path';
+import { dirname as _dirname, sep as _sep, join, parse, relative, resolve, sep } from 'node:path';
 
 import { sync } from 'fast-glob';
 
 import { version } from '../../package.json';
 
-const ProjectRoot = process.cwd();
+function detectProjectRoot() {
+  // 从当前工作目录开始向上查找 pnpm-workspace.yaml
+  let dir = process.cwd();
+  const filesystemRoot = parse(dir).root;
+
+  while (dir && dir !== filesystemRoot) {
+    if (_existsSync(join(dir, 'pnpm-workspace.yaml'))) {
+      return dir;
+    }
+    dir = _dirname(dir);
+  }
+
+  // 如果从 process.cwd() 没找到，尝试从 plugin-devkit 的位置向上查找
+  // 这可以处理在模块加载时 process.cwd() 不正确的情况
+  dir = _dirname(_dirname(_dirname(__dirname))); // 从 packages/plugin-devkit/src/server 到项目根目录
+  while (dir && dir !== filesystemRoot) {
+    if (_existsSync(join(dir, 'pnpm-workspace.yaml'))) {
+      return dir;
+    }
+    dir = _dirname(dir);
+  }
+
+  // 最后的后备方案
+  return process.cwd();
+}
+
+// 延迟检测项目根目录，在每次调用时重新检测
+// 这样可以确保在构建时 process.cwd() 正确
+function getProjectRoot() {
+  return detectProjectRoot();
+}
+
+// 为了向后兼容，保留 ProjectRoot，但改为函数调用
+// 注意：这会在模块加载时执行一次，可能不准确
+// 更好的方法是在需要时调用 getProjectRoot()
+const ProjectRoot = getProjectRoot();
 
 function getUmiConfig() {
   const { APP_PORT, API_BASE_URL, APP_PUBLIC_PATH } = process.env;
@@ -75,25 +110,27 @@ function getUmiConfig() {
 }
 
 function getTsconfigPaths() {
-  const content = readFileSync(resolve(ProjectRoot, 'tsconfig.paths.json'), 'utf-8');
+  const root = getProjectRoot();
+  const content = readFileSync(resolve(root, 'tsconfig.paths.json'), 'utf-8');
   const json = JSON.parse(content);
   return json.compilerOptions.paths;
 }
 
 function getPackagePaths() {
+  const root = getProjectRoot();
   const paths = getTsconfigPaths();
   const pkgs = [];
   for (const key in paths) {
     if (Object.hasOwnProperty.call(paths, key)) {
       for (let dir of paths[key]) {
         if (dir.includes('*')) {
-          const files = sync(dir, { cwd: ProjectRoot, onlyDirectories: true });
+          const files = sync(dir, { cwd: root, onlyDirectories: true });
           for (const file of files) {
-            const dirname = resolve(ProjectRoot, file);
+            const dirname = resolve(root, file);
             if (existsSync(dirname)) {
               const re = new RegExp(dir.replace('*', '(.+)'));
               const p = dirname
-                .substring(ProjectRoot.length + 1)
+                .substring(root.length + 1)
                 .split(sep)
                 .join('/');
               const match = re.exec(p);
@@ -101,7 +138,7 @@ function getPackagePaths() {
             }
           }
         } else {
-          const dirname = resolve(ProjectRoot, dir);
+          const dirname = resolve(root, dir);
           pkgs.push([key, dirname]);
         }
       }
@@ -119,7 +156,8 @@ function resolveTachybasePackagesAlias(config) {
 }
 
 function getNodeModulesPath(packageDir) {
-  const node_modules_dir = join(ProjectRoot, 'node_modules');
+  const root = getProjectRoot();
+  const node_modules_dir = join(root, 'node_modules');
   return join(node_modules_dir, packageDir);
 }
 class IndexGenerator {

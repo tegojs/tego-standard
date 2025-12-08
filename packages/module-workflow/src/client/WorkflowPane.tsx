@@ -4,14 +4,19 @@ import { onFieldChange, useField, useFormEffects } from '@tachybase/schema';
 
 import WorkflowPlugin, { RadioWithTooltip } from '.';
 import { AddWorkflowCategory, AddWorkflowCategoryAction } from './components/AddWorkflowCategory';
+import { ColumnExecutedTime } from './components/ColumnExecutedTime';
 import { ColumnShowCollection } from './components/ColumnShowCollection';
+import { ColumnShowEventSource } from './components/ColumnShowEventSource';
 import { ColumnShowTitle } from './components/ColumnShowTitle';
 import { EditWorkflowCategory, EditWorkflowCategoryAction } from './components/EditWorkflowCategory';
+import { EnabledStatusFilter } from './components/EnabledStatusFilter';
 import { ExecutionLink } from './components/ExecutionLink';
 import { ExecutionRetryAction } from './components/ExecutionRetryAction';
 import { ExecutionStatusColumn, ExecutionStatusSelect } from './components/ExecutionStatus';
 import OpenDrawer from './components/OpenDrawer';
-import { ExecutionResourceProvider } from './ExecutionResourceProvider';
+import { WorkflowCategoryColumn } from './components/WorkflowCategoryColumn';
+import { useDumpAction, useRevisionAction } from './hooks';
+import { ExecutionResourceProvider } from './provider/ExecutionResourceProvider';
 import { executionCollection } from './schemas/executions';
 import {
   collectionWorkflowCategories,
@@ -66,12 +71,18 @@ export function WorkflowPane(props) {
             AddWorkflowCategoryAction,
             EditWorkflowCategory,
             EditWorkflowCategoryAction,
+            ColumnShowEventSource,
+            ColumnExecutedTime,
+            WorkflowCategoryColumn,
+            EnabledStatusFilter,
             ...components,
           }}
           scope={{
             getTriggersOptions,
             ExecutionRetryAction,
             useCreateFormBlockProps,
+            useDumpAction,
+            useRevisionAction,
             ...scopes,
           }}
         />

@@ -1,7 +1,7 @@
 import { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
 import { MockServer } from '@tachybase/test';
-
 import { ACL, Database } from '@tego/server';
+
 import UsersPlugin from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';
@@ -116,7 +116,7 @@ describe('acl', () => {
       },
     });
 
-    userPlugin = app.getPlugin('users') as UsersPlugin;
+    userPlugin = app.pm.get('users') as UsersPlugin;
 
     const testAgent = app.agent().login(u1);
 
@@ -237,7 +237,7 @@ describe('acl', () => {
         email: process.env.INIT_ROOT_EMAIL,
       },
     });
-    const userPlugin = app.getPlugin('users') as UsersPlugin;
+    const userPlugin = app.pm.get('users') as UsersPlugin;
 
     const adminAgent = app.agent().login(rootUser);
 

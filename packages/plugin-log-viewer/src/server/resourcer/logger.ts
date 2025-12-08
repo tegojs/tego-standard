@@ -2,8 +2,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import stream from 'node:stream';
 import zlib from 'node:zlib';
-
 import { Context, getLoggerFilePath, Next } from '@tego/server';
+
 import { pack } from 'tar-fs';
 
 const tarFiles = (files: string[]): Promise<any> => {
@@ -37,7 +37,7 @@ export default {
   name: 'logger',
   actions: {
     list: async (ctx: Context, next: Next) => {
-      const appName = ctx.app.name;
+      const appName = ctx.tego.name;
       if (!appName) {
         ctx.throw(400, ctx.t('App not found'));
       }
@@ -70,7 +70,7 @@ export default {
           }
           return fileTree;
         } catch (err) {
-          ctx.log.error('readDir error', { err, path });
+          ctx.logger.error('readDir error', { err, path });
           return [];
         }
       };
@@ -79,7 +79,7 @@ export default {
       await next();
     },
     download: async (ctx: Context, next: Next) => {
-      const appName = ctx.app.name;
+      const appName = ctx.tego.name;
       if (!appName) {
         ctx.throw(400, ctx.t('App not found'));
       }
@@ -101,13 +101,13 @@ export default {
         ctx.attachment('logs.tar.gz');
         ctx.body = await tarFiles(files);
       } catch (err) {
-        ctx.log.error(`download error: ${err.message}`, { files, err: err.stack });
+        ctx.logger.error(`download error: ${err.message}`, { files, err: err.stack });
         ctx.throw(500, ctx.t('Download logs failed.'));
       }
       await next();
     },
     preview: async (ctx: Context, next: Next) => {
-      const appName = ctx.app.name;
+      const appName = ctx.tego.name;
       if (!appName) {
         ctx.throw(400, ctx.t('App not found'));
       }
@@ -125,7 +125,7 @@ export default {
         const path = getLoggerFilePath();
         ctx.body = await readFile(join(path, file), { encoding: 'utf8' });
       } catch (err) {
-        ctx.log.error(`preview error: ${err.message}`, { file, err: err.stack });
+        ctx.logger.error(`preview error: ${err.message}`, { file, err: err.stack });
         ctx.throw(500, ctx.t('Preview logs failed.'));
       }
       await next();

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-i18n-editor",
   "displayName": "Localization",
-  "version": "1.3.25",
+  "version": "1.6.1",
   "description": "Allows to manage localization resources of the application.",
   "keywords": [
     "System management"
@@ -11,16 +11,16 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-ui-schema": "workspace:*",
     "@tachybase/module-web": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "ahooks": "^3.9.0",
-    "antd": "5.22.5",
+    "antd": "catalog:",
     "deepmerge": "^4.3.1",
     "react-i18next": "16.2.1"
   },

@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import { Database, MigrationContext, Plugin } from '@tego/server';
 
 import Migrator from '../../migrations/20230225111112-drop-ui-schema-relation';
@@ -65,7 +64,7 @@ describe.skip('skip if already migrated', function () {
 
     try {
       const migration = new Migrator({ db } as MigrationContext);
-      migration.context.app = app;
+      migration.context.tego = app;
       await migration.up();
     } catch (e) {
       error = e;
@@ -149,7 +148,7 @@ describe.skip('drop ui schema', () => {
 
     // do migrate
     const migration = new Migrator({ db } as MigrationContext);
-    migration.context.app = app;
+    migration.context.tego = app;
     await migration.up();
 
     const testFieldRecord2 = await db.getRepository('fields').findOne({

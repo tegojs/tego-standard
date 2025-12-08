@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-auth-main-app",
   "displayName": "Single Sign-On on multi app (SSO)",
-  "version": "1.3.23",
+  "version": "1.6.1",
   "description": "Users log in via the main application; sub-applications can disable their standalone login.",
   "keywords": [
     "Authentication"
@@ -10,11 +10,11 @@
   "devDependencies": {
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/schema": "*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5"
+    "@tachybase/schema": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:"
   },
   "description.zh-CN": "通过主应用登录子应用,子应用可关闭登录",
   "displayName.zh-CN": "多应用统一登录"

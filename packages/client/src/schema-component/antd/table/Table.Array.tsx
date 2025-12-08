@@ -115,6 +115,7 @@ const useTableColumns = () => {
         title: <RecursionField name={s.name} schema={s} onlyRenderSelf />,
         dataIndex: s.name,
         key: s.name,
+        ...s['x-component-props'],
         render: (v, record) => {
           const index = field.value?.indexOf(record);
           return (

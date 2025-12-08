@@ -3,16 +3,16 @@ import { Context, utils } from '@tego/server';
 import WorkflowPlugin, { EXECUTION_STATUS, JOB_STATUS } from '../..';
 import ManualInstruction from './ManualInstruction';
 
-export async function submit(context: Context, next) {
-  const repository = utils.getRepositoryFromParams(context);
-  const { filterByTk, values } = context.action.params;
-  const { currentUser } = context.state;
+export async function submit(ctx: Context, next) {
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { filterByTk, values } = ctx.action.params;
+  const { currentUser } = ctx.state;
 
   if (!currentUser) {
-    return context.throw(401);
+    return ctx.throw(401);
   }
 
-  const plugin: WorkflowPlugin = context.app.getPlugin(WorkflowPlugin);
+  const plugin: WorkflowPlugin = ctx.tego.pm.get(WorkflowPlugin);
   const instruction = plugin.instructions.get('manual') as ManualInstruction;
 
   const userJob = await repository.findOne({
@@ -21,11 +21,11 @@ export async function submit(context: Context, next) {
     //   userId: currentUser?.id
     // },
     appends: ['job', 'node', 'execution', 'workflow'],
-    context,
+    context: ctx,
   });
 
   if (!userJob) {
-    return context.throw(404);
+    return ctx.throw(404);
   }
 
   const { forms = {} } = userJob.node.config;
@@ -42,7 +42,7 @@ export async function submit(context: Context, next) {
     !actionKey ||
     actionItem?.status == null
   ) {
-    return context.throw(400);
+    return ctx.throw(400);
   }
 
   userJob.execution.workflow = userJob.workflow;
@@ -55,7 +55,7 @@ export async function submit(context: Context, next) {
     .flat()
     .filter(Boolean);
   if (!assignees.includes(currentUser.id) || userJob.userId !== currentUser.id) {
-    return context.throw(403);
+    return ctx.throw(403);
   }
   const presetValues = processor.getParsedValue(actionItem.values ?? {}, userJob.nodeId, {
     // @deprecated
@@ -88,8 +88,8 @@ export async function submit(context: Context, next) {
 
   await processor.exit();
 
-  context.body = userJob;
-  context.status = 202;
+  ctx.body = userJob;
+  ctx.status = 202;
 
   await next();
 

@@ -20,8 +20,11 @@ export const ApprovalProcess = (props) => {
   const { approval: approvalContext } = useContextApprovalExecution();
   const { data } = useCurrentUserContext();
   const { Step } = Steps;
-  const results = useMemo(() => getResults({ approval: approvalContext, currentUser: data }), [approvalContext, data]);
-  const stepsResult = getStepsResult(results, t, { compile });
+  const results = useMemo(
+    () => getResults({ approval: approvalContext, currentUser: data, compile }),
+    [approvalContext, data],
+  );
+  const stepsResult = getStepsResult(results, lang, { compile });
 
   return (
     <ContextWithActionEnabled.Provider value={{ actionEnabled: props.actionEnabled }}>
@@ -55,7 +58,7 @@ export const ApprovalProcess = (props) => {
   );
 };
 
-function getResults({ approval, currentUser }) {
+function getResults({ approval, currentUser, compile }) {
   const { workflow, approvalExecutions, records } = approval;
   approvalExecutions.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
   const approvalExecution = approvalExecutions.reduce(
@@ -126,7 +129,7 @@ function getResults({ approval, currentUser }) {
   );
 }
 
-const getStepsResult = (result, t, { compile }) => {
+const getStepsResult = (result, lang, { compile }) => {
   const stepData = [];
   result.forEach((item) => {
     const stepItem = {};
@@ -138,16 +141,16 @@ const getStepsResult = (result, t, { compile }) => {
           value.job?.status) &&
         [APPROVAL_TODO_STATUS.ASSIGNED, APPROVAL_TODO_STATUS.PENDING].includes(value.status)
       ) {
-        status['label'] = 'Unprocessed';
+        status['label'] = lang('Unprocessed');
         status['color'] = 'default';
       } else {
         const approvalStatus = approvalTodoStatusOptions.find((option) => option.value === value.status);
         const approvalActionStatus = approvalStatusEnums.find((option) => option.value === value.status);
         if (value.nodeId) {
-          status['label'] = compile(approvalStatus?.label) || compile(approvalActionStatus?.label);
+          status['label'] = lang(approvalStatus?.label) || lang(approvalActionStatus?.label);
           status['color'] = approvalStatus?.color || approvalActionStatus?.color || 'default';
         } else {
-          status['label'] = approvalActionStatus?.label || approvalStatus?.label;
+          status['label'] = lang(approvalActionStatus?.label) || lang(approvalStatus?.label);
           status['color'] = approvalActionStatus?.color || approvalStatus?.color || 'default';
         }
       }
@@ -159,8 +162,8 @@ const getStepsResult = (result, t, { compile }) => {
           date: value.status === 0 ? '' : dayjs(value.updatedAt).format('YYYY-MM-DD HH:mm:ss'),
         });
       } else {
-        stepItem[value.nodeId || value.node?.title || t(status['label'])] = {
-          title: value.node?.title || t(status['label']),
+        stepItem[value.nodeId || value.node?.title || lang(status['label'])] = {
+          title: value.node?.title || lang(status['label']),
           index,
           description: [
             {

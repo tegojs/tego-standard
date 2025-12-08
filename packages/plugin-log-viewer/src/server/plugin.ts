@@ -8,7 +8,7 @@ export class PluginLogViewerServer extends Plugin {
   beforeLoad() {}
 
   async load() {
-    this.app.resource(logger);
+    this.app.resourcer.define(logger);
     this.app.acl.registerSnippet({
       name: 'pm.system-services.log-viewer',
       actions: ['logger:*'],

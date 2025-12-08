@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Checkbox, DatePicker, useAPIClient, useCompile, useNoticeSub } from '@tachybase/client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Checkbox, DatePicker, useAPIClient, useApp, useCompile, useNoticeSub } from '@tachybase/client';
+import { autorun } from '@tachybase/schema';
+import { FormItem } from '@tego/client';
 
 import { InboxOutlined, LoadingOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
-import { FormItem } from '@tego/client';
 import {
   Alert,
   App,
@@ -14,6 +15,7 @@ import {
   Menu,
   message,
   Modal,
+  Progress,
   Row,
   Space,
   Spin,
@@ -25,6 +27,9 @@ import {
 } from 'antd';
 import { saveAs } from 'file-saver';
 
+import { BackupProgressCell } from './components/BackupProgressCell';
+import { useBackupProgress } from './hooks/useBackupProgress';
+import { useDownloadProgress } from './hooks/useDownloadProgress';
 import { useDuplicatorTranslation } from './locale';
 
 const { Dragger } = Upload;
@@ -63,7 +68,7 @@ function useUploadProps(props: UploadProps): any {
 
       return {
         abort() {
-          console.log('upload progress is aborted.');
+          // Upload aborted
         },
       };
     },
@@ -177,28 +182,34 @@ const Restore = ({ ButtonComponent = Button, title, upload = false, fileData }: 
   const checkAll = dataSource.length === dataTypes.length;
 
   useEffect(() => {
-    setDataSource(
-      Object.keys(restoreData?.dumpableCollectionsGroupByGroup || []).map((key) => ({
-        value: key,
-        label: t(`${key}.title`),
-        disabled: ['required', 'skipped'].includes(key),
-      })),
-    );
-  }, [restoreData]);
+    const newDataSource = Object.keys(restoreData?.dumpableCollectionsGroupByGroup || []).map((key) => ({
+      value: key,
+      label: t(`${key}.title`),
+      disabled: ['required', 'skipped'].includes(key),
+    }));
+    setDataSource(newDataSource);
+    // 默认全选
+    if (newDataSource.length > 0) {
+      setDataTypes(newDataSource.map((item) => item.value));
+    }
+  }, [restoreData, t]);
 
   const showModal = async () => {
     setIsModalOpen(true);
     if (!upload) {
       setLoading(true);
       const { data } = await resource.get({ filterByTk: fileData.name });
-      setDataSource(
-        Object.keys(data?.data?.meta?.dumpableCollectionsGroupByGroup || []).map((key) => ({
-          value: key,
-          label: t(`${key}.title`),
-          disabled: ['required', 'skipped'].includes(key),
-        })),
-      );
+      const newDataSource = Object.keys(data?.data?.meta?.dumpableCollectionsGroupByGroup || []).map((key) => ({
+        value: key,
+        label: t(`${key}.title`),
+        disabled: ['required', 'skipped'].includes(key),
+      }));
+      setDataSource(newDataSource);
       setRestoreData(data?.data?.meta);
+      // 默认全选
+      if (newDataSource.length > 0) {
+        setDataTypes(newDataSource.map((item) => item.value));
+      }
       setLoading(false);
     }
   };
@@ -216,7 +227,12 @@ const Restore = ({ ButtonComponent = Button, title, upload = false, fileData }: 
   const handleCancel = () => {
     setIsModalOpen(false);
     setRestoreData(null);
-    setDataTypes(['required']);
+    // 重置时保持全选状态（如果有数据源）
+    if (dataSource.length > 0) {
+      setDataTypes(dataSource.map((item) => item.value));
+    } else {
+      setDataTypes(['required']);
+    }
   };
 
   const onCheckAllChange: CheckboxProps['onChange'] = (e) => {
@@ -268,8 +284,8 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dataTypes, setBackupData] = useState<any[]>(['required']);
   const apiClient = useAPIClient();
-  const { notification } = App.useApp();
   const [dataSource, setDataSource] = useState([]);
+  const commonTypes = ['required', 'user', 'third-party', 'custom'];
 
   const indeterminate =
     dataTypes.length > 0 && dataTypes.length < dataSource.filter((item) => item.value !== 'skipped').length;
@@ -282,20 +298,62 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
     );
   };
 
+  const onCheckCommonChange: CheckboxProps['onChange'] = (e) => {
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    if (e.target.checked) {
+      // 选择常用时，保留 required，并添加常用类型
+      const newDataTypes = [...new Set([...dataTypes.filter((type) => type === 'required'), ...availableCommonTypes])];
+      setBackupData(newDataTypes);
+    } else {
+      // 取消选择常用时，只保留 required
+      setBackupData(['required']);
+    }
+  };
+
+  const isCommonChecked = useMemo(() => {
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    const selectedCommonTypes = availableCommonTypes.filter((type) => dataTypes.includes(type));
+    // 检查：所有常用类型都被选中，且没有其他非常用类型（除了 required）被选中
+    const otherTypes = dataTypes.filter((type) => type !== 'required' && !availableCommonTypes.includes(type));
+    return (
+      availableCommonTypes.length > 0 &&
+      selectedCommonTypes.length === availableCommonTypes.length &&
+      otherTypes.length === 0
+    );
+  }, [dataTypes, dataSource]);
+
+  const isCommonIndeterminate = useMemo(() => {
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    const selectedCommonTypes = availableCommonTypes.filter((type) => dataTypes.includes(type));
+    return selectedCommonTypes.length > 0 && selectedCommonTypes.length < availableCommonTypes.length;
+  }, [dataTypes, dataSource]);
+
   const showModal = async () => {
     const { data } = await apiClient.resource('backupFiles').dumpableCollections();
-    setDataSource(
-      Object.keys(data || []).map((key) => ({
-        value: key,
-        label: t(`${key}.title`),
-        disabled: ['required', 'skipped'].includes(key),
-      })),
-    );
+    const newDataSource = Object.keys(data || []).map((key) => ({
+      value: key,
+      label: t(`${key}.title`),
+      disabled: ['required', 'skipped'].includes(key),
+    }));
+    setDataSource(newDataSource);
+
+    // 默认选择常用类型
+    const availableCommonTypes = newDataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    setBackupData(['required', ...availableCommonTypes]);
+
     setIsModalOpen(true);
   };
 
-  const handleOk = (method) => {
-    apiClient.request({
+  const handleOk = async (method) => {
+    await apiClient.request({
       url: 'backupFiles:create',
       method: 'post',
       data: {
@@ -303,18 +361,14 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
         method,
       },
     });
-    notification.info({
-      key: 'backup',
-      message: (
-        <span>
-          {t('Processing...')} &nbsp; &nbsp;
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-        </span>
-      ),
-      duration: 0,
-    });
     setIsModalOpen(false);
-    setBackupData(['required']);
+    // 重置为常用类型
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    setBackupData(['required', ...availableCommonTypes]);
+    // 立即刷新列表以显示新创建的备份任务
+    // 使用较短的延迟确保后端已经创建了 lock 文件
     setTimeout(() => {
       refresh();
     }, 500);
@@ -322,7 +376,11 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
 
   const handleCancel = () => {
     setIsModalOpen(false);
-    setBackupData(['required']);
+    // 重置为常用类型
+    const availableCommonTypes = dataSource
+      .filter((item) => commonTypes.includes(item.value) && item.value !== 'skipped')
+      .map((item) => item.value);
+    setBackupData(['required', ...availableCommonTypes]);
   };
 
   return (
@@ -378,9 +436,14 @@ const NewBackup = ({ ButtonComponent = Button, refresh }) => {
             value={dataTypes}
           />
           <Divider />
-          <Checkbox indeterminate={indeterminate} onChange={onCheckAllChange} checked={checkAll}>
-            {t('Check all')}
-          </Checkbox>
+          <Space>
+            <Checkbox indeterminate={isCommonIndeterminate} onChange={onCheckCommonChange} checked={isCommonChecked}>
+              {t('Check common')}
+            </Checkbox>
+            <Checkbox indeterminate={indeterminate} onChange={onCheckAllChange} checked={checkAll}>
+              {t('Check all')}
+            </Checkbox>
+          </Space>
         </div>
       </Modal>
     </>
@@ -405,7 +468,7 @@ const RestoreUpload = (props: any) => {
       }
     },
     onDrop(e) {
-      console.log('Dropped files', e.dataTransfer.files);
+      // Files dropped
     },
   };
 
@@ -422,17 +485,65 @@ const RestoreUpload = (props: any) => {
 export const BackupAndRestoreList = () => {
   const { t } = useDuplicatorTranslation();
   const apiClient = useAPIClient();
+  const app = useApp();
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [downloadTarget, setDownloadTarget] = useState(false);
   const { modal, notification } = App.useApp();
+  const [downloadModalVisible, setDownloadModalVisible] = useState(false);
+  const [downloadingFileName, setDownloadingFileName] = useState<string>('');
   const resource = useMemo(() => {
     return apiClient.resource('backupFiles');
   }, [apiClient]);
 
+  // 使用下载进度 hook
+  const { downloadProgress, handleDownload } = useDownloadProgress({
+    onDownloadStart: (fileName) => {
+      setDownloadingFileName(fileName);
+      setDownloadModalVisible(true);
+    },
+    onDownloadComplete: (fileName, blob) => {
+      saveAs(blob, fileName);
+      setDownloadModalVisible(false);
+      setDownloadingFileName('');
+      notification.success({
+        key: 'downloadBackup',
+        message: <span>{t('Downloaded success!')}</span>,
+        duration: 1,
+      });
+    },
+    onDownloadError: (fileName, error) => {
+      setDownloadModalVisible(false);
+      setDownloadingFileName('');
+      notification.error({
+        key: 'downloadBackup',
+        message: <span>{t('Download failed')}</span>,
+        duration: 3,
+      });
+    },
+  });
+
+  const queryFieldList = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+      try {
+        const { data } = await resource.list();
+        // 后端返回的数据结构是 { rows: [...], count: ..., page: ..., pageSize: ..., totalPage: ... }
+        const newDataSource = data?.rows || data?.data || [];
+        setDataSource(newDataSource);
+      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [resource],
+  );
+
   const handleRefresh = useCallback(async () => {
     await queryFieldList();
-  }, []);
+  }, [queryFieldList]);
 
   useNoticeSub('backup', (message) => {
     let func = notification[message.level] || notification.info;
@@ -445,50 +556,69 @@ export const BackupAndRestoreList = () => {
 
   useEffect(() => {
     queryFieldList();
-  }, []);
-  const queryFieldList = async () => {
-    setLoading(true);
-    const { data } = await resource.list();
-    setDataSource(data.data);
-    setLoading(false);
-  };
-  const handleDownload = async (fileData) => {
-    setDownloadTarget(fileData.name);
-    // TODO: 优化成断点续传下载
-    const data = await apiClient.request({
-      url: 'backupFiles:download',
-      method: 'get',
-      params: {
-        filterByTk: fileData.name,
-      },
-      responseType: 'blob',
-      onDownloadProgress: (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        const success = percentCompleted >= 100;
-        if (!success) {
-          notification.info({
-            key: 'downloadBackup',
-            message: (
-              <span>
-                {t('Downloading ') + percentCompleted + '%'} &nbsp; &nbsp;
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-              </span>
-            ),
-            duration: 0,
-          });
-        } else {
-          notification.success({
-            key: 'downloadBackup',
-            message: <span>{t('Downloaded success!')}</span>,
-            duration: 1,
-          });
-        }
-      },
+  }, [queryFieldList]);
+
+  // 使用备份进度 hook，监听 WebSocket 消息
+  useBackupProgress({
+    dataSource,
+    onDataSourceUpdate: setDataSource,
+    onComplete: (fileName) => {
+      // 进度达到 100% 时刷新列表
+      queryFieldList(false);
+    },
+    onTimeout: (fileName) => {
+      // 备份任务超时时显示通知
+      notification.error({
+        key: 'backup-timeout',
+        message: t('Backup timeout', { ns: 'backup' }),
+        description: `${fileName} ${t('No progress update received for a long time', { ns: 'backup' })}`,
+        duration: 5,
+      });
+      // 刷新列表以更新状态
+      queryFieldList(false);
+    },
+  });
+
+  // 自动轮询机制：当有进行中的备份任务时，定期轮询 API 获取进度
+  // 即使 WebSocket 已连接，也启用轮询作为后备（因为 worker 线程中 WebSocket 无法推送进度）
+  // 轮询会读取文件中的最新进度，不会与 WebSocket 推送冲突
+  useEffect(() => {
+    const hasInProgressBackup = dataSource.some((item: any) => item.inProgress || item.status === 'in_progress');
+
+    if (!hasInProgressBackup) {
+      return;
+    }
+
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    // 使用 autorun 监听 WebSocket 连接状态的变化（因为 app.ws.connected 是 observable）
+    // 根据 WebSocket 状态调整轮询频率：已连接时降低频率（作为后备），未连接时提高频率
+    const disposer = autorun(() => {
+      const wsConnected = app.ws?.enabled && app.ws?.connected;
+
+      // 清除之前的轮询
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+
+      // 如果有进行中的备份任务，始终启用轮询
+      // WebSocket 已连接时：降低频率（1秒），作为后备机制
+      // WebSocket 未连接时：提高频率（500毫秒），主要更新方式
+      const pollIntervalMs = wsConnected ? 1000 : 500;
+
+      pollInterval = setInterval(() => {
+        queryFieldList(false);
+      }, pollIntervalMs);
     });
-    setDownloadTarget(false);
-    const blob = new Blob([data.data]);
-    saveAs(blob, fileData.name);
-  };
+
+    return () => {
+      disposer();
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [dataSource, queryFieldList, app.ws]);
   const handleDestory = (fileData) => {
     modal.confirm({
       title: t('Delete record', { ns: 'core' }),
@@ -529,16 +659,12 @@ export const BackupAndRestoreList = () => {
               onCell: (data) => {
                 return data.inProgress
                   ? {
-                      colSpan: 4,
+                      colSpan: 1,
                     }
                   : {};
               },
               render: (name, data) =>
-                data.inProgress ? (
-                  <div style={{ color: 'rgba(0, 0, 0, 0.88)' }}>
-                    {name}({t('Backing up')}...)
-                  </div>
-                ) : data.status === 'error' ? (
+                data.status === 'error' ? (
                   <div style={{ color: 'red' }}>
                     {name}({t('Error')})
                   </div>
@@ -547,14 +673,47 @@ export const BackupAndRestoreList = () => {
                 ),
             },
             {
+              title: t('Backup progress'),
+              dataIndex: 'progress',
+              width: 200,
+              align: 'center',
+              render: (_, record) => {
+                return (
+                  <BackupProgressCell
+                    inProgress={record.inProgress}
+                    status={record.status}
+                    progress={record.progress}
+                    currentStep={record.currentStep}
+                    downloadProgress={downloadProgress[record.name]}
+                    showDownloadText={false}
+                  />
+                );
+              },
+            },
+            {
               title: t('File size'),
               dataIndex: 'fileSize',
-              onCell: (data) => {
-                return data.inProgress
-                  ? {
-                      colSpan: 0,
-                    }
-                  : {};
+              width: 150,
+              render: (value, record) => {
+                const percent = record.progress ?? 0;
+                const stepText = record.currentStep || t('Backing up');
+                return record.inProgress ? (
+                  <div
+                    style={{
+                      width: '150px',
+                      fontSize: '12px',
+                      color: 'rgba(0, 0, 0, 0.45)',
+                      marginTop: '4px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {percent > 0 ? `${percent}%` : ''}&nbsp;{stepText}
+                  </div>
+                ) : (
+                  value
+                );
               },
             },
             {
@@ -598,6 +757,25 @@ export const BackupAndRestoreList = () => {
           ]}
         />
       </Card>
+      {/* 下载进度弹窗 */}
+      <Modal
+        title={t('Downloading')}
+        open={downloadModalVisible}
+        closable={false}
+        maskClosable={false}
+        footer={null}
+        width={400}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <div style={{ marginBottom: 16, fontSize: '14px', color: 'rgba(0, 0, 0, 0.65)' }}>{downloadingFileName}</div>
+          <Progress
+            percent={downloadingFileName ? downloadProgress[downloadingFileName] || 0 : 0}
+            status="active"
+            showInfo
+            format={(percent) => `${percent}%`}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

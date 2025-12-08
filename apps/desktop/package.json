@@ -1,0 +1,35 @@
+{
+  "name": "@tego/desktop",
+  "version": "1.6.1",
+  "private": true,
+  "description": "Tachybase Desktop Application",
+  "license": "Apache-2.0",
+  "author": "Tachybase",
+  "main": "./app/main.js",
+  "scripts": {
+    "build": "node scripts/commands/build.js",
+    "build:web": "node scripts/commands/build-web.js",
+    "dev": "node scripts/commands/dev.js",
+    "dist": "node scripts/commands/dist.js",
+    "dist:mac": "node scripts/dist-mac/index.js",
+    "electron": "electron .",
+    "electron:dev": "cross-env NODE_ENV=development electron .",
+    "pack": "node scripts/commands/pack.js"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "chalk": "4.1.2",
+    "commander": "^12.1.0",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.0",
+    "listr": "^0.14.3",
+    "ora": "^5.4.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "wait-on": "^8.0.1"
+  },
+  "productName": "Tachybase"
+}

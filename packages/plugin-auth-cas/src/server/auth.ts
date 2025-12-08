@@ -1,6 +1,6 @@
 import { AuthModel } from '@tachybase/module-auth';
-
 import { AuthConfig, BaseAuth, Model } from '@tego/server';
+
 import axios from 'axios';
 
 export class CASAuth extends BaseAuth {

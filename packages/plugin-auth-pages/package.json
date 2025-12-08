@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-auth-pages",
   "displayName": "Auth: Pages",
-  "version": "1.3.25",
+  "version": "1.6.1",
   "description": "Pages for auth",
   "keywords": [
     "Authentication"
@@ -12,11 +12,11 @@
   "devDependencies": {
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
-    "antd": "5.22.5",
-    "react-router-dom": "6.28.1"
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:",
+    "react-router-dom": "catalog:"
   },
   "description.zh-CN": "认证：页面",
   "displayName.zh-CN": "认证页面"

@@ -1,0 +1,430 @@
+name: Sync Changelog to Docs Repository
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to sync (e.g., v1.5.1)'
+        required: false
+        type: string
+      docs_repo:
+        description: 'Documentation repository (e.g., tegojs/docs)'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to sync (e.g., v1.5.1)'
+        required: false
+        type: string
+      docs_repo:
+        description: 'Documentation repository (e.g., tegojs/docs)'
+        required: false
+        type: string
+    secrets:
+      DOCS_REPOSITORY:
+        required: false
+      DOCS_REPO_TOKEN:
+        required: false
+      DOCS_CHANGELOG_EN_PATH:
+        required: false
+      DOCS_CHANGELOG_ZH_PATH:
+        required: false
+
+run-name: "Sync Changelog - Version: ${{ github.ref_name || inputs.version || github.event.inputs.version }}"
+
+jobs:
+  sync-changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: source
+          # When called as reusable workflow, ensure we checkout the latest commit
+          # This is important because the calling workflow may have just committed changes
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version (preliminary)
+        id: version_prelim
+        run: |
+          # Quick version check to determine checkout strategy
+          # This is used to decide whether to checkout main branch or current branch
+          if [ -n "${{ inputs.version || github.event.inputs.version }}" ]; then
+            VERSION="${{ inputs.version || github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
+          elif [[ "${{ github.ref_name }}" == v* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            # For branches or other cases, we'll determine later
+            # Set a flag to indicate we need to check package.json
+            VERSION=""
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          if [ -n "$VERSION" ]; then
+            echo "Preliminary version: ${VERSION}"
+          else
+            echo "Version will be determined after checkout"
+          fi
+
+      - name: Fetch latest changes
+        run: |
+          cd source
+          # Fetch all branches and tags to ensure we have the latest commits
+          git fetch --all --tags --force
+
+          VERSION="${{ steps.version_prelim.outputs.version }}"
+
+          # For specific version releases, always checkout main branch
+          # because changelog entries are typically added to main after the tag is created
+          # For unreleased or when version is not yet determined, checkout the current branch to get latest changes
+          if [ -n "$VERSION" ] && [ "$VERSION" != "unreleased" ] && [[ "$VERSION" == v* ]]; then
+            echo "Syncing specific version ($VERSION), checking out main branch for latest changelog"
+            BRANCH_NAME="main"
+          else
+            # Determine the branch name from github.ref
+            REF_NAME="${{ github.ref }}"
+            if [[ "$REF_NAME" == refs/heads/* ]]; then
+              BRANCH_NAME=$(echo "$REF_NAME" | sed 's|refs/heads/||')
+            elif [[ "$REF_NAME" == refs/tags/* ]]; then
+              # For tags when syncing unreleased, use main branch
+              echo "Tag trigger for unreleased, using main branch"
+              BRANCH_NAME="main"
+            else
+              # Default to main branch if ref format is unexpected
+              BRANCH_NAME="main"
+            fi
+          fi
+
+          # Pull latest changes from the branch to ensure we have the most recent commits
+          # This is critical when called from update-unreleased-changelog workflow
+          # which may have just committed changelog updates
+          echo "Checking out and pulling latest changes from branch: $BRANCH_NAME"
+          git checkout "$BRANCH_NAME" 2>/dev/null || git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME" 2>/dev/null || {
+            echo "Warning: Could not checkout branch $BRANCH_NAME, using current HEAD"
+          }
+          git pull origin "$BRANCH_NAME" 2>/dev/null || echo "Note: Could not pull (may already be up to date)"
+
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Determine version
+        id: version
+        run: |
+          cd source
+
+          # Use the preliminary version determination result
+          VERSION="${{ steps.version_prelim.outputs.version }}"
+
+          # If preliminary version is empty, try to determine from package.json or set as unreleased
+          if [ -z "$VERSION" ]; then
+            # Check if we're syncing unreleased (when called from update-unreleased-changelog)
+            # Otherwise, try to get version from package.json
+            if [ -n "${{ inputs.version || github.event.inputs.version }}" ] && [ "${{ inputs.version || github.event.inputs.version }}" == "unreleased" ]; then
+              VERSION="unreleased"
+            else
+              # Try to get version from package.json as fallback
+              VERSION=$(node -p "require('./package.json').version")
+              VERSION="v${VERSION}"
+            fi
+          fi
+
+          # Validate version format
+          if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$VERSION" != "unreleased" ]; then
+            echo "⚠ Warning: Version '$VERSION' does not match expected format (vX.Y.Z or unreleased)"
+            echo "This may cause issues when extracting changelog entries"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version to sync: ${VERSION}"
+
+      - name: Extract changelog entries
+        id: extract_changelog
+        run: |
+          cd source
+
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUMBER=${VERSION#v}
+
+          # Debug information
+          echo "Syncing full changelog files to docs repository"
+          echo "Current directory: $(pwd)"
+          echo "CHANGELOG.md exists: $([ -f "CHANGELOG.md" ] && echo 'yes' || echo 'no')"
+          echo "CHANGELOG.zh-CN.md exists: $([ -f "CHANGELOG.zh-CN.md" ] && echo 'yes' || echo 'no')"
+          if [ -f "CHANGELOG.md" ]; then
+            echo "First few lines of CHANGELOG.md:"
+            head -20 CHANGELOG.md
+          fi
+
+          # Copy entire changelog files to ensure consistency
+          # This ensures docs repository always has the complete changelog matching tego-standard
+          if [ -f "CHANGELOG.md" ]; then
+            cp "CHANGELOG.md" /tmp/changelog_en.md
+            echo "✓ Copied full CHANGELOG.md ($(wc -l < /tmp/changelog_en.md) lines)"
+          else
+            echo "⚠ CHANGELOG.md not found"
+            echo "" > /tmp/changelog_en.md
+          fi
+
+          if [ -f "CHANGELOG.zh-CN.md" ]; then
+            cp "CHANGELOG.zh-CN.md" /tmp/changelog_zh.md
+            echo "✓ Copied full CHANGELOG.zh-CN.md ($(wc -l < /tmp/changelog_zh.md) lines)"
+          else
+            echo "⚠ CHANGELOG.zh-CN.md not found"
+            echo "" > /tmp/changelog_zh.md
+          fi
+
+          # Check if changelog files exist and have content
+          EN_LINES=$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)
+          ZH_LINES=$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)
+
+          # Log detailed information
+          echo "Changelog files:"
+          echo "  English: $EN_LINES lines (file: /tmp/changelog_en.md)"
+          echo "  Chinese: $ZH_LINES lines (file: /tmp/changelog_zh.md)"
+
+          if [ "$EN_LINES" -gt 1 ]; then
+            echo "✓ English changelog has content"
+          else
+            echo "⚠ English changelog is empty or has no content"
+          fi
+
+          if [ "$ZH_LINES" -gt 1 ]; then
+            echo "✓ Chinese changelog has content"
+          else
+            echo "⚠ Chinese changelog is empty or has no content"
+          fi
+
+          if [ "$EN_LINES" -gt 1 ] || [ "$ZH_LINES" -gt 1 ]; then
+            echo "has_changelog=true" >> $GITHUB_OUTPUT
+            echo "Found changelog files: EN($EN_LINES lines), ZH($ZH_LINES lines)"
+          else
+            echo "has_changelog=false" >> $GITHUB_OUTPUT
+            echo "No changelog files found or files are empty"
+          fi
+
+      - name: Checkout docs repository
+        if: steps.extract_changelog.outputs.has_changelog == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}
+          # Note: GITHUB_TOKEN cannot access cross-repository, must use DOCS_REPO_TOKEN (PAT)
+          token: ${{ secrets.DOCS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          path: docs
+          fetch-depth: 1
+          ref: main
+
+      - name: Setup Git
+        if: steps.extract_changelog.outputs.has_changelog == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync changelog to docs repository
+        if: steps.extract_changelog.outputs.has_changelog == 'true'
+        env:
+          DOCS_CHANGELOG_EN_PATH: ${{ secrets.DOCS_CHANGELOG_EN_PATH || 'docs/en/changelog/changelog.md' }}
+          DOCS_CHANGELOG_ZH_PATH: ${{ secrets.DOCS_CHANGELOG_ZH_PATH || 'docs/zh/changelog/changelog.md' }}
+          DOCS_REPO_TOKEN: ${{ secrets.DOCS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          cd docs
+
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUMBER=${VERSION#v}
+
+          # Determine target file paths
+          EN_TARGET="${DOCS_CHANGELOG_EN_PATH}"
+          ZH_TARGET="${DOCS_CHANGELOG_ZH_PATH}"
+
+          # Create directories if they don't exist
+          mkdir -p "$(dirname "${EN_TARGET}")"
+          mkdir -p "$(dirname "${ZH_TARGET}")"
+
+          # Overwrite entire changelog files to ensure consistency with tego-standard
+          # This ensures docs repository always has the complete changelog matching tego-standard
+
+          # Sync English changelog (overwrite entire file)
+          if [ -s /tmp/changelog_en.md ] && [ "$(cat /tmp/changelog_en.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+            cp /tmp/changelog_en.md "${EN_TARGET}"
+            echo "✓ Synced full English changelog to ${EN_TARGET} ($(wc -l < "${EN_TARGET}") lines)"
+          else
+            echo "⚠ Skipped syncing English changelog (no content or empty file)"
+          fi
+
+          # Sync Chinese changelog (overwrite entire file)
+          if [ -s /tmp/changelog_zh.md ] && [ "$(cat /tmp/changelog_zh.md | grep -v '^[[:space:]]*$' | wc -l)" -gt 1 ]; then
+            cp /tmp/changelog_zh.md "${ZH_TARGET}"
+            echo "✓ Synced full Chinese changelog to ${ZH_TARGET} ($(wc -l < "${ZH_TARGET}") lines)"
+          else
+            echo "⚠ Skipped syncing Chinese changelog (no content or empty file)"
+          fi
+
+          # Commit and push
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            REPO_NAME="${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}"
+
+            # Create branch name and commit message
+            # Always sync full changelog to ensure consistency with tego-standard
+            BRANCH_NAME="chore/sync-full-changelog-$(date +%Y%m%d-%H%M%S)"
+            COMMIT_MSG="docs(changelog): sync full changelog from tego-standard"
+            PR_TITLE="docs(changelog): sync full changelog from tego-standard"
+            PR_BODY="Automatically sync full changelog files from tego-standard repository to ensure consistency. This PR overwrites the changelog files in docs repository with the complete changelog from tego-standard repository."
+
+            # Create and checkout new branch
+            git checkout -b "${BRANCH_NAME}"
+            git commit -m "${COMMIT_MSG}"
+
+            # Configure git remote with token for push
+            # Use x-access-token prefix for GitHub tokens (required for GitHub Actions)
+            git remote set-url origin "https://x-access-token:${DOCS_REPO_TOKEN}@github.com/${REPO_NAME}.git"
+
+            # Push branch
+            if git push origin "${BRANCH_NAME}"; then
+              echo "✓ Pushed branch ${BRANCH_NAME} to docs repository"
+
+              # Create Pull Request using GitHub API
+              PR_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/${REPO_NAME}/pulls" \
+                -d "{
+                  \"title\": \"${PR_TITLE}\",
+                  \"body\": \"${PR_BODY}\",
+                  \"head\": \"${BRANCH_NAME}\",
+                  \"base\": \"main\"
+                }")
+
+              HTTP_CODE=$(echo "${PR_RESPONSE}" | tail -n1)
+              PR_BODY=$(echo "${PR_RESPONSE}" | sed '$d')
+
+              if [ "${HTTP_CODE}" == "201" ]; then
+                # Extract PR number and URL
+                if command -v jq >/dev/null 2>&1; then
+                  PR_NUMBER=$(echo "${PR_BODY}" | jq -r '.number // empty')
+                  PR_URL=$(echo "${PR_BODY}" | jq -r '.html_url // empty')
+                else
+                  PR_NUMBER=$(echo "${PR_BODY}" | grep -o '"number":[0-9]*' | head -1 | cut -d':' -f2)
+                  PR_URL=$(echo "${PR_BODY}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+                fi
+
+                if [ -z "${PR_NUMBER}" ] || [ "${PR_NUMBER}" == "null" ]; then
+                  echo "❌ Failed to extract PR number"
+                  exit 1
+                fi
+
+                if [ -z "${PR_URL}" ] || [ "${PR_URL}" == "null" ]; then
+                  PR_URL="https://github.com/${REPO_NAME}/pull/${PR_NUMBER}"
+                fi
+
+                echo "✓ Created Pull Request #${PR_NUMBER}: ${PR_URL}"
+                echo "PR_NUMBER=${PR_NUMBER}" >> $GITHUB_OUTPUT
+                echo "PR_URL=${PR_URL}" >> $GITHUB_OUTPUT
+
+                # Add labels for auto-merge: automated, documentation, sync
+                # These labels are required for the docs repository's auto-merge rules
+                # First, ensure labels exist (create if they don't)
+                LABELS=("automated" "documentation" "sync")
+                LABEL_COLORS=("1d76db" "0e8a16" "fbca04")  # Blue, Green, Yellow
+
+                for i in "${!LABELS[@]}"; do
+                  LABEL_NAME="${LABELS[$i]}"
+                  LABEL_COLOR="${LABEL_COLORS[$i]}"
+
+                  # Check if label exists
+                  LABEL_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    "https://api.github.com/repos/${REPO_NAME}/labels/${LABEL_NAME}")
+
+                  # Create label if it doesn't exist (404)
+                  if [ "${LABEL_CHECK}" == "404" ]; then
+                    CREATE_LABEL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                      -H "Accept: application/vnd.github+json" \
+                      -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
+                      -H "X-GitHub-Api-Version: 2022-11-28" \
+                      "https://api.github.com/repos/${REPO_NAME}/labels" \
+                      -d "{\"name\":\"${LABEL_NAME}\",\"color\":\"${LABEL_COLOR}\",\"description\":\"Auto-merge label for ${LABEL_NAME} PRs\"}")
+
+                    CREATE_LABEL_HTTP_CODE=$(echo "${CREATE_LABEL_RESPONSE}" | tail -n1)
+                    if [ "${CREATE_LABEL_HTTP_CODE}" == "201" ]; then
+                      echo "✓ Created label: ${LABEL_NAME}"
+                    fi
+                  fi
+                done
+
+                # Add labels to the PR
+                for LABEL_NAME in "${LABELS[@]}"; do
+                  curl -s -X POST \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    -H "Content-Type: application/json" \
+                    "https://api.github.com/repos/${REPO_NAME}/issues/${PR_NUMBER}/labels" \
+                    -d "[\"${LABEL_NAME}\"]" > /dev/null
+                  sleep 0.3
+                done
+                echo "✓ Added labels: ${LABELS[*]}"
+              elif [ "${HTTP_CODE}" == "422" ]; then
+                # PR might already exist
+                REPO_OWNER=$(echo "${REPO_NAME}" | cut -d'/' -f1)
+                EXISTING_PR=$(curl -s \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "Authorization: Bearer ${DOCS_REPO_TOKEN}" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "https://api.github.com/repos/${REPO_NAME}/pulls?head=${REPO_OWNER}:${BRANCH_NAME}&state=open")
+                EXISTING_PR_URL=$(echo "${EXISTING_PR}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+                if [ -n "${EXISTING_PR_URL}" ]; then
+                  echo "✓ Found existing Pull Request: ${EXISTING_PR_URL}"
+                else
+                  echo "⚠ Failed to create Pull Request (HTTP ${HTTP_CODE})"
+                fi
+              else
+                echo "⚠ Failed to create Pull Request (HTTP ${HTTP_CODE})"
+              fi
+            else
+              echo "❌ Failed to push branch to docs repository"
+              echo ""
+              echo "Error: Permission denied (403). This usually means:"
+              echo "  1. DOCS_REPO_TOKEN secret is not configured, or"
+              echo "  2. GITHUB_TOKEN is being used (cannot push to cross-repository), or"
+              echo "  3. Token does not have write permission to ${REPO_NAME}"
+              echo ""
+              echo "Solution: Configure DOCS_REPO_TOKEN secret:"
+              echo "  1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions"
+              echo "  2. Click 'New repository secret'"
+              echo "  3. Name: DOCS_REPO_TOKEN"
+              echo "  4. Value: A Personal Access Token (PAT) with 'repo' scope"
+              echo "     - Create PAT at: https://github.com/settings/tokens"
+              echo "     - Required scopes: repo (full control of private repositories)"
+              echo "     - Must have write access to ${REPO_NAME}"
+              echo ""
+              echo "Checking git status:"
+              git status
+              echo "Checking remote (token masked):"
+              git remote -v | sed 's/\(x-access-token:\)[^@]*/\1***/g'
+              exit 1
+            fi
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.extract_changelog.outputs.has_changelog }}" == "true" ]; then
+            echo "✓ Changelog synced successfully for ${{ steps.version.outputs.version }}"
+          else
+            echo "⚠ No changelog entry found for ${{ steps.version.outputs.version }}, skipping sync"
+          fi
+

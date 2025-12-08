@@ -1,4 +1,5 @@
 import { Collection, Context, Next, Repository, uid } from '@tego/server';
+
 import xlsx from 'node-xlsx';
 import XLSX from 'xlsx';
 
@@ -129,7 +130,7 @@ class Importer {
           result[0].push(instance);
         } catch (error) {
           if (error.message !== 'current transaction is aborted, commands ignored until end of transaction block') {
-            this.context.log.error(error, row);
+            this.context.logger.error(error, row);
           }
           row.push(error.message);
           result[1].push(row);

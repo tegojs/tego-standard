@@ -1,19 +1,17 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CardItem,
   SchemaComponent,
-  SchemaComponentContext,
   TableBlockProvider,
   useActionContext,
   useAPIClient,
-  useCollectionManager_deprecated,
   useCollectionRecordData,
   useCompile,
   useDataBlockRequest,
   useDataBlockResource,
   useFilterByTk,
   useFormBlockProps,
-  useResourceActionContext,
+  useParsedFilter,
 } from '@tachybase/client';
 import { ISchema, observable, observer, uid, useForm } from '@tachybase/schema';
 
@@ -81,7 +79,7 @@ export const collectionWorkflows = {
       collectionName: 'workflows',
       interface: 'm2m',
       uiSchema: {
-        title: `{{t("workflow Category", { ns: "${NAMESPACE}" })}}`,
+        title: `{{t("Category", { ns: "${NAMESPACE}" })}}`,
         type: 'array',
         'x-component': 'AssociationField',
         'x-component-props': {
@@ -185,6 +183,16 @@ export const collectionWorkflowCategories = {
         'x-component': 'Input',
       } as ISchema,
     },
+    {
+      type: 'string',
+      name: 'type',
+      interface: 'input',
+      uiSchema: {
+        title: '{{t("Type")}}',
+        type: 'string',
+        'x-component': 'Input',
+      } as ISchema,
+    },
   ],
 };
 
@@ -204,6 +212,7 @@ export const workflowFieldset: Record<string, ISchema> = {
     title: `{{ t("Execute mode", { ns: "${NAMESPACE}" }) }}`,
     'x-decorator': 'FormItem',
     'x-component': 'SyncOptionSelect',
+    default: true,
     'x-component-props': {
       options: [
         {
@@ -225,6 +234,13 @@ export const workflowFieldset: Record<string, ISchema> = {
     'x-decorator': 'FormItem',
     'x-component-props': {
       multiple: true,
+      service: {
+        params: {
+          filter: {
+            $and: [{ type: { $ne: 'approval' } }],
+          },
+        },
+      },
     },
   },
   enabled: {
@@ -456,6 +472,27 @@ const revisionWorkflow: ISchema = {
           'x-decorator': 'FormItem',
           'x-component': 'Input',
         },
+        category: {
+          'x-collection-field': 'workflows.category',
+          'x-component': 'CollectionField',
+          'x-decorator': 'FormItem',
+          'x-component-props': {
+            multiple: true,
+            service: {
+              params: {
+                filter: {
+                  $and: [
+                    {
+                      type: {
+                        $ne: 'approval',
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
         footer: {
           type: 'void',
           'x-component': 'Action.Modal.Footer',
@@ -466,22 +503,7 @@ const revisionWorkflow: ISchema = {
               'x-component': 'Action',
               'x-component-props': {
                 type: 'primary',
-                useAction() {
-                  const { t } = useTranslation();
-                  const { refresh } = useDataBlockRequest();
-                  const resource = useDataBlockResource();
-                  const { setVisible } = useActionContext();
-                  const filterByTk = useFilterByTk();
-                  const { values } = useForm();
-                  return {
-                    async run() {
-                      await resource.revision({ filterByTk, values });
-                      message.success(t('Operation succeeded'));
-                      refresh();
-                      setVisible(false);
-                    },
-                  };
-                },
+                useAction: '{{ useRevisionAction }}',
               },
             },
             cancel: {
@@ -662,26 +684,31 @@ const DndProvider = observer(
   { displayName: 'DndProvider' },
 );
 
-const WorkflowTabCardItem = ({ children }) => {
+export const WorkflowTabCardItem = (props) => {
+  const { children, params, type } = props;
   const api = useAPIClient();
   const [dataSource, setDataSource] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false); // 标记分类数据是否已加载
   const [activeKey, setActiveKey] = useState({ tab: tag.value, item: tag.item });
   const compile = useCompile();
   const { modal } = App.useApp();
 
+  // 在组件内部请求分类数据，只有组件真正渲染时才请求
   const fetchData = useCallback(async () => {
-    setLoading(true);
     const { data } = await api.request({
       url: 'workflowCategories:list',
-      params: {
-        paginate: false,
-        sort: ['sort'],
-      },
+      params,
     });
     setDataSource(data.data);
-    setLoading(false);
-  }, []);
+    // 验证 tag.value 是否有效，如果无效则重置
+    if (tag.value && !data.data.find((value) => value.id === tag.value)) {
+      tag.value = '';
+      tag.item = {};
+      setActiveKey({ tab: '', item: {} });
+    }
+    // 标记分类数据已加载完成
+    setCategoriesLoaded(true);
+  }, [api, params]);
 
   useEffect(() => {
     fetchData();
@@ -738,9 +765,11 @@ const WorkflowTabCardItem = ({ children }) => {
   return (
     <WorkflowCategoryContext.Provider
       value={{
+        data: dataSource,
         refresh: fetchData,
         activeKey: activeKey.tab,
         setActiveKey: (key: string) => setActiveKey({ tab: key, item: dataSource.find((value) => value.id === key) }),
+        categoriesLoaded, // 传递分类加载状态
       }}
     >
       <DndProvider>
@@ -756,6 +785,7 @@ const WorkflowTabCardItem = ({ children }) => {
                     'x-component': 'AddWorkflowCategory',
                     'x-component-props': {
                       type: 'primary',
+                      categoryType: type,
                     },
                   },
                 },
@@ -815,25 +845,53 @@ const WorkflowTabCardItem = ({ children }) => {
   );
 };
 
-const TabTableBlockProvider = observer((props) => {
-  const requestProps = {
-    collection: collectionWorkflows,
-    action: 'list',
-    params: {
-      filter: {
-        current: true,
-        type: {
-          // TODO: 等工作流整理完成后, 去除这里的依赖审批 "approval" 字段
-          $not: 'approval',
-        },
-      },
-      sort: ['-initAt'],
-    },
-    rowKey: 'id',
-  };
+/**
+ * 表格数据提供者，支持分类筛选
+ * - 根据当前选中的分类标签（tag.value）动态添加 category.id filter
+ * - 使用 listExtended action 获取包含额外字段的工作流列表（最新执行时间、事件源名称、分类等）
+ */
+export const TabTableBlockProvider = observer((props: { params }) => {
+  const { params = {} } = props;
 
-  if (tag.value) {
-    requestProps.params.filter['category.id'] = [tag.value];
+  // 预先解析 filter，避免 TableBlockProvider 内部重新计算
+  const { filter: parsedFilter } = useParsedFilter({
+    filterOption: params?.filter,
+  });
+
+  // 构建请求参数，根据分类标签动态调整 filter
+  const requestProps = useMemo(() => {
+    // 使用解析后的 filter，每次创建新对象确保引用不同，让 useDeepCompareEffect 能检测到变化
+    const filter = parsedFilter && Object.keys(parsedFilter).length > 0 ? { ...parsedFilter } : {};
+
+    // 根据当前选中的分类标签添加或移除 category.id filter
+    if (tag.value) {
+      filter['category.id'] = [tag.value];
+    } else {
+      delete filter['category.id'];
+    }
+
+    return {
+      collection: collectionWorkflows,
+      action: 'listExtended', // 自定义 action，返回包含额外字段的工作流列表
+      params: {
+        ...params,
+        filter: { ...filter }, // 创建新的 filter 对象，确保引用不同
+      },
+      rowKey: 'id',
+    };
+  }, [params, parsedFilter, tag.value]);
+
+  // 等待 filter 解析完成
+  const hasOriginalFilter = params?.filter && Object.keys(params.filter).length > 0;
+  const hasParsedFilter = parsedFilter && Object.keys(parsedFilter).length > 0;
+  if (hasOriginalFilter && !hasParsedFilter) {
+    return null;
+  }
+
+  // 如果 filter 未初始化，不渲染 TableBlockProvider，避免无效请求
+  const hasFilter = hasParsedFilter || (params?.filter && Object.keys(params.filter).length > 0);
+  if (!hasFilter) {
+    return null;
   }
 
   return <TableBlockProvider {...props} {...requestProps} />;
@@ -845,7 +903,29 @@ export const workflowSchema: ISchema = {
     provider: {
       type: 'void',
       'x-decorator': TabTableBlockProvider,
+      'x-decorator-props': {
+        params: {
+          filter: {
+            current: true,
+            type: {
+              // TODO: 等工作流整理完成后, 去除这里的依赖审批 "approval" 字段
+              $not: 'approval',
+            },
+          },
+          sort: ['-initAt'],
+        },
+      },
       'x-component': WorkflowTabCardItem,
+      'x-component-props': {
+        params: {
+          paginate: false,
+          sort: ['sort'],
+          filter: {
+            type: { $ne: 'approval' },
+          },
+        },
+        type: 'workflow',
+      },
       properties: {
         actions: {
           type: 'void',
@@ -873,6 +953,11 @@ export const workflowSchema: ISchema = {
             fuzzySearch: {
               type: 'void',
               'x-component': 'FuzzySearchInput',
+              'x-align': 'left',
+            },
+            statusFilter: {
+              type: 'void',
+              'x-component': 'EnabledStatusFilter',
               'x-align': 'left',
             },
             refresh: {
@@ -916,12 +1001,6 @@ export const workflowSchema: ISchema = {
                   'x-decorator': 'FormV2',
                   'x-component': 'Action.Modal',
                   properties: {
-                    title: {
-                      type: 'string',
-                      title: '{{t("Title")}}',
-                      'x-decorator': 'FormItem',
-                      'x-component': 'Input',
-                    },
                     file: {
                       type: 'object',
                       title: '{{ t("File") }}',
@@ -931,6 +1010,35 @@ export const workflowSchema: ISchema = {
                       'x-component-props': {
                         action: 'attachments:create',
                         multiple: false,
+                      },
+                    },
+                    title: {
+                      type: 'string',
+                      title: '{{t("Title")}}',
+                      'x-decorator': 'FormItem',
+                      'x-component': 'Input',
+                      'x-reactions': {
+                        dependencies: ['file'],
+                        fulfill: {
+                          state: {
+                            value: '{{$deps[0]?.title || $deps[0]?.filename || ""}}',
+                          },
+                        },
+                      },
+                    },
+                    category: {
+                      'x-collection-field': 'workflows.category',
+                      'x-component': 'CollectionField',
+                      'x-decorator': 'FormItem',
+                      'x-component-props': {
+                        multiple: true,
+                        service: {
+                          params: {
+                            filter: {
+                              $and: [{ type: { $ne: 'approval' } }],
+                            },
+                          },
+                        },
                       },
                     },
                     footer: {
@@ -950,9 +1058,15 @@ export const workflowSchema: ISchema = {
                               const resource = useDataBlockResource();
                               const filterByTk = useFilterByTk();
                               const { setVisible } = useActionContext();
-                              const { values } = useForm();
+                              const form = useForm();
+                              // 设置分类默认值为当前分类标签的分类
+                              if (tag.value && tag.item) {
+                                form.setInitialValues({ category: [tag.item] });
+                                form.setValues({ category: [tag.item] });
+                              }
                               return {
                                 async run() {
+                                  const { values } = form;
                                   const { data } = await api.request({
                                     url: values.file.url,
                                     baseURL: '/',
@@ -998,6 +1112,7 @@ export const workflowSchema: ISchema = {
               'x-component': 'TableV2.Column',
               'x-component-props': {
                 sorter: true,
+                width: 100,
               },
               title: '{{t("Name")}}',
               properties: {
@@ -1012,44 +1127,15 @@ export const workflowSchema: ISchema = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
               },
+              title: `{{t("Category", { ns: "${NAMESPACE}" })}}`,
               properties: {
                 category: {
                   type: 'array',
-                  'x-collection-field': 'workflows.category',
-                  'x-component': 'CollectionField',
-                  'x-component-props': {
-                    multiple: true,
-                    mode: 'Tag',
-                  },
+                  'x-component': 'WorkflowCategoryColumn',
                   'x-read-pretty': true,
-                },
-              },
-            },
-            description: {
-              type: 'void',
-              'x-decorator': 'TableV2.Column.Decorator',
-              'x-component': 'TableV2.Column',
-              properties: {
-                description: {
-                  type: 'string',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
-                },
-              },
-            },
-            showCollection: {
-              type: 'void',
-              'x-decorator': 'TableV2.Column.Decorator',
-              'x-component': 'TableV2.Column',
-              title: tval('Collection'),
-              properties: {
-                showCollection: {
-                  type: 'string',
-                  'x-component': 'ColumnShowCollection',
                 },
               },
             },
@@ -1062,12 +1148,14 @@ export const workflowSchema: ISchema = {
                 width: 20,
                 align: 'center',
               },
+              title: `{{t("Status", { ns: "${NAMESPACE}" })}}`,
               properties: {
                 enabled: {
-                  type: 'boolean',
-                  'x-component': 'CollectionField',
-                  'x-read-pretty': true,
-                  default: false,
+                  type: 'void',
+                  'x-component': 'EnabledToggle',
+                  'x-component-props': {
+                    resource: 'workflows',
+                  },
                 },
               },
             },
@@ -1105,6 +1193,66 @@ export const workflowSchema: ISchema = {
                 },
               },
             },
+            executedTime: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Finally executed on'),
+              'x-component-props': {
+                sorter: true,
+                width: 20,
+                align: 'center',
+                style: {
+                  display: 'grid',
+                  placeItems: 'center',
+                },
+              },
+              properties: {
+                executedTime: {
+                  type: 'string',
+                  'x-component': 'ColumnExecutedTime',
+                },
+              },
+            },
+            showCollection: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Collection'),
+              properties: {
+                showCollection: {
+                  type: 'string',
+                  'x-component': 'ColumnShowCollection',
+                },
+              },
+            },
+            showEventSource: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              title: tval('Event source'),
+              properties: {
+                showEventSource: {
+                  type: 'string',
+                  'x-component': 'ColumnShowEventSource',
+                },
+              },
+            },
+            description: {
+              type: 'void',
+              'x-decorator': 'TableV2.Column.Decorator',
+              'x-component': 'TableV2.Column',
+              properties: {
+                description: {
+                  type: 'string',
+                  'x-component': 'CollectionField',
+                  'x-component-props': {
+                    ellipsis: true,
+                  },
+                  'x-read-pretty': true,
+                },
+              },
+            },
             updatedAt: {
               type: 'void',
               'x-decorator': 'TableV2.Column.Decorator',
@@ -1131,7 +1279,6 @@ export const workflowSchema: ISchema = {
               'x-decorator': 'TableV2.Column.Decorator',
               'x-component': 'TableV2.Column',
               'x-component-props': {
-                sorter: true,
                 width: 20,
                 align: 'center',
                 style: {
@@ -1188,20 +1335,7 @@ export const workflowSchema: ISchema = {
                       title: '{{ t("Dump") }}',
                       'x-component': 'Action.Link',
                       'x-component-props': {
-                        useAction() {
-                          const { t } = useTranslation();
-                          const resource = useDataBlockResource();
-                          const filterByTk = useFilterByTk();
-
-                          return {
-                            async run() {
-                              const { data } = await resource.dump({ filterByTk });
-                              const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
-                              saveAs(blob, data.data.title + '-' + data.data.key + '.json');
-                              message.success(t('Operation succeeded'));
-                            },
-                          };
-                        },
+                        useAction: '{{ useDumpAction }}',
                       },
                     },
                   },

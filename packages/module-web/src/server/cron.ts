@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { requireModule } from '@tego/server';
 
 export const getCronLocale = (lang: string) => {

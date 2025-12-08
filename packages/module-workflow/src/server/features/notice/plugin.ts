@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { Plugin } from '@tego/server';
 
 import { PluginWorkflow } from '../..';
@@ -30,9 +29,6 @@ export class PluginWorkflowNoticeServer extends Plugin {
       context: {
         plugin: this,
       },
-    });
-    await db.import({
-      directory: path.resolve(__dirname, 'collections'),
     });
 
     init(this);

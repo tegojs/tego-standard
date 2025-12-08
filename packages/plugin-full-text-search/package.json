@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-full-text-search",
   "displayName": "Full-text Search",
-  "version": "1.3.25",
+  "version": "1.6.1",
   "description": "Provides full text search capability",
   "keywords": [
     "System management"
@@ -9,13 +9,13 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/test": "*",
-    "@tego/client": "*",
-    "@tego/server": "*",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
     "@types/sequelize": "^4.28.20",
-    "antd": "5.22.5",
+    "antd": "catalog:",
     "lodash": "4.17.21",
-    "sequelize": "^6.37.5"
+    "sequelize": "catalog:"
   },
   "description.zh-CN": "提供全字段搜索能力",
   "displayName.zh-CN": "全文搜索"

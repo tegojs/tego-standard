@@ -27,7 +27,7 @@ describe('snippet', () => {
       },
     });
 
-    const userPlugin: any = app.getPlugin('users');
+    const userPlugin: any = app.pm.get('users');
     const userAgent: any = app.agent().login(user);
     const createCollectionResponse = await userAgent.resource('collections').create({});
 

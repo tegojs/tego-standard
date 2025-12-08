@@ -7,7 +7,14 @@ export const ApprovalInfo = (props) => {
   const { t } = useTranslation();
   return (
     <CardItem>
-      {t('Approval Code')}:{approval.id}
+      <b
+        style={{
+          color: '#bfbfbf',
+        }}
+      >
+        {t('Approval Code')}: &nbsp;
+      </b>
+      <b>{approval.id}</b>
     </CardItem>
   );
 };

@@ -6,29 +6,29 @@ import { APPROVAL_STATUS } from '../constants/status';
 import { getSummary } from '../tools';
 
 export const approvals = {
-  async create(context, next) {
-    const { status, collectionName, data, workflowId, workflowKey } = context.action.params.values ?? {};
+  async create(ctx, next) {
+    const { status, collectionName, data, workflowId, workflowKey } = ctx.action.params.values ?? {};
     const [dataSourceName, cName] = parseCollectionName(collectionName);
-    const dataSource = context.app.dataSourceManager.dataSources.get(dataSourceName);
+    const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceName);
     if (!dataSource) {
-      return context.throw(400, `Data source "${dataSourceName}" not found`);
+      return ctx.throw(400, `Data source "${dataSourceName}" not found`);
     }
     const collection = dataSource.collectionManager.getCollection(cName);
     if (!collection) {
-      return context.throw(400, `Collection "${cName}" not found`);
+      return ctx.throw(400, `Collection "${cName}" not found`);
     }
 
     // 如果能拿到 key, 说明是复制操作, 否则是新建操作;
     let workflow;
     if (workflowKey) {
-      workflow = await context.db.getRepository('workflows').findOne({
+      workflow = await ctx.db.getRepository('workflows').findOne({
         filter: {
           key: workflowKey,
           enabled: true,
         },
       });
     } else {
-      workflow = await context.db.getRepository('workflows').findOne({
+      workflow = await ctx.db.getRepository('workflows').findOne({
         filterByTk: workflowId,
       });
     }
@@ -44,63 +44,24 @@ export const approvals = {
      */
 
     if (!workflow) {
-      return context.throw(400, 'Current workflow not found or disabled, please refresh and try again');
+      return ctx.throw(400, 'Current workflow not found or disabled, please refresh and try again');
     }
 
     if (status !== APPROVAL_STATUS.DRAFT) {
-      context.action.mergeParams({
+      ctx.action.mergeParams({
         values: {
           status: APPROVAL_STATUS.SUBMITTED,
         },
       });
     }
     const { repository, model } = collection;
-    // 如果是复制操作,要将repository的关联字段的 id 排除掉,以防认为是修改,而不是新建;
-    // 背景是复制操作, 前端传过来的是一个完整的对象, 如果直接创建, 会导致关联字段的 id 被认为是已有数据, 从而认为是修改,而不是新建. 特别是多对多的字段.
-    let dataToCreate = traverseJSON(data, { collection });
-    if (workflowKey) {
-      // 找出所有关联字段的 key（这些一般是 model.associations 的 key）
-      // 遍历 model.associations，按 Sequelize 约定，关联 id 字段一般形如 xxxId 或 array 形
-      Object.values(collection.model.associations || {}).forEach((assocUnknown) => {
-        // 显式类型断言
-        const assoc = assocUnknown as {
-          foreignKey?: string;
-          as?: string;
-          associationType?: string;
-          targetKey?: string;
-          target?: { primaryKeyAttribute?: string; primaryKey?: string };
-        };
-
-        // 只处理属于本数据的外键字段
-        if (assoc.foreignKey && Object.prototype.hasOwnProperty.call(dataToCreate, assoc.foreignKey)) {
-          // 移除外键 id，避免被认为是已有数据
-          delete dataToCreate[assoc.foreignKey];
-        }
-        // 处理 BelongsToMany（多对多），应删除的是 source 关联的 targetKey（目标表主键、如 targetId），而不是中间表的 id
-        if (assoc.associationType === 'BelongsToMany' && assoc.as && Array.isArray(dataToCreate[assoc.as])) {
-          // 这里 assoc.as 是关联在 dataToCreate 上的字段名（一般为模型名的复数，如 tags）
-          // 将每个对象里的 target 主键 id 字段删除，目标字段通常是 targetKey 或 target主键，如 targetId 等
-          const targetKey =
-            assoc.targetKey && typeof assoc.targetKey === 'string'
-              ? assoc.targetKey
-              : // fallback: 一般为 target model 的主键
-                assoc.target?.primaryKeyAttribute || assoc.target?.primaryKey || 'id';
-          (dataToCreate[assoc.as] as Array<any>).forEach((item: any) => {
-            if (item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, targetKey)) {
-              delete item[targetKey];
-            }
-          });
-        }
-      });
-    }
-
     const values = await repository.create({
       values: {
-        ...dataToCreate,
-        createdBy: context.state.currentUser.id,
-        updatedBy: context.state.currentUser.id,
+        ...traverseJSON(data, { collection }),
+        createdBy: ctx.state.currentUser.id,
+        updatedBy: ctx.state.currentUser.id,
       },
-      context,
+      context: ctx,
     });
     const instance = values.get();
     const summary = getSummary({
@@ -109,27 +70,29 @@ export const approvals = {
         ...instance,
         ...data,
       },
+      collection,
+      app: ctx.tego,
     });
     Object.keys(model.associations).forEach((key) => {
       delete instance[key];
     });
-    context.action.mergeParams({
+    ctx.action.mergeParams({
       values: {
         collectionName,
         data: instance,
         dataKey: values[collection.filterTargetKey],
         workflowKey: workflow.key,
         workflowId: workflow.id,
-        applicantRoleName: context.state.currentRole,
+        applicantRoleName: ctx.state.currentRole,
         summary,
       },
     });
-    return actions.create(context, next);
+    return actions.create(ctx, next);
   },
-  async update(context, next) {
-    const { collectionName, data, status, updateAssociationValues, summaryConfig } = context.action.params.values ?? {};
+  async update(ctx, next) {
+    const { collectionName, data, status, updateAssociationValues, summaryConfig } = ctx.action.params.values ?? {};
     const [dataSourceName, cName] = parseCollectionName(collectionName);
-    const dataSource = context.app.dataSourceManager.dataSources.get(dataSourceName);
+    const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceName);
     const collection = dataSource.collectionManager.getCollection(cName);
 
     const [target] = await collection.repository.update({
@@ -141,54 +104,56 @@ export const approvals = {
     const summary = getSummary({
       summaryConfig,
       data: data,
+      collection,
+      app: ctx.tego,
     });
 
-    context.action.mergeParams({
+    ctx.action.mergeParams({
       values: {
         status: status ?? APPROVAL_STATUS.SUBMITTED,
         data: data,
-        applicantRoleName: context.state.currentRole,
+        applicantRoleName: ctx.state.currentRole,
         summary,
       },
     });
-    return actions.update(context, next);
+    return actions.update(ctx, next);
   },
-  async destroy(context, next) {
+  async destroy(ctx, next) {
     const {
       filterByTk,
       values: { status },
-    } = context.action.params ?? {};
+    } = ctx.action.params ?? {};
     if (status !== APPROVAL_STATUS.DRAFT) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
-    const repository = utils.getRepositoryFromParams(context);
+    const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
       filter: {
-        createdById: context.state.currentUser.id,
+        createdById: ctx.state.currentUser.id,
       },
     });
     if (!approval) {
-      return context.throw(404);
+      return ctx.throw(404);
     }
-    return actions.destroy(context, next);
+    return actions.destroy(ctx, next);
   },
-  async withdraw(context, next) {
-    const { filterByTk } = context.action.params;
-    const repository = utils.getRepositoryFromParams(context);
+  async withdraw(ctx, next) {
+    const { filterByTk } = ctx.action.params;
+    const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
       appends: ['workflow'],
       except: ['workflow.options'],
     });
     if (!approval) {
-      return context.throw(404);
+      return ctx.throw(404);
     }
-    if (approval.createdById !== context.state.currentUser?.id) {
-      return context.throw(403);
+    if (approval.createdById !== ctx.state.currentUser?.id) {
+      return ctx.throw(403);
     }
     if (approval.status !== APPROVAL_STATUS.SUBMITTED || !approval.workflow.config.withdrawable) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
     const [execution] = await approval.getExecutions({
       where: {
@@ -198,12 +163,12 @@ export const approvals = {
     });
 
     if (!execution) {
-      return context.throw(404, 'Execution not found! Please contact the administrator.');
+      return ctx.throw(404, 'Execution not found! Please contact the administrator.');
     }
 
     // 如果当前 workflow 未启用，则查找同 workflowKey 且 enable 为 true 的最新 workflow，并挂到 approval 上，同时存到数据库
     if (!approval.workflow.enabled && approval.workflow?.key) {
-      const latestWorkflow = await context.db.getRepository('workflows').findOne({
+      const latestWorkflow = await ctx.db.getRepository('workflows').findOne({
         filter: {
           key: approval.workflow.key,
           enabled: true,
@@ -217,14 +182,14 @@ export const approvals = {
             workflowId: latestWorkflow.id,
           },
           {
-            transaction: context.transaction,
+            transaction: ctx.transaction,
           },
         );
       }
     }
 
     execution.workflow = approval.workflow;
-    await context.db.sequelize.transaction(async (transaction) => {
+    await ctx.db.sequelize.transaction(async (transaction) => {
       const records = await approval.getRecords({
         where: {
           executionId: execution.id,
@@ -240,7 +205,7 @@ export const approvals = {
         ],
         transaction,
       });
-      await context.db.getRepository('approvalRecords').destroy({
+      await ctx.db.getRepository('approvalRecords').destroy({
         filter: {
           id: records.map((record) => record.id),
         },
@@ -257,16 +222,16 @@ export const approvals = {
       }, new Map());
       return Array.from(jobsMap.values());
     });
-    context.body = approval;
-    context.status = 202;
+    ctx.body = approval;
+    ctx.status = 202;
     await next();
 
     await execution.update({
       status: EXECUTION_STATUS.CANCELED,
     });
   },
-  async listCentralized(context, next) {
-    const centralizedApprovalFlow = await context.db.getRepository('workflows').find({
+  async listCentralized(ctx, next) {
+    const centralizedApprovalFlow = await ctx.db.getRepository('workflows').find({
       filter: {
         type: 'approval',
         'config.centralized': true,
@@ -274,34 +239,34 @@ export const approvals = {
       fields: ['id'],
     });
 
-    context.action.mergeParams({
+    ctx.action.mergeParams({
       filter: {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
       },
     });
 
-    return await actions.list(context, next);
+    return await actions.list(ctx, next);
   },
 
-  async reminder(context, next) {
-    const { filterByTk } = context.action.params;
-    const repository = utils.getRepositoryFromParams(context);
+  async reminder(ctx, next) {
+    const { filterByTk } = ctx.action.params;
+    const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
       appends: ['records', 'workflow', 'createdBy.nickname'],
     });
     if (!approval) {
-      return context.throw(404);
+      return ctx.throw(404);
     }
-    if (approval.createdById !== context.state.currentUser?.id) {
-      return context.throw(403);
+    if (approval.createdById !== ctx.state.currentUser?.id) {
+      return ctx.throw(403);
     }
     if ([APPROVAL_STATUS.APPROVED, APPROVAL_STATUS.REJECTED, APPROVAL_STATUS.ERROR].includes(approval.status)) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
 
     if (approval.records?.length === 0) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
 
     const assignees = approval.records.map((record) => record.userId);
@@ -309,7 +274,7 @@ export const approvals = {
     // 构造好审批数据后, 依次通知审批人审批
     for (const userId of assignees) {
       const [dataSourceName] = parseCollectionName(approval.collectionName);
-      const collection = this.workflow.app.dataSourceManager.dataSources
+      const collection = ctx.tego.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(approval.collectionName);
       const message = {
@@ -322,13 +287,13 @@ export const approvals = {
         dataKey: approval.data[collection.filterTargetKey],
       };
 
-      context.app.messageManager.sendMessage(+userId, message);
+      ctx.tego.messageManager.sendMessage(+userId, message);
     }
 
     await next();
 
-    context.status = 200;
-    context.body = {
+    ctx.status = 200;
+    ctx.body = {
       message: 'reminder sent',
       success: true,
     };

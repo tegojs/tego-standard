@@ -1,5 +1,4 @@
 import path, { resolve } from 'node:path';
-
 import { InstallOptions, Plugin } from '@tego/server';
 
 import { compact, compactDark, dark, defaultTheme } from './builtinThemes';
@@ -12,7 +11,6 @@ export class ThemeEditorPlugin extends Plugin {
   async beforeLoad() {}
 
   async load() {
-    await this.importCollections(path.resolve(__dirname, './collections'));
     this.db.addMigrations({
       namespace: 'theme-editor',
       directory: resolve(__dirname, './migrations'),

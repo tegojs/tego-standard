@@ -31,6 +31,7 @@ import { ActionPage } from './Action.Page';
 import useStyles from './Action.style';
 import { ActionContextProvider } from './context';
 import { useA } from './hooks';
+import { useCompiledAction } from './hooks/useCompiledAction';
 import { useGetAriaLabelOfAction } from './hooks/useGetAriaLabelOfAction';
 import { ComposedAction } from './types';
 import { linkageAction } from './utils';
@@ -67,9 +68,8 @@ export const Action: ComposedAction = withDynamicSchemaProps(
     const field = useField<any>();
     const app = useApp();
     const pageMode = app.usePageMode();
-    const { run, element } = useAction(actionCallback);
     const fieldSchema = useFieldSchema();
-    const compile = useCompile();
+    const { run, element } = useCompiledAction(useAction, actionCallback);
     const form = useForm();
     // TODO 这里这么改，会影响还没重构的设置代码，但是剩下没重构的插件设置代码也没几个，可以碰到修改就行
     const record = useCollectionRecordData();
@@ -85,6 +85,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
     const variables = useVariables();
     const localVariables = useLocalVariables({ currentForm: { values: record } as any });
     const { getAriaLabel } = useGetAriaLabelOfAction(title);
+    const compile = useCompile();
     let actionTitle = title || compile(fieldSchema.title);
     actionTitle = lodash.isString(actionTitle) ? t(actionTitle) : actionTitle;
 

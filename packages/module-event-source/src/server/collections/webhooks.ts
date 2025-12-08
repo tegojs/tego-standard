@@ -36,6 +36,10 @@ export default defineCollection({
       through: 'webhookCategory',
     },
     {
+      type: 'text',
+      name: 'description',
+    },
+    {
       name: 'type', // code/plugin
       type: 'string',
     },

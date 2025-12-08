@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { isMainThread } from 'node:worker_threads';
-
 import { utils as actionUtils, Cache, Collection, Context, Plugin, RelationField } from '@tego/server';
+
 import { Mutex } from 'async-mutex';
 import lodash from 'lodash';
 
@@ -667,8 +667,6 @@ export class PluginACL extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
-
     this.db.extendCollection({
       name: 'rolesUischemas',
       dumpRules: 'required',

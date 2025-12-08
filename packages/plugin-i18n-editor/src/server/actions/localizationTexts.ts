@@ -77,8 +77,8 @@ const list = async (ctx: Context, next: Next) => {
   const [rows, count] = await listText(ctx.db, { module, keyword, hasTranslation, locale, options });
 
   // append plugin displayName
-  const cache = ctx.app.cache as Cache;
-  const pm = ctx.app.pm as PluginManager;
+  const cache = ctx.tego.cache as Cache;
+  const pm = ctx.tego.pm as PluginManager;
   const plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
   const modules = [
     ...EXTEND_MODULES,
@@ -152,8 +152,8 @@ const get = async (ctx: Context, next: Next) => {
     ctx.throw(404, ctx.t('Record not found'));
   }
   // append plugin displayName
-  const cache = ctx.app.cache as Cache;
-  const pm = ctx.app.pm as PluginManager;
+  const cache = ctx.tego.cache as Cache;
+  const pm = ctx.tego.pm as PluginManager;
   const plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
   const modules = [
     ...EXTEND_MODULES,

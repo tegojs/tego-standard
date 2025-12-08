@@ -6,7 +6,7 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@ant-design/icons": "^5.6.1",
-    "@tachybase/client": "workspace:*",
+    "@tachybase/client": "catalog:",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",

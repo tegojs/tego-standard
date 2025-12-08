@@ -107,13 +107,13 @@ export const SettingLayout = ({ selectedKeys, onClick, route, children, fullscre
               <Button
                 type="text"
                 target="_blank"
-                href="https://github.com/tachybase/tachybase/issues"
+                href="https://github.com/tegojs/tego-standard/issues"
                 icon={<QuestionCircleFilled key="QuestionCircleFilled" />}
               ></Button>,
               <Button
                 type="text"
                 target="_blank"
-                href="https://github.com/tachybase/tachybase"
+                href="https://github.com/tegojs/tego-standard"
                 icon={<GithubFilled key="GithubFilled" />}
               ></Button>,
             ];

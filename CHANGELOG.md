@@ -7,12 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- add deprecation warning for legacy commands ([#317](https://github.com/tegojs/tego-standard/pull/317)) [f8de79c](https://github.com/tegojs/tego-standard/commit/f8de79ceb61b4db22112456923fd016de816915b) (@TomyJan)
+
 ### 🐛 Fixed
 
-- export the current table function and add filtering criteria ([#271](https://github.com/tegojs/tego-standard/pull/271)) [2be25ab](https://github.com/tegojs/tego-standard/commit/2be25ab69a7951cfc46102726460f71bf5b01c6e) (@dududuna)
-- approval add return and update approval navigation path ([#265](https://github.com/tegojs/tego-standard/pull/265)) [ed0091c](https://github.com/tegojs/tego-standard/commit/ed0091cb6b48d604e3c0f0f239e6211f6517059d) (@dududuna)
+- **workflow-approval**: fixed workflow not found when workflow is revision ([#320](https://github.com/tegojs/tego-standard/pull/320)) [c1c0676](https://github.com/tegojs/tego-standard/commit/c1c06765d27e5dff11352c5c7b74fb5ef4b9cffd) (@bai.zixv)
 
 
+
+## [1.6.1] - 2025-12-05
+
+### ✨ Added
+
+- core update ([#295](https://github.com/tegojs/tego-standard/pull/295)) (@TomyJan)
+- **module-workflow**: support sub-workflow trigger, source mapping and properties mapping ([#314](https://github.com/tegojs/tego-standard/pull/314)) (@bai.zixv)
+- **workflow**: support sync remote code ([#292](https://github.com/tegojs/tego-standard/pull/292)) (@bai.zixv)
+- **cloud-component**: support remote code ([#290](https://github.com/tegojs/tego-standard/pull/290)) (@bai.zixv)
+- mobile pagination and translation ([#294](https://github.com/tegojs/tego-standard/pull/294)) (@dududuna)
+- **desktop**: support desktop app & chore(cursor): update cursor rules ([#293](https://github.com/tegojs/tego-standard/pull/293)) (@bai.zixv)
+- add select node ([#286](https://github.com/tegojs/tego-standard/pull/286)) (@dududuna)
+- **workflow**: add enabled toggle to workflow and webhook ([#287](https://github.com/tegojs/tego-standard/pull/287)) (@bai.zixv)
+
+### 🐛 Fixed
+
+- **module-workflow**: fix TriggerInstruction compatibility (@bai.zixv)
+- **module-workflow&module-cloud-component**: fixed remote code fetching cache ([#313](https://github.com/tegojs/tego-standard/pull/313)) (@bai.zixv)
+- **workflow-approval**: fixed cleanAssociationIds ([#311](https://github.com/tegojs/tego-standard/pull/311)) (@bai.zixv)
+- workflow select component (@bai.zixv)
+- remote script code sync time (@bai.zixv)
+- script instruction code editor type (@bai.zixv)
+- **cloud-component & workflow**: fix remote code fetching logic ([#308](https://github.com/tegojs/tego-standard/pull/308)) (@bai.zixv)
+- **client**: fix code mirror component ([#309](https://github.com/tegojs/tego-standard/pull/309)) (@bai.zixv)
+- **desktop & workflow**: fix monaco editor loading error ([#307](https://github.com/tegojs/tego-standard/pull/307)) (@bai.zixv)
+- setting conditions for approval data range on mobile devices ([#304](https://github.com/tegojs/tego-standard/pull/304)) (@dududuna)
+- single line text in the table with invalid counterpart method ([#303](https://github.com/tegojs/tego-standard/pull/303)) (@dududuna)
+- incorrect label style ([#298](https://github.com/tegojs/tego-standard/pull/298)) (@dududuna)
+- modify approval field title ([#299](https://github.com/tegojs/tego-standard/pull/299)) (@dududuna)
+- **web**: add promise with resolvers polyfill ([#291](https://github.com/tegojs/tego-standard/pull/291)) (@bai.zixv)
+- table filter ([#288](https://github.com/tegojs/tego-standard/pull/288)) (@dududuna)
+
+### 🔄 Changed
+
+- **cloud-component**: optimize cloud component optimization plan ([#289](https://github.com/tegojs/tego-standard/pull/289)) (@bai.zixv)
+
+## [1.6.0] - 2025-11-20
+
+### ✨ Added
+
+- adjust event source code for resource operation after event & perf(workflow): adjust workflow code for executed time ([#285](https://github.com/tegojs/tego-standard/pull/285)) (@bai.zixv)
+- add backup progress and download progress & chore: cursor rules update & chore: update github workflow ([#280](https://github.com/tegojs/tego-standard/pull/280)) (@bai.zixv)
+- approval summary support array type data & feat: change the column display of workflow and approval list pages ([#239](https://github.com/tegojs/tego-standard/pull/239)) (@bai.zixv)
+- add cursor hooks for auto formatting and translation sync ([#282](https://github.com/tegojs/tego-standard/pull/282)) (@bai.zixv)
+
+### 🐛 Fixed
+
+- **workflow**: fix sync approval workflow ([#284](https://github.com/tegojs/tego-standard/pull/284)) (@bai.zixv)
+- **backup**: fix timeout check for backup progress ([#283](https://github.com/tegojs/tego-standard/pull/283)) (@bai.zixv)
+- **workflow-approval**: test logic & fix(workflow): useAction string reference & fix(workflow): duplicate workflow category default value & fix(data-source): collection table column width & chore(cursor): update lint check rules ([#279](https://github.com/tegojs/tego-standard/pull/279)) (@bai.zixv)
+- approval cc details ([#269](https://github.com/tegojs/tego-standard/pull/269)) (@dududuna)
+- export the current table function and add filtering criteria ([#271](https://github.com/tegojs/tego-standard/pull/271)) (@dududuna)
+- approval add return and update approval navigation path ([#265](https://github.com/tegojs/tego-standard/pull/265)) (@dududuna)
 
 ## [1.5.1] - 2025-11-13
 
@@ -2826,7 +2882,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.1
+[1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1
 [1.5.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.0
 [1.4.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.4.0

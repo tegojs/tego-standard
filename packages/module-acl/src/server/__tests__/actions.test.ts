@@ -9,7 +9,7 @@ describe('destroy action with acl', () => {
   beforeEach(async () => {
     app = await prepareApp();
 
-    Post = app.collection({
+    Post = app.db.collection({
       name: 'posts',
       fields: [
         { type: 'string', name: 'title' },
@@ -80,7 +80,7 @@ describe('destroy action with acl', () => {
   });
 
   it('should load the association collection when the source collection does not have the createdById field', async () => {
-    const A = app.collection({
+    const A = app.db.collection({
       name: 'a',
       fields: [
         { type: 'string', name: 'title' },
@@ -88,7 +88,7 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const B = app.collection({
+    const B = app.db.collection({
       name: 'b',
       fields: [{ type: 'string', name: 'title' }],
     });

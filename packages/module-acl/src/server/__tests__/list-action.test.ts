@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
 
 import { prepareApp } from './prepare';
@@ -303,7 +302,7 @@ describe('list association action with acl', () => {
       },
     });
 
-    const userPlugin = app.getPlugin('users');
+    const userPlugin = app.pm.get('users');
     const userAgent = app.agent().login(user).set('X-With-ACL-Meta', true);
 
     await userAgent.resource('posts').create({
@@ -342,7 +341,7 @@ describe('list association action with acl', () => {
       },
     });
 
-    const userPlugin = app.getPlugin('users');
+    const userPlugin = app.pm.get('users');
     const agent = app.agent().login(user).set('X-With-ACL-Meta', true);
     app.acl.allow('table_a', ['*']);
     app.acl.allow('collections', ['*']);

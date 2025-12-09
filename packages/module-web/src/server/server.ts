@@ -5,6 +5,7 @@ import { Application, Context, Plugin } from '@tego/server';
 import { getAntdLocale } from './antd';
 import { getCronLocale } from './cron';
 import { getCronstrueLocale } from './cronstrue';
+import { registerPluginStaticFiles } from './plugin-static-files';
 
 async function getLang(ctx: Context) {
   const SystemSetting = ctx.db.getRepository('systemSettings');
@@ -118,6 +119,9 @@ export class ModuleWeb extends Plugin {
     const dialect = this.app.db.sequelize.getDialect();
     const appVersion = readAppVersionFromPackageJson();
 
+    // 注册插件静态文件服务
+    registerPluginStaticFiles(this);
+
     this.app.resourcer.define({
       name: 'app',
       actions: {
@@ -135,18 +139,18 @@ export class ModuleWeb extends Plugin {
               dialect,
             },
             version: {
-              core: await ctx.app.version.get(),
+              core: await ctx.tego.version.get(),
               app: appVersion,
             },
             lang,
-            name: ctx.app.name,
+            name: ctx.tego.name,
             theme: currentUser?.systemSettings?.theme || systemSetting?.options?.theme || 'default',
           };
           await next();
         },
         async getLang(ctx: Context, next) {
           const lang = await getLang(ctx);
-          const app = ctx.app as Application;
+          const app = ctx.tego as Application;
           const eTag = await app.localeManager.getETag(lang);
           const resources = await app.localeManager.get(lang);
           // UUID 前36位
@@ -170,11 +174,11 @@ export class ModuleWeb extends Plugin {
           await next();
         },
         async restart(ctx, next) {
-          ctx.app.runAsCLI(['restart'], { from: 'user' });
+          ctx.tego.runAsCLI(['restart'], { from: 'user' });
           await next();
         },
         async refresh(ctx, next) {
-          ctx.app.runCommand('refresh');
+          ctx.tego.runCommand('refresh');
           await next();
         },
       },

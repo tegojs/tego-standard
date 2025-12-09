@@ -1,6 +1,16 @@
 import path from 'node:path';
+import {
+  Application,
+  InjectedPlugin,
+  Logger,
+  LoggerOptions,
+  Op,
+  Plugin,
+  PluginOptions,
+  Registry,
+  Transactionable,
+} from '@tego/server';
 
-import { Application, Logger, LoggerOptions, Op, Plugin, PluginOptions, Registry, Transactionable } from '@tego/server';
 import { LRUCache } from 'lru-cache';
 
 import initActions from './actions';
@@ -30,9 +40,11 @@ import CreateInstruction from './instructions/CreateInstruction';
 import DestroyInstruction from './instructions/DestroyInstruction';
 import EndInstruction from './instructions/EndInstruction';
 import QueryInstruction from './instructions/QueryInstruction';
+import SelectInstruction from './instructions/SelectInstruction';
 import UpdateInstruction from './instructions/UpdateInstruction';
 import UpdateOrCreateInstruction from './instructions/UpdateOrCreateInstruction';
 import Processor from './Processor';
+import { WorkflowRemoteCodeFetcher } from './services/remote-code-fetcher';
 import Trigger from './triggers';
 import CollectionTrigger from './triggers/CollectionTrigger';
 import ScheduleTrigger from './triggers/ScheduleTrigger';
@@ -44,6 +56,9 @@ type Pending = [ExecutionModel, JobModel?];
 
 type CachedEvent = [WorkflowModel, any, { context?: any }];
 
+@InjectedPlugin({
+  Services: [WorkflowRemoteCodeFetcher],
+})
 export default class PluginWorkflowServer extends Plugin {
   instructions: Registry<InstructionInterface> = new Registry();
   triggers: Registry<Trigger> = new Registry();
@@ -190,6 +205,7 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
     this.registerInstruction('destroy', DestroyInstruction);
     this.registerInstruction('query', QueryInstruction);
+    this.registerInstruction('select', SelectInstruction);
     this.registerInstruction('update', UpdateInstruction);
 
     for (const [name, instruction] of Object.entries({ ...more })) {
@@ -232,6 +248,7 @@ export default class PluginWorkflowServer extends Plugin {
         'flow_nodes:destroy',
         'flow_nodes:moveUp',
         'flow_nodes:moveDown',
+        'flow_nodes:syncRemoteCode',
         'workflowCategories:*',
       ],
     });

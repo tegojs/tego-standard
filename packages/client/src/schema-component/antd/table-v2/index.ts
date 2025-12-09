@@ -12,6 +12,7 @@ export * from './TableField';
 export * from './TableSelectorDesigner';
 export * from './Table.Column.Designer';
 export { useColumnSchema } from './Table.Column.Decorator';
+export * from './EnabledToggle';
 
 export const TableV2 = Table;
 

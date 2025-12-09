@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-web",
   "displayName": "WEB client",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "Provides a client interface for the TachyBase server",
   "keywords": [
     "System management"
@@ -9,14 +9,14 @@
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
   "scripts": {},
-  "dependencies": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
+    "@types/express": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "ahooks": "^3.9.0",
@@ -25,6 +25,7 @@
     "antd-mobile-icons": "^0.3.0",
     "cronstrue": "^3.2.0",
     "dayjs": "catalog:",
+    "express": "4.21.2",
     "koa-send": "^5.0.1",
     "koa-static": "^5.0.0",
     "lodash": "4.17.21",

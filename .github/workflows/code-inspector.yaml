@@ -6,42 +6,19 @@ on:
       - dev
       - 'next/**'
       - 'release/**'
-    paths:
-      - 'apps/**/*.ts'
-      - 'apps/**/*.tsx'
-      - 'apps/**/*.js'
-      - 'apps/**/*.jsx'
-      - 'packages/**/*.ts'
-      - 'packages/**/*.tsx'
-      - 'packages/**/*.js'
-      - 'packages/**/*.jsx'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'tsconfig*.json'
-      - 'vitest.config.*'
-      - 'playwright.config.*'
-      - 'rsbuild.config.*'
+    paths-ignore:
+      - '.github/workflows/**'
+      - '**/*.md'
+
   pull_request:
     branches:
       - main
       - dev
       - 'next/**'
       - 'release/**'
-    paths:
-      - 'apps/**/*.ts'
-      - 'apps/**/*.tsx'
-      - 'apps/**/*.js'
-      - 'apps/**/*.jsx'
-      - 'packages/**/*.ts'
-      - 'packages/**/*.tsx'
-      - 'packages/**/*.js'
-      - 'packages/**/*.jsx'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'tsconfig*.json'
-      - 'vitest.config.*'
-      - 'playwright.config.*'
-      - 'rsbuild.config.*'
+    paths-ignore:
+      - '.github/workflows/**'
+      - '**/*.md'
 
 permissions:
   contents: write
@@ -51,7 +28,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node.js

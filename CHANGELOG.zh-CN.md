@@ -7,15 +7,68 @@
 
 ## [未发布]
 
+### ✨ 新增
+
+- 添加旧命令的弃用警告 ([#317](https://github.com/tegojs/tego-standard/pull/317)) [f8de79c](https://github.com/tegojs/tego-standard/commit/f8de79ceb61b4db22112456923fd016de816915b) (@TomyJan)
+
 ### 🐛 修复
 
-- 导出当前表函数并添加过滤条件([#271](https://github.com/tegojs/tego-standard/pull/271)) [2be25ab](https://github.com/tegojs/tego-standard/commit/2be25ab69a7951cfc46102726460f71bf5b01c6e) (@dududuna)
-- 审批添加返回并更新审批导航路径 ([#265](https://github.com/tegojs/tego-standard/pull/265)) [ed0091c](https://github.com/tegojs/tego-standard/commit/ed0091cb6b48d604e3c0f0f239e6211f6517059d) (@dududuna)
+- **workflow-approval**: 修复了工作流程修订时找不到工作流程的问题 ([#320](https://github.com/tegojs/tego-standard/pull/320)) [c1c0676](https://github.com/tegojs/tego-standard/commit/c1c06765d27e5dff11352c5c7b74fb5ef4b9cffd) (@bai.zixv)
 
 
 
+## [1.6.1] - 2025-12-05
 
+### ✨ 新增
 
+- 核心更新([#295](https://github.com/tegojs/tego-standard/pull/295)) (@TomyJan)
+- **module-workflow**: 支持子工作流触发、源映射和属性映射 ([#314](https://github.com/tegojs/tego-standard/pull/314)) (@bai.zixv)
+- **workflow**: 支持同步远程代码 ([#292](https://github.com/tegojs/tego-standard/pull/292)) (@bai.zixv)
+- **cloud-component**: 支持远程代码([#290](https://github.com/tegojs/tego-standard/pull/290)) (@bai.zixv)
+- 移动分页和翻译 ([#294](https://github.com/tegojs/tego-standard/pull/294)) (@dududuna)
+- **desktop**: 支持桌面应用程序和杂务（光标）：更新光标规则（＃293） (@bai.zixv)
+- 添加选择节点 ([#286](https://github.com/tegojs/tego-standard/pull/286)) (@dududuna)
+- **workflow**: 将启用的切换添加到工作流程和 Webhook ([#287](https://github.com/tegojs/tego-standard/pull/287)) (@bai.zixv)
+
+### 🐛 修复
+
+- **module-workflow**: 修复 TriggerInstruction 兼容性 (@bai.zixv)
+- **module-workflow&module-cloud-component**: 修复远程代码获取缓存([#313](https://github.com/tegojs/tego-standard/pull/313)) (@bai.zixv)
+- **workflow-approval**: 修复了 cleanAssociationIds ([#311](https://github.com/tegojs/tego-standard/pull/311)) (@bai.zixv)
+- 工作流程选择组件 (@bai.zixv)
+- 远程脚本代码同步时间 (@bai.zixv)
+- 脚本指令代码编辑器类型 (@bai.zixv)
+- **cloud-component & workflow**: 修复远程代码获取逻辑 ([#308](https://github.com/tegojs/tego-standard/pull/308)) (@bai.zixv)
+- **client**: 修复代码镜像组件 ([#309](https://github.com/tegojs/tego-standard/pull/309)) (@bai.zixv)
+- **desktop & workflow**: 修复摩纳哥编辑器加载错误 ([#307](https://github.com/tegojs/tego-standard/pull/307)) (@bai.zixv)
+- 在移动设备上设置审批数据范围的条件([#304](https://github.com/tegojs/tego-standard/pull/304)) (@dududuna)
+- 表中的单行文本具有无效的对应方法 ([#303](https://github.com/tegojs/tego-standard/pull/303)) (@dududuna)
+- 标签样式不正确 ([#298](https://github.com/tegojs/tego-standard/pull/298)) (@dududuna)
+- 修改审批字段标题 ([#299](https://github.com/tegojs/tego-standard/pull/299)) (@dududuna)
+- **web**: 使用解析器 polyfill 添加承诺 ([#291](https://github.com/tegojs/tego-standard/pull/291)) (@bai.zixv)
+- 表过滤器([#288](https://github.com/tegojs/tego-standard/pull/288)) (@dududuna)
+
+### 🔄 变更
+
+- **cloud-component**: 优化云组件优化计划([#289](https://github.com/tegojs/tego-standard/pull/289)) (@bai.zixv)
+
+## [1.6.0] - 2025-11-20
+
+### ✨ 新增
+
+- 在 event & perf(workflow) 之后调整资源操作的事件源代码：调整执行时间的工作流代码 ([#285](https://github.com/tegojs/tego-standard/pull/285)) (@bai.zixv)
+- 添加备份进度和下载进度 & 杂务：游标规则更新 & 杂务：更新 github 工作流程 ([#280](https://github.com/tegojs/tego-standard/pull/280)) (@bai.zixv)
+- 审批摘要支持数组类型数据 & feat: 更改工作流程和审批列表页面的列显示 ([#239](https://github.com/tegojs/tego-standard/pull/239)) (@bai.zixv)
+- 添加光标挂钩以进行自动格式化和翻译同步([#282](https://github.com/tegojs/tego-standard/pull/282)) (@bai.zixv)
+
+### 🐛 修复
+
+- **workflow**: 修复同步审批工作流程 ([#284](https://github.com/tegojs/tego-standard/pull/284)) (@bai.zixv)
+- **backup**: 修复备份进度超时检查 ([#283](https://github.com/tegojs/tego-standard/pull/283)) (@bai.zixv)
+- **workflow-approval**: 测试逻辑 & 修复（工作流）：useAction 字符串引用 & 修复（工作流）：重复的工作流类别默认值 & 修复（数据源）：集合表列宽 & 杂项（光标）：更新 lint 检查规则 ([#279](https://github.com/tegojs/tego-standard/pull/279)) (@bai.zixv)
+- 批准抄送详细信息 ([#269](https://github.com/tegojs/tego-standard/pull/269)) (@dududuna)
+- 导出当前表函数并添加过滤条件([#271](https://github.com/tegojs/tego-standard/pull/271)) (@dududuna)
+- 审批添加返回并更新审批导航路径 ([#265](https://github.com/tegojs/tego-standard/pull/265)) (@dududuna)
 
 ## [1.5.1] - 2025-11-13
 
@@ -2829,7 +2882,9 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.5.1...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.1
+[1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1
 [1.5.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.0
 [1.4.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.4.0

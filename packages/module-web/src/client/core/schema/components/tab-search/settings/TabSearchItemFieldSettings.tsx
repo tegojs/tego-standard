@@ -151,7 +151,7 @@ export const TabSearchItemFieldSettings = new SchemaSettings({
           },
           breakRemoveOn: (s) => {
             if (isTabSearchCollapsibleInputItem(fieldSchema['x-component'])) {
-              Object.values(s.properties).forEach((value) => {
+              Object.values(s.properties).forEach((value: any) => {
                 if (isTabSearchCollapsibleInputItem(value['x-component']) && value.name !== fieldSchema.name) {
                   delete s.properties[value.name];
                 }

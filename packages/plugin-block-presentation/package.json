@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-block-presentation",
   "displayName": "Block: Presentation",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "Create an card on the page to embed and display external web pages or content.",
   "keywords": [
     "Blocks"
@@ -11,7 +11,7 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",

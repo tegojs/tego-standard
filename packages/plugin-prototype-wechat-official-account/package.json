@@ -1,6 +1,8 @@
 {
   "name": "@tachybase/plugin-wechat-official-account",
-  "version": "1.5.1",
+  "displayName": "WeChat Official Account",
+  "version": "1.6.1",
+  "description": "WeChat Official Account",
   "keywords": [
     "Authentication"
   ],
@@ -8,7 +10,7 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
     "@tachybase/test": "catalog:",
@@ -24,5 +26,7 @@
     "react-router-dom": "catalog:",
     "sequelize": "catalog:",
     "xml2js": "^0.6.2"
-  }
+  },
+  "description.zh-CN": "微信公众号插件",
+  "displayName.zh-CN": "微信公众号"
 }

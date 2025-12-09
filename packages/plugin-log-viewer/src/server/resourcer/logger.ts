@@ -37,7 +37,7 @@ export default {
   name: 'logger',
   actions: {
     list: async (ctx: Context, next: Next) => {
-      const appName = ctx.app.name;
+      const appName = ctx.tego.name;
       if (!appName) {
         ctx.throw(400, ctx.t('App not found'));
       }
@@ -79,7 +79,7 @@ export default {
       await next();
     },
     download: async (ctx: Context, next: Next) => {
-      const appName = ctx.app.name;
+      const appName = ctx.tego.name;
       if (!appName) {
         ctx.throw(400, ctx.t('App not found'));
       }
@@ -107,7 +107,7 @@ export default {
       await next();
     },
     preview: async (ctx: Context, next: Next) => {
-      const appName = ctx.app.name;
+      const appName = ctx.tego.name;
       if (!appName) {
         ctx.throw(400, ctx.t('App not found'));
       }

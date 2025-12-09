@@ -39,6 +39,11 @@ export const schemaManagerPanne = {
               },
               'x-align': 'left',
             },
+            statusFilter: {
+              type: 'void',
+              'x-component': 'EnabledStatusFilter',
+              'x-align': 'left',
+            },
             sync: {
               type: 'void',
               title: tval('Sync'),

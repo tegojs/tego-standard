@@ -13,15 +13,34 @@ export default class ApprovalTrigger extends Trigger {
   static TYPE = 'approval';
   sync = false;
   triggerHandler = async (approval, { transaction }) => {
-    const workflow = await approval.getWorkflow({
+    // 修正逻辑：找 id 且 enabled 为 true 的，找不到再找 workflowKey 且 enabled 为 true 的
+    let workflow = await approval.getWorkflow({
       where: {
         id: approval.get('workflowId'),
-        type: ApprovalTrigger.TYPE,
         enabled: true,
+        type: ApprovalTrigger.TYPE,
         'config.collection': approval.collectionName,
       },
       transaction,
     });
+
+    // 如果按 id 没找到，则用 workflowKey 查 enabled 为 true 的
+    if (!workflow && approval.get('workflowKey')) {
+      workflow = await this.workflow.db.getRepository('workflows').findOne({
+        filter: {
+          key: approval.get('workflowKey'),
+          enabled: true,
+          type: ApprovalTrigger.TYPE,
+          'config.collection': approval.collectionName,
+        },
+        transaction,
+      });
+      // 如果找到了 workflow，更新 approval 的 workflowId
+      if (workflow) {
+        // 更新 approval 的 workflowId, hooks 为 false 避免触发工作流
+        await approval.update({ workflowId: workflow.id }, { transaction, hooks: false });
+      }
+    }
     const isChangedStatus = approval.changed('status');
     const isAllowStatusList = [APPROVAL_STATUS.DRAFT, APPROVAL_STATUS.SUBMITTED, APPROVAL_STATUS.RESUBMIT].includes(
       approval.status,
@@ -41,9 +60,9 @@ export default class ApprovalTrigger extends Trigger {
       return;
     }
     const [dataSourceName, collectionName] = parseCollectionName(approval.collectionName);
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
+    const { repository } = collection;
     const data = await repository.findOne({
       filterByTk: approval.get('dataKey'),
       appends: workflow.config.appends,
@@ -58,6 +77,8 @@ export default class ApprovalTrigger extends Trigger {
         summary: getSummary({
           summaryConfig: workflow.config.summary,
           data,
+          collection: collection as any, // Fix: type assertion to bypass typing error
+          app: this.workflow.app,
         }),
         collectionName: approval.collectionName,
       },
@@ -173,26 +194,26 @@ export default class ApprovalTrigger extends Trigger {
     await approval.update({ status }, { transaction });
     await approvalExecution.update({ status: execution.status }, { transaction });
   };
-  middleware = async (context, next) => {
-    if (!context.action) {
+  middleware = async (ctx, next) => {
+    if (!ctx.action) {
       return;
     }
     const {
       resourceName,
       actionName,
       params: { triggerWorkflows, beforeWorkflows },
-    } = context.action;
+    } = ctx.action;
     if (beforeWorkflows) {
-      this.collectionTriggerAction(context, beforeWorkflows);
+      this.collectionTriggerAction(ctx, beforeWorkflows);
     }
     if (resourceName === 'workflows' && actionName === 'trigger') {
-      return this.workflowTriggerAction(context, next);
+      return this.workflowTriggerAction(ctx, next);
     }
     await next();
     if (!triggerWorkflows || !['create', 'update'].includes(actionName)) {
       return;
     }
-    this.collectionTriggerAction(context, triggerWorkflows);
+    this.collectionTriggerAction(ctx, triggerWorkflows);
   };
   constructor(workflow) {
     super(workflow);
@@ -202,10 +223,10 @@ export default class ApprovalTrigger extends Trigger {
     db.on('executions.afterUpdate', this.onExecutionUpdate);
     workflow.app.use(this.middleware, { tag: 'workflow-trigger', after: 'dataSource' });
   }
-  async workflowTriggerAction(context, next) {
-    const { triggerWorkflows, values } = context.action.params;
+  async workflowTriggerAction(ctx, next) {
+    const { triggerWorkflows, values } = ctx.action.params;
     if (!triggerWorkflows) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
     const triggers = triggerWorkflows.split(',').map((trigger) => trigger.split('!'));
     const workflowRepo = this.workflow.db.getRepository('workflows');
@@ -217,7 +238,7 @@ export default class ApprovalTrigger extends Trigger {
         enabled: true,
       },
     });
-    context.status = 202;
+    ctx.status = 202;
     await next();
     workflows.forEach(async (workflow) => {
       const trigger = triggers.find((trigger2) => trigger2[0] === workflow.key);
@@ -231,7 +252,7 @@ export default class ApprovalTrigger extends Trigger {
           // createdBy: currentUser.id,
           // updatedById: currentUser.id,
         },
-        context,
+        context: ctx,
       });
       const approvalRepo = this.workflow.db.getRepository('approvals');
       await approvalRepo.create({
@@ -247,14 +268,16 @@ export default class ApprovalTrigger extends Trigger {
           summary: getSummary({
             summaryConfig: workflow.config.summary,
             data,
+            collection: collecton as any, // Fix: type assertion to bypass typing error
+            app: this.workflow.app,
           }),
         },
-        context,
+        context: ctx,
       });
     });
   }
-  async collectionTriggerAction(context, workflowList) {
-    const dataSourceHeader = context.get('x-data-source') || 'main';
+  async collectionTriggerAction(ctx, workflowList) {
+    const dataSourceHeader = ctx.get('x-data-source') || 'main';
     const approvalRepo = this.workflow.db.getRepository('approvals');
     const triggers = workflowList.split(',').map((trigger) => trigger.split('!'));
     const triggersKeysMap = new Map(triggers);
@@ -264,7 +287,7 @@ export default class ApprovalTrigger extends Trigger {
     for (const workflow of workflows) {
       const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
       const trigger = triggers.find((trigger2) => trigger2[0] === workflow.key);
-      const { body: data } = context;
+      const { body: data } = ctx;
       if (!data) {
         return;
       }
@@ -296,7 +319,7 @@ export default class ApprovalTrigger extends Trigger {
             }
           }
         }
-        const collection = context.app.dataSourceManager.dataSources
+        const collection = ctx.tego.dataSourceManager.dataSources
           .get(dataSourceName)
           .collectionManager.getCollection(collectionName);
         if (!collection || collection.model !== payload.constructor) {
@@ -314,13 +337,15 @@ export default class ApprovalTrigger extends Trigger {
             // updatedBy: currentUser.id,
             workflowId: workflow.id,
             workflowKey: workflow.key,
-            applicantRoleName: context.state.currentRole,
+            applicantRoleName: ctx.state.currentRole,
             summary: getSummary({
               summaryConfig: workflow.config.summary,
               data: dataCurrent,
+              collection,
+              app: ctx.app,
             }),
           },
-          context,
+          context: ctx,
         });
       });
     }

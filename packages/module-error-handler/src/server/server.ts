@@ -25,7 +25,7 @@ export class PluginErrorHandler extends Plugin {
 
       const model = instance.constructor;
       const dataSourceKey = ctx.get('x-data-source');
-      const dataSource = ctx.app.dataSourceManager.dataSources.get(dataSourceKey);
+      const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceKey);
       const database = dataSource ? dataSource.collectionManager.db : ctx.db;
 
       const collection = database.modelCollection.get(model);
@@ -108,10 +108,8 @@ export class PluginErrorHandler extends Plugin {
         const permissionDeniedMessagesZh = ['没有权限', '无权限'];
         const hasPermissionMessage =
           err.message &&
-          (
-            permissionDeniedMessagesEn.some((msg) => err.message.toLowerCase().includes(msg.toLowerCase())) ||
-            permissionDeniedMessagesZh.some((msg) => err.message.includes(msg))
-          );
+          (permissionDeniedMessagesEn.some((msg) => err.message.toLowerCase().includes(msg.toLowerCase())) ||
+            permissionDeniedMessagesZh.some((msg) => err.message.includes(msg)));
 
         return is403 || hasPermissionMessage;
       },

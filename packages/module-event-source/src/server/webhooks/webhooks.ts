@@ -88,7 +88,7 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
       const params = lodash.cloneDeep(ctx.action.params) as ActionParams;
       // const changedKeys = new Set(Object.keys(params.values));
       const fieldsObj: Record<string, IField> = {};
-      const app = ctx.app as Application;
+      const app = ctx.tego as Application;
       const c = app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
       const collectionRepo = ctx.db.getRepository(c.name);
       const fields = c.getFields();
@@ -179,7 +179,7 @@ export class WebhookController {
       roleName: currentRole,
     };
 
-    const pluginWorkflow = ctx.app.getPlugin(PluginWorkflow) as PluginWorkflow;
+    const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;
     const repo = ctx.db.getRepository(EVENT_SOURCE_COLLECTION);
     const webhook = await repo.findOne(where);
     const webhookCtx = {
@@ -225,10 +225,15 @@ export class WebhookController {
   }
 
   async action(ctx: Context, action: { code: string }) {
+    // 兼容旧逻辑：
+    // - body: 保持为空字符串，确保现有脚本行为不变
+    // - originalBody: 保存 action 执行后的响应数据，供脚本访问（资源操作后事件可用）
+    //   脚本可以通过 ctx.originalBody 获取 action 的响应，然后决定是否赋值给 ctx.body 传递给工作流
     const webhookCtx = {
       request: ctx.request,
       action: ctx.action,
       body: '',
+      originalBody: ctx.body, // action 执行后的响应数据，可用于资源操作后事件获取 action 结果
       getChanged: getChanged(ctx),
     };
     try {
@@ -243,7 +248,7 @@ export class WebhookController {
       });
       return webhookCtx.body;
     } catch (err) {
-      ctx.app.log.error(err);
+      ctx.tego.logger.error(err);
       return null;
     }
   }
@@ -259,7 +264,7 @@ export class WebhookController {
       user: UserModel.build(currentUser).desensitize(),
       roleName: currentRole,
     };
-    const pluginWorkflow = ctx.app.getPlugin(PluginWorkflow) as PluginWorkflow;
+    const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;
     const wfRepo = ctx.db.getRepository('workflows');
     const wf = await wfRepo.findOne({ filter: { key: action.workflowKey, enabled: true } });
     return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, { httpContext: ctx });

@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { CollectionRepository } from '@tachybase/module-collection';
-
 import { Collection, Database, InstallOptions, merge, Plugin, Repository, uid } from '@tego/server';
+
 import _ from 'lodash';
 import { Client } from 'pg';
 
@@ -314,11 +314,11 @@ export class PluginMockCollectionsServer extends Plugin {
 
     // create external database
     let client = new Client({
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      host: process.env.DB_HOST,
-      database: process.env.DB_DATABASE,
-      port: parseInt(process.env.DB_PORT),
+      user: this.app.db.options.username,
+      password: this.app.db.options.password,
+      host: this.app.db.options.host,
+      database: this.app.db.options.database,
+      port: this.app.db.options.port,
     });
 
     await client.connect();
@@ -328,11 +328,11 @@ export class PluginMockCollectionsServer extends Plugin {
 
     // import sql import external database
     client = new Client({
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      host: process.env.DB_HOST,
+      user: this.app.db.options.username,
+      password: this.app.db.options.password,
+      host: this.app.db.options.host,
       database: externalDB,
-      port: parseInt(process.env.DB_PORT),
+      port: this.app.db.options.port,
     });
 
     await client.connect();

@@ -1,4 +1,5 @@
 import { Cache, Context, Field, FilterParser, getDateVars, Next, parseFilter, snakeCase } from '@tego/server';
+
 import compose from 'koa-compose';
 
 import { formatter } from './formatter';
@@ -45,7 +46,7 @@ type QueryParams = Partial<{
 }>;
 
 const getDB = (ctx: Context, dataSource: string) => {
-  const ds = ctx.app.dataSourceManager.dataSources.get(dataSource);
+  const ds = ctx.tego.dataSourceManager.dataSources.get(dataSource);
   return ds?.collectionManager.db;
 };
 
@@ -313,7 +314,7 @@ export const parseVariables = async (ctx: Context, next: Next) => {
 
 export const cacheMiddleware = async (ctx: Context, next: Next) => {
   const { uid, cache: cacheConfig, refresh } = ctx.action.params.values as QueryParams;
-  const cache = ctx.app.cacheManager.getCache('data-visualization') as Cache;
+  const cache = ctx.tego.cacheManager.getCache('data-visualization') as Cache;
   const useCache = cacheConfig?.enabled && uid;
 
   if (useCache && !refresh) {
@@ -336,7 +337,7 @@ const checkPermission = (ctx: Context, next: Next) => {
   }
   const { collection } = ctx.action.params.values as QueryParams;
   const roleName = ctx.state.currentRole || 'anonymous';
-  const can = ctx.app.acl.can({ role: roleName, resource: collection, action: 'list' });
+  const can = ctx.tego.acl.can({ role: roleName, resource: collection, action: 'list' });
   if (!can && roleName !== 'root') {
     ctx.throw(403, 'No permissions');
   }

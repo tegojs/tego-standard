@@ -15,7 +15,7 @@ export const getConfiguration = async (ctx: Context, next) => {
   });
 
   const body = record ? record.toJSON() : {};
-  ctx.body = isRaw === true || isRaw === 'true' ? body : ctx.app.environment.renderJsonTemplate(body);
+  ctx.body = isRaw === true || isRaw === 'true' ? body : ctx.tego.environment.renderJsonTemplate(body);
   return next();
 };
 

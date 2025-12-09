@@ -1,7 +1,5 @@
 import { Plugin, useFormulaTitleVisible } from '@tachybase/client';
 
-import { CodeMirror } from '@tego/client';
-
 import {
   AssociatedField,
   CalcResult,
@@ -101,7 +99,6 @@ export class PluginCoreClient extends Plugin {
     this.app.addComponents({
       AssociatedField,
       CalcResult,
-      CodeMirror,
       CustomAssociatedField,
       CustomComponentDispatcher,
       CustomComponentStub,

@@ -165,7 +165,6 @@ export default class PluginUsersServer extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
     this.db.addMigrations({
       namespace: 'users',
       directory: resolve(__dirname, 'migrations'),
@@ -186,7 +185,7 @@ export default class PluginUsersServer extends Plugin {
       async (ctx, next) => {
         await next();
         const { associatedName, resourceName, actionName, values } = ctx.action.params;
-        const cache = ctx.app.cache as Cache;
+        const cache = ctx.tego.cache as Cache;
         if (
           associatedName === 'roles' &&
           resourceName === 'users' &&
@@ -201,7 +200,7 @@ export default class PluginUsersServer extends Plugin {
       },
       { tag: 'roleCacheInvalidation' },
     );
-    const verificationPlugin = this.app.getPlugin('otp') as any;
+    const verificationPlugin = this.app.pm.get('otp') as any;
     if (!verificationPlugin) {
       this.app.logger.warn('sms-auth: @tachybase/plugin-otp is required');
       return;

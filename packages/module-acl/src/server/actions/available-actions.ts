@@ -2,7 +2,7 @@ const availableActionResource = {
   name: 'availableActions',
   actions: {
     async list(ctx, next) {
-      const acl = ctx.app.acl;
+      const acl = ctx.tego.acl;
       const availableActions = acl.getAvailableActions();
       ctx.body = Array.from(availableActions.entries()).map(([, { name, options }]) => {
         return {

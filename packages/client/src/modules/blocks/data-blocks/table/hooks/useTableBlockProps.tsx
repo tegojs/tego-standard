@@ -99,7 +99,9 @@ export const useTableBlockProps = () => {
       const value = [record[ctx.rowKey]];
       let prevMergedFilter = {};
       dataBlocks.forEach((block) => {
-        const target = targets.find((target) => target.uid === block.uid);
+        const target = targets.find((target) => {
+          return target.uid === block.uid;
+        });
         if (!target) return;
 
         const param = block.service.params?.[0] || {};
@@ -142,7 +144,7 @@ export const useTableBlockProps = () => {
           if (
             targetsUidList.includes(item.uid) &&
             !item.associatedFields.find(
-              (assItem) => assItem.name === target.field || target.field.includes(assItem.name),
+              (assItem) => assItem.name === target.field || target.field?.includes(assItem.name),
             )
           ) {
             const prevFlatItems = flat(prevMergedFilter);

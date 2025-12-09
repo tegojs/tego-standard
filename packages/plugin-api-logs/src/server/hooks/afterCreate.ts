@@ -7,7 +7,7 @@ export async function handleCreate(ctx: Context, next) {
   const apilogsRepo = ctx.db.getRepository('apiLogs');
   const currentUserId = ctx.auth?.user.id;
 
-  const app = ctx.app as Application;
+  const app = ctx.tego as Application;
   const collection = app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
 
   const currentRecordId = ctx.body?.[collection.filterTargetKey];

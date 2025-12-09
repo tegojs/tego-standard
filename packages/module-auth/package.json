@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-auth",
   "displayName": "Authentication",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "User authentication management, including password, SMS, and support for Single Sign-On (SSO) protocols, with extensibility.",
   "keywords": [
     "Authentication",
@@ -11,7 +11,7 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",

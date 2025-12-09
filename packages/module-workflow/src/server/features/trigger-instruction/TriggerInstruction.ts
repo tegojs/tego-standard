@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 import Jobs from '../../collections/2-jobs';
 import { JOB_STATUS } from '../../constants';
 import Instruction from '../../instructions';
@@ -5,7 +7,7 @@ import Processor from '../../Processor';
 
 export class TriggerInstruction extends Instruction {
   async run(node, input, processor: Processor) {
-    const workflowKey = node.config.workflowKey;
+    const { workflowKey, sourceArray = [], model } = node.config;
     const wfRepo = this.workflow.db.getRepository('workflows');
     const wf = await wfRepo.findOne({ filter: { key: workflowKey, enabled: true } });
 
@@ -29,8 +31,47 @@ export class TriggerInstruction extends Instruction {
     }
 
     try {
+      // 1. 处理数据输入：从 sourceArray 获取数据源
+      let triggerData = input.result;
+      if (sourceArray && sourceArray.length > 0) {
+        let data = {};
+        switch (sourceArray.length) {
+          case 0: {
+            // 无数据源,使用默认值
+            data = {};
+            break;
+          }
+          case 1: {
+            // 单数据源, 平铺为单对象;
+            const keyName = sourceArray[0]['keyName'];
+            const sourcePath = sourceArray[0]['sourcePath'];
+            const rawData = processor.getParsedValue(sourcePath, node.id);
+            // NOTE: 如果提供了keyName 就是统一的用法, 如果没有, 就是平铺.
+            if (keyName) {
+              data = {
+                [keyName]: rawData,
+              };
+            } else {
+              data = rawData;
+            }
+            break;
+          }
+          default: {
+            // 多个数据源, 进行合并
+            data = sourceArray.reduce(
+              (cookedData, { keyName, sourcePath }) => ({
+                ...cookedData,
+                [keyName]: processor.getParsedValue(sourcePath, node.id),
+              }),
+              {},
+            );
+          }
+        }
+        triggerData = data;
+      }
+
       if (wf.sync) {
-        const p = await this.workflow.trigger(wf, input.result, processor.options);
+        const p = await this.workflow.trigger(wf, triggerData, processor.options);
         if (!p) {
           return {
             status: JOB_STATUS.FAILED,
@@ -47,12 +88,22 @@ export class TriggerInstruction extends Instruction {
           };
         }
 
+        // 2. 处理数据输出：对结果进行字段映射
+        let result = lastSavedJob?.result;
+        if (typeof result === 'object' && result && model?.length) {
+          if (Array.isArray(result)) {
+            result = result.map((item) => this.mapModel(item, model));
+          } else {
+            result = this.mapModel(result, model);
+          }
+        }
+
         return {
           status: JOB_STATUS.RESOLVED,
-          result: lastSavedJob?.result,
+          result,
         };
       } else {
-        this.workflow.trigger(wf, input.result, {
+        this.workflow.trigger(wf, triggerData, {
           ...processor.options,
           parentNode: node.id,
           parent: processor.execution,
@@ -70,8 +121,40 @@ export class TriggerInstruction extends Instruction {
     }
   }
 
+  /**
+   * 将数据按照 model 配置进行字段映射
+   */
+  private mapModel(data, model) {
+    if (typeof data !== 'object' || data === null) {
+      throw new Error('Invalid data: data should be a non-null object');
+    }
+
+    const result = model.reduce((acc, { path, alias }) => {
+      const key = alias ?? path.replace(/\./g, '_');
+      const value = _.get(data, path);
+      acc[key] = value;
+
+      return acc;
+    }, {});
+
+    return result;
+  }
+
   async resume(node, prevJob, processor: Processor) {
-    prevJob.set('result', prevJob.result);
+    const { model } = node.config;
+
+    // 处理数据输出：对结果进行字段映射（异步工作流场景）
+    let result = prevJob.result;
+    if (typeof result === 'object' && result && model?.length) {
+      if (Array.isArray(result)) {
+        result = result.map((item) => this.mapModel(item, model));
+      } else {
+        result = this.mapModel(result, model);
+      }
+    }
+    // 保持向后兼容：即使没有 model 映射，也调用 set 方法
+    prevJob.set('result', result);
+
     prevJob.set('status', prevJob.status);
     return prevJob;
   }

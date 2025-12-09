@@ -201,6 +201,11 @@ export const collectionTableSchema: ISchema = {
           properties: {
             title: {
               'x-component': 'CollectionField',
+              'x-component-props': {
+                style: {
+                  minWidth: 500,
+                },
+              },
               'x-read-pretty': true,
             },
           },
@@ -260,6 +265,9 @@ export const collectionTableSchema: ISchema = {
           type: 'void',
           title: '{{ t("Actions") }}',
           'x-component': 'Table.Column',
+          'x-component-props': {
+            fixed: 'right',
+          },
           properties: {
             actions: {
               type: 'void',

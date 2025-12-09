@@ -1,7 +1,7 @@
 import { CollectionRepository } from '@tachybase/module-collection';
 import { MockServer } from '@tachybase/test';
-
 import { Database, Model } from '@tego/server';
+
 import UsersPlugin from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';
@@ -34,7 +34,7 @@ describe('role resource api', () => {
       },
     });
 
-    const userPlugin = app.getPlugin('users') as UsersPlugin;
+    const userPlugin = app.pm.get('users') as UsersPlugin;
     adminAgent = app.agent().login(admin);
   });
 

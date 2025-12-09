@@ -6,38 +6,38 @@ import { COLLECTION_WORKFLOWS_NAME } from './collections/workflowNotice';
 import { NOTICE_ACTION_STATUS } from './constants';
 
 const workflows = {
-  async listWorkflowNoticeFlows(context, next) {
-    context.action.mergeParams({
+  async listWorkflowNoticeFlows(ctx, next) {
+    ctx.action.mergeParams({
       filter: {
         type: NOTICE_INSTRUCTION_NAMESPACE,
         enabled: true,
       },
     });
-    return actions.list(context, next);
+    return actions.list(ctx, next);
   },
 };
 
 const workflowNotice = {
-  async listCentralized(context, next) {
-    const centralizedNoticeFlow = await context.db.getRepository(COLLECTION_WORKFLOWS_NAME).find({
+  async listCentralized(ctx, next) {
+    const centralizedNoticeFlow = await ctx.db.getRepository(COLLECTION_WORKFLOWS_NAME).find({
       filter: {
         'config.centralized': true,
       },
       fields: ['id'],
     });
-    context.action.mergeParams({
+    ctx.action.mergeParams({
       filter: {
         workflowId: centralizedNoticeFlow.map((item) => item.id),
       },
     });
-    return actions.list(context, next);
+    return actions.list(ctx, next);
   },
-  async submit(context, next) {
-    const repository = utils.getRepositoryFromParams(context);
-    const { filterByTk, values } = context.action.params;
-    const { currentUser } = context.state;
+  async submit(ctx, next) {
+    const repository = utils.getRepositoryFromParams(ctx);
+    const { filterByTk, values } = ctx.action.params;
+    const { currentUser } = ctx.state;
     if (!currentUser) {
-      return context.throw(401);
+      return ctx.throw(401);
     }
     const workflowNotice = await repository.findOne({
       filterByTk,
@@ -45,11 +45,11 @@ const workflowNotice = {
         userId: currentUser == null ? void 0 : currentUser.id,
       },
       appends: ['job', 'node', 'execution', 'workflow'],
-      context,
+      context: ctx,
     });
 
     if (!workflowNotice) {
-      return context.throw(404);
+      return ctx.throw(404);
     }
 
     if (
@@ -59,7 +59,7 @@ const workflowNotice = {
       workflowNotice.status !== NOTICE_ACTION_STATUS.PENDING ||
       !(workflowNotice.node.config.actions ?? []).includes(values.status)
     ) {
-      return context.throw(400);
+      return ctx.throw(400);
     }
 
     // TODO: 完善这里的取值逻辑
@@ -71,15 +71,15 @@ const workflowNotice = {
       //   collectionName: workflowNotice.approval.collectionName,
     });
 
-    context.body = workflowNotice.get();
-    context.status = 202;
+    ctx.body = workflowNotice.get();
+    ctx.status = 202;
 
     await next();
 
     workflowNotice.execution.workflow = workflowNotice.workflow;
     workflowNotice.job.execution = workflowNotice.execution;
     workflowNotice.job.latestUserJob = workflowNotice.get();
-    const workflow = context.app.getPlugin(PluginWorkflow);
+    const workflow = ctx.tego.pm.get(PluginWorkflow);
     const processor = workflow.createProcessor(workflowNotice.execution);
 
     processor.logger.info(
@@ -90,7 +90,7 @@ const workflowNotice = {
 };
 
 export function init({ app }) {
-  app.actions({
+  app.resourcer.registerActions({
     ...make(COLLECTION_WORKFLOWS_NAME, workflows),
     ...make(COLLECTION_NOTICE_NAME, workflowNotice),
   });

@@ -1,6 +1,8 @@
 {
   "name": "@tachybase/plugin-print-template",
-  "version": "1.5.1",
+  "displayName": "Print Template",
+  "version": "1.6.1",
+  "description": "Print Template",
   "main": "dist/server/index.js",
   "scripts": {},
   "dependencies": {},
@@ -17,5 +19,7 @@
     "pizzip": "^3.1.7",
     "typescript": "5.8.3",
     "xml2js": "^0.6.2"
-  }
+  },
+  "description.zh-CN": "打印模板插件",
+  "displayName.zh-CN": "打印模板"
 }

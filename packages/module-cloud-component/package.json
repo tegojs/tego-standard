@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-cloud-component",
   "displayName": "Cloud component",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "Cloud component",
   "keywords": [
     "System management"
@@ -33,6 +33,7 @@
     "ahooks": "^3.9.0",
     "antd": "catalog:",
     "bytemd": "1.22.0",
+    "dayjs": "catalog:",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "github-markdown-css": "5.8.1",

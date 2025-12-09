@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { Context, koaMulter as multer, Next } from '@tego/server';
 
 import { DEFAULT_MAX_FILE_SIZE, FILE_FIELD_NAME, LIMIT_FILES } from '../constants';
@@ -105,7 +104,7 @@ export async function createMiddleware(ctx: Context, next: Next) {
   const StorageRepo = ctx.db.getRepository('storages');
   const storage = await StorageRepo.findOne({ filter: storageName ? { name: storageName } : { default: true } });
 
-  const plugin = ctx.app.pm.get(PluginFileManager) as PluginFileManager;
+  const plugin = ctx.tego.pm.get(PluginFileManager) as PluginFileManager;
   ctx.storage = plugin.parseStorage(storage);
 
   await multipart(ctx, next);

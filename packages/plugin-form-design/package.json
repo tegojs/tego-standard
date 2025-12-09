@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-form-design",
   "displayName": "Form Design",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "WYSIWYG Form Design Plugin",
   "keywords": [
     "Collections",
@@ -9,7 +9,7 @@
   ],
   "main": "dist/server/index.js",
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@ctrl/tinycolor": "^4.2.0",
     "@dnd-kit/core": "^6.3.1",
     "@tachybase/client": "workspace:*",
@@ -21,5 +21,6 @@
     "antd-style": "3.7.1",
     "lodash": "^4.17.21"
   },
-  "description.zh-CN": "所见即所得的表单设计插件"
+  "description.zh-CN": "所见即所得的表单设计插件",
+  "displayName.zh-CN": "表单设计"
 }

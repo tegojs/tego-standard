@@ -20,7 +20,7 @@ export const redirect = async (ctx: Context, next: Next) => {
       prefix += `apps/${appName}`;
     }
   }
-  const auth = await ctx.app.authManager.get(authenticator, ctx);
+  const auth = await ctx.tego.authManager.get(authenticator, ctx);
   if (prefix.endsWith('/')) {
     prefix = prefix.slice(0, -1);
   }

@@ -12,7 +12,7 @@ function make(name, mod) {
 }
 
 export function initActions({ app }) {
-  app.actions({
+  app.resourcer.registerActions({
     ...make(COLLECTION_NAME_MESSAGES, messages),
   });
 }

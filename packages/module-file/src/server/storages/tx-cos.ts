@@ -1,4 +1,4 @@
-import { promisify } from 'util';
+import { promisify } from 'node:util';
 
 import { AttachmentModel } from '.';
 import { STORAGE_TYPE_TX_COS } from '../constants';

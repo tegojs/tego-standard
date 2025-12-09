@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-auth-wecom",
   "displayName": "Auth: WeCom",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "work WeChat authentication.",
   "keywords": [
     "Authentication"
@@ -10,7 +10,7 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-auth": "workspace:*",
     "@tachybase/test": "catalog:",

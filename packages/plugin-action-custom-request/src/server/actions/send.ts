@@ -1,6 +1,6 @@
 import http from 'node:http';
-
 import { appendArrayColumn, Context, Gateway, Next, parse } from '@tego/server';
+
 import axios from 'axios';
 
 import CustomRequestPlugin from '../plugin';
@@ -123,7 +123,7 @@ export async function send(this: CustomRequestPlugin, ctx: Context, next: Next) 
     },
     currentUser,
     currentTime: new Date().toISOString(),
-    $env: ctx.app.environment.getVariables(),
+    $env: process.env,
   };
 
   const getParsedValue = (value) => {

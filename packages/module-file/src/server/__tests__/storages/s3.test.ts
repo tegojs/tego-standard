@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 import { getApp, requestFile } from '..';

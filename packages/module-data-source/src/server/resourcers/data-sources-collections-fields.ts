@@ -7,7 +7,7 @@ export default {
       const { associatedIndex: collectionNameWithDataSourceKey } = ctx.action.params;
       const [dataSourceKey, collectionName] = collectionNameWithDataSourceKey.split('.');
 
-      const dataSource = ctx.app.dataSourceManager.dataSources.get(dataSourceKey);
+      const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceKey);
       const collection = dataSource.collectionManager.getCollection(collectionName);
 
       const fields = collection.getFields();
@@ -24,7 +24,7 @@ export default {
       const { associatedIndex: collectionNameWithDataSourceKey, filterByTk: name } = ctx.action.params;
       const [dataSourceKey, collectionName] = collectionNameWithDataSourceKey.split('.');
 
-      const dataSource = ctx.app.dataSourceManager.dataSources.get(dataSourceKey);
+      const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceKey);
       const collection = dataSource.collectionManager.getCollection(collectionName);
 
       const field = collection.getField(name);
@@ -38,7 +38,7 @@ export default {
       const { associatedIndex: collectionNameWithDataSourceKey, filterByTk: name, values } = ctx.action.params;
       const [dataSourceKey, collectionName] = collectionNameWithDataSourceKey.split('.');
 
-      const mainDb = ctx.app.db;
+      const mainDb = ctx.tego.db;
 
       let fieldRecord = await mainDb.getRepository('dataSourcesFields').findOne({
         filter: {
@@ -68,7 +68,7 @@ export default {
         });
       }
 
-      const field = ctx.app.dataSourceManager.dataSources
+      const field = ctx.tego.dataSourceManager.dataSources
         .get(dataSourceKey)
         .collectionManager.getCollection(collectionName)
         .getField(name);
@@ -81,7 +81,7 @@ export default {
       const { associatedIndex: collectionNameWithDataSourceKey, values } = ctx.action.params;
       const [dataSourceKey, collectionName] = collectionNameWithDataSourceKey.split('.');
 
-      const mainDb = ctx.app.db;
+      const mainDb = ctx.tego.db;
 
       const name = values.name;
       if (
@@ -115,7 +115,7 @@ export default {
       const { associatedIndex: collectionNameWithDataSourceKey, filterByTk: name } = ctx.action.params;
       const [dataSourceKey, collectionName] = collectionNameWithDataSourceKey.split('.');
 
-      const mainDb = ctx.app.db;
+      const mainDb = ctx.tego.db;
 
       const fieldRecord = await mainDb.getRepository('dataSourcesFields').findOne({
         filter: {

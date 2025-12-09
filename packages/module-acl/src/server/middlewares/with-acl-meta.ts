@@ -1,4 +1,5 @@
 import { NoPermissionError, snakeCase } from '@tego/server';
+
 import lodash from 'lodash';
 
 function createWithACLMetaMiddleware() {
@@ -6,14 +7,14 @@ function createWithACLMetaMiddleware() {
     await next();
 
     const dataSourceKey = ctx.get('x-data-source');
-    const dataSource = ctx.app.dataSourceManager.dataSources.get(dataSourceKey);
+    const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceKey);
     const db = dataSource ? dataSource.collectionManager.db : ctx.db;
 
     if (!db) {
       return;
     }
 
-    const acl = dataSource ? dataSource.acl : ctx.app.acl;
+    const acl = dataSource ? dataSource.acl : ctx.tego.acl;
 
     if (!ctx.action || !ctx.get('X-With-ACL-Meta') || ctx.status !== 200) {
       return;

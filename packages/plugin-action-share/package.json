@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-action-share",
   "displayName": "Action: Share Externally",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "Share pages with external users.",
   "keywords": [
     "Users & permissions"
@@ -10,7 +10,7 @@
   "main": "dist/server/index.js",
   "scripts": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@emotion/css": "^11.13.5",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "catalog:",

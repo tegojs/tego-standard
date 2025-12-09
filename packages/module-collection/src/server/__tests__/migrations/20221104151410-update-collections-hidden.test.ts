@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import { Database, MigrationContext } from '@tego/server';
 
 import UpdateCollectionsHiddenMigration from '../../migrations/20221104151410-update-collections-hidden';
@@ -54,7 +53,7 @@ describe('migration 20221104151410-update-collections-hidden test', () => {
       },
     });
     const migration = new UpdateCollectionsHiddenMigration({ db } as MigrationContext);
-    migration.context.app = app;
+    migration.context.tego = app;
     await migration.up();
 
     let upResult = await db.getRepository('collections').find({

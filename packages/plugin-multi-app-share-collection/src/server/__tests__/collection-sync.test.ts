@@ -1,6 +1,5 @@
 import * as process from 'node:process';
 import { createMockServer, isPg, MockServer } from '@tachybase/test';
-
 import { AppSupervisor, BelongsToManyRepository, Database } from '@tego/server';
 
 describe.runIf(isPg())('enable plugin', () => {

@@ -41,7 +41,6 @@ export class PluginAuthServer extends Plugin {
         this.app.authManager.setUserStatusService(
           new UserStatusService({ cache: this.cache, app: this.app, logger: this.app.logger }),
         );
-        this.app.authManager.userStatusService.registerStatusChangeInterceptor();
       }
     });
   }

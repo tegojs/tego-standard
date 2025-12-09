@@ -9,6 +9,7 @@ import {
 } from '@tego/server';
 
 import { namespace } from '../preset';
+
 const localeNamespace = namespace;
 
 /**
@@ -29,6 +30,7 @@ export class UserStatusService implements IUserStatusService {
     this.userCollection = app.db.getCollection('users');
     this.userStatusCollection = app.db.getCollection('userStatuses');
     this.userStatusHistoryCollection = app.db.getCollection('userStatusHistories');
+    this.registerStatusChangeInterceptor();
   }
 
   get userRepository() {
@@ -341,7 +343,7 @@ export class UserStatusService implements IUserStatusService {
    * 注册用户状态变更拦截器
    * 拦截 users:update 请求,自动记录状态变更历史
    */
-  registerStatusChangeInterceptor() {
+  private registerStatusChangeInterceptor() {
     const userStatusService = this;
 
     // 监听 users 表的更新操作

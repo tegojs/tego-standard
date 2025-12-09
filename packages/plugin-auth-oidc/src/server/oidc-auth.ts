@@ -13,6 +13,7 @@ export class OIDCAuth extends BaseAuth {
     super({
       ...config,
       userCollection: ctx.db.getCollection('users'),
+      userStatusCollection: ctx.db.getCollection('userStatuses'),
     });
   }
 

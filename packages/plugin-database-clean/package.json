@@ -1,0 +1,26 @@
+{
+  "name": "@tachybase/plugin-database-clean",
+  "displayName": "Database Cleanup Tool",
+  "version": "1.6.1",
+  "description": "Clean up database.",
+  "main": "dist/server/index.js",
+  "devDependencies": {
+    "@ant-design/icons": "^5.6.1",
+    "@tachybase/client": "catalog:",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "@types/archiver": "^5.3.4",
+    "@types/file-saver": "^2.0.7",
+    "@types/lodash": "^4.17.20",
+    "antd": "5.22.5",
+    "archiver": "^7.0.1",
+    "dayjs": "1.11.13",
+    "file-saver": "^2.0.5",
+    "lodash": "4.17.21",
+    "react-router-dom": "6.28.1",
+    "sequelize": "^6.37.5"
+  },
+  "description.zh-CN": "数据库清理。",
+  "displayName.zh-CN": "数据库清理工具"
+}

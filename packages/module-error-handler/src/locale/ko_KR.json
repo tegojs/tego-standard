@@ -1,5 +1,16 @@
 {
+  "ERR_DUPLICATE_KEY": "중복된 데이터가 감지되었습니다. 확인 후 다시 제출하세요",
+  "ERR_INVALID_TIMESTAMP": "유효하지 않은 날짜 형식입니다. 지시에 따라 수정하세요",
+  "ERR_MISSING_FILTER_UPDATE": "업데이트할 수 없습니다. 나중에 다시 시도하거나 관리자에게 문의하세요",
+  "ERR_RELATION_NOT_EXIST": "데이터베이스 테이블이 존재하지 않습니다. 관리자에게 문의하세요",
+  "ERR_VALUE_TOO_LONG": "콘텐츠 길이 또는 수량이 제한을 초과합니다. 적절히 조정하세요",
+  "JWT_EXPIRED": "세션이 만료되었습니다. 다시 로그인하세요",
+  "JWT_INVALID_SIGNATURE": "유효하지 않은 토큰 서명입니다. 다시 로그인하세요",
+  "JWT_INVALID_TOKEN": "유효하지 않은 토큰입니다. 다시 로그인하세요",
+  "JWT_MALFORMED": "유효하지 않은 토큰 형식입니다. 다시 로그인하세요",
+  "PERMISSION_DENIED": "이 작업을 수행할 권한이 없습니다",
   "Validation error": "{{field}} 필드 규칙 유효성 검사에 실패했습니다.",
+  "notNull Violation": "{{field}} 필드는 비어 있을 수 없습니다.",
   "notNull violation": "{{field}} 필드는 비어 있을 수 없습니다.",
   "unique violation": "{{field}} 필드 값은 고유해야 합니다."
 }

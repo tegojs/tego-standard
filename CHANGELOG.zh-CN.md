@@ -9,11 +9,21 @@
 
 ### ✨ 新增
 
+- **plugin-database-clean**: 数据库清理 ([#238](https://github.com/tegojs/tego-standard/pull/238)) [3340a43](https://github.com/tegojs/tego-standard/commit/3340a437aa1eb44111978d3411df411c3c962ab4) (@TomyJan)
+- **module-error-handler**: jwt 过期和权限被拒绝的翻译 ([#325](https://github.com/tegojs/tego-standard/pull/325)) [9e7d2e5](https://github.com/tegojs/tego-standard/commit/9e7d2e516287686e184888b1a5e8160cadf419a6) (@TomyJan)
 - 添加旧命令的弃用警告 ([#317](https://github.com/tegojs/tego-standard/pull/317)) [f8de79c](https://github.com/tegojs/tego-standard/commit/f8de79ceb61b4db22112456923fd016de816915b) (@TomyJan)
 
 ### 🐛 修复
 
+- 缺少插件元数据 ([#324](https://github.com/tegojs/tego-standard/pull/324)) [9a8e0b7](https://github.com/tegojs/tego-standard/commit/9a8e0b78162322a089dd082dcfd2d502805966b8) (@TomyJan)
+- 缺少插件元数据 ([#323](https://github.com/tegojs/tego-standard/pull/323)) [419aee9](https://github.com/tegojs/tego-standard/commit/419aee95126d1669154fbe75a006377e563056fd) (@TomyJan)
+- 仓库地址 ([#321](https://github.com/tegojs/tego-standard/pull/321)) [1b90ed4](https://github.com/tegojs/tego-standard/commit/1b90ed406cd368a66ad49b4794c9ea00aed927c7) (@TomyJan)
 - **workflow-approval**: 修复了工作流程修订时找不到工作流程的问题 ([#320](https://github.com/tegojs/tego-standard/pull/320)) [c1c0676](https://github.com/tegojs/tego-standard/commit/c1c06765d27e5dff11352c5c7b74fb5ef4b9cffd) (@bai.zixv)
+
+### 🔄 变更
+
+- **module-auth**: 将用户状态控制移至核心([#263](https://github.com/tegojs/tego-standard/pull/263)) [2d0eb9e](https://github.com/tegojs/tego-standard/commit/2d0eb9e514ab47a954adb6ba4d334bf8231cf6eb) (@TomyJan)
+- 禁用延迟编译 ([#322](https://github.com/tegojs/tego-standard/pull/322)) [de1c0c0](https://github.com/tegojs/tego-standard/commit/de1c0c03d85f6c691e3db5530cd9f14503c2b89c) (@TomyJan)
 
 
 

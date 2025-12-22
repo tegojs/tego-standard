@@ -4,15 +4,9 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: '选择要发布的现有 tag（仅限 v* 格式）'
-        required: true
-        type: choice  # 这里改成 choice 类型
-        options: []   # 留空，让 GitHub 自动填充所有匹配的 tag
+  workflow_dispatch: {}  # 无 inputs
 
-run-name: "Publish to NPM - Version: ${{ inputs.tag || github.ref_name }}"
+run-name: "Publish to NPM - Version: ${{ github.ref_name }}"
 
 jobs:
   publish:
@@ -21,33 +15,28 @@ jobs:
       contents: write
       id-token: write
 
-    # 额外安全校验：确保选择的 tag 以 v 开头（choice 已限制，但双保险）
-    if: |
-      (github.event_name == 'push' && startsWith(github.ref_name, 'v')) ||
-      (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'v'))
+    # 限制只在 v* tag 上运行（自动 push 已限，手动选 branch 时若非 v* tag 直接跳过）
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
       - name: Check if tag is on main branch
         id: check_branch
         run: |
-          CURRENT_TAG="${{ inputs.tag || github.ref_name }}"
-          TAG_COMMIT=$(git rev-list -n 1 $CURRENT_TAG)
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref_name }})
           if git branch -r --contains $TAG_COMMIT | grep -q 'origin/main'; then
             echo "on_main=true" >> $GITHUB_OUTPUT
-            echo "✓ Tag $CURRENT_TAG is on main branch"
+            echo "✓ Tag ${{ github.ref_name }} is on main branch"
           else
             echo "on_main=false" >> $GITHUB_OUTPUT
-            echo "⚠ Tag $CURRENT_TAG is not on main branch, skipping publish"
+            echo "⚠ Tag ${{ github.ref_name }} is not on main branch, skipping publish"
           fi
 
-      # 后续步骤不变，保持原来的 if 条件
       - uses: MOZGIII/install-ldid-action@v1
         if: steps.check_branch.outputs.on_main == 'true'
         with:

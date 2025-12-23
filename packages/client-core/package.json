@@ -1,0 +1,22 @@
+{
+  "name": "@tachybase/client-core",
+  "version": "1.6.1",
+  "license": "Apache-2.0",
+  "main": "lib/index.js",
+  "module": "es/index.mjs",
+  "types": "es/index.d.ts",
+  "dependencies": {
+    "@tachybase/schema": "catalog:",
+    "@tego/client": "catalog:",
+    "axios": "1.13.0",
+    "i18next": "23.16.8",
+    "lodash": "4.17.21",
+    "mitt": "^3.0.1",
+    "react-router": "catalog:",
+    "react-router-dom": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}

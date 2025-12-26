@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-database-clean",
   "displayName": "Database Cleanup Tool",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Clean up database.",
   "main": "dist/server/index.js",
   "devDependencies": {

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-pagespy",
   "displayName": "PageSpy",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "PageSpy plugin for low-code platform, capturing user behavior and analytics",
   "keywords": [
     "Others"

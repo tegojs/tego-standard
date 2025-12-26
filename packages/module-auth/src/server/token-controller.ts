@@ -66,15 +66,24 @@ export class TokenController implements TokenControlService {
 
   async removeSessionExpiredTokens(userId: number) {
     const config = await this.getConfig();
+    if (!config) {
+      return;
+    }
     const issuedTokenRepo = this.app.db.getRepository(issuedTokensCollectionName);
     const currTS = Date.now();
-    return issuedTokenRepo.destroy({
-      filter: {
-        userId: userId,
-        signInTime: {
-          $lt: currTS - config.sessionExpirationTime,
-        },
+    const filter = {
+      userId: userId,
+      signInTime: {
+        $lt: currTS - config.sessionExpirationTime,
       },
+    };
+    // 先查询是否有需要删除的记录，避免空数组导致的 IN (NULL) SQL 问题
+    const expiredTokens = await issuedTokenRepo.find({ filter });
+    if (expiredTokens.length === 0) {
+      return;
+    }
+    return issuedTokenRepo.destroy({
+      filterByTk: expiredTokens.map((token) => token.get('id')),
     });
   }
 

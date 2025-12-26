@@ -191,6 +191,13 @@ jobs:
             echo "::notice title=⚠️ NPM 发布部分成功::成功发布 $SUCCESS_COUNT 个包，失败 $FAILED_COUNT 个包"
           elif [ "$FAILED_COUNT" -gt 0 ]; then
             echo "::notice title=❌ NPM 发布失败::失败 $FAILED_COUNT 个包"
+          else
+            # 既没有成功也没有失败的情况（通常表示发布命令执行异常）
+            if [ "$PUBLISH_EXIT_CODE" -ne 0 ]; then
+              echo "::warning title=⚠️ NPM 发布异常::发布命令执行失败 (exit code: $PUBLISH_EXIT_CODE)，无法解析发布结果"
+            else
+              echo "::warning title=⚠️ NPM 发布无结果::未找到任何发布的包或发布结果"
+            fi
           fi
 
           # 输出失败的包列表（成功的包只统计数量，不列出包名）
@@ -198,6 +205,27 @@ jobs:
             FAILED_LIST=$(cat "$FAILED_FILE" 2>/dev/null | tr '\n' ', ' | sed 's/, $//' || echo "")
             if [ -n "$FAILED_LIST" ]; then
               echo "::notice title=❌ 失败的包 ($FAILED_COUNT 个)::$FAILED_LIST"
+            fi
+          fi
+
+      - name: Publish Summary
+        if: always() && steps.check_branch.outputs.on_main == 'true'
+        run: |
+          echo "=== NPM Publish Summary ==="
+          echo "Success Count: ${{ steps.publish.outputs.success_count || '0' }}"
+          echo "Failed Count: ${{ steps.publish.outputs.failed_count || '0' }}"
+          echo ""
+          
+          SUCCESS_COUNT="${{ steps.publish.outputs.success_count || '0' }}"
+          FAILED_COUNT="${{ steps.publish.outputs.failed_count || '0' }}"
+          
+          # 确保至少生成一个汇总通知
+          if [ -z "$SUCCESS_COUNT" ] || [ -z "$FAILED_COUNT" ]; then
+            echo "::notice title=⚠️ NPM 发布结果未知::无法获取发布统计信息"
+          else
+            TOTAL=$((SUCCESS_COUNT + FAILED_COUNT))
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "::notice title=⚠️ NPM 发布无结果::未执行任何包的发布"
             fi
           fi
 

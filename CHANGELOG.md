@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.4] - 2025-12-26
+
+### 🐛 Fixed
+
+- **module-auth**: token removal to avoid SQL IN (NULL) issue ([#332](https://github.com/tegojs/tego-standard/pull/332)) (@TomyJan)
+
 ## [1.6.2] - 2025-12-22
 
 ### ✨ Added
@@ -2894,7 +2900,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.4...HEAD
+[1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4
 [1.6.2]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.2
 [1.6.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.1
 [1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0

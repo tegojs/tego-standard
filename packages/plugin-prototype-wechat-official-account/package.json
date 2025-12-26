@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-wechat-official-account",
   "displayName": "WeChat Official Account",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "WeChat Official Account",
   "keywords": [
     "Authentication"

@@ -5,13 +5,13 @@ import { Space, Tag, Timeline } from 'antd';
 import dayjs from 'dayjs';
 import _ from 'lodash';
 
+import { useApproval } from '../../../common';
 import { APPROVAL_INITIATION_STATUS } from '../../../common/constants/approval-initiation-status';
 import { approvalInitiationStatusMap } from '../../../common/constants/approval-initiation-status-options';
 import { approvalTodoStatusMap } from '../../../common/constants/approval-todo-status-options';
+import { ContextWithActionEnabled } from '../../../common/contexts/WithActionEnabled.provider';
 import { useTranslation } from '../../../locale';
-import { useApproval } from './ApprovalData.provider';
 import { getResults } from './tools';
-import { ContextWithActionEnabled } from './WithActionEnabled.provider';
 
 const getStyles = createStyles(({ css, token }) => ({
   layout: css`

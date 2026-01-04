@@ -14,21 +14,25 @@ import { useForm } from '@tachybase/schema';
 import { NavBar, Skeleton } from 'antd-mobile';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import {
+  ActionBarProvider,
+  ApprovalDataProvider,
+  ContextApprovalRecords,
+  FormBlockProvider,
+  ProviderActionReminder,
+  ProviderActionResubmit,
+  ProviderApplyActionStatus,
+  ProviderContextApprovalExecution,
+  ResubmitProvider,
+  SchemaComponentContextProvider,
+  useActionReminder,
+  useActionResubmit,
+  useFormBlockProps,
+  useSubmitUpdate,
+  useWithdrawAction,
+  WithdrawActionProvider,
+} from '../../../../common';
 import { useTranslation } from '../../../../locale';
-import { ContextApprovalExecution } from '../../context/ApprovalExecution';
-import { FormBlockProvider } from '../../context/FormBlock';
-import { SchemaComponentContextProvider } from '../../context/SchemaComponent';
-import { useActionReminder } from '../hook/useActionReminder';
-import { useActionResubmit } from '../hook/useActionResubmit';
-import { useFormBlockProps } from '../hook/useFormBlockProps';
-import { useUpdateSubmit } from '../hook/useUpadteSubmit';
-import { useWithdrawAction } from '../hook/useWithdrawAction';
-import { ActionBarProvider } from '../provider/ActionBar';
-import { ProviderActionReminder } from '../provider/ActionReminder.provider';
-import { ProviderActionResubmit } from '../provider/ActionResubmit.provider';
-import { ApplyActionStatusProvider } from '../provider/ApplyActionStatus';
-import { ResubmitProvider } from '../provider/Resubmit.provider';
-import { WithdrawActionProvider } from '../provider/WithdrawAction';
 
 import '../../style/style.css';
 
@@ -89,22 +93,24 @@ export const ViewActionUserInitiationsContent = () => {
       >
         {t('Approval')}
       </NavBar>
-      <ContextApprovalExecution.Provider value={recordData}>
-        <ResubmitProvider>
-          <div className="approvalContext">
-            {Object.keys(recordData).length && !noDate ? (
-              <ContextApprovalExecution.Provider value={recordData}>
-                {UserInitiationsComponent(workflow?.config.applyForm)}
-              </ContextApprovalExecution.Provider>
-            ) : (
-              <div>
-                <Skeleton.Title animated />
-                <Skeleton.Paragraph lineCount={5} animated />
-              </div>
-            )}
-          </div>
-        </ResubmitProvider>
-      </ContextApprovalExecution.Provider>
+      <ResubmitProvider>
+        <div className="approvalContext">
+          {Object.keys(recordData).length && !noDate ? (
+            <ApprovalDataProvider value={approval}>
+              <ContextApprovalRecords.Provider value={recordData}>
+                <ProviderContextApprovalExecution value={recordData}>
+                  {UserInitiationsComponent(workflow?.config.applyForm)}
+                </ProviderContextApprovalExecution>
+              </ContextApprovalRecords.Provider>
+            </ApprovalDataProvider>
+          ) : (
+            <div>
+              <Skeleton.Title animated />
+              <Skeleton.Paragraph lineCount={5} animated />
+            </div>
+          )}
+        </div>
+      </ResubmitProvider>
     </div>
   );
 };
@@ -149,7 +155,7 @@ const UserInitiationsComponent = (applyDetail) => {
         SchemaComponentContextProvider,
         FormBlockProvider,
         ActionBarProvider,
-        ApplyActionStatusProvider,
+        ApplyActionStatusProvider: ProviderApplyActionStatus,
         WithdrawActionProvider,
         DetailsBlockProvider,
         MobileProvider,
@@ -158,7 +164,7 @@ const UserInitiationsComponent = (applyDetail) => {
       }}
       scope={{
         useForm,
-        useSubmit: useUpdateSubmit,
+        useSubmit: useSubmitUpdate,
         useFormBlockProps,
         useDetailsBlockProps: useFormBlockContext,
         useWithdrawAction,

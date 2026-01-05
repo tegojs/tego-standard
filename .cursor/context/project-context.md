@@ -8,7 +8,8 @@
 **Project Name / 项目名称**：Tego Standard (Tachybase)  
 **Type / 类型**：TypeScript Monorepo - Standard Application / 标准应用  
 **Package Manager / 包管理**：pnpm workspace  
-**Last Updated / 最后更新**：2025-01-27
+**Current Version / 当前版本**: 1.6.x  
+**Last Updated / 最后更新**：2026-01-05
 
 ---
 
@@ -18,6 +19,9 @@
 
 ```
 tego-standard/
+├── apps/                        # Applications / 应用
+│   ├── web/                    # Web application / Web 应用
+│   └── desktop/                # Desktop application / 桌面应用
 ├── packages/                    # Application packages / 应用包
 │   ├── client/                 # Core client library (@tachybase/client) / 核心客户端库
 │   ├── module-*/              # Feature modules / 功能模块
@@ -30,8 +34,8 @@ tego-standard/
 │       ├── plugin-workflow-approval/  # Workflow approval plugin / 审批插件
 │       ├── plugin-theme-editor/       # Theme editor plugin / 主题编辑器插件
 │       └── ...
-└── apps/
-    └── web/                    # Web application / Web 应用
+├── scripts/                     # Build and utility scripts / 构建和工具脚本
+└── docker/                      # Docker configuration / Docker 配置
 ```
 
 ### Main Packages / 主要包
@@ -57,7 +61,7 @@ tego-standard/
 ### Backend / 后端
 - **Runtime / 运行时**：Node.js (>=20.19.0)
 - **Framework / 框架**：Based on Tego core framework / 基于 Tego 核心框架
-- **Database / 数据库**：Prisma ORM
+- **Database / 数据库**：Sequelize ORM (SQLite / PostgreSQL / MySQL)
 - **Language / 语言**：TypeScript
 
 ### Frontend / 前端
@@ -65,14 +69,14 @@ tego-standard/
 - **Language / 语言**：TypeScript
 - **UI Library / UI 库**：Ant Design
 - **State Management / 状态管理**：Based on React Hooks / 基于 React Hooks
-- **Build Tool / 构建工具**：tachybase (based on tsup/vite) / tachybase (基于 tsup/vite)
+- **Build Tool / 构建工具**：tegod (based on Rsbuild) / tegod (基于 Rsbuild)
 
 ### Toolchain / 工具链
 - **Package Manager / 包管理**：pnpm workspace
 - **Testing / 测试**：Vitest
 - **E2E / 端到端测试**：Playwright
 - **Code Quality / 代码质量**：oxlint, Prettier
-- **CLI Tool / CLI 工具**：tachybase CLI
+- **CLI Tool / CLI 工具**：tegod CLI, tego CLI
 
 ### Internationalization / 国际化
 - **Framework / 框架**：i18next
@@ -162,8 +166,8 @@ pnpm test:server      # Run server tests / 运行服务端测试
 ### Package Management / 包管理
 ```bash
 pnpm install          # Install dependencies / 安装依赖
-pnpm tbi              # tachybase install
-pnpm tbu              # tachybase upgrade
+pnpm tgi              # tego install
+pnpm tgu              # tego upgrade
 ```
 
 ---
@@ -184,10 +188,10 @@ pnpm tbu              # tachybase upgrade
 ## FAQ / 常见问题
 
 ### Q: How to create a new module? / 如何创建新的模块？
-A: Use `tachybase` CLI to create module template, or refer to existing module structure. / 使用 `tachybase` CLI 创建模块模板，或参考现有模块结构。
+A: Use `tegod` CLI to create module template, or refer to existing module structure. / 使用 `tegod` CLI 创建模块模板，或参考现有模块结构。
 
 ### Q: How to create a new plugin? / 如何创建新的插件？
-A: Use `tachybase` CLI to create plugin template, or refer to existing plugin structure. / 使用 `tachybase` CLI 创建插件模板，或参考现有插件结构。
+A: Use `tegod` CLI to create plugin template, or refer to existing plugin structure. / 使用 `tegod` CLI 创建插件模板，或参考现有插件结构。
 
 ### Q: What if skills don't activate automatically? / 技能没有自动激活怎么办？
 A: Check if path patterns and keywords in `.cursor/skill-rules.json` match current context. / 检查 `.cursor/skill-rules.json` 中的路径模式和关键词是否匹配当前上下文。
@@ -207,6 +211,11 @@ A: Modules provide core business functionality, plugins extend application funct
 ---
 
 ## Changelog / 更新日志
+
+### 2026-01-05
+- Update CLI tool names to tegod/tego / 更新 CLI 工具名称为 tegod/tego
+- Update project version to 1.6.x / 更新项目版本为 1.6.x
+- Sync with copilot-instructions.md / 与 copilot-instructions.md 同步
 
 ### 2025-01-27
 - Create project context document / 创建项目上下文文档

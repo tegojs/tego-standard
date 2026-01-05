@@ -19,8 +19,8 @@ Tego (Tachybase) 是一个插件化的应用框架，支持开发者构建复杂
 - **Language / 语言**: TypeScript (5.8.3+)
 - **Frontend Framework / 前端框架**: React 18.3.1
 - **UI Library / UI 库**: Ant Design 5.22.5, Ant Design Pro Components
-- **Package Manager / 包管理**: pnpm 10.13.1
-- **Build Tools / 构建工具**: Tachybase CLI, Rsbuild
+- **Package Manager / 包管理**: pnpm 10.x
+- **Build Tools / 构建工具**: tegod CLI, Rsbuild
 - **Linting / 代码检查**: oxlint, Prettier
 - **Testing / 测试**: Vitest, Playwright
 - **Node.js**: >= 20.19.0
@@ -29,7 +29,8 @@ Tego (Tachybase) 是一个插件化的应用框架，支持开发者构建复杂
 ```
 tego-standard/
 ├── apps/                    # Applications / 应用目录
-│   └── web/                 # Web application / Web 应用
+│   ├── web/                 # Web application / Web 应用
+│   └── desktop/             # Desktop application / 桌面应用
 ├── packages/                # Packages / 包目录
 │   ├── client/             # Client core package / 客户端核心包
 │   ├── module-*/           # Core modules (e.g., module-auth, module-collection) / 核心模块（如 module-auth, module-collection 等）
@@ -44,8 +45,8 @@ tego-standard/
 ### Version Number / 版本号
 - Version numbers are managed uniformly, all packages use the same major version number.
 - 主版本号统一管理，所有包使用相同的主版本号
-- Current version: 1.4.5 (module-hera uses 2.4.5)
-- 当前版本: 1.4.5（module-hera 使用 2.4.5）
+- Current version: 1.6.x (module-hera uses 2.6.x)
+- 当前版本: 1.6.x（module-hera 使用 2.6.x）
 - When modifying version numbers, synchronize updates across all related package.json files.
 - 修改版本号时，需要同步更新所有相关包的 package.json
 

@@ -19,15 +19,21 @@ A quick reference guide for common development tasks and patterns.
 ```bash
 # Development / 开发
 pnpm dev              # Start dev server / 启动开发服务器
-pnpm dev-local        # Start with local env / 使用本地环境变量
+pnpm dev-local        # Start with local env (.env.local) / 使用本地环境变量
 pnpm build            # Build all packages / 构建所有包
+pnpm build:p          # Production build (skip .d.ts) / 快速构建
 pnpm lint             # Run linter / 运行代码检查
 pnpm test             # Run tests / 运行测试
+pnpm tc               # Run client tests / 客户端测试
+pnpm ts               # Run server tests / 服务端测试
+pnpm e2e              # Run E2E tests / E2E 测试
 
 # Package Management / 包管理
 pnpm install          # Install dependencies / 安装依赖
 pnpm add <pkg> -w     # Add to root / 添加到根目录
 pnpm add <pkg> --filter <name>  # Add to specific package / 添加到特定包
+pnpm tgi              # tego install
+pnpm tgu              # tego upgrade
 ```
 
 ## Code Snippets / 代码片段

@@ -158,8 +158,8 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
 
 - **Cursor Version / Cursor 版本**: Supports `.cursor/rules/` directory structure with frontmatter
   支持带 frontmatter 的 `.cursor/rules/` 目录结构
-- **Project Version / 项目版本**: 1.6.0
-- **Last Updated / 最后更新**: 2025-01-27
+- **Project Version / 项目版本**: 1.6.x
+- **Last Updated / 最后更新**: 2026-01-05
 - **Configuration Version / 配置版本**: 2.0.0 (with frontmatter and enhanced permissions)
   配置版本：2.0.0（带 frontmatter 和增强权限）
 - **Skills / 技能**: 8 skills configured (backend, frontend, database, client, i18n, testing, performance, security)

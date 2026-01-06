@@ -21,7 +21,7 @@ export function LazyLoadApplication(ctx: any) {
       return;
     }
 
-    const applicationRecord = (await ctx.tego.db.getRepository('applications').findOne({
+    const applicationRecord = (await ctx.db.getRepository('applications').findOne({
       filter: {
         name,
       },
@@ -41,7 +41,7 @@ export function LazyLoadApplication(ctx: any) {
       return;
     }
 
-    const subApp = applicationRecord.registerToSupervisor(ctx.tego, {
+    const subApp = applicationRecord.registerToSupervisor(ctx.app, {
       appOptionsFactory: ctx.appOptionsFactory,
     });
 

@@ -229,6 +229,8 @@ export class StaticScheduleTrigger {
           await cronJob.update({
             lastTime: new Date(time),
           });
+          // Schedule next execution only on successful execution
+          this.scheduleNextIfNeeded(cronJob);
         } else {
           await cronJob.increment(['limitExecuted', 'allExecuted']);
           await cronJob.update({
@@ -238,8 +240,6 @@ export class StaticScheduleTrigger {
         // 释放锁
         await this.cronJobLock.release(cronJobId, time);
       }
-
-      this.scheduleNextIfNeeded(cronJob);
     } catch (e) {
       this.logger.error(`cronJobs [${cronJobId}] failed: ${e?.message ?? String(e)}`);
       // 确保锁被释放，但不要让释放失败掩盖原始错误

@@ -5,8 +5,8 @@ import { App, Application, Cache, InjectLog, Logger, Service } from '@tego/serve
  * 扩展缓存接口，支持可选的原子锁操作
  */
 interface CacheClientWithLock extends Cache {
-  setIfNotExists?: (key: string, value: any, ttl: number) => Promise<boolean>;
-  setNx?: (key: string, value: any, ttl: number) => Promise<boolean>;
+  setIfNotExists?: (key: string, value: unknown, ttl: number) => Promise<boolean>;
+  setNx?: (key: string, value: unknown, ttl: number) => Promise<boolean>;
 }
 
 /**

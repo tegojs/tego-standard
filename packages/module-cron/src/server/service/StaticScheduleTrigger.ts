@@ -203,21 +203,6 @@ export class StaticScheduleTrigger {
         return;
       }
 
-      // 额外检查：如果 lastTime 已经是当前计划时间，说明任务已被其他节点执行
-      if (cronJob.lastTime) {
-        const lastTimeTs = parseDateWithoutMs(cronJob.lastTime);
-        if (lastTimeTs === time) {
-          this.logger.info(
-            `cronJobs [${cronJobId}] skipped: already executed at ${new Date(time).toISOString()} by another node`,
-          );
-          this.timers.delete(eventKey);
-          await this.cronJobLock.release(cronJobId, time);
-          // 继续调度下一次执行
-          this.scheduleNextIfNeeded(cronJob);
-          return;
-        }
-      }
-
       this.timers.delete(eventKey);
 
       // TODO: 保存pluginWorkflow

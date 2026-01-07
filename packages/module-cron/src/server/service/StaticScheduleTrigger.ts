@@ -1,11 +1,12 @@
 import { EXECUTION_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
-import { App, Application, Database, Db, InjectLog, Logger, Service } from '@tego/server';
+import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
 import parser from 'cron-parser';
 
 import { DATABASE_CRON_JOBS, SCHEDULE_MODE } from '../../constants';
 import { CronJobModel } from '../model/CronJobModel';
 import { parseDateWithoutMs } from '../utils';
+import { CronJobLock } from './CronJobLock';
 
 const MAX_SAFE_INTERVAL = 2147483647;
 
@@ -20,6 +21,9 @@ export class StaticScheduleTrigger {
 
   @InjectLog()
   private readonly logger: Logger;
+
+  @Inject(() => CronJobLock)
+  private readonly cronJobLock: CronJobLock;
 
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
 
@@ -175,18 +179,45 @@ export class StaticScheduleTrigger {
   }
 
   async trigger(cronJobId: number, time: number) {
+    const eventKey = `${cronJobId}@${time}`;
+
     try {
+      // 尝试获取分布式锁，防止多节点重复执行
+      const lockAcquired = await this.cronJobLock.acquire(cronJobId, time);
+      if (!lockAcquired) {
+        this.logger.info(
+          `cronJobs [${cronJobId}] skipped: lock not acquired (another node is executing this job at ${new Date(time).toISOString()})`,
+        );
+        this.timers.delete(eventKey);
+        return;
+      }
+
       const cronJob = (await this.db
         .getRepository(DATABASE_CRON_JOBS)
         .findOne({ filterByTk: cronJobId })) as CronJobModel;
 
       if (!cronJob) {
         this.logger.warn(`Scheduled cron job ${cronJobId} no longer exists`);
-        const eventKey = `${cronJobId}@${time}`;
         this.timers.delete(eventKey);
+        await this.cronJobLock.release(cronJobId, time);
         return;
       }
-      const eventKey = `${cronJob.id}@${time}`;
+
+      // 额外检查：如果 lastTime 已经是当前计划时间，说明任务已被其他节点执行
+      if (cronJob.lastTime) {
+        const lastTimeTs = parseDateWithoutMs(cronJob.lastTime);
+        if (lastTimeTs === time) {
+          this.logger.info(
+            `cronJobs [${cronJobId}] skipped: already executed at ${new Date(time).toISOString()} by another node`,
+          );
+          this.timers.delete(eventKey);
+          await this.cronJobLock.release(cronJobId, time);
+          // 继续调度下一次执行
+          this.scheduleNextIfNeeded(cronJob);
+          return;
+        }
+      }
+
       this.timers.delete(eventKey);
 
       // TODO: 保存pluginWorkflow
@@ -196,6 +227,7 @@ export class StaticScheduleTrigger {
         filter: { key: cronJob.workflowKey, enabled: true },
       });
       if (!workflow) {
+        await this.cronJobLock.release(cronJobId, time);
         return;
       }
 
@@ -209,27 +241,38 @@ export class StaticScheduleTrigger {
       } finally {
         if (!error && (process?.execution?.status === EXECUTION_STATUS.QUEUEING || process?.execution?.status >= 0)) {
           await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
-          cronJob.update({
-            lastTime: new Date(),
+          await cronJob.update({
+            lastTime: new Date(time),
           });
         } else {
           await cronJob.increment(['limitExecuted', 'allExecuted']);
-          cronJob.update({
-            lastTime: new Date(),
+          await cronJob.update({
+            lastTime: new Date(time),
           });
         }
+        // 释放锁
+        await this.cronJobLock.release(cronJobId, time);
       }
 
-      if (!cronJob.repeat || (cronJob.limit && cronJob.limitExecuted >= cronJob.limit)) {
-        return;
-      }
-
-      const nextTime = this.getNextTime(cronJob, new Date(), true);
-      if (nextTime) {
-        this.schedule(cronJob, nextTime);
-      }
+      this.scheduleNextIfNeeded(cronJob);
     } catch (e) {
       this.logger.error(`cronJobs [${cronJobId}] failed: ${e.message}`);
+      // 确保锁被释放
+      await this.cronJobLock.release(cronJobId, time);
+    }
+  }
+
+  /**
+   * 如果需要，调度下一次执行
+   */
+  private scheduleNextIfNeeded(cronJob: CronJobModel) {
+    if (!cronJob.repeat || (cronJob.limit && cronJob.limitExecuted >= cronJob.limit)) {
+      return;
+    }
+
+    const nextTime = this.getNextTime(cronJob, new Date(), true);
+    if (nextTime) {
+      this.schedule(cronJob, nextTime);
     }
   }
 

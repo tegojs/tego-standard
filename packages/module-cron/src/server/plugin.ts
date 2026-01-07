@@ -2,11 +2,12 @@ import { InjectedPlugin, Plugin } from '@tego/server';
 
 import { CronJobsController } from './actions/cron-jobs-controller';
 import { CronJobModel } from './model/CronJobModel';
+import { CronJobLock } from './service/CronJobLock';
 import { StaticScheduleTrigger } from './service/StaticScheduleTrigger';
 
 @InjectedPlugin({
   Controllers: [CronJobsController],
-  Services: [StaticScheduleTrigger],
+  Services: [CronJobLock, StaticScheduleTrigger],
 })
 export class PluginCronJobServer extends Plugin {
   async afterAdd() {}

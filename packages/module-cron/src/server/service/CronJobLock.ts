@@ -41,25 +41,29 @@ export class CronJobLock {
     const lockTTL = ttl ?? this.DEFAULT_LOCK_TTL;
 
     try {
-      // 检查锁是否已存在
-      const existingLock = await this.cache.get(lockKey);
-      if (existingLock) {
-        this.logger.debug(`Lock already exists for cron job ${cronJobId} at ${scheduledTime}`);
-        return false;
-      }
-
-      // 设置锁，包含节点标识和时间戳
+      // 设置锁，包含节点标识和时间戳，使用原子操作避免竞态条件
       const lockValue = {
         nodeId: this.getNodeId(),
         acquiredAt: Date.now(),
       };
 
-      await this.cache.set(lockKey, lockValue, lockTTL);
+      const cacheClient: any = this.cache;
+      let acquired = false;
 
-      // 再次检查以确保是本节点获取到锁（简单的双重检查）
-      const verifyLock = await this.cache.get<{ nodeId: string }>(lockKey);
-      if (verifyLock?.nodeId !== lockValue.nodeId) {
-        this.logger.debug(`Lock was acquired by another node for cron job ${cronJobId} at ${scheduledTime}`);
+      // 优先使用支持 "set if not exists" 语义的原子操作
+      if (typeof cacheClient.setIfNotExists === 'function') {
+        acquired = await cacheClient.setIfNotExists(lockKey, lockValue, lockTTL);
+      } else if (typeof cacheClient.setNx === 'function') {
+        acquired = await cacheClient.setNx(lockKey, lockValue, lockTTL);
+      } else {
+        // 如果缓存实现不支持原子 set-if-not-exists，则直接尝试设置
+        // 注意：此分支在分布式环境下可能无法完全避免竞态，需要底层 Cache 提供更强保证
+        await this.cache.set(lockKey, lockValue, lockTTL);
+        acquired = true;
+      }
+
+      if (!acquired) {
+        this.logger.debug(`Lock already exists for cron job ${cronJobId} at ${scheduledTime}`);
         return false;
       }
 

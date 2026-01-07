@@ -251,6 +251,9 @@ export class StaticScheduleTrigger {
    * 如果需要，调度下一次执行
    */
   private scheduleNextIfNeeded(cronJob: CronJobModel) {
+    if (!cronJob) {
+      return;
+    }
     if (!cronJob.repeat || (cronJob.limit && cronJob.limitExecuted >= cronJob.limit)) {
       return;
     }

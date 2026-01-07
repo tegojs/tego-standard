@@ -1,6 +1,15 @@
 import { App, Application, Cache, InjectLog, Logger, Service } from '@tego/server';
 
 /**
+ * Extended cache interface with optional atomic lock operations
+ * 扩展缓存接口，支持可选的原子锁操作
+ */
+interface CacheClientWithLock extends Cache {
+  setIfNotExists?: (key: string, value: any, ttl: number) => Promise<boolean>;
+  setNx?: (key: string, value: any, ttl: number) => Promise<boolean>;
+}
+
+/**
  * 基于缓存的分布式锁实现，用于防止定时任务在分布式环境下重复执行
  */
 @Service()
@@ -56,7 +65,7 @@ export class CronJobLock {
         acquiredAt: Date.now(),
       };
 
-      const cacheClient: any = this.cache;
+      const cacheClient = this.cache as CacheClientWithLock;
       let acquired = false;
 
       // 优先使用支持 "set if not exists" 语义的原子操作

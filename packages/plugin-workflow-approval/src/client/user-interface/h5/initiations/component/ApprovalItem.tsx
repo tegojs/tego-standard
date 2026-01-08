@@ -141,7 +141,7 @@ const changService = (api, setData, user, filter, t, setDefaultData, cm, compile
   api
     .request({
       url: 'approvals:listCentralized',
-      params: { pageSize: page.pageSize, page: page.current, appends: ['workflow'], filter },
+      params: { pageSize: page.pageSize, page: page.current, appends: ['workflow'], filter, sort: ['-createdAt'] },
     })
     .then((res) => {
       const result = res.data?.data.map((item) => {

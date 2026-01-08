@@ -12,12 +12,9 @@ import {
 import { NavBar } from 'antd-mobile';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { ProviderActionReminder, useActionReminder, useActionResubmit, useSubmitCreate } from '../../../../common';
 import { APPROVAL_INITIATION_STATUS } from '../../../../common/constants/approval-initiation-status';
 import { useTranslation } from '../../../../locale';
-import { useActionReminder } from '../hook/useActionReminder';
-import { useActionResubmit } from '../hook/useActionResubmit';
-import { useCreateSubmit } from '../hook/useCreateSubmit';
-import { ProviderActionReminder } from '../provider/ActionReminder.provider';
 
 import '../../style/style.css';
 
@@ -104,7 +101,7 @@ export const ViewActionInitiationsContent = () => {
               MobileProvider,
             }}
             scope={{
-              useSubmit: useCreateSubmit,
+              useSubmit: useSubmitCreate,
               useWithdrawAction,
               useActionResubmit,
               useActionReminder,

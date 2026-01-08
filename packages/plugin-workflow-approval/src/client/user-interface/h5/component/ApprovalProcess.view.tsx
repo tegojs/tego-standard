@@ -6,13 +6,12 @@ import { Space, Steps, Tag } from 'antd-mobile';
 import dayjs from 'dayjs';
 import _ from 'lodash';
 
+import { ContextWithActionEnabled, useContextApprovalExecution } from '../../../common';
 import { APPROVAL_INITIATION_STATUS } from '../../../common/constants/approval-initiation-status';
 import { approvalStatusEnums } from '../../../common/constants/approval-initiation-status-options';
 import { APPROVAL_TODO_STATUS } from '../../../common/constants/approval-todo-status';
 import { approvalTodoStatusOptions } from '../../../common/constants/approval-todo-status-options';
 import { lang, useTranslation } from '../../../locale';
-import { useContextApprovalExecution } from '../context/ApprovalExecution';
-import { ContextWithActionEnabled } from '../context/WithActionEnabled';
 
 export const ApprovalProcess = (props) => {
   const compile = useCompile();

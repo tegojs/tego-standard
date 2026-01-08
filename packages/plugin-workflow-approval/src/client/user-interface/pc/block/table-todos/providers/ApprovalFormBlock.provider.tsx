@@ -16,7 +16,7 @@ import { createForm, RecursionField, useField, useFieldSchema } from '@tachybase
 
 import _ from 'lodash';
 
-import { useContextApprovalRecords } from './ApprovalExecutions.provider';
+import { useContextApprovalRecords } from '../../../../../common';
 
 export const ApprovalFormBlockProvider = (props) => {
   const approvalExecutions = useContextApprovalRecords();

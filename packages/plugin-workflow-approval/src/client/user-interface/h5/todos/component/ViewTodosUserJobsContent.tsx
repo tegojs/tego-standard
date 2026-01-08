@@ -7,24 +7,29 @@ import PluginWorkflowClient, {
   useAvailableUpstreams,
 } from '@tachybase/module-workflow/client';
 import { observer } from '@tachybase/schema';
-
 import { Registry } from '@tego/client';
+
 import { Result } from 'antd';
 import { NavBar, Skeleton } from 'antd-mobile';
 import _ from 'lodash';
 import { useNavigate } from 'react-router-dom';
 
+import { useUserJobsSubmit } from '../../../../common/hook/useSubmit';
 import { useTranslation } from '../../../../locale';
 import { ManualFormType } from '../../constants';
-import { ContextApprovalExecution } from '../../context/ApprovalExecution';
-import { ContextWithActionEnabled } from '../../context/WithActionEnabled';
 import { useUserJobsFormBlockProps } from '../hook/useFormBlockProps';
-import { useUserJobsSubmit } from '../hook/useSubmit';
 import { ActionBarUserJobsProvider } from '../provider/ActionBarProvider';
 import { FormBlockProvider } from '../provider/FormBlockProvider';
 import { ManualActionStatusProvider } from '../provider/ManualActionStatusProvider';
 
 import '../../style/style.css';
+
+import {
+  ApprovalDataProvider,
+  ContextApprovalRecords,
+  ContextWithActionEnabled,
+  ProviderContextApprovalExecution,
+} from '../../../../common';
 
 // 审批-执行处理-查看: 内容
 export const ViewTodosUserJobsContent = observer((props) => {
@@ -85,46 +90,50 @@ export const ViewTodosUserJobsContent = observer((props) => {
       <div className="approvalContext">
         {node && flowContext ? (
           <ProviderContextWorkflow value={flowContext}>
-            <ContextApprovalExecution.Provider value={jobsData}>
-              <SchemaComponent
-                components={{
-                  FormBlockProvider,
-                  DetailsBlockProvider,
-                  ActionBarProvider: ActionBarUserJobsProvider,
-                  ManualActionStatusProvider,
-                  // @ts-ignore
-                  ...Array.from(manualFormTypes.getValues()).reduce(
-                    (result, item: ManualFormType) => Object.assign(result, item.block.components),
-                    {},
-                  ),
-                  ...nodeComponents,
-                  MobileProvider,
-                }}
-                scope={{
-                  useSubmit: useUserJobsSubmit,
-                  useFormBlockProps: useUserJobsFormBlockProps,
-                  useDetailsBlockProps,
-                  // @ts-ignore
-                  ...Array.from(manualFormTypes.getValues()).reduce(
-                    (result, item: ManualFormType) => Object.assign(result, item.block.scope),
-                    {},
-                  ),
-                }}
-                schema={{
-                  type: 'void',
-                  'x-component': 'MobileProvider',
-                  properties: {
-                    page: {
+            <ApprovalDataProvider value={jobsData?.['approval']}>
+              <ContextApprovalRecords.Provider value={jobsData}>
+                <ProviderContextApprovalExecution value={jobsData}>
+                  <SchemaComponent
+                    components={{
+                      FormBlockProvider,
+                      DetailsBlockProvider,
+                      ActionBarProvider: ActionBarUserJobsProvider,
+                      ManualActionStatusProvider,
+                      // @ts-ignore
+                      ...Array.from(manualFormTypes.getValues()).reduce(
+                        (result, item: ManualFormType) => Object.assign(result, item.block.components),
+                        {},
+                      ),
+                      ...nodeComponents,
+                      MobileProvider,
+                    }}
+                    scope={{
+                      useSubmit: useUserJobsSubmit,
+                      useFormBlockProps: useUserJobsFormBlockProps,
+                      useDetailsBlockProps,
+                      // @ts-ignore
+                      ...Array.from(manualFormTypes.getValues()).reduce(
+                        (result, item: ManualFormType) => Object.assign(result, item.block.scope),
+                        {},
+                      ),
+                    }}
+                    schema={{
                       type: 'void',
-                      'x-component': 'MPage',
-                      'x-designer': 'MPage.Designer',
-                      'x-component-props': {},
-                      properties: Object.values(node.config?.schema)[0]['properties'],
-                    },
-                  },
-                }}
-              />
-            </ContextApprovalExecution.Provider>
+                      'x-component': 'MobileProvider',
+                      properties: {
+                        page: {
+                          type: 'void',
+                          'x-component': 'MPage',
+                          'x-designer': 'MPage.Designer',
+                          'x-component-props': {},
+                          properties: Object.values(node.config?.schema)[0]['properties'],
+                        },
+                      },
+                    }}
+                  />
+                </ProviderContextApprovalExecution>
+              </ContextApprovalRecords.Provider>
+            </ApprovalDataProvider>
           </ProviderContextWorkflow>
         ) : (
           <div>

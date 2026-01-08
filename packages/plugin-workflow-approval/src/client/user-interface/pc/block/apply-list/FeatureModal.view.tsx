@@ -8,12 +8,14 @@ import {
 } from '@tachybase/client';
 import { ProviderContextWorkflow } from '@tachybase/module-workflow/client';
 
-import { useActionReminder } from '../common/hooks/useActionReminder';
-import { useActionResubmit } from '../common/hooks/useActionResubmit';
-import { useSubmitCreate } from '../common/hooks/useSubmitCreate';
-import { useWithdrawAction } from '../common/hooks/useWithdrawAction';
+import {
+  ProviderActionReminder,
+  useActionReminder,
+  useActionResubmit,
+  useSubmitCreate,
+  useWithdrawAction,
+} from '../../../../common';
 import { ActionBarProvider } from '../common/providers/ActionBar.provider';
-import { ProviderActionReminder } from '../common/providers/ActionReminder.provider';
 import { ApplyActionStatusProvider } from '../common/providers/ActionStatus.provider';
 import { WithdrawActionProvider } from '../common/providers/ActionWithdraw.provider';
 import { getSchemaFeatureModal } from './FeatureModal.schema';

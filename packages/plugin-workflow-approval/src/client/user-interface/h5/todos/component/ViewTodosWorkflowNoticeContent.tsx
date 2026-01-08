@@ -16,12 +16,13 @@ import _ from 'lodash';
 import { useNavigate } from 'react-router-dom';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../../../../../common/constants';
+import { usePropsNoticeDetail } from '../../../../common';
 import { useTranslation } from '../../../../locale';
-import { ContextApprovalExecution } from '../../context/ApprovalExecution';
 import { useWorkflowNoticeFormBlockProps } from '../hook/useFormBlockProps';
-import { usePropsNoticeDetail } from '../hook/usePropsNoticeDetail';
 
 import '../../style/style.css';
+
+import { ApprovalDataProvider, ContextApprovalRecords, ProviderContextApprovalExecution } from '../../../../common';
 
 // 审批-抄送-查看: 内容
 export const ViewTodosWorkflowNoticeContent = observer((props) => {
@@ -80,47 +81,51 @@ export const ViewTodosWorkflowNoticeContent = observer((props) => {
         {noticeData && schemaId ? (
           <ProviderContextWorkflow value={flowContext}>
             <CollectionProvider name={noticeData?.['collectionName'] || ''}>
-              <ContextApprovalExecution.Provider value={noticeData}>
-                <SchemaComponent
-                  components={{
-                    RemoteSchemaComponent,
-                    SchemaComponentProvider,
-                    DetailsBlockProvider,
-                    MobileProvider,
-                  }}
-                  scope={{
-                    usePropsNoticeDetail,
-                    useDetailsBlockProps: useWorkflowNoticeFormBlockProps,
-                    useFormBlockProps: usePropsNoticeDetail,
-                  }}
-                  schema={{
-                    type: 'void',
-                    'x-component': 'MobileProvider',
-                    properties: {
-                      page: {
+              <ApprovalDataProvider value={noticeData?.['approval']}>
+                <ContextApprovalRecords.Provider value={noticeData}>
+                  <ProviderContextApprovalExecution value={noticeData}>
+                    <SchemaComponent
+                      components={{
+                        RemoteSchemaComponent,
+                        SchemaComponentProvider,
+                        DetailsBlockProvider,
+                        MobileProvider,
+                      }}
+                      scope={{
+                        usePropsNoticeDetail,
+                        useDetailsBlockProps: useWorkflowNoticeFormBlockProps,
+                        useFormBlockProps: usePropsNoticeDetail,
+                      }}
+                      schema={{
                         type: 'void',
-                        'x-component': 'MPage',
-                        'x-designer': 'MPage.Designer',
-                        'x-component-props': {},
+                        'x-component': 'MobileProvider',
                         properties: {
-                          detail: {
+                          page: {
                             type: 'void',
-                            'x-decorator': 'NoticeDetailProvider',
-                            'x-decorator-props': {
-                              designable: false,
-                            },
-                            'x-component': 'RemoteSchemaComponent',
-                            'x-component-props': {
-                              uid: schemaId,
-                              noForm: true,
+                            'x-component': 'MPage',
+                            'x-designer': 'MPage.Designer',
+                            'x-component-props': {},
+                            properties: {
+                              detail: {
+                                type: 'void',
+                                'x-decorator': 'NoticeDetailProvider',
+                                'x-decorator-props': {
+                                  designable: false,
+                                },
+                                'x-component': 'RemoteSchemaComponent',
+                                'x-component-props': {
+                                  uid: schemaId,
+                                  noForm: true,
+                                },
+                              },
                             },
                           },
                         },
-                      },
-                    },
-                  }}
-                />
-              </ContextApprovalExecution.Provider>
+                      }}
+                    />
+                  </ProviderContextApprovalExecution>
+                </ContextApprovalRecords.Provider>
+              </ApprovalDataProvider>
             </CollectionProvider>
           </ProviderContextWorkflow>
         ) : (

@@ -14,12 +14,14 @@ import {
 } from '@tachybase/client';
 import { createForm, RecursionField, useField, useFieldSchema } from '@tachybase/schema';
 
-import { useContextApprovalRecords } from '../../user-interface/pc/block/table-todos/providers/ApprovalExecutions.provider';
+import { useContextApprovalRecords } from '../contexts';
 import { useContextApprovalExecution } from '../contexts/approvalExecution';
 
 export const FormBlockProvider = (props) => {
   const { formType } = props;
   const context = useContextApprovalExecution();
+  const { approvalExecution, snapshot: contextSnapshot } = useContextApprovalExecution();
+  const snapshot = approvalExecution?.snapshot || contextSnapshot;
   const { data: currentUser } = useCurrentUserContext();
   const { userId: approvalUserId } = useContextApprovalRecords();
 
@@ -29,7 +31,6 @@ export const FormBlockProvider = (props) => {
   const { getAssociationAppends } = useAssociationNames();
   const { appends, updateAssociationValues } = getAssociationAppends();
   // @ts-ignore
-  const snapshot = context?.snapshot;
   const { findComponent } = useDesignable();
   const ContainerFormComp = findComponent(field.component?.[0]) || Fragment;
   const form = useMemo(() => createForm({ initialValues: snapshot }), [snapshot]);

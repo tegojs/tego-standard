@@ -4,11 +4,11 @@ import { CardItem, createStyles, useCurrentUserContext } from '@tachybase/client
 import { Space, Table } from 'antd';
 import _ from 'lodash';
 
+import { useApproval } from '../../../common';
+import { ContextWithActionEnabled } from '../../../common/contexts/WithActionEnabled.provider';
 import { useTranslation } from '../../../locale';
-import { useApproval } from './ApprovalData.provider';
 import { getAntdTableColumns } from './process-columns';
 import { getResults } from './tools';
-import { ContextWithActionEnabled } from './WithActionEnabled.provider';
 
 const getStyles = createStyles(({ css, token }) => ({
   layout: css`

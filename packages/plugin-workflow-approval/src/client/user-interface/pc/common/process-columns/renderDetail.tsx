@@ -1,9 +1,9 @@
 import { useContext } from 'react';
 import { DatePicker, InputReadPretty, RecordProvider, useCurrentUserContext } from '@tachybase/client';
 
+import { ContextWithActionEnabled } from '../../../../common/contexts/WithActionEnabled.provider';
 import { ViewCheckLink as ViewCheckLinkInitiations } from '../../block/table-initiations/CheckLink.view';
 import { ViewCheckLink as ViewCheckLinkTodos } from '../../block/table-todos/CheckLink.view';
-import { ContextWithActionEnabled } from '../WithActionEnabled.provider';
 
 export function renderDetail(text, record, index) {
   return <ColumnDetail text={text} record={record} exist={index > 0} />;

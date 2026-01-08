@@ -1,8 +1,7 @@
 import { ProviderContextWorkflow } from '@tachybase/module-workflow/client';
 
+import { ApprovalContext, ResubmitProvider } from '../../../../common';
 import { ProviderContextApprovalExecution } from '../../../../common/contexts/approvalExecution';
-import { ApprovalContext } from '../../common/ApprovalData.provider';
-import { ResubmitProvider } from '../../common/Resubmit.provider';
 
 export const ProviderCheckContent = (props) => {
   const { params, children } = props;

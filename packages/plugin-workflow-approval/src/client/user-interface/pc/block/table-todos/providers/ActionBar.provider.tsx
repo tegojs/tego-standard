@@ -1,10 +1,10 @@
 import { ActionBarProvider as ClientActionBarProvider, useCompile } from '@tachybase/client';
-
 import { str2moment } from '@tego/client';
+
 import { Space, Tag } from 'antd';
 
+import { useContextApprovalRecords } from '../../../../../common';
 import { approvalTodoStatusMap } from '../../../../../common/constants/approval-todo-status-options';
-import { useContextApprovalRecords } from './ApprovalExecutions.provider';
 
 export const ActionBarProvider = (props) => {
   const { status } = useContextApprovalRecords();

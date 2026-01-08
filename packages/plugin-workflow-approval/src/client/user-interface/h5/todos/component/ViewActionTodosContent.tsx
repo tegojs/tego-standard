@@ -15,18 +15,25 @@ import { NavBar, Skeleton, TabBar } from 'antd-mobile';
 import _ from 'lodash';
 import { useNavigate } from 'react-router-dom';
 
+import {
+  ApprovalDataProvider,
+  ContextApprovalRecords,
+  FormBlockProvider,
+  SchemaComponentContextProvider,
+  useApprovalFormBlockProps,
+} from '../../../../common';
+import { useSubmit } from '../../../../common/hook/useSubmit';
 import { useTranslation } from '../../../../locale';
-import { ContextApprovalExecution } from '../../context/ApprovalExecution';
-import { FormBlockProvider } from '../../context/FormBlock';
-import { SchemaComponentContextProvider } from '../../context/SchemaComponent';
-import { useApprovalDetailBlockProps } from '../hook/useApprovalDetailBlockProps';
-import { useApprovalFormBlockProps } from '../hook/useApprovalFormBlockProps';
-import { useSubmit } from '../hook/useSubmit';
 import { ActionBarProvider } from '../provider/ActionBarProvider';
-import { ApprovalActionProvider } from '../provider/ApprovalAction';
 import { ApprovalFormBlockDecorator } from '../provider/ApprovalFormBlock';
 
 import '../../style/style.css';
+
+import {
+  ApprovalActionProvider,
+  ProviderContextApprovalExecution,
+  useApprovalDetailBlockProps,
+} from '../../../../common';
 
 // 审批-待办-查看: 内容
 export const ViewActionTodosContent = observer((props) => {
@@ -103,9 +110,13 @@ export const ViewActionTodosContent = observer((props) => {
       </NavBar>
       <div className="approvalContext">
         {Object.keys(recordData).length && !noDate ? (
-          <ContextApprovalExecution.Provider value={recordData}>
-            {todosComponent(node?.config.applyDetail)}
-          </ContextApprovalExecution.Provider>
+          <ApprovalDataProvider value={recordData?.['approval']}>
+            <ContextApprovalRecords.Provider value={recordData}>
+              <ProviderContextApprovalExecution value={recordData}>
+                {todosComponent(node?.config.applyDetail)}
+              </ProviderContextApprovalExecution>
+            </ContextApprovalRecords.Provider>
+          </ApprovalDataProvider>
         ) : (
           <div>
             <Skeleton.Title animated />

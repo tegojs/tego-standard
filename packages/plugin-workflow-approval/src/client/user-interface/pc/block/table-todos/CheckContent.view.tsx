@@ -9,15 +9,17 @@ import { DetailsBlockProvider } from '@tachybase/module-workflow/client';
 
 import _ from 'lodash';
 
-import { FormBlockProvider } from '../../../../common/components/FormBlock.provider';
-import { ApprovalContext } from '../../common/ApprovalData.provider';
-import { SchemaComponentContextProvider } from '../common/providers/SchemaComponentContextProvider';
+import {
+  ApprovalActionProvider,
+  ApprovalContext,
+  FormBlockProvider,
+  SchemaComponentContextProvider,
+  useApprovalDetailBlockProps,
+  useApprovalFormBlockProps,
+  useSubmit,
+} from '../../../../common';
 import { getSchemaActionTodosContent } from './CheckContent.schema';
-import { useApprovalDetailBlockProps } from './hooks/useApprovalDetailBlockProps';
-import { useApprovalFormBlockProps } from './hooks/useApprovalFormBlockProps';
-import { useSubmit } from './hooks/useSubmit';
 import { ActionBarProvider } from './providers/ActionBar.provider';
-import { ApprovalActionProvider } from './providers/ApprovalAction.provider';
 import { ApprovalFormBlockProvider } from './providers/ApprovalFormBlock.provider';
 
 export const ViewCheckContent = (props) => {

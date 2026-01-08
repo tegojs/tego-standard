@@ -5,9 +5,9 @@ import { str2moment } from '@tego/client';
 
 import { Space, Tag } from 'antd';
 
+import { useContextApprovalExecution } from '../../../../common';
 import { approvalTodoStatusOptions } from '../../../../common/constants/approval-todo-status-options';
 import { useTranslation } from '../../../../locale';
-import { useContextApprovalExecution } from '../../context/ApprovalExecution';
 
 export function ActionBarProvider(props) {
   const { status } = useContextApprovalExecution();

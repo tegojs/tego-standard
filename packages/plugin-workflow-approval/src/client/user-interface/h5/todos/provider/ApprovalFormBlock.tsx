@@ -13,7 +13,7 @@ import { createForm, RecursionField, useField, useFieldSchema } from '@tachybase
 
 import _ from 'lodash';
 
-import { useContextApprovalExecution } from '../../context/ApprovalExecution';
+import { useContextApprovalExecution } from '../../../../common';
 
 export function ApprovalFormBlockDecorator(props) {
   const approvalExecutions = useContextApprovalExecution();
@@ -35,7 +35,7 @@ export function ApprovalFormBlockDecorator(props) {
       pattern:
         !workflow?.enabled || execution?.status || job?.status || omitApproval?.status == null
           ? 'disabled'
-          : omitApproval.status || data.data?.id !== omitApproval.userId
+          : omitApproval.status || data.data?.id !== omitApproval['userId']
             ? 'readPretty'
             : 'editable',
     });
@@ -57,7 +57,7 @@ export function ApprovalFormBlockDecorator(props) {
     [field, form, params, result, updateAssociationValues],
   );
 
-  if (!omitApproval.status && omitApproval.userId !== data.data?.id) {
+  if (!omitApproval.status && omitApproval['userId'] !== data.data?.id) {
     return null;
   }
 

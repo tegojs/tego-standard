@@ -229,7 +229,7 @@ export class StaticScheduleTrigger {
           await cronJob.update({
             lastTime: new Date(time),
           });
-          // Schedule next execution only on successful execution
+          // Schedule next execution only on successful execution / 仅在成功执行后才调度下一次执行
           this.scheduleNextIfNeeded(cronJob);
         } else {
           await cronJob.increment(['limitExecuted', 'allExecuted']);

@@ -139,7 +139,7 @@ export class CronJobLock {
       return !!lock;
     } catch (error) {
       this.logger.error(`Failed to check lock for cron job ${cronJobId}: ${error.message}`);
-      return false;
+      throw error;
     }
   }
 

@@ -99,8 +99,16 @@ export class CronJobLock {
       this.logger.debug(`Lock acquired for cron job ${cronJobId} at ${scheduledTime}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to acquire lock for cron job ${cronJobId}: ${error.message}`);
-      return false;
+      if (error instanceof Error) {
+        this.logger.error(`Failed to acquire lock for cron job ${cronJobId}: ${error.message}`);
+        throw error;
+      }
+
+      this.logger.error(
+        `Failed to acquire lock for cron job ${cronJobId} due to unknown error type`,
+        { error },
+      );
+      throw new Error('Failed to acquire lock due to unknown error');
     }
   }
 

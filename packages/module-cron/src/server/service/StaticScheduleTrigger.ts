@@ -242,16 +242,6 @@ export class StaticScheduleTrigger {
       }
     } catch (e) {
       this.logger.error(`cronJobs [${cronJobId}] failed: ${e?.message ?? String(e)}`);
-      // 确保锁被释放，但不要让释放失败掩盖原始错误
-      try {
-        await this.cronJobLock.release(cronJobId, time);
-      } catch (releaseError) {
-        this.logger.error(
-          `cronJobs [${cronJobId}] failed to release lock at time [${time}]: ${
-            releaseError?.message ?? String(releaseError)
-          }`,
-        );
-      }
     }
   }
 

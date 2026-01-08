@@ -9,6 +9,12 @@
 
 
 
+## [1.6.6] - 2026-01-08
+
+### 🐛 修复
+
+- **database-clean**: 依赖([#344](https://github.com/tegojs/tego-standard/pull/344)) (@TomyJan)
+
 ## [1.6.5] - 2026-01-08
 
 ### ✨ 新增
@@ -2910,7 +2916,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.5...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.6...HEAD
+[1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6
 [1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5
 [1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4
 [1.6.2]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.2

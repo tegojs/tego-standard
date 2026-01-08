@@ -26,7 +26,7 @@ export class CronJobLock {
   private readonly DEFAULT_LOCK_TTL = 5 * 60 * 1000;
 
   async load() {
-    const cache = this.app?.cache
+    const cache = this.app?.cache;
 
     if (!cache) {
       this.logger.error(

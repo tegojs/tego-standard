@@ -31,11 +31,11 @@ export class CronJobLock {
     if (!cache) {
       this.logger.error(
         'CronJobLock cache is not initialized. Please ensure cache service is configured before using CronJobLock.',
-      )
-      throw new Error('CronJobLock cache is not initialized')
+      );
+      throw new Error('CronJobLock cache is not initialized');
     }
 
-    this.cache = cache
+    this.cache = cache;
   }
 
   /**

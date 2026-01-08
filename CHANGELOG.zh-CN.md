@@ -9,6 +9,16 @@
 
 
 
+## [1.6.5] - 2026-01-08
+
+### ✨ 新增
+
+- **cron**: 为 cron 作业执行添加分布式锁 ([#337](https://github.com/tegojs/tego-standard/pull/337)) (@TomyJan)
+
+### 🐛 修复
+
+- **multi-app**: 错误的 ctx ([#336](https://github.com/tegojs/tego-standard/pull/336)) (@TomyJan)
+
 ## [1.6.4] - 2025-12-26
 
 ### 🐛 修复
@@ -2900,7 +2910,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.4...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.5...HEAD
+[1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5
 [1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4
 [1.6.2]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.2
 [1.6.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.1

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-form-design",
   "displayName": "Form Design",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "description": "WYSIWYG Form Design Plugin",
   "keywords": [
     "Collections",

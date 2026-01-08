@@ -24,6 +24,13 @@ export class CronJobLock {
   private readonly LOCK_PREFIX = 'cron-job:lock:';
   // 锁的默认 TTL 为 5 分钟，防止锁无法释放
   private readonly DEFAULT_LOCK_TTL = 5 * 60 * 1000;
+  // 当前节点的唯一标识，在初始化时生成一次
+  private readonly nodeId: string;
+
+  constructor() {
+    // 使用进程 ID 和随机数生成节点标识，在构造函数中生成一次并复用
+    this.nodeId = `${process.pid}-${Math.random().toString(36).substring(2, 10)}`;
+  }
 
   async load() {
     const cache = this.app?.cache;
@@ -128,7 +135,6 @@ export class CronJobLock {
    * 获取当前节点的唯一标识
    */
   private getNodeId(): string {
-    // 使用进程 ID 和随机数生成节点标识
-    return `${process.pid}-${Math.random().toString(36).substring(2, 10)}`;
+    return this.nodeId;
   }
 }

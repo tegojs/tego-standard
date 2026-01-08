@@ -74,10 +74,14 @@ export class CronJobLock {
       } else if (typeof cacheClient.setNx === 'function') {
         acquired = await cacheClient.setNx(lockKey, lockValue, lockTTL);
       } else {
-        // 如果缓存实现不支持原子 set-if-not-exists，则直接尝试设置
-        // 注意：此分支在分布式环境下可能无法完全避免竞态，需要底层 Cache 提供更强保证
-        await this.cache.set(lockKey, lockValue, lockTTL);
-        acquired = true;
+        // 如果缓存实现不支持原子 set-if-not-exists，则无法安全地提供分布式锁
+        // In this case we do NOT pretend to acquire the lock, to avoid multiple nodes running the same job.
+        this.logger.warn(
+          'CronJobLock cache implementation does not support atomic set-if-not-exists operations. Distributed locking for cron jobs is disabled. / 当前缓存实现不支持原子性 set-if-not-exists 操作，定时任务的分布式锁已被禁用。',
+        );
+        throw new Error(
+          'CronJobLock cache implementation does not support atomic set-if-not-exists operations',
+        );
       }
 
       if (!acquired) {

@@ -42,7 +42,7 @@ export class CronJobLock {
       throw new Error('CronJobLock cache is not initialized');
     }
 
-    this.cache = cache;
+    this.cache = cache
   }
 
   /**

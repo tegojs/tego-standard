@@ -49,6 +49,7 @@ export class NumberFieldInterface extends CollectionFieldInterface {
         { value: '0.001', label: '1.000' },
         { value: '0.0001', label: '1.0000' },
         { value: '0.00001', label: '1.00000' },
+        { value: '0.000001', label: '1.000000' },
       ],
     },
     'uiSchema.x-component-props.addonBefore': {

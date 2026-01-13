@@ -145,7 +145,10 @@ export default class extends Instruction {
     if (sync) {
       try {
         const response = await request(config, context);
-
+        response.data = {
+          config: { ...response.config },
+          ...response.data,
+        };
         return {
           status: JOB_STATUS.RESOLVED,
           result: response.data,
@@ -168,6 +171,10 @@ export default class extends Instruction {
     // eslint-disable-next-line promise/catch-or-return
     request(config, context)
       .then((response) => {
+        response.data = {
+          config: { ...response.config },
+          ...response.data,
+        };
         job.set({
           status: JOB_STATUS.RESOLVED,
           result: response.data,

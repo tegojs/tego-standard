@@ -146,7 +146,10 @@ export default class extends Instruction {
       try {
         const response = await request(config, context);
         response.data = {
-          config: { ...response.config },
+          url: response.config.url,
+          params: response.config.params,
+          body: JSON.parse(response.config.data),
+          headers: { ...response.config.headers, ...response.headers },
           ...response.data,
         };
         return {
@@ -172,7 +175,10 @@ export default class extends Instruction {
     request(config, context)
       .then((response) => {
         response.data = {
-          config: { ...response.config },
+          url: response.config.url,
+          params: response.config.params,
+          body: JSON.parse(response.config.data),
+          headers: { ...response.config.headers, ...response.headers },
           ...response.data,
         };
         job.set({

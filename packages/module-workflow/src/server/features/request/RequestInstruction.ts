@@ -157,9 +157,16 @@ export default class extends Instruction {
           result: response.data,
         };
       } catch (error) {
+        const res = {
+          ...JSON.parse(JSON.stringify(error)),
+          url: error.config.url,
+          params: error.config.params,
+          body: JSON.parse(error.config.data),
+          headers: { ...error.config.headers, ...error.headers },
+        };
         return {
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? error.toJSON() : error.message,
+          result: error.isAxiosError ? res : error.message,
         };
       }
     }
@@ -187,9 +194,16 @@ export default class extends Instruction {
         });
       })
       .catch((error) => {
+        const res = {
+          ...JSON.parse(JSON.stringify(error)),
+          url: error.config.url,
+          params: error.config.params,
+          body: JSON.parse(error.config.data),
+          headers: { ...error.config.headers, ...error.headers },
+        };
         job.set({
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? error.toJSON() : error.message,
+          result: error.isAxiosError ? res : error.message,
         });
       })
       .finally(() => {

@@ -149,7 +149,7 @@ export default class extends Instruction {
           url: response.config.url,
           params: response.config.params,
           body: JSON.parse(response.config.data),
-          headers: { ...response.config.headers, ...response.headers },
+          headers: { ...response.config.headers, ...JSON.parse(JSON.stringify(response?.headers)) },
           ...response.data,
         };
         return {
@@ -162,7 +162,7 @@ export default class extends Instruction {
           url: error.config.url,
           params: error.config.params,
           body: JSON.parse(error.config.data),
-          headers: { ...error.config.headers, ...error.headers },
+          headers: { ...error.config.headers, ...JSON.parse(JSON.stringify(error?.headers)) },
         };
         return {
           status: JOB_STATUS.FAILED,
@@ -185,7 +185,7 @@ export default class extends Instruction {
           url: response.config.url,
           params: response.config.params,
           body: JSON.parse(response.config.data),
-          headers: { ...response.config.headers, ...response.headers },
+          headers: { ...response.config.headers, ...JSON.parse(JSON.stringify(response?.headers)) },
           ...response.data,
         };
         job.set({
@@ -199,7 +199,7 @@ export default class extends Instruction {
           url: error.config.url,
           params: error.config.params,
           body: JSON.parse(error.config.data),
-          headers: { ...error.config.headers, ...error.headers },
+          headers: { ...error.config.headers, ...JSON.parse(JSON.stringify(error?.headers)) },
         };
         job.set({
           status: JOB_STATUS.FAILED,

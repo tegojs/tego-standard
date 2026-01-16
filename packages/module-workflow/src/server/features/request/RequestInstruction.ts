@@ -148,7 +148,7 @@ export default class extends Instruction {
         response.data = {
           url: response.config.url,
           params: response.config.params,
-          body: JSON.parse(response.config.data),
+          body: JSON.parse(response.config.data || {}),
           headers: { ...response.config.headers },
           ...response.data,
         };
@@ -158,15 +158,15 @@ export default class extends Instruction {
         };
       } catch (error) {
         const res = {
-          ...JSON.parse(JSON.stringify(error)),
-          url: error.config.url,
-          params: error.config.params,
-          body: JSON.parse(error.config.data),
-          headers: { ...error.config.headers },
+          url: config.url,
+          params: config.params,
+          body: config.data || null,
+          headers: config.headers,
+          error: error.isAxiosError ? error.toJSON() : error.message,
         };
         return {
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? res : error.message,
+          result: res,
         };
       }
     }
@@ -184,7 +184,7 @@ export default class extends Instruction {
         response.data = {
           url: response.config.url,
           params: response.config.params,
-          body: JSON.parse(response.config.data),
+          body: JSON.parse(response.config.data || {}),
           headers: { ...response.config.headers },
           ...response.data,
         };
@@ -195,15 +195,15 @@ export default class extends Instruction {
       })
       .catch((error) => {
         const res = {
-          ...JSON.parse(JSON.stringify(error)),
-          url: error.config.url,
-          params: error.config.params,
-          body: JSON.parse(error.config.data),
-          headers: { ...error.config.headers },
+          url: config.url,
+          params: config.params,
+          body: config.data || null,
+          headers: config.headers,
+          error: error.isAxiosError ? error.toJSON() : error.message,
         };
         job.set({
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? res : error.message,
+          result: res,
         });
       })
       .finally(() => {

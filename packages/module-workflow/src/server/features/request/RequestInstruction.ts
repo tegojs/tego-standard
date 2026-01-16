@@ -145,15 +145,28 @@ export default class extends Instruction {
     if (sync) {
       try {
         const response = await request(config, context);
-
+        response.data = {
+          url: response.config.url,
+          params: response.config.params,
+          body: JSON.parse(response.config.data),
+          headers: { ...response.config.headers, ...response.headers },
+          ...response.data,
+        };
         return {
           status: JOB_STATUS.RESOLVED,
           result: response.data,
         };
       } catch (error) {
+        const res = {
+          ...JSON.parse(JSON.stringify(error)),
+          url: error.config.url,
+          params: error.config.params,
+          body: JSON.parse(error.config.data),
+          headers: { ...error.config.headers, ...error.headers },
+        };
         return {
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? error.toJSON() : error.message,
+          result: error.isAxiosError ? res : error.message,
         };
       }
     }
@@ -168,15 +181,29 @@ export default class extends Instruction {
     // eslint-disable-next-line promise/catch-or-return
     request(config, context)
       .then((response) => {
+        response.data = {
+          url: response.config.url,
+          params: response.config.params,
+          body: JSON.parse(response.config.data),
+          headers: { ...response.config.headers, ...response.headers },
+          ...response.data,
+        };
         job.set({
           status: JOB_STATUS.RESOLVED,
           result: response.data,
         });
       })
       .catch((error) => {
+        const res = {
+          ...JSON.parse(JSON.stringify(error)),
+          url: error.config.url,
+          params: error.config.params,
+          body: JSON.parse(error.config.data),
+          headers: { ...error.config.headers, ...error.headers },
+        };
         job.set({
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? error.toJSON() : error.message,
+          result: error.isAxiosError ? res : error.message,
         });
       })
       .finally(() => {

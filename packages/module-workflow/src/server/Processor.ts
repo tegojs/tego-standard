@@ -344,7 +344,6 @@ export default class Processor {
     template.parameters.forEach(({ key }) => {
       appendArrayColumn(scope, key);
     });
-    const result = template(scope);
     return template(scope);
   }
 }

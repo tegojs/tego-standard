@@ -132,6 +132,7 @@ export default class extends Instruction {
     const context = { token, origin };
 
     const config = processor.getParsedValue(node.config, node.id) as RequestConfig;
+    const requestParams = JSON.stringify(config);
 
     const { workflow } = processor.execution;
     const sync = this.workflow.isWorkflowSync(workflow);
@@ -146,10 +147,7 @@ export default class extends Instruction {
       try {
         const response = await request(config, context);
         response.data = {
-          url: response.config.url,
-          params: response.config.params,
-          body: JSON.parse(response.config.data || {}),
-          headers: { ...response.config.headers },
+          requestParams: JSON.parse(requestParams),
           ...response.data,
         };
         return {
@@ -157,16 +155,12 @@ export default class extends Instruction {
           result: response.data,
         };
       } catch (error) {
-        const res = {
-          url: node.config.url,
-          params: node.config.params,
-          body: node.config.data,
-          headers: node.config.headers,
-          error: error.isAxiosError ? error.toJSON() : error.message,
-        };
         return {
           status: JOB_STATUS.FAILED,
-          result: res,
+          result: {
+            requestParams: JSON.parse(requestParams),
+            error: error.isAxiosError ? error.toJSON() : error.message,
+          },
         };
       }
     }
@@ -182,10 +176,7 @@ export default class extends Instruction {
     request(config, context)
       .then((response) => {
         response.data = {
-          url: response.config.url,
-          params: response.config.params,
-          body: JSON.parse(response.config.data || {}),
-          headers: { ...response.config.headers },
+          requestParams: JSON.parse(requestParams),
           ...response.data,
         };
         job.set({
@@ -194,16 +185,12 @@ export default class extends Instruction {
         });
       })
       .catch((error) => {
-        const res = {
-          url: node.config.url,
-          params: node.config.params,
-          body: node.config.data,
-          headers: node.config.headers,
-          error: error.isAxiosError ? error.toJSON() : error.message,
-        };
         job.set({
           status: JOB_STATUS.FAILED,
-          result: res,
+          result: {
+            requestParams: JSON.parse(requestParams),
+            error: error.isAxiosError ? error.toJSON() : error.message,
+          },
         });
       })
       .finally(() => {

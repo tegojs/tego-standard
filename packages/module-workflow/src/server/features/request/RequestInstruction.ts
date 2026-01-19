@@ -158,10 +158,10 @@ export default class extends Instruction {
         };
       } catch (error) {
         const res = {
-          url: config.url,
-          params: config.params,
-          body: config.data || null,
-          headers: config.headers,
+          url: node.config.url,
+          params: node.config.params,
+          body: node.config.data,
+          headers: node.config.headers,
           error: error.isAxiosError ? error.toJSON() : error.message,
         };
         return {
@@ -195,10 +195,10 @@ export default class extends Instruction {
       })
       .catch((error) => {
         const res = {
-          url: config.url,
-          params: config.params,
-          body: config.data || null,
-          headers: config.headers,
+          url: node.config.url,
+          params: node.config.params,
+          body: node.config.data,
+          headers: node.config.headers,
           error: error.isAxiosError ? error.toJSON() : error.message,
         };
         job.set({

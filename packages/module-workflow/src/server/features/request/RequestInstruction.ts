@@ -132,7 +132,7 @@ export default class extends Instruction {
     const context = { token, origin };
 
     const config = processor.getParsedValue(node.config, node.id) as RequestConfig;
-
+    const requestParams = JSON.parse(JSON.stringify(config));
     const { workflow } = processor.execution;
     const sync = this.workflow.isWorkflowSync(workflow);
     const loopData = prevJob.result;
@@ -146,10 +146,7 @@ export default class extends Instruction {
       try {
         const response = await request(config, context);
         response.data = {
-          url: response.config.url,
-          params: response.config.params,
-          body: JSON.parse(response.config.data),
-          headers: { ...response.config.headers, ...response.headers },
+          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.headers } },
           ...response.data,
         };
         return {
@@ -157,16 +154,12 @@ export default class extends Instruction {
           result: response.data,
         };
       } catch (error) {
-        const res = {
-          ...JSON.parse(JSON.stringify(error)),
-          url: error.config.url,
-          params: error.config.params,
-          body: JSON.parse(error.config.data),
-          headers: { ...error.config.headers, ...error.headers },
-        };
         return {
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? res : error.message,
+          result: {
+            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.headers } },
+            error: error.isAxiosError ? error.toJSON() : error.message,
+          },
         };
       }
     }
@@ -182,10 +175,7 @@ export default class extends Instruction {
     request(config, context)
       .then((response) => {
         response.data = {
-          url: response.config.url,
-          params: response.config.params,
-          body: JSON.parse(response.config.data),
-          headers: { ...response.config.headers, ...response.headers },
+          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.headers } },
           ...response.data,
         };
         job.set({
@@ -194,16 +184,12 @@ export default class extends Instruction {
         });
       })
       .catch((error) => {
-        const res = {
-          ...JSON.parse(JSON.stringify(error)),
-          url: error.config.url,
-          params: error.config.params,
-          body: JSON.parse(error.config.data),
-          headers: { ...error.config.headers, ...error.headers },
-        };
         job.set({
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? res : error.message,
+          result: {
+            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.headers } },
+            error: error.isAxiosError ? error.toJSON() : error.message,
+          },
         });
       })
       .finally(() => {

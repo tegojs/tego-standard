@@ -146,7 +146,7 @@ export default class extends Instruction {
       try {
         const response = await request(config, context);
         response.data = {
-          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.headers } },
+          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.config?.headers } },
           ...response.data,
         };
         return {
@@ -157,7 +157,7 @@ export default class extends Instruction {
         return {
           status: JOB_STATUS.FAILED,
           result: {
-            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.headers } },
+            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.config?.headers } },
             error: error.isAxiosError ? error.toJSON() : error.message,
           },
         };
@@ -175,7 +175,7 @@ export default class extends Instruction {
     request(config, context)
       .then((response) => {
         response.data = {
-          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.headers } },
+          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.config?.headers } },
           ...response.data,
         };
         job.set({
@@ -187,7 +187,7 @@ export default class extends Instruction {
         job.set({
           status: JOB_STATUS.FAILED,
           result: {
-            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.headers } },
+            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.config?.headers } },
             error: error.isAxiosError ? error.toJSON() : error.message,
           },
         });

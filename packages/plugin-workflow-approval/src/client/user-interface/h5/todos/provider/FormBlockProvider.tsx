@@ -16,7 +16,7 @@ import {
 } from '@tachybase/client';
 import { createForm, RecursionField, useField, useFieldSchema } from '@tachybase/schema';
 
-import { useContextApprovalExecution } from '../../context/ApprovalExecution';
+import { useContextApprovalExecution } from '../../../../common';
 
 export function FormBlockProvider(props) {
   const userJob = useContextApprovalExecution();
@@ -28,7 +28,7 @@ export function FormBlockProvider(props) {
   const { getAssociationAppends } = useAssociationNames(dataSource);
   const { appends, updateAssociationValues } = getAssociationAppends();
   const [formKey] = Object.keys(fieldSchema.toJSON().properties ?? {});
-  const values = userJob?.result?.[formKey];
+  const values = userJob?.['result']?.[formKey];
 
   const { findComponent } = useDesignable();
   const Component = findComponent(field.component?.[0]) || React.Fragment;

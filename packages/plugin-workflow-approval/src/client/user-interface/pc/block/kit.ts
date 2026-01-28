@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
 
+import { ProviderApprovalUpdateForm } from '../../../common/contexts/ApprovalUpdateForm.provider';
 import { KitApprovalCommon } from '../common/kit';
 import { InitiateApplication } from './apply-list-old/InitiateApplication';
 import { ApplyList } from './apply-list/ApplyList';
@@ -9,7 +10,6 @@ import { CarbonCopyCenter } from './table-carbon-copy/CarbonCopyCenter.schema';
 import { ViewCheckLink as ViewCheckLinkInitiations } from './table-initiations/CheckLink.view';
 import { ViewTableInitiated } from './table-initiations/TableInitiated';
 import { ViewCheckLink as ViewCheckLinkTodos } from './table-todos/CheckLink.view';
-import { ProviderApprovalUpdateForm } from './table-todos/providers/ApprovalUpdateForm.provider';
 import { ViewTableTodos } from './table-todos/TableTodos.view';
 
 export class KitApprovalBlock extends Plugin {

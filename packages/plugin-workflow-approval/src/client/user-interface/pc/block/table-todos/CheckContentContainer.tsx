@@ -5,12 +5,11 @@ import { ExecutionContextProvider } from '@tachybase/module-workflow/client';
 import { Result, Spin } from 'antd';
 import _ from 'lodash';
 
+import { ApprovalContext, ContextApprovalRecords } from '../../../../common';
 import { ProviderContextApprovalExecution } from '../../../../common/contexts/approvalExecution';
+import { ContextWithActionEnabled } from '../../../../common/contexts/WithActionEnabled.provider';
 import { useTranslation } from '../../../../locale';
-import { ApprovalContext } from '../../common/ApprovalData.provider';
-import { ContextWithActionEnabled } from '../../common/WithActionEnabled.provider';
 import { ViewCheckContent } from './CheckContent.view';
-import { ContextApprovalRecords } from './providers/ApprovalExecutions.provider';
 
 // 审批-待办-查看: 内容
 export const CheckContentContainer = () => {

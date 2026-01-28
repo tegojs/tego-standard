@@ -13,15 +13,15 @@ import {
 import type { WorkflowModel } from '../types';
 import { getRemoteCodeFetcher } from '../utils/get-remote-code-fetcher';
 
-export async function create(context: Context, next) {
-  const { db } = context;
-  const repository = utils.getRepositoryFromParams(context) as MultipleRelationRepository;
-  const { whitelist, blacklist, updateAssociationValues, values, associatedIndex: workflowId } = context.action.params;
+export async function create(ctx: Context, next) {
+  const { db } = ctx;
+  const repository = utils.getRepositoryFromParams(ctx) as MultipleRelationRepository;
+  const { whitelist, blacklist, updateAssociationValues, values, associatedIndex: workflowId } = ctx.action.params;
 
-  context.body = await db.sequelize.transaction(async (transaction) => {
+  ctx.body = await db.sequelize.transaction(async (transaction) => {
     const workflow = (await repository.getSourceModel(transaction)) as WorkflowModel;
     if (workflow.executed) {
-      context.throw(400, 'Node could not be created in executed workflow');
+      ctx.throw(400, 'Node could not be created in executed workflow');
     }
 
     const instance = await repository.create({
@@ -29,7 +29,7 @@ export async function create(context: Context, next) {
       whitelist,
       blacklist,
       updateAssociationValues,
-      context,
+      context: ctx,
       transaction,
     });
 
@@ -118,10 +118,10 @@ function searchBranchDownstreams(nodes, from) {
   return result;
 }
 
-export async function destroy(context: Context, next) {
-  const { db } = context;
-  const repository = utils.getRepositoryFromParams(context) as Repository;
-  const { filterByTk } = context.action.params;
+export async function destroy(ctx: Context, next) {
+  const { db } = ctx;
+  const repository = utils.getRepositoryFromParams(ctx) as Repository;
+  const { filterByTk } = ctx.action.params;
 
   const fields = ['id', 'upstreamId', 'downstreamId', 'branchIndex'];
   const instance = await repository.findOne({
@@ -130,7 +130,7 @@ export async function destroy(context: Context, next) {
     appends: ['upstream', 'downstream', 'workflow'],
   });
   if (instance.workflow.executed) {
-    context.throw(400, 'Nodes in executed workflow could not be deleted');
+    ctx.throw(400, 'Nodes in executed workflow could not be deleted');
   }
 
   await db.sequelize.transaction(async (transaction) => {
@@ -187,16 +187,16 @@ export async function destroy(context: Context, next) {
     });
   });
 
-  context.body = instance;
+  ctx.body = instance;
 
   await next();
 }
 
-export async function update(context: Context, next) {
-  const { db } = context;
-  const repository = utils.getRepositoryFromParams(context);
-  const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues } = context.action.params;
-  context.body = await db.sequelize.transaction(async (transaction) => {
+export async function update(ctx: Context, next) {
+  const { db } = ctx;
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues } = ctx.action.params;
+  ctx.body = await db.sequelize.transaction(async (transaction) => {
     // TODO(optimize): duplicated instance query
     const { workflow } = await repository.findOne({
       filterByTk,
@@ -204,7 +204,7 @@ export async function update(context: Context, next) {
       transaction,
     });
     if (workflow.executed) {
-      context.throw(400, 'Nodes in executed workflow could not be reconfigured');
+      ctx.throw(400, 'Nodes in executed workflow could not be reconfigured');
     }
 
     return repository.update({
@@ -214,7 +214,7 @@ export async function update(context: Context, next) {
       blacklist,
       filter,
       updateAssociationValues,
-      context,
+      context: ctx,
       transaction,
     });
   });
@@ -222,10 +222,10 @@ export async function update(context: Context, next) {
   await next();
 }
 
-export async function moveUp(context: Context, next) {
-  const { db } = context;
-  const repository = utils.getRepositoryFromParams(context) as Repository;
-  const { filterByTk } = context.action.params;
+export async function moveUp(ctx: Context, next) {
+  const { db } = ctx;
+  const repository = utils.getRepositoryFromParams(ctx) as Repository;
+  const { filterByTk } = ctx.action.params;
 
   const fields = ['id', 'upstreamId', 'downstreamId', 'branchIndex', 'key'];
   const instance = await repository.findOne({
@@ -234,14 +234,14 @@ export async function moveUp(context: Context, next) {
     appends: ['upstream', 'downstream', 'workflow'],
   });
   if (instance.workflow.executed) {
-    context.throw(400, 'Nodes in executed workflow could not be deleted');
+    ctx.throw(400, 'Nodes in executed workflow could not be deleted');
   }
 
   await db.sequelize.transaction(async (transaction) => {
     const { upstream, downstream } = instance.get();
 
     if (!upstream) {
-      context.throw(400, 'First node could not be moved up');
+      ctx.throw(400, 'First node could not be moved up');
     }
 
     const upUpStreamId = upstream.upstreamId;
@@ -287,15 +287,15 @@ export async function moveUp(context: Context, next) {
     }
   });
 
-  context.body = instance;
+  ctx.body = instance;
 
   await next();
 }
 
-export async function moveDown(context: Context, next) {
-  const { db } = context;
-  const repository = utils.getRepositoryFromParams(context) as Repository;
-  const { filterByTk } = context.action.params;
+export async function moveDown(ctx: Context, next) {
+  const { db } = ctx;
+  const repository = utils.getRepositoryFromParams(ctx) as Repository;
+  const { filterByTk } = ctx.action.params;
 
   const fields = ['id', 'upstreamId', 'downstreamId', 'branchIndex', 'key'];
   const instance = await repository.findOne({
@@ -304,7 +304,7 @@ export async function moveDown(context: Context, next) {
     appends: ['upstream', 'downstream', 'workflow'],
   });
   if (instance.workflow.executed) {
-    context.throw(400, 'Nodes in executed workflow could not be deleted');
+    ctx.throw(400, 'Nodes in executed workflow could not be deleted');
   }
 
   await db.sequelize.transaction(async (transaction) => {
@@ -313,7 +313,7 @@ export async function moveDown(context: Context, next) {
     const downDownstreamId = downstream.downstreamId;
 
     if (!downstream) {
-      context.throw(400, 'Last node could not be moved up');
+      ctx.throw(400, 'Last node could not be moved up');
     }
 
     if (upstream) {
@@ -358,7 +358,7 @@ export async function moveDown(context: Context, next) {
     }
   });
 
-  context.body = instance;
+  ctx.body = instance;
 
   await next();
 }
@@ -369,26 +369,26 @@ export async function moveDown(context: Context, next) {
  * 注意：此函数用于手动同步，总是获取最新代码并更新缓存
  * 缓存机制在 script.instruction.ts 中的节点执行时使用（直接使用数据库中的缓存，不检查时间戳）
  */
-export async function syncRemoteCode(context: Context, next: Next) {
-  const params = context.action.params.values || context.action.params || {};
+export async function syncRemoteCode(ctx: Context, next: Next) {
+  const params = ctx.action.params.values || ctx.action.params || {};
   const { codeUrl, codeType, codeBranch = 'main', codeAuthType, codeAuthToken, codeAuthUsername, nodeId } = params;
 
   if (!codeUrl || !codeType) {
-    context.throw(400, 'codeUrl and codeType are required');
+    ctx.throw(400, 'codeUrl and codeType are required');
   }
 
   try {
     // 获取 workflow 模块的 RemoteCodeFetcher 服务
-    const remoteCodeFetcher = getRemoteCodeFetcher(context.app);
+    const remoteCodeFetcher = getRemoteCodeFetcher(ctx.app);
 
     // Git 类型必须使用 WorkflowRemoteCodeFetcher 服务
     if (codeType === 'git' && !remoteCodeFetcher) {
-      context.throw(500, 'WorkflowRemoteCodeFetcher service is required for Git type.');
+      ctx.throw(500, 'WorkflowRemoteCodeFetcher service is required for Git type.');
       return;
     }
 
     // 手动同步总是获取最新代码，不检查缓存
-    context.logger.info(
+    ctx.logger.info(
       `Syncing remote code (force refresh): ${codeUrl} (type: ${codeType}, branch: ${codeBranch || 'main'})`,
     );
 
@@ -446,11 +446,11 @@ export async function syncRemoteCode(context: Context, next: Next) {
           });
         });
 
-        context.body = {
+        ctx.body = {
           code,
         };
       } else {
-        context.throw(500, `Unsupported code type: ${codeType}. RemoteCodeFetcher service is required.`);
+        ctx.throw(500, `Unsupported code type: ${codeType}. RemoteCodeFetcher service is required.`);
         return;
       }
     } else {
@@ -464,15 +464,15 @@ export async function syncRemoteCode(context: Context, next: Next) {
         codeAuthToken,
         codeAuthUsername,
       );
-      context.body = {
+      ctx.body = {
         code,
       };
     }
 
     // 如果提供了节点 ID 且同步成功，更新节点的代码缓存和最后同步时间
-    if (nodeId && context.body?.code) {
+    if (nodeId && ctx.body?.code) {
       try {
-        const repository = context.db.getRepository('flow_nodes');
+        const repository = ctx.db.getRepository('flow_nodes');
         const node = await repository.findOne({
           filterByTk: nodeId,
         });
@@ -485,7 +485,7 @@ export async function syncRemoteCode(context: Context, next: Next) {
           config.lastSyncTime = syncTime;
           // 同时更新代码缓存（timestamp 用于记录，不用于验证）
           config.codeCache = {
-            content: context.body.code,
+            content: ctx.body.code,
             timestamp: Date.now(),
           };
           await repository.update({
@@ -497,7 +497,7 @@ export async function syncRemoteCode(context: Context, next: Next) {
         }
       } catch (error) {
         // 记录错误但不影响同步结果
-        context.logger.warn('Failed to update lastSyncTime and codeCache', {
+        ctx.logger.warn('Failed to update lastSyncTime and codeCache', {
           error: error instanceof Error ? error.message : String(error),
           nodeId,
         });
@@ -506,12 +506,12 @@ export async function syncRemoteCode(context: Context, next: Next) {
 
     await next();
   } catch (error) {
-    context.logger.error('Failed to sync remote code', {
+    ctx.logger.error('Failed to sync remote code', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       params,
     });
 
-    context.throw(500, `Failed to fetch remote code: ${error instanceof Error ? error.message : String(error)}`);
+    ctx.throw(500, `Failed to fetch remote code: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

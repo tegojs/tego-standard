@@ -1,6 +1,6 @@
 import { MockServer } from '@tachybase/test';
-
 import { ACL, Database, Model } from '@tego/server';
+
 import UsersPlugin from 'packages/module-user/src';
 
 import { prepareApp } from './prepare';
@@ -31,7 +31,7 @@ describe('middleware', () => {
       },
     });
 
-    const userPlugin = app.getPlugin('users') as UsersPlugin;
+    const userPlugin = app.pm.get('users') as UsersPlugin;
     adminAgent = app.agent().login(admin);
 
     await db.getRepository('collections').create({

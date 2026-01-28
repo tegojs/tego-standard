@@ -4,11 +4,11 @@ export default {
     title: 'TachyBase API documentation',
     description: '',
     contact: {
-      url: 'https://github.com/tachybase/tachybase/issues',
+      url: 'https://github.com/tegojs/tego-standard/issues',
     },
     license: {
       name: 'All packages are Apache 2.0 licensed.',
-      url: 'https://github.com/tachybase/tachybase#license',
+      url: 'https://github.com/tegojs/tego-standard#license',
     },
   },
   components: {

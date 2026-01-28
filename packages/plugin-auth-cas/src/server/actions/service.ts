@@ -13,7 +13,7 @@ export const service = async (ctx: Context, next: Next) => {
     }
   }
 
-  const auth = (await ctx.app.authManager.get(authenticator, ctx)) as CASAuth;
+  const auth = (await ctx.tego.authManager.get(authenticator, ctx)) as CASAuth;
 
   if (prefix.endsWith('/')) {
     prefix = prefix.slice(0, -1);

@@ -1,7 +1,6 @@
 import { randomInt } from 'node:crypto';
 import path from 'node:path';
 import { promisify } from 'node:util';
-
 import { Plugin, Registry } from '@tego/server';
 
 import { Pattern, SequenceField } from './fields/field-sequence';
@@ -25,8 +24,6 @@ export default class SequenceFieldPlugin extends Plugin {
         plugin: this,
       },
     });
-
-    await this.importCollections(path.resolve(__dirname, 'collections'));
 
     db.on('fields.beforeSave', async (field, { transaction }) => {
       if (field.get('type') !== 'sequence') {

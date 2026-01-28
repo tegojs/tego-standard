@@ -1,6 +1,5 @@
 import { AuthModel } from '@tachybase/module-auth';
 import VerificationPlugin from '@tachybase/plugin-otp';
-
 import { AuthConfig, BaseAuth, Model, PasswordField } from '@tego/server';
 
 import { namespace } from '../constants';
@@ -11,12 +10,13 @@ export class SMSAuth extends BaseAuth {
     super({
       ...config,
       userCollection: ctx.db.getCollection('users'),
+      userStatusCollection: ctx.db.getCollection('userStatuses'),
     });
   }
 
   async validate() {
     const ctx = this.ctx;
-    const verificationPlugin: VerificationPlugin = ctx.app.getPlugin('otp');
+    const verificationPlugin: VerificationPlugin = ctx.tego.getPlugin('otp');
     if (!verificationPlugin) {
       throw new Error('sms-auth: @tachybase/plugin-otp is required');
     }
@@ -65,7 +65,7 @@ export class SMSAuth extends BaseAuth {
     const {
       values: { newPassword, phone, oldPassword, code },
     } = ctx.action.params;
-    const verificationPlugin: VerificationPlugin = ctx.app.getPlugin('otp');
+    const verificationPlugin: VerificationPlugin = ctx.tego.getPlugin('otp');
     const currentUser = ctx.auth.user;
     if (!currentUser) {
       ctx.throw(401);

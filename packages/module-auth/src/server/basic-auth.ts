@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-
 import { AuthConfig, BaseAuth, PasswordField } from '@tego/server';
 
 // import VerificationPlugin from '@tachybase/plugin-otp';
@@ -9,7 +8,8 @@ import { namespace } from '../preset';
 export class BasicAuth extends BaseAuth {
   constructor(config: AuthConfig) {
     const userCollection = config.ctx.db.getCollection('users');
-    super({ ...config, userCollection });
+    const userStatusCollection = config.ctx.db.getCollection('userStatuses');
+    super({ ...config, userCollection, userStatusCollection });
   }
 
   async validate() {
@@ -142,7 +142,7 @@ export class BasicAuth extends BaseAuth {
       },
     });
     const pwd = this.userCollection.getField<PasswordField>('password');
-    const verificationPlugin = ctx.app.getPlugin('otp');
+    const verificationPlugin = ctx.tego.getPlugin('otp');
     if (user.password !== null) {
       const isValid = await pwd.verify(oldPassword, user.password);
       if (!isValid) {
@@ -150,6 +150,10 @@ export class BasicAuth extends BaseAuth {
       }
     }
     if (code && phone) {
+      const verificationPlugin = ctx.tego.pm.get('otp') as any;
+      if (!verificationPlugin) {
+        ctx.throw(500, 'Verification plugin not found');
+      }
       try {
         await verificationPlugin.intercept(ctx, async () => {});
       } catch (e) {

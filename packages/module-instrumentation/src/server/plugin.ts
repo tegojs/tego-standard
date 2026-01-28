@@ -1,5 +1,4 @@
 import { isMainThread } from 'node:worker_threads';
-
 import { Context, InjectedPlugin, Plugin } from '@tego/server';
 
 import { TrackingController } from './actions/tracking-controller';

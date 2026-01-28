@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Field, reaction, useField, useFieldSchema } from '@tachybase/schema';
-
 import { getValuesByPath } from '@tego/client';
+
 import _ from 'lodash';
 
 import { useRecordIndex } from '../../../../../src/record-provider';

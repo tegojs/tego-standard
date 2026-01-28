@@ -1,5 +1,4 @@
 import { AuthModel } from '@tachybase/module-auth';
-
 import { AuthConfig, BaseAuth } from '@tego/server';
 
 import { namespace } from '../constants';
@@ -13,6 +12,7 @@ export class WorkAuth extends BaseAuth {
     super({
       ...config,
       userCollection: ctx.db.getCollection('users'),
+      userStatusCollection: ctx.db.getCollection('userStatuses'),
     });
   }
 
@@ -70,7 +70,7 @@ export class WorkAuth extends BaseAuth {
   async getAuthUrl(redirect) {
     const clientId = this.options?.workWeChat?.corpId;
     const agentId = this.options?.workWeChat?.agentId;
-    const app = this.ctx.app.name;
+    const app = this.ctx.tego.name;
     const redirectUrl = encodeURIComponent(
       `${this.ctx.protocol}://${this.ctx.host}${process.env.API_BASE_PATH}workWeChat:redirect`,
     );

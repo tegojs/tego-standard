@@ -1,7 +1,6 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 // NOTE: skipped because time is not stable on github ci, but should work in local
@@ -22,7 +21,7 @@ describe('workflow > instructions > manual', () => {
     app = await getApp({
       plugins: ['users', 'auth', 'workflow-manual'],
     });
-    // await app.getPlugin('auth').install();
+    // await app.pm.get('auth').install();
     agent = app.agent();
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;

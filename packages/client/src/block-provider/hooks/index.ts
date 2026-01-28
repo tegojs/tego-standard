@@ -72,7 +72,7 @@ export function filterByCleanedFields(mergeFilter) {
     // 最终字段名路径
     const fieldPath = filteredParts.join('.');
 
-    const uniqueKey = `${fieldPath}|${JSON.stringify(value)}`;
+    const uniqueKey = `${fieldPath}`;
     if (seen.has(uniqueKey)) continue;
 
     seen.add(uniqueKey);

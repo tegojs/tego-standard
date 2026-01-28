@@ -1,6 +1,6 @@
 import { AuthModel } from '@tachybase/module-auth';
-
 import { AuthConfig, BaseAuth } from '@tego/server';
+
 import { Issuer } from 'openid-client';
 
 import { cookieName } from '../constants';
@@ -13,6 +13,7 @@ export class OIDCAuth extends BaseAuth {
     super({
       ...config,
       userCollection: ctx.db.getCollection('users'),
+      userStatusCollection: ctx.db.getCollection('userStatuses'),
     });
   }
 

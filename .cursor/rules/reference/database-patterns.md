@@ -1,9 +1,9 @@
 ---
-description: Database patterns and Prisma best practices for data modeling and queries
+description: Database patterns and Sequelize best practices for data modeling and queries
 globs:
   - packages/module-*/src/**/*.ts
-  - **/prisma/**/*.ts
-  - **/schema.prisma
+  - packages/plugin-*/src/server/**/*.ts
+  - **/collections/**/*.ts
   - **/database/**/*.ts
 alwaysApply: false
 ---

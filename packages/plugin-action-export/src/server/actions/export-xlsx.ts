@@ -1,4 +1,5 @@
 import { Application, Context, Next, Repository } from '@tego/server';
+
 import dayjs from 'dayjs';
 import xlsx from 'node-xlsx';
 
@@ -24,7 +25,7 @@ export async function exportXlsx(ctx: Context, next: Next) {
   });
   if (count > EXPORT_LENGTH_MAX) {
     // ctx.throw(400, `Too many records to export: ${count}`);
-    const app = ctx.app as Application;
+    const app = ctx.tego as Application;
     if (!app.worker?.available) {
       ctx.throw(400, `Too many records to export: ${count} > ${EXPORT_LENGTH_MAX}`);
     }

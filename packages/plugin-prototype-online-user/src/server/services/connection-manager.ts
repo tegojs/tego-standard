@@ -1,4 +1,5 @@
 import { App, Application, currentProcessNum, Gateway, isMain, Service } from '@tego/server';
+
 import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
 import WebSocket from 'ws';

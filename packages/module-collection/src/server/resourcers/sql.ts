@@ -63,7 +63,7 @@ export default {
       await next();
     },
     setFields: async (ctx: Context, next: Next) => {
-      const transaction = await ctx.app.db.sequelize.transaction();
+      const transaction = await ctx.tego.db.sequelize.transaction();
       try {
         const {
           upRes: [collection],
@@ -79,7 +79,7 @@ export default {
       await next();
     },
     update: async (ctx: Context, next: Next) => {
-      const transaction = await ctx.app.db.sequelize.transaction();
+      const transaction = await ctx.tego.db.sequelize.transaction();
       try {
         const { upRes } = await updateCollection(ctx, transaction);
         const [collection] = upRes;

@@ -132,7 +132,7 @@ export default class extends Instruction {
     const context = { token, origin };
 
     const config = processor.getParsedValue(node.config, node.id) as RequestConfig;
-
+    const requestParams = JSON.parse(JSON.stringify(config));
     const { workflow } = processor.execution;
     const sync = this.workflow.isWorkflowSync(workflow);
     const loopData = prevJob.result;
@@ -145,7 +145,10 @@ export default class extends Instruction {
     if (sync) {
       try {
         const response = await request(config, context);
-
+        response.data = {
+          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.config?.headers } },
+          ...response.data,
+        };
         return {
           status: JOB_STATUS.RESOLVED,
           result: response.data,
@@ -153,7 +156,10 @@ export default class extends Instruction {
       } catch (error) {
         return {
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? error.toJSON() : error.message,
+          result: {
+            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.config?.headers } },
+            error: error.isAxiosError ? error.toJSON() : error.message,
+          },
         };
       }
     }
@@ -168,6 +174,10 @@ export default class extends Instruction {
     // eslint-disable-next-line promise/catch-or-return
     request(config, context)
       .then((response) => {
+        response.data = {
+          requestParams: { ...requestParams, headers: { ...requestParams.headers, ...response.config?.headers } },
+          ...response.data,
+        };
         job.set({
           status: JOB_STATUS.RESOLVED,
           result: response.data,
@@ -176,7 +186,10 @@ export default class extends Instruction {
       .catch((error) => {
         job.set({
           status: JOB_STATUS.FAILED,
-          result: error.isAxiosError ? error.toJSON() : error.message,
+          result: {
+            requestParams: { ...requestParams, headers: { ...requestParams.headers, ...error.config?.headers } },
+            error: error.isAxiosError ? error.toJSON() : error.message,
+          },
         });
       })
       .finally(() => {

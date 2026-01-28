@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { InstallOptions, Logger, LoggerOptions, Plugin } from '@tego/server';
 
 import { listByCurrentRole } from './actions/listByCurrentRole';
@@ -25,9 +24,7 @@ export class CustomRequestPlugin extends Plugin {
   }
 
   async load() {
-    await this.importCollections(resolve(__dirname, 'collections'));
-
-    this.app.resource({
+    this.app.resourcer.define({
       name: 'customRequests',
       actions: {
         send: send.bind(this),

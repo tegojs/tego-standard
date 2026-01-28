@@ -1,20 +1,19 @@
 import { COLLECTION_WORKFLOWS_NAME } from '@tachybase/module-workflow';
-
 import { actions, Op } from '@tego/server';
 
 import { APPROVAL_STATUS } from '../constants/status';
 import { findUniqueObjects } from '../utils';
 
 export const approvalCarbonCopy = {
-  async listCentralized(context, next) {
-    const centralizedApprovalFlow = await context.db.getRepository(COLLECTION_WORKFLOWS_NAME).find({
+  async listCentralized(ctx, next) {
+    const centralizedApprovalFlow = await ctx.db.getRepository(COLLECTION_WORKFLOWS_NAME).find({
       filter: {
         type: 'approval',
         'config.centralized': true,
       },
       fields: ['id'],
     });
-    context.action.mergeParams({
+    ctx.action.mergeParams({
       filter: {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
         approval: {
@@ -25,12 +24,12 @@ export const approvalCarbonCopy = {
       },
     });
 
-    await actions.list(context, next);
+    await actions.list(ctx, next);
 
     // NOTE: 进一步筛选, 筛选出同个用户下相同的approvalid, 只保留最新的一份.
-    if (context.body.rows) {
-      context.body.rows = findUniqueObjects(
-        context.body.rows,
+    if (ctx.body.rows) {
+      ctx.body.rows = findUniqueObjects(
+        ctx.body.rows,
         ['userId', 'approvalId'],
         'createdAt',
         (a: string, b: string) => new Date(a).getTime() - new Date(b).getTime(),

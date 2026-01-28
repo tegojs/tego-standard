@@ -42,7 +42,7 @@ export class CronJobLock {
       throw new Error('CronJobLock cache is not initialized');
     }
 
-    this.cache = cache
+    this.cache = cache;
   }
 
   /**
@@ -86,9 +86,7 @@ export class CronJobLock {
         this.logger.warn(
           'CronJobLock cache implementation does not support atomic set-if-not-exists operations. Distributed locking for cron jobs is disabled. / 当前缓存实现不支持原子性 set-if-not-exists 操作，定时任务的分布式锁已被禁用。',
         );
-        throw new Error(
-          'CronJobLock cache implementation does not support atomic set-if-not-exists operations',
-        );
+        throw new Error('CronJobLock cache implementation does not support atomic set-if-not-exists operations');
       }
 
       if (!acquired) {
@@ -104,10 +102,7 @@ export class CronJobLock {
         throw error;
       }
 
-      this.logger.error(
-        `Failed to acquire lock for cron job ${cronJobId} due to unknown error type`,
-        { error },
-      );
+      this.logger.error(`Failed to acquire lock for cron job ${cronJobId} due to unknown error type`, { error });
       throw new Error('Failed to acquire lock due to unknown error');
     }
   }

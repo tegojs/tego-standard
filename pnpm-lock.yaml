@@ -12,6 +12,9 @@ catalogs:
     '@types/express':
       specifier: 5.0.2
       version: 5.0.2
+    docx-preview:
+      specifier: ^0.3.7
+      version: 0.3.7
 
 overrides:
   '@tachybase/globals': 1.6.2
@@ -298,6 +301,9 @@ importers:
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
+      docx-preview:
+        specifier: 'catalog:'
+        version: 0.3.7
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
@@ -10584,6 +10590,9 @@ packages:
     os: [darwin]
     hasBin: true
 
+  docx-preview@0.3.7:
+    resolution: {integrity: sha512-Lav69CTA/IYZPJTsKH7oYeoZjyg96N0wEJMNslGJnZJ+dMUZK85Lt5ASC79yUlD48ecWjuv+rkcmFt6EVPV0Xg==}
+
   docxtemplater@3.55.8:
     resolution: {integrity: sha512-sDfZA//rrycVK2nSL763ek5+q9O3yzBhJTB+GWG+NBERL/PbYZGVeFl1+nj+fkFblMWo07NCVqM+HVyuHYbQ9Q==}
     engines: {node: '>=0.10'}
@@ -13311,7 +13320,6 @@ packages:
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
-    deprecated: Use your platform's native DOMException instead
 
   node-fetch@2.7.0:
     resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
@@ -26749,6 +26757,10 @@ snapshots:
       smart-buffer: 4.2.0
       verror: 1.10.0
     optional: true
+
+  docx-preview@0.3.7:
+    dependencies:
+      jszip: 3.10.1
 
   docxtemplater@3.55.8:
     dependencies:

@@ -7,10 +7,9 @@ import {
 } from '@tachybase/client';
 import { DetailsBlockProvider } from '@tachybase/module-workflow/client';
 
+import { usePropsNoticeDetail } from '../../../../common/hook/usePropsNoticeDetail';
 import { tval } from '../../../../locale';
-import { ApprovalContext } from '../ApprovalData.provider';
 import { useContextMyComponent } from './contexts/MyComponent.context';
-import { usePropsNoticeDetail } from './hooks/usePropsNoticeDetail';
 import { NoticeDetailProvider } from './NoticeDetail.provider';
 
 export const NoticeDetailContent = (props) => {

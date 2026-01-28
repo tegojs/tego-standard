@@ -9,6 +9,48 @@
 
 
 
+## [1.6.6] - 2026-01-08
+
+### 🐛 修复
+
+- **database-clean**: 依赖([#344](https://github.com/tegojs/tego-standard/pull/344)) (@TomyJan)
+
+## [1.6.5] - 2026-01-08
+
+### ✨ 新增
+
+- **cron**: 为 cron 作业执行添加分布式锁 ([#337](https://github.com/tegojs/tego-standard/pull/337)) (@TomyJan)
+
+### 🐛 修复
+
+- **multi-app**: 错误的 ctx ([#336](https://github.com/tegojs/tego-standard/pull/336)) (@TomyJan)
+
+## [1.6.4] - 2025-12-26
+
+### 🐛 修复
+
+- **module-auth**: 删除令牌以避免 SQL IN (NULL) 问题 ([#332](https://github.com/tegojs/tego-standard/pull/332)) (@TomyJan)
+
+## [1.6.2] - 2025-12-22
+
+### ✨ 新增
+
+- **plugin-database-clean**: 数据库清理 ([#238](https://github.com/tegojs/tego-standard/pull/238)) (@TomyJan)
+- **module-error-handler**: jwt 过期和权限被拒绝的翻译 ([#325](https://github.com/tegojs/tego-standard/pull/325)) (@TomyJan)
+- 添加旧命令的弃用警告 ([#317](https://github.com/tegojs/tego-standard/pull/317)) (@TomyJan)
+
+### 🐛 修复
+
+- 缺少插件元数据 ([#324](https://github.com/tegojs/tego-standard/pull/324)) (@TomyJan)
+- 缺少插件元数据 ([#323](https://github.com/tegojs/tego-standard/pull/323)) (@TomyJan)
+- 仓库地址 ([#321](https://github.com/tegojs/tego-standard/pull/321)) (@TomyJan)
+- **workflow-approval**: 修复了工作流程修订时找不到工作流程的问题 ([#320](https://github.com/tegojs/tego-standard/pull/320)) (@bai.zixv)
+
+### 🔄 变更
+
+- **module-auth**: 将用户状态控制移至核心([#263](https://github.com/tegojs/tego-standard/pull/263)) (@TomyJan)
+- 禁用延迟编译 ([#322](https://github.com/tegojs/tego-standard/pull/322)) (@TomyJan)
+
 ## [1.6.1] - 2025-12-05
 
 ### ✨ 新增
@@ -2874,7 +2916,11 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.1...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.6...HEAD
+[1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6
+[1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5
+[1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4
+[1.6.2]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.2
 [1.6.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.1
 [1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1

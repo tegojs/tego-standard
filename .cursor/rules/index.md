@@ -170,10 +170,10 @@ The following rule files will be automatically loaded and applied:
 ## Configuration Version / 配置版本
 
 - **Created / 创建时间**: 2024-11-10
-- **Last Updated / 最后更新**: 2025-01-27
+- **Last Updated / 最后更新**: 2026-01-05
 - **Cursor Version / Cursor 版本**: Supports `.cursor/rules/` directory structure with frontmatter and organized folders
   支持带 frontmatter 和文件夹组织的 `.cursor/rules/` 目录结构
-- **Project Version / 项目版本**: 1.6.0
+- **Project Version / 项目版本**: 1.6.x
 - **Configuration Version / 配置版本**: 2.1.0 (with folder organization)
   配置版本：2.1.0（带文件夹组织）
 

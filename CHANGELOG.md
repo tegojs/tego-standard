@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.6] - 2026-01-08
+
+### 🐛 Fixed
+
+- **database-clean**: dependence ([#344](https://github.com/tegojs/tego-standard/pull/344)) (@TomyJan)
+
+## [1.6.5] - 2026-01-08
+
+### ✨ Added
+
+- **cron**: add distributed lock for cron job execution ([#337](https://github.com/tegojs/tego-standard/pull/337)) (@TomyJan)
+
+### 🐛 Fixed
+
+- **multi-app**: wrong ctx ([#336](https://github.com/tegojs/tego-standard/pull/336)) (@TomyJan)
+
+## [1.6.4] - 2025-12-26
+
+### 🐛 Fixed
+
+- **module-auth**: token removal to avoid SQL IN (NULL) issue ([#332](https://github.com/tegojs/tego-standard/pull/332)) (@TomyJan)
+
+## [1.6.2] - 2025-12-22
+
+### ✨ Added
+
+- **plugin-database-clean**: db clean ([#238](https://github.com/tegojs/tego-standard/pull/238)) (@TomyJan)
+- **module-error-handler**: translation of jwt expire and permission denied ([#325](https://github.com/tegojs/tego-standard/pull/325)) (@TomyJan)
+- add deprecation warning for legacy commands ([#317](https://github.com/tegojs/tego-standard/pull/317)) (@TomyJan)
+
+### 🐛 Fixed
+
+- missing plugin metadata ([#324](https://github.com/tegojs/tego-standard/pull/324)) (@TomyJan)
+- missing plugin metadata ([#323](https://github.com/tegojs/tego-standard/pull/323)) (@TomyJan)
+- repo url ([#321](https://github.com/tegojs/tego-standard/pull/321)) (@TomyJan)
+- **workflow-approval**: fixed workflow not found when workflow is revision ([#320](https://github.com/tegojs/tego-standard/pull/320)) (@bai.zixv)
+
+### 🔄 Changed
+
+- **module-auth**: move user status control to core ([#263](https://github.com/tegojs/tego-standard/pull/263)) (@TomyJan)
+- disable lazy compilation ([#322](https://github.com/tegojs/tego-standard/pull/322)) (@TomyJan)
+
 ## [1.6.1] - 2025-12-05
 
 ### ✨ Added
@@ -2874,7 +2916,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.6...HEAD
+[1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6
+[1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5
+[1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4
+[1.6.2]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.2
 [1.6.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.1
 [1.6.0]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.0
 [1.5.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.5.1

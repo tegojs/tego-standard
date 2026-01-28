@@ -59,6 +59,7 @@ export default defineConfig({
   dev: {
     hmr: false,
     writeToDisk: false,
+    lazyCompilation: false, // 关闭懒编译,避免循环刷新
   },
   output: {
     distPath: {

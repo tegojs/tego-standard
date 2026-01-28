@@ -1,4 +1,16 @@
 {
+  "ERR_DUPLICATE_KEY": "重複したデータが検出されました。確認して再度送信してください",
+  "ERR_INVALID_TIMESTAMP": "無効な日付形式です。指示に従って修正してください",
+  "ERR_MISSING_FILTER_UPDATE": "更新できません：後で再度お試しするか、管理者にお問い合わせください",
+  "ERR_RELATION_NOT_EXIST": "データベーステーブルが存在しません。管理者にお問い合わせください",
+  "ERR_VALUE_TOO_LONG": "コンテンツの長さまたは数量が制限を超えています。適切に調整してください",
+  "JWT_EXPIRED": "セッションの有効期限が切れています。もう一度ログインしてください",
+  "JWT_INVALID_SIGNATURE": "無効なトークン署名です。もう一度ログインしてください",
+  "JWT_INVALID_TOKEN": "無効なトークンです。もう一度ログインしてください",
+  "JWT_MALFORMED": "無効なトークン形式です。もう一度ログインしてください",
+  "PERMISSION_DENIED": "この操作を実行する権限がありません",
+  "Validation error": "{{field}} バリデーションエラー",
   "notNull Violation": "{{field}} はNullにできません",
+  "notNull violation": "notNull 違反",
   "unique violation": "{{field}} は一意でなくてはなりません"
 }

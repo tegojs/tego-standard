@@ -13,15 +13,34 @@ export default class ApprovalTrigger extends Trigger {
   static TYPE = 'approval';
   sync = false;
   triggerHandler = async (approval, { transaction }) => {
-    const workflow = await approval.getWorkflow({
+    // 修正逻辑：找 id 且 enabled 为 true 的，找不到再找 workflowKey 且 enabled 为 true 的
+    let workflow = await approval.getWorkflow({
       where: {
         id: approval.get('workflowId'),
-        type: ApprovalTrigger.TYPE,
         enabled: true,
+        type: ApprovalTrigger.TYPE,
         'config.collection': approval.collectionName,
       },
       transaction,
     });
+
+    // 如果按 id 没找到，则用 workflowKey 查 enabled 为 true 的
+    if (!workflow && approval.get('workflowKey')) {
+      workflow = await this.workflow.db.getRepository('workflows').findOne({
+        filter: {
+          key: approval.get('workflowKey'),
+          enabled: true,
+          type: ApprovalTrigger.TYPE,
+          'config.collection': approval.collectionName,
+        },
+        transaction,
+      });
+      // 如果找到了 workflow，更新 approval 的 workflowId
+      if (workflow) {
+        // 更新 approval 的 workflowId, hooks 为 false 避免触发工作流
+        await approval.update({ workflowId: workflow.id }, { transaction, hooks: false });
+      }
+    }
     const isChangedStatus = approval.changed('status');
     const isAllowStatusList = [APPROVAL_STATUS.DRAFT, APPROVAL_STATUS.SUBMITTED, APPROVAL_STATUS.RESUBMIT].includes(
       approval.status,

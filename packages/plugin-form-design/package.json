@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-form-design",
   "displayName": "Form Design",
-  "version": "1.6.1",
+  "version": "1.6.6",
   "description": "WYSIWYG Form Design Plugin",
   "keywords": [
     "Collections",
@@ -21,5 +21,6 @@
     "antd-style": "3.7.1",
     "lodash": "^4.17.21"
   },
-  "description.zh-CN": "所见即所得的表单设计插件"
+  "description.zh-CN": "所见即所得的表单设计插件",
+  "displayName.zh-CN": "表单设计"
 }

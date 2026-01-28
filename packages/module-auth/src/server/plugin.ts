@@ -19,24 +19,28 @@ export class PluginAuthServer extends Plugin {
 
   afterAdd() {
     this.app.on('afterLoad', async () => {
-      if (this.app.authManager.tokenController) {
-        return;
-      }
-      const cache = await this.app.cacheManager.createCache({
-        name: 'auth-token-controller',
-        prefix: 'auth-token-controller',
-      });
-      const tokenController = new TokenController({ cache, app: this.app, logger: this.app.logger });
+      if (!this.app.authManager.tokenController) {
+        const cache = await this.app.cacheManager.createCache({
+          name: 'auth-token-controller',
+          prefix: 'auth-token-controller',
+        });
+        const tokenController = new TokenController({ cache, app: this.app, logger: this.app.logger });
 
-      this.app.authManager.setTokenControlService(tokenController);
-      const tokenPolicyRepo = this.app.db.getRepository(tokenPolicyCollectionName);
-      try {
-        const res = await tokenPolicyRepo.findOne({ filterByTk: tokenPolicyRecordKey });
-        if (res) {
-          this.app.authManager.tokenController.setConfig(res.config);
+        this.app.authManager.setTokenControlService(tokenController);
+        const tokenPolicyRepo = this.app.db.getRepository(tokenPolicyCollectionName);
+        try {
+          const res = await tokenPolicyRepo.findOne({ filterByTk: tokenPolicyRecordKey });
+          if (res) {
+            this.app.authManager.tokenController.setConfig(res.config);
+          }
+        } catch (error) {
+          this.app.logger.warn('access control config not exist, use default value');
         }
-      } catch (error) {
-        this.app.logger.warn('access control config not exist, use default value');
+      }
+      if (!this.app.authManager.userStatusService) {
+        this.app.authManager.setUserStatusService(
+          new UserStatusService({ cache: this.cache, app: this.app, logger: this.app.logger }),
+        );
       }
     });
   }
@@ -49,15 +53,6 @@ export class PluginAuthServer extends Plugin {
   }
 
   async load() {
-    // 初始化 UserStatusService
-    this.userStatusService = new UserStatusService(this.app);
-    // 将服务暴露到 app 上,方便其他插件调用
-    (this.app as any).userStatusService = this.userStatusService;
-
-    // 注入登录检查方法, 注册状态变更拦截器
-    this.userStatusService.injectLoginCheck();
-    this.userStatusService.registerStatusChangeInterceptor();
-
     this.cache = await this.app.cacheManager.createCache({
       name: 'auth',
       prefix: 'auth',

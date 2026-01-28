@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch: {}  # 无 inputs
 
 run-name: "Publish to NPM - Version: ${{ github.ref_name }}"
 
@@ -13,19 +14,21 @@ jobs:
     permissions:
       contents: write
       id-token: write
+
+    # 限制只在 v* tag 上运行（自动 push 已限，手动选 branch 时若非 v* tag 直接跳过）
+    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          ref: ${{ github.ref }}
           fetch-depth: 0
+
       - name: Check if tag is on main branch
         id: check_branch
         run: |
-          # 获取 tag 指向的 commit
           TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref_name }})
-          # 检查这个 commit 是否在 main 分支上
           if git branch -r --contains $TAG_COMMIT | grep -q 'origin/main'; then
             echo "on_main=true" >> $GITHUB_OUTPUT
             echo "✓ Tag ${{ github.ref_name }} is on main branch"
@@ -33,25 +36,31 @@ jobs:
             echo "on_main=false" >> $GITHUB_OUTPUT
             echo "⚠ Tag ${{ github.ref_name }} is not on main branch, skipping publish"
           fi
+
       - uses: MOZGIII/install-ldid-action@v1
         if: steps.check_branch.outputs.on_main == 'true'
         with:
           tag: v2.1.5-procursus7
+
       - name: Setup pnpm
         if: steps.check_branch.outputs.on_main == 'true'
         uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         if: steps.check_branch.outputs.on_main == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
+
       - name: Install deps
         if: steps.check_branch.outputs.on_main == 'true'
         run: pnpm install
+
       - name: Build
         if: steps.check_branch.outputs.on_main == 'true'
         run: pnpm build
+
       - name: Publish
         if: steps.check_branch.outputs.on_main == 'true'
         id: publish
@@ -66,29 +75,48 @@ jobs:
           FAILED_FILE=$(mktemp)
           OUTPUT_FILE=$(mktemp)
 
-          # 获取所有需要发布的包列表（只获取有 package.json 且包含 name 字段的包）
+          # 获取所有需要发布的包列表（只获取项目自己的包，排除依赖项）
           echo "获取需要发布的包列表..."
-          find packages -name "package.json" -type f | while read pkg_file; do
-            pkg_name=$(jq -r '.name // empty' "$pkg_file" 2>/dev/null)
-            if [ -n "$pkg_name" ] && [ "$pkg_name" != "null" ]; then
-              echo "$pkg_name" >> /tmp/all-packages.txt
+          
+          # 方法1: 从 packages 和 apps 目录中查找包
+          > /tmp/all-packages.txt
+          for dir in packages apps; do
+            if [ -d "$dir" ]; then
+              find "$dir" -name "package.json" -type f | while read pkg_file; do
+                pkg_name=$(jq -r '.name // empty' "$pkg_file" 2>/dev/null)
+                if [ -n "$pkg_name" ] && [ "$pkg_name" != "null" ]; then
+                  echo "$pkg_name" >> /tmp/all-packages.txt
+                fi
+              done
             fi
           done
 
-          # 如果没有找到包，尝试使用 pnpm list
-          if [ ! -f /tmp/all-packages.txt ] || [ ! -s /tmp/all-packages.txt ]; then
-            pnpm -r list --depth=-1 --json 2>/dev/null | jq -r '.[] | select(.name != null and .name != "null") | .name' | sort -u > /tmp/all-packages.txt || true
+          # 方法2: 使用 pnpm list 但只获取工作区包（不包括依赖项）
+          if [ ! -s /tmp/all-packages.txt ]; then
+            echo "尝试使用 pnpm 获取工作区包..."
+            pnpm -r list --depth=0 --json 2>/dev/null | jq -r '.[] | select(.name != null and .name != "null" and .path != null) | .name' | sort -u > /tmp/all-packages.txt || true
           fi
 
           TOTAL_PACKAGES=$(wc -l < /tmp/all-packages.txt | tr -d ' ' || echo "0")
           echo "找到 $TOTAL_PACKAGES 个需要发布的包"
+          
+          # 调试：显示找到的包列表
+          if [ -s /tmp/all-packages.txt ]; then
+            echo "包列表："
+            cat /tmp/all-packages.txt | head -10
+            if [ "$TOTAL_PACKAGES" -gt 10 ]; then
+              echo "... 还有 $((TOTAL_PACKAGES - 10)) 个包"
+            fi
+          fi
 
           # 设置允许命令失败但继续执行
           set +e
 
           # 执行发布并捕获所有输出
           echo "开始发布包到 NPM..."
-          pnpm -r publish --provenance --access public --no-git-checks 2>&1 | tee "$OUTPUT_FILE"
+          
+          # 使用更精确的发布命令，只发布工作区包
+          pnpm -r --filter="./packages/*" --filter="./apps/*" publish --provenance --access public --no-git-checks 2>&1 | tee "$OUTPUT_FILE"
           PUBLISH_EXIT_CODE=${PIPESTATUS[0]}
 
           set -e
@@ -97,13 +125,13 @@ jobs:
           # pnpm publish 成功时会显示类似 "Published @scope/package@1.0.0" 的信息
           grep -iE "published|publishing" "$OUTPUT_FILE" | grep -oE '@[^/]+/[^@\s]+@[0-9.]+' | sed 's/@[0-9.]*$//' | sort -u > "$SUCCESS_FILE" || true
 
-          # 如果上面的方法没找到，尝试从输出中提取包名（格式：@scope/package-name）
+          # 如果上面的方法没找到，尝试从输出中提取包名，但只匹配项目包
           if [ ! -s "$SUCCESS_FILE" ]; then
-            # 从输出中查找包含包名的行
+            # 从输出中查找包含包名的行，但只处理项目自己的包
             grep -oE '@[^/]+/[^@\s/]+' "$OUTPUT_FILE" | grep -v "node_modules" | sort -u | while read pkg; do
-              # 检查这个包是否在 all-packages.txt 中，并且输出中没有错误信息
+              # 检查这个包是否在 all-packages.txt 中（项目包列表）
               if grep -q "^$pkg$" /tmp/all-packages.txt 2>/dev/null; then
-                # 检查这个包在输出中是否有错误
+                # 检查这个包在输出中是否有错误信息
                 if ! grep -iE "error|failed|denied|unauthorized|forbidden" "$OUTPUT_FILE" | grep -q "$pkg"; then
                   echo "$pkg" >> "$SUCCESS_FILE"
                 fi
@@ -163,6 +191,13 @@ jobs:
             echo "::notice title=⚠️ NPM 发布部分成功::成功发布 $SUCCESS_COUNT 个包，失败 $FAILED_COUNT 个包"
           elif [ "$FAILED_COUNT" -gt 0 ]; then
             echo "::notice title=❌ NPM 发布失败::失败 $FAILED_COUNT 个包"
+          else
+            # 既没有成功也没有失败的情况（通常表示发布命令执行异常）
+            if [ "$PUBLISH_EXIT_CODE" -ne 0 ]; then
+              echo "::warning title=⚠️ NPM 发布异常::发布命令执行失败 (exit code: $PUBLISH_EXIT_CODE)，无法解析发布结果"
+            else
+              echo "::warning title=⚠️ NPM 发布无结果::未找到任何发布的包或发布结果"
+            fi
           fi
 
           # 输出失败的包列表（成功的包只统计数量，不列出包名）
@@ -173,8 +208,24 @@ jobs:
             fi
           fi
 
-          # 如果有失败的包，退出码为 1
-          if [ "$FAILED_COUNT" -gt 0 ]; then
-            exit 1
+      - name: Publish Summary
+        if: always() && steps.check_branch.outputs.on_main == 'true'
+        run: |
+          echo "=== NPM Publish Summary ==="
+          echo "Success Count: ${{ steps.publish.outputs.success_count || '0' }}"
+          echo "Failed Count: ${{ steps.publish.outputs.failed_count || '0' }}"
+          echo ""
+          
+          SUCCESS_COUNT="${{ steps.publish.outputs.success_count || '0' }}"
+          FAILED_COUNT="${{ steps.publish.outputs.failed_count || '0' }}"
+          
+          # 确保至少生成一个汇总通知
+          if [ -z "$SUCCESS_COUNT" ] || [ -z "$FAILED_COUNT" ]; then
+            echo "::notice title=⚠️ NPM 发布结果未知::无法获取发布统计信息"
+          else
+            TOTAL=$((SUCCESS_COUNT + FAILED_COUNT))
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "::notice title=⚠️ NPM 发布无结果::未执行任何包的发布"
+            fi
           fi
 

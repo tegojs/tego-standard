@@ -61,6 +61,11 @@ export class ShowFieldCodeInterface extends CollectionFieldInterface {
         { value: '3', label: '1.000' },
         { value: '4', label: '1.0000' },
         { value: '5', label: '1.00000' },
+        { value: '6', label: '1.000000' },
+        { value: '7', label: '1.0000000' },
+        { value: '8', label: '1.00000000' },
+        { value: '9', label: '1.000000000' },
+        { value: '10', label: '1.0000000000' },
       ],
     },
     'uiSchema.x-component-props.jsCode': {

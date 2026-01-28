@@ -1,14 +1,14 @@
 {
   "name": "@tachybase/plugin-ai-chat",
   "displayName": "AI Chat",
-  "version": "1.6.0",
+  "version": "1.6.6",
   "description": "AI chatbot, providing operational help, intelligent Q&A",
   "keywords": [
     "Others"
   ],
   "main": "dist/server/index.js",
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@ant-design/x": "^1.6.0",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "catalog:",

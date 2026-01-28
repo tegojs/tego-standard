@@ -14,4 +14,4 @@ export default extendCollection({
       foreignKey: 'applicationName',
     },
   ],
-});
+}) as any;

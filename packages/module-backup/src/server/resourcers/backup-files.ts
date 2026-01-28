@@ -30,10 +30,10 @@ export default {
     async list(ctx, next) {
       const { page = DEFAULT_PAGE, pageSize = DEFAULT_PER_PAGE } = ctx.action.params;
 
-      const dumper = new Dumper(ctx.app);
+      const dumper = new Dumper(ctx.tego);
       const backupFiles = await dumper.allBackUpFilePaths({
         includeInProgress: true,
-        appName: ctx.app.name,
+        appName: ctx.tego.name,
       });
 
       // handle pagination
@@ -42,7 +42,7 @@ export default {
       const rows = await Promise.all(
         backupFiles.slice((page - 1) * pageSize, page * pageSize).map(async (file) => {
           // if file is lock file, remove lock extension
-          return await Dumper.getFileStatus(file.endsWith('.lock') ? file.replace('.lock', '') : file, ctx.app.name);
+          return await Dumper.getFileStatus(file.endsWith('.lock') ? file.replace('.lock', '') : file, ctx.tego.name);
         }),
       );
 
@@ -58,8 +58,8 @@ export default {
     },
     async get(ctx, next) {
       const { filterByTk } = ctx.action.params;
-      const dumper = new Dumper(ctx.app);
-      const filePath = dumper.backUpFilePath(filterByTk, ctx.app.name);
+      const dumper = new Dumper(ctx.tego);
+      const filePath = dumper.backUpFilePath(filterByTk, ctx.tego.name);
 
       async function sendError(message, status = 404) {
         ctx.body = { status: 'error', message };
@@ -71,7 +71,7 @@ export default {
         if (fileState.status !== 'ok') {
           await sendError(`Backup file ${filterByTk} not found`);
         } else {
-          const restorer = new Restorer(ctx.app, {
+          const restorer = new Restorer(ctx.tego, {
             backUpFilePath: filePath,
           });
 
@@ -104,7 +104,7 @@ export default {
         }
       >ctx.request.body;
 
-      const app = ctx.app as Application;
+      const app = ctx.tego as Application;
       const userId = ctx.state.currentUser?.id;
 
       if (data.method === 'worker' && !app.worker?.available) {
@@ -113,8 +113,8 @@ export default {
       }
 
       let useWorker = data.method === 'worker' || (data.method === 'priority' && app.worker?.available);
-      const dumper = new Dumper(ctx.app);
-      const taskId = await dumper.getLockFile(ctx.app.name);
+      const dumper = new Dumper(ctx.tego);
+      const taskId = await dumper.getLockFile(ctx.tego.name);
       if (useWorker) {
         app.worker
           .callPluginMethod({
@@ -122,7 +122,7 @@ export default {
             method: 'workerCreateBackUp',
             params: {
               dataTypes: data.dataTypes,
-              appName: ctx.app.name,
+              appName: ctx.tego.name,
               filename: taskId,
               userId,
             },
@@ -136,14 +136,14 @@ export default {
             app.noticeManager.notify('backup', { level: 'error', msg: error.message });
           })
           .finally(() => {
-            dumper.cleanLockFile(taskId, ctx.app.name);
+            dumper.cleanLockFile(taskId, ctx.tego.name);
           });
       } else {
         const plugin = app.pm.get(PluginBackupRestoreServer) as PluginBackupRestoreServer;
         plugin
           .workerCreateBackUp({
             dataTypes: data.dataTypes,
-            appName: ctx.app.name,
+            appName: ctx.tego.name,
             filename: taskId,
             userId,
           })
@@ -154,7 +154,7 @@ export default {
             app.noticeManager.notify('backup', { level: 'error', msg: error.message });
           })
           .finally(() => {
-            dumper.cleanLockFile(taskId, ctx.app.name);
+            dumper.cleanLockFile(taskId, ctx.tego.name);
           });
       }
 
@@ -172,9 +172,9 @@ export default {
      */
     async download(ctx, next) {
       const { filterByTk } = ctx.action.params;
-      const dumper = new Dumper(ctx.app);
+      const dumper = new Dumper(ctx.tego);
 
-      const filePath = dumper.backUpFilePath(filterByTk, ctx.app.name);
+      const filePath = dumper.backUpFilePath(filterByTk, ctx.tego.name);
 
       const fileState = await Dumper.getFileStatus(filePath);
 
@@ -204,8 +204,8 @@ export default {
         }
 
         if (filterByTk) {
-          const dumper = new Dumper(ctx.app);
-          return dumper.backUpFilePath(filterByTk, ctx.app.name);
+          const dumper = new Dumper(ctx.tego);
+          return dumper.backUpFilePath(filterByTk, ctx.tego.name);
         }
       })();
 
@@ -219,15 +219,15 @@ export default {
         args.push('-g', dataType);
       }
 
-      await ctx.app.runCommand(...args);
+      await ctx.tego.runCommand(...args);
 
       await next();
     },
 
     async destroy(ctx, next) {
       const { filterByTk } = ctx.action.params;
-      const dumper = new Dumper(ctx.app);
-      const filePath = dumper.backUpFilePath(filterByTk, ctx.app.name);
+      const dumper = new Dumper(ctx.tego);
+      const filePath = dumper.backUpFilePath(filterByTk, ctx.tego.name);
 
       await fsPromises.unlink(filePath);
 
@@ -242,7 +242,7 @@ export default {
       const file = ctx.file;
       const fileName = file.filename;
 
-      const restorer = new Restorer(ctx.app, {
+      const restorer = new Restorer(ctx.tego, {
         backUpFilePath: file.path,
       });
 
@@ -259,7 +259,7 @@ export default {
     async dumpableCollections(ctx, next) {
       ctx.withoutDataWrapping = true;
 
-      const dumper = new Dumper(ctx.app);
+      const dumper = new Dumper(ctx.tego);
 
       ctx.body = await dumper.dumpableCollectionsGroupByGroup();
 

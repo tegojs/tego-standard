@@ -3,33 +3,8 @@ import { useCurrentUserContext, useFormBlockContext, useRecord } from '@tachybas
 import { useFlowContext } from '@tachybase/module-workflow/client';
 import { useForm } from '@tachybase/schema';
 
+import { useContextApprovalExecution } from '../../../../common';
 import { approvalInitiationStatusMap } from '../../../../common/constants/approval-initiation-status-options';
-import { useContextApprovalExecution } from '../../context/ApprovalExecution';
-
-export function useFormBlockProps() {
-  const { approval, id, workflow } = useContextApprovalExecution();
-  const form = useForm();
-  const { data } = useCurrentUserContext();
-
-  const { editable } = approvalInitiationStatusMap[approval.status];
-
-  const needEditable =
-    editable && approval?.latestExecutionId === id && approval.createdById === data?.data.id && workflow.enabled;
-
-  useEffect(() => {
-    if (!approval) {
-      return;
-    }
-
-    if (needEditable) {
-      form.setPattern('editable');
-    } else {
-      form.setPattern('readPretty');
-    }
-  }, [form, approval, needEditable]);
-
-  return { form };
-}
 
 export function useUserJobsFormBlockProps() {
   const { userJob, execution } = useFlowContext();

@@ -14,7 +14,7 @@ interface PDFViewerProps {
 }
 
 interface PDFViewerRef {
-  download: () => void;
+  download: (props) => void;
   print: () => void;
 }
 
@@ -45,9 +45,9 @@ export const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>((props, ref) =
     },
   );
   useImperativeHandle(ref, () => ({
-    download() {
+    download(props) {
       const blob = new Blob([data as ArrayBuffer], { type: 'application/pdf' });
-      saveAs(blob, uid() + '.pdf');
+      saveAs(blob, (props.name || uid()) + '.pdf');
     },
     print() {
       contentWindow.print();

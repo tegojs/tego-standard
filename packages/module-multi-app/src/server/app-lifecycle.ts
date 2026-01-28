@@ -4,7 +4,7 @@ import { ApplicationModel } from './models/application';
 
 export type AppOptionsFactory = (appName: string, mainApp: Application, preset: string) => any;
 
-export function LazyLoadApplication(context: any) {
+export function LazyLoadApplication(ctx: any) {
   return async ({
     appSupervisor,
     appName,
@@ -21,7 +21,7 @@ export function LazyLoadApplication(context: any) {
       return;
     }
 
-    const applicationRecord = (await context.app.db.getRepository('applications').findOne({
+    const applicationRecord = (await ctx.db.getRepository('applications').findOne({
       filter: {
         name,
       },
@@ -41,8 +41,8 @@ export function LazyLoadApplication(context: any) {
       return;
     }
 
-    const subApp = applicationRecord.registerToSupervisor(context.app, {
-      appOptionsFactory: context.appOptionsFactory,
+    const subApp = applicationRecord.registerToSupervisor(ctx.app, {
+      appOptionsFactory: ctx.appOptionsFactory,
     });
 
     // must skip load on upgrade

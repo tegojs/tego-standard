@@ -42,7 +42,7 @@ export class IpFilterController {
       // IPFilterService 会通过事件监听器自动重新加载配置
       ctx.body = data;
     } catch (err) {
-      ctx.app.logger.error('put ip filter config error', err);
+      ctx.tego.logger.error('put ip filter config error', err);
       if (transaction) await transaction.rollback();
       throw err;
     }

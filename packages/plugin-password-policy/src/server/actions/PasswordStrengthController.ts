@@ -41,7 +41,7 @@ export class PasswordStrengthController {
       await transaction.commit();
       ctx.body = data;
     } catch (err) {
-      ctx.app.logger.error('put password strength config error', err);
+      ctx.tego.logger.error('put password strength config error', err);
       transaction?.rollback();
     }
     return next();

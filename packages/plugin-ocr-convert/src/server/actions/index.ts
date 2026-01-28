@@ -13,7 +13,7 @@ function make(name, mod) {
   );
 }
 export function initActions(app: Application) {
-  app.actions({
+  app.resourcer.registerActions({
     ...make('ocr_providers', { ...ocrConvert, ...fileConvert }),
   });
 }

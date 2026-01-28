@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { reaction } from '@tachybase/schema';
-
 import { flatten, getValuesByPath } from '@tego/client';
+
 import _ from 'lodash';
 
 import { mergeFilter } from '../../../../filter-provider';

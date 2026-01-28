@@ -21,7 +21,7 @@ function getTegoVersion(packageJson, backendTemp, logPrefix) {
     }
 
     if (!tegoVersion || tegoVersion === 'catalog:') {
-      tegoVersion = '1.3.52';
+      tegoVersion = '1.6.0';
       log(logPrefix, `Using default tego version: ${tegoVersion}`);
     }
   }

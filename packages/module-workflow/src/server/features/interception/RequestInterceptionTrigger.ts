@@ -17,13 +17,13 @@ class RequestInterceptionError extends Error {
 export class RequestInterceptionTrigger extends Trigger {
   static TYPE = 'request-interception';
   sync = true;
-  middleware = async (context: Context, next: Next) => {
+  middleware = async (ctx: Context, next: Next) => {
     const {
       resourceName,
       actionName,
       params: { filterByTk, filter, values, triggerWorkflows = '' },
-    } = context.action;
-    const dataSourceHeader = context.get('x-data-source');
+    } = ctx.action;
+    const dataSourceHeader = ctx.get('x-data-source');
     const jointCollectionName = joinCollectionName(dataSourceHeader, resourceName);
     const triggerWorkflowsMap = new Map();
     const triggerWorkflowsArray = [];
@@ -63,18 +63,18 @@ export class RequestInterceptionTrigger extends Trigger {
       const processor = await this.workflow.trigger(
         workflow,
         {
-          user: context.state.currentUser,
-          roleName: context.state.currentRole,
+          user: ctx.state.currentUser,
+          roleName: ctx.state.currentRole,
           params: {
             filterByTk,
             filter,
             values,
           },
         },
-        { httpContext: context },
+        { httpContext: ctx },
       );
       if (!processor) {
-        return context.throw(500);
+        return ctx.throw(500);
       }
       const { lastSavedJob, nodesMap } = processor;
       const lastNode = nodesMap.get(lastSavedJob?.nodeId);
@@ -86,17 +86,17 @@ export class RequestInterceptionTrigger extends Trigger {
       }
       if (processor.execution.status < EXECUTION_STATUS.STARTED) {
         if (lastNode?.type !== 'end') {
-          return context.throw(
+          return ctx.throw(
             500,
-            context.t('Workflow on your action failed, please contact the administrator', { ns: 'workflow' }),
+            ctx.t('Workflow on your action failed, please contact the administrator', { ns: 'workflow' }),
           );
         }
         const err = new RequestInterceptionError('Request is intercepted by workflow');
         err.status = 400;
-        err.messages = context.state.messages;
-        return context.throw(err.status, err);
+        err.messages = ctx.state.messages;
+        return ctx.throw(err.status, err);
       }
-      return context.throw(500, 'Workflow on your action hangs, please contact the administrator');
+      return ctx.throw(500, 'Workflow on your action hangs, please contact the administrator');
     }
     await next();
   };

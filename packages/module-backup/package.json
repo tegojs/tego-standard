@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-backup",
   "displayName": "App backup & restore",
-  "version": "1.6.0",
+  "version": "1.6.6",
   "description": "Backup and restore applications for scenarios such as application replication, migration, and upgrades.",
   "keywords": [
     "System management"
@@ -10,7 +10,7 @@
   "main": "./dist/server/index.js",
   "scripts": {},
   "devDependencies": {
-    "@ant-design/icons": "^5.6.1",
+    "@ant-design/icons": "^6.1.0",
     "@hapi/topo": "^6.0.2",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-worker-thread": "workspace:*",

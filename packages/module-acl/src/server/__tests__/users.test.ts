@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 import { prepareApp } from './prepare';
@@ -20,7 +19,7 @@ describe('actions', () => {
     app = await prepareApp();
     db = app.db;
 
-    pluginUser = app.getPlugin('users');
+    pluginUser = app.pm.get('users');
     adminUser = await db.getRepository('users').findOne({
       filter: {
         email: process.env.INIT_ROOT_EMAIL,

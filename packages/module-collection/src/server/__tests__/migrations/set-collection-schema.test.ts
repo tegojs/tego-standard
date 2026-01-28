@@ -1,5 +1,4 @@
 import { MockServer, pgOnly } from '@tachybase/test';
-
 import { Database, MigrationContext } from '@tego/server';
 
 import Migrator from '../../migrations/20230918024546-set-collection-schema';
@@ -32,7 +31,7 @@ pgOnly()('set collection schema', () => {
     expect(collection.options.schema).toBeUndefined();
 
     const migration = new Migrator({ db } as MigrationContext);
-    migration.context.app = app;
+    migration.context.tego = app;
     await migration.up();
 
     const collection2 = await db.getRepository('collections').findOne({});

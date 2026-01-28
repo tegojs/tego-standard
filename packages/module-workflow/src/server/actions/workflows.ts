@@ -21,43 +21,43 @@ import {
  *
  * 使用 listExtended 作为 action 名称，避免覆盖默认的 list，便于后续扩展
  */
-export async function listExtended(context: Context, next: Next) {
+export async function listExtended(ctx: Context, next: Next) {
   // 先执行默认的 list action 获取基础数据
-  await actions.list(context, next);
+  await actions.list(ctx, next);
 
   // 为每个工作流附加额外字段
-  if (context.body?.rows && Array.isArray(context.body.rows) && context.body.rows.length > 0) {
-    const workflows = context.body.rows as WorkflowModel[];
+  if (ctx.body?.rows && Array.isArray(ctx.body.rows) && ctx.body.rows.length > 0) {
+    const workflows = ctx.body.rows as WorkflowModel[];
 
     for (let index = 0; index < workflows.length; index++) {
       const workflow = workflows[index];
-      const row = context.body.rows[index];
+      const row = ctx.body.rows[index];
 
       if (!row) continue;
 
       const workflowData = getWorkflowData(workflow);
 
       // 查询并附加最新执行时间
-      const executedTime = await getLatestExecutedTimeForWorkflow(context, workflowData?.id, workflowData?.key);
+      const executedTime = await getLatestExecutedTimeForWorkflow(ctx, workflowData?.id, workflowData?.key);
       setLatestExecutedTime(row, executedTime);
 
       // 查询并附加事件源名称
-      const eventSourceName = await getEventSourceNameForWorkflow(context, workflowData?.key);
+      const eventSourceName = await getEventSourceNameForWorkflow(ctx, workflowData?.key);
       setEventSourceName(row, eventSourceName);
 
       // 查询并附加分类信息
-      const categories = await getCategoriesForWorkflow(context, workflow, workflowData?.key);
+      const categories = await getCategoriesForWorkflow(ctx, workflow, workflowData?.key);
       setCategories(row, categories);
     }
   }
 
-  return context;
+  return ctx;
 }
 
-export async function update(context: Context, next) {
-  const repository = utils.getRepositoryFromParams(context) as Repository;
-  const { filterByTk, values } = context.action.params;
-  context.action.mergeParams({
+export async function update(ctx: Context, next) {
+  const repository = utils.getRepositoryFromParams(ctx) as Repository;
+  const { filterByTk, values } = ctx.action.params;
+  ctx.action.mergeParams({
     whitelist: [
       'title',
       'description',
@@ -77,17 +77,17 @@ export async function update(context: Context, next) {
   if (Object.keys(values).includes('config')) {
     const workflow = await repository.findById(filterByTk);
     if (workflow.get('executed')) {
-      return context.throw(400, 'config of executed workflow can not be updated');
+      return ctx.throw(400, 'config of executed workflow can not be updated');
     }
   }
-  return actions.update(context, next);
+  return actions.update(ctx, next);
 }
 
-export async function destroy(context: Context, next) {
-  const repository = utils.getRepositoryFromParams(context) as Repository;
-  const { filterByTk, filter } = context.action.params;
+export async function destroy(ctx: Context, next) {
+  const repository = utils.getRepositoryFromParams(ctx) as Repository;
+  const { filterByTk, filter } = ctx.action.params;
 
-  await context.db.sequelize.transaction(async (transaction) => {
+  await ctx.db.sequelize.transaction(async (transaction) => {
     const items = await repository.find({
       filterByTk,
       filter,
@@ -107,7 +107,7 @@ export async function destroy(context: Context, next) {
 
     revisions.forEach((item) => ids.add(item.id));
 
-    context.body = await repository.destroy({
+    ctx.body = await repository.destroy({
       filterByTk: Array.from(ids),
       individualHooks: true,
       transaction,
@@ -117,16 +117,16 @@ export async function destroy(context: Context, next) {
   next();
 }
 
-export async function dump(context: Context, next: Next) {
-  const repository = utils.getRepositoryFromParams(context);
-  const { filterByTk, filter = {}, values = {} } = context.action.params;
+export async function dump(ctx: Context, next: Next) {
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { filterByTk, filter = {}, values = {} } = ctx.action.params;
 
-  context.body = await context.db.sequelize.transaction(async (transaction) => {
+  ctx.body = await ctx.db.sequelize.transaction(async (transaction) => {
     const origin = await repository.findOne({
       filterByTk,
       filter,
       appends: ['nodes'],
-      context,
+      context: ctx,
       transaction,
     });
 
@@ -152,12 +152,12 @@ export async function dump(context: Context, next: Next) {
   await next();
 }
 
-export async function load(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
-  const repository = utils.getRepositoryFromParams(context);
-  const { values = {} } = context.action.params;
+export async function load(ctx: Context, next: Next) {
+  const plugin = ctx.tego.pm.get(Plugin);
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { values = {} } = ctx.action.params;
 
-  context.body = await context.db.sequelize.transaction(async (transaction) => {
+  ctx.body = await ctx.db.sequelize.transaction(async (transaction) => {
     const origin = values.workflow;
 
     const trigger = plugin.triggers.get(origin.type);
@@ -226,27 +226,27 @@ export async function load(context: Context, next: Next) {
   await next();
 }
 
-export async function test(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
-  const repository = utils.getRepositoryFromParams(context);
-  const { filterByTk, filter = {}, values = {} } = context.action.params;
+export async function test(ctx: Context, next: Next) {
+  const plugin = ctx.tego.pm.get(Plugin);
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { filterByTk, filter = {}, values = {} } = ctx.action.params;
 
-  if (!context.state) {
-    context.state = {};
+  if (!ctx.state) {
+    ctx.state = {};
   }
-  if (!context.state.messages) {
-    context.state.messages = [];
+  if (!ctx.state.messages) {
+    ctx.state.messages = [];
   }
 
   const workflow = await repository.findOne({
     filterByTk,
     filter,
     appends: ['nodes'],
-    context,
+    context: ctx,
   });
 
   if (!workflow) {
-    return context.throw(404, 'Workflow not found');
+    return ctx.throw(404, 'Workflow not found');
   }
 
   const execution = await triggerWorkflowAndGetExecution(
@@ -254,38 +254,38 @@ export async function test(context: Context, next: Next) {
     workflow,
     {
       data: values.data || {},
-      user: context?.state?.currentUser || {},
+      user: ctx?.state?.currentUser || {},
     },
-    { httpContext: context, transaction: context.transaction },
-    context.db,
+    { httpContext: ctx, transaction: ctx.transaction },
+    ctx.db,
   );
 
   if (!execution) {
-    context.state.messages.push({
-      message: context.t('Failed to create execution', { ns: 'workflow' }),
+    ctx.state.messages.push({
+      message: ctx.t('Failed to create execution', { ns: 'workflow' }),
     });
-    return context.throw(500, 'Failed to create execution');
+    return ctx.throw(500, 'Failed to create execution');
   }
 
-  context.state.messages.push({
-    message: context.t('Test execution ended', { ns: 'workflow' }),
+  ctx.state.messages.push({
+    message: ctx.t('Test execution ended', { ns: 'workflow' }),
   });
 
-  context.body = execution;
+  ctx.body = execution;
   await next();
 }
 
-export async function revision(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
-  const repository = utils.getRepositoryFromParams(context);
-  const { filterByTk, filter = {}, values = {} } = context.action.params;
+export async function revision(ctx: Context, next: Next) {
+  const plugin = ctx.tego.pm.get(Plugin);
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { filterByTk, filter = {}, values = {} } = ctx.action.params;
 
-  context.body = await context.db.sequelize.transaction(async (transaction) => {
+  ctx.body = await ctx.db.sequelize.transaction(async (transaction) => {
     const origin = await repository.findOne({
       filterByTk,
       filter,
       appends: ['nodes'],
-      context,
+      context: ctx,
       transaction,
     });
 
@@ -364,23 +364,23 @@ export async function revision(context: Context, next: Next) {
   await next();
 }
 
-export async function retry(context: Context, next: Next) {
-  const plugin = context.app.getPlugin(Plugin);
-  const repository = utils.getRepositoryFromParams(context);
-  const { filterByTk, filter = {}, values = {} } = context.action.params;
-  const ExecutionRepo = context.db.getRepository('executions');
+export async function retry(ctx: Context, next: Next) {
+  const plugin = ctx.tego.pm.get(Plugin);
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { filterByTk, filter = {}, values = {} } = ctx.action.params;
+  const ExecutionRepo = ctx.db.getRepository('executions');
 
-  if (!context.state) {
-    context.state = {};
+  if (!ctx.state) {
+    ctx.state = {};
   }
-  if (!context.state.messages) {
-    context.state.messages = [];
+  if (!ctx.state.messages) {
+    ctx.state.messages = [];
   }
   const workflow = await repository.findOne({
     filterByTk,
     filter,
     appends: ['nodes'],
-    context,
+    context: ctx,
   });
 
   const execution = await ExecutionRepo.findOne({
@@ -388,8 +388,8 @@ export async function retry(context: Context, next: Next) {
     sort: ['-createdAt'],
   });
   if (!execution) {
-    context.state.messages.push({
-      message: context.t('No execution records found for this workflow.', { ns: 'workflow' }),
+    ctx.state.messages.push({
+      message: ctx.t('No execution records found for this workflow.', { ns: 'workflow' }),
     });
   }
 
@@ -398,29 +398,29 @@ export async function retry(context: Context, next: Next) {
       plugin,
       workflow,
       execution.context,
-      { httpContext: context, transaction: context.transaction },
-      context.db,
+      { httpContext: ctx, transaction: ctx.transaction },
+      ctx.db,
     );
 
     if (!newExecution) {
-      context.state.messages.push({
-        message: context.t('Failed to create execution', { ns: 'workflow' }),
+      ctx.state.messages.push({
+        message: ctx.t('Failed to create execution', { ns: 'workflow' }),
       });
-      context.body = {
-        error: context.t('Failed to create execution', { ns: 'workflow' }),
+      ctx.body = {
+        error: ctx.t('Failed to create execution', { ns: 'workflow' }),
       };
       return await next();
     }
 
-    context.state.messages.push({ message: context.t('Execute ended', { ns: 'workflow' }) });
-    context.body = newExecution;
+    ctx.state.messages.push({ message: ctx.t('Execute ended', { ns: 'workflow' }) });
+    ctx.body = newExecution;
   } catch (error) {
-    context.app.logger.error(`Failed to retry execution ${execution.id}: ${error.message}`);
-    context.state.messages.push({
-      message: context.t('Failed to retry execution', { ns: 'workflow' }),
+    ctx.tego.logger.error(`Failed to retry execution ${execution.id}: ${error.message}`);
+    ctx.state.messages.push({
+      message: ctx.t('Failed to retry execution', { ns: 'workflow' }),
       error: error.message,
     });
-    context.body = {
+    ctx.body = {
       error: error.message,
     };
   }
@@ -428,10 +428,10 @@ export async function retry(context: Context, next: Next) {
   await next();
 }
 
-export async function sync(context: Context, next) {
-  const plugin = context.app.getPlugin(Plugin);
-  const repository = utils.getRepositoryFromParams(context);
-  const { filterByTk, filter = {} } = context.action.params;
+export async function sync(ctx: Context, next) {
+  const plugin = ctx.tego.pm.get(Plugin);
+  const repository = utils.getRepositoryFromParams(ctx);
+  const { filterByTk, filter = {} } = ctx.action.params;
 
   const workflows = await repository.find({
     filterByTk,
@@ -443,14 +443,14 @@ export async function sync(context: Context, next) {
     plugin.toggle(workflow);
   });
 
-  context.status = 204;
+  ctx.status = 204;
 
   await next();
 }
 
 export async function trigger(ctx: Context, next: Next) {
   if (!ctx.action.params.triggerWorkflows) {
-    const plugin = ctx.app.getPlugin(Plugin) as Plugin;
+    const plugin = ctx.tego.getPlugin(Plugin) as Plugin;
     const workflow = (await ctx.db.getRepository('workflows').findById(ctx.action.params.filterByTk)) as WorkflowModel;
     // NOTE: 这里的updateData是通过前端传过来的，需要 decodeURIComponent,
     //  updateData 的约定结构是形如: updateData: { primaryKey: "id", targetKeys: []}

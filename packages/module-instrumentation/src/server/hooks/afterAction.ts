@@ -47,7 +47,7 @@ export async function handleOtherAction(ctx: Context, next, whiteList: WhiteList
       payload: Config?.options?.payload || [],
       filter: Config?.options?.filter || {},
     };
-    const app = ctx.app as Application;
+    const app = ctx.tego as Application;
     const collection = app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
     const currentRecordId = ctx.body?.[collection?.filterTargetKey] || null;
     const currentUserId = ctx.auth?.user?.id || null;

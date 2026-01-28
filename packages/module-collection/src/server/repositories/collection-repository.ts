@@ -1,4 +1,5 @@
 import { Application, CollectionsGraph, Repository } from '@tego/server';
+
 import lodash from 'lodash';
 
 import { CollectionModel } from '../models/collection';

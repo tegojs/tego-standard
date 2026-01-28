@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { isValid } from '@tachybase/schema';
-
 import { toFixedByStep } from '@tego/client';
+
 import type { InputProps } from 'antd/es/input';
 import type { InputNumberProps } from 'antd/es/input-number';
 import { format } from 'd3-format';
@@ -11,7 +11,12 @@ function countDecimalPlaces(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
 
-  const decimalPart = String(number).split('.')[1];
+  const decimalPart = number
+    .toLocaleString('en-US', {
+      useGrouping: false,
+      maximumSignificantDigits: 10,
+    })
+    .split('.')[1];
   return decimalPart ? decimalPart.length : 0;
 }
 const separators = {
@@ -23,7 +28,6 @@ const separators = {
 //分隔符换算
 export function formatNumberWithSeparator(number, format = '0.00', step = 1) {
   let formattedNumber = '';
-
   if (separators[format]) {
     const { thousands, decimal } = separators[format];
     formattedNumber = number

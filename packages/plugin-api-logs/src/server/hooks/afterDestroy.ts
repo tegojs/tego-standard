@@ -32,7 +32,7 @@ async function handleGetInsertValues(ctx, tk: string, insertValues: insertDestro
     const values = await getInsertValues(ctx, tk);
     insertValues.push(values);
   } catch (error) {
-    ctx.app.logger.error('handleDestroy error, getInsertValues: ', {
+    ctx.tego.logger.error('handleDestroy error, getInsertValues: ', {
       param: ctx.action.params,
       error,
     });
@@ -43,7 +43,7 @@ async function getInsertValues(ctx, tk: string): Promise<insertDestroyValueType>
   const { actionName, resourceName, params } = ctx.action;
   const apilogsRepo = ctx.db.getRepository('apiLogs');
   const currentUserId = ctx.auth?.user.id;
-  const app = ctx.app as Application;
+  const app = ctx.tego as Application;
 
   const collection = app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
   const changes = [];

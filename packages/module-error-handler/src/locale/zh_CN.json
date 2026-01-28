@@ -4,7 +4,13 @@
   "ERR_MISSING_FILTER_UPDATE": "无法更新：请稍后再试或联系管理员",
   "ERR_RELATION_NOT_EXIST": "系统数据表不存在，请联系管理员",
   "ERR_VALUE_TOO_LONG": "内容长度或数量超出限制，请适当调整",
+  "JWT_EXPIRED": "登录已过期，请重新登录",
+  "JWT_INVALID_SIGNATURE": "令牌签名无效，请重新登录",
+  "JWT_INVALID_TOKEN": "无效的令牌，请重新登录",
+  "JWT_MALFORMED": "令牌格式错误，请重新登录",
+  "PERMISSION_DENIED": "没有权限执行此操作",
   "Validation error": "{{field}} 字段规则验证失败",
-  "notNull violation": "{{field}} 字段不能为空",
+  "notNull Violation": "{{field}} 字段不能为空",
+  "notNull violation": "notNull 违规",
   "unique violation": "{{field}} 字段值是唯一的"
 }

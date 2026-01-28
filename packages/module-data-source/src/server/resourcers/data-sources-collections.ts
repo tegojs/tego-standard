@@ -7,7 +7,7 @@ export default {
       const params = ctx.action.params;
 
       const { associatedIndex: dataSourceKey } = params;
-      const dataSource = ctx.app.dataSourceManager.dataSources.get(dataSourceKey);
+      const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceKey);
       if (!dataSource) {
         throw new Error(`dataSource ${dataSourceKey} not found`);
       }

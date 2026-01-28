@@ -15,7 +15,6 @@ import {
   useToken,
 } from '@tachybase/client';
 import { onFieldValueChange, SchemaOptionsContext, useForm, useFormEffects } from '@tachybase/schema';
-
 import {
   ArrayTable,
   error,
@@ -27,6 +26,7 @@ import {
   Registry,
   Submit,
 } from '@tego/client';
+
 import { Button, Select } from 'antd';
 import lodash from 'lodash';
 
@@ -927,6 +927,11 @@ export const interfaceSchemaMap = {
         { value: '0.001', label: '1.000' },
         { value: '0.0001', label: '1.0000' },
         { value: '0.00001', label: '1.00000' },
+        { value: '0.000001', label: '1.000000' },
+        { value: '0.0000001', label: '1.0000000' },
+        { value: '0.00000001', label: '1.00000000' },
+        { value: '0.000000001', label: '1.000000000' },
+        { value: '0.0000000001', label: '1.0000000000' },
       ],
     },
     ...addonProps,
@@ -965,6 +970,11 @@ export const interfaceSchemaMap = {
         { value: '0.001', label: '1.000%' },
         { value: '0.0001', label: '1.0000%' },
         { value: '0.00001', label: '1.00000%' },
+        { value: '0.000001', label: '1.000000%' },
+        { value: '0.0000001', label: '1.0000000%' },
+        { value: '0.00000001', label: '1.00000000%' },
+        { value: '0.000000001', label: '1.000000000%' },
+        { value: '0.0000000001', label: '1.0000000000%' },
       ],
     },
     ...addonProps,
@@ -1137,6 +1147,11 @@ export const interfaceSchemaMap = {
         { value: '0.001', label: '1.000' },
         { value: '0.0001', label: '1.0000' },
         { value: '0.00001', label: '1.00000' },
+        { value: '0.000001', label: '1.000000' },
+        { value: '0.0000001', label: '1.0000000' },
+        { value: '0.00000001', label: '1.00000000' },
+        { value: '0.000000001', label: '1.000000000' },
+        { value: '0.0000000001', label: '1.0000000000' },
       ],
       'x-reactions': numberReactions,
     },

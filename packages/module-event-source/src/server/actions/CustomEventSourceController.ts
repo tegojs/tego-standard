@@ -1,11 +1,12 @@
 import { Action, App, Application, Context, Controller, Next, utils } from '@tego/server';
+
 import { QueryTypes } from 'sequelize';
 
 @Controller('customEventSources')
 export class CustomEventSourceController {
   @Action('sync')
-  async sync(context: Context, next: Next) {
-    const transaction = await context.db.sequelize.transaction();
+  async sync(ctx: Context, next: Next) {
+    const transaction = await ctx.db.sequelize.transaction();
 
     // 查询当前的 uiSchema 筛选出触发 workflow 的那些
     const query = `
@@ -13,7 +14,7 @@ export class CustomEventSourceController {
     WHERE schema::jsonb -> 'x-action-settings' IS NOT NULL
     AND jsonb_array_length((schema::jsonb -> 'x-action-settings' -> 'triggerWorkflows')::jsonb) > 0;
   `;
-    const uiSchemaList = await context.db.sequelize.query(query, {
+    const uiSchemaList = await ctx.db.sequelize.query(query, {
       transaction,
       type: QueryTypes.SELECT,
     });
@@ -29,12 +30,12 @@ export class CustomEventSourceController {
       // 然后递归查找父级, 直到寻找到符合条件的 uiSchema 记录,
       // 符合条件为,具有如下特征的: "x-component": "CardItem", "x-decorator-props".collection: "records"
       // records 为数据表
-      const completeUiSchemaRecord = await this.searchParent(context, currentUiSchema, currentSchemaList, transaction);
+      const completeUiSchemaRecord = await this.searchParent(ctx, currentUiSchema, currentSchemaList, transaction);
       // 查找对应触发的 workflow 的记录
       for (const triggerWorkflow of triggerWorkflows) {
         const { workflowKey } = triggerWorkflow;
         // 查询 workflow 对应的 action
-        const RepoWorkflow = context.db.getRepository('workflows');
+        const RepoWorkflow = ctx.db.getRepository('workflows');
         const targetWorkflow = await RepoWorkflow.findOne({
           filter: {
             key: workflowKey,
@@ -50,7 +51,7 @@ export class CustomEventSourceController {
             .reverse()
             .join('->');
 
-          const RepoWorkflowsManager = utils.getRepositoryFromParams(context);
+          const RepoWorkflowsManager = utils.getRepositoryFromParams(ctx);
           const workflowsManagerRecord = await RepoWorkflowsManager.findOne({
             filter: {
               pathDesc,
@@ -92,9 +93,9 @@ export class CustomEventSourceController {
     await next();
   }
 
-  async searchParent(context: Context, currentUiSchema: any, currentSchemaList: [string, string][], transaction) {
+  async searchParent(ctx: Context, currentUiSchema: any, currentSchemaList: [string, string][], transaction) {
     const { 'x-uid': childKey } = currentUiSchema as any;
-    const RepoParent = context.db.getRepository('uiSchemaTreePath');
+    const RepoParent = ctx.db.getRepository('uiSchemaTreePath');
     const parentUiSchemaList = await RepoParent.find({
       filter: {
         descendant: childKey,
@@ -108,7 +109,7 @@ export class CustomEventSourceController {
         continue;
       }
 
-      const RepoUiSchema = context.db.getRepository('uiSchemas');
+      const RepoUiSchema = ctx.db.getRepository('uiSchemas');
       const parentUiSchemaRecord = await RepoUiSchema.findOne({
         filter: {
           'x-uid': ancestor,

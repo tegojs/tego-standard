@@ -51,7 +51,7 @@ export class AuthMainAppService {
   addMiddleWare() {
     this.app.resourcer.use(
       async (ctx: Context, next: Next) => {
-        if (ctx.app.name === 'main') {
+        if (ctx.tego.name === 'main') {
           return next();
         }
         const { resourceName, actionName } = ctx.action.params;

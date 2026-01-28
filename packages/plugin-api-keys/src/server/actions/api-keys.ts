@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-
 import { actions, Context, Next, Repository } from '@tego/server';
 
 export async function create(ctx: Context, next: Next) {
@@ -20,7 +19,7 @@ export async function create(ctx: Context, next: Next) {
   }
 
   const hash = createHash('sha256');
-  const jwtToken = ctx.app.authManager.jwt.sign(
+  const jwtToken = ctx.tego.authManager.jwt.sign(
     { userId: ctx.auth.user.id, roleName: role.name },
     { expiresIn: values.expiresIn },
   );
@@ -49,7 +48,7 @@ export async function destroy(ctx: Context, next: Next) {
   const data = await repo.findById(filterByTk);
   const token = data?.get('token');
   if (token) {
-    await ctx.app.authManager.jwt.block(token);
+    await ctx.tego.authManager.jwt.block(token);
   }
 
   return actions.destroy(ctx, next);

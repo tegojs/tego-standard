@@ -1,11 +1,12 @@
 import { EXECUTION_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
+import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
 
-import { App, Application, Database, Db, InjectLog, Logger, Service } from '@tego/server';
 import parser from 'cron-parser';
 
 import { DATABASE_CRON_JOBS, SCHEDULE_MODE } from '../../constants';
 import { CronJobModel } from '../model/CronJobModel';
 import { parseDateWithoutMs } from '../utils';
+import { CronJobLock } from './CronJobLock';
 
 const MAX_SAFE_INTERVAL = 2147483647;
 
@@ -20,6 +21,9 @@ export class StaticScheduleTrigger {
 
   @InjectLog()
   private readonly logger: Logger;
+
+  @Inject(() => CronJobLock)
+  private readonly cronJobLock: CronJobLock;
 
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
 
@@ -175,27 +179,40 @@ export class StaticScheduleTrigger {
   }
 
   async trigger(cronJobId: number, time: number) {
+    const eventKey = `${cronJobId}@${time}`;
+
     try {
+      // 尝试获取分布式锁，防止多节点重复执行
+      const lockAcquired = await this.cronJobLock.acquire(cronJobId, time);
+      if (!lockAcquired) {
+        this.logger.info(
+          `cronJobs [${cronJobId}] skipped: lock not acquired (another node is executing this job at ${new Date(time).toISOString()})`,
+        );
+        this.timers.delete(eventKey);
+        return;
+      }
+
       const cronJob = (await this.db
         .getRepository(DATABASE_CRON_JOBS)
         .findOne({ filterByTk: cronJobId })) as CronJobModel;
 
       if (!cronJob) {
         this.logger.warn(`Scheduled cron job ${cronJobId} no longer exists`);
-        const eventKey = `${cronJobId}@${time}`;
         this.timers.delete(eventKey);
+        await this.cronJobLock.release(cronJobId, time);
         return;
       }
-      const eventKey = `${cronJob.id}@${time}`;
+
       this.timers.delete(eventKey);
 
       // TODO: 保存pluginWorkflow
-      const pluginWorkflow = this.app.getPlugin(PluginWorkflow) as PluginWorkflow;
+      const pluginWorkflow = this.app.pm.get(PluginWorkflow) as PluginWorkflow;
 
       const workflow = await this.db.getRepository('workflows').findOne({
         filter: { key: cronJob.workflowKey, enabled: true },
       });
       if (!workflow) {
+        await this.cronJobLock.release(cronJobId, time);
         return;
       }
 
@@ -209,27 +226,39 @@ export class StaticScheduleTrigger {
       } finally {
         if (!error && (process?.execution?.status === EXECUTION_STATUS.QUEUEING || process?.execution?.status >= 0)) {
           await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
-          cronJob.update({
-            lastTime: new Date(),
+          await cronJob.update({
+            lastTime: new Date(time),
           });
+          // Schedule next execution only on successful execution / 仅在成功执行后才调度下一次执行
+          this.scheduleNextIfNeeded(cronJob);
         } else {
           await cronJob.increment(['limitExecuted', 'allExecuted']);
-          cronJob.update({
-            lastTime: new Date(),
+          await cronJob.update({
+            lastTime: new Date(time),
           });
         }
-      }
-
-      if (!cronJob.repeat || (cronJob.limit && cronJob.limitExecuted >= cronJob.limit)) {
-        return;
-      }
-
-      const nextTime = this.getNextTime(cronJob, new Date(), true);
-      if (nextTime) {
-        this.schedule(cronJob, nextTime);
+        // 释放锁
+        await this.cronJobLock.release(cronJobId, time);
       }
     } catch (e) {
-      this.logger.error(`cronJobs [${cronJobId}] failed: ${e.message}`);
+      this.logger.error(`cronJobs [${cronJobId}] failed: ${e?.message ?? String(e)}`);
+    }
+  }
+
+  /**
+   * 如果需要，调度下一次执行
+   */
+  private scheduleNextIfNeeded(cronJob: CronJobModel) {
+    if (!cronJob) {
+      return;
+    }
+    if (!cronJob.repeat || (cronJob.limit && cronJob.limitExecuted >= cronJob.limit)) {
+      return;
+    }
+
+    const nextTime = this.getNextTime(cronJob, new Date(), true);
+    if (nextTime) {
+      this.schedule(cronJob, nextTime);
     }
   }
 

@@ -1,7 +1,7 @@
 import { AuthModel } from '@tachybase/module-auth';
+import { AuthConfig, BaseAuth } from '@tego/server';
 
 import { SAML, SamlConfig } from '@node-saml/node-saml';
-import { AuthConfig, BaseAuth } from '@tego/server';
 
 export { Model } from '@tego/server';
 
@@ -18,6 +18,7 @@ export class SAMLAuth extends BaseAuth {
     super({
       ...config,
       userCollection: ctx.db.getCollection('users'),
+      userStatusCollection: ctx.db.getCollection('userStatuses'),
     });
   }
 
@@ -27,7 +28,7 @@ export class SAMLAuth extends BaseAuth {
     const name = this.authenticator.get('name');
     const protocol = http ? 'http' : 'https';
     return {
-      callbackUrl: `${protocol}://${ctx.host}${process.env.API_BASE_PATH}saml:redirect?authenticator=${name}&__appName=${ctx.app.name}`,
+      callbackUrl: `${protocol}://${ctx.host}${process.env.API_BASE_PATH}saml:redirect?authenticator=${name}&__appName=${ctx.tego.name}`,
       entryPoint: ssoUrl,
       issuer: name,
       cert: certificate,

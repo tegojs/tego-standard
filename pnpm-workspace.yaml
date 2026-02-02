@@ -7,13 +7,13 @@ allowedDeprecatedVersions:
   react-beautiful-dnd: 13.1.1
 
 catalog:
-  '@tachybase/globals': v1.6.3-alpha.2
-  '@tachybase/loader': v1.6.3-alpha.2
-  '@tachybase/schema': v1.6.3-alpha.2
-  '@tachybase/test': v1.6.3-alpha.2
-  '@tego/client': v1.6.3-alpha.2
-  '@tego/devkit': v1.6.3-alpha.2
-  '@tego/server': v1.6.3-alpha.2
+  '@tachybase/globals': v1.6.3-alpha.3
+  '@tachybase/loader': v1.6.3-alpha.3
+  '@tachybase/schema': v1.6.3-alpha.3
+  '@tachybase/test': v1.6.3-alpha.3
+  '@tego/client': v1.6.3-alpha.3
+  '@tego/devkit': v1.6.3-alpha.3
+  '@tego/server': v1.6.3-alpha.3
   '@types/express': 5.0.2
   '@types/node': 20.17.10
   '@types/react': 18.3.23
@@ -27,7 +27,7 @@ catalog:
   sequelize: 6.37.5
   string-width: 4.2.3
   strip-ansi: 6.0.1
-  tego: v1.6.3-alpha.2
+  tego: v1.6.3-alpha.3
   wrap-ansi: 7.0.0
 
 catalogMode: strict

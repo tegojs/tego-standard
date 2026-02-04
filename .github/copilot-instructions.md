@@ -158,7 +158,7 @@ Uses `@ianvs/prettier-plugin-sort-imports` for auto-sorting: external libs → i
 `pnpm-workspace.yaml` uses `catalog:` for unified version management:
 ```json
 "dependencies": {
-  "@tachybase/client": "catalog:",
+  "@tachybase/test": "catalog:",
   "react": "catalog:"
 }
 ```

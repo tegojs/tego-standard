@@ -7,19 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.7] - 2026-02-09
+
 ### ✨ Added
 
-- drag tab ([#326](https://github.com/tegojs/tego-standard/pull/326)) [968eb90](https://github.com/tegojs/tego-standard/commit/968eb9025fbba5488ed766ed84a57a41f59655c1) (@dududuna)
+- drag tab ([#326](https://github.com/tegojs/tego-standard/pull/326)) (@dududuna)
 
 ### 🐛 Fixed
 
-- unified approval logic across multiple terminals ([#334](https://github.com/tegojs/tego-standard/pull/334)) [c3b08a9](https://github.com/tegojs/tego-standard/commit/c3b08a972c490c7c8d222e5dea14db847accb0de) (@dududuna)
-- number precision ([#345](https://github.com/tegojs/tego-standard/pull/345)) [0a8827b](https://github.com/tegojs/tego-standard/commit/0a8827bbd6752fb50be29bd3916964bedd86d55f) (@dududuna)
-- filter params ([#347](https://github.com/tegojs/tego-standard/pull/347)) [10e28a3](https://github.com/tegojs/tego-standard/commit/10e28a3c149dc22e041d2ed9eea41a3e9d148d8b) (@dududuna)
-- http log ([#346](https://github.com/tegojs/tego-standard/pull/346)) [a57f115](https://github.com/tegojs/tego-standard/commit/a57f115c9e19c957f94ab40d18b89a1e2968d7d3) (@dududuna)
-- pdf download name ([#353](https://github.com/tegojs/tego-standard/pull/353)) [020939c](https://github.com/tegojs/tego-standard/commit/020939c1d8b95a8df62d6962955a5afa09b162f4) (@dududuna)
-
-
+- unified approval logic across multiple terminals ([#334](https://github.com/tegojs/tego-standard/pull/334)) (@dududuna)
+- number precision ([#345](https://github.com/tegojs/tego-standard/pull/345)) (@dududuna)
+- filter params ([#347](https://github.com/tegojs/tego-standard/pull/347)) (@dududuna)
+- http log ([#346](https://github.com/tegojs/tego-standard/pull/346)) (@dududuna)
+- pdf download name ([#353](https://github.com/tegojs/tego-standard/pull/353)) (@dududuna)
 
 ## [1.6.6] - 2026-01-08
 
@@ -2928,7 +2930,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.6...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.7...HEAD
+[1.6.7]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.7
 [1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6
 [1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5
 [1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4

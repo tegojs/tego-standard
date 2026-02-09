@@ -1,0 +1,99 @@
+name: Tachybase Image Stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_tag:
+        description: 'Docker tag (optional, default to latest release tag, e.g. v1.6.0)'
+        required: false
+        default: ''
+  workflow_run:
+    workflows:
+      - Release New Version
+    types:
+      - completed
+
+run-name: "Tachybase Image Stable - Tag: ${{ github.event.inputs.docker_tag || 'auto-calculated-tag' }}"
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: write
+      contents: read
+    outputs:
+      docker_tag: ${{ steps.set_tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set docker tag
+        id: set_tag
+        run: |
+          if [ -n "${{ github.event.inputs.docker_tag }}" ]; then
+            # 如果用户提供了 docker_tag，直接使用
+            echo "tag=${{ github.event.inputs.docker_tag }}" >> $GITHUB_OUTPUT
+          else
+            # 自动使用最新的正式版本 tag（vX.Y.Z）
+            git fetch --tags --force
+            TAG_NAME=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || echo "")
+            if [ -z "$TAG_NAME" ]; then
+              echo "❌ Error: No stable version tag found (expected vX.Y.Z)."
+              exit 1
+            fi
+            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          fi
+      - name: Update workflow run name
+        run: |
+          DOCKER_TAG="${{ steps.set_tag.outputs.tag }}"
+          NEW_NAME="Tachybase Image Stable - Tag: ${DOCKER_TAG}"
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
+
+          # Output docker_tag as notice and code block for copy button
+          echo "::notice title=Docker Tag::Docker tag: ${DOCKER_TAG}"
+          echo ""
+          echo '```'
+          echo "${DOCKER_TAG}"
+          echo '```'
+
+          # Try to update workflow run name
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            -d "{\"display_title\": $(echo "$NEW_NAME" | jq -Rs .)}" \
+            "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+            echo "✓ Workflow run name updated successfully"
+          else
+            echo "⚠ Failed to update run name (HTTP $HTTP_CODE), but continuing..."
+          fi
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/tego-all/Dockerfile
+          push: true
+          tags: |
+            tegojs/tego-all:${{ steps.set_tag.outputs.tag }}
+            tegojs/tego-all:latest

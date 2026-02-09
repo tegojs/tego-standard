@@ -1,17 +1,15 @@
 name: Tachybase Image Stable
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       docker_tag:
         description: 'Docker tag (optional, default to latest release tag, e.g. v1.6.0)'
         required: false
         default: ''
-  workflow_run:
-    workflows:
-      - Release New Version
-    types:
-      - completed
 
 run-name: "Tachybase Image Stable - Tag: ${{ github.event.inputs.docker_tag || 'auto-calculated-tag' }}"
 

@@ -5,14 +5,18 @@ import { AuthMainAppService } from './service/authMainAppService';
 
 @InjectedPlugin({
   Controllers: [AuthMainAppController],
-  Services: [AuthMainAppService],
 })
 export class PluginAuthMainAppServer extends Plugin {
   async afterAdd() {}
 
   async beforeLoad() {}
 
-  async load() {}
+  async load() {
+    // 使用 Plugin 的 this.app (构造函数直接赋值, 不受 DI Container 竞态影响)
+    // 而非 @Service() + @App() 模式 (全局 DI Container 在多应用并发启动时会注入错误实例)
+    const authMainAppService = new AuthMainAppService(this.app);
+    await authMainAppService.load();
+  }
 
   async install() {}
 

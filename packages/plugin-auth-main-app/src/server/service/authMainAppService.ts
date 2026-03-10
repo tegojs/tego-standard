@@ -1,21 +1,24 @@
-import { App, Application, Context, Database, Db, InjectLog, Logger, Next, Service } from '@tego/server';
+import { Application, Context, Database, Next } from '@tego/server';
 
 import { COLLECTION_AUTH_MAIN_APP_CONFIG, NAMESPACE } from '../../constants';
 
-@Service()
+/**
+ * 主应用登录配置管理器
+ *
+ * 注意: 不使用 @Service() + @App() 装饰器, 因为全局 DI Container 在多子应用并发启动时
+ * 存在竞态条件, 会导致 @App() 注入错误的 Application 实例.
+ * 改为由 Plugin 传入正确的 app/db 引用.
+ */
 export class AuthMainAppService {
-  @Db()
-  db: Database;
+  private db: Database;
+  private app: Application;
+  private selfSignIn: boolean = true;
+  private authMainApp: boolean = true;
 
-  @App()
-  app: Application;
-
-  @InjectLog()
-  private logger: Logger;
-
-  private selfSignIn: boolean = true; //子应用本身登录
-
-  private authMainApp: boolean = true; //通过主应用登录
+  constructor(app: Application) {
+    this.app = app;
+    this.db = app.db;
+  }
 
   async load() {
     this.addMiddleWare();
@@ -64,17 +67,23 @@ export class AuthMainAppService {
             ctx.body = [];
           }
           if (this.authMainApp) {
-            ctx.body.unshift({
-              name: ctx.t('Main app signIn', { ns: NAMESPACE }),
-              authType: 'mainApp',
-              authTypeTitle: 'main app',
-            });
+            // 幂等性检查: 即使中间件因某种原因执行多次, 也只添加一个主应用登录入口
+            const alreadyHasMainApp =
+              Array.isArray(ctx.body) && ctx.body.some((item: any) => item.authType === 'mainApp');
+            if (!alreadyHasMainApp) {
+              ctx.body.unshift({
+                name: ctx.t('Main app signIn', { ns: NAMESPACE }),
+                authType: 'mainApp',
+                authTypeTitle: 'main app',
+              });
+            }
           }
         }
       },
       {
         tag: 'forbidSignIn',
         after: 'acl',
+        unique: true,
       },
     );
   }

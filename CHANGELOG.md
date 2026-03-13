@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **auth-main-app**: keep main app auth unique ([#357](https://github.com/tegojs/tego-standard/pull/357)) [b1ff8fe](https://github.com/tegojs/tego-standard/commit/b1ff8fed6636c3bf2f2f1f457b0d0f6444c426cc) (@TomyJan)
+
 
 
 ## [1.6.7] - 2026-02-09

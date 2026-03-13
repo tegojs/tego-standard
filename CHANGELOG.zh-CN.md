@@ -7,6 +7,10 @@
 
 ## [未发布]
 
+### 🐛 修复
+
+- **auth-main-app**: 保持主应用程序身份验证唯一([#357](https://github.com/tegojs/tego-standard/pull/357)) [b1ff8fe](https://github.com/tegojs/tego-standard/commit/b1ff8fed6636c3bf2f2f1f457b0d0f6444c426cc) (@TomyJan)
+
 
 
 ## [1.6.7] - 2026-02-09

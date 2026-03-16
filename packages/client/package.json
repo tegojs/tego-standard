@@ -34,6 +34,7 @@
     "d3-format": "^3.1.0",
     "dayjs": "catalog:",
     "deepmerge": "^4.3.1",
+    "docx-preview": "catalog:",
     "file-saver": "^2.0.5",
     "flat": "^5.0.2",
     "i18next": "23.16.8",

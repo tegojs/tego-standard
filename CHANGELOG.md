@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.8-alpha.1] - 2026-03-17
+
 ### 🐛 Fixed
 
-- **auth-main-app**: keep main app auth unique ([#357](https://github.com/tegojs/tego-standard/pull/357)) [b1ff8fe](https://github.com/tegojs/tego-standard/commit/b1ff8fed6636c3bf2f2f1f457b0d0f6444c426cc) (@TomyJan)
-
-
+- **auth-main-app**: keep main app auth unique ([#357](https://github.com/tegojs/tego-standard/pull/357)) (@TomyJan)
 
 ## [1.6.7] - 2026-02-09
 
@@ -2934,7 +2936,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.7...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.8-alpha.1...HEAD
+[1.6.8-alpha.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.8-alpha.1
 [1.6.7]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.7
 [1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6
 [1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5

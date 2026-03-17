@@ -6,6 +6,15 @@
   "keywords": [
     "Authentication"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-api-keys"
+  },
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
   "scripts": {},

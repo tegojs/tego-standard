@@ -1,6 +1,15 @@
 {
   "name": "@tachybase/client",
   "version": "1.6.7",
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/client"
+  },
   "license": "Apache-2.0",
   "main": "lib/index.js",
   "module": "es/index.mjs",

@@ -3,6 +3,15 @@
   "version": "1.6.7",
   "private": true,
   "description": "Tachybase Desktop Application",
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "apps/desktop"
+  },
   "license": "Apache-2.0",
   "author": "Tachybase",
   "main": "./app/main.js",

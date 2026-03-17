@@ -2,6 +2,14 @@
   "name": "tachybase",
   "version": "1.6.7",
   "private": true,
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard"
+  },
   "license": "Apache-2.0",
   "scripts": {
     "prebuild": "node scripts/update-version-with-hash.mjs",
@@ -23,6 +31,7 @@
     "preinstall": "npx only-allow pnpm",
     "postinstall": "tegod postinstall",
     "lint": "oxlint",
+    "metadata:sync": "node scripts/sync-package-metadata.js",
     "pm": "tegod pm",
     "prepare": "husky",
     "start": "tego start",

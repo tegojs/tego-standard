@@ -15,4 +15,5 @@ RUN pnpm install --shamefully-hoist
 RUN pnpm build:p
 
 COPY ./docker/tego-all/docker-entrypoint.sh /app/
-CMD ["/app/docker-entrypoint.sh"]
+RUN chmod +x /app/docker-entrypoint.sh
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

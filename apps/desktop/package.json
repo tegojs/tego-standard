@@ -1,6 +1,6 @@
 {
   "name": "@tego/desktop",
-  "version": "1.6.8",
+  "version": "1.6.9-alpha.1",
   "private": true,
   "description": "Tachybase Desktop Application",
   "homepage": "https://github.com/tegojs/tego-standard#readme",

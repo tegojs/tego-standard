@@ -16,7 +16,7 @@ run-name: "Tachybase Image Stable - Tag: ${{ github.event.inputs.docker_tag || '
 jobs:
   docker:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) }}
     permissions:
       actions: write
       contents: read
@@ -30,19 +30,42 @@ jobs:
       - name: Set docker tag
         id: set_tag
         run: |
-          if [ -n "${{ github.event.inputs.docker_tag }}" ]; then
-            # 如果用户提供了 docker_tag，直接使用
-            echo "tag=${{ github.event.inputs.docker_tag }}" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # push tag 触发时，忠实使用当前触发的 tag
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.docker_tag }}" ]; then
+            # 手动触发且用户提供了 docker_tag，直接使用
+            echo "tag=${{ github.event.inputs.docker_tag }}" >> "$GITHUB_OUTPUT"
           else
-            # 自动使用最新的正式版本 tag（vX.Y.Z）
+            # 手动触发且未指定 docker_tag，自动使用最新 tag（含 alpha）
             git fetch --tags --force
-            TAG_NAME=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || echo "")
+            TAG_NAME=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$' | head -1 || echo "")
             if [ -z "$TAG_NAME" ]; then
-              echo "❌ Error: No stable version tag found (expected vX.Y.Z)."
+              echo "❌ Error: No version tag found (expected vX.Y.Z or vX.Y.Z-alpha.N)."
               exit 1
             fi
-            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           fi
+      - name: Resolve docker channel tags
+        id: resolve_tags
+        run: |
+          TAG="${{ steps.set_tag.outputs.tag }}"
+          IMAGE_TAGS="tegojs/tego-all:${TAG}"
+
+          # alpha 版本推 alpha 通道；稳定版本推 latest 通道
+          if echo "$TAG" | grep -Eq -- '-alpha\.[0-9]+$'; then
+            IMAGE_TAGS="$IMAGE_TAGS\ntegojs/tego-all:alpha"
+            echo "channel=alpha" >> "$GITHUB_OUTPUT"
+          else
+            IMAGE_TAGS="$IMAGE_TAGS\ntegojs/tego-all:latest"
+            echo "channel=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo "tags<<EOF"
+            echo -e "$IMAGE_TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       - name: Update workflow run name
         run: |
           DOCKER_TAG="${{ steps.set_tag.outputs.tag }}"
@@ -53,6 +76,7 @@ jobs:
 
           # Output docker_tag as notice and code block for copy button
           echo "::notice title=Docker Tag::Docker tag: ${DOCKER_TAG}"
+          echo "::notice title=Docker Channel::Channel tag: ${{ steps.resolve_tags.outputs.channel }}"
           echo ""
           echo '```'
           echo "${DOCKER_TAG}"
@@ -92,6 +116,4 @@ jobs:
           context: .
           file: docker/tego-all/Dockerfile
           push: true
-          tags: |
-            tegojs/tego-all:${{ steps.set_tag.outputs.tag }}
-            tegojs/tego-all:latest
+          tags: ${{ steps.resolve_tags.outputs.tags }}

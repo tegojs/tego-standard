@@ -1,4 +1,4 @@
-name: Tachybase Image Stable
+name: Tego Image All
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
         required: false
         default: ''
 
-run-name: "Tachybase Image Stable - Tag: ${{ github.event.inputs.docker_tag || 'auto-calculated-tag' }}"
+run-name: "Tego Image All - Tag: ${{ github.event.inputs.docker_tag || 'auto-calculated-tag' }}"
 
 jobs:
   docker:
@@ -69,7 +69,7 @@ jobs:
       - name: Update workflow run name
         run: |
           DOCKER_TAG="${{ steps.set_tag.outputs.tag }}"
-          NEW_NAME="Tachybase Image Stable - Tag: ${DOCKER_TAG}"
+          NEW_NAME="Tego Image All - Tag: ${DOCKER_TAG}"
           REPO="${{ github.repository }}"
           RUN_ID="${{ github.run_id }}"
           TOKEN="${{ secrets.GITHUB_TOKEN }}"

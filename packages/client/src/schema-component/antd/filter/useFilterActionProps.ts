@@ -196,6 +196,20 @@ export const removeNullCondition: any = (filter, customFlat = flat) => {
       values[key] = value;
     }
   }
+  // $dateBetween 需要 [start, end]；第二项为 null 时会在上面被丢弃，需补全否则后端报 Invalid Date
+  for (const key of Object.keys(values)) {
+    if (key.endsWith('$dateBetween.0')) {
+      const key1 = key.replace(/\$dateBetween\.0$/, '$dateBetween.1');
+      if (!(key1 in values)) {
+        values[key1] = values[key];
+      }
+    } else if (key.endsWith('$dateBetween.1')) {
+      const key0 = key.replace(/\$dateBetween\.1$/, '$dateBetween.0');
+      if (!(key0 in values)) {
+        values[key0] = values[key];
+      }
+    }
+  }
   return customFlat.unflatten(values);
 };
 

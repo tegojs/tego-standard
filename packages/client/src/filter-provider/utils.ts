@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Schema, useFieldSchema } from '@tachybase/schema';
-
 import { flatten, getValuesByPath } from '@tego/client';
+
 import dayjs from 'dayjs';
 import _ from 'lodash';
 
@@ -38,6 +38,21 @@ export const mergeFilter = (filters: any[], op = '$and') => {
   }
   return { [op]: items };
 };
+
+/**
+ * 筛选值为数组的操作符；与 transformToFilter 的 flatten breakOn、filterByCleanedFields 路径去重共用，避免两处列表漂移。
+ */
+export const FILTER_OPERATORS_WITH_ARRAY_VALUES = new Set<string>([
+  '$match',
+  '$notMatch',
+  '$anyOf',
+  '$noneOf',
+  '$childIn',
+  '$childNotIn',
+  '$dateBetween',
+  '$in',
+  '$notIn',
+]);
 
 export const getSupportFieldsByAssociation = (inheritCollectionsChain: string[], block: DataBlock) => {
   return block.associatedFields?.filter((field) =>
@@ -102,19 +117,7 @@ export const transformToFilter = (
   values = flatten(values, {
     breakOn({ value, path }) {
       // 下面操作符的值是一个数组，需要特殊处理
-      if (
-        [
-          '$match',
-          '$notMatch',
-          '$anyOf',
-          '$noneOf',
-          '$childIn',
-          '$childNotIn',
-          '$dateBetween',
-          '$in',
-          '$notIn',
-        ].includes(operators[path])
-      ) {
+      if (FILTER_OPERATORS_WITH_ARRAY_VALUES.has(operators[path])) {
         return true;
       }
 
@@ -163,14 +166,24 @@ export const transformToFilter = (
           }
         } else if (operators[key] === '$dateBetween') {
           if (Array.isArray(value)) {
+            const normalized: any[] = [];
             for (const index in value) {
               if (!value[index]) {
                 continue;
               }
-              if (typeof value[index] !== 'string' && !(value[index] instanceof Date)) {
-                value[index] = dayjs(value[index]).toISOString();
+              let v = value[index];
+              if (typeof v !== 'string' && !(v instanceof Date)) {
+                v = dayjs(v).toISOString();
               }
+              normalized.push(v);
             }
+            if (normalized.length === 0) {
+              return null;
+            }
+            value =
+              normalized.length === 1
+                ? [normalized[0], normalized[0]]
+                : [normalized[0], normalized[normalized.length - 1]];
           }
         }
         return {

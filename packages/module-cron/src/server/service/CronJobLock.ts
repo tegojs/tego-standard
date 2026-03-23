@@ -1,15 +1,6 @@
 import { App, Application, Cache, InjectLog, Logger, Service } from '@tego/server';
 
 /**
- * Extended cache interface with optional atomic lock operations
- * 扩展缓存接口，支持可选的原子锁操作
- */
-interface CacheClientWithLock extends Cache {
-  setIfNotExists?: (key: string, value: unknown, ttl: number) => Promise<boolean>;
-  setNx?: (key: string, value: unknown, ttl: number) => Promise<boolean>;
-}
-
-/**
  * 基于缓存的分布式锁实现，用于防止定时任务在分布式环境下重复执行
  */
 @Service()
@@ -42,7 +33,7 @@ export class CronJobLock {
       throw new Error('CronJobLock cache is not initialized');
     }
 
-    this.cache = cache
+    this.cache = cache;
   }
 
   /**
@@ -72,24 +63,7 @@ export class CronJobLock {
         acquiredAt: Date.now(),
       };
 
-      const cacheClient = this.cache as CacheClientWithLock;
-      let acquired = false;
-
-      // 优先使用支持 "set if not exists" 语义的原子操作
-      if (typeof cacheClient.setIfNotExists === 'function') {
-        acquired = await cacheClient.setIfNotExists(lockKey, lockValue, lockTTL);
-      } else if (typeof cacheClient.setNx === 'function') {
-        acquired = await cacheClient.setNx(lockKey, lockValue, lockTTL);
-      } else {
-        // 如果缓存实现不支持原子 set-if-not-exists，则无法安全地提供分布式锁
-        // In this case we do NOT pretend to acquire the lock, to avoid multiple nodes running the same job.
-        this.logger.warn(
-          'CronJobLock cache implementation does not support atomic set-if-not-exists operations. Distributed locking for cron jobs is disabled. / 当前缓存实现不支持原子性 set-if-not-exists 操作，定时任务的分布式锁已被禁用。',
-        );
-        throw new Error(
-          'CronJobLock cache implementation does not support atomic set-if-not-exists operations',
-        );
-      }
+      const acquired = await this.cache.setIfNotExists(lockKey, lockValue, lockTTL);
 
       if (!acquired) {
         this.logger.debug(`Lock already exists for cron job ${cronJobId} at ${scheduledTime}`);
@@ -101,14 +75,11 @@ export class CronJobLock {
     } catch (error) {
       if (error instanceof Error) {
         this.logger.error(`Failed to acquire lock for cron job ${cronJobId}: ${error.message}`);
-        throw error;
+        return true;
       }
 
-      this.logger.error(
-        `Failed to acquire lock for cron job ${cronJobId} due to unknown error type`,
-        { error },
-      );
-      throw new Error('Failed to acquire lock due to unknown error');
+      this.logger.error(`Failed to acquire lock for cron job ${cronJobId} due to unknown error type`, { error });
+      return true;
     }
   }
 

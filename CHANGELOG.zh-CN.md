@@ -9,6 +9,12 @@
 
 
 
+## [1.6.12] - 2026-03-23
+
+### 🐛 修复
+
+- **corn**: 更新核心，执行 CronJobLock 获取逻辑 ([#360](https://github.com/tegojs/tego-standard/pull/360)) (@TomyJan)
+
 ## [1.6.11] - 2026-03-23
 
 ### 🐛 修复
@@ -2942,7 +2948,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.11...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.12...HEAD
+[1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12
 [1.6.11]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.11
 [1.6.8-alpha.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.8-alpha.1
 [1.6.7]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.7

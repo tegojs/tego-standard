@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-online-user",
   "displayName": "Online User Management",
-  "version": "1.6.11",
+  "version": "1.6.12",
   "description": "Online User Management",
   "keywords": [
     "Users & permissions"

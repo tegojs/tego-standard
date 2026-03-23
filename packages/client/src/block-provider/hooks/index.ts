@@ -23,7 +23,7 @@ import { useAPIClient, useRequest } from '../../api-client';
 import { PathHandler } from '../../built-in/dynamic-page/utils';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../collection-manager';
 import { useFilterBlock } from '../../filter-provider/FilterProvider';
-import { mergeFilter, transformToFilter } from '../../filter-provider/utils';
+import { FILTER_OPERATORS_WITH_ARRAY_VALUES, mergeFilter, transformToFilter } from '../../filter-provider/utils';
 import { useRecord } from '../../record-provider';
 import {
   getCustomCondition,
@@ -64,12 +64,22 @@ export function filterByCleanedFields(mergeFilter) {
 
     const pathParts = key.split('.');
 
-    // 过滤掉结构字段（$and, $or, 数字）
-    const filteredParts = pathParts.filter((p) => {
-      return !/^\d+$/.test(p) && !['$and', '$or'].includes(p);
+    // 过滤掉 $and/$or 及仅用于逻辑分支的数字下标；保留 $dateBetween.0 / $in.1 等数组元素下标
+    const filteredParts = pathParts.filter((p, i, arr) => {
+      if (['$and', '$or'].includes(p)) {
+        return false;
+      }
+      if (/^\d+$/.test(p)) {
+        const prev = i > 0 ? arr[i - 1] : '';
+        if (FILTER_OPERATORS_WITH_ARRAY_VALUES.has(prev)) {
+          return true;
+        }
+        return false;
+      }
+      return true;
     });
 
-    // 最终字段名路径
+    // 最终字段名路径（用于去重「同一字段重复条件」）
     const fieldPath = filteredParts.join('.');
 
     const uniqueKey = `${fieldPath}`;

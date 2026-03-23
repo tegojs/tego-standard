@@ -9,6 +9,12 @@
 
 
 
+## [1.6.11] - 2026-03-23
+
+### 🐛 修复
+
+- 过滤器([#359](https://github.com/tegojs/tego-standard/pull/359)) (@TomyJan)
+
 ## [1.6.8-alpha.1] - 2026-03-17
 
 ### 🐛 修复
@@ -2936,7 +2942,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.8-alpha.1...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.11...HEAD
+[1.6.11]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.11
 [1.6.8-alpha.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.8-alpha.1
 [1.6.7]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.7
 [1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6

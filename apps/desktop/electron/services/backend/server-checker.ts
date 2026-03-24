@@ -2,43 +2,44 @@ import * as http from 'node:http';
 
 import { getAppPortNumber } from '../../utils/config';
 
+/** 与首屏 LocalePlugin 请求一致，避免根路径 200 但 API 仍 503（旧进程 / maintaining）时误判就绪 */
+const API_READY_PATH = process.env.DESKTOP_API_READY_PATH || '/api/app:getLang?locale=en-US';
+
 /**
- * 检查后端服务器是否运行
- * 注意：即使 HTTP 连接成功，后端可能还在加载插件（maintaining 状态）
- * 我们需要检查响应状态码，如果返回 503 且包含 maintaining，说明后端还在启动中
+ * 检查后端是否已可正常提供 API（而非仅端口上有进程）
+ * - 2xx / 304：可服务
+ * - 503（含 maintaining）：仍在启动或不可用
+ * - 其它：视为未就绪，避免把非本应用的监听进程当成后端
  */
 export async function checkBackendServer(port: number = getAppPortNumber()): Promise<boolean> {
+  const path = API_READY_PATH.startsWith('/') ? API_READY_PATH : `/${API_READY_PATH}`;
   return new Promise<boolean>((resolve) => {
+    // 与渲染进程一致使用 localhost，避免仅绑定 IPv6/IPv4 其一时的就绪误判
     const req = http.get(
-      `http://localhost:${port}/`,
+      `http://localhost:${port}${path}`,
       {
-        timeout: 3000,
+        timeout: 5000,
+        headers: {
+          'X-Role': 'anonymous',
+        },
       },
       (res: http.IncomingMessage) => {
-        // 检查状态码
-        // 200-299: 服务器正常运行
-        // 503: 服务器在维护中（可能还在加载插件）
-        // 其他: 服务器可能有问题，但我们认为服务器进程在运行
         const statusCode = res.statusCode || 0;
-        let responseData = '';
+        if (statusCode >= 200 && statusCode < 300) {
+          res.resume();
+          resolve(true);
+          return;
+        }
+        if (statusCode === 304) {
+          res.resume();
+          resolve(true);
+          return;
+        }
 
-        res.on('data', (chunk: Buffer) => {
-          responseData += chunk.toString();
-        });
-
+        res.resume();
         res.on('end', () => {
           req.destroy();
-          // 如果返回 503 且包含 maintaining，说明后端还在启动中
-          if (statusCode === 503 && responseData.includes('maintaining')) {
-            // 服务器还在启动中，返回 false 让前端继续等待
-            resolve(false);
-          } else if (statusCode >= 200 && statusCode < 500) {
-            // 服务器已启动并可以响应请求
-            resolve(true);
-          } else {
-            // 其他情况，认为服务器在运行但可能有问题
-            resolve(true);
-          }
+          resolve(false);
         });
       },
     );
@@ -47,7 +48,6 @@ export async function checkBackendServer(port: number = getAppPortNumber()): Pro
       if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         resolve(false);
       } else {
-        // 其他错误（如网络错误），也认为服务器不可用
         resolve(false);
       }
     });
@@ -57,7 +57,7 @@ export async function checkBackendServer(port: number = getAppPortNumber()): Pro
       resolve(false);
     });
 
-    req.setTimeout(3000, () => {
+    req.setTimeout(5000, () => {
       req.destroy();
       resolve(false);
     });

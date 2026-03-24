@@ -158,7 +158,8 @@ export function handleProductionServerWait(window: BrowserWindow, startUrl: stri
   const appPort = getAppPortNumber();
   let checkCount = 0;
   let serverReady = false;
-  const maxChecks = 60;
+  /** 打包后冷启动常慢于 dev，拉长等待避免超时后仍 503 */
+  const maxChecks = 120;
 
   const loadingPath = getLoadingPagePath();
   log(`[Electron] Loading loading page: ${loadingPath}`);
@@ -173,38 +174,62 @@ export function handleProductionServerWait(window: BrowserWindow, startUrl: stri
   window.webContents.once('did-finish-load', () => {
     log(`[Electron] Loading page loaded, starting server check...`);
 
-    const checkInterval = setInterval(async () => {
-      checkCount++;
-      const progress = Math.min(10 + checkCount * 1.5, 90);
-      const statusKeys = ['status.checking', 'status.waiting', 'status.initializing', 'status.almostDone'];
-      const statusIndex = Math.min(Math.floor(checkCount / 15), statusKeys.length - 1);
-      const statusKey = statusKeys[statusIndex];
+    let checkInterval: NodeJS.Timeout | null = null;
+    let ticking = false;
 
-      updateLoadingProgress(window, progress, statusKey);
-
-      const isReady = await checkBackendServer(appPort);
-
-      if (isReady && !serverReady) {
-        serverReady = true;
-        clearInterval(checkInterval);
-        updateLoadingProgress(window, 100, 'status.ready', true);
-        log(`[Electron] Backend server is ready, loading main application...`);
-
-        setTimeout(() => {
-          window.loadURL(startUrl);
-          handleProductionLoadErrors(window, startUrl);
-        }, 500);
-      } else if (checkCount >= maxChecks) {
-        clearInterval(checkInterval);
-        log(`[Electron] Server check timeout, loading application anyway...`, 'warn');
-        updateLoadingProgress(window, 100, 'status.ready', true);
-
-        setTimeout(() => {
-          window.loadURL(startUrl);
-          handleProductionLoadErrors(window, startUrl);
-        }, 500);
+    const tick = async () => {
+      if (ticking || serverReady || !window || window.isDestroyed()) {
+        return;
       }
-    }, 1000);
+      ticking = true;
+      try {
+        checkCount++;
+        const progress = Math.min(10 + checkCount * 1.5, 90);
+        const statusKeys = ['status.checking', 'status.waiting', 'status.initializing', 'status.almostDone'];
+        const statusIndex = Math.min(Math.floor(checkCount / 15), statusKeys.length - 1);
+        const statusKey = statusKeys[statusIndex];
+
+        updateLoadingProgress(window, progress, statusKey);
+
+        let isReady = await checkBackendServer(appPort);
+        if (isReady) {
+          await new Promise((r) => setTimeout(r, 500));
+          isReady = await checkBackendServer(appPort);
+        }
+
+        if (isReady && !serverReady) {
+          serverReady = true;
+          if (checkInterval) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+          }
+          updateLoadingProgress(window, 100, 'status.ready', true);
+          log(`[Electron] Backend server is ready, loading main application...`);
+
+          setTimeout(() => {
+            window.loadURL(startUrl);
+            handleProductionLoadErrors(window, startUrl);
+          }, 500);
+        } else if (checkCount >= maxChecks) {
+          if (checkInterval) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+          }
+          log(`[Electron] Server check timeout, loading application anyway...`, 'warn');
+          updateLoadingProgress(window, 100, 'status.ready', true);
+
+          setTimeout(() => {
+            window.loadURL(startUrl);
+            handleProductionLoadErrors(window, startUrl);
+          }, 500);
+        }
+      } finally {
+        ticking = false;
+      }
+    };
+
+    void tick();
+    checkInterval = setInterval(() => void tick(), 1000);
   });
 }
 

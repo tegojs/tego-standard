@@ -14,8 +14,9 @@ const API_READY_PATH = process.env.DESKTOP_API_READY_PATH || '/api/app:getLang?l
 export async function checkBackendServer(port: number = getAppPortNumber()): Promise<boolean> {
   const path = API_READY_PATH.startsWith('/') ? API_READY_PATH : `/${API_READY_PATH}`;
   return new Promise<boolean>((resolve) => {
+    // 与渲染进程一致使用 localhost，避免仅绑定 IPv6/IPv4 其一时的就绪误判
     const req = http.get(
-      `http://127.0.0.1:${port}${path}`,
+      `http://localhost:${port}${path}`,
       {
         timeout: 5000,
         headers: {

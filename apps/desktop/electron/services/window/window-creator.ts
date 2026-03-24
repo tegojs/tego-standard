@@ -3,10 +3,9 @@ import * as path from 'node:path';
 
 import { app, BrowserWindow, shell } from 'electron';
 
-import { getAppPortNumber, getWebPort } from '../../utils/config';
+import { getWebPort } from '../../utils/config';
 import { log } from '../../utils/logger';
 import { findWebDistIndexHtml } from '../../utils/path-finder';
-import { checkBackendServer } from '../backend-server';
 import { setupDevMonitoring } from '../interceptors/dev-monitoring';
 import { setupApiRequestInterceptor } from '../interceptors/request-interceptor';
 import { handleDevServerWait, handleProductionServerWait } from './server-waiter';
@@ -126,31 +125,10 @@ export function createWindow(isDev: boolean): BrowserWindow {
       mainWindow?.webContents.openDevTools();
     });
   } else {
-    const appPort = getAppPortNumber();
-
-    checkBackendServer(appPort)
-      .then((isRunning) => {
-        if (!mainWindow) {
-          log(`[Electron] Window was closed before server check completed`, 'warn');
-          return;
-        }
-
-        if (isRunning) {
-          log(`[Electron] Backend server is already running, loading main application directly...`);
-          mainWindow.loadURL(startUrl);
-        } else {
-          log(`[Electron] Backend server is not running, showing loading page...`);
-          handleProductionServerWait(mainWindow, startUrl);
-        }
-      })
-      .catch((error) => {
-        if (!mainWindow) {
-          log(`[Electron] Window was closed before server check completed`, 'warn');
-          return;
-        }
-        log(`[Electron] Failed to check backend server status: ${error.message}, showing loading page...`, 'warn');
-        handleProductionServerWait(mainWindow, startUrl);
-      });
+    // 生产环境始终先走 loading 轮询：main.ts 中 startBackendServer 在 createWindow 之后异步执行，
+    // 若此处因「端口上已有进程」误判就绪而直接进主界面，会与真实启动顺序竞态，导致首屏 API 仍 503。
+    log(`[Electron] Production: loading page first, waiting until app:getLang succeeds...`);
+    handleProductionServerWait(mainWindow, startUrl);
 
     mainWindow.once('ready-to-show', () => {
       mainWindow?.show();

@@ -1,37 +1,54 @@
 #!/usr/bin/env node
 
 /**
- * 检查端口是否被占用
- * 如果被占用，退出并报错
+ * 检查开发所需端口是否被占用（Web 与后端 API）
+ * 若被占用则退出并报错，避免 dev-server 启动失败而 Electron 仍误判「API 就绪」
  */
 
 const net = require('net');
 
-const port = process.env.WEB_PORT || process.env.PORT || '31000';
-const portNumber = parseInt(port, 10);
+const webPort = parseInt(process.env.WEB_PORT || process.env.PORT || '31000', 10);
+const appPort = parseInt(process.env.APP_PORT || '30000', 10);
 
-if (isNaN(portNumber)) {
-  console.error(`❌ 无效的端口号: ${port}`);
-  process.exit(1);
+function checkPortAvailable(portNumber, label) {
+  return new Promise((resolve, reject) => {
+    if (isNaN(portNumber)) {
+      reject(new Error(`无效的端口号: ${portNumber}`));
+      return;
+    }
+    const server = net.createServer();
+    server.listen(portNumber, () => {
+      server.once('close', () => resolve());
+      server.close();
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        reject(
+          new Error(
+            `${label} 端口 ${portNumber} 已被占用。\n` +
+              `   请先结束占用进程（例如旧 tego dev-server）：\n` +
+              `   lsof -i :${portNumber} 或活动监视器中结束对应 Node 进程。\n` +
+              `   也可改用其它端口：APP_PORT=30001 WEB_PORT=31001 pnpm dev`,
+          ),
+        );
+      } else {
+        reject(new Error(`检查 ${label} 端口时出错: ${err.message}`));
+      }
+    });
+  });
 }
 
-const server = net.createServer();
-
-server.listen(portNumber, () => {
-  server.once('close', () => {
-    console.log(`✅ 端口 ${portNumber} 可用`);
+async function main() {
+  try {
+    await checkPortAvailable(webPort, 'Web 开发服务器');
+    console.log(`✅ Web 端口 ${webPort} 可用`);
+    await checkPortAvailable(appPort, '后端 API (dev-server)');
+    console.log(`✅ 后端 API 端口 ${appPort} 可用`);
     process.exit(0);
-  });
-  server.close();
-});
-
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`❌ 端口 ${portNumber} 已被占用，请先释放该端口或使用其他端口`);
-    console.error(`   提示: 可以通过 WEB_PORT 环境变量指定其他端口，例如: WEB_PORT=3000 pnpm desktop:dev`);
-    process.exit(1);
-  } else {
-    console.error(`❌ 检查端口时出错: ${err.message}`);
+  } catch (e) {
+    console.error(`❌ ${e.message}`);
     process.exit(1);
   }
-});
+}
+
+main();

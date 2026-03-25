@@ -64,13 +64,18 @@ export function filterByCleanedFields(mergeFilter) {
 
     const pathParts = key.split('.');
 
-    // 过滤掉 $and/$or 及仅用于逻辑分支的数字下标；保留 $dateBetween.0 / $in.1 等数组元素下标
+    // 去掉关键字 $and/$or；去掉「关联数组展开」等非操作符下的数字段（如 relation.0.id）；
+    // 保留 $and.i / $or.i 下的分支下标 i（否则顶层 OR 多分支会落成同一路径被误去重）；
+    // 保留 $dateBetween.0 / $in.1 等操作符数组下标。
     const filteredParts = pathParts.filter((p, i, arr) => {
       if (['$and', '$or'].includes(p)) {
         return false;
       }
       if (/^\d+$/.test(p)) {
         const prev = i > 0 ? arr[i - 1] : '';
+        if (prev === '$and' || prev === '$or') {
+          return true;
+        }
         if (FILTER_OPERATORS_WITH_ARRAY_VALUES.has(prev)) {
           return true;
         }
@@ -79,7 +84,7 @@ export function filterByCleanedFields(mergeFilter) {
       return true;
     });
 
-    // 最终字段名路径（用于去重「同一字段重复条件」）
+    // 最终字段名路径（用于去重「同一逻辑分支内的同一字段重复条件」）
     const fieldPath = filteredParts.join('.');
 
     const uniqueKey = `${fieldPath}`;

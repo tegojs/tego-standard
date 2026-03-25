@@ -9,6 +9,14 @@
 
 
 
+## [1.6.13] - 2026-03-25
+
+### 🐛 修复
+
+- **client**: 过滤器([#363](https://github.com/tegojs/tego-standard/pull/363)) (@TomyJan)
+- **desktop**: 修复 tego 包装脚本 ([#362](https://github.com/tegojs/tego-standard/pull/362)) (@bai.zixv)
+- **desktop**: 修复 mac 服务器启动错误 ([#361](https://github.com/tegojs/tego-standard/pull/361)) (@bai.zixv)
+
 ## [1.6.12] - 2026-03-23
 
 ### 🐛 修复
@@ -2948,7 +2956,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.12...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.13...HEAD
+[1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13
 [1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12
 [1.6.11]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.11
 [1.6.8-alpha.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.8-alpha.1

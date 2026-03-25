@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.13] - 2026-03-25
+
+### 🐛 Fixed
+
+- **client**: filter ([#363](https://github.com/tegojs/tego-standard/pull/363)) (@TomyJan)
+- **desktop**: fix tego wrapper script ([#362](https://github.com/tegojs/tego-standard/pull/362)) (@bai.zixv)
+- **desktop**: fix mac server start error ([#361](https://github.com/tegojs/tego-standard/pull/361)) (@bai.zixv)
+
 ## [1.6.12] - 2026-03-23
 
 ### 🐛 Fixed
@@ -2948,7 +2956,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.12...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.13...HEAD
+[1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13
 [1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12
 [1.6.11]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.11
 [1.6.8-alpha.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.8-alpha.1

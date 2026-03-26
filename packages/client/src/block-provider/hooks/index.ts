@@ -23,6 +23,7 @@ import { useAPIClient, useRequest } from '../../api-client';
 import { PathHandler } from '../../built-in/dynamic-page/utils';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../collection-manager';
 import { useFilterBlock } from '../../filter-provider/FilterProvider';
+import { getFilterSourceDefaultFilter } from '../../filter-provider/incomingFilterFromSources';
 import { FILTER_OPERATORS_WITH_ARRAY_VALUES, mergeFilter, transformToFilter } from '../../filter-provider/utils';
 import { useRecord } from '../../record-provider';
 import {
@@ -606,6 +607,7 @@ export const useFilterBlockActionProps = () => {
             );
             const mergedFilter = mergeFilter([
               ...Object.values(storedFilter).map((filter) => removeNullCondition(filter)),
+              getFilterSourceDefaultFilter(getDataBlocks(), uid),
               block.defaultFilter,
               filter.customFilter,
               prevMergedFilter,
@@ -665,7 +667,12 @@ export const useResetBlockActionProps = () => {
             const storedFilter = block.service.params?.[1]?.filters || {};
 
             delete storedFilter[uid];
-            const currFilter = mergeFilter([...Object.values(storedFilter), block.defaultFilter, prevMergedFilter]);
+            const currFilter = mergeFilter([
+              ...Object.values(storedFilter),
+              getFilterSourceDefaultFilter(getDataBlocks(), uid),
+              block.defaultFilter,
+              prevMergedFilter,
+            ]);
             const mergedFilter = filterByCleanedFields(currFilter);
             prevMergedFilter = mergedFilter;
             return block.doFilter(
@@ -1334,7 +1341,11 @@ export const useAssociationFilterBlockProps = () => {
         delete storedFilter[key];
       }
 
-      const mergedFilter = mergeFilter([...Object.values(storedFilter), block.defaultFilter]);
+      const mergedFilter = mergeFilter([
+        ...Object.values(storedFilter),
+        getFilterSourceDefaultFilter(getDataBlocks(), uid),
+        block.defaultFilter,
+      ]);
 
       return block.doFilter(
         {

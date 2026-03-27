@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **client**: apply connected source block data scope to target blocks ([#364](https://github.com/tegojs/tego-standard/pull/364)) [13d9294](https://github.com/tegojs/tego-standard/commit/13d9294b55577cef779b374612b2609800a86885) (@TomyJan)
+
 
 
 ## [1.6.13] - 2026-03-25

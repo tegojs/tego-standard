@@ -7,6 +7,10 @@
 
 ## [未发布]
 
+### ✨ 新增
+
+- **client**: 将连接的源块数据范围应用于目标块([#364](https://github.com/tegojs/tego-standard/pull/364)) [13d9294](https://github.com/tegojs/tego-standard/commit/13d9294b55577cef779b374612b2609800a86885) (@TomyJan)
+
 
 
 ## [1.6.13] - 2026-03-25

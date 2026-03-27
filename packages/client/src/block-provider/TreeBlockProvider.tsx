@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ArrayField, useField, useFieldSchema } from '@tachybase/schema';
 
 import { mergeFilter, useFilterBlock } from '../filter-provider';
+import { getFilterSourceDefaultFilter } from '../filter-provider/incomingFilterFromSources';
 import { FixedBlockWrapper, removeNullCondition } from '../schema-component';
 import { BlockProvider, RenderChildrenWithAssociationFilter, useBlockRequestContext } from './BlockProvider';
 import { findFilterTargets } from './hooks';
@@ -117,6 +118,7 @@ export const useTreeBlockProps = () => {
 
         const mergedFilter = mergeFilter([
           ...Object.values(storedFilter).map((filter) => removeNullCondition(filter)),
+          getFilterSourceDefaultFilter(dataBlocks, uid),
           block.defaultFilter,
         ]);
 

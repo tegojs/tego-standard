@@ -16,6 +16,7 @@ import {
 import { removeNullCondition } from '../schema-component';
 import { findFilterOperators } from '../schema-component/antd/form-item/SchemaSettingOptions';
 import { DataBlock, useFilterBlock } from './FilterProvider';
+import { getFilterSourceDefaultFilter } from './incomingFilterFromSources';
 
 export enum FilterBlockType {
   FORM,
@@ -265,6 +266,7 @@ export const useFilterAPI = () => {
 
         const mergedFilter = mergeFilter([
           ...Object.values(storedFilter).map((filter) => removeNullCondition(filter)),
+          getFilterSourceDefaultFilter(dataBlocks, uid),
           block.defaultFilter,
         ]);
 

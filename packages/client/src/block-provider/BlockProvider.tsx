@@ -27,7 +27,8 @@ import {
   useCollection_deprecated,
   useCollectionManager_deprecated,
 } from '../collection-manager';
-import { DataBlockCollector } from '../filter-provider/FilterProvider';
+import { DataBlockCollector, useFilterBlock } from '../filter-provider/FilterProvider';
+import { mergeIncomingFiltersFromSourceBlocks } from '../filter-provider/incomingFilterFromSources';
 import { RecordProvider, useRecordIndex } from '../record-provider';
 import { useAssociationNames } from './hooks';
 import { useDataBlockParentRecord } from './hooks/useDataBlockSourceId';
@@ -228,18 +229,29 @@ export const BlockProvider = (props: {
 }) => {
   const { name, dataSource, useParams, parentRecord } = props;
   const parentRecordFromHook = useCompatDataBlockParentRecord(props);
+  const fieldSchema = useFieldSchema();
+  const { dataBlocks, inProvider } = useFilterBlock();
 
   // 新版（1.0）已弃用 useParams，这里之所以继续保留是为了兼容旧版的 UISchema
   const paramsFromHook = useParams?.();
 
   const { getAssociationAppends } = useAssociationNames(dataSource);
   const { appends, updateAssociationValues } = getAssociationAppends();
-  const params = useMemo(() => {
-    if (!props.params?.['appends']) {
-      return { ...props.params, appends, ...paramsFromHook };
+  const mergedFilter = useMemo(() => {
+    const uid = fieldSchema?.['x-uid'];
+    if (!inProvider || !uid) {
+      return props.params?.filter;
     }
-    return { ...props.params, ...paramsFromHook };
-  }, [appends, paramsFromHook, props.params]);
+    return mergeIncomingFiltersFromSourceBlocks(props.params?.filter, uid, dataBlocks);
+  }, [props.params?.filter, fieldSchema, dataBlocks, inProvider]);
+
+  const params = useMemo(() => {
+    const baseParams = { ...props.params, filter: mergedFilter };
+    if (!baseParams['appends']) {
+      return { ...baseParams, appends, ...paramsFromHook };
+    }
+    return { ...baseParams, ...paramsFromHook };
+  }, [appends, mergedFilter, paramsFromHook, props.params]);
   const blockValue = useMemo(() => ({ name }), [name]);
 
   return (

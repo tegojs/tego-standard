@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.14] - 2026-04-01
+
 ### ✨ Added
 
-- **client**: apply connected source block data scope to target blocks ([#364](https://github.com/tegojs/tego-standard/pull/364)) [13d9294](https://github.com/tegojs/tego-standard/commit/13d9294b55577cef779b374612b2609800a86885) (@TomyJan)
+- **client**: apply connected source block data scope to target blocks ([#364](https://github.com/tegojs/tego-standard/pull/364)) (@TomyJan)
 
+### 🐛 Fixed
 
+- create  groublock ([#365](https://github.com/tegojs/tego-standard/pull/365)) (@dududuna)
 
 ## [1.6.13] - 2026-03-25
 
@@ -2960,7 +2966,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.13...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.14...HEAD
+[1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
 [1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13
 [1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12
 [1.6.11]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.11

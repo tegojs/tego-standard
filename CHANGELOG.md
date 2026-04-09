@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.15] - 2026-04-09
+
+### ✨ Added
+
+- update locale ([#367](https://github.com/tegojs/tego-standard/pull/367)) (@bai.zixv)
+
+### 🐛 Fixed
+
+- **module-cron**: always schedule next cronjob execution ([#366](https://github.com/tegojs/tego-standard/pull/366)) (@TomyJan)
+
 ## [1.6.14] - 2026-04-01
 
 ### ✨ Added
@@ -2966,7 +2976,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.14...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.15...HEAD
+[1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
 [1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
 [1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13
 [1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12

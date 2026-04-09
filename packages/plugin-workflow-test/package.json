@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-workflow-test",
   "displayName": "Workflow: test kit",
-  "version": "1.6.14",
+  "version": "1.6.15",
   "description": "Workflow Test Toolkit",
   "keywords": [
     "Workflow"

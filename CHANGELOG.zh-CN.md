@@ -9,6 +9,16 @@
 
 
 
+## [1.6.15] - 2026-04-09
+
+### ✨ 新增
+
+- 更新语言环境 ([#367](https://github.com/tegojs/tego-standard/pull/367)) (@bai.zixv)
+
+### 🐛 修复
+
+- **module-cron**: 始终安排下一个 cronjob 执行 ([#366](https://github.com/tegojs/tego-standard/pull/366)) (@TomyJan)
+
 ## [1.6.14] - 2026-04-01
 
 ### ✨ 新增
@@ -2966,7 +2976,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.14...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.15...HEAD
+[1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
 [1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
 [1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13
 [1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12

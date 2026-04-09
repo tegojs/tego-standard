@@ -241,7 +241,7 @@
   "URL": "주소",
   "Unassigned fields will be set to default values, and those without default values will be set to null.": "미할당된 필드는 기본값으로 설정되며 기본값이 없는 필드는 null로 설정됩니다.",
   "Unconfigured": "구성되지 않음",
-  "Update all eligible data at one time, which has better performance when the amount of data is large. But the updated data will not trigger other workflows, and will not record audit logs.": "일괄로 모든 해당 데이터를 한 번에 업데이트하며, 데이터 양이 많을 때 성능이 더 좋습니다. 그러나 업데이트된 데이터는 다른 워크플로를 트리거하지 않으며 감사 로그를 기록하지 않습니다.",
+  "Update all eligible data at one time, which has better performance when the amount of data is large. But the updated data will not trigger other workflows, will not record audit logs, and may not update association fields.": "일괄로 모든 해당 데이터를 한 번에 업데이트하며, 데이터 양이 많을 때 성능이 더 좋습니다. 그러나 업데이트된 데이터는 다른 워크플로를 트리거하지 않으며 감사 로그를 기록하지 않고, 연관 필드가 업데이트되지 않을 수 있습니다.",
   "Update in a batch": "일괄 업데이트",
   "Update mode": "업데이트 모드",
   "Update one by one": "개별 업데이트",

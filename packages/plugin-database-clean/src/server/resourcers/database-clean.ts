@@ -304,6 +304,9 @@ export default {
      */
     async download(ctx: Context, next: Next) {
       const { filterByTk } = ctx.action.params;
+      const logger = ctx.logger || ctx.tego.logger;
+      const startedAt = Date.now();
+      const requestId = ctx.get?.('x-request-id') || ctx.state?.requestId;
 
       if (!filterByTk) {
         ctx.throw(400, 'File name is required');
@@ -333,9 +336,42 @@ export default {
         return;
       }
 
+      const stream = fs.createReadStream(filePath);
+
+      ctx.res.once('close', () => {
+        if (!ctx.res.writableEnded) {
+          logger?.warn('databaseClean:download connection closed before stream finished', {
+            requestId,
+            appName: ctx.tego.name,
+            fileName: filterByTk,
+            filePath,
+            durationMs: Date.now() - startedAt,
+          });
+        }
+      });
+
+      ctx.res.once('finish', () => {
+        logger?.info('databaseClean:download completed', {
+          requestId,
+          appName: ctx.tego.name,
+          fileName: filterByTk,
+          durationMs: Date.now() - startedAt,
+        });
+      });
+
+      stream.once('error', (error) => {
+        logger?.error('databaseClean:download stream error', {
+          requestId,
+          appName: ctx.tego.name,
+          fileName: filterByTk,
+          filePath,
+          error: error?.stack || error?.message || String(error),
+        });
+      });
+
       ctx.set('Content-Type', 'application/zip');
       ctx.attachment(filterByTk);
-      ctx.body = fs.createReadStream(filePath);
+      ctx.body = stream;
 
       await next();
     },

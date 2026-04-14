@@ -173,6 +173,9 @@ export default {
     async download(ctx, next) {
       const { filterByTk } = ctx.action.params;
       const dumper = new Dumper(ctx.tego);
+      const logger = ctx.logger || ctx.tego.logger;
+      const startedAt = Date.now();
+      const requestId = ctx.get?.('x-request-id') || ctx.state?.requestId;
 
       const filePath = dumper.backUpFilePath(filterByTk, ctx.tego.name);
 
@@ -182,8 +185,41 @@ export default {
         throw new Error(`Backup file ${filterByTk} not found`);
       }
 
+      const stream = fs.createReadStream(filePath);
+
+      ctx.res.once('close', () => {
+        if (!ctx.res.writableEnded) {
+          logger?.warn('backupFiles:download connection closed before stream finished', {
+            requestId,
+            appName: ctx.tego.name,
+            fileName: filterByTk,
+            filePath,
+            durationMs: Date.now() - startedAt,
+          });
+        }
+      });
+
+      ctx.res.once('finish', () => {
+        logger?.info('backupFiles:download completed', {
+          requestId,
+          appName: ctx.tego.name,
+          fileName: filterByTk,
+          durationMs: Date.now() - startedAt,
+        });
+      });
+
+      stream.once('error', (error) => {
+        logger?.error('backupFiles:download stream error', {
+          requestId,
+          appName: ctx.tego.name,
+          fileName: filterByTk,
+          filePath,
+          error: error?.stack || error?.message || String(error),
+        });
+      });
+
       ctx.attachment(filterByTk);
-      ctx.body = fs.createReadStream(filePath);
+      ctx.body = stream;
       await next();
     },
 

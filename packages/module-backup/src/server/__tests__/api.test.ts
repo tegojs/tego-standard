@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+import fs from 'node:fs/promises';
 import { MockServer, waitSecond } from '@tachybase/test';
 
 import { Dumper } from '../dumper';
@@ -98,6 +100,27 @@ describe('backup files', () => {
         });
 
       expect(restoreResponse.status).toBe(200);
+    });
+
+    it('should download backup file as attachment stream', async () => {
+      const filePath = dumper.backUpFilePath(dumpKey);
+      const stats = await fs.stat(filePath);
+
+      const downloadResponse = await app
+        .agent()
+        .get(`/backupFiles:download?filterByTk=${encodeURIComponent(dumpKey)}`)
+        .buffer(true)
+        .parse((res, callback) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+          res.on('end', () => callback(null, Buffer.concat(chunks)));
+          res.on('error', callback);
+        });
+
+      expect(downloadResponse.status).toBe(200);
+      expect(downloadResponse.headers['content-disposition']).toContain(`attachment; filename="${dumpKey}"`);
+      expect(downloadResponse.body).toBeInstanceOf(Buffer);
+      expect(downloadResponse.body.length).toBe(stats.size);
     });
 
     it('should destroy dump file', async () => {

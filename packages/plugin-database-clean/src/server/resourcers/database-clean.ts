@@ -333,8 +333,6 @@ export default {
         return;
       }
 
-      const stats = fs.statSync(filePath);
-      ctx.set('Content-Length', stats.size.toString());
       ctx.set('Content-Type', 'application/zip');
       ctx.attachment(filterByTk);
       ctx.body = fs.createReadStream(filePath);

@@ -176,6 +176,9 @@ export default {
       const logger = ctx.logger || ctx.tego.logger;
       const startedAt = Date.now();
       const requestId = ctx.get?.('x-request-id') || ctx.state?.requestId;
+      const downloadState = {
+        requestAborted: false,
+      };
 
       const filePath = dumper.backUpFilePath(filterByTk, ctx.tego.name);
 
@@ -187,6 +190,17 @@ export default {
 
       const stream = fs.createReadStream(filePath);
 
+      ctx.req.once('aborted', () => {
+        downloadState.requestAborted = true;
+        logger?.warn('backupFiles:download request aborted', {
+          requestId,
+          appName: ctx.tego.name,
+          fileName: filterByTk,
+          filePath,
+          durationMs: Date.now() - startedAt,
+        });
+      });
+
       ctx.res.once('close', () => {
         if (!ctx.res.writableEnded) {
           logger?.warn('backupFiles:download connection closed before stream finished', {
@@ -195,6 +209,10 @@ export default {
             fileName: filterByTk,
             filePath,
             durationMs: Date.now() - startedAt,
+            requestAborted: downloadState.requestAborted,
+            responseFinished: ctx.res.writableFinished,
+            requestEnded: ctx.req.readableEnded,
+            socketDestroyed: ctx.req.socket?.destroyed,
           });
         }
       });

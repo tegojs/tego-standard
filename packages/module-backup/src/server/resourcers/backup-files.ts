@@ -188,6 +188,11 @@ export default {
         throw new Error(`Backup file ${filterByTk} not found`);
       }
 
+      const stats = await fsPromises.stat(filePath);
+      if (!stats.isFile()) {
+        throw new Error(`Backup file ${filterByTk} is invalid`);
+      }
+
       const stream = fs.createReadStream(filePath);
 
       ctx.req.once('aborted', () => {
@@ -236,6 +241,10 @@ export default {
         });
       });
 
+      // Help reverse proxies forward file stream directly instead of buffering/chunk rewriting.
+      ctx.set('X-Accel-Buffering', 'no');
+      ctx.set('Content-Type', 'application/octet-stream');
+      ctx.length = stats.size;
       ctx.attachment(filterByTk);
       ctx.body = stream;
       await next();

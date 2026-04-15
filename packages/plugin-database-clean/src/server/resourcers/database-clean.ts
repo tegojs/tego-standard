@@ -339,6 +339,12 @@ export default {
         return;
       }
 
+      const stats = await fsPromises.stat(filePath);
+      if (!stats.isFile()) {
+        ctx.throw(404, `Backup file ${filterByTk} not found`);
+        return;
+      }
+
       const stream = fs.createReadStream(filePath);
 
       ctx.req.once('aborted', () => {
@@ -387,7 +393,10 @@ export default {
         });
       });
 
-      ctx.set('Content-Type', 'application/zip');
+      // Help reverse proxies forward file stream directly instead of buffering/chunk rewriting.
+      ctx.set('X-Accel-Buffering', 'no');
+      ctx.set('Content-Type', 'application/octet-stream');
+      ctx.length = stats.size;
       ctx.attachment(filterByTk);
       ctx.body = stream;
 

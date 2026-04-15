@@ -84,8 +84,6 @@ describe('backup files', () => {
       expect(getResponse.status).toBe(200);
 
       expect(getResponse.body.data.name).toEqual(dumpKey);
-
-      console.log({ getResponse: getResponse.body.data });
     });
 
     it('should restore from file name', async () => {
@@ -118,6 +116,9 @@ describe('backup files', () => {
         });
 
       expect(downloadResponse.status).toBe(200);
+      expect(downloadResponse.headers['content-type']).toContain('application/octet-stream');
+      expect(downloadResponse.headers['x-accel-buffering']).toBe('no');
+      expect(downloadResponse.headers['content-length']).toBe(String(stats.size));
       expect(downloadResponse.headers['content-disposition']).toContain(`attachment; filename="${dumpKey}"`);
       expect(downloadResponse.body).toBeInstanceOf(Buffer);
       expect(downloadResponse.body.length).toBe(stats.size);

@@ -1,5 +1,10 @@
 import type { Context } from '@tego/server';
 
+type TenantFilterContext = {
+  state?: Context['state'];
+  action?: Pick<Context['action'], 'actionName' | 'params' | 'mergeParams'>;
+};
+
 function appendFilter(original: any, tenantId: string | number) {
   const tenantFilter = { tenantId };
 
@@ -12,9 +17,13 @@ function appendFilter(original: any, tenantId: string | number) {
   };
 }
 
-export function applyTenantFilter(ctx: Context) {
+export function applyTenantFilter(ctx: TenantFilterContext) {
   const tenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
   if (!tenantId) {
+    return;
+  }
+
+  if (!ctx.action) {
     return;
   }
 

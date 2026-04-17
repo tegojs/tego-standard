@@ -7,6 +7,10 @@
 
 ## [未发布]
 
+### 🐛 修复
+
+- **backup&database-clean**: 稳定下载流并清理诊断 ([#368](https://github.com/tegojs/tego-standard/pull/368)) [0643986](https://github.com/tegojs/tego-standard/commit/064398676db7590b7b1dc6c0813c4b3492a568da) (@TomyJan)
+
 
 
 ## [1.6.15] - 2026-04-09

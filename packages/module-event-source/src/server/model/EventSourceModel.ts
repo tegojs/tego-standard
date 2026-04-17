@@ -16,6 +16,10 @@ export class EventSourceModel extends Model {
     triggerOnAssociation?: boolean;
     // 是否向工作流透传 httpContext
     useHttpContext?: boolean;
+    // 执行失败策略: ignore(默认)/block
+    failurePolicy?: 'ignore' | 'block';
+    // 单条事件源执行超时时间(ms)，<=0 表示不限制
+    timeoutMs?: number;
     // 优先级越小越先执行
     sort?: number;
   };

@@ -29,5 +29,27 @@ export class CustomActionTrigger extends EventSourceTrigger {
       'x-decorator': 'FormItem',
       'x-component': 'Checkbox',
     },
+    failurePolicy: {
+      type: 'string',
+      title: tval('Failure policy'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Select',
+      enum: [
+        { label: tval('Ignore failure'), value: 'ignore' },
+        { label: tval('Block request on failure'), value: 'block' },
+      ],
+      default: 'ignore',
+    },
+    timeoutMs: {
+      type: 'number',
+      title: tval('Timeout (ms)'),
+      'x-decorator': 'FormItem',
+      'x-component': 'NumberPicker',
+      'x-component-props': {
+        min: 0,
+        step: 100,
+      },
+      default: 0,
+    },
   };
 }

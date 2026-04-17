@@ -36,40 +36,69 @@ export class ResourceEventTrigger extends EventSourceTrigger {
           return next();
         }
         for (const model of matchBefore) {
-          try {
-            const body = await new WebhookController().action(ctx, model);
-            const result = await new WebhookController().triggerWorkflow(ctx, model, body);
-            // Keep event sources isolated: workflow failures should not block primary request.
-            if (result && result.lastSavedJob.status === JOB_STATUS.ERROR) {
-              this.app.logger.error(
-                `[event-source] beforeResource workflow failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, result=${result.lastSavedJob.result}`,
-              );
-            }
-          } catch (error) {
-            this.app.logger.error(
-              `[event-source] beforeResource execution failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, error=${error?.stack || error}`,
-            );
-          }
+          await this.executeByPolicy(ctx, model, 'beforeResource');
         }
         await next();
         for (const model of matchAfter) {
-          try {
-            const body = await new WebhookController().action(ctx, model);
-            const result = await new WebhookController().triggerWorkflow(ctx, model, body);
-            if (result && result.lastSavedJob.status === JOB_STATUS.ERROR) {
-              this.app.logger.error(
-                `[event-source] afterResource workflow failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, result=${result.lastSavedJob.result}`,
-              );
-            }
-          } catch (error) {
-            this.app.logger.error(
-              `[event-source] afterResource execution failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, error=${error?.stack || error}`,
-            );
-          }
+          await this.executeByPolicy(ctx, model, 'afterResource');
         }
       },
       { tag: 'event-source-resource' },
     );
+  }
+
+  private getFailurePolicy(model: EventSourceModel): 'ignore' | 'block' {
+    return model?.options?.failurePolicy === 'block' ? 'block' : 'ignore';
+  }
+
+  private getTimeoutMs(model: EventSourceModel): number {
+    const timeoutMs = Number(model?.options?.timeoutMs || 0);
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+      return 0;
+    }
+    return timeoutMs;
+  }
+
+  private async withTimeout<T>(executor: () => Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+    if (!timeoutMs) {
+      return executor();
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    });
+    try {
+      return await Promise.race([executor(), timeoutPromise]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private async executeByPolicy(ctx: Context, model: EventSourceModel, stage: 'beforeResource' | 'afterResource') {
+    const failurePolicy = this.getFailurePolicy(model);
+    const timeoutMs = this.getTimeoutMs(model);
+    try {
+      const result = await this.withTimeout(
+        async () => {
+          const body = await new WebhookController().action(ctx, model);
+          return await new WebhookController().triggerWorkflow(ctx, model, body);
+        },
+        timeoutMs,
+        `[event-source] ${stage} timeout, sourceId=${model.id}, timeoutMs=${timeoutMs}`,
+      );
+      if (result && result.lastSavedJob.status === JOB_STATUS.ERROR) {
+        throw new Error(`${result.lastSavedJob.result}`);
+      }
+    } catch (error) {
+      this.app.logger.error(
+        `[event-source] ${stage} execution failed. policy=${failurePolicy}, sourceId=${model.id}, workflowKey=${model.workflowKey}, error=${error?.stack || error}`,
+      );
+      if (failurePolicy === 'block') {
+        throw error;
+      }
+    }
   }
 
   private getMatchList(list: EventSourceModel[], resourceName: string, actionName: string): EventSourceModel[] {

@@ -1,5 +1,4 @@
 import { Processor } from '@tachybase/module-workflow';
-
 import { Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
@@ -9,9 +8,39 @@ import { EventSourceTrigger } from './Trigger';
 type IAPITriggerConfig = {
   code: string;
   workflowKey: string;
+  options?: EventSourceModel['options'];
 };
 export class CustomActionTrigger extends EventSourceTrigger {
   eventMap: Map<number, IAPITriggerConfig> = new Map();
+
+  private getFailurePolicy(config: IAPITriggerConfig): 'ignore' | 'block' {
+    return config?.options?.failurePolicy === 'block' ? 'block' : 'ignore';
+  }
+
+  private getTimeoutMs(config: IAPITriggerConfig): number {
+    const timeoutMs = Number(config?.options?.timeoutMs || 0);
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+      return 0;
+    }
+    return timeoutMs;
+  }
+
+  private async withTimeout<T>(executor: () => Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+    if (!timeoutMs) {
+      return executor();
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    });
+    try {
+      return await Promise.race([executor(), timeoutPromise]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  }
 
   load(model: EventSourceModel) {
     if (!model.options) {
@@ -24,7 +53,7 @@ export class CustomActionTrigger extends EventSourceTrigger {
       code,
       workflowKey,
     } = model;
-    this.eventMap.set(id, { code, workflowKey });
+    this.eventMap.set(id, { code, workflowKey, options: model.options });
     if (!app.resourcer.isDefined(resourceName)) {
       app.resourcer.define({ name: resourceName });
     }
@@ -39,12 +68,29 @@ export class CustomActionTrigger extends EventSourceTrigger {
       if (this.realTimeRefresh && !this.workSet.has(id)) {
         ctx.throw(404, 'Not found');
       }
-      const { code, workflowKey } = this.eventMap.get(id);
-      const body = await new WebhookController().action(ctx, { code });
-      const res = await new WebhookController().triggerWorkflow(ctx, { workflowKey }, body);
-      const lastSavedJob = (<Processor>res).lastSavedJob;
-      if (lastSavedJob.get('status') < 0) {
-        ctx.throw(500, lastSavedJob.get('result'));
+      const config = this.eventMap.get(id);
+      const failurePolicy = this.getFailurePolicy(config);
+      const timeoutMs = this.getTimeoutMs(config);
+      try {
+        const res = await this.withTimeout(
+          async () => {
+            const body = await new WebhookController().action(ctx, { code: config.code });
+            return await new WebhookController().triggerWorkflow(ctx, config, body);
+          },
+          timeoutMs,
+          `[event-source] custom action timeout, sourceId=${id}, timeoutMs=${timeoutMs}`,
+        );
+        const lastSavedJob = (<Processor>res)?.lastSavedJob;
+        if (lastSavedJob?.get('status') < 0) {
+          throw new Error(`${lastSavedJob.get('result')}`);
+        }
+      } catch (error) {
+        app.logger.error(
+          `[event-source] custom action execution failed. policy=${failurePolicy}, sourceId=${id}, workflowKey=${config?.workflowKey}, error=${error?.stack || error}`,
+        );
+        if (failurePolicy === 'block') {
+          ctx.throw(500, error?.message || 'Custom action execution failed');
+        }
       }
     });
     app.acl.allow(resourceName, actionName, 'loggedIn');
@@ -56,11 +102,11 @@ export class CustomActionTrigger extends EventSourceTrigger {
 
   // TODO 很难修改和删除,目前实时刷新的时候间接修改
   afterUpdate(model: EventSourceModel) {
-    const { enabled, code, workflowKey, id } = model;
+    const { enabled, code, workflowKey, id, options } = model;
     if (enabled && !this.workSet.has(id)) {
       this.load(model);
     } else {
-      this.eventMap.set(id, { code, workflowKey });
+      this.eventMap.set(id, { code, workflowKey, options });
     }
   }
 }

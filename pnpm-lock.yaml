@@ -598,7 +598,7 @@ importers:
     devDependencies:
       '@antv/g6':
         specifier: ^5.0.49
-        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+        version: 5.0.49(workerize-loader@2.0.2(webpack@5.99.6))
       '@babel/core':
         specifier: 7.27.4
         version: 7.27.4
@@ -1260,6 +1260,36 @@ importers:
       lodash:
         specifier: 4.17.21
         version: 4.17.21
+
+  packages/module-tenant:
+    devDependencies:
+      '@tachybase/client':
+        specifier: workspace:*
+        version: link:../client
+      '@tachybase/module-acl':
+        specifier: workspace:*
+        version: link:../module-acl
+      '@tachybase/module-collection':
+        specifier: workspace:*
+        version: link:../module-collection
+      '@tachybase/module-data-source':
+        specifier: workspace:*
+        version: link:../module-data-source
+      '@tachybase/module-user':
+        specifier: workspace:*
+        version: link:../module-user
+      '@tachybase/test':
+        specifier: 1.6.10
+        version: 1.6.10(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
+      '@tego/client':
+        specifier: 1.6.10
+        version: 1.6.10(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tego/server':
+        specifier: 1.6.10
+        version: 1.6.10
+      antd:
+        specifier: 5.22.5
+        version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/module-ui-schema:
     devDependencies:
@@ -10564,10 +10594,6 @@ packages:
     engines: {node: '>=0.10'}
     hasBin: true
 
-  detect-libc@2.0.4:
-    resolution: {integrity: sha512-3UDv+G9CsCKO1WKMGw9fwq/SWJYbI0c5Y7LU1AXYoDdbhE2AHQ6N6Nb34sG8Fj7T5APy8qXDCKuuIHd1BR0tVA==}
-    engines: {node: '>=8'}
-
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
@@ -10765,9 +10791,6 @@ packages:
 
   encoding@0.1.13:
     resolution: {integrity: sha512-ETBauow1T35Y/WZMkio9jiM0Z5xjHHmJ4XmjZOq1l/dXz3lr2sRn87nJy20RupqSh1F2m3HHPSp8ShIPQJrJ3A==}
-
-  end-of-stream@1.4.4:
-    resolution: {integrity: sha512-+uw1inIHVPQoaVuHzRyXd21icM+cnt4CzD5rW+NC1wjOUSTOs+Te7FOv7AhN7vS9x/oIyhLP5PR1H+phQAHu5Q==}
 
   end-of-stream@1.4.5:
     resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==}
@@ -12275,7 +12298,6 @@ packages:
   keygrip@1.1.0:
     resolution: {integrity: sha512-iYSchDJ+liQ8iwbSI2QqsQOvqv58eJCEanyJPJi+Khyu8smkcKSFUCbPwzFcL7YVtZ6eONjqRX/38caJ7QjRAQ==}
     engines: {node: '>= 0.6'}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
@@ -16695,6 +16717,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -17733,7 +17756,7 @@ snapshots:
       flru: 1.0.2
       pdfast: 0.2.0
 
-  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@antv/g6@5.0.49(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
       '@antv/algorithm': 0.1.26
       '@antv/component': 2.1.5
@@ -17743,7 +17766,7 @@ snapshots:
       '@antv/g-plugin-dragndrop': 2.0.37
       '@antv/graphlib': 2.0.4
       '@antv/hierarchy': 0.6.14
-      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))
       '@antv/util': 3.3.11
       bubblesets-js: 2.3.4
     transitivePeerDependencies:
@@ -17771,12 +17794,12 @@ snapshots:
 
   '@antv/hierarchy@0.6.14': {}
 
-  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
       '@antv/event-emitter': 0.1.3
       '@antv/graphlib': 2.0.4
       '@antv/util': 3.3.11
-      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))
+      '@naoak/workerize-transferable': 0.1.0(workerize-loader@2.0.2(webpack@5.99.6))
       comlink: 4.4.2
       d3-force: 3.0.0
       d3-force-3d: 3.0.6
@@ -18493,7 +18516,7 @@ snapshots:
       '@babel/core': 7.27.4
       '@babel/helper-compilation-targets': 7.27.2
       '@babel/helper-plugin-utils': 7.27.1
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
       lodash.debounce: 4.0.8
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -20380,7 +20403,7 @@ snapshots:
   '@ladjs/koa-views@9.0.0(@babel/core@7.28.5)(@types/koa@2.15.0)(ejs@3.1.10)(handlebars@4.7.8)(lodash@4.17.21)(mustache@4.2.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(underscore@1.13.7)':
     dependencies:
       '@ladjs/consolidate': 1.0.4(@babel/core@7.28.5)(ejs@3.1.10)(handlebars@4.7.8)(lodash@4.17.21)(mustache@4.2.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(underscore@1.13.7)
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
       get-paths: 0.0.7
       koa-send: 5.0.1
       mz: 2.7.0
@@ -20599,9 +20622,9 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
-  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)))':
+  '@naoak/workerize-transferable@0.1.0(workerize-loader@2.0.2(webpack@5.99.6))':
     dependencies:
-      workerize-loader: 2.0.2(webpack@5.99.6(esbuild@0.25.6))
+      workerize-loader: 2.0.2(webpack@5.99.6)
 
   '@napi-rs/canvas-android-arm64@0.1.76':
     optional: true
@@ -22632,26 +22655,6 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tachybase/acl@1.6.10':
-    dependencies:
-      '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.10
-      '@tachybase/utils': 1.6.10
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      minimatch: 5.1.6
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/acl@1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22695,26 +22698,6 @@ snapshots:
   '@tachybase/acl@1.6.10(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.10(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.10
-      '@tachybase/utils': 1.6.10
-      koa-compose: 4.1.0
-      lodash: 4.17.21
-      minimatch: 5.1.6
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@tachybase/acl@1.6.10(pg@8.16.3)':
-    dependencies:
-      '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.10
       '@tachybase/utils': 1.6.10
       koa-compose: 4.1.0
@@ -22795,25 +22778,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.10':
-    dependencies:
-      '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.10
-      '@tachybase/utils': 1.6.10
-      jsonwebtoken: 8.5.1
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/auth@1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22871,25 +22835,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.10(pg@8.16.3)':
-    dependencies:
-      '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.10
-      '@tachybase/utils': 1.6.10
-      jsonwebtoken: 8.5.1
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@tachybase/cache@1.6.10':
     dependencies:
       bloom-filters: 3.0.4
@@ -22923,7 +22868,7 @@ snapshots:
 
   '@tachybase/data-source@1.6.10':
     dependencies:
-      '@tachybase/acl': 1.6.10
+      '@tachybase/acl': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.10
@@ -23011,7 +22956,7 @@ snapshots:
 
   '@tachybase/data-source@1.6.10(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.10(pg@8.16.3)
+      '@tachybase/acl': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.10
@@ -23348,9 +23293,9 @@ snapshots:
   '@tego/core@1.6.10':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.10
+      '@tachybase/acl': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.10
+      '@tachybase/auth': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.10
       '@tachybase/data-source': 1.6.10
       '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23568,9 +23513,9 @@ snapshots:
   '@tego/core@1.6.10(pg@8.16.3)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.10(pg@8.16.3)
+      '@tachybase/acl': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.10(pg@8.16.3)
+      '@tachybase/auth': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.10
       '@tachybase/data-source': 1.6.10(pg@8.16.3)
       '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23703,9 +23648,9 @@ snapshots:
 
   '@tego/server@1.6.10':
     dependencies:
-      '@tachybase/acl': 1.6.10
+      '@tachybase/acl': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.10
+      '@tachybase/auth': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.10
       '@tachybase/data-source': 1.6.10
       '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23790,9 +23735,9 @@ snapshots:
 
   '@tego/server@1.6.10(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.10(pg@8.16.3)
+      '@tachybase/acl': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.10(pg@8.16.3)
+      '@tachybase/auth': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.10
       '@tachybase/data-source': 1.6.10(pg@8.16.3)
       '@tachybase/database': 1.6.10(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -24650,7 +24595,7 @@ snapshots:
 
   agent-base@6.0.2:
     dependencies:
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -24871,7 +24816,7 @@ snapshots:
       '@ant-design/cssinjs-utils': 1.1.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/icons': 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/react-slick': 1.1.2(react@18.3.1)
-      '@babel/runtime': 7.28.2
+      '@babel/runtime': 7.28.4
       '@ctrl/tinycolor': 3.6.1
       '@rc-component/color-picker': 2.0.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@rc-component/mutate-observer': 1.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -26729,9 +26674,6 @@ snapshots:
   detect-libc@1.0.3:
     optional: true
 
-  detect-libc@2.0.4:
-    optional: true
-
   detect-libc@2.1.2: {}
 
   detect-newline@4.0.1: {}
@@ -26987,10 +26929,6 @@ snapshots:
     dependencies:
       iconv-lite: 0.6.3
     optional: true
-
-  end-of-stream@1.4.4:
-    dependencies:
-      once: 1.4.0
 
   end-of-stream@1.4.5:
     dependencies:
@@ -28069,7 +28007,7 @@ snapshots:
   httpx@2.3.3:
     dependencies:
       '@types/node': 20.17.10
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -28214,7 +28152,7 @@ snapshots:
     dependencies:
       '@ioredis/commands': 1.3.0
       cluster-key-slot: 1.1.2
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
       denque: 2.1.0
       lodash.defaults: 4.2.0
       lodash.isarguments: 3.1.0
@@ -28667,7 +28605,7 @@ snapshots:
 
   koa-mount@4.2.0:
     dependencies:
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
       koa-compose: 4.1.0
     transitivePeerDependencies:
       - supports-color
@@ -28728,7 +28666,7 @@ snapshots:
       content-disposition: 0.5.4
       content-type: 1.0.5
       cookies: 0.9.1
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
       delegates: 1.0.0
       destroy: 1.2.0
       encodeurl: 2.0.0
@@ -29342,7 +29280,7 @@ snapshots:
 
   memorystore@1.6.7:
     dependencies:
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
       lru-cache: 4.1.5
     transitivePeerDependencies:
       - supports-color
@@ -29778,7 +29716,7 @@ snapshots:
       '@types/ws': 8.5.13
       commist: 3.2.0
       concat-stream: 2.0.0
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
       help-me: 5.0.0
       lru-cache: 10.4.3
       minimist: 1.2.8
@@ -30022,7 +29960,7 @@ snapshots:
 
   node-gyp-build-optional-packages@5.2.2:
     dependencies:
-      detect-libc: 2.0.4
+      detect-libc: 2.1.2
     optional: true
 
   node-gyp@12.1.0:
@@ -30910,7 +30848,7 @@ snapshots:
 
   pump@3.0.0:
     dependencies:
-      end-of-stream: 1.4.4
+      end-of-stream: 1.4.5
       once: 1.4.0
 
   pump@3.0.3:
@@ -33074,16 +33012,14 @@ snapshots:
       string-kit: 0.19.3
       tree-kit: 0.8.8
 
-  terser-webpack-plugin@5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6)):
+  terser-webpack-plugin@5.3.14(webpack@5.99.6):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2
       terser: 5.44.1
-      webpack: 5.99.6(esbuild@0.25.6)
-    optionalDependencies:
-      esbuild: 0.25.6
+      webpack: 5.99.6
 
   terser@5.44.1:
     dependencies:
@@ -33706,7 +33642,7 @@ snapshots:
       debug: 4.4.1(supports-color@5.5.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.0.3(@types/node@20.17.10)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.1)
+      vite: 7.2.2(@types/node@20.17.10)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.1)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -33727,7 +33663,7 @@ snapshots:
       debug: 4.4.1(supports-color@5.5.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.0.3(@types/node@20.17.10)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
+      vite: 7.2.2(@types/node@20.17.10)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -33980,7 +33916,7 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.99.6(esbuild@0.25.6):
+  webpack@5.99.6:
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -34002,7 +33938,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.0
-      terser-webpack-plugin: 5.3.14(esbuild@0.25.6)(webpack@5.99.6(esbuild@0.25.6))
+      terser-webpack-plugin: 5.3.14(webpack@5.99.6)
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:
@@ -34141,10 +34077,10 @@ snapshots:
       worker-timers-broker: 6.1.8
       worker-timers-worker: 7.0.71
 
-  workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)):
+  workerize-loader@2.0.2(webpack@5.99.6):
     dependencies:
       loader-utils: 2.0.4
-      webpack: 5.99.6(esbuild@0.25.6)
+      webpack: 5.99.6
 
   wrap-ansi@7.0.0:
     dependencies:

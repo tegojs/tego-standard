@@ -1,0 +1,35 @@
+{
+  "name": "@tachybase/module-tenant",
+  "displayName": "Tenant",
+  "version": "1.6.15",
+  "description": "Provides tenant context and server-side tenant isolation for shared-schema multi-tenant applications.",
+  "keywords": [
+    "Users & permissions"
+  ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/module-tenant"
+  },
+  "license": "Apache-2.0",
+  "main": "./dist/server/index.js",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {
+    "@tachybase/client": "workspace:*",
+    "@tachybase/module-acl": "workspace:*",
+    "@tachybase/module-collection": "workspace:*",
+    "@tachybase/module-data-source": "workspace:*",
+    "@tachybase/module-user": "workspace:*",
+    "@tachybase/test": "catalog:",
+    "@tego/client": "catalog:",
+    "@tego/server": "catalog:",
+    "antd": "catalog:"
+  },
+  "description.zh-CN": "提供租户上下文与服务端租户隔离基础能力。",
+  "displayName.zh-CN": "租户"
+}

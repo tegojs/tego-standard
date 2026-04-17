@@ -1,7 +1,9 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 
-export async function prepareApp(): Promise<MockServer> {
-  const app = await createMockServer({
+import PluginTenantServer from '..';
+
+export async function createTenantApp(): Promise<MockServer> {
+  return createMockServer({
     registerActions: true,
     acl: true,
     plugins: [
@@ -12,8 +14,7 @@ export async function prepareApp(): Promise<MockServer> {
       'collection-manager',
       'auth',
       'data-source-manager',
-      'tenant',
+      [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
     ],
   });
-  return app;
 }

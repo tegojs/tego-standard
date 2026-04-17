@@ -86,6 +86,17 @@ export default class PluginUsersServer extends Plugin {
           targetKey: 'id',
         });
       }
+
+      if (collection.options.tenancy === 'tenantScoped') {
+        collection.setField('tenantId', {
+          type: 'context',
+          dataIndex: 'state.currentTenant.id',
+          dataType: 'string',
+          createOnly: true,
+          visible: true,
+          index: true,
+        });
+      }
     });
 
     for (const [key, action] of Object.entries(actions)) {

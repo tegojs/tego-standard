@@ -27,6 +27,7 @@
   "Event source": "事件源",
   "Finally executed on": "最后执行于",
   "Ineffective": "失效",
+  "Pass HTTP context to workflow": "向工作流透传 HTTP 上下文",
   "Real effect": "是否生效",
   "Resource": "资源",
   "Resource action after event": "资源操作后事件",

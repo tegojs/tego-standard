@@ -14,6 +14,8 @@ export class EventSourceModel extends Model {
     eventName?: string;
     // 针对beforeResource,afterResource
     triggerOnAssociation?: boolean;
+    // 是否向工作流透传 httpContext
+    useHttpContext?: boolean;
     // 优先级越小越先执行
     sort?: number;
   };

@@ -1,5 +1,4 @@
 import { JOB_STATUS } from '@tachybase/module-workflow';
-
 import { Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
@@ -37,17 +36,36 @@ export class ResourceEventTrigger extends EventSourceTrigger {
           return next();
         }
         for (const model of matchBefore) {
-          const body = await new WebhookController().action(ctx, model);
-          const result = await new WebhookController().triggerWorkflow(ctx, model, body);
-          // TODO：这里只处理事务模式下运行把出错内容返回给客户端，同时阻止进一步行为
-          if (result && result.lastSavedJob.status === JOB_STATUS.ERROR) {
-            ctx.throw(400, result.lastSavedJob.result);
+          try {
+            const body = await new WebhookController().action(ctx, model);
+            const result = await new WebhookController().triggerWorkflow(ctx, model, body);
+            // Keep event sources isolated: workflow failures should not block primary request.
+            if (result && result.lastSavedJob.status === JOB_STATUS.ERROR) {
+              this.app.logger.error(
+                `[event-source] beforeResource workflow failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, result=${result.lastSavedJob.result}`,
+              );
+            }
+          } catch (error) {
+            this.app.logger.error(
+              `[event-source] beforeResource execution failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, error=${error?.stack || error}`,
+            );
           }
         }
         await next();
         for (const model of matchAfter) {
-          const body = await new WebhookController().action(ctx, model);
-          await new WebhookController().triggerWorkflow(ctx, model, body);
+          try {
+            const body = await new WebhookController().action(ctx, model);
+            const result = await new WebhookController().triggerWorkflow(ctx, model, body);
+            if (result && result.lastSavedJob.status === JOB_STATUS.ERROR) {
+              this.app.logger.error(
+                `[event-source] afterResource workflow failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, result=${result.lastSavedJob.result}`,
+              );
+            }
+          } catch (error) {
+            this.app.logger.error(
+              `[event-source] afterResource execution failed, ignored. sourceId=${model.id}, workflowKey=${model.workflowKey}, error=${error?.stack || error}`,
+            );
+          }
         }
       },
       { tag: 'event-source-resource' },

@@ -17,6 +17,7 @@
   "Effective": "Effective",
   "Event source": "Event source",
   "Ineffective": "Ineffective",
+  "Pass HTTP context to workflow": "Pass HTTP context to workflow",
   "Resource action after event": "Resource action after event",
   "Resource action before event": "Resource action before event",
   "Sync": "Sync",

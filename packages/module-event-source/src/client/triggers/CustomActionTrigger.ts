@@ -23,5 +23,11 @@ export class CustomActionTrigger extends EventSourceTrigger {
       'x-decorator': 'FormItem',
       'x-component': 'Checkbox',
     },
+    useHttpContext: {
+      type: 'boolean',
+      title: tval('Pass HTTP context to workflow'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Checkbox',
+    },
   };
 }

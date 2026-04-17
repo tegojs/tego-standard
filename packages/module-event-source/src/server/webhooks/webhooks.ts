@@ -267,6 +267,7 @@ export class WebhookController {
     const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;
     const wfRepo = ctx.db.getRepository('workflows');
     const wf = await wfRepo.findOne({ filter: { key: action.workflowKey, enabled: true } });
-    return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, { httpContext: ctx });
+    const triggerOptions = action?.options?.useHttpContext ? { httpContext: ctx } : undefined;
+    return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, triggerOptions);
   }
 }

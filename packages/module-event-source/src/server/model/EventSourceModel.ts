@@ -20,6 +20,12 @@ export class EventSourceModel extends Model {
     failurePolicy?: 'ignore' | 'block';
     // 单条事件源执行超时时间(ms)，<=0 表示不限制
     timeoutMs?: number;
+    // 执行模式: inline(默认)/queue
+    executionMode?: 'inline' | 'queue';
+    // 队列重试最大次数
+    maxAttempts?: number;
+    // 队列重试退避间隔(ms)
+    retryBackoffMs?: number;
     // 优先级越小越先执行
     sort?: number;
   };

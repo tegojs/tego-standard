@@ -2,6 +2,7 @@ import { JOB_STATUS } from '@tachybase/module-workflow';
 import { Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
+import { EventSourceQueueWorker } from '../queue/EventSourceQueueWorker';
 import { WebhookController } from '../webhooks/webhooks';
 import { EventSourceTrigger } from './Trigger';
 
@@ -50,6 +51,17 @@ export class ResourceEventTrigger extends EventSourceTrigger {
   private getFailurePolicy(model: EventSourceModel): 'ignore' | 'block' {
     return model?.options?.failurePolicy === 'block' ? 'block' : 'ignore';
   }
+  private getExecutionMode(model: EventSourceModel): 'inline' | 'queue' {
+    return model?.options?.executionMode === 'queue' ? 'queue' : 'inline';
+  }
+  private getMaxAttempts(model: EventSourceModel): number {
+    const value = Number(model?.options?.maxAttempts || 3);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 3;
+  }
+  private getRetryBackoffMs(model: EventSourceModel): number {
+    const value = Number(model?.options?.retryBackoffMs || 3000);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 3000;
+  }
 
   private getTimeoutMs(model: EventSourceModel): number {
     const timeoutMs = Number(model?.options?.timeoutMs || 0);
@@ -78,8 +90,31 @@ export class ResourceEventTrigger extends EventSourceTrigger {
 
   private async executeByPolicy(ctx: Context, model: EventSourceModel, stage: 'beforeResource' | 'afterResource') {
     const failurePolicy = this.getFailurePolicy(model);
+    const executionMode = this.getExecutionMode(model);
     const timeoutMs = this.getTimeoutMs(model);
     try {
+      if (executionMode === 'queue') {
+        const body = await new WebhookController().action(ctx, model);
+        const queueWorker = (this.app as any).eventSourceQueueWorker as EventSourceQueueWorker;
+        if (!queueWorker) {
+          throw new Error('eventSourceQueueWorker is not available');
+        }
+        await queueWorker.enqueue({
+          sourceId: model.id,
+          stage,
+          resourceName: model?.options?.resourceName,
+          actionName: model?.options?.actionName,
+          workflowKey: model.workflowKey,
+          payload: body,
+          contextLite: {
+            userId: ctx?.state?.currentUser?.id,
+            roleName: ctx?.state?.currentRole,
+          },
+          maxAttempts: this.getMaxAttempts(model),
+          retryBackoffMs: this.getRetryBackoffMs(model),
+        });
+        return;
+      }
       const result = await this.withTimeout(
         async () => {
           const body = await new WebhookController().action(ctx, model);

@@ -2,6 +2,7 @@ import { Processor } from '@tachybase/module-workflow';
 import { Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
+import { EventSourceQueueWorker } from '../queue/EventSourceQueueWorker';
 import { WebhookController } from '../webhooks/webhooks';
 import { EventSourceTrigger } from './Trigger';
 
@@ -15,6 +16,17 @@ export class CustomActionTrigger extends EventSourceTrigger {
 
   private getFailurePolicy(config: IAPITriggerConfig): 'ignore' | 'block' {
     return config?.options?.failurePolicy === 'block' ? 'block' : 'ignore';
+  }
+  private getExecutionMode(config: IAPITriggerConfig): 'inline' | 'queue' {
+    return config?.options?.executionMode === 'queue' ? 'queue' : 'inline';
+  }
+  private getMaxAttempts(config: IAPITriggerConfig): number {
+    const value = Number(config?.options?.maxAttempts || 3);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 3;
+  }
+  private getRetryBackoffMs(config: IAPITriggerConfig): number {
+    const value = Number(config?.options?.retryBackoffMs || 3000);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 3000;
   }
 
   private getTimeoutMs(config: IAPITriggerConfig): number {
@@ -69,9 +81,38 @@ export class CustomActionTrigger extends EventSourceTrigger {
         ctx.throw(404, 'Not found');
       }
       const config = this.eventMap.get(id);
+      if (!config) {
+        ctx.throw(404, 'Not found');
+        return;
+      }
       const failurePolicy = this.getFailurePolicy(config);
+      const executionMode = this.getExecutionMode(config);
       const timeoutMs = this.getTimeoutMs(config);
       try {
+        if (executionMode === 'queue') {
+          const body = await new WebhookController().action(ctx, { code: config.code });
+          const queueWorker = (this.app as any).eventSourceQueueWorker as EventSourceQueueWorker;
+          if (!queueWorker) {
+            throw new Error('eventSourceQueueWorker is not available');
+          }
+          await queueWorker.enqueue({
+            sourceId: id,
+            stage: 'customAction',
+            resourceName: ctx?.action?.resourceName,
+            actionName: ctx?.action?.actionName,
+            workflowKey: config.workflowKey,
+            payload: body,
+            contextLite: {
+              userId: ctx?.state?.currentUser?.id,
+              roleName: ctx?.state?.currentRole,
+            },
+            maxAttempts: this.getMaxAttempts(config),
+            retryBackoffMs: this.getRetryBackoffMs(config),
+          });
+          ctx.withoutDataWrapping = true;
+          ctx.body = { queued: true };
+          return;
+        }
         const res = await this.withTimeout(
           async () => {
             const body = await new WebhookController().action(ctx, { code: config.code });

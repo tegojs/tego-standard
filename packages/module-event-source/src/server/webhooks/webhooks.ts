@@ -254,14 +254,15 @@ export class WebhookController {
   }
 
   async triggerWorkflow(ctx, action, body): Promise<Processor | void> {
-    const { currentUser, currentRole } = ctx.state;
-    const { model: UserModel } = ctx.db.getCollection('users');
+    const { currentUser, currentRole } = ctx?.state || {};
+    const userCollection = ctx.db.getCollection('users');
+    const { model: UserModel } = userCollection;
     // 只有绑定工作流才执行
     if (!action.workflowKey) {
       return;
     }
     const userInfo = {
-      user: UserModel.build(currentUser).desensitize(),
+      user: currentUser ? UserModel.build(currentUser).desensitize() : null,
       roleName: currentRole,
     };
     const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;

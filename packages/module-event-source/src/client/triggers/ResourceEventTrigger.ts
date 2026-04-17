@@ -54,5 +54,38 @@ export class ResourceEventTrigger extends EventSourceTrigger {
       },
       default: 0,
     },
+    executionMode: {
+      type: 'string',
+      title: tval('Execution mode'),
+      'x-decorator': 'FormItem',
+      'x-component': 'Select',
+      enum: [
+        { label: tval('Inline'), value: 'inline' },
+        { label: tval('Queue'), value: 'queue' },
+      ],
+      default: 'inline',
+    },
+    maxAttempts: {
+      type: 'number',
+      title: tval('Max attempts'),
+      'x-decorator': 'FormItem',
+      'x-component': 'NumberPicker',
+      'x-component-props': {
+        min: 1,
+        step: 1,
+      },
+      default: 3,
+    },
+    retryBackoffMs: {
+      type: 'number',
+      title: tval('Retry backoff (ms)'),
+      'x-decorator': 'FormItem',
+      'x-component': 'NumberPicker',
+      'x-component-props': {
+        min: 100,
+        step: 100,
+      },
+      default: 3000,
+    },
   };
 }

@@ -42,7 +42,12 @@ async function resolveDefaultTenantId(ctx: Context, tenantIds: Array<string | nu
     filterByTk: ctx.state.currentUser.id,
   });
 
-  return currentUser?.get('defaultTenantId') || tenantIds[0];
+  const defaultTenantId = currentUser?.get('defaultTenantId');
+  if (defaultTenantId && tenantIds.includes(defaultTenantId)) {
+    return defaultTenantId;
+  }
+
+  return tenantIds[0];
 }
 
 export async function setCurrentTenant(ctx: Context, next: Next) {

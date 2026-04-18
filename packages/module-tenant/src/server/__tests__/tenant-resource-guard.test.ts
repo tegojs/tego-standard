@@ -1,5 +1,8 @@
 import type { MockServer } from '@tachybase/test';
 
+import { waitSecond } from '@tachybase/test';
+import { CollectionManager, DataSource } from '@tego/server';
+
 import { createTenantApp } from './utils';
 
 describe('tenant resource guard', () => {
@@ -111,5 +114,101 @@ describe('tenant resource guard', () => {
       filterByTk: foreignRecord.get('id'),
     });
     expect(foreignAfterDestroy).toBeTruthy();
+  });
+
+  it('should resolve tenant scoped collections from non-default data sources', async () => {
+    let lastFilter: any;
+
+    class MockRepository {
+      async count() {
+        return 1;
+      }
+
+      async findAndCount(options?: any) {
+        lastFilter = options?.filter ?? options?.where;
+        return [[{ id: 1, title: 'A1', tenantId: 'tenant-a' }], 1];
+      }
+
+      async find(options?: any) {
+        lastFilter = options?.filter ?? options?.where;
+        return [{ id: 1, title: 'A1', tenantId: 'tenant-a' }];
+      }
+
+      async findOne() {
+        return null;
+      }
+
+      async create() {}
+
+      async update() {}
+
+      async destroy() {}
+    }
+
+    class MockCollectionManager extends CollectionManager {
+      getRepository() {
+        return new MockRepository() as any;
+      }
+    }
+
+    class MockDataSource extends DataSource {
+      async load(): Promise<void> {
+        this.collectionManager.defineCollection({
+          name: 'posts',
+          tenancy: 'tenantScoped',
+          fields: [
+            {
+              type: 'string',
+              name: 'title',
+            },
+            {
+              type: 'string',
+              name: 'tenantId',
+            },
+          ],
+        });
+      }
+
+      createCollectionManager() {
+        return new MockCollectionManager();
+      }
+    }
+
+    app = await createTenantApp();
+    app.dataSourceManager.factory.register('mock', MockDataSource as any);
+
+    await app.db.getRepository('dataSources').create({
+      values: {
+        key: 'mockTenantDs',
+        type: 'mock',
+        displayName: 'Mock tenant data source',
+        options: {},
+      },
+    });
+
+    await waitSecond(1000);
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_guard_ds_user',
+        email: 'tenant-guard-ds-user@example.com',
+        phone: '10000000005',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    const response = await app.agent().login(user).set('X-data-source', 'mockTenantDs').resource('api/posts').list({
+      paginate: false,
+    });
+
+    expect(response.status).toBe(200);
+    expect(lastFilter).toEqual({ tenantId: 'tenant-a' });
   });
 });

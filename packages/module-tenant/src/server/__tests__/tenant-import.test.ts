@@ -66,8 +66,8 @@ describe('tenant import', () => {
       {
         name: 'Sheet 1',
         data: [
-          ['Title'],
-          ['Imported A1'],
+          ['Title', 'tenantId'],
+          ['Imported A1', 'tenant-b'],
         ],
       },
     ]);
@@ -86,6 +86,10 @@ describe('tenant import', () => {
           {
             dataIndex: ['title'],
             defaultTitle: 'Title',
+          },
+          {
+            dataIndex: ['tenantId'],
+            defaultTitle: 'tenantId',
           },
         ]),
       )

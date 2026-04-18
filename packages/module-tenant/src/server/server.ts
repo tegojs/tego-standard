@@ -36,7 +36,12 @@ export class PluginTenantServer extends Plugin {
 
     this.app.resourcer.use(
       async (ctx, next) => {
-        const collection = ctx.db.getCollection(ctx.action.resourceName);
+        const dataSourceKey =
+          ctx.get('X-data-source') || ctx.get('x-data-source') || ctx.action.params?.dataSource || 'main';
+        const dataSource =
+          dataSourceKey && dataSourceKey !== 'main' ? ctx.tego.dataSourceManager.dataSources.get(dataSourceKey) : null;
+        const db = dataSource?.collectionManager?.db || ctx.db;
+        const collection = db.getCollection(ctx.action.resourceName);
         if (isTenantScopedCollection(collection)) {
           applyTenantFilter(ctx);
         }

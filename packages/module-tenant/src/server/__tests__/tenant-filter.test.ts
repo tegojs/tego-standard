@@ -81,4 +81,35 @@ describe('applyTenantFilter', () => {
       },
     });
   });
+
+  it('should inject tenantId into every record for array create values', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-c',
+      },
+      action: {
+        actionName: 'create',
+        params: {
+          values: [{ title: 'Post 1' }, { title: 'Post 2', tenantId: 'tenant-x' }],
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      values: [
+        {
+          title: 'Post 1',
+          tenantId: 'tenant-c',
+        },
+        {
+          title: 'Post 2',
+          tenantId: 'tenant-c',
+        },
+      ],
+    });
+  });
 });

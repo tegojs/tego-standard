@@ -17,6 +17,20 @@ function appendFilter(original: any, tenantId: string | number) {
   };
 }
 
+function appendTenantValue(values: any, tenantId: string | number) {
+  if (Array.isArray(values)) {
+    return values.map((item) => ({
+      ...(item || {}),
+      tenantId,
+    }));
+  }
+
+  return {
+    ...(values || {}),
+    tenantId,
+  };
+}
+
 export function applyTenantFilter(ctx: TenantFilterContext) {
   const tenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
   if (!tenantId) {
@@ -36,10 +50,7 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
 
   if (actionName === 'create') {
     ctx.action.mergeParams({
-      values: {
-        ...(params?.values || {}),
-        tenantId,
-      },
+      values: appendTenantValue(params?.values, tenantId),
     });
   }
 }

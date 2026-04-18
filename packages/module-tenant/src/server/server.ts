@@ -43,6 +43,10 @@ export class PluginTenantServer extends Plugin {
         const db = dataSource?.collectionManager?.db || ctx.db;
         const collection = db.getCollection(ctx.action.resourceName);
         if (isTenantScopedCollection(collection)) {
+          if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
+            ctx.throw(403, 'Tenant context is required');
+          }
+
           applyTenantFilter(ctx);
         }
 

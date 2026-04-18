@@ -82,6 +82,10 @@ describe('tenant resource guard', () => {
     expect(listResponse.body.data).toHaveLength(1);
     expect(listResponse.body.data[0].tenantId).toBe('tenant-a');
 
+    const countResponse = await agent.resource('tenant_posts').count({});
+    expect(countResponse.status).toBe(200);
+    expect(countResponse.body.data).toBe(1);
+
     const foreignRecord = await app.db.getRepository('tenant_posts').findOne({
       filter: {
         tenantId: 'tenant-b',
@@ -210,5 +214,53 @@ describe('tenant resource guard', () => {
 
     expect(response.status).toBe(200);
     expect(lastFilter).toEqual({ tenantId: 'tenant-a' });
+  });
+
+  it('should reject tenant-scoped resources when the current user has no enabled tenant context', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-disabled', name: 'tenant-disabled', title: 'Tenant Disabled', enabled: false }],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_guard_no_enabled_tenant',
+        email: 'tenant-guard-no-enabled-tenant@example.com',
+        phone: '10000000008',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-disabled'],
+        defaultTenantId: 'tenant-disabled',
+      },
+    });
+
+    await app.db.getRepository('roles').update({
+      filterByTk: 'admin',
+      values: {
+        strategy: {
+          actions: ['create', 'view', 'update', 'destroy'],
+        },
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_posts_without_context',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const response = await app.agent().login(user).resource('tenant_posts_without_context').list({});
+
+    expect(response.status).toBe(403);
+    expect(response.body.errors?.[0]?.message || response.body.error?.message).toContain('Tenant context is required');
   });
 });

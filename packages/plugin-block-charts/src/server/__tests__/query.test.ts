@@ -427,6 +427,65 @@ describe('query', () => {
       await compose([cacheMiddleware, query])(secondContext, async () => {});
       expect(query).toBeCalledTimes(1);
     });
+
+    it('should isolate cache by current user when query uses runtime user variables', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentUser: {
+            id: 1,
+          },
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              filter: {
+                createdById: '{{ $user.id }}',
+              },
+            },
+          },
+        },
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentUser: {
+            id: 2,
+          },
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              filter: {
+                createdById: '{{ $user.id }}',
+              },
+            },
+          },
+        },
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
   });
 
   describe('applyTenantScope', () => {

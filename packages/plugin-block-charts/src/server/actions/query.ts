@@ -78,6 +78,7 @@ function stableSerialize(value: any): string {
 
 function getChartCacheKey(ctx: Context, uid: string) {
   const tenantId = getCurrentTenantId(ctx);
+  const currentUserId = ctx.state.currentUser?.id;
   const {
     dataSource,
     collection,
@@ -99,6 +100,7 @@ function getChartCacheKey(ctx: Context, uid: string) {
     limit,
     sql,
     timezone,
+    currentUserId,
   });
 
   if (!tenantId) {

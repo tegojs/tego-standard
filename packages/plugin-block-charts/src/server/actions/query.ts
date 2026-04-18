@@ -61,14 +61,51 @@ function getCurrentTenantId(ctx: Context) {
   return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
 }
 
-function getChartCacheKey(ctx: Context, uid: string) {
-  const tenantId = getCurrentTenantId(ctx);
-
-  if (!tenantId) {
-    return uid;
+function stableSerialize(value: any): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
   }
 
-  return `${uid}:tenant:${tenantId}`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`)
+      .join(',')}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function getChartCacheKey(ctx: Context, uid: string) {
+  const tenantId = getCurrentTenantId(ctx);
+  const {
+    dataSource,
+    collection,
+    measures,
+    dimensions,
+    orders,
+    filter,
+    limit,
+    sql,
+  } = ctx.action.params.values as QueryParams;
+  const timezone = ctx.get?.('x-timezone');
+  const signature = stableSerialize({
+    dataSource,
+    collection,
+    measures,
+    dimensions,
+    orders,
+    filter,
+    limit,
+    sql,
+    timezone,
+  });
+
+  if (!tenantId) {
+    return `${uid}:query:${signature}`;
+  }
+
+  return `${uid}:tenant:${tenantId}:query:${signature}`;
 }
 
 const getDB = (ctx: Context, dataSource: string) => {

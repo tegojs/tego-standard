@@ -370,6 +370,63 @@ describe('query', () => {
       await compose([cacheMiddleware, query])(tenantBContext, async () => {});
       expect(query).toBeCalledTimes(1);
     });
+
+    it('should isolate cache by query payload within the same tenant', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'draft',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
   });
 
   describe('applyTenantScope', () => {

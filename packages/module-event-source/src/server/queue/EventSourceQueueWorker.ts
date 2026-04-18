@@ -84,8 +84,7 @@ export class EventSourceQueueWorker {
           },
         },
         sort: ['createdAt'],
-        paginate: false,
-        pageSize: this.batchSize,
+        limit: this.batchSize,
       });
 
       for (const job of jobs as any[]) {

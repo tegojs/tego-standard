@@ -60,4 +60,15 @@ describe('APIClient', () => {
     }
     expect(apiClient.auth.role).toBeFalsy();
   });
+
+  test('should include X-Tenant header when current tenant id is set', () => {
+    const apiClient = new APIClient();
+    apiClient.app = { getName: () => 'main' } as any;
+    apiClient.storage.setItem('current_tenant_id', 'tenant-a');
+
+    const headers = apiClient.getHeaders();
+
+    expect(headers['X-Tenant']).toBe('tenant-a');
+    expect(headers['X-App']).toBe('main');
+  });
 });

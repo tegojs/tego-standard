@@ -36,6 +36,7 @@ export const useSwitchTenant = () => {
           defaultValue={currentTenant?.id}
           onChange={async (tenantId) => {
             await api.resource('tenants').switch({ values: { tenantId } });
+            api.storage?.setItem?.('current_tenant_id', tenantId as string);
             window.location.reload();
           }}
         />

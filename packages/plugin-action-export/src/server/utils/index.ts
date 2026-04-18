@@ -18,7 +18,7 @@ export function getExportTenantId(source: any) {
 }
 
 export function buildExportDownloadName(title: string, tenantId?: string) {
-  const base = String(title || 'export').trim() || 'export';
+  const base = String(title || 'export').trim().replace(/[\\/:*?"<>|]/g, '_') || 'export';
   return tenantId ? `${base}_${sanitizeExportSegment(tenantId)}` : base;
 }
 

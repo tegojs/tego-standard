@@ -926,6 +926,9 @@ importers:
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
+      '@tachybase/module-tenant':
+        specifier: workspace:*
+        version: link:../module-tenant
       '@tachybase/schema':
         specifier: 1.6.10
         version: 1.6.10(react@18.3.1)
@@ -1278,6 +1281,12 @@ importers:
       '@tachybase/module-user':
         specifier: workspace:*
         version: link:../module-user
+      '@tachybase/plugin-action-export':
+        specifier: workspace:*
+        version: link:../plugin-action-export
+      '@tachybase/plugin-action-import':
+        specifier: workspace:*
+        version: link:../plugin-action-import
       '@tachybase/test':
         specifier: 1.6.10
         version: 1.6.10(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
@@ -8811,6 +8820,7 @@ packages:
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xmldom/xmldom@0.9.6':
     resolution: {integrity: sha512-Su4xcxR0CPGwlDHNmVP09fqET9YxbyDXHaSob6JlBH7L6reTYaeim6zbk9o08UarO0L5GTRo3uzl0D+9lSxmvw==}

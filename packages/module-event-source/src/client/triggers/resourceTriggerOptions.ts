@@ -25,6 +25,7 @@ export function createResourceTriggerOptions() {
       title: tval('Pass HTTP context to workflow'),
       'x-decorator': 'FormItem',
       'x-component': 'Checkbox',
+      default: true,
     },
     failurePolicy: {
       type: 'string',
@@ -35,7 +36,7 @@ export function createResourceTriggerOptions() {
         { label: tval('Ignore failure'), value: 'ignore' },
         { label: tval('Block request on failure'), value: 'block' },
       ],
-      default: 'ignore',
+      default: 'block',
     },
     timeoutMs: {
       type: 'number',

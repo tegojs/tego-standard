@@ -48,8 +48,22 @@ export class ResourceEventTrigger extends EventSourceTrigger {
     );
   }
 
-  private getFailurePolicy(model: EventSourceModel): 'ignore' | 'block' {
-    return model?.options?.failurePolicy === 'block' ? 'block' : 'ignore';
+  /**
+   * failurePolicy 未设置：与 main 分支一致（遗留行为）
+   * - beforeResource：工作流 ERROR 时阻断（原 400）
+   * - afterResource：不因工作流 ERROR 状态阻断（原逻辑未校验）
+   * 显式 ignore：失败不阻断主请求
+   * 显式 block：任意失败均阻断
+   */
+  private getFailurePolicy(model: EventSourceModel): 'ignore' | 'block' | 'legacy' {
+    const fp = model?.options?.failurePolicy;
+    if (fp === 'ignore') {
+      return 'ignore';
+    }
+    if (fp === 'block') {
+      return 'block';
+    }
+    return 'legacy';
   }
   private getExecutionMode(model: EventSourceModel): 'inline' | 'queue' {
     return model?.options?.executionMode === 'queue' ? 'queue' : 'inline';
@@ -124,15 +138,30 @@ export class ResourceEventTrigger extends EventSourceTrigger {
         `[event-source] ${stage} timeout, sourceId=${model.id}, timeoutMs=${timeoutMs}`,
       );
       if (result && result.lastSavedJob.status === JOB_STATUS.ERROR) {
-        throw new Error(`${result.lastSavedJob.result}`);
+        if (failurePolicy === 'ignore') {
+          return;
+        }
+        if (failurePolicy === 'block') {
+          throw new Error(`${result.lastSavedJob.result}`);
+        }
+        // legacy：仅 beforeResource 与工作流 main 一致，返回 400
+        if (stage === 'beforeResource') {
+          ctx.throw(400, result.lastSavedJob.result);
+        }
+        return;
       }
     } catch (error) {
       this.app.logger.error(
         `[event-source] ${stage} execution failed. policy=${failurePolicy}, sourceId=${model.id}, workflowKey=${model.workflowKey}, error=${error?.stack || error}`,
       );
+      if (failurePolicy === 'ignore') {
+        return;
+      }
       if (failurePolicy === 'block') {
         throw error;
       }
+      // legacy：异常始终向上抛出（与 main 无 try/catch 时一致）
+      throw error;
     }
   }
 

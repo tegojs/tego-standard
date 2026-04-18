@@ -268,7 +268,9 @@ export class WebhookController {
     const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;
     const wfRepo = ctx.db.getRepository('workflows');
     const wf = await wfRepo.findOne({ filter: { key: action.workflowKey, enabled: true } });
-    const triggerOptions = action?.options?.useHttpContext ? { httpContext: ctx } : undefined;
+    // 与历史行为一致：未配置时默认透传 httpContext；仅显式 useHttpContext=false 时关闭
+    const useHttpContext = action?.options?.useHttpContext !== false;
+    const triggerOptions = useHttpContext ? { httpContext: ctx } : undefined;
     return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, triggerOptions);
   }
 }

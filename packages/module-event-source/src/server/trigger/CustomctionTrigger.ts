@@ -14,8 +14,9 @@ type IAPITriggerConfig = {
 export class CustomActionTrigger extends EventSourceTrigger {
   eventMap: Map<number, IAPITriggerConfig> = new Map();
 
+  /** 未设置 failurePolicy 时与 main 一致：工作流失败则 500 */
   private getFailurePolicy(config: IAPITriggerConfig): 'ignore' | 'block' {
-    return config?.options?.failurePolicy === 'block' ? 'block' : 'ignore';
+    return config?.options?.failurePolicy === 'ignore' ? 'ignore' : 'block';
   }
   private getExecutionMode(config: IAPITriggerConfig): 'inline' | 'queue' {
     return config?.options?.executionMode === 'queue' ? 'queue' : 'inline';

@@ -28,10 +28,10 @@ export function buildWorkerExportFileName(resourceName: string, title: string, t
   return `${base}${tenantSuffix}_${dayjs().format('YYYYMMDDHHmm')}.xlsx`;
 }
 
-export function buildWorkerExportRelativePath(fileName: string, tenantId?: string) {
+export function buildWorkerExportRelativePath(fileName: string, tenantId?: string, basePath: string = 'storage/uploads') {
   return tenantId
-    ? path.posix.join('storage/uploads', 'tenants', sanitizeExportSegment(tenantId), fileName)
-    : path.posix.join('storage/uploads', fileName);
+    ? path.posix.join(basePath, 'tenants', sanitizeExportSegment(tenantId), fileName)
+    : path.posix.join(basePath, fileName);
 }
 
 export function buildWorkerExportSavePath(rootPath: string, tenantId?: string) {

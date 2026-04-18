@@ -102,7 +102,7 @@ export class ExportPlugin extends Plugin {
     const fileName = buildWorkerExportFileName(resourceName, title, tenantId);
     const rawFile = `${savePath}/${fileName}`;
     writeFileSync(rawFile, Buffer.from(stream));
-    return buildWorkerExportRelativePath(fileName, tenantId);
+    return buildWorkerExportRelativePath(fileName, tenantId, ExportPlugin.defaultSavePath);
   }
 }
 

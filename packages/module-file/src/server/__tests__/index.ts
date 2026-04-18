@@ -3,6 +3,7 @@ import { createMockServer, MockServer } from '@tachybase/test';
 
 import send from 'koa-send';
 import supertest from 'supertest';
+import PluginTenantServer from 'packages/module-tenant/src/server';
 
 export async function getApp(options = {}): Promise<MockServer> {
   const app = await createMockServer({
@@ -10,7 +11,17 @@ export async function getApp(options = {}): Promise<MockServer> {
     cors: {
       origin: '*',
     },
-    plugins: ['file-manager'],
+    registerActions: true,
+    plugins: [
+      'acl',
+      'users',
+      'collection-manager',
+      'error-handler',
+      'auth',
+      'data-source-manager',
+      'file-manager',
+      [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
+    ],
     acl: false,
   });
 

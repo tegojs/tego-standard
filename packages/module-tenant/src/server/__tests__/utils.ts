@@ -2,7 +2,9 @@ import { createMockServer, MockServer } from '@tachybase/test';
 
 import PluginTenantServer from '..';
 
-export async function createTenantApp(): Promise<MockServer> {
+export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
+  const { extraPlugins = [] } = options;
+
   return createMockServer({
     registerActions: true,
     acl: true,
@@ -15,6 +17,7 @@ export async function createTenantApp(): Promise<MockServer> {
       'auth',
       'data-source-manager',
       [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
+      ...extraPlugins,
     ],
   });
 }

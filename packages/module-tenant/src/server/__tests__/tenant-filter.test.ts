@@ -27,6 +27,32 @@ describe('applyTenantFilter', () => {
     });
   });
 
+  it('should merge tenant filter for export actions', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-a',
+      },
+      action: {
+        actionName: 'export',
+        params: {
+          filter: {
+            tenantId: 'tenant-b',
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [{ tenantId: 'tenant-b' }, { tenantId: 'tenant-a' }],
+      },
+    });
+  });
+
   it('should inject tenantId into create values', () => {
     const mergeParams = vi.fn();
     const ctx = {

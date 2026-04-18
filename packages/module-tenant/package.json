@@ -24,6 +24,8 @@
     "@tachybase/module-acl": "workspace:*",
     "@tachybase/module-collection": "workspace:*",
     "@tachybase/module-data-source": "workspace:*",
+    "@tachybase/plugin-action-export": "workspace:*",
+    "@tachybase/plugin-action-import": "workspace:*",
     "@tachybase/module-user": "workspace:*",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",

@@ -28,7 +28,7 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
   }
 
   const { actionName, params } = ctx.action;
-  if (['list', 'get', 'count', 'update', 'destroy'].includes(actionName)) {
+  if (['list', 'get', 'count', 'update', 'destroy', 'export'].includes(actionName)) {
     ctx.action.mergeParams({
       filter: appendFilter(params?.filter, tenantId),
     });

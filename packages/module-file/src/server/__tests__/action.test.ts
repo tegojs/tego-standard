@@ -14,16 +14,38 @@ describe('action', () => {
   let db;
   let StorageRepo;
   let AttachmentRepo;
+  let tenantUser;
 
   beforeEach(async () => {
     app = await getApp({
       database: {},
     });
-    agent = app.agent();
     db = app.db;
 
     AttachmentRepo = db.getCollection('attachments').repository;
     StorageRepo = db.getCollection('storages').repository;
+
+    await db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    tenantUser = await db.getRepository('users').create({
+      values: {
+        username: 'file_tenant_user',
+        email: 'file-tenant-user@example.com',
+        phone: '10000010001',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a', 'tenant-b'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    agent = app.agent().login(tenantUser);
+
     await StorageRepo.create({
       values: {
         name: 'local1',
@@ -201,6 +223,40 @@ describe('action', () => {
   });
 
   describe('destroy', () => {
+    it('should isolate attachments by current tenant', async () => {
+      const tenantAResponse = await agent.resource('attachments').create({
+        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+      });
+
+      expect(tenantAResponse.status).toBe(200);
+      expect(tenantAResponse.body.data.tenantId).toBe('tenant-a');
+
+      const tenantBAgent = app.agent().login(tenantUser).set('X-Tenant', 'tenant-b');
+      const tenantBResponse = await tenantBAgent.resource('attachments').create({
+        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+      });
+
+      expect(tenantBResponse.status).toBe(200);
+      expect(tenantBResponse.body.data.tenantId).toBe('tenant-b');
+
+      const tenantAList = await agent.resource('attachments').list({});
+      expect(tenantAList.status).toBe(200);
+      expect(tenantAList.body.data).toHaveLength(1);
+      expect(tenantAList.body.data[0].id).toBe(tenantAResponse.body.data.id);
+
+      const tenantBList = await tenantBAgent.resource('attachments').list({});
+      expect(tenantBList.status).toBe(200);
+      expect(tenantBList.body.data).toHaveLength(1);
+      expect(tenantBList.body.data[0].id).toBe(tenantBResponse.body.data.id);
+
+      await agent.resource('attachments').destroy({
+        filterByTk: tenantBResponse.body.data.id,
+      });
+
+      const tenantBAttachment = await AttachmentRepo.findById(tenantBResponse.body.data.id);
+      expect(tenantBAttachment).toBeTruthy();
+    });
+
     it('destroy one existing file with `paranoid`', async () => {
       db.collection({
         name: 'customers',

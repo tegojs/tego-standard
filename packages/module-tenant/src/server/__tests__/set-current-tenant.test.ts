@@ -86,6 +86,57 @@ describe('setCurrentTenant middleware', () => {
 
     const response = await app.agent().login(user).set('X-Tenant', 'tenant-b').resource('tenants').current({});
 
+    expect(response.status).toBe(200);
+    expect(response.body.data.id).toBe('tenant-a');
+  });
+
+  it('should still reject invalid tenant header on tenant-scoped business resources', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'user_invalid_resource_tenant',
+        email: 'user-invalid-resource-tenant@example.com',
+        phone: '10000000007',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('roles').update({
+      filterByTk: 'admin',
+      values: {
+        strategy: {
+          actions: ['create', 'view', 'update', 'destroy'],
+        },
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_guard_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const response = await app.agent().login(user).set('X-Tenant', 'tenant-b').resource('tenant_guard_posts').list({});
+
     expect(response.status).toBe(403);
   });
 

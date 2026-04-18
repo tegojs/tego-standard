@@ -1,5 +1,9 @@
 import type { Context, Next } from '@tego/server';
 
+function shouldFallbackForTenantBootstrap(ctx: Context) {
+  return ctx.action?.resourceName === 'tenants' && ['available', 'current', 'switch'].includes(ctx.action?.actionName);
+}
+
 async function resolveAllowedTenantIds(ctx: Context) {
   const currentUser = ctx.state.currentUser;
   if (!currentUser) {
@@ -59,6 +63,10 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
   const allowedTenantIds = await resolveAllowedTenantIds(ctx);
 
   let currentTenantId = requestedTenantId;
+  if (currentTenantId && !allowedTenantIds.includes(currentTenantId) && shouldFallbackForTenantBootstrap(ctx)) {
+    currentTenantId = null;
+  }
+
   if (!currentTenantId) {
     currentTenantId = await resolveDefaultTenantId(ctx, allowedTenantIds);
   }

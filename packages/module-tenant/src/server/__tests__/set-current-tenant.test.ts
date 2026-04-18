@@ -88,4 +88,104 @@ describe('setCurrentTenant middleware', () => {
 
     expect(response.status).toBe(403);
   });
+
+  it('should not resolve a disabled default tenant and should fallback to an enabled tenant', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A', enabled: true },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B', enabled: false },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'user_disabled_default',
+        email: 'user-disabled-default@example.com',
+        phone: '10000000005',
+        password: '123456',
+        tenants: ['tenant-a', 'tenant-b'],
+        defaultTenantId: 'tenant-b',
+      },
+    });
+
+    const response = await app.agent().login(user).resource('tenants').current({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.id).toBe('tenant-a');
+  });
+
+  it('should reject switching to a disabled tenant', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A', enabled: true },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B', enabled: false },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'user_disabled_switch',
+        email: 'user-disabled-switch@example.com',
+        phone: '10000000006',
+        password: '123456',
+        tenants: ['tenant-a', 'tenant-b'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    const response = await app.agent().login(user).resource('tenants').switch({
+      values: {
+        tenantId: 'tenant-b',
+      },
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('should list available tenants for current user and mark the active tenant', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+        { id: 'tenant-c', name: 'tenant-c', title: 'Tenant C', enabled: false },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'user_d',
+        email: 'user-d@example.com',
+        phone: '10000000004',
+        password: '123456',
+        tenants: ['tenant-a', 'tenant-b', 'tenant-c'],
+        defaultTenantId: 'tenant-b',
+      },
+    });
+
+    const response = await app.agent().login(user).resource('tenants').available({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([
+      {
+        id: 'tenant-a',
+        name: 'tenant-a',
+        title: 'Tenant A',
+        enabled: true,
+        current: false,
+      },
+      {
+        id: 'tenant-b',
+        name: 'tenant-b',
+        title: 'Tenant B',
+        enabled: true,
+        current: true,
+      },
+    ]);
+  });
 });

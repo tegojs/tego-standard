@@ -23,12 +23,5 @@ export default defineCollection({
       name: 'enabled',
       defaultValue: true,
     },
-    {
-      type: 'hasMany',
-      name: 'tenantUsers',
-      target: 'tenantUsers',
-      foreignKey: 'tenantId',
-      sourceKey: 'id',
-    },
   ],
 });

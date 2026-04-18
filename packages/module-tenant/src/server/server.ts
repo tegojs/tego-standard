@@ -1,5 +1,6 @@
 import { Plugin } from '@tego/server';
 
+import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
 import switchTenant from './actions/switch-tenant';
 import tenantUsersCollection from './collections/tenantUsers';
@@ -23,6 +24,7 @@ export class PluginTenantServer extends Plugin {
     this.db.collection(tenantUsersCollection);
     this.db.extendCollection(usersCollection.collectionOptions, usersCollection.mergeOptions);
 
+    this.app.resourcer.registerActionHandler('tenants:available', availableTenants);
     this.app.resourcer.registerActionHandler('tenants:current', currentTenant);
     this.app.resourcer.registerActionHandler('tenants:switch', switchTenant);
 
@@ -48,7 +50,7 @@ export class PluginTenantServer extends Plugin {
       },
     );
 
-    this.app.acl.allow('tenants', ['current', 'switch'], 'loggedIn');
+    this.app.acl.allow('tenants', ['available', 'current', 'switch'], 'loggedIn');
   }
 }
 

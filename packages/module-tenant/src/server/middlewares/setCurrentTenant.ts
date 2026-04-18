@@ -12,7 +12,21 @@ async function resolveAllowedTenantIds(ctx: Context) {
     },
   });
 
-  return tenantUsers.map((item: any) => item.get('tenantId'));
+  const tenantIds = tenantUsers.map((item: any) => item.get('tenantId'));
+  if (tenantIds.length === 0) {
+    return [];
+  }
+
+  const tenants = await ctx.db.getRepository('tenants').find({
+    filter: {
+      id: {
+        $in: tenantIds,
+      },
+      enabled: true,
+    },
+  });
+
+  return tenants.map((tenant: any) => tenant.get('id'));
 }
 
 async function resolveDefaultTenantId(ctx: Context, tenantIds: Array<string | number>) {
@@ -53,7 +67,10 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
   }
 
   const currentTenant = await ctx.db.getRepository('tenants').findOne({
-    filterByTk: currentTenantId,
+    filter: {
+      id: currentTenantId,
+      enabled: true,
+    },
   });
 
   if (!currentTenant) {

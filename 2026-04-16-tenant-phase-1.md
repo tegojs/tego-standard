@@ -2,9 +2,20 @@
 
 > **面向 AI 代理的工作者：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐任务实现此计划。步骤使用复选框（`- [ ]`）语法来跟踪进度。
 
-**目标：** 在不改动 `@tego/server` 核心的前提下，为标准模块仓库落地第一阶段多租户后台闭环，包括租户模型、请求级 `currentTenant`、`tenantScoped` 集合元信息、`tenantId` 自动注入、基础 ACL `tenant` scope 和服务端强制隔离。
+**目标：** 在不改动 `@tego/server` 核心的前提下，为标准模块仓库落地第一阶段多租户后台闭环，包括租户模型、请求级 `currentTenant`、`tenantScoped` 集合元信息、`tenantId` 自动注入、基础 ACL `tenant` scope 和服务端强制隔离；在不扩大服务端范围的前提下，允许补充最小可用的头像菜单租户切换入口。
 
-**架构：** 新增 `module-tenant` 作为薄租户模块，负责租户模型、租户关系和请求上下文注入；`module-collection` 负责保存集合的 `options.tenancy` 元信息；`module-user` 复用 `context field` 模式为 `tenantScoped` 集合自动补 `tenantId`；`module-acl` 增加 `tenant` scope；最终由 `module-tenant` 的资源中间件统一执行实际 `filter` / `values` 修正，确保读写默认落在当前租户内。
+**架构：** 新增 `module-tenant` 作为薄租户模块，负责租户模型、租户关系和请求上下文注入；`module-collection` 负责保存集合的 `options.tenancy` 元信息；`module-user` 复用 `context field` 模式为 `tenantScoped` 集合自动补 `tenantId`；`module-acl` 增加 `tenant` scope；当前阶段由 `module-tenant` 的资源中间件统一执行实际 `filter` / `values` 修正，确保读写默认落在当前租户内。后续阶段再将统一隔离入口进一步向 `module-data-source` 收口。
+
+## 当前状态备注
+
+截至当前代码状态，第一阶段主体已完成，并额外落地了一个最小前端入口：
+
+- 已有头像菜单租户切换入口。
+- 已有 `tenants:available` 接口供前端获取可切换租户列表。
+- 当前仍未提供独立的租户管理后台页面。
+- 当前服务端隔离入口仍在 `module-tenant` 资源中间件，不在 `module-data-source`。
+
+因此，后续对第一阶段的复盘应以“代码现状优先”，不要再把“头像菜单切换”视为未实现项。
 
 **技术栈：** TypeScript、Vitest、`@tachybase/test`、`@tego/server`
 
@@ -278,3 +289,54 @@
 - [ ] **步骤 4：重新运行受影响测试确认全绿**
 
   运行所有本阶段新增和修改过的测试，确认退出码为 0。
+
+## 下一阶段设计（建议作为 Phase 2 起点）
+
+### 目标
+
+下一阶段不优先做“租户管理后台页面”，而优先把租户上下文和数据读取入口进一步工程化收口，降低后续接入工作流、图表、导入导出时的重复改造成本。
+
+### 推荐范围
+
+- 将标准资源隔离入口从“仅由 `module-tenant` 资源中间件兜底”升级为“`module-data-source` 明确感知 `currentTenant`，`module-tenant` 负责上下文与租户语义”。
+- 补齐前端运行时租户上下文消费规范，避免目前仅靠 `window.location.reload()` 刷新页面的弱约定继续扩散。
+- 明确租户管理与租户切换的边界：切换继续保留在头像菜单；管理能力单独规划，不混入这一阶段。
+
+### 不建议作为下一阶段主线的内容
+
+- 不优先做独立租户管理后台页面。
+- 不优先做历史数据迁移工具。
+- 不优先做平台管理员跨租户代入。
+- 不优先做工作流、图表、导入导出、附件的全量改造。
+
+### 具体改造方向
+
+1. `packages/module-data-source`
+
+- 为标准资源查询与写入链路显式接入 `ctx.state.currentTenant`。
+- 将 `list/get/count/create/update/destroy` 的租户兜底逻辑下沉到更接近数据访问的位置。
+- 保持 `module-tenant` 中间件作为保护层，但不再让它长期承担唯一隔离入口。
+
+2. `packages/module-tenant`
+
+- 保留 `setCurrentTenant`、`current/available/switch` 动作和最小前端入口。
+- 将“当前租户可用列表”“当前租户对象”抽成更稳定的客户端消费约定。
+- 为后续平台管理员代入/切换预留扩展点，但本阶段不实现。
+
+3. `packages/client` / 页面运行时
+
+- 定义统一的当前租户消费方式，而不是让各处自行请求 `tenants:available`。
+- 评估是否需要一个全局 tenant store/provider 刷新机制，替代简单整页 reload。
+- 保证基础数据请求组件在切换租户后行为一致。
+
+### 建议交付物
+
+- `module-data-source` 租户感知改造方案与测试清单。
+- 前端运行时租户上下文刷新方案。
+- 第二阶段精确文件级任务表。
+
+### 成功标准
+
+- 租户隔离的主执行入口从“tenant 模块资源中间件”演进为“data-source 主入口 + tenant 模块保护层”。
+- 前端切换租户后，不再把整页刷新作为唯一正确性保障。
+- 后续工作流、图表、导入导出、附件链路接入时，有稳定统一的租户上下文与数据访问基线可复用。

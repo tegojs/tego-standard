@@ -6,6 +6,17 @@ export async function switchTenant(ctx: Context, next: Next) {
     ctx.throw(400, 'tenantId is required');
   }
 
+  const tenant = await ctx.db.getRepository('tenants').findOne({
+    filter: {
+      id: tenantId,
+      enabled: true,
+    },
+  });
+
+  if (!tenant) {
+    ctx.throw(403, 'Invalid tenant access');
+  }
+
   const tenantUsers = await ctx.db.getRepository('tenantUsers').findOne({
     filter: {
       userId: ctx.state.currentUser?.id,
@@ -22,10 +33,6 @@ export async function switchTenant(ctx: Context, next: Next) {
     values: {
       defaultTenantId: tenantId,
     },
-  });
-
-  const tenant = await ctx.db.getRepository('tenants').findOne({
-    filterByTk: tenantId,
   });
 
   ctx.state.currentTenant = tenant?.toJSON();

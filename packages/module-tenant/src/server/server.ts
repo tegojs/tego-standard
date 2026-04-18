@@ -8,6 +8,7 @@ import tenantsCollection from './collections/tenants';
 import usersCollection from './collections/users';
 import applyTenantFilter from './helpers/tenant-filter';
 import isTenantScopedCollection from './helpers/isTenantScopedCollection';
+import { enUS, zhCN } from './locale';
 import setCurrentTenant from './middlewares/setCurrentTenant';
 
 export interface TenantPluginConfig {
@@ -20,6 +21,9 @@ export class PluginTenantServer extends Plugin {
   }
 
   async beforeLoad() {
+    this.app.i18n.addResources('zh-CN', this.name, zhCN);
+    this.app.i18n.addResources('en-US', this.name, enUS);
+
     this.db.collection(tenantsCollection);
     this.db.collection(tenantUsersCollection);
     this.db.extendCollection(usersCollection.collectionOptions, usersCollection.mergeOptions);
@@ -58,6 +62,11 @@ export class PluginTenantServer extends Plugin {
         before: 'dataSource',
       },
     );
+
+    this.app.acl.registerSnippet({
+      name: 'pm.tenant.manage',
+      actions: ['tenants:*', 'tenantUsers:*', 'users:list', 'users:update'],
+    });
 
     this.app.acl.allow('tenants', ['available', 'current', 'switch'], 'loggedIn');
   }

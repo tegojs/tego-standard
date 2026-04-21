@@ -55,4 +55,46 @@ describe('transformToFilter', () => {
       ],
     });
   });
+
+  it('should use current field component to infer $dateBetween when stored operators are empty', () => {
+    const values = {
+      createdAt: ['2026-04-13T00:00:00.000Z', '2026-04-19T23:59:59.999Z'],
+    };
+
+    const fieldSchema = {
+      'x-filter-operators': {},
+      properties: {
+        row: {
+          properties: {
+            col: {
+              properties: {
+                createdAt: {
+                  name: 'createdAt',
+                  'x-collection-field': 'receipt.createdAt',
+                  'x-component-props': {
+                    component: 'DatePicker.RangePicker',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const getField = () => ({
+      targetKey: undefined,
+      interface: 'createdAt',
+    });
+
+    expect(transformToFilter(values, fieldSchema as any, getField, 'receipt')).toEqual({
+      $and: [
+        {
+          createdAt: {
+            $dateBetween: ['2026-04-13T00:00:00.000Z', '2026-04-19T23:59:59.999Z'],
+          },
+        },
+      ],
+    });
+  });
 });

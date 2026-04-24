@@ -1,4 +1,5 @@
 import { getDefaultFormat, str2moment, toGmt, toLocal } from '@tego/client';
+
 import dayjs, { type Dayjs } from 'dayjs';
 
 const toStringByPicker = (value, picker, timezone: 'gmt' | 'local') => {
@@ -46,6 +47,19 @@ export interface Moment2strOptions {
   picker?: 'year' | 'month' | 'week' | 'quarter';
 }
 
+export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {}) => {
+  if (options.utc === false || options.showTime || typeof options.gmt === 'boolean' || options.picker) {
+    return options;
+  }
+
+  // For date-only values, the write path defaults to GMT strings.
+  // Read path needs the same assumption, otherwise end-of-day values drift into the next local day.
+  return {
+    ...options,
+    gmt: true,
+  };
+};
+
 export const moment2str = (value?: Dayjs | null, options: Moment2strOptions = {}) => {
   const { showTime, gmt, picker, utc = true } = options;
   if (!value) {
@@ -72,7 +86,7 @@ export const mapDatePicker = function () {
     return {
       ...props,
       format: format,
-      value: str2moment(props.value, props),
+      value: str2moment(props.value, normalizeDatePickerParseOptions(props)),
       onChange: (value: Dayjs | null) => {
         if (onChange) {
           if (!props.showTime && value) {
@@ -93,7 +107,7 @@ export const mapRangePicker = function () {
     return {
       ...props,
       format: format,
-      value: str2moment(props.value, props),
+      value: str2moment(props.value, normalizeDatePickerParseOptions(props)),
       onChange: (value: Dayjs[]) => {
         if (onChange) {
           onChange(

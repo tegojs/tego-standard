@@ -1,7 +1,7 @@
 import React from 'react';
 import { isArr } from '@tachybase/schema';
-
 import { getDefaultFormat, str2moment } from '@tego/client';
+
 import type {
   DatePickerProps as AntdDatePickerProps,
   RangePickerProps as AntdRangePickerProps,
@@ -10,6 +10,7 @@ import cls from 'classnames';
 import dayjs from 'dayjs';
 
 import { usePrefixCls } from '../__builtins__';
+import { normalizeDatePickerParseOptions } from './util';
 
 type Composed = {
   DatePicker: React.FC<AntdDatePickerProps>;
@@ -27,7 +28,7 @@ ReadPretty.DatePicker = function DatePicker(props: any) {
 
   const getLabels = () => {
     const format = getDefaultFormat(props) as string;
-    const m = str2moment(props.value, props);
+    const m = str2moment(props.value, normalizeDatePickerParseOptions(props));
     const labels = dayjs.isDayjs(m) ? m.format(format) : '';
     return isArr(labels) ? labels.join('~') : labels;
   };
@@ -39,7 +40,7 @@ ReadPretty.DateRangePicker = function DateRangePicker(props: any) {
 
   const format = getDefaultFormat(props);
   const getLabels = () => {
-    const m = str2moment(props.value, props);
+    const m = str2moment(props.value, normalizeDatePickerParseOptions(props));
     if (!m) {
       return '';
     }

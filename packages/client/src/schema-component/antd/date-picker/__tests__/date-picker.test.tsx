@@ -1,5 +1,9 @@
 import React from 'react';
+import { DatePicker, Input, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
 import { render, screen, sleep, userEvent, waitFor } from '@tachybase/test/client';
+import { FormItem } from '@tego/client';
+
+import dayjs from 'dayjs';
 
 import App1 from '../demos/demo1';
 import App2 from '../demos/demo2';
@@ -11,6 +15,46 @@ import App7 from '../demos/demo7';
 import App8 from '../demos/demo8';
 import App9 from '../demos/demo9';
 import App11 from '../demos/demo11';
+
+const DefaultRangePickerApp = () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      input: {
+        type: 'array',
+        title: 'Editable',
+        'x-decorator': 'FormItem',
+        'x-component': 'DatePicker.RangePicker',
+        'x-component-props': {
+          defaultPickerValue: [dayjs('2026-01-15')],
+        },
+        'x-reactions': [
+          {
+            target: 'read',
+            fulfill: {
+              state: {
+                value: '{{$self.value && $self.value.join(" ~ ")}}',
+              },
+            },
+          },
+        ],
+      },
+      read: {
+        type: 'string',
+        title: 'Value',
+        'x-read-pretty': true,
+        'x-decorator': 'FormItem',
+        'x-component': 'Input',
+      },
+    },
+  };
+
+  return (
+    <SchemaComponentProvider components={{ Input, DatePicker, FormItem }}>
+      <SchemaComponent schema={schema} />
+    </SchemaComponentProvider>
+  );
+};
 
 describe('DatePicker', () => {
   it('basic', async () => {
@@ -249,5 +293,25 @@ describe('RangePicker', () => {
     // 因为 Today 快捷键的值是动态生成的，所以这里没有断言具体的值
     await waitFor(() => expect(startInput.getAttribute('value')).toBeTruthy());
     await waitFor(() => expect(endInput.getAttribute('value')).toBeTruthy());
+  });
+
+  it('should keep the selected natural-day range when gmt is not specified', async () => {
+    const { container, getByPlaceholderText } = render(<DefaultRangePickerApp />);
+
+    await sleep();
+
+    const picker = container.querySelector('.ant-picker') as HTMLElement;
+    const startInput = getByPlaceholderText('Start date');
+    const endInput = getByPlaceholderText('End date');
+
+    await userEvent.click(picker);
+    await userEvent.click(document.querySelector('[title="2026-01-15"]') as HTMLElement);
+    await userEvent.click(document.querySelector('[title="2026-01-16"]') as HTMLElement);
+
+    await waitFor(() => expect(startInput).toHaveValue('2026-01-15'));
+    await waitFor(() => expect(endInput).toHaveValue('2026-01-16'));
+    await waitFor(() =>
+      expect(screen.getByText('2026-01-15T00:00:00.000Z ~ 2026-01-16T23:59:59.999Z')).toBeInTheDocument(),
+    );
   });
 });

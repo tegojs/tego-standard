@@ -1,7 +1,9 @@
 import { str2moment } from '@tego/client';
-import dayjs from 'dayjs';
 
-import { moment2str } from '../util';
+import dayjs from 'dayjs';
+import { vi } from 'vitest';
+
+import { mapRangePicker, moment2str } from '../util';
 
 describe('str2moment', () => {
   describe('string value', () => {
@@ -137,5 +139,20 @@ describe('moment2str', () => {
   test('value is null', async () => {
     const m = moment2str(null);
     expect(m).toBeNull();
+  });
+});
+
+describe('mapRangePicker', () => {
+  test('should parse date-only range values with GMT semantics when gmt is not specified', () => {
+    vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-480);
+
+    const mapped = mapRangePicker()({
+      value: ['2026-01-15T00:00:00.000Z', '2026-01-16T23:59:59.999Z'],
+      showTime: false,
+      utc: true,
+    });
+
+    expect(mapped.value[0].format('YYYY-MM-DD')).toBe('2026-01-15');
+    expect(mapped.value[1].format('YYYY-MM-DD')).toBe('2026-01-16');
   });
 });

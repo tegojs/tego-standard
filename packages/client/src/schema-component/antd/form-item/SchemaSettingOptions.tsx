@@ -1,7 +1,7 @@
 import React from 'react';
 import { Field, ISchema, Schema, useField, useFieldSchema } from '@tachybase/schema';
-
 import { ArrayCollapse, FormLayout } from '@tego/client';
+
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +24,22 @@ export const findFilterOperators = (schema: Schema) => {
     schema = schema.parent;
   }
   return {};
+};
+
+const getSchemaFilterComponent = (schema: Schema) => {
+  return schema?.['x-component-props']?.component || schema?.['x-component'];
+};
+
+export const getDefaultFilterOperatorValue = (schema: Schema, operatorList: any[] = []) => {
+  const component = getSchemaFilterComponent(schema);
+  if (component) {
+    const matched = operatorList.find((item) => item?.schema?.['x-component'] === component);
+    if (matched?.value) {
+      return matched.value;
+    }
+  }
+
+  return operatorList.find((item) => item?.selected)?.value || operatorList[0]?.value;
 };
 
 export const EditTitle = () => {
@@ -477,7 +493,7 @@ export const useEnsureOperatorsValid = () => {
   const { operators: storedOperators } = findFilterOperators(fieldSchema);
 
   if (storedOperators && operatorList.length && !storedOperators[fieldSchema.name]) {
-    storedOperators[fieldSchema.name] = operatorList[0].value;
+    storedOperators[fieldSchema.name] = getDefaultFilterOperatorValue(fieldSchema, operatorList);
   }
 };
 
@@ -492,7 +508,7 @@ export const EditOperator = () => {
   const { operators: storedOperators = {}, uid } = findFilterOperators(fieldSchema);
 
   if (operatorList.length && !storedOperators[fieldSchema.name]) {
-    storedOperators[fieldSchema.name] = operatorList[0].value;
+    storedOperators[fieldSchema.name] = getDefaultFilterOperatorValue(fieldSchema, operatorList);
   }
 
   return operatorList.length ? (

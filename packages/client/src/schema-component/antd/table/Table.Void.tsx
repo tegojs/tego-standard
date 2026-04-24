@@ -7,6 +7,7 @@ import { cloneDeep } from 'lodash';
 
 import { AsyncDataProvider, useAsyncData, useRequest } from '../../../';
 import { useAttach } from '../../hooks';
+import { withAutoQuickJumper } from '../pagination/utils';
 import { TableArray } from './Table.Array';
 
 type TableVoidProps = TableProps<any> & {
@@ -32,13 +33,13 @@ const usePaginationProps = (props: TableProps<any> & { request?: any }, service)
     pagination.current = page;
     pagination.pageSize = pageSize;
   }
-  return {
+  return withAutoQuickJumper({
     showSizeChanger: true,
     ...pagination,
     onChange(page, pageSize) {
       service?.run({ ...service?.params?.[0], page, pageSize });
     },
-  };
+  });
 };
 
 const useRequestProps = (props) => {

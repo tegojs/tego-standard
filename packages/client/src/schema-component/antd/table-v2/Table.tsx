@@ -37,6 +37,7 @@ import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSche
 import { isNewRecord, markRecordAsNew } from '../../../data-source/collection-record/isNewRecord';
 import { DeclareVariable } from '../../../modules/variable/DeclareVariable';
 import { SubFormProvider } from '../association-field/hooks';
+import { withAutoQuickJumper } from '../pagination/utils';
 import { ColumnFieldProvider } from './components/ColumnFieldProvider';
 import { useStyles } from './Table.styles';
 import { extractIndex, isCollectionFieldComponent, isColumnComponent } from './utils';
@@ -235,7 +236,7 @@ const usePaginationProps = (pagination1, pagination2) => {
     ...pagination1,
     ...pagination2,
   };
-  return result.total ? result : false;
+  return result.total ? withAutoQuickJumper(result) : false;
 };
 
 export const Table: any = withDynamicSchemaProps(

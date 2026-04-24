@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { withAutoQuickJumper } from '@tachybase/client';
 import { observer, Schema, useForm } from '@tachybase/schema';
 
 import { Table } from 'antd';
@@ -53,6 +54,7 @@ export const PreviewTable = observer(
         bordered
         dataSource={dataSource}
         columns={columns}
+        pagination={withAutoQuickJumper({ total: dataSource.length })}
         scroll={{ x: columns.length * 150, y: 300 }}
         loading={loading}
         rowKey="key"

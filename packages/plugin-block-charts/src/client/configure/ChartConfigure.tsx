@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
-import { AutoComplete, FormProvider, gridRowColWrap, SchemaComponent, useDesignable } from '@tachybase/client';
+import {
+  AutoComplete,
+  FormProvider,
+  gridRowColWrap,
+  SchemaComponent,
+  useDesignable,
+  withAutoQuickJumper,
+} from '@tachybase/client';
 import {
   createForm,
   FormConsumer,
@@ -10,9 +17,9 @@ import {
   onFormInit,
   Schema,
 } from '@tachybase/schema';
+import { ArrayItems, Editable, FormCollapse, FormItem, FormLayout, Switch } from '@tego/client';
 
 import { RightSquareOutlined } from '@ant-design/icons';
-import { ArrayItems, Editable, FormCollapse, FormItem, FormLayout, Switch } from '@tego/client';
 import { Alert, App, Button, Card, Col, Modal, Row, Space, Table, Tabs, Typography } from 'antd';
 import { cloneDeep, isEqual } from 'lodash';
 
@@ -432,6 +439,7 @@ ChartConfigure.Data = function Data() {
     <Table
       dataSource={data.map((item, index) => ({ ...item, _key: index }))}
       rowKey="_key"
+      pagination={withAutoQuickJumper({ total: data.length })}
       scroll={{ x: 'max-content' }}
       columns={Object.keys(data[0] || {}).map((col) => {
         const field = getField(fields, col.split('.'));

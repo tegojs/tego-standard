@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DatePicker, useAPIClient } from '@tachybase/client';
+import { DatePicker, useAPIClient, withAutoQuickJumper } from '@tachybase/client';
 
 import { DeleteOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined, WarningOutlined } from '@ant-design/icons';
 import { Alert, App, Button, Card, InputNumber, Modal, Progress, Radio, Space, Spin, Table, Typography } from 'antd';
@@ -822,11 +822,11 @@ export const TableDetail = () => {
             loading={loading}
             columns={columns}
             rowKey={(record, index) => record.id || index}
-            pagination={{
+            pagination={withAutoQuickJumper({
               ...pagination,
               showSizeChanger: true,
               showTotal: (total) => t('Total: {{total}}', { total }),
-            }}
+            })}
             onChange={handleTableChange}
             scroll={{ x: 'max-content' }}
           />

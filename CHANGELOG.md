@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **client**: correct date range operator inference and prevent next-day range display ([#371](https://github.com/tegojs/tego-standard/pull/371)) [3214bde](https://github.com/tegojs/tego-standard/commit/3214bdecdec351e04941eb22fad308d7de3d6bc3) (@TomyJan)
 - **backup&database-clean**: stabilize download streaming and clean up diagnostics ([#368](https://github.com/tegojs/tego-standard/pull/368)) [0643986](https://github.com/tegojs/tego-standard/commit/064398676db7590b7b1dc6c0813c4b3492a568da) (@TomyJan)
 
 

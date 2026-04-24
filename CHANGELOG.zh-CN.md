@@ -9,6 +9,7 @@
 
 ### 🐛 修复
 
+- **client**: 正确的日期范围运算符推断并防止第二天的范围显示 ([#371](https://github.com/tegojs/tego-standard/pull/371)) [3214bde](https://github.com/tegojs/tego-standard/commit/3214bdecdec351e04941eb22fad308d7de3d6bc3) (@TomyJan)
 - **backup&database-clean**: 稳定下载流并清理诊断 ([#368](https://github.com/tegojs/tego-standard/pull/368)) [0643986](https://github.com/tegojs/tego-standard/commit/064398676db7590b7b1dc6c0813c4b3492a568da) (@TomyJan)
 
 

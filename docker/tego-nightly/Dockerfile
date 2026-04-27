@@ -57,8 +57,8 @@ COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=deps /app/package.json /app/package.json
 COPY --from=deps /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
 COPY --from=builder /app/.version.json /app/.version.json
-COPY --from=builder /app/settings.js /app/settings.js
-COPY --from=builder /app/tsconfig.paths.json /app/tsconfig.paths.json
+COPY settings.js /app/settings.js
+COPY tsconfig.paths.json /app/tsconfig.paths.json
 COPY --from=builder /app/apps/web/dist /app/apps/web/dist
 COPY --from=builder /app/packages /app/packages
 COPY --from=builder /app/docker/tego-nightly/docker-entrypoint.sh /app/docker-entrypoint.sh

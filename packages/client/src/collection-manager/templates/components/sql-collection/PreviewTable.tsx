@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
-import { withAutoQuickJumper } from '@tachybase/client';
 import { observer, Schema, useForm } from '@tachybase/schema';
 
 import { Table } from 'antd';
 import { useTranslation } from 'react-i18next';
 
 import { useAsyncData } from '../../../../async-data-provider';
+import { withAutoQuickJumper } from '../../../../schema-component/antd/pagination/utils';
 
 export const PreviewTable = observer(
   () => {

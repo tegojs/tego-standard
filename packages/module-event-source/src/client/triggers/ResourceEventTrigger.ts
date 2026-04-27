@@ -1,5 +1,6 @@
 import { EventSourceTrigger } from '.';
 import { NAMESPACE, tval } from '../locale';
+import { createResourceTriggerOptions } from './resourceTriggerOptions';
 
 export class ResourceEventTrigger extends EventSourceTrigger {
   constructor(title: string, description: string) {
@@ -7,24 +8,5 @@ export class ResourceEventTrigger extends EventSourceTrigger {
     this.title = title;
     this.description = description;
   }
-  options = {
-    resourceName: {
-      type: 'string',
-      title: tval('Resource name'),
-      'x-decorator': 'FormItem',
-      'x-component': 'Input',
-    },
-    actionName: {
-      type: 'string',
-      title: tval('Action name'),
-      'x-decorator': 'FormItem',
-      'x-component': 'Input',
-    },
-    triggerOnAssociation: {
-      type: 'boolean',
-      title: tval('Trigger on association'),
-      'x-decorator': 'FormItem',
-      'x-component': 'Checkbox',
-    },
-  };
+  options = createResourceTriggerOptions();
 }

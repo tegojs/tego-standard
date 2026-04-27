@@ -9,6 +9,7 @@ export const collectionCustomEventSources = {
         title: 'ID',
         type: 'number',
         'x-component': 'InputNumber',
+        'x-decorator': 'FormItem',
       },
     },
     {
@@ -19,6 +20,7 @@ export const collectionCustomEventSources = {
         title: '{{t("collection Name")}}',
         type: 'string',
         'x-component': 'Input',
+        'x-decorator': 'FormItem',
         required: true,
       },
     },
@@ -30,6 +32,7 @@ export const collectionCustomEventSources = {
         title: '{{t("path")}}',
         type: 'string',
         'x-component': 'Input',
+        'x-decorator': 'FormItem',
         required: true,
       },
     },
@@ -43,6 +46,7 @@ export const collectionCustomEventSources = {
         type: 'number',
         title: '{{t("Workflow", { ns: "workflow" })}}',
         'x-component': 'RemoteSelect',
+        'x-decorator': 'FormItem',
         'x-component-props': {
           fieldNames: {
             label: 'title',
@@ -64,6 +68,7 @@ export const collectionCustomEventSources = {
         type: 'number',
         title: '{{t("uiSchema", { ns: "workflow" })}}',
         'x-component': 'RemoteSelect',
+        'x-decorator': 'FormItem',
         'x-component-props': {
           fieldNames: {
             label: 'title',
@@ -85,6 +90,7 @@ export const collectionCustomEventSources = {
         type: 'number',
         title: '{{t("completeUiSchema", { ns: "workflow" })}}',
         'x-component': 'RemoteSelect',
+        'x-decorator': 'FormItem',
         'x-component-props': {
           fieldNames: {
             label: 'title',

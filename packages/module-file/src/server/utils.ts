@@ -7,6 +7,23 @@ export function getFilename(req, file, cb) {
   });
 }
 
+export function getCurrentTenantId(ctx) {
+  return ctx?.state?.currentTenant?.id ?? ctx?.state?.currentTenantId;
+}
+
+export function getTenantStoragePath(storagePath: string = '', tenantId?: string) {
+  const normalizedStoragePath = String(storagePath || '')
+    .replace(/\\/g, '/')
+    .replace(/^\/+|\/+$/g, '');
+
+  if (!tenantId) {
+    return normalizedStoragePath;
+  }
+
+  const segments = normalizedStoragePath ? [normalizedStoragePath, 'tenants', tenantId] : ['tenants', tenantId];
+  return path.posix.join(...segments);
+}
+
 export const cloudFilenameGetter = (storage) => (req, file, cb) => {
   getFilename(req, file, (err, filename) => {
     if (err) {

@@ -4,7 +4,7 @@ export default defineCollection({
   dumpRules: {
     group: 'user',
   },
-  shared: true,
+  tenancy: 'tenantScoped',
   name: 'attachments',
   createdBy: true,
   updatedBy: true,

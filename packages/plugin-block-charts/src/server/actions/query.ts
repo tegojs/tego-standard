@@ -45,6 +45,71 @@ type QueryParams = Partial<{
   refresh: boolean;
 }>;
 
+function appendTenantFilter(original: any, tenantId: string | number) {
+  const tenantFilter = { tenantId };
+
+  if (!original || Object.keys(original).length === 0) {
+    return tenantFilter;
+  }
+
+  return {
+    $and: [original, tenantFilter],
+  };
+}
+
+function getCurrentTenantId(ctx: Context) {
+  return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
+}
+
+function stableSerialize(value: any): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
+  }
+
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`)
+      .join(',')}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function getChartCacheKey(ctx: Context, uid: string) {
+  const tenantId = getCurrentTenantId(ctx);
+  const currentUserId = ctx.state.currentUser?.id;
+  const {
+    dataSource,
+    collection,
+    measures,
+    dimensions,
+    orders,
+    filter,
+    limit,
+    sql,
+  } = ctx.action.params.values as QueryParams;
+  const timezone = ctx.get?.('x-timezone');
+  const signature = stableSerialize({
+    dataSource,
+    collection,
+    measures,
+    dimensions,
+    orders,
+    filter,
+    limit,
+    sql,
+    timezone,
+    currentUserId,
+  });
+
+  if (!tenantId) {
+    return `${uid}:query:${signature}`;
+  }
+
+  return `${uid}:tenant:${tenantId}:query:${signature}`;
+}
+
 const getDB = (ctx: Context, dataSource: string) => {
   const ds = ctx.tego.dataSourceManager.dataSources.get(dataSource);
   return ds?.collectionManager.db;
@@ -312,13 +377,30 @@ export const parseVariables = async (ctx: Context, next: Next) => {
   await next();
 };
 
+export const applyTenantScope = async (ctx: Context, next: Next) => {
+  const { dataSource, collection: collectionName, filter } = ctx.action.params.values as QueryParams;
+  const db = getDB(ctx, dataSource) || ctx.db;
+  const collection = db.getCollection(collectionName);
+
+  if (collection?.options?.tenancy === 'tenantScoped') {
+    const tenantId = getCurrentTenantId(ctx);
+
+    if (tenantId) {
+      ctx.action.params.values.filter = appendTenantFilter(filter, tenantId);
+    }
+  }
+
+  await next();
+};
+
 export const cacheMiddleware = async (ctx: Context, next: Next) => {
   const { uid, cache: cacheConfig, refresh } = ctx.action.params.values as QueryParams;
   const cache = ctx.tego.cacheManager.getCache('data-visualization') as Cache;
   const useCache = cacheConfig?.enabled && uid;
+  const cacheKey = useCache ? getChartCacheKey(ctx, uid) : null;
 
   if (useCache && !refresh) {
-    const data = await cache.get(uid);
+    const data = await cache.get(cacheKey);
     if (data) {
       ctx.body = data;
       return;
@@ -326,7 +408,7 @@ export const cacheMiddleware = async (ctx: Context, next: Next) => {
   }
   await next();
   if (useCache) {
-    await cache.set(uid, ctx.body, cacheConfig?.ttl * 1000);
+    await cache.set(cacheKey, ctx.body, cacheConfig?.ttl * 1000);
   }
 };
 
@@ -349,6 +431,7 @@ export const query = async (ctx: Context, next: Next) => {
     await compose([
       checkPermission,
       cacheMiddleware,
+      applyTenantScope,
       parseVariables,
       parseFieldAndAssociations,
       parseBuilder,

@@ -12,6 +12,7 @@ export async function prepareApp(): Promise<MockServer> {
       'collection-manager',
       'auth',
       'data-source-manager',
+      'tenant',
     ],
   });
   return app;

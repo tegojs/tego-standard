@@ -494,6 +494,35 @@ describe('collections repository', () => {
     });
   });
 
+  it('should persist tenancy option on collection record and loaded collection', async () => {
+    await Collection.repository.create({
+      values: {
+        name: 'tenantScopedPosts',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const data = await Collection.repository.findOne({
+      filter: {
+        name: 'tenantScopedPosts',
+      },
+    });
+
+    expect(data.toJSON()).toMatchObject({
+      name: 'tenantScopedPosts',
+      tenancy: 'tenantScoped',
+    });
+
+    expect(db.getCollection('tenantScopedPosts').options.tenancy).toEqual('tenantScoped');
+  });
+
   it('case 4', async () => {
     await Collection.repository.create({
       values: {

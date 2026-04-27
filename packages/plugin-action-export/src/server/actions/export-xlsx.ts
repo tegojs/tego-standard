@@ -6,11 +6,13 @@ import xlsx from 'node-xlsx';
 import ExportPlugin from '..';
 import { EXPORT_LENGTH_MAX } from '../constants';
 import render from '../renders';
+import { buildExportDownloadName, getExportTenantId } from '../utils';
 import { columns2Appends } from '../utils';
 
 export async function exportXlsx(ctx: Context, next: Next) {
   const { title, filter, sort, fields, except } = ctx.action.params;
   const { resourceName, resourceOf } = ctx.action;
+  const currentTenantId = getExportTenantId(ctx);
   let columns = ctx.action.params.values?.columns || ctx.action.params?.columns;
   if (typeof columns === 'string') {
     columns = JSON.parse(columns);
@@ -47,6 +49,7 @@ export async function exportXlsx(ctx: Context, next: Next) {
           resourceName,
           resourceOf,
           appends,
+          currentTenantId,
           timezone: ctx.get('X-Timezone'),
         },
       });
@@ -98,7 +101,7 @@ export async function exportXlsx(ctx: Context, next: Next) {
   ctx.set({
     'Content-Type': 'application/octet-stream',
     // to avoid "invalid character" error in header (RFC)
-    'Content-Disposition': `attachment; filename=${encodeURI(title)}.xlsx`,
+    'Content-Disposition': `attachment; filename=${encodeURI(buildExportDownloadName(title, currentTenantId))}.xlsx`,
   });
 
   await next();

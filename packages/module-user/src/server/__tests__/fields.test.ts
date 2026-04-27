@@ -139,5 +139,32 @@ describe('createdBy/updatedBy', () => {
       expect(data.createdBy.id).toBe(user1.get('id'));
       expect(data.updatedBy.id).toBe(user2.get('id'));
     });
+
+    it('should append tenantId field and inject current tenant value for tenantScoped collection', async () => {
+      const Post = db.collection({
+        name: 'tenant_posts',
+        tenancy: 'tenantScoped',
+      });
+
+      expect(Post.hasField('tenantId')).toBeTruthy();
+
+      await db.sync();
+
+      await Post.repository.create({
+        values: {
+          tenantId: 999,
+        },
+        context: {
+          state: {
+            currentTenant: {
+              id: 2,
+            },
+          },
+        },
+      });
+
+      const record = await Post.repository.findOne();
+      expect(record.get('tenantId')).toBe(2);
+    });
   });
 });

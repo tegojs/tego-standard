@@ -94,3 +94,5 @@ export const CommentList = withDynamicSchemaProps((props) => {
     </div>,
   );
 });
+
+CommentList.displayName = 'BlockCommentList';

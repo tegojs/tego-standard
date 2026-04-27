@@ -61,5 +61,5 @@ export const PreviewTable = observer(
       />
     );
   },
-  { displayName: 'PreviewTable' },
+  { displayName: 'SqlCollectionPreviewTable' },
 );

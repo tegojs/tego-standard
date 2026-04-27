@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+mkdir -p /app/public
+
 # cp dist files
 cp -r /app/apps/web/dist/* /app/public/
 
@@ -20,4 +22,4 @@ output_file="/app/public/index.html"
     fi
 } > "$output_file"
 
-pnpm tego start --quickstart
+exec /app/node_modules/.bin/tego start --quickstart

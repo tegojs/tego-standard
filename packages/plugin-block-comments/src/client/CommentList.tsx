@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useBlockRequestContext, withDynamicSchemaProps } from '@tachybase/client';
+import { useBlockRequestContext, withAutoQuickJumper, withDynamicSchemaProps } from '@tachybase/client';
 import { Field, RecursionField, Schema, useField, useFieldSchema } from '@tachybase/schema';
 
 import { List, Spin } from 'antd';
@@ -50,12 +50,12 @@ export const CommentList = withDynamicSchemaProps((props) => {
   const pagination =
     !metaData || metaData.count <= metaData.pageSize
       ? false
-      : {
+      : withAutoQuickJumper({
           onChange: handleChangePage,
           total: metaData?.count || 0,
           pageSize: metaData?.pageSize || 10,
           current: metaData?.page || 1,
-        };
+        });
 
   if (service?.loading) {
     return (

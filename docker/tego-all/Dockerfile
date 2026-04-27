@@ -18,6 +18,8 @@ RUN --mount=type=bind,source=.,target=/context,readonly \
     cp /context/package.json /app/package.json && \
     cp /context/pnpm-lock.yaml /app/pnpm-lock.yaml && \
     cp /context/pnpm-workspace.yaml /app/pnpm-workspace.yaml && \
+    cp /context/settings.js /app/settings.js && \
+    cp /context/tsconfig.paths.json /app/tsconfig.paths.json && \
     for dir in /context/apps/*; do \
       [ -d "$dir" ] || continue; \
       name=$(basename "$dir"); \
@@ -56,9 +58,9 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=deps /app/package.json /app/package.json
 COPY --from=deps /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
+COPY --from=deps /app/settings.js /app/settings.js
+COPY --from=deps /app/tsconfig.paths.json /app/tsconfig.paths.json
 COPY --from=builder /app/.version.json /app/.version.json
-COPY settings.js /app/settings.js
-COPY tsconfig.paths.json /app/tsconfig.paths.json
 COPY --from=builder /app/apps/web/dist /app/apps/web/dist
 COPY --from=builder /app/packages /app/packages
 COPY --from=builder /app/docker/tego-all/docker-entrypoint.sh /app/docker-entrypoint.sh

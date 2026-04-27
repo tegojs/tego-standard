@@ -44,6 +44,7 @@ RUN --mount=type=cache,target=/pnpm/store pnpm install --shamefully-hoist
 COPY . /app
 
 RUN pnpm build:p
+RUN rm -rf /app/.git
 
 COPY ./docker/tego-nightly/docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh

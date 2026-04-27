@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useRequest } from '@tachybase/client';
+import { useRequest, withAutoQuickJumper } from '@tachybase/client';
 
 import { Button, Drawer, Form, Input, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -67,7 +67,9 @@ export const LinkManager = () => {
 
   return (
     <>
-      {tableData && <Table columns={columns} dataSource={tableData}></Table>}
+      {tableData && (
+        <Table columns={columns} dataSource={tableData} pagination={withAutoQuickJumper({ total: tableData.length })} />
+      )}
       <Drawer
         title="设定链接地址"
         width={720}

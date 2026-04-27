@@ -10,6 +10,7 @@ import { SortableItem } from '../../common';
 import { InfiniteScroll } from '../../common/infinite-scroll/infinite-scroll';
 import { SchemaComponentOptions } from '../../core';
 import { useDesigner, useProps } from '../../hooks';
+import { withAutoQuickJumper } from '../pagination/utils';
 import { GridCardBlockProvider, useGridCardBlockContext, useGridCardItemProps } from './GridCard.Decorator';
 import { GridCardDesigner } from './GridCard.Designer';
 import { GridCardItem } from './GridCard.Item';
@@ -141,14 +142,14 @@ const InternalGridCard = (props) => {
           pagination={
             !meta || meta.count <= meta.pageSize || needInfiniteScroll
               ? false
-              : {
+              : withAutoQuickJumper({
                   ...pagination,
                   onChange: onPaginationChange,
                   total: meta?.count || 0,
                   pageSize: meta?.pageSize || 10,
                   current: meta?.page || 1,
                   pageSizeOptions,
-                }
+                })
           }
           dataSource={field.value}
           grid={{

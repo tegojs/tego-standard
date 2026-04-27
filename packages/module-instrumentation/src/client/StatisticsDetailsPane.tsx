@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ExtendCollectionsProvider, SchemaComponent, useAPIClient } from '@tachybase/client';
+import { ExtendCollectionsProvider, SchemaComponent, useAPIClient, withAutoQuickJumper } from '@tachybase/client';
 import { useForm } from '@tachybase/schema';
-
 import { CodeMirror as CodeMirrorComponent } from '@tego/client';
+
 import { Card, Table } from 'antd';
 
 import { trackingLogCollection } from './collections/trackingLog.collection';
@@ -41,7 +41,11 @@ export const statisticsDetailsPane = () => {
           components={{ InstrumentationFilter, timeFilter }}
           scope={{ useFilterSubmitProps }}
         />
-        <Table dataSource={tableData} style={{ marginTop: 24 }} pagination={{ pageSize: 20 }}>
+        <Table
+          dataSource={tableData}
+          style={{ marginTop: 24 }}
+          pagination={withAutoQuickJumper({ pageSize: 20, total: tableData.length })}
+        >
           <Column title={t('ID')} dataIndex="id" key="id" />
           <Column title={t('Instrumentation key')} dataIndex="key" key="key" />
           <Column title={t('Instrumentation type')} dataIndex="type" key="type" />

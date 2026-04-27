@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DatePicker, useAPIClient } from '@tachybase/client';
+import { DatePicker, useAPIClient, withAutoQuickJumper } from '@tachybase/client';
 
 import { ReloadOutlined } from '@ant-design/icons';
 import { App, Button, Card, Space, Table } from 'antd';
@@ -143,11 +143,11 @@ export const TableList = () => {
           loading={loading}
           columns={columns}
           rowKey="name"
-          pagination={{
+          pagination={withAutoQuickJumper({
             ...pagination,
             showSizeChanger: true,
             showTotal: (total) => t('Total: {{total}}', { total }),
-          }}
+          })}
           onChange={handleTableChange}
         />
       </Card>

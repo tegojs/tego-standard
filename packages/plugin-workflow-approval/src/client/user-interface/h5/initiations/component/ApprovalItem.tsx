@@ -1,5 +1,12 @@
 import { useContext, useEffect, useState } from 'react';
-import { Pagination, useAPIClient, useCollectionManager, useCompile, useCurrentUserContext } from '@tachybase/client';
+import {
+  Pagination,
+  useAPIClient,
+  useCollectionManager,
+  useCompile,
+  useCurrentUserContext,
+  withAutoQuickJumper,
+} from '@tachybase/client';
 import { observer } from '@tachybase/schema';
 
 import { useDeepCompareEffect } from 'ahooks';
@@ -120,12 +127,15 @@ export const ApprovalItem = observer((props) => {
         <Empty description="暂无数据" />
       )}
       <Pagination
-        defaultCurrent={1}
+        {...withAutoQuickJumper({
+          defaultCurrent: 1,
+          total,
+          pageSize: page.pageSize,
+          current: page.current,
+          onChange,
+        })}
         total={total}
         align="end"
-        pageSize={page.pageSize}
-        current={page.current}
-        onChange={onChange}
         style={{ backgroundColor: 'white' }}
       />
     </div>

@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.16] - 2026-04-27
+
+### ✨ Added
+
+- **event-source**: add async mode to event source ([#369](https://github.com/tegojs/tego-standard/pull/369)) (@bai.zixv)
+- **client**: auto-enable quick jumper for truncated pagers ([#372](https://github.com/tegojs/tego-standard/pull/372)) (@TomyJan)
+
 ### 🐛 Fixed
 
-- **client**: correct date range operator inference and prevent next-day range display ([#371](https://github.com/tegojs/tego-standard/pull/371)) [3214bde](https://github.com/tegojs/tego-standard/commit/3214bdecdec351e04941eb22fad308d7de3d6bc3) (@TomyJan)
-- **backup&database-clean**: stabilize download streaming and clean up diagnostics ([#368](https://github.com/tegojs/tego-standard/pull/368)) [0643986](https://github.com/tegojs/tego-standard/commit/064398676db7590b7b1dc6c0813c4b3492a568da) (@TomyJan)
-
-
+- **client**: correct date range operator inference and prevent next-day range display ([#371](https://github.com/tegojs/tego-standard/pull/371)) (@TomyJan)
+- **backup&database-clean**: stabilize download streaming and clean up diagnostics ([#368](https://github.com/tegojs/tego-standard/pull/368)) (@TomyJan)
 
 ## [1.6.15] - 2026-04-09
 
@@ -2981,7 +2988,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.15...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.16...HEAD
+[1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
 [1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
 [1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
 [1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13

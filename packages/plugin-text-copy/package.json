@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-text-copy",
   "displayName": "text-copy",
-  "version": "1.6.15",
+  "version": "1.6.16",
   "description": "Add copy button to text fields",
   "homepage": "https://github.com/tegojs/tego-standard#readme",
   "bugs": {

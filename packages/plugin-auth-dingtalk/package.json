@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-auth-dingtalk",
   "displayName": "Auth: Ding Talk",
-  "version": "1.6.15",
+  "version": "1.6.16",
   "description": "dingding authentication.",
   "keywords": [
     "Authentication"

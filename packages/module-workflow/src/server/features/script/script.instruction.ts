@@ -248,6 +248,10 @@ export class ScriptInstruction extends Instruction {
       };
     }
   }
+
+  async resume(node: FlowNodeModel, job: any, processor: Processor) {
+    return this.run(node, job, processor);
+  }
 }
 
 // utils-JSONata

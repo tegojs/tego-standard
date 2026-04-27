@@ -516,5 +516,5 @@ export const Table: any = withDynamicSchemaProps(
       );
     },
   ),
-  { displayName: 'Table' },
+  { displayName: 'SchemaTableV2' },
 );

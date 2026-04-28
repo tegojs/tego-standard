@@ -21,7 +21,6 @@
 .umi-production
 /.idea
 /.vscode
-/.docker-runtime
 /playwright
 /uploads
 cache/diskstore-*

@@ -9,7 +9,7 @@
  *   node scripts/update-version-with-hash.mjs
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,138 +19,7 @@ const rootDir = join(__dirname, '..');
 const packageJsonPath = join(rootDir, 'package.json');
 const versionJsonPath = join(rootDir, '.version.json');
 
-function getBuildEnv(name) {
-  return process.env[name]?.trim() || '';
-}
-
-function readFileIfExists(filePath) {
-  try {
-    return existsSync(filePath) ? readFileSync(filePath, 'utf-8').trim() : '';
-  } catch {
-    return '';
-  }
-}
-
-function getGitDir() {
-  const defaultGitDir = join(rootDir, '.git');
-  const gitPathContent = readFileIfExists(defaultGitDir);
-
-  if (gitPathContent.startsWith('gitdir:')) {
-    return join(rootDir, gitPathContent.replace(/^gitdir:\s*/, ''));
-  }
-
-  return defaultGitDir;
-}
-
-function readPackedRefs(gitDir) {
-  const packedRefsPath = join(gitDir, 'packed-refs');
-  const packedRefsContent = readFileIfExists(packedRefsPath);
-  if (!packedRefsContent) {
-    return new Map();
-  }
-
-  const refs = new Map();
-  for (const line of packedRefsContent.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('^')) {
-      continue;
-    }
-
-    const [hash, ref] = trimmed.split(' ');
-    if (hash && ref) {
-      refs.set(ref, hash);
-    }
-  }
-  return refs;
-}
-
-function resolveRefHash(refName) {
-  const gitDir = getGitDir();
-  const looseRefPath = join(gitDir, ...refName.split('/'));
-  const looseRef = readFileIfExists(looseRefPath);
-  if (looseRef) {
-    return looseRef;
-  }
-
-  return readPackedRefs(gitDir).get(refName) || '';
-}
-
-function getGitHeadInfo() {
-  const gitDir = getGitDir();
-  const head = readFileIfExists(join(gitDir, 'HEAD'));
-  if (!head) {
-    return { ref: '', hash: '' };
-  }
-
-  if (head.startsWith('ref:')) {
-    const ref = head.replace(/^ref:\s*/, '');
-    return { ref, hash: resolveRefHash(ref) };
-  }
-
-  return { ref: '', hash: head };
-}
-
-function getGitTagFromFiles(currentHash) {
-  if (!currentHash) {
-    return null;
-  }
-
-  const packedRefs = readPackedRefs(getGitDir());
-  for (const [ref, hash] of packedRefs.entries()) {
-    if (ref.startsWith('refs/tags/') && hash === currentHash) {
-      return ref.replace(/^refs\/tags\//, '');
-    }
-  }
-
-  return null;
-}
-
-function getLooseTagFromFiles(currentHash) {
-  if (!currentHash) {
-    return null;
-  }
-
-  const gitDir = getGitDir();
-  const tagsDir = join(gitDir, 'refs', 'tags');
-  if (!existsSync(tagsDir)) {
-    return null;
-  }
-
-  const walk = (dir, prefix = 'refs/tags') => {
-    for (const entry of readdirSync(dir)) {
-      const fullPath = join(dir, entry);
-      const refName = `${prefix}/${entry}`;
-
-      if (statSync(fullPath).isDirectory()) {
-        const nestedTag = walk(fullPath, refName);
-        if (nestedTag) {
-          return nestedTag;
-        }
-        continue;
-      }
-
-      if (readFileIfExists(fullPath) === currentHash) {
-        return refName.replace(/^refs\/tags\//, '');
-      }
-    }
-
-    return null;
-  };
-
-  return walk(tagsDir);
-}
-
 function getGitHash() {
-  const buildHash = getBuildEnv('BUILD_GIT_HASH') || getBuildEnv('GIT_COMMIT_SHA');
-  if (buildHash) {
-    return buildHash.slice(0, 7);
-  }
-
-  const headInfo = getGitHeadInfo();
-  if (headInfo.hash) {
-    return headInfo.hash.slice(0, 7);
-  }
-
   try {
     return execSync('git rev-parse --short=7 HEAD', {
       encoding: 'utf-8',
@@ -164,21 +33,13 @@ function getGitHash() {
 }
 
 function getGitBranch() {
-  const buildBranch =
-    getBuildEnv('BUILD_GIT_BRANCH') ||
-    process.env.CI_COMMIT_REF_NAME ||
-    process.env.GITHUB_REF_NAME ||
-    process.env.GIT_BRANCH;
-  if (buildBranch) {
-    return buildBranch;
-  }
-
-  const headInfo = getGitHeadInfo();
-  if (headInfo.ref.startsWith('refs/heads/')) {
-    return headInfo.ref.replace(/^refs\/heads\//, '');
-  }
-
   try {
+    // 优先获取 CI/CD 环境变量中的分支名
+    const ciBranch = process.env.CI_COMMIT_REF_NAME || process.env.GITHUB_REF_NAME || process.env.GIT_BRANCH;
+    if (ciBranch) {
+      return ciBranch;
+    }
+
     // 从 Git 获取当前分支名
     return execSync('git rev-parse --abbrev-ref HEAD', {
       encoding: 'utf-8',
@@ -192,25 +53,10 @@ function getGitBranch() {
 }
 
 function getCurrentTag() {
-  const buildTag = getBuildEnv('BUILD_GIT_TAG') || process.env.CI_COMMIT_TAG;
-  if (buildTag) {
-    return buildTag;
-  }
-
   try {
     // 在 CI/CD 环境中，通过环境变量获取 tag
-    if (process.env.GITHUB_REF_TYPE === 'tag' || getBuildEnv('BUILD_GIT_REF_TYPE') === 'tag') {
+    if (process.env.GITHUB_REF_TYPE === 'tag') {
       return process.env.GITHUB_REF_NAME || process.env.CI_COMMIT_TAG || null;
-    }
-
-    const headInfo = getGitHeadInfo();
-    const looseTag = getLooseTagFromFiles(headInfo.hash);
-    if (looseTag) {
-      return looseTag;
-    }
-    const packedTag = getGitTagFromFiles(headInfo.hash);
-    if (packedTag) {
-      return packedTag;
     }
 
     // 通过 Git 命令获取当前 commit 的 tag

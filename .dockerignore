@@ -1,12 +1,5 @@
 # VCS and local tooling
-.git/*
-!.git/HEAD
-!.git/packed-refs
-!.git/refs/
-!.git/refs/heads/
-!.git/refs/heads/**
-!.git/refs/tags/
-!.git/refs/tags/**
+.git
 .github
 .gitignore
 .gitattributes
@@ -15,7 +8,6 @@
 .idea
 .vscode
 .cursor
-.docker-runtime
 
 # Environment and local runtime state
 .env

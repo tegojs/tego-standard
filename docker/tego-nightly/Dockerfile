@@ -11,8 +11,6 @@ RUN corepack enable
 
 WORKDIR /app
 
-FROM base AS deps
-
 RUN --mount=type=bind,source=.,target=/context,readonly \
     mkdir -p /app/apps /app/packages /app/plugins && \
     cp /context/package.json /app/package.json && \
@@ -43,28 +41,10 @@ RUN --mount=type=bind,source=.,target=/context,readonly \
 RUN pnpm config set registry $NPM_REGISTRY
 RUN --mount=type=cache,target=/pnpm/store pnpm install --shamefully-hoist
 
-FROM deps AS builder
-
 COPY . /app
 
 RUN pnpm build:p
-RUN node scripts/prepare-docker-runtime.mjs
 
-FROM base AS runner
-
-ENV NODE_ENV=production
-
-COPY --from=deps /app/node_modules /app/node_modules
-COPY --from=deps /app/package.json /app/package.json
-COPY --from=deps /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
-COPY --from=builder /app/.docker-runtime/package.json /app/package.json
-COPY --from=builder /app/.docker-runtime/pnpm-workspace.yaml /app/pnpm-workspace.yaml
-COPY --from=builder /app/.docker-runtime/.version.json /app/.version.json
-COPY --from=builder /app/apps/web/dist /app/apps/web/dist
-COPY --from=builder /app/.docker-runtime/packages /app/packages
-COPY --from=builder /app/docker/tego-nightly/docker-entrypoint.sh /app/docker-entrypoint.sh
-
-RUN mkdir -p /app/public /app/storage /app/plugins && \
-    chmod +x /app/docker-entrypoint.sh
-
+COPY ./docker/tego-nightly/docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

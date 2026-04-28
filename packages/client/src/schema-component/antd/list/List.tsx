@@ -105,4 +105,3 @@ export const List = withDynamicSchemaProps(InternalList) as typeof InternalList 
 List.Item = ListItem;
 List.Designer = ListDesigner;
 List.Decorator = ListBlockProvider;
-List.displayName = 'SchemaList';

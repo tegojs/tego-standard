@@ -190,4 +190,3 @@ export const GridCard = withDynamicSchemaProps(InternalGridCard) as typeof Inter
 GridCard.Item = GridCardItem;
 GridCard.Designer = GridCardDesigner;
 GridCard.Decorator = GridCardBlockProvider;
-GridCard.displayName = 'SchemaGridCard';

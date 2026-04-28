@@ -30,6 +30,6 @@ export const Pagination = withDynamicSchemaProps(
         </div>
       );
     },
-    { displayName: 'SchemaPagination' },
+    { displayName: 'Pagination' },
   ),
 );

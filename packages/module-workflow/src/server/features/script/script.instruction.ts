@@ -250,7 +250,8 @@ export class ScriptInstruction extends Instruction {
   }
 
   async resume(node: FlowNodeModel, job: any, processor: Processor) {
-    return this.run(node, job, processor);
+    // 不处理, 直接返回 job, 占位实现
+    return job;
   }
 }
 

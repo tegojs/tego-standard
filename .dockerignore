@@ -15,6 +15,7 @@
 .idea
 .vscode
 .cursor
+.docker-runtime
 
 # Environment and local runtime state
 .env

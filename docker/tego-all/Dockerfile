@@ -48,6 +48,7 @@ FROM deps AS builder
 COPY . /app
 
 RUN pnpm build:p
+RUN node scripts/prepare-docker-runtime.mjs
 
 FROM base AS runner
 
@@ -56,14 +57,14 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=deps /app/package.json /app/package.json
 COPY --from=deps /app/pnpm-workspace.yaml /app/pnpm-workspace.yaml
-COPY --from=builder /app/.version.json /app/.version.json
+COPY --from=builder /app/.docker-runtime/package.json /app/package.json
+COPY --from=builder /app/.docker-runtime/pnpm-workspace.yaml /app/pnpm-workspace.yaml
+COPY --from=builder /app/.docker-runtime/.version.json /app/.version.json
 COPY --from=builder /app/apps/web/dist /app/apps/web/dist
-COPY --from=builder /app/packages /app/packages
+COPY --from=builder /app/.docker-runtime/packages /app/packages
 COPY --from=builder /app/docker/tego-all/docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN mkdir -p /app/public /app/storage /app/plugins && \
-    chmod +x /app/docker-entrypoint.sh && \
-    find /app/packages -type d \( -name __tests__ -o -name __e2e__ -o -name coverage \) -prune -exec rm -rf {} + && \
-    find /app/packages -type f \( -name '*.md' -o -name '*.map' -o -name '*.tsbuildinfo' \) -delete
+    chmod +x /app/docker-entrypoint.sh
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

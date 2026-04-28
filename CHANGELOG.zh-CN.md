@@ -9,6 +9,13 @@
 
 
 
+## [1.6.17] - 2026-04-28
+
+### 🐛 修复
+
+- 工作流程脚本指令恢复方法 ([#375](https://github.com/tegojs/tego-standard/pull/375)) (@bai.zixv)
+- 脚本指令返回错误 ([#374](https://github.com/tegojs/tego-standard/pull/374)) (@bai.zixv)
+
 ## [1.6.16] - 2026-04-27
 
 ### ✨ 新增
@@ -2988,7 +2995,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.16...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
 [1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
 [1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
 [1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14

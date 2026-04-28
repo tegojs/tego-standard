@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.17] - 2026-04-28
+
+### 🐛 Fixed
+
+- workflow script instruction resume method ([#375](https://github.com/tegojs/tego-standard/pull/375)) (@bai.zixv)
+- script instruction return error ([#374](https://github.com/tegojs/tego-standard/pull/374)) (@bai.zixv)
+
 ## [1.6.16] - 2026-04-27
 
 ### ✨ Added
@@ -2988,7 +2995,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.16...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
 [1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
 [1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
 [1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14

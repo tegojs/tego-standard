@@ -125,5 +125,5 @@ export const TableVoid: React.FC<TableVoidProps> = observer(
       </AsyncDataProvider>
     );
   },
-  { displayName: 'SchemaTableVoid' },
+  { displayName: 'TableVoid' },
 );

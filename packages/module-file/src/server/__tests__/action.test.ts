@@ -14,16 +14,38 @@ describe('action', () => {
   let db;
   let StorageRepo;
   let AttachmentRepo;
+  let tenantUser;
 
   beforeEach(async () => {
     app = await getApp({
       database: {},
     });
-    agent = app.agent();
     db = app.db;
 
     AttachmentRepo = db.getCollection('attachments').repository;
     StorageRepo = db.getCollection('storages').repository;
+
+    await db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    tenantUser = await db.getRepository('users').create({
+      values: {
+        username: 'file_tenant_user',
+        email: 'file-tenant-user@example.com',
+        phone: '10000010001',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a', 'tenant-b'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    agent = app.agent().login(tenantUser);
+
     await StorageRepo.create({
       values: {
         name: 'local1',
@@ -51,7 +73,7 @@ describe('action', () => {
         const matcher = {
           title: 'text',
           extname: '.txt',
-          path: '',
+          path: 'tenants/tenant-a',
           size: 13,
           mimetype: 'text/plain',
           meta: {},
@@ -61,7 +83,7 @@ describe('action', () => {
         // 文件上传和解析是否正常
         expect(body.data).toMatchObject(matcher);
         // 文件的 url 是否正常生成
-        expect(body.data.url).toBe(`${DEFAULT_LOCAL_BASE_URL}${body.data.path}/${body.data.filename}`);
+        expect(body.data.url).toBe(`${DEFAULT_LOCAL_BASE_URL}/${body.data.path}/${body.data.filename}`);
 
         const Attachment = db.getModel('attachments');
         const attachment = await Attachment.findOne({
@@ -87,7 +109,7 @@ describe('action', () => {
           path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
           storage.path,
         );
-        const file = await fs.readFile(`${destPath}/${attachment.filename}`);
+        const file = await fs.readFile(`${destPath}/${attachment.path}/${attachment.filename}`);
         // 文件是否保存到指定路径
         expect(file.toString()).toBe('Hello world!\n');
 
@@ -191,7 +213,7 @@ describe('action', () => {
         });
 
         // 文件的 url 是否正常生成
-        expect(body.data.url).toBe(`${BASE_URL}/${urlPath}/${body.data.filename}`);
+        expect(body.data.url).toBe(`${BASE_URL}/${urlPath}/tenants/tenant-a/${body.data.filename}`);
         console.log(body.data.url);
         const url = body.data.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
@@ -201,6 +223,69 @@ describe('action', () => {
   });
 
   describe('destroy', () => {
+    it('should isolate attachments by current tenant', async () => {
+      const tenantAResponse = await agent.resource('attachments').create({
+        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+      });
+
+      expect(tenantAResponse.status).toBe(200);
+      expect(tenantAResponse.body.data.tenantId).toBe('tenant-a');
+
+      const tenantBAgent = app.agent().login(tenantUser).set('X-Tenant', 'tenant-b');
+      const tenantBResponse = await tenantBAgent.resource('attachments').create({
+        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+      });
+
+      expect(tenantBResponse.status).toBe(200);
+      expect(tenantBResponse.body.data.tenantId).toBe('tenant-b');
+
+      const tenantAList = await agent.resource('attachments').list({});
+      expect(tenantAList.status).toBe(200);
+      expect(tenantAList.body.data).toHaveLength(1);
+      expect(tenantAList.body.data[0].id).toBe(tenantAResponse.body.data.id);
+
+      const tenantBList = await tenantBAgent.resource('attachments').list({});
+      expect(tenantBList.status).toBe(200);
+      expect(tenantBList.body.data).toHaveLength(1);
+      expect(tenantBList.body.data[0].id).toBe(tenantBResponse.body.data.id);
+
+      await agent.resource('attachments').destroy({
+        filterByTk: tenantBResponse.body.data.id,
+      });
+
+      const tenantBAttachment = await AttachmentRepo.findById(tenantBResponse.body.data.id);
+      expect(tenantBAttachment).toBeTruthy();
+    });
+
+    it('should store attachment files under tenant-specific paths', async () => {
+      const tenantAResponse = await agent.resource('attachments').create({
+        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+      });
+
+      const tenantBAgent = app.agent().login(tenantUser).set('X-Tenant', 'tenant-b');
+      const tenantBResponse = await tenantBAgent.resource('attachments').create({
+        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+      });
+
+      expect(tenantAResponse.status).toBe(200);
+      expect(tenantBResponse.status).toBe(200);
+
+      expect(tenantAResponse.body.data.path).toContain('tenants/tenant-a');
+      expect(tenantBResponse.body.data.path).toContain('tenants/tenant-b');
+
+      const storage = await StorageRepo.findById(tenantAResponse.body.data.storageId);
+      const { documentRoot = path.join('storage', 'uploads') } = storage.options || {};
+      const destPath = path.resolve(
+        path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+      );
+
+      const tenantAFile = await fs.stat(path.join(destPath, tenantAResponse.body.data.path, tenantAResponse.body.data.filename));
+      const tenantBFile = await fs.stat(path.join(destPath, tenantBResponse.body.data.path, tenantBResponse.body.data.filename));
+
+      expect(tenantAFile).toBeTruthy();
+      expect(tenantBFile).toBeTruthy();
+    });
+
     it('destroy one existing file with `paranoid`', async () => {
       db.collection({
         name: 'customers',
@@ -231,15 +316,15 @@ describe('action', () => {
         path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
-      const file = await fs.stat(path.join(destPath, attachment.filename));
-      expect(file).toBeTruthy();
+      const filePath = path.join(destPath, attachment.path, attachment.filename);
+      expect(await fs.stat(filePath)).toBeTruthy();
 
       const res2 = await agent.resource('attachments').destroy({ filterByTk: attachment.id });
 
       const attachmentExists = await AttachmentRepo.findById(attachment.id);
       expect(attachmentExists).toBeNull();
 
-      const fileExists = await fs.stat(path.join(destPath, attachment.filename)).catch(() => false);
+      const fileExists = await fs.stat(filePath).catch(() => false);
       expect(fileExists).toBeTruthy();
     });
 
@@ -257,15 +342,15 @@ describe('action', () => {
         path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
-      const file = await fs.stat(path.join(destPath, attachment.filename));
-      expect(file).toBeTruthy();
+      const filePath = path.join(destPath, attachment.path, attachment.filename);
+      expect(await fs.stat(filePath)).toBeTruthy();
 
       const res2 = await agent.resource('attachments').destroy({ filterByTk: attachment.id });
 
       const attachmentExists = await AttachmentRepo.findById(attachment.id);
       expect(attachmentExists).toBeNull();
 
-      const fileExists = await fs.stat(path.join(destPath, attachment.filename)).catch(() => false);
+      const fileExists = await fs.stat(filePath).catch(() => false);
       expect(fileExists).toBeFalsy();
     });
 
@@ -289,18 +374,19 @@ describe('action', () => {
         path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
-      const file1 = await fs.stat(path.join(destPath, f1.data.filename));
-      expect(file1).toBeTruthy();
+      const file1Path = path.join(destPath, f1.data.path, f1.data.filename);
+      expect(await fs.stat(file1Path)).toBeTruthy();
 
       const res2 = await agent.resource('attachments').destroy({ filter: { id: [f1.data.id, f2.data.id] } });
 
       const attachmentExists = await AttachmentRepo.count();
       expect(attachmentExists).toBe(0);
 
-      const file1Exists = await fs.stat(path.join(destPath, f1.data.filename)).catch(() => false);
+      const file1Exists = await fs.stat(file1Path).catch(() => false);
       expect(file1Exists).toBeFalsy();
 
-      const file2Exists = await fs.stat(path.join(destPath, f2.data.filename)).catch(() => false);
+      const file2Path = path.join(destPath, f2.data.path, f2.data.filename);
+      const file2Exists = await fs.stat(file2Path).catch(() => false);
       expect(file2Exists).toBeFalsy();
     });
 
@@ -318,7 +404,7 @@ describe('action', () => {
         path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
-      const filePath = path.join(destPath, attachment.filename);
+      const filePath = path.join(destPath, attachment.path, attachment.filename);
       const file = await fs.stat(filePath);
       expect(file).toBeTruthy();
       await fs.unlink(filePath);

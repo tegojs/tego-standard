@@ -8,6 +8,12 @@ import xlsx from 'node-xlsx';
 import { exportXlsx } from './actions';
 import { EXPORT_WORKER_PAGESIZE } from './constants';
 import render from './renders';
+import {
+  buildWorkerExportFileName,
+  buildWorkerExportRelativePath,
+  buildWorkerExportSavePath,
+  getExportTenantId,
+} from './utils';
 
 export class ExportPlugin extends Plugin {
   beforeLoad() {}
@@ -29,13 +35,22 @@ export class ExportPlugin extends Plugin {
   }
 
   async workerExportXlsx(params) {
-    const { title, filter, sort, fields, except, appends, resourceName, resourceOf, timezone } = params;
+    const { title, filter, sort, fields, except, appends, resourceName, resourceOf, timezone, currentTenantId } = params;
     let columns = params?.columns || params?.columns;
     if (typeof columns === 'string') {
       columns = JSON.parse(columns);
     }
     const repository = this.db.getRepository<any>(resourceName, resourceOf) as Repository;
     const collection = repository.collection;
+    const tenantId = getExportTenantId({ currentTenantId });
+    const tenantContext = tenantId
+      ? {
+          state: {
+            currentTenantId: tenantId,
+            currentTenant: { id: tenantId },
+          },
+        }
+      : undefined;
     columns = columns?.filter((col) => collection.hasField(col.dataIndex[0]) && col?.dataIndex?.length > 0);
     // 分页处理
     let page = 1;
@@ -52,6 +67,7 @@ export class ExportPlugin extends Plugin {
         sort,
         offset: (page - 1) * pageSize,
         limit: pageSize,
+        context: tenantContext as any,
       });
 
       data = data.concat(pageData);
@@ -79,14 +95,14 @@ export class ExportPlugin extends Plugin {
         },
       },
     ]);
-    const savePath = this.xlsxStorageDir();
+    const savePath = buildWorkerExportSavePath(this.xlsxStorageDir(), tenantId);
     if (!existsSync(savePath)) {
       mkdirSync(savePath, { recursive: true });
     }
-    const fileName = `${resourceName}_${dayjs().format('YYYYMMDDHHmm')}.xlsx`;
+    const fileName = buildWorkerExportFileName(resourceName, title, tenantId);
     const rawFile = `${savePath}/${fileName}`;
     writeFileSync(rawFile, Buffer.from(stream));
-    return `${ExportPlugin.defaultSavePath}/${fileName}`;
+    return buildWorkerExportRelativePath(fileName, tenantId, ExportPlugin.defaultSavePath);
   }
 }
 

@@ -54,4 +54,17 @@ describe('scope api', () => {
       published: true,
     });
   });
+
+  it('should create built-in tenant scope', async () => {
+    const scope = await db.getRepository('dataSourcesRolesResourcesScopes').findOne({
+      filter: {
+        key: 'tenant',
+      },
+    });
+
+    expect(scope).toBeTruthy();
+    expect(scope.get('scope')).toMatchObject({
+      tenantId: '{{ ctx.state.currentTenant.id }}',
+    });
+  });
 });

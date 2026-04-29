@@ -1,14 +1,55 @@
-# Ignore certain directories under packages
-packages/*/lib
-packages/*/esm
-packages/*/es
-packages/*/dist
-packages/*/node_modules
+# VCS and local tooling
+.github
+.gitignore
+.gitattributes
+.husky
+.gitea
+.idea
+.vscode
+.cursor
 
-/.vscode
-/.idea
-/.husky
-/.gitea
-
+# Environment and local runtime state
+.env
+.env.*
+!.env.example
+!.env.e2e.example
+!.env.test.example
+storage
+uploads
 *.sqlite
-/uploads
+
+# Dependencies
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+plugins/*/node_modules
+
+# Build outputs and caches
+dist
+lib
+es
+esm
+coverage
+docs-dist
+.turbo
+.cache
+.pnpm-store
+apps/*/dist
+apps/*/lib
+apps/*/es
+apps/*/esm
+packages/*/dist
+packages/*/lib
+packages/*/es
+packages/*/esm
+plugins/*/dist
+plugins/*/lib
+plugins/*/es
+plugins/*/esm
+
+# Tests and editor artifacts not needed for image builds
+playwright-report
+test-results
+*.log
+*.tmp
+*.swp

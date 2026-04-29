@@ -1,5 +1,4 @@
 # VCS and local tooling
-.git
 .github
 .gitignore
 .gitattributes

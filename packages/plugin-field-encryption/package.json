@@ -1,11 +1,20 @@
 {
   "name": "@tachybase/plugin-field-encryption",
   "displayName": "Collection field: Encryption",
-  "version": "1.6.6",
+  "version": "1.6.17",
   "description": "Encryption field",
   "keywords": [
     "Collection fields"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-field-encryption"
+  },
   "main": "dist/server/index.js",
   "scripts": {},
   "dependencies": {},

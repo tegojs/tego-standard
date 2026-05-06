@@ -343,6 +343,7 @@
   "Unconfigured": "Unconfigured",
   "Unkown group": "Unkown group",
   "Unprocessed": "Unprocessed",
+  "Update all eligible data at one time, which has better performance when the amount of data is large. But the updated data will not trigger other workflows, will not record audit logs, and may not update association fields.": "Update all eligible data at one time, which has better performance when the amount of data is large. But the updated data will not trigger other workflows, will not record audit logs, and may not update association fields.",
   "Update record": "Update record",
   "Update record form": "Update record form",
   "Updated at": "Updated at",

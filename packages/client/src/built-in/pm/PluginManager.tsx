@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useRequest } from '../../api-client';
 import { i18n } from '../../i18n';
+import { withAutoQuickJumper } from '../../schema-component';
 import { useToken } from '../../style';
 import { useACLRoleContext } from '../acl';
 import { SwitchAction } from './PluginCard';
@@ -366,7 +367,12 @@ const LocalPlugins = () => {
             />
           </Form.Item>
         </Form>
-        <Table columns={columns} dataSource={filteredList} rowKey="id" pagination={{ pageSize: 100 }} />
+        <Table
+          columns={columns}
+          dataSource={filteredList}
+          rowKey="id"
+          pagination={withAutoQuickJumper({ pageSize: 100, total: filteredList.length })}
+        />
       </Card>
       {/* </div> */}
     </>

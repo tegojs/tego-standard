@@ -9,6 +9,85 @@
 
 
 
+## [1.6.17] - 2026-04-28
+
+### 🐛 修复
+
+- 工作流程脚本指令恢复方法 ([#375](https://github.com/tegojs/tego-standard/pull/375)) (@bai.zixv)
+- 脚本指令返回错误 ([#374](https://github.com/tegojs/tego-standard/pull/374)) (@bai.zixv)
+
+## [1.6.16] - 2026-04-27
+
+### ✨ 新增
+
+- **event-source**: 将异步模式添加到事件源 ([#369](https://github.com/tegojs/tego-standard/pull/369)) (@bai.zixv)
+- **client**: 自动启用截断寻呼机的快速跳线 ([#372](https://github.com/tegojs/tego-standard/pull/372)) (@TomyJan)
+
+### 🐛 修复
+
+- **client**: 正确的日期范围运算符推断并防止第二天的范围显示 ([#371](https://github.com/tegojs/tego-standard/pull/371)) (@TomyJan)
+- **backup&database-clean**: 稳定下载流并清理诊断 ([#368](https://github.com/tegojs/tego-standard/pull/368)) (@TomyJan)
+
+## [1.6.15] - 2026-04-09
+
+### ✨ 新增
+
+- 更新语言环境 ([#367](https://github.com/tegojs/tego-standard/pull/367)) (@bai.zixv)
+
+### 🐛 修复
+
+- **module-cron**: 始终安排下一个 cronjob 执行 ([#366](https://github.com/tegojs/tego-standard/pull/366)) (@TomyJan)
+
+## [1.6.14] - 2026-04-01
+
+### ✨ 新增
+
+- **client**: 将连接的源块数据范围应用于目标块([#364](https://github.com/tegojs/tego-standard/pull/364)) (@TomyJan)
+
+### 🐛 修复
+
+- 创建组块([#365](https://github.com/tegojs/tego-standard/pull/365)) (@dududuna)
+
+## [1.6.13] - 2026-03-25
+
+### 🐛 修复
+
+- **client**: 过滤器([#363](https://github.com/tegojs/tego-standard/pull/363)) (@TomyJan)
+- **desktop**: 修复 tego 包装脚本 ([#362](https://github.com/tegojs/tego-standard/pull/362)) (@bai.zixv)
+- **desktop**: 修复 mac 服务器启动错误 ([#361](https://github.com/tegojs/tego-standard/pull/361)) (@bai.zixv)
+
+## [1.6.12] - 2026-03-23
+
+### 🐛 修复
+
+- **corn**: 更新核心，执行 CronJobLock 获取逻辑 ([#360](https://github.com/tegojs/tego-standard/pull/360)) (@TomyJan)
+
+## [1.6.11] - 2026-03-23
+
+### 🐛 修复
+
+- 过滤器([#359](https://github.com/tegojs/tego-standard/pull/359)) (@TomyJan)
+
+## [1.6.8-alpha.1] - 2026-03-17
+
+### 🐛 修复
+
+- **auth-main-app**: 保持主应用程序身份验证唯一([#357](https://github.com/tegojs/tego-standard/pull/357)) (@TomyJan)
+
+## [1.6.7] - 2026-02-09
+
+### ✨ 新增
+
+- 拖动选项卡 ([#326](https://github.com/tegojs/tego-standard/pull/326)) (@dududuna)
+
+### 🐛 修复
+
+- 跨多个终端的统一审批逻辑([#334](https://github.com/tegojs/tego-standard/pull/334)) (@dududuna)
+- 数字精度 ([#345](https://github.com/tegojs/tego-standard/pull/345)) (@dududuna)
+- 过滤参数 ([#347](https://github.com/tegojs/tego-standard/pull/347)) (@dududuna)
+- http 日志 ([#346](https://github.com/tegojs/tego-standard/pull/346)) (@dududuna)
+- pdf 下载名称 ([#353](https://github.com/tegojs/tego-standard/pull/353)) (@dududuna)
+
 ## [1.6.6] - 2026-01-08
 
 ### 🐛 修复
@@ -2916,7 +2995,16 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.6...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
+[1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
+[1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
+[1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
+[1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13
+[1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12
+[1.6.11]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.11
+[1.6.8-alpha.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.8-alpha.1
+[1.6.7]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.7
 [1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6
 [1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5
 [1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4

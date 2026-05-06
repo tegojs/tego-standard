@@ -1,11 +1,20 @@
 {
   "name": "@tachybase/plugin-icon-pickerv2",
   "displayName": "Icon Picker V2",
-  "version": "1.6.6",
+  "version": "1.6.17",
   "description": "A versatile icon picker plugin for Tachybase, providing easy integration and customizable icon selection.",
   "keywords": [
     "Collection fields"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-icon-pickerv2"
+  },
   "main": "dist/server/index.js",
   "devDependencies": {
     "@ant-design/icons": "^6.1.0",

@@ -1,12 +1,21 @@
 {
   "name": "@tachybase/module-file",
   "displayName": "File manager",
-  "version": "1.6.6",
+  "version": "1.6.17",
   "description": "Provides files storage services with files collection template and attachment field.",
   "keywords": [
     "Collections",
     "Collection fields"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/module-file"
+  },
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
   "scripts": {},

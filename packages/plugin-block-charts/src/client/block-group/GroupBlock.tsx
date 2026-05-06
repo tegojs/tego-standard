@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { filterByCleanedFields, useAPIClient, useBlockRequestContext, useFilterBlock } from '@tachybase/client';
+import {
+  filterByCleanedFields,
+  useAPIClient,
+  useBlockRequestContext,
+  useDataSource,
+  useFilterBlock,
+} from '@tachybase/client';
 import { useField, useFieldSchema } from '@tachybase/schema';
 
 import { useAsyncEffect } from 'ahooks';
@@ -69,6 +75,7 @@ export const fieldTransformers = (item, data, api) => {
 export const InternalGroupBlock = (props) => {
   const { configItem, service, dataBlocks } = props;
   const fieldSchema = useFieldSchema();
+  const dataSource = useDataSource();
   const params = fieldSchema.parent['x-decorator-props'].params;
   const [result, setResult] = useState({});
   const api = useAPIClient();
@@ -110,6 +117,7 @@ export const InternalGroupBlock = (props) => {
           data: {
             filter: { ...filter },
             collection: params.collection,
+            dataSource: dataSource.key,
           },
         })) ?? {},
       );

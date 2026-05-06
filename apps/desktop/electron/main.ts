@@ -65,19 +65,9 @@ app
       app.setName('Tachybase');
     }
 
-    // 先创建窗口并显示 loading 页面，让用户看到启动进度
-    createWindow(isDev);
-    createMenu();
-
-    // 在生产环境中，在窗口显示后异步启动后端服务器
-    // 这样用户可以在 loading 页面看到启动进度
-    // 注意：无论从 Finder 还是命令行启动，都应该启动后端服务器
+    // 生产环境先发起后端启动（与窗口内 loading 轮询并行），略早于 createWindow，减少首屏竞态
     if (!isDev) {
       log(`[Electron] Production mode detected, starting backend server...`);
-      // 异步启动后端服务器，不阻塞主进程
-      // startBackendServer 内部会等待服务器启动完成（最多 60 秒）
-      // 如果启动失败，会抛出错误，但应用会继续运行
-      // loading 页面会检查服务器状态并更新进度
       startBackendServer()
         .then(() => {
           log(`[Electron] ✓ Backend server started successfully`);
@@ -87,11 +77,13 @@ app
           log(`[Electron] Error stack: ${error.stack}`, 'error');
           log(`[Electron] Application will continue, but API requests may fail.`, 'warn');
           log(`[Electron] Please check the logs for more details.`, 'warn');
-          // 继续运行，loading 页面会检测到服务器未启动并显示相应状态
         });
     } else {
       log(`[Electron] Development mode detected, backend server should be started separately`);
     }
+
+    createWindow(isDev);
+    createMenu();
 
     app.on('activate', async () => {
       // macOS 上，当点击 dock 图标且没有其他窗口打开时，重新创建窗口

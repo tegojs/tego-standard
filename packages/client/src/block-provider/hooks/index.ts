@@ -23,7 +23,8 @@ import { useAPIClient, useRequest } from '../../api-client';
 import { PathHandler } from '../../built-in/dynamic-page/utils';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../collection-manager';
 import { useFilterBlock } from '../../filter-provider/FilterProvider';
-import { mergeFilter, transformToFilter } from '../../filter-provider/utils';
+import { getFilterSourceDefaultFilter } from '../../filter-provider/incomingFilterFromSources';
+import { FILTER_OPERATORS_WITH_ARRAY_VALUES, mergeFilter, transformToFilter } from '../../filter-provider/utils';
 import { useRecord } from '../../record-provider';
 import {
   getCustomCondition,
@@ -64,12 +65,27 @@ export function filterByCleanedFields(mergeFilter) {
 
     const pathParts = key.split('.');
 
-    // 过滤掉结构字段（$and, $or, 数字）
-    const filteredParts = pathParts.filter((p) => {
-      return !/^\d+$/.test(p) && !['$and', '$or'].includes(p);
+    // 去掉关键字 $and/$or；去掉「关联数组展开」等非操作符下的数字段（如 relation.0.id）；
+    // 保留 $and.i / $or.i 下的分支下标 i（否则顶层 OR 多分支会落成同一路径被误去重）；
+    // 保留 $dateBetween.0 / $in.1 等操作符数组下标。
+    const filteredParts = pathParts.filter((p, i, arr) => {
+      if (['$and', '$or'].includes(p)) {
+        return false;
+      }
+      if (/^\d+$/.test(p)) {
+        const prev = i > 0 ? arr[i - 1] : '';
+        if (prev === '$and' || prev === '$or') {
+          return true;
+        }
+        if (FILTER_OPERATORS_WITH_ARRAY_VALUES.has(prev)) {
+          return true;
+        }
+        return false;
+      }
+      return true;
     });
 
-    // 最终字段名路径
+    // 最终字段名路径（用于去重「同一逻辑分支内的同一字段重复条件」）
     const fieldPath = filteredParts.join('.');
 
     const uniqueKey = `${fieldPath}`;
@@ -541,7 +557,7 @@ export const useFilterBlockActionProps = () => {
   const fieldSchema = useFieldSchema();
   const { getDataBlocks } = useFilterBlock();
   const { name } = useCollection_deprecated();
-  const { getCollectionJoinField } = useCollectionManager_deprecated();
+  const { getCollectionJoinField, getInterface } = useCollectionManager_deprecated();
 
   actionField.data = actionField.data || {};
   return {
@@ -587,10 +603,20 @@ export const useFilterBlockActionProps = () => {
             }
 
             storedFilter[uid] = removeNullCondition(
-              transformToFilter(filter.formValues, fieldSchema, getCollectionJoinField, name),
+              transformToFilter(
+                filter.formValues,
+                fieldSchema,
+                getCollectionJoinField,
+                name,
+                (_, { fieldSchema, collectionField }) => {
+                  const fieldInterface = fieldSchema?.['x-designer-props']?.interface || collectionField?.interface;
+                  return fieldInterface ? getInterface(fieldInterface)?.filterable?.operators || [] : [];
+                },
+              ),
             );
             const mergedFilter = mergeFilter([
               ...Object.values(storedFilter).map((filter) => removeNullCondition(filter)),
+              getFilterSourceDefaultFilter(getDataBlocks(), uid),
               block.defaultFilter,
               filter.customFilter,
               prevMergedFilter,
@@ -650,7 +676,12 @@ export const useResetBlockActionProps = () => {
             const storedFilter = block.service.params?.[1]?.filters || {};
 
             delete storedFilter[uid];
-            const currFilter = mergeFilter([...Object.values(storedFilter), block.defaultFilter, prevMergedFilter]);
+            const currFilter = mergeFilter([
+              ...Object.values(storedFilter),
+              getFilterSourceDefaultFilter(getDataBlocks(), uid),
+              block.defaultFilter,
+              prevMergedFilter,
+            ]);
             const mergedFilter = filterByCleanedFields(currFilter);
             prevMergedFilter = mergedFilter;
             return block.doFilter(
@@ -1319,7 +1350,11 @@ export const useAssociationFilterBlockProps = () => {
         delete storedFilter[key];
       }
 
-      const mergedFilter = mergeFilter([...Object.values(storedFilter), block.defaultFilter]);
+      const mergedFilter = mergeFilter([
+        ...Object.values(storedFilter),
+        getFilterSourceDefaultFilter(getDataBlocks(), uid),
+        block.defaultFilter,
+      ]);
 
       return block.doFilter(
         {

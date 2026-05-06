@@ -1,11 +1,20 @@
 {
   "name": "@tachybase/plugin-multi-app-share-collection",
   "displayName": "Multi-app share collection",
-  "version": "1.6.6",
+  "version": "1.6.17",
   "description": "Multi-app share collection",
   "keywords": [
     "System management"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-multi-app-share-collection"
+  },
   "main": "./dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",

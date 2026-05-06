@@ -8,6 +8,70 @@ import { DatabaseService } from '../services/database-service';
 import { BackupFilter, FilteredBackupService } from '../services/filtered-backup-service';
 import { DatabaseCleanLock } from '../utils/lock';
 
+function bindDownloadDiagnostics(ctx: Context, options: { action: string; fileName: string; filePath: string }) {
+  const logger = ctx.logger || ctx.tego.logger;
+  const startedAt = Date.now();
+  const requestId = ctx.get?.('x-request-id') || ctx.state?.requestId;
+  const state = {
+    requestAborted: false,
+  };
+
+  ctx.req.once('aborted', () => {
+    state.requestAborted = true;
+    logger?.warn(`${options.action} request aborted`, {
+      requestId,
+      appName: ctx.tego.name,
+      fileName: options.fileName,
+      filePath: options.filePath,
+      durationMs: Date.now() - startedAt,
+    });
+  });
+
+  ctx.res.once('close', () => {
+    if (!ctx.res.writableEnded) {
+      logger?.warn(`${options.action} connection closed before stream finished`, {
+        requestId,
+        appName: ctx.tego.name,
+        fileName: options.fileName,
+        filePath: options.filePath,
+        durationMs: Date.now() - startedAt,
+        requestAborted: state.requestAborted,
+        responseFinished: ctx.res.writableFinished,
+        requestEnded: ctx.req.readableEnded,
+        socketDestroyed: ctx.req.socket?.destroyed,
+      });
+    }
+  });
+
+  ctx.res.once('finish', () => {
+    logger?.info(`${options.action} completed`, {
+      requestId,
+      appName: ctx.tego.name,
+      fileName: options.fileName,
+      durationMs: Date.now() - startedAt,
+    });
+  });
+
+  return (error: Error) => {
+    logger?.error(`${options.action} stream error`, {
+      requestId,
+      appName: ctx.tego.name,
+      fileName: options.fileName,
+      filePath: options.filePath,
+      error: error?.stack || error?.message || String(error),
+    });
+  };
+}
+
+function setDownloadResponse(ctx: Context, options: { fileName: string; fileSize: number; stream: fs.ReadStream }) {
+  // Help reverse proxies forward file stream directly instead of buffering/chunk rewriting.
+  ctx.set('X-Accel-Buffering', 'no');
+  ctx.set('Content-Type', 'application/octet-stream');
+  ctx.length = options.fileSize;
+  ctx.attachment(options.fileName);
+  ctx.body = options.stream;
+}
+
 export default {
   name: 'databaseClean',
   actions: {
@@ -333,11 +397,27 @@ export default {
         return;
       }
 
-      const stats = fs.statSync(filePath);
-      ctx.set('Content-Length', stats.size.toString());
-      ctx.set('Content-Type', 'application/zip');
-      ctx.attachment(filterByTk);
-      ctx.body = fs.createReadStream(filePath);
+      const stats = await fsPromises.stat(filePath);
+      if (!stats.isFile()) {
+        ctx.throw(404, `Backup file ${filterByTk} not found`);
+        return;
+      }
+
+      const stream = fs.createReadStream(filePath);
+
+      const logStreamError = bindDownloadDiagnostics(ctx, {
+        action: 'databaseClean:download',
+        fileName: filterByTk,
+        filePath,
+      });
+
+      stream.once('error', logStreamError);
+
+      setDownloadResponse(ctx, {
+        fileName: filterByTk,
+        fileSize: stats.size,
+        stream,
+      });
 
       await next();
     },

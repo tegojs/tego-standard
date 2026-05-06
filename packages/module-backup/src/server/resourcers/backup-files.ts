@@ -8,6 +8,70 @@ import { Dumper } from '../dumper';
 import { Restorer } from '../restorer';
 import PluginBackupRestoreServer from '../server';
 
+function bindDownloadDiagnostics(ctx, options: { action: string; fileName: string; filePath: string }) {
+  const logger = ctx.logger || ctx.tego.logger;
+  const startedAt = Date.now();
+  const requestId = ctx.get?.('x-request-id') || ctx.state?.requestId;
+  const state = {
+    requestAborted: false,
+  };
+
+  ctx.req.once('aborted', () => {
+    state.requestAborted = true;
+    logger?.warn(`${options.action} request aborted`, {
+      requestId,
+      appName: ctx.tego.name,
+      fileName: options.fileName,
+      filePath: options.filePath,
+      durationMs: Date.now() - startedAt,
+    });
+  });
+
+  ctx.res.once('close', () => {
+    if (!ctx.res.writableEnded) {
+      logger?.warn(`${options.action} connection closed before stream finished`, {
+        requestId,
+        appName: ctx.tego.name,
+        fileName: options.fileName,
+        filePath: options.filePath,
+        durationMs: Date.now() - startedAt,
+        requestAborted: state.requestAborted,
+        responseFinished: ctx.res.writableFinished,
+        requestEnded: ctx.req.readableEnded,
+        socketDestroyed: ctx.req.socket?.destroyed,
+      });
+    }
+  });
+
+  ctx.res.once('finish', () => {
+    logger?.info(`${options.action} completed`, {
+      requestId,
+      appName: ctx.tego.name,
+      fileName: options.fileName,
+      durationMs: Date.now() - startedAt,
+    });
+  });
+
+  return (error: Error) => {
+    logger?.error(`${options.action} stream error`, {
+      requestId,
+      appName: ctx.tego.name,
+      fileName: options.fileName,
+      filePath: options.filePath,
+      error: error?.stack || error?.message || String(error),
+    });
+  };
+}
+
+function setDownloadResponse(ctx, options: { fileName: string; fileSize: number; stream: fs.ReadStream }) {
+  // Help reverse proxies forward file stream directly instead of buffering/chunk rewriting.
+  ctx.set('X-Accel-Buffering', 'no');
+  ctx.set('Content-Type', 'application/octet-stream');
+  ctx.length = options.fileSize;
+  ctx.attachment(options.fileName);
+  ctx.body = options.stream;
+}
+
 export default {
   name: 'backupFiles',
   middleware: async (ctx, next) => {
@@ -179,18 +243,32 @@ export default {
       const fileState = await Dumper.getFileStatus(filePath);
 
       if (fileState.status !== 'ok') {
-        throw new Error(`Backup file ${filterByTk} not found`);
+        ctx.throw(404, `Backup file ${filterByTk} not found`);
+        return;
       }
 
-      // 获取文件大小
-      const stats = fs.statSync(filePath); // 或者使用异步方式：const stats = await fs.promises.stat(filePath);
-      const fileSize = stats.size;
+      const stats = await fsPromises.stat(filePath);
+      if (!stats.isFile()) {
+        ctx.throw(404, `Backup file ${filterByTk} not found`);
+        return;
+      }
 
-      // 设置 Content-Length 头
-      ctx.set('Content-Length', fileSize);
+      const stream = fs.createReadStream(filePath);
 
-      ctx.attachment(filePath);
-      ctx.body = fs.createReadStream(filePath);
+      const logStreamError = bindDownloadDiagnostics(ctx, {
+        action: 'backupFiles:download',
+        fileName: filterByTk,
+        filePath,
+      });
+
+      stream.once('error', logStreamError);
+
+      setDownloadResponse(ctx, {
+        fileName: filterByTk,
+        fileSize: stats.size,
+        stream,
+      });
+
       await next();
     },
 

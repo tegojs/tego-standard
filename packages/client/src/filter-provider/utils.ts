@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Schema, useFieldSchema } from '@tachybase/schema';
-
 import { flatten, getValuesByPath } from '@tego/client';
+
 import dayjs from 'dayjs';
 import _ from 'lodash';
 
@@ -14,8 +14,12 @@ import {
   useCollectionManager_deprecated,
 } from '../collection-manager';
 import { removeNullCondition } from '../schema-component';
-import { findFilterOperators } from '../schema-component/antd/form-item/SchemaSettingOptions';
+import {
+  findFilterOperators,
+  getDefaultFilterOperatorValue,
+} from '../schema-component/antd/form-item/SchemaSettingOptions';
 import { DataBlock, useFilterBlock } from './FilterProvider';
+import { getFilterSourceDefaultFilter } from './incomingFilterFromSources';
 
 export enum FilterBlockType {
   FORM,
@@ -38,6 +42,21 @@ export const mergeFilter = (filters: any[], op = '$and') => {
   }
   return { [op]: items };
 };
+
+/**
+ * 筛选值为数组的操作符；与 transformToFilter 的 flatten breakOn、filterByCleanedFields 路径去重共用，避免两处列表漂移。
+ */
+export const FILTER_OPERATORS_WITH_ARRAY_VALUES = new Set<string>([
+  '$match',
+  '$notMatch',
+  '$anyOf',
+  '$noneOf',
+  '$childIn',
+  '$childNotIn',
+  '$dateBetween',
+  '$in',
+  '$notIn',
+]);
 
 export const getSupportFieldsByAssociation = (inheritCollectionsChain: string[], block: DataBlock) => {
   return block.associatedFields?.filter((field) =>
@@ -91,34 +110,87 @@ export const useSupportedBlocks = (filterBlockType: FilterBlockType) => {
   }
 };
 
+const findSchemaByName = (schema: any, name: string): any => {
+  if (!schema) {
+    return null;
+  }
+
+  if (schema.name === name) {
+    return schema;
+  }
+
+  const properties = schema.properties || {};
+  for (const key of Object.keys(properties)) {
+    const found = findSchemaByName(properties[key], name);
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
+};
+
+const getFilterSchemaRoot = (schema: any) => {
+  let current = schema;
+  while (current) {
+    if (current['x-filter-operators'] || current['x-filter-targets']) {
+      return current;
+    }
+    current = current.parent;
+  }
+  return schema;
+};
+
+const resolveFilterOperator = (
+  schema: Schema,
+  path: string,
+  operators: Record<string, string> = {},
+  getOperatorList?: (
+    path: string,
+    options: { fieldSchema?: Schema; collectionField?: CollectionFieldOptions_deprecated },
+  ) => any[],
+  collectionField?: CollectionFieldOptions_deprecated,
+) => {
+  if (operators[path]) {
+    return operators[path];
+  }
+
+  if (!getOperatorList) {
+    return undefined;
+  }
+
+  const fieldSchema = findSchemaByName(getFilterSchemaRoot(schema), path);
+  const operatorList = getOperatorList(path, { fieldSchema, collectionField }) || [];
+
+  if (!operatorList.length || !fieldSchema) {
+    return undefined;
+  }
+
+  return getDefaultFilterOperatorValue(fieldSchema, operatorList);
+};
+
 export const transformToFilter = (
   values: Record<string, any>,
   fieldSchema: Schema,
   getCollectionJoinField: (name: string) => CollectionFieldOptions_deprecated,
   collectionName: string,
+  getOperatorList?: (
+    path: string,
+    options: { fieldSchema?: Schema; collectionField?: CollectionFieldOptions_deprecated },
+  ) => any[],
 ) => {
   const { operators } = findFilterOperators(fieldSchema);
 
   values = flatten(values, {
     breakOn({ value, path }) {
+      const collectionField = getCollectionJoinField(`${collectionName}.${path}`);
+      const operator = resolveFilterOperator(fieldSchema, path, operators, getOperatorList, collectionField);
+
       // 下面操作符的值是一个数组，需要特殊处理
-      if (
-        [
-          '$match',
-          '$notMatch',
-          '$anyOf',
-          '$noneOf',
-          '$childIn',
-          '$childNotIn',
-          '$dateBetween',
-          '$in',
-          '$notIn',
-        ].includes(operators[path])
-      ) {
+      if (FILTER_OPERATORS_WITH_ARRAY_VALUES.has(operator)) {
         return true;
       }
 
-      const collectionField = getCollectionJoinField(`${collectionName}.${path}`);
       if (collectionField?.target) {
         if (Array.isArray(value)) {
           return true;
@@ -138,6 +210,7 @@ export const transformToFilter = (
         const defKey = key;
         let value = _.get(values, key);
         const collectionField = getCollectionJoinField(`${collectionName}.${key}`);
+        const operator = resolveFilterOperator(fieldSchema, defKey, operators, getOperatorList, collectionField);
         if (collectionField?.target) {
           value = getValuesByPath(value, collectionField.targetKey || 'id');
           key = `${key}.${collectionField.targetKey || 'id'}`;
@@ -147,7 +220,7 @@ export const transformToFilter = (
           return null;
         }
         // 处理布尔类型
-        if (operators[key] === '$isTruly' || operators[key] === '$isFalsy') {
+        if (operator === '$isTruly' || operator === '$isFalsy') {
           if (value === 'true') {
             return {
               [key]: {
@@ -161,21 +234,31 @@ export const transformToFilter = (
               },
             };
           }
-        } else if (operators[key] === '$dateBetween') {
+        } else if (operator === '$dateBetween') {
           if (Array.isArray(value)) {
+            const normalized: any[] = [];
             for (const index in value) {
               if (!value[index]) {
                 continue;
               }
-              if (typeof value[index] !== 'string' && !(value[index] instanceof Date)) {
-                value[index] = dayjs(value[index]).toISOString();
+              let v = value[index];
+              if (typeof v !== 'string' && !(v instanceof Date)) {
+                v = dayjs(v).toISOString();
               }
+              normalized.push(v);
             }
+            if (normalized.length === 0) {
+              return null;
+            }
+            value =
+              normalized.length === 1
+                ? [normalized[0], normalized[0]]
+                : [normalized[0], normalized[normalized.length - 1]];
           }
         }
         return {
           [key]: {
-            [operators[key] || operators[defKey] || '$eq']: value,
+            [operators[key] || operator || '$eq']: value,
           },
         };
       })
@@ -252,6 +335,7 @@ export const useFilterAPI = () => {
 
         const mergedFilter = mergeFilter([
           ...Object.values(storedFilter).map((filter) => removeNullCondition(filter)),
+          getFilterSourceDefaultFilter(dataBlocks, uid),
           block.defaultFilter,
         ]);
 

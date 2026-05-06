@@ -5,6 +5,7 @@ import { Table } from 'antd';
 import { useTranslation } from 'react-i18next';
 
 import { useAsyncData } from '../../../../async-data-provider';
+import { withAutoQuickJumper } from '../../../../schema-component/antd/pagination/utils';
 
 export const PreviewTable = observer(
   () => {
@@ -53,6 +54,7 @@ export const PreviewTable = observer(
         bordered
         dataSource={dataSource}
         columns={columns}
+        pagination={withAutoQuickJumper({ total: dataSource.length })}
         scroll={{ x: columns.length * 150, y: 300 }}
         loading={loading}
         rowKey="key"

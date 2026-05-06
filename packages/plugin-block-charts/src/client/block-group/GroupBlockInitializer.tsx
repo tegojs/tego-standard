@@ -2,18 +2,20 @@ import React, { createContext, useState } from 'react';
 import {
   BlockProvider,
   DataBlockInitializer,
+  dataSource,
   Icon,
   SchemaSettings,
   SchemaToolbar,
   SchemaToolbarProps,
   useBlockRequestContext,
   useCollectionManager,
+  useDataSourceManager,
   useSchemaInitializer,
   useSchemaInitializerItem,
 } from '@tachybase/client';
 import { ISchema, useField, useFieldSchema } from '@tachybase/schema';
-
 import { uid } from '@tego/client';
+
 import { Spin } from 'antd';
 
 import { GroupBlockConfigure } from './GroupBlockConfigure';
@@ -72,6 +74,7 @@ export const GroupBlockProvider = (props) => {
 
 const createGroupBlockSchema = (options) => {
   const { collection, groupField } = options;
+
   const sumItem = [];
   collection?.fields.forEach((value) => {
     if (value.interface === 'number' || (value.interface === 'formula' && value.dataType === 'double')) {
@@ -91,6 +94,7 @@ const createGroupBlockSchema = (options) => {
     'x-decorator': 'GroupBlockProvider',
     'x-decorator-props': {
       collection: collection.name,
+      dataSource: collection.dataSource,
       resource_deprecated: 'charts',
       action: 'query',
       groupField,
@@ -122,14 +126,14 @@ const createGroupBlockSchema = (options) => {
 
 export const GroupBlockInitializer = () => {
   const { insert } = useSchemaInitializer();
-  const cm = useCollectionManager();
+  const dm = useDataSourceManager();
   const itemConfig = useSchemaInitializerItem();
   return (
     <DataBlockInitializer
       {...itemConfig}
       icon={<GroupIcon />}
       onCreateBlockSchema={async ({ item }) => {
-        const collection = cm.getCollection(item.name);
+        const collection = dm.getDataSource(item.dataSource)?.collectionManager?.getCollection(item.name);
         insert(
           createGroupBlockSchema({
             collection,

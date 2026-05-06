@@ -248,6 +248,11 @@ export class ScriptInstruction extends Instruction {
       };
     }
   }
+
+  async resume(node: FlowNodeModel, job: any, processor: Processor) {
+    // 不处理, 直接返回 job, 占位实现
+    return job;
+  }
 }
 
 // utils-JSONata

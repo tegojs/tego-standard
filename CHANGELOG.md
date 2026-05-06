@@ -9,6 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.17] - 2026-04-28
+
+### 🐛 Fixed
+
+- workflow script instruction resume method ([#375](https://github.com/tegojs/tego-standard/pull/375)) (@bai.zixv)
+- script instruction return error ([#374](https://github.com/tegojs/tego-standard/pull/374)) (@bai.zixv)
+
+## [1.6.16] - 2026-04-27
+
+### ✨ Added
+
+- **event-source**: add async mode to event source ([#369](https://github.com/tegojs/tego-standard/pull/369)) (@bai.zixv)
+- **client**: auto-enable quick jumper for truncated pagers ([#372](https://github.com/tegojs/tego-standard/pull/372)) (@TomyJan)
+
+### 🐛 Fixed
+
+- **client**: correct date range operator inference and prevent next-day range display ([#371](https://github.com/tegojs/tego-standard/pull/371)) (@TomyJan)
+- **backup&database-clean**: stabilize download streaming and clean up diagnostics ([#368](https://github.com/tegojs/tego-standard/pull/368)) (@TomyJan)
+
+## [1.6.15] - 2026-04-09
+
+### ✨ Added
+
+- update locale ([#367](https://github.com/tegojs/tego-standard/pull/367)) (@bai.zixv)
+
+### 🐛 Fixed
+
+- **module-cron**: always schedule next cronjob execution ([#366](https://github.com/tegojs/tego-standard/pull/366)) (@TomyJan)
+
+## [1.6.14] - 2026-04-01
+
+### ✨ Added
+
+- **client**: apply connected source block data scope to target blocks ([#364](https://github.com/tegojs/tego-standard/pull/364)) (@TomyJan)
+
+### 🐛 Fixed
+
+- create  groublock ([#365](https://github.com/tegojs/tego-standard/pull/365)) (@dududuna)
+
+## [1.6.13] - 2026-03-25
+
+### 🐛 Fixed
+
+- **client**: filter ([#363](https://github.com/tegojs/tego-standard/pull/363)) (@TomyJan)
+- **desktop**: fix tego wrapper script ([#362](https://github.com/tegojs/tego-standard/pull/362)) (@bai.zixv)
+- **desktop**: fix mac server start error ([#361](https://github.com/tegojs/tego-standard/pull/361)) (@bai.zixv)
+
+## [1.6.12] - 2026-03-23
+
+### 🐛 Fixed
+
+- **corn**: update core, perf CronJobLock acquisition logic ([#360](https://github.com/tegojs/tego-standard/pull/360)) (@TomyJan)
+
+## [1.6.11] - 2026-03-23
+
+### 🐛 Fixed
+
+- filter ([#359](https://github.com/tegojs/tego-standard/pull/359)) (@TomyJan)
+
+## [1.6.8-alpha.1] - 2026-03-17
+
+### 🐛 Fixed
+
+- **auth-main-app**: keep main app auth unique ([#357](https://github.com/tegojs/tego-standard/pull/357)) (@TomyJan)
+
+## [1.6.7] - 2026-02-09
+
+### ✨ Added
+
+- drag tab ([#326](https://github.com/tegojs/tego-standard/pull/326)) (@dududuna)
+
+### 🐛 Fixed
+
+- unified approval logic across multiple terminals ([#334](https://github.com/tegojs/tego-standard/pull/334)) (@dududuna)
+- number precision ([#345](https://github.com/tegojs/tego-standard/pull/345)) (@dududuna)
+- filter params ([#347](https://github.com/tegojs/tego-standard/pull/347)) (@dududuna)
+- http log ([#346](https://github.com/tegojs/tego-standard/pull/346)) (@dududuna)
+- pdf download name ([#353](https://github.com/tegojs/tego-standard/pull/353)) (@dududuna)
+
 ## [1.6.6] - 2026-01-08
 
 ### 🐛 Fixed
@@ -2916,7 +2995,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.6...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
+[1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
+[1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
+[1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
+[1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13
+[1.6.12]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.12
+[1.6.11]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.11
+[1.6.8-alpha.1]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.8-alpha.1
+[1.6.7]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.7
 [1.6.6]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.6
 [1.6.5]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.5
 [1.6.4]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.4

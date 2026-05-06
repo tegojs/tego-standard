@@ -10,7 +10,7 @@ import { checkBackendServer } from '../backend-server';
 import { getLoadingPagePath } from './loading-handler';
 
 /**
- * 检查服务器是否就绪
+ * 检查 Web 开发服务器（Rsbuild）是否就绪
  */
 function checkServer(port: string): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
@@ -31,6 +31,13 @@ function checkServer(port: string): Promise<boolean> {
   });
 }
 
+/** 开发环境：Web 端口与后端 API 均就绪后再加载页面，避免 /api 仍返回 503 maintaining */
+async function checkDevStackReady(webPort: string): Promise<{ web: boolean; api: boolean }> {
+  const web = await checkServer(webPort);
+  const api = await checkBackendServer(getAppPortNumber());
+  return { web, api };
+}
+
 /**
  * 处理开发环境的服务器等待逻辑
  */
@@ -40,19 +47,21 @@ export function handleDevServerWait(window: BrowserWindow, startUrl: string, web
   let reloadTimer: NodeJS.Timeout | null = null;
   let lastServerCheck = false;
 
-  const loadWhenReady = async (retries = 10) => {
-    const isReady = await checkServer(webPort);
-    if (isReady) {
+  const loadWhenReady = async (retries = 60) => {
+    const { web, api } = await checkDevStackReady(webPort);
+    if (web && api) {
       serverReady = true;
       lastServerCheck = true;
-      log(`[Electron] Server is ready, loading ${startUrl}`);
+      log(`[Electron] Web + API ready, loading ${startUrl}`);
       pageAttempted = true;
       window?.loadURL(startUrl);
     } else if (retries > 0) {
-      log(`[Electron] Server not ready yet, retrying in 1 second... (${retries} retries left)`);
+      log(
+        `[Electron] Dev stack not ready (web: ${web}, api: ${api}, APP_PORT=${getAppPortNumber()}), retry in 1s (${retries} left)`,
+      );
       setTimeout(() => loadWhenReady(retries - 1), 1000);
     } else {
-      log(`[Electron] Server not ready after multiple retries, loading anyway...`, 'error');
+      log(`[Electron] Dev stack not ready after retries, loading anyway (API may return 503 briefly)...`, 'warn');
       pageAttempted = true;
       window?.loadURL(startUrl);
     }
@@ -65,12 +74,13 @@ export function handleDevServerWait(window: BrowserWindow, startUrl: string, web
       clearInterval(reloadTimer);
     }
     reloadTimer = setInterval(async () => {
-      const isReady = await checkServer(webPort);
+      const { web, api } = await checkDevStackReady(webPort);
+      const isReady = web && api;
 
       if (isReady && !lastServerCheck && pageAttempted) {
         serverReady = true;
         lastServerCheck = true;
-        log(`[Electron] Server is now ready (was not ready before), reloading page...`);
+        log(`[Electron] Dev stack is now ready (was not ready before), reloading page...`);
         window?.reload();
       } else if (isReady) {
         lastServerCheck = true;
@@ -148,7 +158,8 @@ export function handleProductionServerWait(window: BrowserWindow, startUrl: stri
   const appPort = getAppPortNumber();
   let checkCount = 0;
   let serverReady = false;
-  const maxChecks = 60;
+  /** 打包后冷启动常慢于 dev，拉长等待避免超时后仍 503 */
+  const maxChecks = 120;
 
   const loadingPath = getLoadingPagePath();
   log(`[Electron] Loading loading page: ${loadingPath}`);
@@ -163,38 +174,62 @@ export function handleProductionServerWait(window: BrowserWindow, startUrl: stri
   window.webContents.once('did-finish-load', () => {
     log(`[Electron] Loading page loaded, starting server check...`);
 
-    const checkInterval = setInterval(async () => {
-      checkCount++;
-      const progress = Math.min(10 + checkCount * 1.5, 90);
-      const statusKeys = ['status.checking', 'status.waiting', 'status.initializing', 'status.almostDone'];
-      const statusIndex = Math.min(Math.floor(checkCount / 15), statusKeys.length - 1);
-      const statusKey = statusKeys[statusIndex];
+    let checkInterval: NodeJS.Timeout | null = null;
+    let ticking = false;
 
-      updateLoadingProgress(window, progress, statusKey);
-
-      const isReady = await checkBackendServer(appPort);
-
-      if (isReady && !serverReady) {
-        serverReady = true;
-        clearInterval(checkInterval);
-        updateLoadingProgress(window, 100, 'status.ready', true);
-        log(`[Electron] Backend server is ready, loading main application...`);
-
-        setTimeout(() => {
-          window.loadURL(startUrl);
-          handleProductionLoadErrors(window, startUrl);
-        }, 500);
-      } else if (checkCount >= maxChecks) {
-        clearInterval(checkInterval);
-        log(`[Electron] Server check timeout, loading application anyway...`, 'warn');
-        updateLoadingProgress(window, 100, 'status.ready', true);
-
-        setTimeout(() => {
-          window.loadURL(startUrl);
-          handleProductionLoadErrors(window, startUrl);
-        }, 500);
+    const tick = async () => {
+      if (ticking || serverReady || !window || window.isDestroyed()) {
+        return;
       }
-    }, 1000);
+      ticking = true;
+      try {
+        checkCount++;
+        const progress = Math.min(10 + checkCount * 1.5, 90);
+        const statusKeys = ['status.checking', 'status.waiting', 'status.initializing', 'status.almostDone'];
+        const statusIndex = Math.min(Math.floor(checkCount / 15), statusKeys.length - 1);
+        const statusKey = statusKeys[statusIndex];
+
+        updateLoadingProgress(window, progress, statusKey);
+
+        let isReady = await checkBackendServer(appPort);
+        if (isReady) {
+          await new Promise((r) => setTimeout(r, 500));
+          isReady = await checkBackendServer(appPort);
+        }
+
+        if (isReady && !serverReady) {
+          serverReady = true;
+          if (checkInterval) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+          }
+          updateLoadingProgress(window, 100, 'status.ready', true);
+          log(`[Electron] Backend server is ready, loading main application...`);
+
+          setTimeout(() => {
+            window.loadURL(startUrl);
+            handleProductionLoadErrors(window, startUrl);
+          }, 500);
+        } else if (checkCount >= maxChecks) {
+          if (checkInterval) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+          }
+          log(`[Electron] Server check timeout, loading application anyway...`, 'warn');
+          updateLoadingProgress(window, 100, 'status.ready', true);
+
+          setTimeout(() => {
+            window.loadURL(startUrl);
+            handleProductionLoadErrors(window, startUrl);
+          }, 500);
+        }
+      } finally {
+        ticking = false;
+      }
+    };
+
+    void tick();
+    checkInterval = setInterval(() => void tick(), 1000);
   });
 }
 

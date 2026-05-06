@@ -44,7 +44,7 @@ const ViewComponentImageDefault = (props) => {
 
 /** 图像类型的默认预览组件 */
 const CheckedComponentImageDefault = (props) => {
-  const { file } = props;
+  const { file, style } = props;
   return (
     file.imageUrl && (
       <img
@@ -57,6 +57,7 @@ const CheckedComponentImageDefault = (props) => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
+          ...style,
         }}
       />
     )

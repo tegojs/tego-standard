@@ -8,6 +8,7 @@ import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSche
 import { SortableItem } from '../../common';
 import { SchemaComponentOptions } from '../../core';
 import { useDesigner } from '../../hooks';
+import { withAutoQuickJumper } from '../pagination/utils';
 import { useListActionBarProps } from './hooks';
 import { ListBlockProvider, useListBlockContext, useListItemProps } from './List.Decorator';
 import { ListDesigner } from './List.Designer';
@@ -66,12 +67,12 @@ const InternalList = (props) => {
           pagination={
             !meta || meta.count <= meta.pageSize
               ? false
-              : {
+              : withAutoQuickJumper({
                   onChange: onPaginationChange,
                   total: meta?.count || 0,
                   pageSize: meta?.pageSize || 10,
                   current: meta?.page || 1,
-                }
+                })
           }
           loading={service?.loading}
         >

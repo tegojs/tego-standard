@@ -557,7 +557,7 @@ export const useFilterBlockActionProps = () => {
   const fieldSchema = useFieldSchema();
   const { getDataBlocks } = useFilterBlock();
   const { name } = useCollection_deprecated();
-  const { getCollectionJoinField } = useCollectionManager_deprecated();
+  const { getCollectionJoinField, getInterface } = useCollectionManager_deprecated();
 
   actionField.data = actionField.data || {};
   return {
@@ -603,7 +603,16 @@ export const useFilterBlockActionProps = () => {
             }
 
             storedFilter[uid] = removeNullCondition(
-              transformToFilter(filter.formValues, fieldSchema, getCollectionJoinField, name),
+              transformToFilter(
+                filter.formValues,
+                fieldSchema,
+                getCollectionJoinField,
+                name,
+                (_, { fieldSchema, collectionField }) => {
+                  const fieldInterface = fieldSchema?.['x-designer-props']?.interface || collectionField?.interface;
+                  return fieldInterface ? getInterface(fieldInterface)?.filterable?.operators || [] : [];
+                },
+              ),
             );
             const mergedFilter = mergeFilter([
               ...Object.values(storedFilter).map((filter) => removeNullCondition(filter)),

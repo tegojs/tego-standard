@@ -107,6 +107,8 @@ export const dispatchers: CollectionOptions = {
         title: tval('Type'),
         'x-component': 'Select',
         'x-decorator': 'FormItem',
+        /** 新建时默认选中，便于立刻渲染该类型下的 options（含异步/队列等子字段） */
+        default: 'resource',
         enum: '{{useTriggersOptions()}}',
         'x-component-props': {
           optionRender: TriggerOptionRender,
@@ -136,6 +138,21 @@ export const dispatchers: CollectionOptions = {
         'x-component-props': {
           defaultValue:
             '// ctx.action.params can get user query\n// ctx.action.params.values can get user body\n// const { changed, data, error } = await ctx.getChanged(); can get changed fields and raw data\n// ctx.originalBody can get action response data (available in resource after events)\n// ctx.body to pass your data to workflow or to client who invoke this.\n// ctx.body = ctx.action.params.values\n// ctx.body = ctx.originalBody  // use action response data\n// ctx.body=ctx.model',
+        },
+      } as ISchema,
+    },
+    {
+      type: 'text',
+      name: 'effectConfig',
+      interface: 'textarea',
+      uiSchema: {
+        title: tval('Effect config'),
+        type: 'string',
+        'x-component': 'CodeMirror',
+        'x-component-props': {
+          options: {
+            readOnly: true,
+          },
         },
       } as ISchema,
     },

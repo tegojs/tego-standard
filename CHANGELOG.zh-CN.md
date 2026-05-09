@@ -9,6 +9,25 @@
 
 
 
+## [1.6.17] - 2026-04-28
+
+### 🐛 修复
+
+- 工作流程脚本指令恢复方法 ([#375](https://github.com/tegojs/tego-standard/pull/375)) (@bai.zixv)
+- 脚本指令返回错误 ([#374](https://github.com/tegojs/tego-standard/pull/374)) (@bai.zixv)
+
+## [1.6.16] - 2026-04-27
+
+### ✨ 新增
+
+- **event-source**: 将异步模式添加到事件源 ([#369](https://github.com/tegojs/tego-standard/pull/369)) (@bai.zixv)
+- **client**: 自动启用截断寻呼机的快速跳线 ([#372](https://github.com/tegojs/tego-standard/pull/372)) (@TomyJan)
+
+### 🐛 修复
+
+- **client**: 正确的日期范围运算符推断并防止第二天的范围显示 ([#371](https://github.com/tegojs/tego-standard/pull/371)) (@TomyJan)
+- **backup&database-clean**: 稳定下载流并清理诊断 ([#368](https://github.com/tegojs/tego-standard/pull/368)) (@TomyJan)
+
 ## [1.6.15] - 2026-04-09
 
 ### ✨ 新增
@@ -2976,7 +2995,9 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.15...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
+[1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
 [1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
 [1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
 [1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13

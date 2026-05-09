@@ -5,6 +5,9 @@ import { Pagination as AntdPagination } from 'antd';
 
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
 import { useProps } from '../../hooks/useProps';
+import { withAutoQuickJumper } from './utils';
+
+export * from './utils';
 
 export const Pagination = withDynamicSchemaProps(
   observer(
@@ -23,7 +26,7 @@ export const Pagination = withDynamicSchemaProps(
 
       return (
         <div onKeyPress={onKeypress}>
-          <AntdPagination {...others} />
+          <AntdPagination {...withAutoQuickJumper(others)} />
         </div>
       );
     },

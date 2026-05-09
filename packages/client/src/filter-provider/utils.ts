@@ -14,7 +14,10 @@ import {
   useCollectionManager_deprecated,
 } from '../collection-manager';
 import { removeNullCondition } from '../schema-component';
-import { findFilterOperators } from '../schema-component/antd/form-item/SchemaSettingOptions';
+import {
+  findFilterOperators,
+  getDefaultFilterOperatorValue,
+} from '../schema-component/antd/form-item/SchemaSettingOptions';
 import { DataBlock, useFilterBlock } from './FilterProvider';
 import { getFilterSourceDefaultFilter } from './incomingFilterFromSources';
 
@@ -107,22 +110,87 @@ export const useSupportedBlocks = (filterBlockType: FilterBlockType) => {
   }
 };
 
+const findSchemaByName = (schema: any, name: string): any => {
+  if (!schema) {
+    return null;
+  }
+
+  if (schema.name === name) {
+    return schema;
+  }
+
+  const properties = schema.properties || {};
+  for (const key of Object.keys(properties)) {
+    const found = findSchemaByName(properties[key], name);
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
+};
+
+const getFilterSchemaRoot = (schema: any) => {
+  let current = schema;
+  while (current) {
+    if (current['x-filter-operators'] || current['x-filter-targets']) {
+      return current;
+    }
+    current = current.parent;
+  }
+  return schema;
+};
+
+const resolveFilterOperator = (
+  schema: Schema,
+  path: string,
+  operators: Record<string, string> = {},
+  getOperatorList?: (
+    path: string,
+    options: { fieldSchema?: Schema; collectionField?: CollectionFieldOptions_deprecated },
+  ) => any[],
+  collectionField?: CollectionFieldOptions_deprecated,
+) => {
+  if (operators[path]) {
+    return operators[path];
+  }
+
+  if (!getOperatorList) {
+    return undefined;
+  }
+
+  const fieldSchema = findSchemaByName(getFilterSchemaRoot(schema), path);
+  const operatorList = getOperatorList(path, { fieldSchema, collectionField }) || [];
+
+  if (!operatorList.length || !fieldSchema) {
+    return undefined;
+  }
+
+  return getDefaultFilterOperatorValue(fieldSchema, operatorList);
+};
+
 export const transformToFilter = (
   values: Record<string, any>,
   fieldSchema: Schema,
   getCollectionJoinField: (name: string) => CollectionFieldOptions_deprecated,
   collectionName: string,
+  getOperatorList?: (
+    path: string,
+    options: { fieldSchema?: Schema; collectionField?: CollectionFieldOptions_deprecated },
+  ) => any[],
 ) => {
   const { operators } = findFilterOperators(fieldSchema);
 
   values = flatten(values, {
     breakOn({ value, path }) {
+      const collectionField = getCollectionJoinField(`${collectionName}.${path}`);
+      const operator = resolveFilterOperator(fieldSchema, path, operators, getOperatorList, collectionField);
+
       // 下面操作符的值是一个数组，需要特殊处理
-      if (FILTER_OPERATORS_WITH_ARRAY_VALUES.has(operators[path])) {
+      if (FILTER_OPERATORS_WITH_ARRAY_VALUES.has(operator)) {
         return true;
       }
 
-      const collectionField = getCollectionJoinField(`${collectionName}.${path}`);
       if (collectionField?.target) {
         if (Array.isArray(value)) {
           return true;
@@ -142,6 +210,7 @@ export const transformToFilter = (
         const defKey = key;
         let value = _.get(values, key);
         const collectionField = getCollectionJoinField(`${collectionName}.${key}`);
+        const operator = resolveFilterOperator(fieldSchema, defKey, operators, getOperatorList, collectionField);
         if (collectionField?.target) {
           value = getValuesByPath(value, collectionField.targetKey || 'id');
           key = `${key}.${collectionField.targetKey || 'id'}`;
@@ -151,7 +220,7 @@ export const transformToFilter = (
           return null;
         }
         // 处理布尔类型
-        if (operators[key] === '$isTruly' || operators[key] === '$isFalsy') {
+        if (operator === '$isTruly' || operator === '$isFalsy') {
           if (value === 'true') {
             return {
               [key]: {
@@ -165,7 +234,7 @@ export const transformToFilter = (
               },
             };
           }
-        } else if (operators[key] === '$dateBetween') {
+        } else if (operator === '$dateBetween') {
           if (Array.isArray(value)) {
             const normalized: any[] = [];
             for (const index in value) {
@@ -189,7 +258,7 @@ export const transformToFilter = (
         }
         return {
           [key]: {
-            [operators[key] || operators[defKey] || '$eq']: value,
+            [operators[key] || operator || '$eq']: value,
           },
         };
       })

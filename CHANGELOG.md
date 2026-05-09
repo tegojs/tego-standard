@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.17] - 2026-04-28
+
+### 🐛 Fixed
+
+- workflow script instruction resume method ([#375](https://github.com/tegojs/tego-standard/pull/375)) (@bai.zixv)
+- script instruction return error ([#374](https://github.com/tegojs/tego-standard/pull/374)) (@bai.zixv)
+
+## [1.6.16] - 2026-04-27
+
+### ✨ Added
+
+- **event-source**: add async mode to event source ([#369](https://github.com/tegojs/tego-standard/pull/369)) (@bai.zixv)
+- **client**: auto-enable quick jumper for truncated pagers ([#372](https://github.com/tegojs/tego-standard/pull/372)) (@TomyJan)
+
+### 🐛 Fixed
+
+- **client**: correct date range operator inference and prevent next-day range display ([#371](https://github.com/tegojs/tego-standard/pull/371)) (@TomyJan)
+- **backup&database-clean**: stabilize download streaming and clean up diagnostics ([#368](https://github.com/tegojs/tego-standard/pull/368)) (@TomyJan)
+
 ## [1.6.15] - 2026-04-09
 
 ### ✨ Added
@@ -2976,7 +2995,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.15...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
+[1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
 [1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15
 [1.6.14]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.14
 [1.6.13]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.13

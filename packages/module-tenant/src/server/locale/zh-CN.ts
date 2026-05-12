@@ -28,4 +28,10 @@ export default {
   'Select users to add': '选择要添加的用户',
   'Please select users': '请选择用户',
   'No users available': '暂无可选用户',
+  'Parent tenant': '上级租户',
+  'Select parent tenant': '选择上级租户',
+  'Cannot delete tenant with children': '该租户下存在子租户，请先移除或重新分配子租户。',
+  'Parent tenant not found': '上级租户不存在',
+  'Cannot create cycle in tenant tree': '不能在租户树中创建循环引用',
+  'No parent (root)': '无上级（根节点）',
 };

@@ -29,4 +29,10 @@ export default {
   'Select users to add': 'Select users to add',
   'Please select users': 'Please select users',
   'No users available': 'No users available',
+  'Parent tenant': 'Parent tenant',
+  'Select parent tenant': 'Select parent tenant',
+  'Cannot delete tenant with children': 'Cannot delete tenant with children. Remove or reassign children first.',
+  'Parent tenant not found': 'Parent tenant not found',
+  'Cannot create cycle in tenant tree': 'Cannot create cycle in tenant tree',
+  'No parent (root)': 'No parent (root)',
 };

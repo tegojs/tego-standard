@@ -1,5 +1,7 @@
 import type { Context, Next } from '@tego/server';
 
+import { getDescendantIds } from '../helpers/tenant-tree';
+
 function shouldFallbackForTenantBootstrap(ctx: Context) {
   return ctx.action?.resourceName === 'tenants' && ['available', 'current', 'switch'].includes(ctx.action?.actionName);
 }
@@ -92,6 +94,10 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
 
   ctx.state.currentTenant = currentTenant.toJSON();
   ctx.state.currentTenantId = currentTenant.get('id');
+
+  // Resolve descendant IDs for inherited tenancy mode filtering
+  const descendantIds = await getDescendantIds(ctx.db.getRepository('tenants'), currentTenantId as string);
+  ctx.state.currentTenantDescendantIds = descendantIds;
 
   await next();
 }

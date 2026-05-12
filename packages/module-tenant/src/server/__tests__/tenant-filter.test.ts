@@ -112,4 +112,111 @@ describe('applyTenantFilter', () => {
       ],
     });
   });
+
+  describe('tenantInherited mode', () => {
+    it('should use $in filter with current tenant + descendants for list actions', () => {
+      const mergeParams = vi.fn();
+      const ctx = {
+        state: {
+          currentTenantId: 'parent-a',
+          currentTenancyMode: 'tenantInherited',
+          currentTenantDescendantIds: ['child-1', 'child-2', 'grandchild-1'],
+        },
+        action: {
+          actionName: 'list',
+          params: {
+            filter: {
+              status: 'published',
+            },
+          },
+          mergeParams,
+        },
+      };
+
+      applyTenantFilter(ctx);
+
+      expect(mergeParams).toHaveBeenCalledWith({
+        filter: {
+          $and: [{ status: 'published' }, { tenantId: { $in: ['parent-a', 'child-1', 'child-2', 'grandchild-1'] } }],
+        },
+      });
+    });
+
+    it('should use $in filter for export actions in inherited mode', () => {
+      const mergeParams = vi.fn();
+      const ctx = {
+        state: {
+          currentTenantId: 'parent-a',
+          currentTenancyMode: 'tenantInherited',
+          currentTenantDescendantIds: ['child-1'],
+        },
+        action: {
+          actionName: 'export',
+          params: {
+            filter: {},
+          },
+          mergeParams,
+        },
+      };
+
+      applyTenantFilter(ctx);
+
+      expect(mergeParams).toHaveBeenCalledWith({
+        filter: {
+          tenantId: { $in: ['parent-a', 'child-1'] },
+        },
+      });
+    });
+
+    it('should still inject current tenantId on create in inherited mode', () => {
+      const mergeParams = vi.fn();
+      const ctx = {
+        state: {
+          currentTenantId: 'parent-a',
+          currentTenancyMode: 'tenantInherited',
+          currentTenantDescendantIds: ['child-1'],
+        },
+        action: {
+          actionName: 'create',
+          params: {
+            values: { title: 'New Post' },
+          },
+          mergeParams,
+        },
+      };
+
+      applyTenantFilter(ctx);
+
+      expect(mergeParams).toHaveBeenCalledWith({
+        values: {
+          title: 'New Post',
+          tenantId: 'parent-a',
+        },
+      });
+    });
+
+    it('should handle empty descendants list', () => {
+      const mergeParams = vi.fn();
+      const ctx = {
+        state: {
+          currentTenantId: 'leaf-a',
+          currentTenancyMode: 'tenantInherited',
+          currentTenantDescendantIds: [],
+        },
+        action: {
+          actionName: 'list',
+          params: { filter: {} },
+          mergeParams,
+        },
+      };
+
+      applyTenantFilter(ctx);
+
+      expect(mergeParams).toHaveBeenCalledWith({
+        filter: {
+          tenantId: { $in: ['leaf-a'] },
+        },
+      });
+    });
+  });
 });

@@ -23,5 +23,26 @@ export default defineCollection({
       name: 'enabled',
       defaultValue: true,
     },
+    {
+      type: 'string',
+      name: 'parentId',
+    },
+    {
+      type: 'belongsTo',
+      name: 'parent',
+      target: 'tenants',
+      foreignKey: 'parentId',
+    },
+    {
+      type: 'hasMany',
+      name: 'children',
+      target: 'tenants',
+      foreignKey: 'parentId',
+    },
+    {
+      type: 'string',
+      name: 'path',
+      maxLength: 500,
+    },
   ],
 });

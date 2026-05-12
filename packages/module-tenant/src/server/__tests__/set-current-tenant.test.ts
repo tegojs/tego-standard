@@ -188,11 +188,15 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).resource('tenants').switch({
-      values: {
-        tenantId: 'tenant-b',
-      },
-    });
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenants')
+      .switch({
+        values: {
+          tenantId: 'tenant-b',
+        },
+      });
 
     expect(response.status).toBe(403);
   });
@@ -222,21 +226,25 @@ describe('setCurrentTenant middleware', () => {
     const response = await app.agent().login(user).resource('tenants').available({});
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual([
-      {
-        id: 'tenant-a',
-        name: 'tenant-a',
-        title: 'Tenant A',
-        enabled: true,
-        current: false,
-      },
-      {
-        id: 'tenant-b',
-        name: 'tenant-b',
-        title: 'Tenant B',
-        enabled: true,
-        current: true,
-      },
-    ]);
+    const data = response.body.data;
+    expect(data).toHaveLength(2);
+
+    const tenantA = data.find((t: any) => t.id === 'tenant-a');
+    const tenantB = data.find((t: any) => t.id === 'tenant-b');
+
+    expect(tenantA).toMatchObject({
+      id: 'tenant-a',
+      name: 'tenant-a',
+      title: 'Tenant A',
+      enabled: true,
+      current: false,
+    });
+    expect(tenantB).toMatchObject({
+      id: 'tenant-b',
+      name: 'tenant-b',
+      title: 'Tenant B',
+      enabled: true,
+      current: true,
+    });
   });
 });

@@ -14,10 +14,35 @@ export async function availableTenants(ctx: Context, next: Next) {
     return;
   }
 
-  const tenants = await ctx.db.getRepository('tenants').find({
+  // Collect the user's direct tenants and all their ancestor paths
+  const directTenants = await ctx.db.getRepository('tenants').find({
     filter: {
       id: {
         $in: tenantIds,
+      },
+      enabled: true,
+    },
+    fields: ['id', 'path'],
+  });
+
+  // Gather ancestor tenant IDs from paths (so user can switch to parent tenants)
+  const ancestorIds = new Set<string>();
+  for (const tenant of directTenants) {
+    const path = tenant.get('path') as string;
+    if (path) {
+      const segments = path.split('/').filter(Boolean);
+      for (const seg of segments) {
+        ancestorIds.add(seg);
+      }
+    }
+  }
+
+  const allRelevantIds = [...new Set([...tenantIds, ...ancestorIds])];
+
+  const tenants = await ctx.db.getRepository('tenants').find({
+    filter: {
+      id: {
+        $in: allRelevantIds,
       },
       enabled: true,
     },

@@ -1,5 +1,7 @@
 import type { Context, Next } from '@tego/server';
 
+import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
+
 export async function availableTenants(ctx: Context, next: Next) {
   const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
     filter: {
@@ -14,39 +16,21 @@ export async function availableTenants(ctx: Context, next: Next) {
     return;
   }
 
-  // Collect the user's direct tenants and all their ancestor paths
-  const directTenants = await ctx.db.getRepository('tenants').find({
-    filter: {
-      id: {
-        $in: tenantIds,
-      },
-      enabled: true,
-    },
-    fields: ['id', 'path'],
-  });
-
-  // Gather ancestor tenant IDs from paths (so user can switch to parent tenants)
-  const ancestorIds = new Set<string>();
-  for (const tenant of directTenants) {
-    const path = tenant.get('path') as string;
-    if (path) {
-      const segments = path.split('/').filter(Boolean);
-      for (const seg of segments) {
-        ancestorIds.add(seg);
-      }
-    }
+  const accessibleTenantIds = await getAccessibleTenantIds(ctx.db, tenantIds);
+  if (!accessibleTenantIds.length) {
+    ctx.body = [];
+    await next();
+    return;
   }
-
-  const allRelevantIds = [...new Set([...tenantIds, ...ancestorIds])];
 
   const tenants = await ctx.db.getRepository('tenants').find({
     filter: {
       id: {
-        $in: allRelevantIds,
+        $in: accessibleTenantIds,
       },
       enabled: true,
     },
-    sort: ['id'],
+    sort: ['path', 'id'],
   });
 
   const currentTenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;

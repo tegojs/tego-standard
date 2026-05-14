@@ -90,6 +90,33 @@ describe('setCurrentTenant middleware', () => {
     expect(response.body.data.id).toBe('tenant-a');
   });
 
+  it('should allow requested descendant tenant with X-Tenant header', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'hq', name: 'hq', title: 'HQ' },
+        { id: 'branch', name: 'branch', title: 'Branch', parentId: 'hq' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'hq_descendant_user',
+        email: 'hq-descendant-user@example.com',
+        phone: '10000000008',
+        password: '123456',
+        tenants: ['hq'],
+        defaultTenantId: 'hq',
+      },
+    });
+
+    const response = await app.agent().login(user).set('X-Tenant', 'branch').resource('tenants').current({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.id).toBe('branch');
+  });
+
   it('should still reject invalid tenant header on tenant-scoped business resources', async () => {
     app = await createTenantApp();
 

@@ -320,8 +320,8 @@ describe('tenant tree structure', () => {
     });
   });
 
-  describe('available tenants with tree ancestry', () => {
-    it('should include ancestor tenants in available list', async () => {
+  describe('available tenants with tree inheritance', () => {
+    it('should not include ancestor tenants in available list', async () => {
       app = await createTenantApp();
 
       await app.db.getRepository('tenants').create({
@@ -332,7 +332,7 @@ describe('tenant tree structure', () => {
         ],
       });
 
-      // User only belongs to 'dept', but should also see ancestors
+      // User only belongs to 'dept', so ancestors are not part of the switchable tenant scope
       const user = await app.db.getRepository('users').create({
         values: {
           username: 'dept_member',
@@ -348,9 +348,109 @@ describe('tenant tree structure', () => {
 
       expect(response.status).toBe(200);
       const ids = response.body.data.map((t: any) => t.id);
+      expect(ids).not.toContain('hq');
+      expect(ids).not.toContain('branch');
+      expect(ids).toContain('dept');
+    });
+
+    it('should include descendant tenants in available list', async () => {
+      app = await createTenantApp();
+
+      await app.db.getRepository('tenants').create({
+        values: [
+          { id: 'hq', name: 'hq', title: 'HQ' },
+          { id: 'branch', name: 'branch', title: 'Branch', parentId: 'hq' },
+          { id: 'dept', name: 'dept', title: 'Dept', parentId: 'branch' },
+        ],
+      });
+
+      const user = await app.db.getRepository('users').create({
+        values: {
+          username: 'hq_member',
+          email: 'hq-member@example.com',
+          phone: '2000000006',
+          password: '123456',
+          tenants: ['hq'],
+          defaultTenantId: 'hq',
+        },
+      });
+
+      const response = await app.agent().login(user).resource('tenants').available({});
+
+      expect(response.status).toBe(200);
+      const ids = response.body.data.map((t: any) => t.id);
       expect(ids).toContain('hq');
       expect(ids).toContain('branch');
       expect(ids).toContain('dept');
+    });
+
+    it('should allow switching to descendant tenants', async () => {
+      app = await createTenantApp();
+
+      await app.db.getRepository('tenants').create({
+        values: [
+          { id: 'hq', name: 'hq', title: 'HQ' },
+          { id: 'branch', name: 'branch', title: 'Branch', parentId: 'hq' },
+        ],
+      });
+
+      const user = await app.db.getRepository('users').create({
+        values: {
+          username: 'hq_switcher',
+          email: 'hq-switcher@example.com',
+          phone: '2000000007',
+          password: '123456',
+          tenants: ['hq'],
+          defaultTenantId: 'hq',
+        },
+      });
+
+      const response = await app
+        .agent()
+        .login(user)
+        .resource('tenants')
+        .switch({
+          values: {
+            tenantId: 'branch',
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.id).toBe('branch');
+    });
+
+    it('should reject switching from descendant tenant to ancestor tenant', async () => {
+      app = await createTenantApp();
+
+      await app.db.getRepository('tenants').create({
+        values: [
+          { id: 'hq', name: 'hq', title: 'HQ' },
+          { id: 'branch', name: 'branch', title: 'Branch', parentId: 'hq' },
+        ],
+      });
+
+      const user = await app.db.getRepository('users').create({
+        values: {
+          username: 'branch_switcher',
+          email: 'branch-switcher@example.com',
+          phone: '2000000008',
+          password: '123456',
+          tenants: ['branch'],
+          defaultTenantId: 'branch',
+        },
+      });
+
+      const response = await app
+        .agent()
+        .login(user)
+        .resource('tenants')
+        .switch({
+          values: {
+            tenantId: 'hq',
+          },
+        });
+
+      expect(response.status).toBe(403);
     });
   });
 });

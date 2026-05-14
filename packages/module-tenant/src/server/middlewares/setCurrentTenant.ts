@@ -1,5 +1,6 @@
 import type { Context, Next } from '@tego/server';
 
+import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 import { getDescendantIds } from '../helpers/tenant-tree';
 
 function shouldFallbackForTenantBootstrap(ctx: Context) {
@@ -19,20 +20,7 @@ async function resolveAllowedTenantIds(ctx: Context) {
   });
 
   const tenantIds = tenantUsers.map((item: any) => item.get('tenantId'));
-  if (tenantIds.length === 0) {
-    return [];
-  }
-
-  const tenants = await ctx.db.getRepository('tenants').find({
-    filter: {
-      id: {
-        $in: tenantIds,
-      },
-      enabled: true,
-    },
-  });
-
-  return tenants.map((tenant: any) => tenant.get('id'));
+  return getAccessibleTenantIds(ctx.db, tenantIds);
 }
 
 async function resolveDefaultTenantId(ctx: Context, tenantIds: Array<string | number>) {

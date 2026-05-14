@@ -44,7 +44,9 @@ describe('PluginTenantClient', () => {
           name: 'tenant_a',
           title: 'Tenant A',
           enabled: true,
+          parentId: 'root',
         }}
+        parentOptions={[{ label: 'Root', value: 'root' }]}
         loading={false}
         open
         title="Edit tenant"
@@ -64,7 +66,9 @@ describe('PluginTenantClient', () => {
           name: 'tenant_b',
           title: 'Tenant B',
           enabled: false,
+          parentId: undefined,
         }}
+        parentOptions={[{ label: 'Root', value: 'root' }]}
         loading={false}
         open
         title="Edit tenant"

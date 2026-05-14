@@ -4,13 +4,7 @@ import { useAPIClient, useRequest } from '@tachybase/client';
 import { App, Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd';
 
 import { useTenantTranslation } from './locale';
-
-type TenantRecord = {
-  id: string;
-  name: string;
-  title?: string;
-  enabled?: boolean;
-};
+import { buildTenantTree, getTenantParentOptions, type TenantRecord } from './tenant-tree';
 
 type UserRecord = {
   id: number;
@@ -25,6 +19,7 @@ type TenantFormValues = {
   name: string;
   title?: string;
   enabled?: boolean;
+  parentId?: string | null;
 };
 
 export const TenantEditor = ({
@@ -32,6 +27,7 @@ export const TenantEditor = ({
   loading,
   open,
   title,
+  parentOptions = [],
   onClose,
   onSubmit,
 }: {
@@ -39,6 +35,7 @@ export const TenantEditor = ({
   loading: boolean;
   open: boolean;
   title: string;
+  parentOptions?: { label: string; value: string }[];
   onClose: () => void;
   onSubmit: (values: TenantFormValues) => Promise<void>;
 }) => {
@@ -55,8 +52,9 @@ export const TenantEditor = ({
       name: initialValues?.name || '',
       title: initialValues?.title || '',
       enabled: initialValues?.enabled ?? true,
+      parentId: initialValues?.parentId || null,
     });
-  }, [form, initialValues?.enabled, initialValues?.name, initialValues?.title, open]);
+  }, [form, initialValues?.enabled, initialValues?.name, initialValues?.parentId, initialValues?.title, open]);
 
   return (
     <Drawer
@@ -74,16 +72,25 @@ export const TenantEditor = ({
         </Space>
       }
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={onSubmit}
-      >
-        <Form.Item label={t('Tenant key')} name="name" rules={[{ required: true, message: t('Please enter tenant key') }]}>
+      <Form form={form} layout="vertical" onFinish={onSubmit}>
+        <Form.Item
+          label={t('Tenant key')}
+          name="name"
+          rules={[{ required: true, message: t('Please enter tenant key') }]}
+        >
           <Input autoComplete="off" />
         </Form.Item>
         <Form.Item label={t('Tenant name')} name="title">
           <Input autoComplete="off" />
+        </Form.Item>
+        <Form.Item label={t('Parent tenant')} name="parentId">
+          <Select
+            allowClear
+            options={parentOptions}
+            placeholder={t('Select parent tenant')}
+            showSearch
+            optionFilterProp="label"
+          />
         </Form.Item>
         <Form.Item label={t('Enabled')} name="enabled" valuePropName="checked">
           <Switch />
@@ -125,7 +132,7 @@ const TenantMembers = ({
           appends: ['tenants', 'defaultTenant'],
           filter: keyword
             ? {
-                '$or': [
+                $or: [
                   { 'username.$includes': keyword },
                   { 'nickname.$includes': keyword },
                   { 'email.$includes': keyword },
@@ -294,7 +301,8 @@ const TenantMembers = ({
               width: 120,
               render: (_, record) => {
                 const nextTenantIds = (record.tenants || []).map((item) => item.id).filter((id) => id !== tenant?.id);
-                const nextDefaultTenantId = record.defaultTenantId === tenant?.id ? nextTenantIds[0] || null : record.defaultTenantId;
+                const nextDefaultTenantId =
+                  record.defaultTenantId === tenant?.id ? nextTenantIds[0] || null : record.defaultTenantId;
                 return (
                   <Button
                     danger
@@ -334,17 +342,26 @@ export const TenantManagement = () => {
       .then((res) => res?.data),
   );
 
+  const tenants = useMemo(() => tenantsRequest.data?.data || [], [tenantsRequest.data?.data]);
+  const tenantTree = useMemo(() => buildTenantTree(tenants), [tenants]);
+  const parentOptions = useMemo(() => getTenantParentOptions(tenants, editingTenant), [editingTenant, tenants]);
+
   const submitTenant = async (values: TenantFormValues) => {
     setSaving(true);
     try {
+      const normalizedValues = {
+        ...values,
+        parentId: values.parentId || null,
+      };
+
       if (editingTenant?.id) {
         await api.resource('tenants').update({
           filterByTk: editingTenant.id,
-          values,
+          values: normalizedValues,
         });
       } else {
         await api.resource('tenants').create({
-          values,
+          values: normalizedValues,
         });
       }
       message.success(t('Saved successfully'));
@@ -364,7 +381,9 @@ export const TenantManagement = () => {
             <Typography.Title level={4} style={{ margin: 0 }}>
               {t('Tenant management')}
             </Typography.Title>
-            <Typography.Text type="secondary">{t('Create tenants, control status, and manage members here.')}</Typography.Text>
+            <Typography.Text type="secondary">
+              {t('Create tenants, control status, and manage members here.')}
+            </Typography.Text>
           </div>
           <Button
             type="primary"
@@ -378,7 +397,7 @@ export const TenantManagement = () => {
         </Space>
         <Table<TenantRecord>
           loading={tenantsRequest.loading}
-          dataSource={tenantsRequest.data?.data || []}
+          dataSource={tenantTree}
           pagination={false}
           rowKey="id"
           columns={[
@@ -444,6 +463,7 @@ export const TenantManagement = () => {
         initialValues={editingTenant || undefined}
         loading={saving}
         open={drawerOpen}
+        parentOptions={parentOptions}
         title={editingTenant ? t('Edit tenant') : t('Add tenant')}
         onClose={() => {
           setDrawerOpen(false);

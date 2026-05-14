@@ -1,6 +1,8 @@
 import { tval as nTval, useApp } from '@tachybase/client';
 
-export const NAMESPACE = 'tenant';
+import { NAMESPACE } from '../constants';
+
+export { NAMESPACE };
 
 export function useTenantTranslation() {
   const { i18n } = useApp();

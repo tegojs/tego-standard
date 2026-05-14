@@ -1,5 +1,6 @@
 import { Plugin } from '@tego/server';
 
+import { NAMESPACE } from '../constants';
 import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
 import switchTenant from './actions/switch-tenant';
@@ -22,8 +23,8 @@ export class PluginTenantServer extends Plugin {
   }
 
   async beforeLoad() {
-    this.app.i18n.addResources('zh-CN', this.name, zhCN);
-    this.app.i18n.addResources('en-US', this.name, enUS);
+    this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
+    this.app.i18n.addResources('en-US', NAMESPACE, enUS);
 
     this.db.collection(tenantsCollection);
     this.db.collection(tenantUsersCollection);

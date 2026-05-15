@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **client**: guard association parent lookup without source ([#377](https://github.com/tegojs/tego-standard/pull/377)) [85d97e9](https://github.com/tegojs/tego-standard/commit/85d97e9db46f94621b1d93de953dc8dc525db0d8) (@TomyJan)
+
 
 
 ## [1.6.17] - 2026-04-28

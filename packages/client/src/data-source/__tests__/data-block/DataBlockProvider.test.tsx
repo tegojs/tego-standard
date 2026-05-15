@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@tachybase/test/client';
 
+import AssociationCreateWithoutSourceIdDemo from './data-block-demos/association-create-without-source-id';
 import AssociationTableListAndParentRecordDemo from './data-block-demos/association-table-list-and-parent-record';
 import AssociationTableListAndSourceIdDemo from './data-block-demos/association-table-list-and-source-id';
 import CollectionFormCreateDemo from './data-block-demos/collection-form-create';
@@ -94,6 +95,18 @@ describe('CollectionDataSourceProvider', () => {
   });
 
   describe('association', () => {
+    test('Association create does not request parent record when sourceId is missing', async () => {
+      render(<AssociationCreateWithoutSourceIdDemo />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('parent-record')).toHaveTextContent('no parent');
+      });
+      const parentRecordRequests = (AssociationCreateWithoutSourceIdDemo as any).mock.history.get.filter((item) =>
+        item.url?.startsWith('users:get'),
+      );
+      expect(parentRecordRequests).toEqual([]);
+    });
+
     test('Table list & sourceId', async () => {
       const { getByText, getByRole } = render(<AssociationTableListAndSourceIdDemo />);
 

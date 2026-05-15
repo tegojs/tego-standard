@@ -63,12 +63,10 @@ function useParentRequest<T>(options: Omit<AllDataBlockProps, 'type'>) {
   return useRequest<T>(
     async () => {
       if (parentRecord) return Promise.resolve({ data: parentRecord });
-      if (!association || !sourceKey) return Promise.resolve({ data: undefined });
+      if (!association || !sourceKey || sourceId == null) return Promise.resolve({ data: undefined });
       // "association": "Collection.Field"
       const arr = association.split('.');
-      // <collection>:get/<filterByTk>
-      const url = `${arr[0]}:get?filter[${sourceKey}]=${sourceId}`;
-      const res = await api.request({ url, headers });
+      const res = await api.resource(arr[0], undefined, headers).get({ filter: { [sourceKey]: sourceId } });
       return res.data;
     },
     {

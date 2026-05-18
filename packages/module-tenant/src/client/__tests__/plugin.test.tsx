@@ -4,6 +4,7 @@ import { render, waitFor } from '@tachybase/test/client';
 
 import PluginTenantClient from '..';
 import CurrentTenantProvider from '../CurrentTenantProvider';
+import { NAMESPACE, useTenantTranslation } from '../locale';
 import { TenantEditor, TenantManagement } from '../TenantManagement';
 import TenantMenuProvider from '../TenantMenuProvider';
 
@@ -34,6 +35,18 @@ describe('PluginTenantClient', () => {
       aclSnippet: 'pm.tenant.manage',
       Component: TenantManagement,
     });
+  });
+
+  it('should expose tenant translation hook with t function', () => {
+    const TranslationProbe = () => {
+      const { t } = useTenantTranslation();
+      return <span data-testid="tenant-text">{t('Tenants')}</span>;
+    };
+
+    const { getByTestId } = render(<TranslationProbe />);
+
+    expect(NAMESPACE).toBe('tenant');
+    expect(getByTestId('tenant-text')).toHaveTextContent('Tenants');
   });
 
   it('should sync tenant editor values when initial record changes', async () => {

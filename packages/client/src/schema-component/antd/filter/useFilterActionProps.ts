@@ -165,7 +165,7 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
         const filterItems = Object.keys(items).filter((item) => item.includes(collection));
         if (filterItems.length > 1) {
           filterSchemaItem[filterKey] = filterItems.map((key) => items[key]);
-        } else {
+        } else if (filterItems && filterSchemaItem[filterKey].includes(filterItems) && items[filterItems[0]]) {
           filterSchemaItem[filterKey] = items[filterItems[0]];
         }
       }

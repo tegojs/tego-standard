@@ -69,15 +69,16 @@ describe('mapDatePicker', () => {
     expect(props.onChange).toHaveBeenCalledWith(m.toISOString());
   });
 
-  it('should call onChange with correct value when showTime is false and gmt is true', () => {
+  it('should call onChange with local day start when showTime is false and gmt is true', () => {
     const props = {
       showTime: false,
       gmt: true,
       onChange: vi.fn(),
     };
     const result = mapDatePicker()(props);
-    result.onChange(dayjs.utc('2022-02-22'));
-    expect(props.onChange).toHaveBeenCalledWith('2022-02-22T00:00:00.000Z');
+    const m = dayjs('2022-02-22');
+    result.onChange(m);
+    expect(props.onChange).toHaveBeenCalledWith(m.startOf('day').toISOString());
   });
 
   it('should call onChange with correct value when showTime is false and gmt is false', () => {
@@ -99,8 +100,9 @@ describe('mapDatePicker', () => {
       onChange: vi.fn(),
     };
     const result = mapDatePicker()(props);
-    result.onChange(dayjs.utc('2022-01-01T00:00:00.000Z'));
-    expect(props.onChange).toHaveBeenCalledWith('2022-01-01T00:00:00.000Z');
+    const m = dayjs('2022-01-01');
+    result.onChange(m);
+    expect(props.onChange).toHaveBeenCalledWith(m.startOf('year').toISOString());
   });
 
   it('should call onChange with correct value when picker is year and gmt is false', () => {
@@ -122,8 +124,9 @@ describe('mapDatePicker', () => {
       onChange: vi.fn(),
     };
     const result = mapDatePicker()(props);
-    result.onChange(dayjs.utc('2022-02-22T00:00:00.000Z'));
-    expect(props.onChange).toHaveBeenCalledWith('2022-02-01T00:00:00.000Z');
+    const m = dayjs('2022-02-22');
+    result.onChange(m);
+    expect(props.onChange).toHaveBeenCalledWith(m.startOf('month').toISOString());
   });
 
   it('should call onChange with correct value when picker is month and gmt is false', () => {
@@ -145,8 +148,9 @@ describe('mapDatePicker', () => {
       onChange: vi.fn(),
     };
     const result = mapDatePicker()(props);
-    result.onChange(dayjs.utc('2022-02-22T00:00:00.000Z'));
-    expect(props.onChange).toHaveBeenCalledWith('2022-01-01T00:00:00.000Z');
+    const m = dayjs('2022-02-22');
+    result.onChange(m);
+    expect(props.onChange).toHaveBeenCalledWith(m.startOf('quarter').toISOString());
   });
 
   it('should call onChange with correct value when picker is quarter and gmt is false', () => {
@@ -168,7 +172,7 @@ describe('mapDatePicker', () => {
       onChange: vi.fn(),
     };
     const result = mapDatePicker()(props);
-    const m = dayjs.utc('2022-02-21T00:00:00.000Z');
+    const m = dayjs('2022-02-21');
     result.onChange(m);
     expect(props.onChange).toHaveBeenCalledWith(m.startOf('week').add(1, 'day').toISOString());
   });

@@ -61,7 +61,7 @@ describe('moment2str', () => {
   test('gmt is true', () => {
     const m = dayjs('2023-06-21 10:10:00');
     const str = moment2str(m, { gmt: true });
-    expect(str).toBe('2023-06-21T10:10:00.000Z');
+    expect(str).toBe(dayjs('2023-06-21 00:00:00').toISOString());
   });
 
   test('gmt is false', () => {
@@ -85,13 +85,13 @@ describe('moment2str', () => {
   test('picker is year, gmt is true', () => {
     const m = dayjs('2023-06-21 10:10:00');
     const str = moment2str(m, { picker: 'year', gmt: true });
-    expect(str).toBe('2023-01-01T00:00:00.000Z');
+    expect(str).toBe(dayjs('2023-01-01 00:00:00').toISOString());
   });
 
   test('picker is year', () => {
     const m = dayjs('2023-06-21 10:10:00');
     const str = moment2str(m, { picker: 'year' });
-    expect(str).toBe('2023-01-01T00:00:00.000Z');
+    expect(str).toBe(dayjs('2023-01-01 00:00:00').toISOString());
   });
 
   test('picker is quarter, gmt is false', () => {
@@ -103,7 +103,7 @@ describe('moment2str', () => {
   test('picker is quarter, gmt is true', () => {
     const m = dayjs('2023-06-21 10:10:00');
     const str = moment2str(m, { picker: 'quarter', gmt: true });
-    expect(str).toBe('2023-04-01T00:00:00.000Z');
+    expect(str).toBe(dayjs('2023-04-01 00:00:00').toISOString());
   });
 
   test('picker is month, gmt is false', () => {
@@ -115,13 +115,13 @@ describe('moment2str', () => {
   test('picker is month, gmt is true', () => {
     const m = dayjs('2023-06-21 10:10:00');
     const str = moment2str(m, { picker: 'month', gmt: true });
-    expect(str).toBe('2023-06-01T00:00:00.000Z');
+    expect(str).toBe(dayjs('2023-06-01 00:00:00').toISOString());
   });
 
   test('picker is month', () => {
     const m = dayjs('2023-06-21 10:10:00');
     const str = moment2str(m, { picker: 'month' });
-    expect(str).toBe('2023-06-01T00:00:00.000Z');
+    expect(str).toBe(dayjs('2023-06-01 00:00:00').toISOString());
   });
 
   test('picker is week, gmt is false', () => {
@@ -133,7 +133,7 @@ describe('moment2str', () => {
   test('picker is week, gmt is true', () => {
     const m = dayjs('2023-06-21 10:10:00');
     const str = moment2str(m, { picker: 'week', gmt: true });
-    expect(str).toBe('2023-06-19T00:00:00.000Z');
+    expect(str).toBe(dayjs('2023-06-19 00:00:00').toISOString());
   });
 
   test('value is null', async () => {

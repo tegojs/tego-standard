@@ -7,6 +7,7 @@ import switchTenant from './actions/switch-tenant';
 import tenantsCollection from './collections/tenants';
 import tenantUsersCollection from './collections/tenantUsers';
 import usersCollection from './collections/users';
+import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
 import applyTenantFilter from './helpers/tenant-filter';
 import { buildPath, getDescendantIds, wouldCreateCycle } from './helpers/tenant-tree';
@@ -33,6 +34,10 @@ export class PluginTenantServer extends Plugin {
     this.app.resourcer.registerActionHandler('tenants:available', availableTenants);
     this.app.resourcer.registerActionHandler('tenants:current', currentTenant);
     this.app.resourcer.registerActionHandler('tenants:switch', switchTenant);
+
+    this.db.on('collections.afterCreateWithAssociations', ensureTenantIdField);
+    this.db.on('collections.afterUpdateWithAssociations', ensureTenantIdField);
+    this.db.on('collections.afterUpdate', ensureTenantIdField);
 
     this.app.resourcer.use(setCurrentTenant, {
       tag: 'setCurrentTenant',

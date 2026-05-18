@@ -1,6 +1,4 @@
-import type { MockServer } from '@tachybase/test';
-
-import { waitSecond } from '@tachybase/test';
+import { waitSecond, type MockServer } from '@tachybase/test';
 import { CollectionManager, DataSource } from '@tego/server';
 
 import { createTenantApp } from './utils';
@@ -118,6 +116,79 @@ describe('tenant resource guard', () => {
       filterByTk: foreignRecord.get('id'),
     });
     expect(foreignAfterDestroy).toBeTruthy();
+  });
+
+  it('should add tenantId field when creating tenant-enabled collections', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_auto_fields',
+        tenancy: 'tenantInherited',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const field = await app.db.getRepository('fields').findOne({
+      filter: {
+        collectionName: 'tenant_auto_fields',
+        name: 'tenantId',
+      },
+    });
+
+    expect(field).toBeTruthy();
+    expect(app.db.getCollection('tenant_auto_fields').getField('tenantId')).toBeTruthy();
+
+    await app.db.getRepository('tenant_auto_fields').create({
+      values: {
+        title: 'A1',
+        tenantId: 'tenant-a',
+      },
+    });
+
+    const created = await app.db.getRepository('tenant_auto_fields').findOne();
+    expect(created.get('tenantId')).toBe('tenant-a');
+  });
+
+  it('should add tenantId field when updating a collection to tenant-enabled mode', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_enabled_later',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const [updated] = await app.db.getRepository('collections').update({
+      filterByTk: 'tenant_enabled_later',
+      values: {
+        tenancy: 'tenantScoped',
+      },
+    });
+
+    const field = await app.db.getRepository('fields').findOne({
+      filter: {
+        collectionName: 'tenant_enabled_later',
+        name: 'tenantId',
+      },
+    });
+
+    expect(updated.get('tenancy')).toBe('tenantScoped');
+    expect(field).toBeTruthy();
+    expect(app.db.getCollection('tenant_enabled_later').getField('tenantId')).toBeTruthy();
   });
 
   it('should resolve tenant scoped collections from non-default data sources', async () => {

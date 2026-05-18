@@ -15,6 +15,7 @@ export class GeneralCollectionTemplate extends CollectionTemplate {
     'inherits',
     'category',
     'description',
+    'tenancy',
     'presetFields',
   );
 }

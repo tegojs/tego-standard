@@ -78,6 +78,7 @@ export class TreeCollectionTemplate extends CollectionTemplate {
     'inherits',
     'category',
     'description',
+    'tenancy',
     'presetFields',
   );
 }

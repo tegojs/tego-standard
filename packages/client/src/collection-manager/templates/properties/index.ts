@@ -50,6 +50,20 @@ export const defaultConfigurableProperties = {
     'x-decorator': 'FormItem',
     'x-component': 'Input.TextArea',
   },
+  tenancy: {
+    title: '{{t("Tenancy mode")}}',
+    type: 'string',
+    name: 'tenancy',
+    default: 'shared',
+    enum: [
+      { label: '{{t("Shared collection")}}', value: 'shared' },
+      { label: '{{t("Tenant scoped")}}', value: 'tenantScoped' },
+      { label: '{{t("Tenant inherited")}}', value: 'tenantInherited' },
+    ],
+    'x-decorator': 'FormItem',
+    'x-component': 'Select',
+    description: '{{t("Controls whether records are isolated by the current tenant.")}}',
+  },
   presetFields: {
     title: '{{t("Preset fields")}}',
     type: 'void',
@@ -71,6 +85,7 @@ export type DefaultConfigurableKeys =
   | 'updatedAt'
   | 'sortable'
   | 'description'
+  | 'tenancy'
   | 'presetFields';
 
 export const getConfigurableProperties = (...keys: DefaultConfigurableKeys[]) => {

@@ -61,6 +61,7 @@ export class ExpressionCollectionTemplate extends CollectionTemplate {
     'inherits',
     'category',
     'description',
+    'tenancy',
     'presetFields',
   );
 }

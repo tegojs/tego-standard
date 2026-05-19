@@ -1,13 +1,14 @@
-import { tval as nTval } from '@tachybase/client';
-
-import { useTranslation } from 'react-i18next';
+import { tval as nTval, useApp } from '@tachybase/client';
 
 import { NAMESPACE } from '../constants';
 
 export { NAMESPACE };
 
 export function useTenantTranslation() {
-  return useTranslation([NAMESPACE, 'core'], { nsMode: 'fallback' });
+  const { i18n } = useApp();
+  const t = (key: string, props = {}) => i18n.t(key, { ns: [NAMESPACE, 'core'], nsMode: 'fallback', ...props });
+
+  return { t };
 }
 
 export const tval = (key: string) => nTval(key, { ns: NAMESPACE });

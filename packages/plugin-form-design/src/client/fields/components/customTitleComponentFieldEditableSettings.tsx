@@ -561,7 +561,9 @@ export const CustomTitleComponentFieldEditableSettings = new EditableSchemaSetti
           type: 'boolean',
           // title: '{{t("Allow multiple")}}',
           default:
-            fieldSchema['x-component-props']?.multiple === undefined ? true : fieldSchema['x-component-props'].multiple,
+            (fieldSchema['x-component-props'] || {}).multiple === undefined
+              ? true
+              : fieldSchema['x-component-props'].multiple,
           'x-decorator': 'FormItem',
           'x-component': 'Checkbox',
           'x-content': '{{t("Allow multiple")}}',

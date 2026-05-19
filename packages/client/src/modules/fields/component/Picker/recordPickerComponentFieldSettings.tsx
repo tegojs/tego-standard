@@ -72,7 +72,9 @@ const allowMultiple: any = {
     return {
       title: t('Allow multiple'),
       checked:
-        fieldSchema['x-component-props']?.multiple === undefined ? true : fieldSchema['x-component-props'].multiple,
+        (fieldSchema['x-component-props'] || {}).multiple === undefined
+          ? true
+          : fieldSchema['x-component-props'].multiple,
       onChange(value) {
         const schema = {
           ['x-uid']: fieldSchema['x-uid'],
@@ -165,7 +167,7 @@ export const recordPickerComponentFieldSettings = new SchemaSettings({
           ],
           value:
             fieldSchema?.['x-component-props']?.['openSize'] ??
-            (fieldSchema?.['x-component-props']?.['openMode'] == 'modal' ? 'large' : 'middle'),
+            (fieldSchema?.['x-component-props']?.['openMode'] === 'modal' ? 'large' : 'middle'),
           onChange: (value) => {
             field.componentProps.openSize = value;
             fieldSchema['x-component-props'] = { ...fieldSchema['x-component-props'], openSize: value };

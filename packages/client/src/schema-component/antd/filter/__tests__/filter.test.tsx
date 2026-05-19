@@ -178,4 +178,50 @@ describe('Filter', () => {
       ],
     });
   });
+
+  it('expands array custom filter values into alternative conditions', () => {
+    const condition = getCustomCondition(
+      { type: ['1', '2'] },
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              category: {
+                $eq: '3',
+              },
+            },
+            {
+              id: {
+                $eq: '{{$nFilter.type}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          category: {
+            $eq: '3',
+          },
+        },
+        {
+          $or: [
+            {
+              id: {
+                $eq: '1',
+              },
+            },
+            {
+              id: {
+                $eq: '2',
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

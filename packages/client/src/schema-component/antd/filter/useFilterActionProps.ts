@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useBlockRequestContext } from '../../../block-provider';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
-import { mergeFilter } from '../../../filter-provider/utils';
+import { FILTER_OPERATORS_WITH_ARRAY_VALUES, mergeFilter } from '../../../filter-provider/utils';
 import { useDataLoadingMode } from '../../../modules/blocks/data-blocks/details-multi/setDataLoadingModeSettingsItem';
 import { hasDuplicateKeys } from './utils';
 
@@ -152,6 +152,42 @@ const isEmpty = (obj) => {
 
 const CUSTOM_FILTER_VARIABLE_REGEXP = /^\{\{\$nFilter\.([^}]+)\}\}$/;
 
+const getCustomFilterValue = (items, key) => {
+  if (key in items) {
+    return items[key];
+  }
+
+  const arrayItems = Object.keys(items)
+    .filter((itemKey) => /^\d+$/.test(itemKey.slice(key.length + 1)) && itemKey.startsWith(`${key}.`))
+    .sort((a, b) => Number(a.slice(key.length + 1)) - Number(b.slice(key.length + 1)))
+    .map((itemKey) => items[itemKey]);
+
+  return arrayItems.length ? arrayItems : undefined;
+};
+
+const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat) => {
+  const pathParts = filterKey.split('.');
+  const operator = pathParts.pop();
+  if (!Array.isArray(value) || FILTER_OPERATORS_WITH_ARRAY_VALUES.has(operator || '')) {
+    filterSchemaItem[filterKey] = value;
+    return;
+  }
+
+  let branchEndIndex = -1;
+  for (let index = pathParts.length - 2; index >= 0; index--) {
+    if (['$and', '$or'].includes(pathParts[index]) && /^\d+$/.test(pathParts[index + 1])) {
+      branchEndIndex = index;
+      break;
+    }
+  }
+
+  const branchPath = branchEndIndex >= 0 ? pathParts.slice(0, branchEndIndex + 2).join('.') : '';
+  const fieldPath = pathParts.slice(branchEndIndex + 2).join('.');
+  const conditions = value.map((item) => customFlat.unflatten({ [`${fieldPath}.${operator}`]: item }));
+  delete filterSchemaItem[filterKey];
+  filterSchemaItem[branchPath ? `${branchPath}.$or` : '$or'] = conditions;
+};
+
 export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) => {
   const filterSchema = fieldSchema ? fieldSchema['x-filter-rules'] : '';
   const filterSchemaItem = customFlat(filterSchema || '') as any;
@@ -167,7 +203,7 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
         if (!match) {
           continue;
         }
-        filterSchemaItem[filterKey] = items[match[1]];
+        expandArrayValueFilter(filterSchemaItem, filterKey, getCustomFilterValue(items, match[1]), customFlat);
       }
       for (const item in filterSchemaItem) {
         if (!filterSchemaItem[item] || filterSchemaItem[item].includes('$nFilter')) {

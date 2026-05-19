@@ -177,7 +177,7 @@ const normalizeDateBetweenBoundary = (value: any, boundary: 'start' | 'end') => 
   return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
 };
 
-const normalizeDateBetweenValue = (value: any[]) => {
+export const normalizeDateBetweenValue = (value: any[]) => {
   const normalized = value.filter(Boolean);
   if (normalized.length === 0) {
     return null;

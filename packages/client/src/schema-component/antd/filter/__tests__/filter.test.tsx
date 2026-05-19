@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, userEvent, waitFor, within } from '@tachybase/test/client';
 
+import dayjs from 'dayjs';
+
 import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
 import App4 from '../demos/demo4';
@@ -225,9 +227,13 @@ describe('Filter', () => {
     });
   });
 
-  it('keeps array custom filter values for array-valued operators', () => {
+  it('normalizes array custom filter values for date-between operators', () => {
+    const start = '2026-05-01T00:00:00.000Z';
+    const end = '2026-05-19T23:59:59.000Z';
+    const localStart = start.replace(/Z$/, '');
+    const localEnd = end.replace(/Z$/, '');
     const condition = getCustomCondition(
-      { date: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.000Z'] },
+      { date: [start, end] },
       {
         'x-filter-rules': {
           $and: [
@@ -256,12 +262,18 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.000Z'],
+                $dateBetween: [
+                  dayjs(localStart).startOf('day').toISOString(),
+                  dayjs(localEnd).endOf('day').toISOString(),
+                ],
               },
             },
             {
               date_receive: {
-                $dateBetween: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.000Z'],
+                $dateBetween: [
+                  dayjs(localStart).startOf('day').toISOString(),
+                  dayjs(localEnd).endOf('day').toISOString(),
+                ],
               },
             },
           ],

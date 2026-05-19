@@ -6,7 +6,11 @@ import { useTranslation } from 'react-i18next';
 
 import { useBlockRequestContext } from '../../../block-provider';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
-import { FILTER_OPERATORS_WITH_ARRAY_VALUES, mergeFilter } from '../../../filter-provider/utils';
+import {
+  FILTER_OPERATORS_WITH_ARRAY_VALUES,
+  mergeFilter,
+  normalizeDateBetweenValue,
+} from '../../../filter-provider/utils';
 import { useDataLoadingMode } from '../../../modules/blocks/data-blocks/details-multi/setDataLoadingModeSettingsItem';
 import { hasDuplicateKeys } from './utils';
 
@@ -165,9 +169,20 @@ const getCustomFilterValue = (items, key) => {
   return arrayItems.length ? arrayItems : undefined;
 };
 
+const normalizeCustomDateBetweenValue = (value) => {
+  return normalizeDateBetweenValue(
+    value.map((item) => (typeof item === 'string' ? item.replace(/Z$/, '').replace(/[+-]\d\d:\d\d$/, '') : item)),
+  );
+};
+
 const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat) => {
   const pathParts = filterKey.split('.');
   const operator = pathParts.pop();
+  if (operator === '$dateBetween' && Array.isArray(value)) {
+    filterSchemaItem[filterKey] = normalizeCustomDateBetweenValue(value);
+    return;
+  }
+
   if (!Array.isArray(value) || FILTER_OPERATORS_WITH_ARRAY_VALUES.has(operator || '')) {
     filterSchemaItem[filterKey] = value;
     return;

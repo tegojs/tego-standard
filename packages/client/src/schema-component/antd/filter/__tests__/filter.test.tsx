@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, userEvent, waitFor, within } from '@tachybase/test/client';
 
+import dayjs from 'dayjs';
+
 import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
 import App4 from '../demos/demo4';
@@ -173,6 +175,252 @@ describe('Filter', () => {
             name: {
               $includes: 'Test Corp',
             },
+          },
+        },
+      ],
+    });
+  });
+
+  it('expands array custom filter values into alternative conditions', () => {
+    const condition = getCustomCondition(
+      { type: ['1', '2'] },
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              category: {
+                $eq: '3',
+              },
+            },
+            {
+              id: {
+                $eq: '{{$nFilter.type}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          category: {
+            $eq: '3',
+          },
+        },
+        {
+          $or: [
+            {
+              id: {
+                $eq: '1',
+              },
+            },
+            {
+              id: {
+                $eq: '2',
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('normalizes date-only custom range picker values to full-day boundaries', () => {
+    const start = '2026-05-01T00:00:00.000Z';
+    const end = '2026-05-19T23:59:59.999Z';
+    const condition = getCustomCondition(
+      { date: [start, end] },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              $or: [
+                {
+                  date_pay: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+                {
+                  date_receive: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          $or: [
+            {
+              date_pay: {
+                $dateBetween: [
+                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
+                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
+                ],
+              },
+            },
+            {
+              date_receive: {
+                $dateBetween: [
+                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
+                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('normalizes date-only custom filter string values to full-day boundaries', () => {
+    const start = '2026-05-01';
+    const end = '2026-05-19';
+    const condition = getCustomCondition(
+      { date: [start, end] },
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              $or: [
+                {
+                  date_pay: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+                {
+                  date_receive: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          $or: [
+            {
+              date_pay: {
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
+              },
+            },
+            {
+              date_receive: {
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('preserves explicit time points for date-between custom filter values', () => {
+    const start = '2026-05-01T08:30:00.000Z';
+    const end = '2026-05-19T18:45:00.000Z';
+    const condition = getCustomCondition(
+      { date: [start, end] },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+            'x-component-props': {
+              showTime: true,
+            },
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              $or: [
+                {
+                  date_pay: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+                {
+                  date_receive: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          $or: [
+            {
+              date_pay: {
+                $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
+              },
+            },
+            {
+              date_receive: {
+                $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('preserves explicit midnight points for date-between custom filter values', () => {
+    const start = '2026-05-01T00:00:00.000Z';
+    const end = '2026-05-19T00:00:00.000Z';
+    const condition = getCustomCondition(
+      { date: [start, end] },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+            'x-component-props': {
+              showTime: true,
+            },
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              date_pay: {
+                $dateBetween: '{{$nFilter.date}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          date_pay: {
+            $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
           },
         },
       ],

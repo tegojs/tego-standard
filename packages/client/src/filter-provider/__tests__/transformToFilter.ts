@@ -58,7 +58,7 @@ describe('transformToFilter', () => {
     });
   });
 
-  it('should use current field component to infer $dateBetween when stored operators are empty', () => {
+  it('should use current date-only range field component to infer $dateBetween when stored operators are empty', () => {
     const start = '2026-04-13T00:00:00.000Z';
     const end = '2026-04-19T23:59:59.999Z';
     const values = {
@@ -95,7 +95,45 @@ describe('transformToFilter', () => {
       $and: [
         {
           createdAt: {
-            $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
+            $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
+          },
+        },
+      ],
+    });
+  });
+
+  it('should preserve explicit $dateBetween times for datetime range fields', () => {
+    const start = '2026-04-13T00:00:00.000Z';
+    const end = '2026-04-19T18:45:00.000Z';
+    const values = {
+      createdAt: [start, end],
+    };
+
+    const fieldSchema = {
+      'x-filter-operators': {
+        createdAt: '$dateBetween',
+      },
+      properties: {
+        createdAt: {
+          name: 'createdAt',
+          'x-component-props': {
+            component: 'DatePicker.RangePicker',
+            showTime: true,
+          },
+        },
+      },
+    };
+
+    const getField = () => ({
+      targetKey: undefined,
+      interface: 'createdAt',
+    });
+
+    expect(transformToFilter(values, fieldSchema as any, getField, 'receipt')).toEqual({
+      $and: [
+        {
+          createdAt: {
+            $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
           },
         },
       ],

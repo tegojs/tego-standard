@@ -121,6 +121,9 @@ const findSchemaByName = (schema: any, name: string): any => {
 
   const properties = schema.properties || {};
   for (const key of Object.keys(properties)) {
+    if (key === name) {
+      return properties[key];
+    }
     const found = findSchemaByName(properties[key], name);
     if (found) {
       return found;
@@ -169,15 +172,66 @@ const resolveFilterOperator = (
   return getDefaultFilterOperatorValue(fieldSchema, operatorList);
 };
 
-const normalizeDateBetweenBoundary = (value: any, boundary: 'start' | 'end') => {
-  const m = dayjs(value);
+type NormalizeDateBetweenOptions = {
+  useDefaultDateBoundary?: boolean;
+};
+
+const isDateOnlyString = (value: any) => {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+};
+
+const hasExplicitTime = (value: any) => {
+  return typeof value === 'string' && /[T\s]\d{2}:\d{2}/.test(value);
+};
+
+const isDefaultDateBoundaryValue = (value: any, boundary: 'start' | 'end') => {
+  if (isDateOnlyString(value)) {
+    return true;
+  }
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const match = value.match(/^\d{4}-\d{2}-\d{2}[T\s](\d{2}:\d{2}:\d{2})(?:\.\d{3})?(?:Z|[+-]\d\d:\d\d)?$/);
+  if (!match) {
+    return false;
+  }
+  return boundary === 'start' ? match[1] === '00:00:00' : match[1] === '23:59:59';
+};
+
+const normalizeDefaultDateBoundaryInput = (value: any) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  return value.replace(/Z$/, '').replace(/[+-]\d\d:\d\d$/, '');
+};
+
+const normalizeDateBetweenBoundary = (
+  value: any,
+  boundary: 'start' | 'end',
+  options: NormalizeDateBetweenOptions = {},
+) => {
+  const rawValue = options.useDefaultDateBoundary ? normalizeDefaultDateBoundaryInput(value) : value;
+  const m = dayjs(rawValue);
   if (!m.isValid()) {
     return value;
+  }
+  if (!options.useDefaultDateBoundary && hasExplicitTime(rawValue) && !isDateOnlyString(rawValue)) {
+    return m.toISOString();
   }
   return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
 };
 
-const normalizeDateBetweenValue = (value: any[]) => {
+const shouldApplyDefaultDateBoundary = (start: any, end: any, options: NormalizeDateBetweenOptions = {}) => {
+  if (!options.useDefaultDateBoundary) {
+    return false;
+  }
+  if (isDateOnlyString(start) || isDateOnlyString(end)) {
+    return true;
+  }
+  return isDefaultDateBoundaryValue(start, 'start') && isDefaultDateBoundaryValue(end, 'end');
+};
+
+export const normalizeDateBetweenValue = (value: any[], options: NormalizeDateBetweenOptions = {}) => {
   const normalized = value.filter(Boolean);
   if (normalized.length === 0) {
     return null;
@@ -185,7 +239,22 @@ const normalizeDateBetweenValue = (value: any[]) => {
 
   const start = normalized[0];
   const end = normalized.length === 1 ? normalized[0] : normalized[normalized.length - 1];
-  return [normalizeDateBetweenBoundary(start, 'start'), normalizeDateBetweenBoundary(end, 'end')];
+  const boundaryOptions = {
+    ...options,
+    useDefaultDateBoundary: shouldApplyDefaultDateBoundary(start, end, options),
+  };
+  return [
+    normalizeDateBetweenBoundary(start, 'start', boundaryOptions),
+    normalizeDateBetweenBoundary(end, 'end', boundaryOptions),
+  ];
+};
+
+export const shouldUseDefaultDateBoundary = (fieldSchema?: any) => {
+  if (!fieldSchema) {
+    return false;
+  }
+  const component = fieldSchema['x-component'] || fieldSchema['x-component-props']?.component;
+  return component === 'DatePicker.RangePicker';
 };
 
 export const transformToFilter = (
@@ -229,6 +298,7 @@ export const transformToFilter = (
         const defKey = key;
         let value = _.get(values, key);
         const collectionField = getCollectionJoinField(`${collectionName}.${key}`);
+        const currentFieldSchema = findSchemaByName(getFilterSchemaRoot(fieldSchema), defKey);
         const operator = resolveFilterOperator(fieldSchema, defKey, operators, getOperatorList, collectionField);
         if (collectionField?.target) {
           value = getValuesByPath(value, collectionField.targetKey || 'id');
@@ -255,7 +325,9 @@ export const transformToFilter = (
           }
         } else if (operator === '$dateBetween') {
           if (Array.isArray(value)) {
-            value = normalizeDateBetweenValue(value);
+            value = normalizeDateBetweenValue(value, {
+              useDefaultDateBoundary: shouldUseDefaultDateBoundary(currentFieldSchema),
+            });
             if (!value) {
               return null;
             }

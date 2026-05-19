@@ -384,7 +384,7 @@ export const useFilterFormItemInitializerFields = (options?: any) => {
           'x-component': 'CollectionField',
           'x-decorator': 'FormItem',
           'x-collection-field': `${name}.${field.name}`,
-          'x-component-props': field.uiSchema?.['x-component-props'],
+          'x-component-props': field.uiSchema?.['x-component-props'] || {},
         };
       }
       const resultItem = {
@@ -497,7 +497,12 @@ const getItem = (
     subFields.forEach((subField) => {
       if (['m2o', 'obo', 'oho', 'o2m', 'm2m'].includes(subField.interface)) {
         options.push(
-          getResultSchema(`${schemaName}.${subField.name}`, subField, collectionName, (fieldPath || '') + field.key),
+          createFilterAssociatedResultSchema(
+            `${schemaName}.${subField.name}`,
+            subField,
+            collectionName,
+            (fieldPath || '') + field.key,
+          ),
         );
       }
       options.push(
@@ -523,10 +528,10 @@ const getItem = (
 
   if (isAssocField(field)) return null;
 
-  return getResultSchema(schemaName, field, collectionName, (fieldPath || '') + field.key);
+  return createFilterAssociatedResultSchema(schemaName, field, collectionName, (fieldPath || '') + field.key);
 };
 
-const getResultSchema = (schemaName, field, collectionName, fieldPath) => {
+export const createFilterAssociatedResultSchema = (schemaName, field, collectionName, fieldPath) => {
   const schema = {
     type: 'string',
     name: schemaName,
@@ -541,6 +546,7 @@ const getResultSchema = (schemaName, field, collectionName, fieldPath) => {
     'x-read-pretty': false,
     'x-decorator': 'FormItem',
     'x-collection-field': `${collectionName}.${schemaName}`,
+    'x-component-props': {},
   };
   const result = {
     name: field.uiSchema?.title || field.name,

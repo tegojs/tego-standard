@@ -9,6 +9,16 @@
 
 
 
+## [1.6.18] - 2026-05-19
+
+### 🐛 修复
+
+- **client**: 规范化自定义过滤器变量 ([#382](https://github.com/tegojs/tego-standard/pull/382)) (@TomyJan)
+- **client&form-design**: 保护丢失的组件道具 ([#381](https://github.com/tegojs/tego-standard/pull/381)) (@TomyJan)
+- **client**: 标准化仅日期选择器边界([#379](https://github.com/tegojs/tego-standard/pull/379)) (@TomyJan)
+- **client**: 正确的自定义过滤器变量替换 ([#380](https://github.com/tegojs/tego-standard/pull/380)) (@TomyJan)
+- **client**: 无源保护关联父级查找 ([#377](https://github.com/tegojs/tego-standard/pull/377)) (@TomyJan)
+
 ## [1.6.17] - 2026-04-28
 
 ### 🐛 修复
@@ -2995,7 +3005,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.18...HEAD
+[1.6.18]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.18
 [1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
 [1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
 [1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15

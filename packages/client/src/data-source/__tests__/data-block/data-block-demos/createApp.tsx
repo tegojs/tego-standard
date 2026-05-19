@@ -54,5 +54,6 @@ export function createApp(Demo: ComponentType<any>, options: ApplicationOptions 
   });
 
   const Root = app.getRootComponent();
+  Root['mock'] = mock;
   return Root;
 }

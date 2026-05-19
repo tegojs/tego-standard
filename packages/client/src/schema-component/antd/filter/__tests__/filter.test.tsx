@@ -227,9 +227,56 @@ describe('Filter', () => {
     });
   });
 
-  it('normalizes array custom filter values for date-between operators', () => {
-    const start = '2026-05-01T00:00:00.000Z';
-    const end = '2026-05-19T23:59:59.000Z';
+  it('normalizes date-only custom filter values to full-day boundaries', () => {
+    const start = '2026-05-01';
+    const end = '2026-05-19';
+    const condition = getCustomCondition(
+      { date: [start, end] },
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              $or: [
+                {
+                  date_pay: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+                {
+                  date_receive: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          $or: [
+            {
+              date_pay: {
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
+              },
+            },
+            {
+              date_receive: {
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('preserves explicit time points for date-between custom filter values', () => {
+    const start = '2026-05-01T08:30:00.000Z';
+    const end = '2026-05-19T18:45:00.000Z';
     const localStart = start.replace(/Z$/, '');
     const localEnd = end.replace(/Z$/, '');
     const condition = getCustomCondition(
@@ -262,18 +309,12 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: [
-                  dayjs(localStart).startOf('day').toISOString(),
-                  dayjs(localEnd).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(localStart).toISOString(), dayjs(localEnd).toISOString()],
               },
             },
             {
               date_receive: {
-                $dateBetween: [
-                  dayjs(localStart).startOf('day').toISOString(),
-                  dayjs(localEnd).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(localStart).toISOString(), dayjs(localEnd).toISOString()],
               },
             },
           ],

@@ -169,10 +169,17 @@ const resolveFilterOperator = (
   return getDefaultFilterOperatorValue(fieldSchema, operatorList);
 };
 
+const hasExplicitTime = (value: any) => {
+  return typeof value === 'string' && /[T\s]\d{2}:\d{2}/.test(value);
+};
+
 const normalizeDateBetweenBoundary = (value: any, boundary: 'start' | 'end') => {
   const m = dayjs(value);
   if (!m.isValid()) {
     return value;
+  }
+  if (hasExplicitTime(value)) {
+    return m.toISOString();
   }
   return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
 };

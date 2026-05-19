@@ -2,27 +2,42 @@ import { getDefaultFormat, str2moment, toGmt, toLocal } from '@tego/client';
 
 import dayjs, { type Dayjs } from 'dayjs';
 
-const getPickerStart = (value: Dayjs, picker?: any) => {
+const toStringByPicker = (value, picker, timezone: 'gmt' | 'local') => {
+  if (!dayjs.isDayjs(value)) return value;
+  if (timezone === 'local') {
+    const offset = new Date().getTimezoneOffset();
+    return dayjs(toStringByPicker(value, picker, 'gmt'))
+      .add(offset, 'minutes')
+      .toISOString();
+  }
+
   if (picker === 'year') {
-    return value.startOf('year');
+    return value.format('YYYY') + '-01-01T00:00:00.000Z';
   }
   if (picker === 'month') {
-    return value.startOf('month');
+    return value.format('YYYY-MM') + '-01T00:00:00.000Z';
   }
   if (picker === 'quarter') {
-    return value.startOf('quarter');
+    return value.startOf('quarter').format('YYYY-MM') + '-01T00:00:00.000Z';
   }
   if (picker === 'week') {
-    return value.startOf('week').add(1, 'day').startOf('day');
+    return value.startOf('week').add(1, 'day').format('YYYY-MM-DD') + 'T00:00:00.000Z';
   }
-  return value.startOf('day');
+  return value.format('YYYY-MM-DDTHH:mm:ss.SSS') + 'Z';
 };
 
-const toLocalBoundaryByPicker = (value: Dayjs, picker?: any) => {
+const toGmtByPicker = (value: Dayjs, picker?: any) => {
   if (!value || !dayjs.isDayjs(value)) {
     return value;
   }
-  return getPickerStart(value, picker).toISOString();
+  return toStringByPicker(value, picker, 'gmt');
+};
+
+const toLocalByPicker = (value: Dayjs, picker?: any) => {
+  if (!value || !dayjs.isDayjs(value)) {
+    return value;
+  }
+  return toStringByPicker(value, picker, 'local');
 };
 
 export interface Moment2strOptions {
@@ -57,7 +72,10 @@ export const moment2str = (value?: Dayjs | null, options: Moment2strOptions = {}
   if (showTime) {
     return gmt ? toGmt(value) : toLocal(value);
   }
-  return toLocalBoundaryByPicker(value, picker);
+  if (typeof gmt === 'boolean') {
+    return gmt ? toGmtByPicker(value, picker) : toLocalByPicker(value, picker);
+  }
+  return toGmtByPicker(value, picker);
 };
 
 export const mapDatePicker = function () {
@@ -92,19 +110,16 @@ export const mapRangePicker = function () {
       value: str2moment(props.value, normalizeDatePickerParseOptions(props)),
       onChange: (value: Dayjs[]) => {
         if (onChange) {
-          onChange(value ? [rangeValue2str(value[0], props, 'start'), rangeValue2str(value[1], props, 'end')] : []);
+          onChange(
+            value
+              ? [moment2str(getRangeStart(value[0], props), props), moment2str(getRangeEnd(value[1], props), props)]
+              : [],
+          );
         }
       },
     } as any;
   };
 };
-
-function rangeValue2str(value: Dayjs, options: Moment2strOptions, boundary: 'start' | 'end') {
-  if (options.showTime || options.utc === false) {
-    return moment2str(boundary === 'start' ? getRangeStart(value, options) : getRangeEnd(value, options), options);
-  }
-  return (boundary === 'start' ? getRangeStart(value, options) : getRangeEnd(value, options)).toISOString();
-}
 
 function getRangeStart(value: Dayjs, options: Moment2strOptions) {
   const { showTime } = options;

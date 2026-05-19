@@ -12,12 +12,9 @@ describe('mapRangePicker', () => {
       onChange: vi.fn(),
     };
     const { onChange } = mapRangePicker()(props);
-    const value = [dayjs('2023-01-01'), dayjs('2023-01-02')];
+    const value = [dayjs.utc('2023-01-01T00:00:00.000Z'), dayjs.utc('2023-01-02T00:00:00.000Z')];
     onChange(value);
-    expect(props.onChange).toHaveBeenCalledWith([
-      value[0].startOf('day').toISOString(),
-      value[1].endOf('day').toISOString(),
-    ]);
+    expect(props.onChange).toHaveBeenCalledWith(['2023-01-01T00:00:00.000Z', '2023-01-02T23:59:59.999Z']);
   });
 
   it('should work with showTime=true, gmt=true, utc=true', () => {

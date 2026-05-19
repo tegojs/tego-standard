@@ -169,6 +169,25 @@ const resolveFilterOperator = (
   return getDefaultFilterOperatorValue(fieldSchema, operatorList);
 };
 
+const normalizeDateBetweenBoundary = (value: any, boundary: 'start' | 'end') => {
+  const m = dayjs(value);
+  if (!m.isValid()) {
+    return value;
+  }
+  return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
+};
+
+const normalizeDateBetweenValue = (value: any[]) => {
+  const normalized = value.filter(Boolean);
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  const start = normalized[0];
+  const end = normalized.length === 1 ? normalized[0] : normalized[normalized.length - 1];
+  return [normalizeDateBetweenBoundary(start, 'start'), normalizeDateBetweenBoundary(end, 'end')];
+};
+
 export const transformToFilter = (
   values: Record<string, any>,
   fieldSchema: Schema,
@@ -236,24 +255,10 @@ export const transformToFilter = (
           }
         } else if (operator === '$dateBetween') {
           if (Array.isArray(value)) {
-            const normalized: any[] = [];
-            for (const index in value) {
-              if (!value[index]) {
-                continue;
-              }
-              let v = value[index];
-              if (typeof v !== 'string' && !(v instanceof Date)) {
-                v = dayjs(v).toISOString();
-              }
-              normalized.push(v);
-            }
-            if (normalized.length === 0) {
+            value = normalizeDateBetweenValue(value);
+            if (!value) {
               return null;
             }
-            value =
-              normalized.length === 1
-                ? [normalized[0], normalized[0]]
-                : [normalized[0], normalized[normalized.length - 1]];
           }
         }
         return {

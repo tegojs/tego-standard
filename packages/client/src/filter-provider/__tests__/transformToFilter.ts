@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 import { transformToFilter } from '../utils';
 
 // TODO: 前端测试报错解决之后，把该文件重命名为 transformToFilter.test.ts
@@ -57,8 +59,10 @@ describe('transformToFilter', () => {
   });
 
   it('should use current field component to infer $dateBetween when stored operators are empty', () => {
+    const start = '2026-04-13T00:00:00.000Z';
+    const end = '2026-04-19T23:59:59.999Z';
     const values = {
-      createdAt: ['2026-04-13T00:00:00.000Z', '2026-04-19T23:59:59.999Z'],
+      createdAt: [start, end],
     };
 
     const fieldSchema = {
@@ -91,7 +95,7 @@ describe('transformToFilter', () => {
       $and: [
         {
           createdAt: {
-            $dateBetween: ['2026-04-13T00:00:00.000Z', '2026-04-19T23:59:59.999Z'],
+            $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
           },
         },
       ],

@@ -224,4 +224,49 @@ describe('Filter', () => {
       ],
     });
   });
+
+  it('keeps array custom filter values for array-valued operators', () => {
+    const condition = getCustomCondition(
+      { date: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.000Z'] },
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              $or: [
+                {
+                  date_pay: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+                {
+                  date_receive: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          $or: [
+            {
+              date_pay: {
+                $dateBetween: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.000Z'],
+              },
+            },
+            {
+              date_receive: {
+                $dateBetween: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.000Z'],
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

@@ -158,7 +158,7 @@ const getCustomFilterValue = (items, key) => {
   }
 
   const arrayItems = Object.keys(items)
-    .filter((itemKey) => /^\d+$/.test(itemKey.slice(key.length + 1)) && itemKey.startsWith(`${key}.`))
+    .filter((itemKey) => itemKey.startsWith(`${key}.`) && /^\d+$/.test(itemKey.slice(key.length + 1)))
     .sort((a, b) => Number(a.slice(key.length + 1)) - Number(b.slice(key.length + 1)))
     .map((itemKey) => items[itemKey]);
 

@@ -157,7 +157,11 @@ const isEmpty = (obj) => {
 
 const CUSTOM_FILTER_VARIABLE_REGEXP = /^\{\{\$nFilter\.([^}]+)\}\}$/;
 
-const getCustomFilterValue = (items, key) => {
+const getCustomFilterValue = (items, key, rawItems: any = {}) => {
+  if (rawItems && key in rawItems) {
+    return rawItems[key];
+  }
+
   if (key in items) {
     return items[key];
   }
@@ -246,9 +250,15 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
           continue;
         }
         const customFieldSchema = findCustomFieldSchema(fieldSchema, match[1]);
-        expandArrayValueFilter(filterSchemaItem, filterKey, getCustomFilterValue(items, match[1]), customFlat, {
-          useDefaultDateBoundary: shouldUseDefaultDateBoundary(customFieldSchema),
-        });
+        expandArrayValueFilter(
+          filterSchemaItem,
+          filterKey,
+          getCustomFilterValue(items, match[1], filter || {}),
+          customFlat,
+          {
+            useDefaultDateBoundary: shouldUseDefaultDateBoundary(customFieldSchema),
+          },
+        );
       }
       for (const item in filterSchemaItem) {
         if (!filterSchemaItem[item] || filterSchemaItem[item].includes('$nFilter')) {

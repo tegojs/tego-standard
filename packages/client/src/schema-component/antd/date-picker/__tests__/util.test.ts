@@ -156,11 +156,21 @@ describe('mapRangePicker', () => {
     expect(mapped.value[1].format('YYYY-MM-DD')).toBe('2026-01-16');
   });
 
-  test('should keep retained date-only range boundaries as local days after enabling showTime', () => {
+  test('should keep retained date-only range values as local days after enabling showTime', () => {
     vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-480);
 
+    let value: any[];
+    const dateOnlyMapped = mapRangePicker()({
+      showTime: false,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        value = nextValue;
+      },
+    });
+    dateOnlyMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 00:00:00')]);
+
     const mapped = mapRangePicker()({
-      value: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.999Z'],
+      value,
       showTime: true,
       utc: true,
     });

@@ -14,6 +14,7 @@ import {
   useCollectionManager_deprecated,
 } from '../collection-manager';
 import { removeNullCondition } from '../schema-component';
+import { getRangeValueMode } from '../schema-component/antd/date-picker/util';
 import {
   findFilterOperators,
   getDefaultFilterOperatorValue,
@@ -221,7 +222,18 @@ const normalizeDateBetweenBoundary = (
   return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
 };
 
-const shouldApplyDefaultDateBoundary = (start: any, end: any, options: NormalizeDateBetweenOptions = {}) => {
+const shouldApplyDefaultDateBoundary = (
+  start: any,
+  end: any,
+  value: any[],
+  options: NormalizeDateBetweenOptions = {},
+) => {
+  if (getRangeValueMode(value) === 'datetime') {
+    return false;
+  }
+  if (getRangeValueMode(value) === 'date') {
+    return true;
+  }
   if (!options.useDefaultDateBoundary) {
     return false;
   }
@@ -241,7 +253,7 @@ export const normalizeDateBetweenValue = (value: any[], options: NormalizeDateBe
   const end = normalized.length === 1 ? normalized[0] : normalized[normalized.length - 1];
   const boundaryOptions = {
     ...options,
-    useDefaultDateBoundary: shouldApplyDefaultDateBoundary(start, end, options),
+    useDefaultDateBoundary: shouldApplyDefaultDateBoundary(start, end, value, options),
   };
   return [
     normalizeDateBetweenBoundary(start, 'start', boundaryOptions),

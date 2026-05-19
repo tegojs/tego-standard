@@ -48,24 +48,21 @@ export interface Moment2strOptions {
   value?: any;
 }
 
-const isDefaultRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
-  if (typeof value !== 'string') {
-    return false;
-  }
-  const match = value.match(/^\d{4}-\d{2}-\d{2}[T\s](\d{2}:\d{2}:\d{2})(?:\.\d{3})?(?:Z|[+-]\d\d:\d\d)?$/);
-  if (!match) {
-    return false;
-  }
-  return boundary === 'start' ? match[1] === '00:00:00' : match[1] === '23:59:59';
+export const DATE_PICKER_RANGE_VALUE_MODE = Symbol.for('tachybase.datePicker.rangeValueMode');
+
+export type DatePickerRangeValueMode = 'date' | 'datetime';
+
+export const getRangeValueMode = (value: any): DatePickerRangeValueMode | undefined => {
+  return Array.isArray(value) ? value[DATE_PICKER_RANGE_VALUE_MODE] : undefined;
 };
 
-const isDefaultRangeBoundaryValuePair = (value: any) => {
-  return (
-    Array.isArray(value) &&
-    value.length >= 2 &&
-    isDefaultRangeBoundaryValue(value[0], 'start') &&
-    isDefaultRangeBoundaryValue(value[value.length - 1], 'end')
-  );
+const markRangeValueMode = (value: any[], mode: DatePickerRangeValueMode) => {
+  Object.defineProperty(value, DATE_PICKER_RANGE_VALUE_MODE, {
+    configurable: true,
+    enumerable: false,
+    value: mode,
+  });
+  return value;
 };
 
 export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {}) => {
@@ -73,7 +70,7 @@ export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {})
     return options;
   }
 
-  if (options.showTime && !isDefaultRangeBoundaryValuePair(options.value)) {
+  if (options.showTime && getRangeValueMode(options.value) !== 'date') {
     return options;
   }
 
@@ -137,7 +134,10 @@ export const mapRangePicker = function () {
         if (onChange) {
           onChange(
             value
-              ? [moment2str(getRangeStart(value[0], props), props), moment2str(getRangeEnd(value[1], props), props)]
+              ? markRangeValueMode(
+                  [moment2str(getRangeStart(value[0], props), props), moment2str(getRangeEnd(value[1], props), props)],
+                  props.showTime ? 'datetime' : 'date',
+                )
               : [],
           );
         }

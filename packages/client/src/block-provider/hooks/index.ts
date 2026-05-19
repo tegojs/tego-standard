@@ -564,7 +564,6 @@ export const useFilterBlockActionProps = () => {
     async onClick() {
       const { targets = [], uid } = findFilterTargets(fieldSchema);
       actionField.data.loading = true;
-      let prevMergedFilter = {};
       try {
         // 收集 filter 的值
         await Promise.all(
@@ -619,10 +618,8 @@ export const useFilterBlockActionProps = () => {
               getFilterSourceDefaultFilter(getDataBlocks(), uid),
               block.defaultFilter,
               filter.customFilter,
-              prevMergedFilter,
             ]);
             const currFilter = filterByCleanedFields(mergedFilter);
-            prevMergedFilter = currFilter;
             if (block.dataLoadingMode === 'manual' && _.isEmpty(currFilter)) {
               return block.clearData();
             }
@@ -659,7 +656,6 @@ export const useResetBlockActionProps = () => {
 
       form.reset();
       actionField.data.loading = true;
-      let prevMergedFilter = {};
       try {
         // 收集 filter 的值
         await Promise.all(
@@ -680,10 +676,8 @@ export const useResetBlockActionProps = () => {
               ...Object.values(storedFilter),
               getFilterSourceDefaultFilter(getDataBlocks(), uid),
               block.defaultFilter,
-              prevMergedFilter,
             ]);
             const mergedFilter = filterByCleanedFields(currFilter);
-            prevMergedFilter = mergedFilter;
             return block.doFilter(
               {
                 ...param,

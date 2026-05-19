@@ -150,24 +150,24 @@ const isEmpty = (obj) => {
   );
 };
 
+const CUSTOM_FILTER_VARIABLE_REGEXP = /^\{\{\$nFilter\.([^}]+)\}\}$/;
+
 export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) => {
   const filterSchema = fieldSchema ? fieldSchema['x-filter-rules'] : '';
   const filterSchemaItem = customFlat(filterSchema || '') as any;
   const items = customFlat(filter || {}) as any;
-  const values = {};
   const isCustomFilter = filterSchema?.$and?.length || filterSchema?.$or?.length;
   const isFilterCustom = isCustomFilter ? hasDuplicateKeys(items, filterSchemaItem) : false;
   if (!isFilterCustom) {
     if (isCustomFilter) {
       for (const filterKey in filterSchemaItem) {
-        const match = filterSchemaItem[filterKey]?.slice(11, -2);
-        const collection = match?.split('.')[0];
-        const filterItems = Object.keys(items).filter((item) => item.includes(collection));
-        if (filterItems.length > 1) {
-          filterSchemaItem[filterKey] = filterItems.map((key) => items[key]);
-        } else {
-          filterSchemaItem[filterKey] = items[filterItems[0]];
+        const match =
+          typeof filterSchemaItem[filterKey] === 'string' &&
+          filterSchemaItem[filterKey].match(CUSTOM_FILTER_VARIABLE_REGEXP);
+        if (!match) {
+          continue;
         }
+        filterSchemaItem[filterKey] = items[match[1]];
       }
       for (const item in filterSchemaItem) {
         if (!filterSchemaItem[item] || filterSchemaItem[item].includes('$nFilter')) {

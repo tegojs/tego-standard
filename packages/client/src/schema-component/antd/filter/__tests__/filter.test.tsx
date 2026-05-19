@@ -6,6 +6,7 @@ import App3 from '../demos/demo3';
 import App4 from '../demos/demo4';
 import App5 from '../demos/demo5';
 import App6 from '../demos/demo6';
+import { getCustomCondition } from '../useFilterActionProps';
 
 describe('Filter', () => {
   it('Filter & Action', async () => {
@@ -135,5 +136,46 @@ describe('Filter', () => {
     await userEvent.click(screen.getByText(/title2/i));
     expect(screen.getByText(/title2/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
     expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
+  });
+
+  it('keeps literal values when applying custom filter variables', () => {
+    const condition = getCustomCondition(
+      { z9h1ihf3d6u: 'Test Corp' },
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              category: {
+                $eq: '3',
+              },
+            },
+            {
+              company_pay: {
+                name: {
+                  $includes: '{{$nFilter.z9h1ihf3d6u}}',
+                },
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          category: {
+            $eq: '3',
+          },
+        },
+        {
+          company_pay: {
+            name: {
+              $includes: 'Test Corp',
+            },
+          },
+        },
+      ],
+    });
   });
 });

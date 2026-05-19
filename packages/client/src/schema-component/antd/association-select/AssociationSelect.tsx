@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { connect, Field, ISchema, mapProps, mapReadPretty, uid, useField, useFieldSchema } from '@tachybase/schema';
+import { ArrayCollapse, ArrayItems, FormLayout } from '@tego/client';
 
 import { LoadingOutlined } from '@ant-design/icons';
-import { ArrayCollapse, ArrayItems, FormLayout } from '@tego/client';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
@@ -391,7 +391,9 @@ AssociationSelect.Designer = function Designer() {
           key="multiple"
           title={t('Allow multiple')}
           checked={
-            fieldSchema['x-component-props']?.multiple === undefined ? true : fieldSchema['x-component-props'].multiple
+            (fieldSchema['x-component-props'] || {}).multiple === undefined
+              ? true
+              : fieldSchema['x-component-props'].multiple
           }
           onChange={(value) => {
             const schema = {

@@ -227,7 +227,66 @@ describe('Filter', () => {
     });
   });
 
-  it('normalizes date-only custom filter values to full-day boundaries', () => {
+  it('normalizes date-only custom range picker values to full-day boundaries', () => {
+    const start = '2026-05-01T00:00:00.000Z';
+    const end = '2026-05-19T23:59:59.999Z';
+    const condition = getCustomCondition(
+      { date: [start, end] },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              $or: [
+                {
+                  date_pay: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+                {
+                  date_receive: {
+                    $dateBetween: '{{$nFilter.date}}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          $or: [
+            {
+              date_pay: {
+                $dateBetween: [
+                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
+                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
+                ],
+              },
+            },
+            {
+              date_receive: {
+                $dateBetween: [
+                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
+                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('normalizes date-only custom filter string values to full-day boundaries', () => {
     const start = '2026-05-01';
     const end = '2026-05-19';
     const condition = getCustomCondition(
@@ -277,11 +336,18 @@ describe('Filter', () => {
   it('preserves explicit time points for date-between custom filter values', () => {
     const start = '2026-05-01T08:30:00.000Z';
     const end = '2026-05-19T18:45:00.000Z';
-    const localStart = start.replace(/Z$/, '');
-    const localEnd = end.replace(/Z$/, '');
     const condition = getCustomCondition(
       { date: [start, end] },
       {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+            'x-component-props': {
+              showTime: true,
+            },
+          },
+        },
         'x-filter-rules': {
           $and: [
             {
@@ -309,15 +375,53 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: [dayjs(localStart).toISOString(), dayjs(localEnd).toISOString()],
+                $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
               },
             },
             {
               date_receive: {
-                $dateBetween: [dayjs(localStart).toISOString(), dayjs(localEnd).toISOString()],
+                $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
               },
             },
           ],
+        },
+      ],
+    });
+  });
+
+  it('preserves explicit midnight points for date-between custom filter values', () => {
+    const start = '2026-05-01T00:00:00.000Z';
+    const end = '2026-05-19T00:00:00.000Z';
+    const condition = getCustomCondition(
+      { date: [start, end] },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+            'x-component-props': {
+              showTime: true,
+            },
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              date_pay: {
+                $dateBetween: '{{$nFilter.date}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          date_pay: {
+            $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
+          },
         },
       ],
     });

@@ -10,6 +10,7 @@ import {
   FILTER_OPERATORS_WITH_ARRAY_VALUES,
   mergeFilter,
   normalizeDateBetweenValue,
+  shouldUseDefaultDateBoundary,
 } from '../../../filter-provider/utils';
 import { useDataLoadingMode } from '../../../modules/blocks/data-blocks/details-multi/setDataLoadingModeSettingsItem';
 import { hasDuplicateKeys } from './utils';
@@ -169,17 +170,43 @@ const getCustomFilterValue = (items, key) => {
   return arrayItems.length ? arrayItems : undefined;
 };
 
-const normalizeCustomDateBetweenValue = (value) => {
-  return normalizeDateBetweenValue(
-    value.map((item) => (typeof item === 'string' ? item.replace(/Z$/, '').replace(/[+-]\d\d:\d\d$/, '') : item)),
-  );
+const findCustomFieldSchemaInTree = (schema, key) => {
+  if (!schema) {
+    return null;
+  }
+  if (schema.name === `__custom.${key}` || schema.name === key) {
+    return schema;
+  }
+  const properties = schema.properties || {};
+  for (const propertyKey of Object.keys(properties)) {
+    if (propertyKey === `__custom.${key}` || propertyKey === key) {
+      return properties[propertyKey];
+    }
+    const found = findCustomFieldSchemaInTree(properties[propertyKey], key);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
 };
 
-const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat) => {
+const findCustomFieldSchema = (schema, key) => {
+  let current = schema;
+  while (current) {
+    const found = findCustomFieldSchemaInTree(current, key);
+    if (found) {
+      return found;
+    }
+    current = current.parent;
+  }
+  return null;
+};
+
+const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat, options: any = {}) => {
   const pathParts = filterKey.split('.');
   const operator = pathParts.pop();
   if (operator === '$dateBetween' && Array.isArray(value)) {
-    filterSchemaItem[filterKey] = normalizeCustomDateBetweenValue(value);
+    filterSchemaItem[filterKey] = normalizeDateBetweenValue(value, options);
     return;
   }
 
@@ -218,7 +245,10 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
         if (!match) {
           continue;
         }
-        expandArrayValueFilter(filterSchemaItem, filterKey, getCustomFilterValue(items, match[1]), customFlat);
+        const customFieldSchema = findCustomFieldSchema(fieldSchema, match[1]);
+        expandArrayValueFilter(filterSchemaItem, filterKey, getCustomFilterValue(items, match[1]), customFlat, {
+          useDefaultDateBoundary: shouldUseDefaultDateBoundary(customFieldSchema),
+        });
       }
       for (const item in filterSchemaItem) {
         if (!filterSchemaItem[item] || filterSchemaItem[item].includes('$nFilter')) {

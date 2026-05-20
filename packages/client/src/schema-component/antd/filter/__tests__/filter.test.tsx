@@ -228,6 +228,55 @@ describe('Filter', () => {
     });
   });
 
+  it('skips nested array custom filter branches when the selected values are empty', () => {
+    const condition = getCustomCondition(
+      { type: [] },
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              $or: [
+                {
+                  $and: [
+                    {
+                      category: {
+                        $eq: '1',
+                      },
+                    },
+                  ],
+                },
+                {
+                  category: {
+                    $eq: '{{$nFilter.type}}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          $or: [
+            {
+              $and: [
+                {
+                  category: {
+                    $eq: '1',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(JSON.stringify(condition)).not.toContain('"$or":[]');
+  });
+
   it('normalizes date-only custom range picker values to full-day boundaries', () => {
     const start = '2026-05-01T00:00:00.000Z';
     const end = '2026-05-19T23:59:59.999Z';

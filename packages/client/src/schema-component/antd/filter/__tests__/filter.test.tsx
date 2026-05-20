@@ -3,6 +3,7 @@ import { render, screen, userEvent, waitFor, within } from '@tachybase/test/clie
 
 import dayjs from 'dayjs';
 
+import { mapRangePicker } from '../../date-picker/util';
 import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
 import App4 from '../demos/demo4';
@@ -266,18 +267,12 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: [
-                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
             {
               date_receive: {
-                $dateBetween: [
-                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
           ],
@@ -389,11 +384,19 @@ describe('Filter', () => {
     });
   });
 
-  it('preserves explicit midnight points for date-between custom filter values', () => {
-    const start = '2026-05-01T00:00:00.000Z';
-    const end = '2026-05-19T00:00:00.000Z';
+  it('uses retained date-only range metadata for custom filter values after enabling time', () => {
+    let rangeValue: any[];
+    const dateOnlyMapped = mapRangePicker()({
+      showTime: false,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        rangeValue = nextValue;
+      },
+    });
+    dateOnlyMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 00:00:00')]);
+
     const condition = getCustomCondition(
-      { date: [start, end] },
+      { date: rangeValue },
       {
         properties: {
           '__custom.date': {
@@ -420,7 +423,106 @@ describe('Filter', () => {
       $and: [
         {
           date_pay: {
-            $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
+            $dateBetween: [
+              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
+              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it('normalizes retained date-only range fallback for custom filter values when metadata is lost', () => {
+    let rangeValue: any[];
+    const dateOnlyMapped = mapRangePicker()({
+      showTime: false,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        rangeValue = nextValue;
+      },
+    });
+    dateOnlyMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 00:00:00')]);
+
+    const copiedRangeValue = [rangeValue[0], rangeValue[1]];
+    const condition = getCustomCondition(
+      { date: copiedRangeValue },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+            'x-component-props': {
+              showTime: true,
+            },
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              date_pay: {
+                $dateBetween: '{{$nFilter.date}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          date_pay: {
+            $dateBetween: [
+              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
+              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it('preserves explicit boundary-looking datetime metadata for custom filter values', () => {
+    let rangeValue: any[];
+    const datetimeMapped = mapRangePicker()({
+      showTime: true,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        rangeValue = nextValue;
+      },
+    });
+    datetimeMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 23:59:59')]);
+
+    const condition = getCustomCondition(
+      { date: rangeValue },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+            'x-component-props': {
+              showTime: true,
+            },
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              date_pay: {
+                $dateBetween: '{{$nFilter.date}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          date_pay: {
+            $dateBetween: [dayjs(rangeValue[0]).toISOString(), dayjs(rangeValue[1]).toISOString()],
           },
         },
       ],

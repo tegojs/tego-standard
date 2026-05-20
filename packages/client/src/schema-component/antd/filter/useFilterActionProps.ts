@@ -13,6 +13,7 @@ import {
   shouldUseDefaultDateBoundary,
 } from '../../../filter-provider/utils';
 import { useDataLoadingMode } from '../../../modules/blocks/data-blocks/details-multi/setDataLoadingModeSettingsItem';
+import { resolveDatePickerRangeValueInfo } from '../date-picker/util';
 import { hasDuplicateKeys } from './utils';
 
 export const useGetFilterOptions = () => {
@@ -157,7 +158,11 @@ const isEmpty = (obj) => {
 
 const CUSTOM_FILTER_VARIABLE_REGEXP = /^\{\{\$nFilter\.([^}]+)\}\}$/;
 
-const getCustomFilterValue = (items, key) => {
+const getCustomFilterValue = (items, key, rawItems: any = {}) => {
+  if (rawItems && key in rawItems) {
+    return rawItems[key];
+  }
+
   if (key in items) {
     return items[key];
   }
@@ -202,11 +207,29 @@ const findCustomFieldSchema = (schema, key) => {
   return null;
 };
 
+const getDatePickerComponent = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component'] || fieldSchema?.['x-component-props']?.component;
+};
+
+const getDatePickerShowTime = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component-props']?.showTime;
+};
+
 const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat, options: any = {}) => {
   const pathParts = filterKey.split('.');
   const operator = pathParts.pop();
   if (operator === '$dateBetween' && Array.isArray(value)) {
-    filterSchemaItem[filterKey] = normalizeDateBetweenValue(value, options);
+    const valueInfo = resolveDatePickerRangeValueInfo(value, {
+      component: options.component,
+      showTime: options.showTime,
+      preferDateBoundaryFallback: options.useDefaultDateBoundary,
+    });
+    filterSchemaItem[filterKey] = normalizeDateBetweenValue(value, {
+      useDefaultDateBoundary: options.useDefaultDateBoundary,
+      valueMode: valueInfo.mode,
+      valueSource: valueInfo.source,
+      preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',
+    });
     return;
   }
 
@@ -246,9 +269,17 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
           continue;
         }
         const customFieldSchema = findCustomFieldSchema(fieldSchema, match[1]);
-        expandArrayValueFilter(filterSchemaItem, filterKey, getCustomFilterValue(items, match[1]), customFlat, {
-          useDefaultDateBoundary: shouldUseDefaultDateBoundary(customFieldSchema),
-        });
+        expandArrayValueFilter(
+          filterSchemaItem,
+          filterKey,
+          getCustomFilterValue(items, match[1], filter || {}),
+          customFlat,
+          {
+            useDefaultDateBoundary: shouldUseDefaultDateBoundary(customFieldSchema),
+            component: getDatePickerComponent(customFieldSchema),
+            showTime: getDatePickerShowTime(customFieldSchema),
+          },
+        );
       }
       for (const item in filterSchemaItem) {
         if (!filterSchemaItem[item] || filterSchemaItem[item].includes('$nFilter')) {

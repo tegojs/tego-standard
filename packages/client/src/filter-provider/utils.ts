@@ -15,6 +15,12 @@ import {
 } from '../collection-manager';
 import { removeNullCondition } from '../schema-component';
 import {
+  isDatePickerDefaultRangeBoundaryValue,
+  resolveDatePickerRangeValueInfo,
+  type DatePickerRangeValueMode,
+  type DatePickerRangeValueSource,
+} from '../schema-component/antd/date-picker/util';
+import {
   findFilterOperators,
   getDefaultFilterOperatorValue,
 } from '../schema-component/antd/form-item/SchemaSettingOptions';
@@ -174,6 +180,17 @@ const resolveFilterOperator = (
 
 type NormalizeDateBetweenOptions = {
   useDefaultDateBoundary?: boolean;
+  valueMode?: DatePickerRangeValueMode;
+  valueSource?: DatePickerRangeValueSource;
+  preferDateBoundaryFallback?: boolean;
+};
+
+const getDatePickerComponent = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component'] || fieldSchema?.['x-component-props']?.component;
+};
+
+const getDatePickerShowTime = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component-props']?.showTime;
 };
 
 const isDateOnlyString = (value: any) => {
@@ -184,21 +201,7 @@ const hasExplicitTime = (value: any) => {
   return typeof value === 'string' && /[T\s]\d{2}:\d{2}/.test(value);
 };
 
-const isDefaultDateBoundaryValue = (value: any, boundary: 'start' | 'end') => {
-  if (isDateOnlyString(value)) {
-    return true;
-  }
-  if (typeof value !== 'string') {
-    return false;
-  }
-  const match = value.match(/^\d{4}-\d{2}-\d{2}[T\s](\d{2}:\d{2}:\d{2})(?:\.\d{3})?(?:Z|[+-]\d\d:\d\d)?$/);
-  if (!match) {
-    return false;
-  }
-  return boundary === 'start' ? match[1] === '00:00:00' : match[1] === '23:59:59';
-};
-
-const normalizeDefaultDateBoundaryInput = (value: any) => {
+const normalizeLocalDateBoundaryInput = (value: any) => {
   if (typeof value !== 'string') {
     return value;
   }
@@ -210,25 +213,58 @@ const normalizeDateBetweenBoundary = (
   boundary: 'start' | 'end',
   options: NormalizeDateBetweenOptions = {},
 ) => {
-  const rawValue = options.useDefaultDateBoundary ? normalizeDefaultDateBoundaryInput(value) : value;
-  const m = dayjs(rawValue);
+  const m = dayjs(value);
   if (!m.isValid()) {
     return value;
   }
-  if (!options.useDefaultDateBoundary && hasExplicitTime(rawValue) && !isDateOnlyString(rawValue)) {
+
+  if (isDateOnlyString(value)) {
+    return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
+  }
+
+  if (options.valueMode === 'date') {
+    if (options.valueSource === 'retained-local-date-boundary') {
+      return m.toISOString();
+    }
+    const localBoundary = dayjs(normalizeLocalDateBoundaryInput(value));
+    return (boundary === 'start' ? localBoundary.startOf('day') : localBoundary.endOf('day')).toISOString();
+  }
+
+  if (hasExplicitTime(value)) {
     return m.toISOString();
   }
+
+  if (!options.useDefaultDateBoundary) {
+    return m.toISOString();
+  }
+
   return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
 };
 
-const shouldApplyDefaultDateBoundary = (start: any, end: any, options: NormalizeDateBetweenOptions = {}) => {
+const shouldApplyDefaultDateBoundary = (
+  start: any,
+  end: any,
+  value: any[],
+  options: NormalizeDateBetweenOptions = {},
+) => {
+  if (options.valueMode === 'datetime') {
+    return false;
+  }
+  if (options.valueMode === 'date') {
+    return true;
+  }
   if (!options.useDefaultDateBoundary) {
     return false;
   }
   if (isDateOnlyString(start) || isDateOnlyString(end)) {
     return true;
   }
-  return isDefaultDateBoundaryValue(start, 'start') && isDefaultDateBoundaryValue(end, 'end');
+  return (
+    options.preferDateBoundaryFallback &&
+    options.valueMode === 'date' &&
+    isDatePickerDefaultRangeBoundaryValue(start, 'start') &&
+    isDatePickerDefaultRangeBoundaryValue(end, 'end')
+  );
 };
 
 export const normalizeDateBetweenValue = (value: any[], options: NormalizeDateBetweenOptions = {}) => {
@@ -241,7 +277,7 @@ export const normalizeDateBetweenValue = (value: any[], options: NormalizeDateBe
   const end = normalized.length === 1 ? normalized[0] : normalized[normalized.length - 1];
   const boundaryOptions = {
     ...options,
-    useDefaultDateBoundary: shouldApplyDefaultDateBoundary(start, end, options),
+    useDefaultDateBoundary: shouldApplyDefaultDateBoundary(start, end, value, options),
   };
   return [
     normalizeDateBetweenBoundary(start, 'start', boundaryOptions),
@@ -250,11 +286,7 @@ export const normalizeDateBetweenValue = (value: any[], options: NormalizeDateBe
 };
 
 export const shouldUseDefaultDateBoundary = (fieldSchema?: any) => {
-  if (!fieldSchema) {
-    return false;
-  }
-  const component = fieldSchema['x-component'] || fieldSchema['x-component-props']?.component;
-  return component === 'DatePicker.RangePicker';
+  return getDatePickerComponent(fieldSchema) === 'DatePicker.RangePicker';
 };
 
 export const transformToFilter = (
@@ -325,8 +357,16 @@ export const transformToFilter = (
           }
         } else if (operator === '$dateBetween') {
           if (Array.isArray(value)) {
+            const valueInfo = resolveDatePickerRangeValueInfo(value, {
+              component: getDatePickerComponent(currentFieldSchema),
+              showTime: getDatePickerShowTime(currentFieldSchema),
+              preferDateBoundaryFallback: shouldUseDefaultDateBoundary(currentFieldSchema),
+            });
             value = normalizeDateBetweenValue(value, {
               useDefaultDateBoundary: shouldUseDefaultDateBoundary(currentFieldSchema),
+              valueMode: valueInfo.mode,
+              valueSource: valueInfo.source,
+              preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',
             });
             if (!value) {
               return null;

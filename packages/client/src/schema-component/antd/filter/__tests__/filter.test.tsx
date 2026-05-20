@@ -267,12 +267,12 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: [start, end],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
             {
               date_receive: {
-                $dateBetween: [start, end],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
           ],
@@ -423,14 +423,17 @@ describe('Filter', () => {
       $and: [
         {
           date_pay: {
-            $dateBetween: rangeValue,
+            $dateBetween: [
+              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
+              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
+            ],
           },
         },
       ],
     });
   });
 
-  it('uses retained date-only range fallback for custom filter values when metadata is lost', () => {
+  it('normalizes retained date-only range fallback for custom filter values when metadata is lost', () => {
     let rangeValue: any[];
     const dateOnlyMapped = mapRangePicker()({
       showTime: false,
@@ -470,7 +473,10 @@ describe('Filter', () => {
       $and: [
         {
           date_pay: {
-            $dateBetween: copiedRangeValue,
+            $dateBetween: [
+              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
+              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
+            ],
           },
         },
       ],

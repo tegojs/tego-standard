@@ -18,6 +18,7 @@ import {
   isDatePickerDefaultRangeBoundaryValue,
   resolveDatePickerRangeValueInfo,
   type DatePickerRangeValueMode,
+  type DatePickerRangeValueSource,
 } from '../schema-component/antd/date-picker/util';
 import {
   findFilterOperators,
@@ -180,6 +181,7 @@ const resolveFilterOperator = (
 type NormalizeDateBetweenOptions = {
   useDefaultDateBoundary?: boolean;
   valueMode?: DatePickerRangeValueMode;
+  valueSource?: DatePickerRangeValueSource;
   preferDateBoundaryFallback?: boolean;
 };
 
@@ -199,6 +201,13 @@ const hasExplicitTime = (value: any) => {
   return typeof value === 'string' && /[T\s]\d{2}:\d{2}/.test(value);
 };
 
+const normalizeLocalDateBoundaryInput = (value: any) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  return value.replace(/Z$/, '').replace(/[+-]\d\d:\d\d$/, '');
+};
+
 const normalizeDateBetweenBoundary = (
   value: any,
   boundary: 'start' | 'end',
@@ -213,8 +222,12 @@ const normalizeDateBetweenBoundary = (
     return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
   }
 
-  if (options.valueMode === 'date' && isDatePickerDefaultRangeBoundaryValue(value, boundary)) {
-    return m.toISOString();
+  if (options.valueMode === 'date') {
+    if (options.valueSource === 'retained-local-date-boundary') {
+      return m.toISOString();
+    }
+    const localBoundary = dayjs(normalizeLocalDateBoundaryInput(value));
+    return (boundary === 'start' ? localBoundary.startOf('day') : localBoundary.endOf('day')).toISOString();
   }
 
   if (hasExplicitTime(value)) {
@@ -248,6 +261,7 @@ const shouldApplyDefaultDateBoundary = (
   }
   return (
     options.preferDateBoundaryFallback &&
+    options.valueMode === 'date' &&
     isDatePickerDefaultRangeBoundaryValue(start, 'start') &&
     isDatePickerDefaultRangeBoundaryValue(end, 'end')
   );
@@ -351,6 +365,7 @@ export const transformToFilter = (
             value = normalizeDateBetweenValue(value, {
               useDefaultDateBoundary: shouldUseDefaultDateBoundary(currentFieldSchema),
               valueMode: valueInfo.mode,
+              valueSource: valueInfo.source,
               preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',
             });
             if (!value) {

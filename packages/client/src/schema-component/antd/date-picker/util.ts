@@ -53,7 +53,12 @@ export const DATE_PICKER_RANGE_VALUE_MODE = Symbol.for('tachybase.datePicker.ran
 
 export type DatePickerRangeValueMode = 'date' | 'datetime';
 
-export type DatePickerRangeValueSource = 'metadata' | 'schema' | 'retained-date-boundary' | 'unknown';
+export type DatePickerRangeValueSource =
+  | 'metadata'
+  | 'schema'
+  | 'retained-date-boundary'
+  | 'retained-local-date-boundary'
+  | 'unknown';
 
 export interface DatePickerRangeValueInfo {
   mode?: DatePickerRangeValueMode;
@@ -93,6 +98,24 @@ export const isDatePickerDefaultRangeBoundaryPair = (value: any) => {
   );
 };
 
+const isDatePickerLocalRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
+  const m = dayjs(value);
+  if (!m.isValid()) {
+    return false;
+  }
+
+  return boundary === 'start' ? m.format('HH:mm:ss') === '00:00:00' : m.format('HH:mm:ss') === '23:59:59';
+};
+
+const isDatePickerRetainedLocalBoundaryPair = (value: any) => {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    isDatePickerLocalRangeBoundaryValue(value[0], 'start') &&
+    isDatePickerLocalRangeBoundaryValue(value[value.length - 1], 'end')
+  );
+};
+
 export const resolveDatePickerRangeValueInfo = (
   value: any,
   options: { showTime?: boolean; component?: string; preferDateBoundaryFallback?: boolean } = {},
@@ -104,6 +127,10 @@ export const resolveDatePickerRangeValueInfo = (
 
   if (options.component === 'DatePicker.RangePicker' && !options.showTime) {
     return { mode: 'date', source: 'schema' };
+  }
+
+  if (options.preferDateBoundaryFallback && options.showTime && isDatePickerRetainedLocalBoundaryPair(value)) {
+    return { mode: 'date', source: 'retained-local-date-boundary' };
   }
 
   if (options.preferDateBoundaryFallback && isDatePickerDefaultRangeBoundaryPair(value)) {
@@ -124,8 +151,10 @@ export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {})
     preferDateBoundaryFallback: options.component === 'DatePicker.RangePicker',
   });
 
-  if (options.showTime && rangeValueInfo.mode !== 'date') {
-    return options;
+  if (options.showTime) {
+    if (rangeValueInfo.mode !== 'date' || rangeValueInfo.source === 'retained-local-date-boundary') {
+      return options;
+    }
   }
 
   return {

@@ -199,6 +199,32 @@ describe('mapRangePicker', () => {
     });
   });
 
+  test('should resolve original and converted retained range boundaries separately', () => {
+    vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-480);
+
+    expect(
+      resolveDatePickerRangeValueInfo(['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.999Z'], {
+        showTime: true,
+        component: 'DatePicker.RangePicker',
+        preferDateBoundaryFallback: true,
+      }),
+    ).toEqual({
+      mode: 'date',
+      source: 'retained-date-boundary',
+    });
+
+    expect(
+      resolveDatePickerRangeValueInfo(['2026-04-30T16:00:00.000Z', '2026-05-19T15:59:59.999Z'], {
+        showTime: true,
+        component: 'DatePicker.RangePicker',
+        preferDateBoundaryFallback: true,
+      }),
+    ).toEqual({
+      mode: 'date',
+      source: 'retained-local-date-boundary',
+    });
+  });
+
   test('should parse date-only range values with GMT semantics when gmt is not specified', () => {
     vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-480);
 
@@ -240,6 +266,19 @@ describe('mapRangePicker', () => {
 
     const mapped = mapRangePicker()({
       value: ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.999Z'],
+      showTime: true,
+      utc: true,
+    });
+
+    expect(mapped.value[0].format('YYYY-MM-DD HH:mm:ss')).toBe('2026-05-01 00:00:00');
+    expect(mapped.value[1].format('YYYY-MM-DD HH:mm:ss')).toBe('2026-05-19 23:59:59');
+  });
+
+  test('should keep converted ordinary retained date-only range boundaries as local days after enabling showTime', () => {
+    vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-480);
+
+    const mapped = mapRangePicker()({
+      value: ['2026-04-30T16:00:00.000Z', '2026-05-19T15:59:59.999Z'],
       showTime: true,
       utc: true,
     });

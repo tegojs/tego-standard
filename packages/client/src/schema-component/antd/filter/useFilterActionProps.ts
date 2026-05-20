@@ -227,6 +227,7 @@ const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat, 
     filterSchemaItem[filterKey] = normalizeDateBetweenValue(value, {
       useDefaultDateBoundary: options.useDefaultDateBoundary,
       valueMode: valueInfo.mode,
+      valueSource: valueInfo.source,
       preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',
     });
     return;

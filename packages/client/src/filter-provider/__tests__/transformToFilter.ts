@@ -96,7 +96,7 @@ describe('transformToFilter', () => {
       $and: [
         {
           createdAt: {
-            $dateBetween: [start, end],
+            $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
           },
         },
       ],
@@ -142,14 +142,17 @@ describe('transformToFilter', () => {
       $and: [
         {
           createdAt: {
-            $dateBetween: rangeValue,
+            $dateBetween: [
+              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
+              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
+            ],
           },
         },
       ],
     });
   });
 
-  it('should preserve unmarked retained date-only boundaries for ordinary range fields after enabling time', () => {
+  it('should normalize unmarked retained date-only boundaries for ordinary range fields after enabling time', () => {
     let rangeValue: any[];
     const dateOnlyMapped = mapRangePicker()({
       showTime: false,
@@ -189,7 +192,46 @@ describe('transformToFilter', () => {
       $and: [
         {
           createdAt: {
-            $dateBetween: copiedRangeValue,
+            $dateBetween: [
+              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
+              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it('should preserve converted ordinary retained date-only boundaries after enabling time', () => {
+    const values = {
+      createdAt: ['2026-04-30T16:00:00.000Z', '2026-05-19T15:59:59.999Z'],
+    };
+
+    const fieldSchema = {
+      'x-filter-operators': {
+        createdAt: '$dateBetween',
+      },
+      properties: {
+        createdAt: {
+          name: 'createdAt',
+          'x-component-props': {
+            component: 'DatePicker.RangePicker',
+            showTime: true,
+          },
+        },
+      },
+    };
+
+    const getField = () => ({
+      targetKey: undefined,
+      interface: 'createdAt',
+    });
+
+    expect(transformToFilter(values, fieldSchema as any, getField, 'receipt')).toEqual({
+      $and: [
+        {
+          createdAt: {
+            $dateBetween: values.createdAt,
           },
         },
       ],

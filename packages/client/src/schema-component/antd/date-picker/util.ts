@@ -65,12 +65,36 @@ const markRangeValueMode = (value: any[], mode: DatePickerRangeValueMode) => {
   return value;
 };
 
+const isDefaultRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const match = value.match(/^\d{4}-\d{2}-\d{2}[T\s](\d{2}:\d{2}:\d{2})(?:\.\d{3})?(?:Z|[+-]\d\d:\d\d)?$/);
+  if (!match) {
+    return false;
+  }
+  return boundary === 'start' ? match[1] === '00:00:00' : match[1] === '23:59:59';
+};
+
+const isDefaultRangeBoundaryValuePair = (value: any) => {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    isDefaultRangeBoundaryValue(value[0], 'start') &&
+    isDefaultRangeBoundaryValue(value[value.length - 1], 'end')
+  );
+};
+
 export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {}) => {
   if (options.utc === false || typeof options.gmt === 'boolean' || options.picker) {
     return options;
   }
 
-  if (options.showTime && getRangeValueMode(options.value) !== 'date') {
+  if (
+    options.showTime &&
+    getRangeValueMode(options.value) !== 'date' &&
+    !isDefaultRangeBoundaryValuePair(options.value)
+  ) {
     return options;
   }
 

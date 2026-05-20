@@ -3,7 +3,7 @@ import { str2moment } from '@tego/client';
 import dayjs from 'dayjs';
 import { vi } from 'vitest';
 
-import { mapRangePicker, moment2str } from '../util';
+import { mapRangePicker, moment2str, resolveDatePickerRangeValueInfo } from '../util';
 
 describe('str2moment', () => {
   describe('string value', () => {
@@ -143,6 +143,62 @@ describe('moment2str', () => {
 });
 
 describe('mapRangePicker', () => {
+  test('should resolve retained date range mode from live metadata first', () => {
+    let value: any[];
+    const dateOnlyMapped = mapRangePicker()({
+      showTime: false,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        value = nextValue;
+      },
+    });
+    dateOnlyMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 00:00:00')]);
+
+    expect(resolveDatePickerRangeValueInfo(value, { showTime: true })).toEqual({
+      mode: 'date',
+      source: 'metadata',
+    });
+  });
+
+  test('should resolve datetime range mode from live metadata before boundary fallback', () => {
+    let value: any[];
+    const datetimeMapped = mapRangePicker()({
+      showTime: true,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        value = nextValue;
+      },
+    });
+    datetimeMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 23:59:59')]);
+
+    expect(
+      resolveDatePickerRangeValueInfo(value, {
+        showTime: true,
+        component: 'DatePicker.RangePicker',
+        preferDateBoundaryFallback: true,
+      }),
+    ).toEqual({
+      mode: 'datetime',
+      source: 'metadata',
+    });
+  });
+
+  test('should resolve unmarked retained range boundaries only when fallback is requested', () => {
+    const value = ['2026-05-01T00:00:00.000Z', '2026-05-19T23:59:59.999Z'];
+
+    expect(resolveDatePickerRangeValueInfo(value, { showTime: true })).toEqual({ source: 'unknown' });
+    expect(
+      resolveDatePickerRangeValueInfo(value, {
+        showTime: true,
+        component: 'DatePicker.RangePicker',
+        preferDateBoundaryFallback: true,
+      }),
+    ).toEqual({
+      mode: 'date',
+      source: 'retained-date-boundary',
+    });
+  });
+
   test('should parse date-only range values with GMT semantics when gmt is not specified', () => {
     vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-480);
 

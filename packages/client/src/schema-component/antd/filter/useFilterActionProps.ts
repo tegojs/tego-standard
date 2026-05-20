@@ -13,6 +13,7 @@ import {
   shouldUseDefaultDateBoundary,
 } from '../../../filter-provider/utils';
 import { useDataLoadingMode } from '../../../modules/blocks/data-blocks/details-multi/setDataLoadingModeSettingsItem';
+import { resolveDatePickerRangeValueInfo } from '../date-picker/util';
 import { hasDuplicateKeys } from './utils';
 
 export const useGetFilterOptions = () => {
@@ -206,11 +207,28 @@ const findCustomFieldSchema = (schema, key) => {
   return null;
 };
 
+const getDatePickerComponent = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component'] || fieldSchema?.['x-component-props']?.component;
+};
+
+const getDatePickerShowTime = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component-props']?.showTime;
+};
+
 const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat, options: any = {}) => {
   const pathParts = filterKey.split('.');
   const operator = pathParts.pop();
   if (operator === '$dateBetween' && Array.isArray(value)) {
-    filterSchemaItem[filterKey] = normalizeDateBetweenValue(value, options);
+    const valueInfo = resolveDatePickerRangeValueInfo(value, {
+      component: options.component,
+      showTime: options.showTime,
+      preferDateBoundaryFallback: options.useDefaultDateBoundary,
+    });
+    filterSchemaItem[filterKey] = normalizeDateBetweenValue(value, {
+      useDefaultDateBoundary: options.useDefaultDateBoundary,
+      valueMode: valueInfo.mode,
+      preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',
+    });
     return;
   }
 
@@ -257,6 +275,8 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
           customFlat,
           {
             useDefaultDateBoundary: shouldUseDefaultDateBoundary(customFieldSchema),
+            component: getDatePickerComponent(customFieldSchema),
+            showTime: getDatePickerShowTime(customFieldSchema),
           },
         );
       }

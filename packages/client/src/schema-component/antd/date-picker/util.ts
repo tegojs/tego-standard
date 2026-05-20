@@ -46,17 +46,25 @@ export interface Moment2strOptions {
   utc?: boolean;
   picker?: 'year' | 'month' | 'week' | 'quarter';
   value?: any;
+  component?: string;
 }
 
 export const DATE_PICKER_RANGE_VALUE_MODE = Symbol.for('tachybase.datePicker.rangeValueMode');
 
 export type DatePickerRangeValueMode = 'date' | 'datetime';
 
+export type DatePickerRangeValueSource = 'metadata' | 'schema' | 'retained-date-boundary' | 'unknown';
+
+export interface DatePickerRangeValueInfo {
+  mode?: DatePickerRangeValueMode;
+  source: DatePickerRangeValueSource;
+}
+
 export const getRangeValueMode = (value: any): DatePickerRangeValueMode | undefined => {
   return Array.isArray(value) ? value[DATE_PICKER_RANGE_VALUE_MODE] : undefined;
 };
 
-const markRangeValueMode = (value: any[], mode: DatePickerRangeValueMode) => {
+export const markRangeValueMode = (value: any[], mode: DatePickerRangeValueMode) => {
   Object.defineProperty(value, DATE_PICKER_RANGE_VALUE_MODE, {
     configurable: true,
     enumerable: false,
@@ -65,7 +73,7 @@ const markRangeValueMode = (value: any[], mode: DatePickerRangeValueMode) => {
   return value;
 };
 
-const isDefaultRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
+export const isDatePickerDefaultRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
   if (typeof value !== 'string') {
     return false;
   }
@@ -76,13 +84,33 @@ const isDefaultRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
   return boundary === 'start' ? match[1] === '00:00:00' : match[1] === '23:59:59';
 };
 
-const isDefaultRangeBoundaryValuePair = (value: any) => {
+export const isDatePickerDefaultRangeBoundaryPair = (value: any) => {
   return (
     Array.isArray(value) &&
     value.length >= 2 &&
-    isDefaultRangeBoundaryValue(value[0], 'start') &&
-    isDefaultRangeBoundaryValue(value[value.length - 1], 'end')
+    isDatePickerDefaultRangeBoundaryValue(value[0], 'start') &&
+    isDatePickerDefaultRangeBoundaryValue(value[value.length - 1], 'end')
   );
+};
+
+export const resolveDatePickerRangeValueInfo = (
+  value: any,
+  options: { showTime?: boolean; component?: string; preferDateBoundaryFallback?: boolean } = {},
+): DatePickerRangeValueInfo => {
+  const metadataMode = getRangeValueMode(value);
+  if (metadataMode) {
+    return { mode: metadataMode, source: 'metadata' };
+  }
+
+  if (options.component === 'DatePicker.RangePicker' && !options.showTime) {
+    return { mode: 'date', source: 'schema' };
+  }
+
+  if (options.preferDateBoundaryFallback && isDatePickerDefaultRangeBoundaryPair(value)) {
+    return { mode: 'date', source: 'retained-date-boundary' };
+  }
+
+  return { source: 'unknown' };
 };
 
 export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {}) => {
@@ -90,16 +118,16 @@ export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {})
     return options;
   }
 
-  if (
-    options.showTime &&
-    getRangeValueMode(options.value) !== 'date' &&
-    !isDefaultRangeBoundaryValuePair(options.value)
-  ) {
+  const rangeValueInfo = resolveDatePickerRangeValueInfo(options.value, {
+    component: options.component,
+    showTime: options.showTime,
+    preferDateBoundaryFallback: options.component === 'DatePicker.RangePicker',
+  });
+
+  if (options.showTime && rangeValueInfo.mode !== 'date') {
     return options;
   }
 
-  // For date-only values, the write path defaults to GMT strings.
-  // Read path needs the same assumption, otherwise end-of-day values drift into the next local day.
   return {
     ...options,
     gmt: true,
@@ -153,7 +181,10 @@ export const mapRangePicker = function () {
     return {
       ...props,
       format: format,
-      value: str2moment(props.value, normalizeDatePickerParseOptions(props)),
+      value: str2moment(
+        props.value,
+        normalizeDatePickerParseOptions({ ...props, component: 'DatePicker.RangePicker' }),
+      ),
       onChange: (value: Dayjs[]) => {
         if (onChange) {
           onChange(

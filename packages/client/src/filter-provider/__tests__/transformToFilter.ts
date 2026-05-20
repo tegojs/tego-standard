@@ -96,7 +96,7 @@ describe('transformToFilter', () => {
       $and: [
         {
           createdAt: {
-            $dateBetween: [dayjs(start).toISOString(), dayjs(end).toISOString()],
+            $dateBetween: [start, end],
           },
         },
       ],
@@ -142,10 +142,54 @@ describe('transformToFilter', () => {
       $and: [
         {
           createdAt: {
-            $dateBetween: [
-              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
-              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
-            ],
+            $dateBetween: rangeValue,
+          },
+        },
+      ],
+    });
+  });
+
+  it('should preserve unmarked retained date-only boundaries for ordinary range fields after enabling time', () => {
+    let rangeValue: any[];
+    const dateOnlyMapped = mapRangePicker()({
+      showTime: false,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        rangeValue = nextValue;
+      },
+    });
+    dateOnlyMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 00:00:00')]);
+
+    const copiedRangeValue = [rangeValue[0], rangeValue[1]];
+    const values = {
+      createdAt: copiedRangeValue,
+    };
+
+    const fieldSchema = {
+      'x-filter-operators': {
+        createdAt: '$dateBetween',
+      },
+      properties: {
+        createdAt: {
+          name: 'createdAt',
+          'x-component-props': {
+            component: 'DatePicker.RangePicker',
+            showTime: true,
+          },
+        },
+      },
+    };
+
+    const getField = () => ({
+      targetKey: undefined,
+      interface: 'createdAt',
+    });
+
+    expect(transformToFilter(values, fieldSchema as any, getField, 'receipt')).toEqual({
+      $and: [
+        {
+          createdAt: {
+            $dateBetween: copiedRangeValue,
           },
         },
       ],

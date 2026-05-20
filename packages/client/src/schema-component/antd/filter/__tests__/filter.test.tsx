@@ -267,18 +267,12 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: [
-                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [start, end],
               },
             },
             {
               date_receive: {
-                $dateBetween: [
-                  dayjs(start.replace(/Z$/, '')).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [start, end],
               },
             },
           ],
@@ -429,10 +423,54 @@ describe('Filter', () => {
       $and: [
         {
           date_pay: {
-            $dateBetween: [
-              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
-              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
-            ],
+            $dateBetween: rangeValue,
+          },
+        },
+      ],
+    });
+  });
+
+  it('uses retained date-only range fallback for custom filter values when metadata is lost', () => {
+    let rangeValue: any[];
+    const dateOnlyMapped = mapRangePicker()({
+      showTime: false,
+      utc: true,
+      onChange: (nextValue: any[]) => {
+        rangeValue = nextValue;
+      },
+    });
+    dateOnlyMapped.onChange([dayjs('2026-05-01 00:00:00'), dayjs('2026-05-19 00:00:00')]);
+
+    const copiedRangeValue = [rangeValue[0], rangeValue[1]];
+    const condition = getCustomCondition(
+      { date: copiedRangeValue },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'DatePicker.RangePicker',
+            'x-component-props': {
+              showTime: true,
+            },
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              date_pay: {
+                $dateBetween: '{{$nFilter.date}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          date_pay: {
+            $dateBetween: copiedRangeValue,
           },
         },
       ],

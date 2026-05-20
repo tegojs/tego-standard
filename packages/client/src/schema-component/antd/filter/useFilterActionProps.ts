@@ -215,6 +215,11 @@ const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat, 
     return;
   }
 
+  if (value.length === 0) {
+    delete filterSchemaItem[filterKey];
+    return;
+  }
+
   let branchEndIndex = -1;
   for (let index = pathParts.length - 2; index >= 0; index--) {
     if (['$and', '$or'].includes(pathParts[index]) && /^\d+$/.test(pathParts[index + 1])) {

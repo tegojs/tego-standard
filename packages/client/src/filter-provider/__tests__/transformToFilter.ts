@@ -238,6 +238,44 @@ describe('transformToFilter', () => {
     });
   });
 
+  it('should infer date range semantics from CollectionField component props', () => {
+    const values = {
+      date_receive: ['2026-04-30T16:00:00.000Z', '2026-05-03T15:59:59.999Z'],
+    };
+
+    const fieldSchema = {
+      'x-filter-operators': {
+        date_receive: '$dateBetween',
+      },
+      properties: {
+        date_receive: {
+          name: 'date_receive',
+          'x-component': 'CollectionField',
+          'x-collection-field': 'receipt.date_receive',
+          'x-component-props': {
+            component: 'DatePicker.RangePicker',
+            showTime: false,
+          },
+        },
+      },
+    };
+
+    const getField = () => ({
+      targetKey: undefined,
+      interface: 'datetime',
+    });
+
+    expect(transformToFilter(values, fieldSchema as any, getField, 'receipt')).toEqual({
+      $and: [
+        {
+          date_receive: {
+            $dateBetween: values.date_receive,
+          },
+        },
+      ],
+    });
+  });
+
   it('should preserve explicit boundary-looking times from datetime range fields', () => {
     let rangeValue: any[];
     const datetimeMapped = mapRangePicker()({

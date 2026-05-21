@@ -208,6 +208,9 @@ const findCustomFieldSchema = (schema, key) => {
 };
 
 const getDatePickerComponent = (fieldSchema?: any) => {
+  if (fieldSchema?.['x-component'] === 'CollectionField') {
+    return fieldSchema?.['x-component-props']?.component;
+  }
   return fieldSchema?.['x-component'] || fieldSchema?.['x-component-props']?.component;
 };
 

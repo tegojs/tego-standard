@@ -8,7 +8,7 @@ export const imageSvg = {
     return file.imageUrl && <img src={`${file.url}`} />;
   },
   checkedComponent: (props) => {
-    const { file } = props;
-    return file.imageUrl && <img {...props} src={`${file.url}`} />;
+    const { file, style } = props;
+    return file.imageUrl && <img {...props} src={`${file.url}`} style={{ ...style }} />;
   },
 };

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Application } from '@tachybase/client';
-import { CurrentNavigationMenuProvider, useCurrentNavigationMenu } from '@tachybase/client/built-in/admin-layout';
+import { Application, CurrentNavigationMenuProvider, useCurrentNavigationMenu } from '@tachybase/client';
 import { render, waitFor } from '@tachybase/test/client';
 
 import PluginTenantClient from '..';

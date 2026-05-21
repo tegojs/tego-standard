@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useCurrentNavigationMenu } from '@tachybase/client/built-in/admin-layout';
+import { useCurrentNavigationMenu } from '@tachybase/client';
 
 import { useSwitchTenant } from './useSwitchTenant';
 

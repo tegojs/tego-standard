@@ -39,6 +39,7 @@ plugins/*
 tsconfig.paths.json
 v8-compile-cache-**
 docs-repo-temp/
+.superpowers/
 
 # 构建时生成的临时版本文件，不应提交到 git
 .version.json

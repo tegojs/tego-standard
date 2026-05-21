@@ -1,15 +1,47 @@
 import React from 'react';
 import { Application } from '@tachybase/client';
+import { CurrentNavigationMenuProvider, useCurrentNavigationMenu } from '@tachybase/client/built-in/admin-layout';
 import { render, waitFor } from '@tachybase/test/client';
 
 import PluginTenantClient from '..';
-import CurrentTenantProvider from '../CurrentTenantProvider';
+import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
 import { NAMESPACE, useTenantTranslation } from '../locale';
 import { TenantEditor, TenantManagement } from '../TenantManagement';
 import TenantMenuProvider from '../TenantMenuProvider';
 
 describe('PluginTenantClient', () => {
-  it('should register tenant providers on load', async () => {
+  it('should render tenant switcher in the navigation extension area', async () => {
+    const NavigationItems = () => {
+      const { getItems } = useCurrentNavigationMenu();
+      return <>{getItems().map((item) => React.cloneElement(item, { key: item.key }))}</>;
+    };
+
+    const { container } = render(
+      <CurrentTenantContext.Provider
+        value={{
+          data: {
+            data: [
+              { id: 'tenant_a', title: 'Tenant A', current: true },
+              { id: 'tenant_b', title: 'Tenant B' },
+            ],
+          },
+        }}
+      >
+        <CurrentNavigationMenuProvider>
+          <TenantMenuProvider>
+            <NavigationItems />
+          </TenantMenuProvider>
+        </CurrentNavigationMenuProvider>
+      </CurrentTenantContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('.tenant-nav-switcher')).toBeInTheDocument();
+      expect(container.querySelector('.tenant-nav-switcher .ant-select')).toHaveStyle({ minWidth: 'auto' });
+    });
+  });
+
+  it('should not register tenant switcher in the user settings menu', async () => {
     const app = new Application({
       plugins: [[PluginTenantClient, { name: 'tenant' }]],
     });

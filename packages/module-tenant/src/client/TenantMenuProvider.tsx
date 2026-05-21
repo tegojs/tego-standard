@@ -1,18 +1,17 @@
 import React, { useEffect } from 'react';
-
-import { useCurrentUserSettingsMenu } from '@tachybase/client';
+import { useCurrentNavigationMenu } from '@tachybase/client/built-in/admin-layout';
 
 import { useSwitchTenant } from './useSwitchTenant';
 
 export const TenantMenuProvider = ({ children }) => {
-  const { addMenuItem } = useCurrentUserSettingsMenu();
+  const { addItem } = useCurrentNavigationMenu();
   const switchTenant = useSwitchTenant();
 
   useEffect(() => {
     if (switchTenant) {
-      addMenuItem(switchTenant, { before: 'divider_3' });
+      addItem(switchTenant);
     }
-  }, [addMenuItem, switchTenant]);
+  }, [addItem, switchTenant]);
 
   return <>{children}</>;
 };

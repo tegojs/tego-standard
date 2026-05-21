@@ -22,6 +22,7 @@ export * from './i18n';
 export * from './icon';
 export { default as locale } from './locale';
 export * from './built-in';
+export * from './built-in/admin-layout/CurrentNavigationMenuProvider';
 export * from './built-in/pinned-list';
 export * from './built-in/pm';
 export * from './powered-by';

@@ -1,17 +1,15 @@
 import React, { useMemo } from 'react';
+import { useAPIClient } from '@tachybase/client';
 
-import { SelectWithTitle, useAPIClient } from '@tachybase/client';
-import { MenuProps } from 'antd';
+import { Select } from 'antd';
 
 import { useCurrentTenantContext } from './CurrentTenantProvider';
-import { useTenantTranslation } from './locale';
 
 export const useSwitchTenant = () => {
   const api = useAPIClient();
   const { data } = useCurrentTenantContext() || {};
-  const { t } = useTenantTranslation();
 
-  return useMemo<MenuProps['items'][0]>(() => {
+  return useMemo<React.ReactElement | null>(() => {
     const tenants = (data?.data || []).filter((item) => item.enabled !== false);
     if (tenants.length <= 1) {
       return null;
@@ -19,12 +17,9 @@ export const useSwitchTenant = () => {
 
     const currentTenant = tenants.find((item) => item.current);
 
-    return {
-      key: 'tenant',
-      eventKey: 'SwitchTenant',
-      label: (
-        <SelectWithTitle
-          title={t('Switch tenant')}
+    return (
+      <div key="tenant" className="tenant-nav-switcher">
+        <Select
           fieldNames={{
             label: 'title',
             value: 'id',
@@ -34,15 +29,18 @@ export const useSwitchTenant = () => {
             title: item.title || item.name || item.id,
           }))}
           defaultValue={currentTenant?.id}
+          popupMatchSelectWidth={false}
+          variant="borderless"
+          style={{ minWidth: 'auto', width: 'auto' }}
           onChange={async (tenantId) => {
             await api.resource('tenants').switch({ values: { tenantId } });
             api.storage?.setItem?.('current_tenant_id', tenantId as string);
             window.location.reload();
           }}
         />
-      ),
-    };
-  }, [api, data?.data, t]);
+      </div>
+    );
+  }, [api, data?.data]);
 };
 
 export default useSwitchTenant;

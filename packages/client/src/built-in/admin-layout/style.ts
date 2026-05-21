@@ -71,6 +71,27 @@ export const useStyles = createStyles(({ css, token }) => {
       font-size: 18px;
       line-height: 32px;
     `,
+    navigationItem: css`
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      height: var(--tb-header-height);
+      padding: 0 8px;
+      .ant-select {
+        width: auto;
+        min-width: auto;
+      }
+      .ant-select-selector {
+        padding-inline: 8px !important;
+      }
+      .ant-select-selection-item,
+      .ant-select-arrow {
+        color: ${token.colorTextHeaderMenu} !important;
+      }
+      &:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+      }
+    `,
     right: css`
       display: inline-flex;
       position: relative;

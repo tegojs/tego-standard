@@ -9,6 +9,16 @@
 
 
 
+## [1.6.20] - 2026-05-21
+
+### ✨ 新增
+
+- 添加预览旋转按钮 ([#315](https://github.com/tegojs/tego-standard/pull/315)) (@dududuna)
+
+### 🐛 修复
+
+- **client**: 统一常规和自定义日期范围过滤器边界语义 ([#385](https://github.com/tegojs/tego-standard/pull/385)) (@TomyJan)
+
 ## [1.6.19] - 2026-05-20
 
 ### 🐛 修复
@@ -3012,7 +3022,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.19...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.20...HEAD
+[1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
 [1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19
 [1.6.18]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.18
 [1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17

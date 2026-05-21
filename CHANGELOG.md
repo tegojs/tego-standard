@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.20] - 2026-05-21
+
+### ✨ Added
+
+- add preview rotation button ([#315](https://github.com/tegojs/tego-standard/pull/315)) (@dududuna)
+
+### 🐛 Fixed
+
+- **client**: unify regular and custom date range filter boundary semantics ([#385](https://github.com/tegojs/tego-standard/pull/385)) (@TomyJan)
+
 ## [1.6.19] - 2026-05-20
 
 ### 🐛 Fixed
@@ -3012,7 +3022,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.19...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.20...HEAD
+[1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
 [1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19
 [1.6.18]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.18
 [1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17

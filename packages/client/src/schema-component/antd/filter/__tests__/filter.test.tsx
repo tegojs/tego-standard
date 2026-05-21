@@ -532,6 +532,44 @@ describe('Filter', () => {
     });
   });
 
+  it('normalizes CollectionField date range values from component props', () => {
+    const values = ['2026-04-30T16:00:00.000Z', '2026-05-03T15:59:59.999Z'];
+    const condition = getCustomCondition(
+      { date: values },
+      {
+        properties: {
+          '__custom.date': {
+            name: '__custom.date',
+            'x-component': 'CollectionField',
+            'x-component-props': {
+              component: 'DatePicker.RangePicker',
+              showTime: false,
+            },
+          },
+        },
+        'x-filter-rules': {
+          $and: [
+            {
+              date_receive: {
+                $dateBetween: '{{$nFilter.date}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          date_receive: {
+            $dateBetween: values,
+          },
+        },
+      ],
+    });
+  });
+
   it('preserves explicit boundary-looking datetime metadata for custom filter values', () => {
     let rangeValue: any[];
     const datetimeMapped = mapRangePicker()({

@@ -223,6 +223,16 @@ describe('mapRangePicker', () => {
       mode: 'date',
       source: 'retained-local-date-boundary',
     });
+
+    expect(
+      resolveDatePickerRangeValueInfo(['2026-05-01T16:00:00.000Z', '2026-05-03T15:59:59.999Z'], {
+        component: 'DatePicker.RangePicker',
+        preferDateBoundaryFallback: true,
+      }),
+    ).toEqual({
+      mode: 'date',
+      source: 'retained-local-date-boundary',
+    });
   });
 
   test('should parse date-only range values with GMT semantics when gmt is not specified', () => {

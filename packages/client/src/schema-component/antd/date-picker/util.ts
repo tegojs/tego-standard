@@ -122,15 +122,18 @@ export const resolveDatePickerRangeValueInfo = (
 ): DatePickerRangeValueInfo => {
   const metadataMode = getRangeValueMode(value);
   if (metadataMode) {
+    if (metadataMode === 'date' && isDatePickerDefaultRangeBoundaryPair(value)) {
+      return { mode: 'date', source: 'retained-date-boundary' };
+    }
     return { mode: metadataMode, source: 'metadata' };
+  }
+
+  if (options.preferDateBoundaryFallback && isDatePickerRetainedLocalBoundaryPair(value)) {
+    return { mode: 'date', source: 'retained-local-date-boundary' };
   }
 
   if (options.component === 'DatePicker.RangePicker' && !options.showTime) {
     return { mode: 'date', source: 'schema' };
-  }
-
-  if (options.preferDateBoundaryFallback && options.showTime && isDatePickerRetainedLocalBoundaryPair(value)) {
-    return { mode: 'date', source: 'retained-local-date-boundary' };
   }
 
   if (options.preferDateBoundaryFallback && isDatePickerDefaultRangeBoundaryPair(value)) {
@@ -141,7 +144,7 @@ export const resolveDatePickerRangeValueInfo = (
 };
 
 export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {}) => {
-  if (options.utc === false || typeof options.gmt === 'boolean' || options.picker) {
+  if (options.utc === false || options.gmt === true || options.picker) {
     return options;
   }
 
@@ -157,10 +160,8 @@ export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {})
     }
   }
 
-  return {
-    ...options,
-    gmt: true,
-  };
+  const { gmt, ...rest } = options;
+  return rest;
 };
 
 export const moment2str = (value?: Dayjs | null, options: Moment2strOptions = {}) => {

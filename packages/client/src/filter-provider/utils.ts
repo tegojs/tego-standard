@@ -186,6 +186,9 @@ type NormalizeDateBetweenOptions = {
 };
 
 const getDatePickerComponent = (fieldSchema?: any) => {
+  if (fieldSchema?.['x-component'] === 'CollectionField') {
+    return fieldSchema?.['x-component-props']?.component;
+  }
   return fieldSchema?.['x-component'] || fieldSchema?.['x-component-props']?.component;
 };
 
@@ -223,7 +226,7 @@ const normalizeDateBetweenBoundary = (
   }
 
   if (options.valueMode === 'date') {
-    if (options.valueSource === 'retained-local-date-boundary') {
+    if (options.valueSource === 'metadata' || options.valueSource === 'retained-local-date-boundary') {
       return m.toISOString();
     }
     const localBoundary = dayjs(normalizeLocalDateBoundaryInput(value));
@@ -357,13 +360,15 @@ export const transformToFilter = (
           }
         } else if (operator === '$dateBetween') {
           if (Array.isArray(value)) {
+            const datePickerComponent = getDatePickerComponent(currentFieldSchema);
+            const useDefaultDateBoundary = shouldUseDefaultDateBoundary(currentFieldSchema);
             const valueInfo = resolveDatePickerRangeValueInfo(value, {
-              component: getDatePickerComponent(currentFieldSchema),
+              component: datePickerComponent,
               showTime: getDatePickerShowTime(currentFieldSchema),
-              preferDateBoundaryFallback: shouldUseDefaultDateBoundary(currentFieldSchema),
+              preferDateBoundaryFallback: useDefaultDateBoundary,
             });
             value = normalizeDateBetweenValue(value, {
-              useDefaultDateBoundary: shouldUseDefaultDateBoundary(currentFieldSchema),
+              useDefaultDateBoundary,
               valueMode: valueInfo.mode,
               valueSource: valueInfo.source,
               preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',

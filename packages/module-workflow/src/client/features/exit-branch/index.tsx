@@ -26,8 +26,6 @@ class ExitBranchInstruction extends Instruction {
     },
   };
 
-  end = true;
-
   // Only available in branches
   isAvailable(ctx) {
     return ctx && typeof ctx.branchIndex === 'number';

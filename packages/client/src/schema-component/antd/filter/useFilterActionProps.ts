@@ -6,8 +6,14 @@ import { useTranslation } from 'react-i18next';
 
 import { useBlockRequestContext } from '../../../block-provider';
 import { useCollection_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
-import { mergeFilter } from '../../../filter-provider/utils';
+import {
+  FILTER_OPERATORS_WITH_ARRAY_VALUES,
+  mergeFilter,
+  normalizeDateBetweenValue,
+  shouldUseDefaultDateBoundary,
+} from '../../../filter-provider/utils';
 import { useDataLoadingMode } from '../../../modules/blocks/data-blocks/details-multi/setDataLoadingModeSettingsItem';
+import { resolveDatePickerRangeValueInfo } from '../date-picker/util';
 import { hasDuplicateKeys } from './utils';
 
 export const useGetFilterOptions = () => {
@@ -150,24 +156,138 @@ const isEmpty = (obj) => {
   );
 };
 
+const CUSTOM_FILTER_VARIABLE_REGEXP = /^\{\{\$nFilter\.([^}]+)\}\}$/;
+
+const getCustomFilterValue = (items, key, rawItems: any = {}) => {
+  if (rawItems && key in rawItems) {
+    return rawItems[key];
+  }
+
+  if (key in items) {
+    return items[key];
+  }
+
+  const arrayItems = Object.keys(items)
+    .filter((itemKey) => itemKey.startsWith(`${key}.`) && /^\d+$/.test(itemKey.slice(key.length + 1)))
+    .sort((a, b) => Number(a.slice(key.length + 1)) - Number(b.slice(key.length + 1)))
+    .map((itemKey) => items[itemKey]);
+
+  return arrayItems.length ? arrayItems : undefined;
+};
+
+const findCustomFieldSchemaInTree = (schema, key) => {
+  if (!schema) {
+    return null;
+  }
+  if (schema.name === `__custom.${key}` || schema.name === key) {
+    return schema;
+  }
+  const properties = schema.properties || {};
+  for (const propertyKey of Object.keys(properties)) {
+    if (propertyKey === `__custom.${key}` || propertyKey === key) {
+      return properties[propertyKey];
+    }
+    const found = findCustomFieldSchemaInTree(properties[propertyKey], key);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+};
+
+const findCustomFieldSchema = (schema, key) => {
+  let current = schema;
+  while (current) {
+    const found = findCustomFieldSchemaInTree(current, key);
+    if (found) {
+      return found;
+    }
+    current = current.parent;
+  }
+  return null;
+};
+
+const getDatePickerComponent = (fieldSchema?: any) => {
+  if (fieldSchema?.['x-component'] === 'CollectionField') {
+    return fieldSchema?.['x-component-props']?.component;
+  }
+  return fieldSchema?.['x-component'] || fieldSchema?.['x-component-props']?.component;
+};
+
+const getDatePickerShowTime = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component-props']?.showTime;
+};
+
+const expandArrayValueFilter = (filterSchemaItem, filterKey, value, customFlat, options: any = {}) => {
+  const pathParts = filterKey.split('.');
+  const operator = pathParts.pop();
+  if (operator === '$dateBetween' && Array.isArray(value)) {
+    const valueInfo = resolveDatePickerRangeValueInfo(value, {
+      component: options.component,
+      showTime: options.showTime,
+      preferDateBoundaryFallback: options.useDefaultDateBoundary,
+    });
+    filterSchemaItem[filterKey] = normalizeDateBetweenValue(value, {
+      useDefaultDateBoundary: options.useDefaultDateBoundary,
+      valueMode: valueInfo.mode,
+      valueSource: valueInfo.source,
+      preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',
+    });
+    return;
+  }
+
+  if (!Array.isArray(value) || FILTER_OPERATORS_WITH_ARRAY_VALUES.has(operator || '')) {
+    filterSchemaItem[filterKey] = value;
+    return;
+  }
+
+  if (value.length === 0) {
+    delete filterSchemaItem[filterKey];
+    return;
+  }
+
+  let branchEndIndex = -1;
+  for (let index = pathParts.length - 2; index >= 0; index--) {
+    if (['$and', '$or'].includes(pathParts[index]) && /^\d+$/.test(pathParts[index + 1])) {
+      branchEndIndex = index;
+      break;
+    }
+  }
+
+  const branchPath = branchEndIndex >= 0 ? pathParts.slice(0, branchEndIndex + 2).join('.') : '';
+  const fieldPath = pathParts.slice(branchEndIndex + 2).join('.');
+  const conditions = value.map((item) => customFlat.unflatten({ [`${fieldPath}.${operator}`]: item }));
+  delete filterSchemaItem[filterKey];
+  filterSchemaItem[branchPath ? `${branchPath}.$or` : '$or'] = conditions;
+};
+
 export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) => {
   const filterSchema = fieldSchema ? fieldSchema['x-filter-rules'] : '';
   const filterSchemaItem = customFlat(filterSchema || '') as any;
   const items = customFlat(filter || {}) as any;
-  const values = {};
   const isCustomFilter = filterSchema?.$and?.length || filterSchema?.$or?.length;
   const isFilterCustom = isCustomFilter ? hasDuplicateKeys(items, filterSchemaItem) : false;
   if (!isFilterCustom) {
     if (isCustomFilter) {
       for (const filterKey in filterSchemaItem) {
-        const match = filterSchemaItem[filterKey]?.slice(11, -2);
-        const collection = match?.split('.')[0];
-        const filterItems = Object.keys(items).filter((item) => item.includes(collection));
-        if (filterItems.length > 1) {
-          filterSchemaItem[filterKey] = filterItems.map((key) => items[key]);
-        } else {
-          filterSchemaItem[filterKey] = items[filterItems[0]];
+        const match =
+          typeof filterSchemaItem[filterKey] === 'string' &&
+          filterSchemaItem[filterKey].match(CUSTOM_FILTER_VARIABLE_REGEXP);
+        if (!match) {
+          continue;
         }
+        const customFieldSchema = findCustomFieldSchema(fieldSchema, match[1]);
+        expandArrayValueFilter(
+          filterSchemaItem,
+          filterKey,
+          getCustomFilterValue(items, match[1], filter || {}),
+          customFlat,
+          {
+            useDefaultDateBoundary: shouldUseDefaultDateBoundary(customFieldSchema),
+            component: getDatePickerComponent(customFieldSchema),
+            showTime: getDatePickerShowTime(customFieldSchema),
+          },
+        );
       }
       for (const item in filterSchemaItem) {
         if (!filterSchemaItem[item] || filterSchemaItem[item].includes('$nFilter')) {

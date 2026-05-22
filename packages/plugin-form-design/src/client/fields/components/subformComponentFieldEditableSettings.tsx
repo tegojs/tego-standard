@@ -71,7 +71,9 @@ export const subformComponentFieldEditableSettings = new EditableSchemaSettings(
         return {
           type: 'boolean',
           default:
-            fieldSchema['x-component-props']?.multiple === undefined ? true : fieldSchema['x-component-props'].multiple,
+            (fieldSchema['x-component-props'] || {}).multiple === undefined
+              ? true
+              : fieldSchema['x-component-props'].multiple,
           'x-decorator': 'FormItem',
           'x-component': 'Checkbox',
           'x-content': '{{t("Allow multiple")}}',

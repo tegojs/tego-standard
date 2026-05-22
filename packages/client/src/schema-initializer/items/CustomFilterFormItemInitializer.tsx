@@ -9,8 +9,8 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
-
 import { ArrayItems, FormLayout } from '@tego/client';
+
 import { ConfigProvider, Space } from 'antd';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
@@ -312,9 +312,10 @@ export const FilterCustomItemInitializer: React.FC<{
       },
       collectionName: collection,
     };
-    if (component === 'DatePicker') {
+    if (component === 'DatePicker' || component === 'DatePicker.RangePicker') {
       schema['x-settings'] = 'fieldSettings:FilterFormItem';
       schema['x-designer-props'] = { interface: 'datetime' };
+      schema['x-component-props'] = { ...schema['x-component-props'], gmt: false };
     }
     insert(gridRowColWrap(schema));
 

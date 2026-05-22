@@ -9,6 +9,39 @@
 
 
 
+## [1.6.21] - 2026-05-22
+
+### 🐛 修复
+
+- **client**: 保留 gmt:true 解析幼稚的 GMT 日期边界值 ([#386](https://github.com/tegojs/tego-standard/pull/386)) (@TomyJan)
+
+## [1.6.20] - 2026-05-21
+
+### ✨ 新增
+
+- 添加预览旋转按钮 ([#315](https://github.com/tegojs/tego-standard/pull/315)) (@dududuna)
+
+### 🐛 修复
+
+- **client**: 统一常规和自定义日期范围过滤器边界语义 ([#385](https://github.com/tegojs/tego-standard/pull/385)) (@TomyJan)
+
+## [1.6.19] - 2026-05-20
+
+### 🐛 修复
+
+- **client**: 跳过空的自定义过滤器数组 ([#384](https://github.com/tegojs/tego-standard/pull/384)) (@TomyJan)
+- **client**: 日期选择器范围过滤器语义 ([#383](https://github.com/tegojs/tego-standard/pull/383)) (@TomyJan)
+
+## [1.6.18] - 2026-05-19
+
+### 🐛 修复
+
+- **client**: 规范化自定义过滤器变量 ([#382](https://github.com/tegojs/tego-standard/pull/382)) (@TomyJan)
+- **client&form-design**: 保护丢失的组件道具 ([#381](https://github.com/tegojs/tego-standard/pull/381)) (@TomyJan)
+- **client**: 标准化仅日期选择器边界([#379](https://github.com/tegojs/tego-standard/pull/379)) (@TomyJan)
+- **client**: 正确的自定义过滤器变量替换 ([#380](https://github.com/tegojs/tego-standard/pull/380)) (@TomyJan)
+- **client**: 无源保护关联父级查找 ([#377](https://github.com/tegojs/tego-standard/pull/377)) (@TomyJan)
+
 ## [1.6.17] - 2026-04-28
 
 ### 🐛 修复
@@ -2995,7 +3028,11 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.17...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.21...HEAD
+[1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
+[1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
+[1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19
+[1.6.18]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.18
 [1.6.17]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.17
 [1.6.16]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.16
 [1.6.15]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.15

@@ -15,6 +15,12 @@ import {
 } from '../collection-manager';
 import { removeNullCondition } from '../schema-component';
 import {
+  isDatePickerDefaultRangeBoundaryValue,
+  resolveDatePickerRangeValueInfo,
+  type DatePickerRangeValueMode,
+  type DatePickerRangeValueSource,
+} from '../schema-component/antd/date-picker/util';
+import {
   findFilterOperators,
   getDefaultFilterOperatorValue,
 } from '../schema-component/antd/form-item/SchemaSettingOptions';
@@ -121,6 +127,9 @@ const findSchemaByName = (schema: any, name: string): any => {
 
   const properties = schema.properties || {};
   for (const key of Object.keys(properties)) {
+    if (key === name) {
+      return properties[key];
+    }
     const found = findSchemaByName(properties[key], name);
     if (found) {
       return found;
@@ -169,6 +178,120 @@ const resolveFilterOperator = (
   return getDefaultFilterOperatorValue(fieldSchema, operatorList);
 };
 
+type NormalizeDateBetweenOptions = {
+  useDefaultDateBoundary?: boolean;
+  valueMode?: DatePickerRangeValueMode;
+  valueSource?: DatePickerRangeValueSource;
+  preferDateBoundaryFallback?: boolean;
+};
+
+const getDatePickerComponent = (fieldSchema?: any) => {
+  if (fieldSchema?.['x-component'] === 'CollectionField') {
+    return fieldSchema?.['x-component-props']?.component;
+  }
+  return fieldSchema?.['x-component'] || fieldSchema?.['x-component-props']?.component;
+};
+
+const getDatePickerShowTime = (fieldSchema?: any) => {
+  return fieldSchema?.['x-component-props']?.showTime;
+};
+
+const isDateOnlyString = (value: any) => {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+};
+
+const hasExplicitTime = (value: any) => {
+  return typeof value === 'string' && /[T\s]\d{2}:\d{2}/.test(value);
+};
+
+const normalizeLocalDateBoundaryInput = (value: any) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  return value.replace(/Z$/, '').replace(/[+-]\d\d:\d\d$/, '');
+};
+
+const normalizeDateBetweenBoundary = (
+  value: any,
+  boundary: 'start' | 'end',
+  options: NormalizeDateBetweenOptions = {},
+) => {
+  const m = dayjs(value);
+  if (!m.isValid()) {
+    return value;
+  }
+
+  if (isDateOnlyString(value)) {
+    return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
+  }
+
+  if (options.valueMode === 'date') {
+    if (options.valueSource === 'metadata' || options.valueSource === 'retained-local-date-boundary') {
+      return m.toISOString();
+    }
+    const localBoundary = dayjs(normalizeLocalDateBoundaryInput(value));
+    return (boundary === 'start' ? localBoundary.startOf('day') : localBoundary.endOf('day')).toISOString();
+  }
+
+  if (hasExplicitTime(value)) {
+    return m.toISOString();
+  }
+
+  if (!options.useDefaultDateBoundary) {
+    return m.toISOString();
+  }
+
+  return (boundary === 'start' ? m.startOf('day') : m.endOf('day')).toISOString();
+};
+
+const shouldApplyDefaultDateBoundary = (
+  start: any,
+  end: any,
+  value: any[],
+  options: NormalizeDateBetweenOptions = {},
+) => {
+  if (options.valueMode === 'datetime') {
+    return false;
+  }
+  if (options.valueMode === 'date') {
+    return true;
+  }
+  if (!options.useDefaultDateBoundary) {
+    return false;
+  }
+  if (isDateOnlyString(start) || isDateOnlyString(end)) {
+    return true;
+  }
+  return (
+    options.preferDateBoundaryFallback &&
+    options.valueMode === 'date' &&
+    isDatePickerDefaultRangeBoundaryValue(start, 'start') &&
+    isDatePickerDefaultRangeBoundaryValue(end, 'end')
+  );
+};
+
+export const normalizeDateBetweenValue = (value: any[], options: NormalizeDateBetweenOptions = {}) => {
+  const normalized = value.filter(Boolean);
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  const start = normalized[0];
+  const end = normalized.length === 1 ? normalized[0] : normalized[normalized.length - 1];
+  const boundaryOptions = {
+    ...options,
+    useDefaultDateBoundary: shouldApplyDefaultDateBoundary(start, end, value, options),
+  };
+  return [
+    normalizeDateBetweenBoundary(start, 'start', boundaryOptions),
+    normalizeDateBetweenBoundary(end, 'end', boundaryOptions),
+  ];
+};
+
+export const shouldUseDefaultDateBoundary = (fieldSchema?: any) => {
+  return getDatePickerComponent(fieldSchema) === 'DatePicker.RangePicker';
+};
+
 export const transformToFilter = (
   values: Record<string, any>,
   fieldSchema: Schema,
@@ -210,6 +333,7 @@ export const transformToFilter = (
         const defKey = key;
         let value = _.get(values, key);
         const collectionField = getCollectionJoinField(`${collectionName}.${key}`);
+        const currentFieldSchema = findSchemaByName(getFilterSchemaRoot(fieldSchema), defKey);
         const operator = resolveFilterOperator(fieldSchema, defKey, operators, getOperatorList, collectionField);
         if (collectionField?.target) {
           value = getValuesByPath(value, collectionField.targetKey || 'id');
@@ -236,24 +360,22 @@ export const transformToFilter = (
           }
         } else if (operator === '$dateBetween') {
           if (Array.isArray(value)) {
-            const normalized: any[] = [];
-            for (const index in value) {
-              if (!value[index]) {
-                continue;
-              }
-              let v = value[index];
-              if (typeof v !== 'string' && !(v instanceof Date)) {
-                v = dayjs(v).toISOString();
-              }
-              normalized.push(v);
-            }
-            if (normalized.length === 0) {
+            const datePickerComponent = getDatePickerComponent(currentFieldSchema);
+            const useDefaultDateBoundary = shouldUseDefaultDateBoundary(currentFieldSchema);
+            const valueInfo = resolveDatePickerRangeValueInfo(value, {
+              component: datePickerComponent,
+              showTime: getDatePickerShowTime(currentFieldSchema),
+              preferDateBoundaryFallback: useDefaultDateBoundary,
+            });
+            value = normalizeDateBetweenValue(value, {
+              useDefaultDateBoundary,
+              valueMode: valueInfo.mode,
+              valueSource: valueInfo.source,
+              preferDateBoundaryFallback: valueInfo.source === 'retained-date-boundary',
+            });
+            if (!value) {
               return null;
             }
-            value =
-              normalized.length === 1
-                ? [normalized[0], normalized[0]]
-                : [normalized[0], normalized[normalized.length - 1]];
           }
         }
         return {

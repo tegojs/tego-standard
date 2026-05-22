@@ -161,6 +161,14 @@ export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {})
   }
 
   const { gmt, ...rest } = options;
+
+  // retained-date-boundary values are naive GMT (local-time + Z suffix),
+  // str2moment needs gmt:true to interpret them in GMT mode for correct display.
+  if (rangeValueInfo.source === 'retained-date-boundary') {
+    return { ...rest, gmt: true };
+  }
+
+  // strip gmt so str2moment uses default local-time parsing for proper UTC values
   return rest;
 };
 

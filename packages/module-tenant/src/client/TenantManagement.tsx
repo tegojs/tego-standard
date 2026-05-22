@@ -11,8 +11,56 @@ type UserRecord = {
   username?: string;
   nickname?: string;
   email?: string;
+  phone?: string;
   tenants?: TenantRecord[];
   defaultTenantId?: string | null;
+};
+
+const formatUserLabel = (user: UserRecord) => {
+  const name = user.nickname || user.username || String(user.id);
+  const detail = user.email || user.phone || user.username;
+  return detail && detail !== name ? `${name} · ${detail}` : name;
+};
+
+export const buildUserSearchFilter = (keyword: string) => {
+  const value = keyword.trim();
+  if (!value) {
+    return undefined;
+  }
+
+  const filters: any[] = [
+    { 'username.$includes': value },
+    { 'nickname.$includes': value },
+    { 'email.$includes': value },
+    { 'phone.$includes': value },
+  ];
+
+  if (/^\d+$/.test(value)) {
+    filters.push({ id: Number(value) });
+  }
+
+  return { $or: filters };
+};
+
+export const getTenantMembers = (users: UserRecord[], tenantId?: string | null) => {
+  if (!tenantId) {
+    return [];
+  }
+
+  return users.filter((user) => (user.tenants || []).some((item) => item.id === tenantId));
+};
+
+export const getTenantCandidateOptions = (users: UserRecord[], tenantId?: string | null) => {
+  if (!tenantId) {
+    return [];
+  }
+
+  return users
+    .filter((user) => !(user.tenants || []).some((item) => item.id === tenantId))
+    .map((user) => ({
+      label: formatUserLabel(user),
+      value: user.id,
+    }));
 };
 
 type TenantFormValues = {
@@ -112,62 +160,63 @@ const TenantMembers = ({
   const api = useAPIClient();
   const { message } = App.useApp();
   const { t } = useTenantTranslation();
-  const [keyword, setKeyword] = useState('');
+  const [memberKeyword, setMemberKeyword] = useState('');
+  const [candidateKeyword, setCandidateKeyword] = useState('');
   const [savingUserId, setSavingUserId] = useState<number | null>(null);
+  const [addingMembers, setAddingMembers] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
 
   useEffect(() => {
     if (!open) {
-      setKeyword('');
+      setMemberKeyword('');
+      setCandidateKeyword('');
       setSelectedUserIds([]);
     }
   }, [open, tenant?.id]);
 
-  const usersRequest = useRequest<{ data: UserRecord[] }>(
+  const membersRequest = useRequest<{ data: UserRecord[] }>(
     () =>
       api
         .resource('users')
         .list({
           pageSize: 200,
           appends: ['tenants', 'defaultTenant'],
-          filter: keyword
-            ? {
-                $or: [
-                  { 'username.$includes': keyword },
-                  { 'nickname.$includes': keyword },
-                  { 'email.$includes': keyword },
-                ],
-              }
-            : undefined,
+          filter: buildUserSearchFilter(memberKeyword),
         })
         .then((res) => res?.data),
     {
       ready: open,
-      refreshDeps: [open, keyword],
+      refreshDeps: [open, memberKeyword],
       debounceWait: 300,
     },
   );
 
-  const members = useMemo(() => {
-    if (!tenant?.id) {
-      return [];
-    }
+  const candidatesRequest = useRequest<{ data: UserRecord[] }>(
+    () =>
+      api
+        .resource('users')
+        .list({
+          pageSize: 50,
+          appends: ['tenants', 'defaultTenant'],
+          filter: buildUserSearchFilter(candidateKeyword),
+        })
+        .then((res) => res?.data),
+    {
+      ready: open,
+      refreshDeps: [open, candidateKeyword],
+      debounceWait: 300,
+    },
+  );
 
-    return (usersRequest.data?.data || []).filter((user) => (user.tenants || []).some((item) => item.id === tenant.id));
-  }, [tenant?.id, usersRequest.data?.data]);
+  const members = useMemo(
+    () => getTenantMembers(membersRequest.data?.data || [], tenant?.id),
+    [tenant?.id, membersRequest.data?.data],
+  );
 
-  const candidateOptions = useMemo(() => {
-    if (!tenant?.id) {
-      return [];
-    }
-
-    return (usersRequest.data?.data || [])
-      .filter((user) => !(user.tenants || []).some((item) => item.id === tenant.id))
-      .map((user) => ({
-        label: user.nickname || user.username || String(user.id),
-        value: user.id,
-      }));
-  }, [tenant?.id, usersRequest.data?.data]);
+  const candidateOptions = useMemo(
+    () => getTenantCandidateOptions(candidatesRequest.data?.data || [], tenant?.id),
+    [tenant?.id, candidatesRequest.data?.data],
+  );
 
   const saveMembership = async (
     user: UserRecord,
@@ -188,7 +237,7 @@ const TenantMembers = ({
         message.success(t('Saved successfully'));
       }
       if (options.refresh !== false) {
-        await usersRequest.refresh();
+        await Promise.all([membersRequest.refresh(), candidatesRequest.refresh()]);
       }
     } finally {
       setSavingUserId(null);
@@ -205,22 +254,27 @@ const TenantMembers = ({
       return;
     }
 
-    for (const userId of userIds) {
-      const user = (usersRequest.data?.data || []).find((item) => item.id === userId);
-      if (!user) {
-        continue;
+    setAddingMembers(true);
+    try {
+      for (const userId of userIds) {
+        const user = (candidatesRequest.data?.data || []).find((item) => item.id === userId);
+        if (!user) {
+          continue;
+        }
+
+        const nextTenantIds = Array.from(new Set([...(user.tenants || []).map((item) => item.id), tenant.id]));
+        await saveMembership(user, nextTenantIds, user.defaultTenantId || tenant.id, {
+          silent: true,
+          refresh: false,
+        });
       }
 
-      const nextTenantIds = Array.from(new Set([...(user.tenants || []).map((item) => item.id), tenant.id]));
-      await saveMembership(user, nextTenantIds, user.defaultTenantId || tenant.id, {
-        silent: true,
-        refresh: false,
-      });
+      message.success(t('Saved successfully'));
+      await Promise.all([membersRequest.refresh(), candidatesRequest.refresh()]);
+      setSelectedUserIds([]);
+    } finally {
+      setAddingMembers(false);
     }
-
-    message.success(t('Saved successfully'));
-    await usersRequest.refresh();
-    setSelectedUserIds([]);
   };
 
   return (
@@ -232,31 +286,40 @@ const TenantMembers = ({
       onClose={onClose}
     >
       <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+        <Card size="small" title={t('Add member')}>
+          <Space.Compact style={{ width: '100%' }}>
+            <Select
+              allowClear
+              filterOption={false}
+              loading={candidatesRequest.loading}
+              maxTagCount="responsive"
+              mode="multiple"
+              notFoundContent={t('No users available')}
+              options={candidateOptions}
+              placeholder={t('Search users')}
+              showSearch
+              style={{ width: '100%' }}
+              value={selectedUserIds}
+              onChange={(values) => setSelectedUserIds(values as number[])}
+              onSearch={setCandidateKeyword}
+            />
+            <Button loading={addingMembers} type="primary" onClick={() => void addMember(selectedUserIds)}>
+              {t('Add')}
+            </Button>
+          </Space.Compact>
+        </Card>
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Typography.Text strong>{t('Tenant members')}</Typography.Text>
           <Input.Search
             allowClear
             placeholder={t('Search users')}
             style={{ width: 280 }}
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
+            value={memberKeyword}
+            onChange={(event) => setMemberKeyword(event.target.value)}
           />
-          <Select
-            allowClear
-            mode="multiple"
-            maxTagCount="responsive"
-            notFoundContent={t('No users available')}
-            placeholder={t('Add member')}
-            style={{ width: 240 }}
-            options={candidateOptions}
-            value={selectedUserIds}
-            onChange={(values) => setSelectedUserIds(values as number[])}
-          />
-          <Button type="primary" onClick={() => void addMember(selectedUserIds)}>
-            {t('Confirm')}
-          </Button>
         </Space>
         <Table<UserRecord>
-          loading={usersRequest.loading}
+          loading={membersRequest.loading}
           dataSource={members}
           pagination={false}
           rowKey="id"

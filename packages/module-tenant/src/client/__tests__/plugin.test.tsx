@@ -5,7 +5,13 @@ import { render, waitFor } from '@tachybase/test/client';
 import PluginTenantClient from '..';
 import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
 import { NAMESPACE, useTenantTranslation } from '../locale';
-import { TenantEditor, TenantManagement } from '../TenantManagement';
+import {
+  buildUserSearchFilter,
+  getTenantCandidateOptions,
+  getTenantMembers,
+  TenantEditor,
+  TenantManagement,
+} from '../TenantManagement';
 import TenantMenuProvider from '../TenantMenuProvider';
 
 describe('PluginTenantClient', () => {
@@ -53,6 +59,52 @@ describe('PluginTenantClient', () => {
         [TenantMenuProvider, undefined],
       ]),
     );
+  });
+
+  it('should build broad user search filter for tenant member picker', () => {
+    expect(buildUserSearchFilter('tom')).toEqual({
+      $or: [
+        { 'username.$includes': 'tom' },
+        { 'nickname.$includes': 'tom' },
+        { 'email.$includes': 'tom' },
+        { 'phone.$includes': 'tom' },
+      ],
+    });
+
+    expect(buildUserSearchFilter('42')).toEqual({
+      $or: [
+        { 'username.$includes': '42' },
+        { 'nickname.$includes': '42' },
+        { 'email.$includes': '42' },
+        { 'phone.$includes': '42' },
+        { id: 42 },
+      ],
+    });
+  });
+
+  it('should separate current tenant members from add-member candidates', () => {
+    const users = [
+      {
+        id: 1,
+        username: 'current_user',
+        email: 'current@example.com',
+        tenants: [{ id: 'tenant-a', title: 'Tenant A' }],
+      },
+      {
+        id: 2,
+        username: 'candidate_user',
+        email: 'candidate@example.com',
+        tenants: [{ id: 'tenant-b', title: 'Tenant B' }],
+      },
+    ];
+
+    expect(getTenantMembers(users, 'tenant-a')).toEqual([users[0]]);
+    expect(getTenantCandidateOptions(users, 'tenant-a')).toEqual([
+      {
+        label: 'candidate_user · candidate@example.com',
+        value: 2,
+      },
+    ]);
   });
 
   it('should register tenant management entry in system settings', async () => {

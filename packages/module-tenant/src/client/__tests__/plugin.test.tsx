@@ -1,8 +1,9 @@
 import React from 'react';
-import { Application, CurrentNavigationMenuProvider, useCurrentNavigationMenu } from '@tachybase/client';
+import { Application, CurrentNavigationMenuProvider, i18n, useCurrentNavigationMenu } from '@tachybase/client';
 import { render, waitFor } from '@tachybase/test/client';
 
 import PluginTenantClient from '..';
+import zhCN from '../../locale/zh-CN.json';
 import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
 import { NAMESPACE, useTenantTranslation } from '../locale';
 import {
@@ -120,16 +121,24 @@ describe('PluginTenantClient', () => {
     });
   });
 
-  it('should expose tenant translation hook with t function', () => {
-    const TranslationProbe = () => {
-      const { t } = useTenantTranslation();
-      return <span data-testid="tenant-text">{t('Tenants')}</span>;
-    };
+  it('should expose tenant translation hook with t function', async () => {
+    i18n.addResources('zh-CN', NAMESPACE, zhCN);
+    await i18n.changeLanguage('zh-CN');
 
-    const { getByTestId } = render(<TranslationProbe />);
+    try {
+      const TranslationProbe = () => {
+        const { t } = useTenantTranslation();
+        return <span data-testid="tenant-text">{t('Tenants')}</span>;
+      };
 
-    expect(NAMESPACE).toBe('tenant');
-    expect(getByTestId('tenant-text')).toHaveTextContent('Tenants');
+      const { getByTestId } = render(<TranslationProbe />);
+
+      expect(NAMESPACE).toBe('tenant');
+      expect(zhCN.Tenants).toBe('租户');
+      expect(getByTestId('tenant-text')).toHaveTextContent('租户');
+    } finally {
+      await i18n.changeLanguage('en-US');
+    }
   });
 
   it('should sync tenant editor values when initial record changes', async () => {

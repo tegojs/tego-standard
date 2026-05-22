@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.21] - 2026-05-22
+
+### 🐛 Fixed
+
+- **client**: preserve gmt:true parse for naive GMT date boundary values ([#386](https://github.com/tegojs/tego-standard/pull/386)) (@TomyJan)
+
 ## [1.6.20] - 2026-05-21
 
 ### ✨ Added
@@ -3022,7 +3028,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.20...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.21...HEAD
+[1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
 [1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
 [1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19
 [1.6.18]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.18

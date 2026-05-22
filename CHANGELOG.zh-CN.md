@@ -9,6 +9,12 @@
 
 
 
+## [1.6.21] - 2026-05-22
+
+### 🐛 修复
+
+- **client**: 保留 gmt:true 解析幼稚的 GMT 日期边界值 ([#386](https://github.com/tegojs/tego-standard/pull/386)) (@TomyJan)
+
 ## [1.6.20] - 2026-05-21
 
 ### ✨ 新增
@@ -3022,7 +3028,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.20...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.21...HEAD
+[1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
 [1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
 [1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19
 [1.6.18]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.18

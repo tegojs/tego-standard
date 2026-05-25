@@ -1,6 +1,5 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
@@ -105,6 +104,39 @@ describe('workflow > triggers > collection', () => {
   });
 
   describe('model context', () => {
+    it('should persist tenant context from repository options', async () => {
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: 'posts',
+        },
+      });
+
+      await PostRepo.create({
+        values: { title: 't1' },
+        context: {
+          state: {
+            currentTenant: { id: 'tenant-a', name: 'tenant-a' },
+            currentTenantId: 'tenant-a',
+            currentTenantDescendantIds: ['tenant-a', 'tenant-a-child'],
+          },
+        },
+      });
+
+      await sleep(500);
+
+      const executions = await workflow.getExecutions();
+      expect(executions.length).toBe(1);
+      expect(executions[0].tenantId).toBe('tenant-a');
+      expect(executions[0].tenantContext).toMatchObject({
+        currentTenant: { id: 'tenant-a', name: 'tenant-a' },
+        currentTenantId: 'tenant-a',
+        currentTenantDescendantIds: ['tenant-a', 'tenant-a-child'],
+      });
+    });
+
     it('with association', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,

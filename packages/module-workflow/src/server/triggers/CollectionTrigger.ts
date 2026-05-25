@@ -103,6 +103,7 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
     result = await repository.findOne({
       filterByTk: data[filterTargetKey],
       appends: Array.from(includeFields),
+      context,
       transaction,
     });
   }
@@ -113,13 +114,14 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
   if (workflow.sync) {
     await this.workflow.trigger(
       workflow,
-      { data: json, stack: context?.stack },
+      { data: json, stack: context?.stack, state: context?.state },
       {
+        context,
         transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
       },
     );
   } else {
-    this.workflow.trigger(workflow, { data: json, stack: context?.stack });
+    this.workflow.trigger(workflow, { data: json, stack: context?.stack, state: context?.state }, { context });
   }
 }
 

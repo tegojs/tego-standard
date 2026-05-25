@@ -97,6 +97,20 @@ describe('tenant resource guard', () => {
     expect(getResponse.body.data).toBeNull();
 
     await agent.resource('tenant_posts').update({
+      filterByTk: created.get('id'),
+      values: {
+        title: 'A2',
+        tenantId: 'tenant-b',
+      },
+    });
+
+    const currentAfterUpdate = await app.db.getRepository('tenant_posts').findOne({
+      filterByTk: created.get('id'),
+    });
+    expect(currentAfterUpdate.get('title')).toBe('A2');
+    expect(currentAfterUpdate.get('tenantId')).toBe('tenant-a');
+
+    await agent.resource('tenant_posts').update({
       filterByTk: foreignRecord.get('id'),
       values: {
         title: 'should-not-update',
@@ -143,6 +157,9 @@ describe('tenant resource guard', () => {
     });
 
     expect(field).toBeTruthy();
+    expect(field.get('type')).toBe('context');
+    expect(field.get('dataIndex')).toBe('state.currentTenant.id');
+    expect(field.get('createOnly')).toBe(true);
     expect(app.db.getCollection('tenant_auto_fields').getField('tenantId')).toBeTruthy();
 
     await app.db.getRepository('tenant_auto_fields').create({

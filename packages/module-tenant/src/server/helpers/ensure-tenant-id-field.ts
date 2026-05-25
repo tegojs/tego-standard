@@ -26,7 +26,9 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
       values: {
         collectionName,
         name: 'tenantId',
-        type: 'string',
+        type: 'context',
+        dataIndex: 'state.currentTenant.id',
+        createOnly: true,
         uiSchema: {
           type: 'string',
           title: 'Tenant ID',

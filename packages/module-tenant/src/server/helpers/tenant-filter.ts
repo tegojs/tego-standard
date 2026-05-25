@@ -43,6 +43,19 @@ function appendTenantValue(values: any, tenantId: string | number) {
   };
 }
 
+function omitTenantValue(values: any) {
+  if (!values || typeof values !== 'object') {
+    return values;
+  }
+
+  if (Array.isArray(values)) {
+    return values.map(omitTenantValue);
+  }
+
+  const { tenantId, ...rest } = values;
+  return rest;
+}
+
 export function applyTenantFilter(ctx: TenantFilterContext) {
   const tenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
   if (!tenantId) {
@@ -56,18 +69,31 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
   const { actionName, params } = ctx.action;
   const tenancyMode = ctx.state.currentTenancyMode;
 
+  let tenantParams: Record<string, any> | null = null;
+
   if (['list', 'get', 'count', 'update', 'destroy', 'export'].includes(actionName)) {
     if (tenancyMode === 'tenantInherited') {
       const descendantIds: Array<string | number> = ctx.state.currentTenantDescendantIds || [];
       const allIds = [tenantId, ...descendantIds];
-      ctx.action.mergeParams({
+      tenantParams = {
         filter: appendInheritedFilter(params?.filter, allIds),
-      });
+      };
     } else {
-      ctx.action.mergeParams({
+      tenantParams = {
         filter: appendFilter(params?.filter, tenantId),
-      });
+      };
     }
+  }
+
+  if (actionName === 'update') {
+    tenantParams = {
+      ...tenantParams,
+      values: omitTenantValue(params?.values),
+    };
+  }
+
+  if (tenantParams) {
+    ctx.action.mergeParams(tenantParams);
   }
 
   if (actionName === 'create') {

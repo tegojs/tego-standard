@@ -113,6 +113,39 @@ describe('applyTenantFilter', () => {
     });
   });
 
+  it('should remove tenantId from update values while keeping the tenant filter', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-a',
+      },
+      action: {
+        actionName: 'update',
+        params: {
+          filter: {
+            status: 'draft',
+          },
+          values: {
+            title: 'Post',
+            tenantId: 'tenant-b',
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [{ status: 'draft' }, { tenantId: 'tenant-a' }],
+      },
+      values: {
+        title: 'Post',
+      },
+    });
+  });
+
   describe('tenantInherited mode', () => {
     it('should use $in filter with current tenant + descendants for list actions', () => {
       const mergeParams = vi.fn();

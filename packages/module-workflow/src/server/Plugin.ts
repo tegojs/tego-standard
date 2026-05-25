@@ -20,6 +20,7 @@ import PluginWorkflowJSONParseServer from './features/_deprecated-json-parse/plu
 import { PluginAggregate } from './features/aggregate/Plugin';
 import { PluginDelay } from './features/delay/Plugin';
 import { PluginDynamicCalculation } from './features/dynamic-calculation/Plugin';
+import { PluginExitBranch } from './features/exit-branch';
 import { PluginInterception } from './features/interception';
 import { PluginLoop } from './features/loop/Plugin';
 import { PluginManual } from './features/manual/Plugin';
@@ -93,6 +94,7 @@ export default class PluginWorkflowServer extends Plugin {
     this.addFeature(PluginOmniTrigger);
     this.addFeature(PluginTriggerInstruction);
     this.addFeature(PluginWorkflowNoticeServer);
+    this.addFeature(PluginExitBranch);
   }
 
   getLogger(workflowId: ID): Logger {

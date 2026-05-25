@@ -1,5 +1,4 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
@@ -146,6 +145,45 @@ describe('workflow > instructions > condition', () => {
       const jobs = await execution.getJobs();
       expect(jobs.length).toEqual(2);
       expect(jobs[1].result).toEqual(false);
+    });
+
+    it('exit branch skips remaining nodes in the same branch', async () => {
+      const n1 = await workflow.createNode({
+        type: 'condition',
+        config: {
+          engine: 'math.js',
+          expression: '1 == 1',
+        },
+      });
+
+      const n2 = await workflow.createNode({
+        type: 'exit-branch',
+        branchIndex: BRANCH_INDEX.ON_TRUE,
+        upstreamId: n1.id,
+      });
+
+      const n3 = await workflow.createNode({
+        type: 'echo',
+        upstreamId: n2.id,
+      });
+
+      const n4 = await workflow.createNode({
+        type: 'echo',
+        upstreamId: n1.id,
+      });
+
+      await n2.setDownstream(n3);
+      await n1.setDownstream(n4);
+
+      const post = await PostRepo.create({ values: { title: 't1' } });
+
+      await sleep(500);
+
+      const [execution] = await workflow.getExecutions();
+      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+
+      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+      expect(jobs.map((job) => job.nodeId)).toEqual([n1.id, n2.id, n4.id]);
     });
 
     it('branch false and branch false to continue', async () => {

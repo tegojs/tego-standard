@@ -10,6 +10,18 @@
 
 ---
 
+## 当前执行状态
+
+| 任务 | 状态 | 说明 |
+| --- | --- | --- |
+| 任务 1：更新规划文档 | 已完成 | 已提交 `docs(tenant): plan next isolation hardening`。 |
+| 任务 2：导入关联查询传递租户上下文 | 已完成 | `o2o/o2m/m2o/m2m` 关联查询已传递导入请求 `context`，并新增跨租户同名关联记录测试。 |
+| 任务 3：workflow execution 保存租户上下文 | 已完成 | execution 已保存 `tenantId` 与最小 `tenantContext`。 |
+| 任务 4：workflow 执行时恢复租户上下文 | 部分完成 | 主要 repository 指令已使用 `processor.getRepositoryContext()`；仍需补齐触发器向 execution 创建阶段传递 tenant context。 |
+| 任务 5：日期字段定时 workflow 按租户上下文执行 | 未完成 | 日期字段定时触发仍需避免无上下文扫描 tenant-enabled collection。 |
+| 任务 6：审计日志记录租户与 actor context | 已完成 | audit log 字段、hooks、worker payload 保留与基础测试已完成。 |
+| 任务 7：平台管理员代入租户并写入审计上下文 | 部分完成 | 中间件显式代入和 state 元数据已完成；仍需补齐代入操作写入 audit log 的集成测试。 |
+
 ## 文件结构
 
 - 修改：`租户隔离规划方案.md` — 记录导入 transform、workflow、audit/impersonation 的设计原则与验收标准。

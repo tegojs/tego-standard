@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { createMockServer, mockDatabase, MockServer } from '@tachybase/test';
-import { ApplicationOptions, Plugin, Resourcer, SequelizeDataSource, uid } from '@tego/server';
+import { createMockServer, type MockServer } from '@tachybase/test/server/mockServer';
+import { ApplicationOptions, mockDatabase, Plugin, Resourcer, SequelizeDataSource, uid } from '@tego/server';
 
 import functions from './functions';
 import instructions from './instructions';

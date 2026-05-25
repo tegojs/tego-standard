@@ -1,5 +1,5 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-import { MockServer } from '@tachybase/test';
+import type { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
 async function sleepToEvenSecond() {
@@ -369,13 +369,13 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await db.getRepository('tenants').create({
         values: [
-          { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+          { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A', enabled: true },
           { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B', enabled: false },
         ],
       });
 
       const workflow = await WorkflowModel.create({
-        enabled: true,
+        enabled: false,
         type: 'schedule',
         config: {
           mode: 1,
@@ -389,8 +389,9 @@ describe('workflow > triggers > schedule > date field mode', () => {
       await sleepToEvenSecond();
 
       const TenantSchedulePostRepo = db.getRepository('tenant_schedule_posts');
+      const scheduledAt = new Date(Date.now() + 1000);
       const tenantAPost = await TenantSchedulePostRepo.create({
-        values: { title: 'a1', tenantId: 'tenant-a' },
+        values: { title: 'a1', tenantId: 'tenant-a', createdAt: scheduledAt },
         context: {
           state: {
             currentTenant: { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
@@ -400,10 +401,12 @@ describe('workflow > triggers > schedule > date field mode', () => {
           },
         },
       });
-      await TenantSchedulePostRepo.create({ values: { title: 'b1', tenantId: 'tenant-b' } });
+      await TenantSchedulePostRepo.create({ values: { title: 'b1', tenantId: 'tenant-b', createdAt: scheduledAt } });
+      await workflow.update({ enabled: true });
 
       const executions = await waitForExecutions(workflow, 1);
       expect(executions.length).toBe(1);
+      expect(executions).toHaveLength(1);
       expect(executions[0].context.data.id).toBe(tenantAPost.get('id'));
       expect(executions[0].tenantId).toBe('tenant-a');
       expect(executions[0].tenantContext).toMatchObject({

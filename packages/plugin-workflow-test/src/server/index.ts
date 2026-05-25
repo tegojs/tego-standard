@@ -32,9 +32,27 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
       }
     }
   }
+  class TestAuthStatusPlugin extends Plugin {
+    async load() {
+      if (!this.app.authManager.userStatusService) {
+        this.app.authManager.setUserStatusService({
+          async checkUserStatus() {
+            return {
+              allowed: true,
+              status: 'active',
+              isExpired: false,
+            };
+          },
+        });
+      }
+    }
+  }
   const app = await createMockServer({
     ...others,
     plugins: [
+      'error-handler',
+      'collection',
+      'user',
       [
         'workflow',
         {
@@ -46,6 +64,7 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
       'workflow-test',
       TestCollectionPlugin,
       ...plugins,
+      TestAuthStatusPlugin,
     ],
   });
 

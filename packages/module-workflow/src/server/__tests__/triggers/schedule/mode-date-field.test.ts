@@ -9,6 +9,21 @@ async function sleepToEvenSecond() {
   return now;
 }
 
+async function waitForExecutions(workflow, expected: number, timeout = 6000) {
+  const startedAt = Date.now();
+  let executions = [];
+
+  while (Date.now() - startedAt < timeout) {
+    executions = await workflow.getExecutions();
+    if (executions.length === expected) {
+      return executions;
+    }
+    await sleep(200);
+  }
+
+  return executions;
+}
+
 describe('workflow > triggers > schedule > date field mode', () => {
   let app: MockServer;
   let db: Database;
@@ -387,9 +402,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       });
       await TenantSchedulePostRepo.create({ values: { title: 'b1', tenantId: 'tenant-b' } });
 
-      await sleep(2000);
-
-      const executions = await workflow.getExecutions();
+      const executions = await waitForExecutions(workflow, 1);
       expect(executions.length).toBe(1);
       expect(executions[0].context.data.id).toBe(tenantAPost.get('id'));
       expect(executions[0].tenantId).toBe('tenant-a');

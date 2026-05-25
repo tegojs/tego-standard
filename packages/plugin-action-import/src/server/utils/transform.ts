@@ -1,4 +1,5 @@
 import { str2moment } from '@tego/server';
+
 import dayjs from 'dayjs';
 import * as math from 'mathjs';
 
@@ -33,7 +34,7 @@ export async function o2o({ value, column, field, ctx }) {
   if (enumData?.length > 0) {
     enumItem = enumData.find((e) => e.label === value);
   }
-  const val = await repository.findOne({ filter: { [dataIndex[1]]: enumItem?.value ?? value } });
+  const val = await repository.findOne({ filter: { [dataIndex[1]]: enumItem?.value ?? value }, context: ctx });
   return val;
 }
 export const oho = o2o;
@@ -52,9 +53,9 @@ export async function o2m({ value, column, field, ctx }) {
       }
       return v.value;
     });
-    results = await repository.find({ filter: { [dataIndex[1]]: enumValues } });
+    results = await repository.find({ filter: { [dataIndex[1]]: enumValues }, context: ctx });
   } else {
-    results = await repository.find({ filter: { [dataIndex[1]]: values } });
+    results = await repository.find({ filter: { [dataIndex[1]]: values }, context: ctx });
   }
   return results;
 }
@@ -65,9 +66,9 @@ export async function m2o({ value, column, field, ctx }) {
   const repository = ctx.db.getRepository(field.options.target);
   if (enumData?.length > 0) {
     const enumValue = enumData.find((e) => e.label === value?.trim())?.value;
-    results = await repository.findOne({ filter: { [dataIndex[1]]: enumValue } });
+    results = await repository.findOne({ filter: { [dataIndex[1]]: enumValue }, context: ctx });
   } else {
-    results = await repository.findOne({ filter: { [dataIndex[1]]: value } });
+    results = await repository.findOne({ filter: { [dataIndex[1]]: value }, context: ctx });
   }
   return results;
 }
@@ -85,9 +86,9 @@ export async function m2m({ value, column, field, ctx }) {
       }
       return v.value;
     });
-    results = await repository.find({ filter: { [dataIndex[1]]: enumValues } });
+    results = await repository.find({ filter: { [dataIndex[1]]: enumValues }, context: ctx });
   } else {
-    results = await repository.find({ filter: { [dataIndex[1]]: values } });
+    results = await repository.find({ filter: { [dataIndex[1]]: values }, context: ctx });
   }
   return results;
 }

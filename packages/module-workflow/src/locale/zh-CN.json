@@ -203,6 +203,8 @@
   "Execution ID is required": "执行 ID 是必需的",
   "Execution history": "执行历史",
   "Existence check": "存在性判断",
+  "Exit branch": "退出分支",
+  "Exit the current branch with success status and continue to the next node after the branch.": "以成功状态退出当前分支，并继续执行分支后的下一个节点。",
   "Exit when query result is null": "查询结果为空时，退出流程",
   "Expression": "表达式",
   "Expression syntax error": "表达式语法错误",

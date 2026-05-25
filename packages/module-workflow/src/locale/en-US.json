@@ -166,6 +166,8 @@
   "Executed": "Executed",
   "Executed at": "Executed at",
   "Execution history": "Execution history",
+  "Exit branch": "Exit branch",
+  "Exit the current branch with success status and continue to the next node after the branch.": "Exit the current branch with success status and continue to the next node after the branch.",
   "Extended types": "Extended types",
   "Fail and exit": "Fail and exit",
   "Failed": "Failed",

@@ -7,6 +7,7 @@ import { ExecutionPage } from './ExecutionPage';
 import { PluginAggregate } from './features/aggregate';
 import { PluginDelay } from './features/delay';
 import { PluginDaynamicCalculation } from './features/dynamic-calculation';
+import { PluginExitBranch } from './features/exit-branch';
 import { PluginWorkflowInterceptor } from './features/interceptor';
 import PluginWorkflowJSParseClient from './features/js-parse';
 import PluginWorkflowJsonParseClient from './features/json-parse';
@@ -90,6 +91,7 @@ export class PluginWorkflow extends Plugin {
     await this.pm.add(PluginResponse);
     await this.pm.add(PluginOmniTrigger);
     await this.pm.add(PluginTriggerInstruction);
+    await this.pm.add(PluginExitBranch);
 
     // 等待删除, 为了兼容旧版; 当梳理一遍工作流, 确保没有问题后, 再删除
     await this.pm.add(PluginWorkflowNoticeClient);

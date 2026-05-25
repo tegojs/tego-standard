@@ -1,6 +1,7 @@
 import { Plugin } from '@tego/server';
 
 import { LOG_TYPE_DESTROY } from '../constants';
+import { getAuditContext } from './audit-context';
 
 export async function afterDestroy(model, options, plugin: Plugin) {
   const { collection } = model.constructor;
@@ -8,7 +9,7 @@ export async function afterDestroy(model, options, plugin: Plugin) {
     return;
   }
   const transaction = options.transaction;
-  const currentUserId = options?.context?.state?.currentUser?.id;
+  const auditContext = getAuditContext(options);
   try {
     const changes = [];
     Object.keys(model.get()).forEach((key: string) => {
@@ -38,7 +39,12 @@ export async function afterDestroy(model, options, plugin: Plugin) {
       type: LOG_TYPE_DESTROY,
       collectionName: model.constructor.name,
       recordId: model.get(model.constructor.primaryKeyAttribute),
-      userId: currentUserId,
+      userId: auditContext.userId,
+      tenantId: auditContext.tenantId,
+      actorUserId: auditContext.actorUserId,
+      impersonatedTenantId: auditContext.impersonatedTenantId,
+      tenantContextSource: auditContext.tenantContextSource,
+      isTenantImpersonation: auditContext.isTenantImpersonation,
       changes,
     };
 

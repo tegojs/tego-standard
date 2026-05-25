@@ -1,6 +1,7 @@
 import { Plugin } from '@tego/server';
 
 import { LOG_TYPE_CREATE } from '../constants';
+import { getAuditContext } from './audit-context';
 
 export async function afterCreate(model, options, plugin: Plugin) {
   if (options.logging === false) {
@@ -11,7 +12,7 @@ export async function afterCreate(model, options, plugin: Plugin) {
     return;
   }
   const transaction = options.transaction;
-  const currentUserId = options?.context?.state?.currentUser?.id;
+  const auditContext = getAuditContext(options);
   try {
     const changes = [];
     const changed = model.changed();
@@ -46,7 +47,12 @@ export async function afterCreate(model, options, plugin: Plugin) {
       collectionName: model.constructor.name,
       recordId: model.get(model.constructor.primaryKeyAttribute),
       createdAt: model.get('createdAt'),
-      userId: currentUserId,
+      userId: auditContext.userId,
+      tenantId: auditContext.tenantId,
+      actorUserId: auditContext.actorUserId,
+      impersonatedTenantId: auditContext.impersonatedTenantId,
+      tenantContextSource: auditContext.tenantContextSource,
+      isTenantImpersonation: auditContext.isTenantImpersonation,
       changes,
     };
 

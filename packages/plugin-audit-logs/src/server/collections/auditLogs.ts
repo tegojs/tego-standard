@@ -28,6 +28,29 @@ export default defineCollection({
       name: 'collectionName',
     },
     {
+      type: 'string',
+      name: 'tenantId',
+      index: true,
+    },
+    {
+      type: 'string',
+      name: 'actorUserId',
+      index: true,
+    },
+    {
+      type: 'string',
+      name: 'impersonatedTenantId',
+      index: true,
+    },
+    {
+      type: 'string',
+      name: 'tenantContextSource',
+    },
+    {
+      type: 'boolean',
+      name: 'isTenantImpersonation',
+    },
+    {
       type: 'belongsTo',
       name: 'collection',
       target: 'collections',

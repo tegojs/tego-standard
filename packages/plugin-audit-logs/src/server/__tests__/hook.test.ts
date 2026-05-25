@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 describe('hook', () => {
@@ -73,6 +72,11 @@ describe('hook', () => {
       context: {
         state: {
           currentUser: user,
+          currentTenantId: 'tenant-a',
+          actorUserId: user.get('id'),
+          impersonatedTenantId: null,
+          tenantContextSource: 'membership',
+          isTenantImpersonation: false,
         },
       },
     });
@@ -84,6 +88,10 @@ describe('hook', () => {
       collectionName: 'posts',
       type: 'create',
       userId: 1,
+      tenantId: 'tenant-a',
+      actorUserId: '1',
+      tenantContextSource: 'membership',
+      isTenantImpersonation: false,
       recordId: `${post.get('id')}`,
       changes: [
         {

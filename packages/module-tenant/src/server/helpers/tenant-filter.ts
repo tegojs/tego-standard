@@ -94,6 +94,9 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
 
   if (tenantParams) {
     ctx.action.mergeParams(tenantParams);
+    if (actionName === 'update') {
+      ctx.action.params.values = tenantParams.values;
+    }
   }
 
   if (actionName === 'create') {

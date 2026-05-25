@@ -1,4 +1,4 @@
-import { waitSecond, type MockServer } from '@tachybase/test';
+import type { MockServer } from '@tachybase/test';
 import { CollectionManager, DataSource } from '@tego/server';
 
 import { createTenantApp } from './utils';
@@ -32,15 +32,6 @@ describe('tenant resource guard', () => {
       },
     });
 
-    await app.db.getRepository('roles').update({
-      filterByTk: 'admin',
-      values: {
-        strategy: {
-          actions: ['create', 'view', 'update', 'destroy'],
-        },
-      },
-    });
-
     await app.db.getRepository('collections').create({
       values: {
         name: 'tenant_posts',
@@ -71,7 +62,12 @@ describe('tenant resource guard', () => {
     await app.db.getRepository('tenant_posts').create({
       values: {
         title: 'B1',
-        tenantId: 'tenant-b',
+      },
+      context: {
+        state: {
+          currentTenant: { id: 'tenant-b' },
+          currentTenantId: 'tenant-b',
+        },
       },
     });
 
@@ -165,7 +161,12 @@ describe('tenant resource guard', () => {
     await app.db.getRepository('tenant_auto_fields').create({
       values: {
         title: 'A1',
-        tenantId: 'tenant-a',
+      },
+      context: {
+        state: {
+          currentTenant: { id: 'tenant-a' },
+          currentTenantId: 'tenant-a',
+        },
       },
     });
 
@@ -267,18 +268,11 @@ describe('tenant resource guard', () => {
     }
 
     app = await createTenantApp();
+    const dataSource = new MockDataSource({ name: 'mockTenantDs' } as any);
+    dataSource.acl.allow('*', '*');
+    await app.dataSourceManager.add(dataSource);
+    dataSource.collectionManager.getCollection('posts').options.tenancy = 'tenantScoped';
     app.dataSourceManager.factory.register('mock', MockDataSource as any);
-
-    await app.db.getRepository('dataSources').create({
-      values: {
-        key: 'mockTenantDs',
-        type: 'mock',
-        displayName: 'Mock tenant data source',
-        options: {},
-      },
-    });
-
-    await waitSecond(1000);
 
     await app.db.getRepository('tenants').create({
       values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
@@ -295,6 +289,8 @@ describe('tenant resource guard', () => {
         defaultTenantId: 'tenant-a',
       },
     });
+
+    expect(dataSource.collectionManager.getCollection('posts').options.tenancy).toBe('tenantScoped');
 
     const response = await app.agent().login(user).set('X-data-source', 'mockTenantDs').resource('api/posts').list({
       paginate: false,
@@ -320,15 +316,6 @@ describe('tenant resource guard', () => {
         roles: ['admin'],
         tenants: ['tenant-disabled'],
         defaultTenantId: 'tenant-disabled',
-      },
-    });
-
-    await app.db.getRepository('roles').update({
-      filterByTk: 'admin',
-      values: {
-        strategy: {
-          actions: ['create', 'view', 'update', 'destroy'],
-        },
       },
     });
 

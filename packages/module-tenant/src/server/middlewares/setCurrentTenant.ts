@@ -50,6 +50,10 @@ async function resolveDefaultTenantId(ctx: Context, tenantIds: Array<string | nu
 }
 
 export async function setCurrentTenant(ctx: Context, next: Next) {
+  if (!ctx.state.currentUser && ctx.auth?.user) {
+    ctx.state.currentUser = ctx.auth.user;
+  }
+
   if (!ctx.state.currentUser) {
     return next();
   }

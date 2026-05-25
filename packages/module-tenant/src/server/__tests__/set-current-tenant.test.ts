@@ -1,4 +1,4 @@
-import type { MockServer } from '@tachybase/test';
+import { waitSecond, type MockServer } from '@tachybase/test';
 
 import { createTenantApp } from './utils';
 
@@ -26,6 +26,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'user-a@example.com',
         phone: '10000000001',
         password: '123456',
+        roles: ['admin'],
         tenants: ['tenant-a'],
       },
     });
@@ -52,6 +53,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'user-b@example.com',
         phone: '10000000002',
         password: '123456',
+        roles: ['admin'],
         tenants: ['tenant-a', 'tenant-b'],
         defaultTenantId: 'tenant-a',
       },
@@ -79,6 +81,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'user-c@example.com',
         phone: '10000000003',
         password: '123456',
+        roles: ['admin'],
         tenants: ['tenant-a'],
         defaultTenantId: 'tenant-a',
       },
@@ -106,6 +109,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'user-legacy-header@example.com',
         phone: '10000000009',
         password: '123456',
+        roles: ['admin'],
         tenants: ['tenant-a', 'tenant-b'],
         defaultTenantId: 'tenant-a',
       },
@@ -133,6 +137,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'hq-descendant-user@example.com',
         phone: '10000000008',
         password: '123456',
+        roles: ['admin'],
         tenants: ['hq'],
         defaultTenantId: 'hq',
       },
@@ -234,11 +239,18 @@ describe('setCurrentTenant middleware', () => {
 
     expect(response.status).toBe(200);
 
-    const auditLog = await app.db.getRepository('auditLogs').findOne({
-      filter: {
-        collectionName: 'tenant_impersonation_audit_posts',
-      },
-    });
+    let auditLog;
+    for (let i = 0; i < 10; i++) {
+      auditLog = await app.db.getRepository('auditLogs').findOne({
+        filter: {
+          collectionName: 'tenant_impersonation_audit_posts',
+        },
+      });
+      if (auditLog) {
+        break;
+      }
+      await waitSecond(200);
+    }
 
     expect(auditLog.toJSON()).toMatchObject({
       tenantId: 'tenant-b',
@@ -320,6 +332,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'user-disabled-default@example.com',
         phone: '10000000005',
         password: '123456',
+        roles: ['admin'],
         tenants: ['tenant-a', 'tenant-b'],
         defaultTenantId: 'tenant-b',
       },
@@ -347,6 +360,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'user-disabled-switch@example.com',
         phone: '10000000006',
         password: '123456',
+        roles: ['admin'],
         tenants: ['tenant-a', 'tenant-b'],
         defaultTenantId: 'tenant-a',
       },
@@ -382,6 +396,7 @@ describe('setCurrentTenant middleware', () => {
         email: 'user-d@example.com',
         phone: '10000000004',
         password: '123456',
+        roles: ['admin'],
         tenants: ['tenant-a', 'tenant-b', 'tenant-c'],
         defaultTenantId: 'tenant-b',
       },

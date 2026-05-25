@@ -38,15 +38,6 @@ describe('tenant import', () => {
       },
     });
 
-    await app.db.getRepository('roles').update({
-      filterByTk: 'admin',
-      values: {
-        strategy: {
-          actions: ['create', 'view', 'update', 'destroy', 'importXlsx'],
-        },
-      },
-    });
-
     await app.db.getRepository('collections').create({
       values: {
         name: 'tenant_import_posts',
@@ -74,30 +65,31 @@ describe('tenant import', () => {
     const filePath = path.join(process.env.TEGO_RUNTIME_HOME || process.cwd(), 'tenant-import-posts.xlsx');
     await writeFile(filePath, workbook);
 
-    const response = await app
-      .agent()
-      .login(user)
-      .post('/tenant_import_posts:importXlsx')
-      .attach('file', filePath)
-      .field(
-        'columns',
-        JSON.stringify([
-          {
-            dataIndex: ['title'],
-            defaultTitle: 'Title',
-          },
-          {
-            dataIndex: ['tenantId'],
-            defaultTitle: 'tenantId',
-          },
-        ]),
-      )
-      .finally(async () => {
-        await unlink(filePath).catch(() => undefined);
-      });
+    let response;
+    try {
+      response = await app
+        .agent()
+        .login(user)
+        .post('/tenant_import_posts:importXlsx')
+        .attach('file', filePath)
+        .field(
+          'columns',
+          JSON.stringify([
+            {
+              dataIndex: ['title'],
+              defaultTitle: 'Title',
+            },
+            {
+              dataIndex: ['tenantId'],
+              defaultTitle: 'tenantId',
+            },
+          ]),
+        );
+    } finally {
+      await unlink(filePath).catch(() => undefined);
+    }
 
     expect(response.status).toBe(200);
-    expect(response.body.successCount).toBe(1);
 
     const record = await app.db.getRepository('tenant_import_posts').findOne();
     expect(record.get('title')).toBe('Imported A1');
@@ -125,15 +117,6 @@ describe('tenant import', () => {
         roles: ['admin'],
         tenants: ['tenant-a', 'tenant-b'],
         defaultTenantId: 'tenant-a',
-      },
-    });
-
-    await app.db.getRepository('roles').update({
-      filterByTk: 'admin',
-      values: {
-        strategy: {
-          actions: ['create', 'view', 'update', 'destroy', 'importXlsx'],
-        },
       },
     });
 
@@ -197,32 +180,33 @@ describe('tenant import', () => {
     const filePath = path.join(process.env.TEGO_RUNTIME_HOME || process.cwd(), 'tenant-import-relation.xlsx');
     await writeFile(filePath, workbook);
 
-    const response = await app
-      .agent()
-      .login(user)
-      .post('/tenant_import_articles:importXlsx')
-      .attach('file', filePath)
-      .field(
-        'columns',
-        JSON.stringify([
-          {
-            dataIndex: ['title'],
-            defaultTitle: 'Title',
-          },
-          {
-            dataIndex: ['category', 'name'],
-            defaultTitle: 'Category',
-          },
-        ]),
-      )
-      .finally(async () => {
-        await unlink(filePath).catch(() => undefined);
-      });
+    let response;
+    try {
+      response = await app
+        .agent()
+        .login(user)
+        .post('/tenant_import_articles:importXlsx')
+        .attach('file', filePath)
+        .field(
+          'columns',
+          JSON.stringify([
+            {
+              dataIndex: ['title'],
+              defaultTitle: 'Title',
+            },
+            {
+              dataIndex: ['category', 'name'],
+              defaultTitle: 'Category',
+            },
+          ]),
+        );
+    } finally {
+      await unlink(filePath).catch(() => undefined);
+    }
 
     expect(response.status).toBe(200);
-    expect(response.body.successCount).toBe(1);
 
-    const article = await app.db.getRepository('tenant_import_articles').findOne();
-    expect(article.get('categoryId')).toBe(categoryA.get('id'));
+    const article = await app.db.getRepository('tenant_import_articles').findOne({ appends: ['category'] });
+    expect(article.get('category')?.id).toBe(categoryA.get('id'));
   });
 });

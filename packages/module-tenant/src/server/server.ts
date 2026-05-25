@@ -45,31 +45,73 @@ export class PluginTenantServer extends Plugin {
       before: 'acl',
     });
 
+    this.app.use(setCurrentTenant, {
+      tag: 'setCurrentTenantForDataSource',
+      after: 'auth',
+      before: 'dataSource',
+    });
+
+    const applyTenantResourceGuard = async (ctx, next) => {
+      const dataSourceKey =
+        ctx.get('X-data-source') || ctx.get('x-data-source') || ctx.action.params?.dataSource || 'main';
+      const dataSource =
+        dataSourceKey && dataSourceKey !== 'main' ? ctx.tego.dataSourceManager.dataSources.get(dataSourceKey) : null;
+      const db = dataSource?.collectionManager?.db || ctx.db;
+      const collectionName = ctx.action.resourceName?.replace(/^api\//, '');
+      const collection =
+        dataSource?.collectionManager?.getCollection(collectionName) ||
+        (collectionName ? dataSource?.collectionManager?.getCollection(ctx.action.resourceName) : null) ||
+        db.getCollection(collectionName);
+      const tenancyMode = getCollectionTenancyMode(collection);
+
+      if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
+        if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
+          await setCurrentTenant(ctx, async () => undefined);
+        }
+
+        if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
+          ctx.throw(403, 'Tenant context is required');
+        }
+
+        ctx.state.currentTenancyMode = tenancyMode;
+        applyTenantFilter(ctx);
+      }
+
+      await next();
+    };
+
     this.app.resourcer.use(
       async (ctx, next) => {
         const dataSourceKey =
           ctx.get('X-data-source') || ctx.get('x-data-source') || ctx.action.params?.dataSource || 'main';
-        const dataSource =
-          dataSourceKey && dataSourceKey !== 'main' ? ctx.tego.dataSourceManager.dataSources.get(dataSourceKey) : null;
-        const db = dataSource?.collectionManager?.db || ctx.db;
-        const collection = db.getCollection(ctx.action.resourceName);
-        const tenancyMode = getCollectionTenancyMode(collection);
-
-        if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
-          if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
-            ctx.throw(403, 'Tenant context is required');
-          }
-
-          ctx.state.currentTenancyMode = tenancyMode;
-          applyTenantFilter(ctx);
+        if (dataSourceKey && dataSourceKey !== 'main') {
+          await next();
+          return;
         }
 
-        await next();
+        await applyTenantResourceGuard(ctx, next);
       },
       {
         tag: 'tenantResourceGuard',
         after: 'acl',
         before: 'dataSource',
+      },
+    );
+
+    this.app.dataSourceManager.use(
+      async (ctx, next) => {
+        await this.app.authManager.middleware()(ctx, async () => undefined);
+
+        if (!ctx.state.currentUser && !ctx.auth?.user && ctx.getBearerToken?.() && ctx.auth?.check) {
+          ctx.auth.user = await ctx.auth.check();
+        }
+
+        await setCurrentTenant(ctx, async () => undefined);
+        await applyTenantResourceGuard(ctx, next);
+      },
+      {
+        tag: 'tenantResourceGuard',
+        after: 'acl',
       },
     );
 

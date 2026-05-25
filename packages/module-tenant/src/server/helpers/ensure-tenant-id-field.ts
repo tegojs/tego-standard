@@ -21,25 +21,28 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
     transaction: options.transaction,
   });
 
+  const tenantField = {
+    collectionName,
+    name: 'tenantId',
+    type: 'context',
+    dataIndex: 'state.currentTenant.id',
+    createOnly: true,
+    uiSchema: {
+      type: 'string',
+      title: 'Tenant ID',
+      'x-component': 'Input',
+      'x-read-pretty': true,
+    },
+  };
+
   if (!exists) {
     await fieldsRepository.create({
-      values: {
-        collectionName,
-        name: 'tenantId',
-        type: 'context',
-        dataIndex: 'state.currentTenant.id',
-        createOnly: true,
-        uiSchema: {
-          type: 'string',
-          title: 'Tenant ID',
-          'x-component': 'Input',
-          'x-read-pretty': true,
-        },
-      },
+      values: tenantField,
       transaction: options.transaction,
     });
   }
 
+  model.db.getCollection(collectionName).setField('tenantId', tenantField as any);
   await model.load({ transaction: options.transaction });
   await model.db.getCollection(collectionName).sync({
     force: false,

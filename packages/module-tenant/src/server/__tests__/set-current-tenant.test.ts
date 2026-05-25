@@ -186,6 +186,69 @@ describe('setCurrentTenant middleware', () => {
     expect(capturedState.isTenantImpersonation).toBe(true);
   });
 
+  it('should write audit log metadata for root tenant impersonation', async () => {
+    app = await createTenantApp({ extraPlugins: ['audit-logs'] });
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'root_impersonation_audit_user',
+        email: 'root-impersonation-audit-user@example.com',
+        phone: '10000000011',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_impersonation_audit_posts',
+        logging: true,
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .set('X-Tenant-Id', 'tenant-b')
+      .resource('tenant_impersonation_audit_posts')
+      .create({
+        values: { title: 'impersonated create' },
+      });
+
+    expect(response.status).toBe(200);
+
+    const auditLog = await app.db.getRepository('auditLogs').findOne({
+      filter: {
+        collectionName: 'tenant_impersonation_audit_posts',
+      },
+    });
+
+    expect(auditLog.toJSON()).toMatchObject({
+      tenantId: 'tenant-b',
+      actorUserId: `${user.get('id')}`,
+      impersonatedTenantId: 'tenant-b',
+      tenantContextSource: 'platformImpersonation',
+      isTenantImpersonation: true,
+    });
+  });
+
   it('should still reject invalid tenant header on tenant-scoped business resources', async () => {
     app = await createTenantApp();
 

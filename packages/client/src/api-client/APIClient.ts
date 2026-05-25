@@ -98,7 +98,7 @@ export class APIClient extends APIClientSDK {
       headers['X-App'] = appName;
     }
     if (currentTenantId) {
-      headers['X-Tenant'] = currentTenantId;
+      headers['X-Tenant-Id'] = currentTenantId;
     }
     headers['X-Timezone'] = getCurrentTimezone();
     headers['X-Hostname'] = window?.location?.hostname;

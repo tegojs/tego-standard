@@ -36,7 +36,7 @@ describe('setCurrentTenant middleware', () => {
     expect(response.body.data.id).toBe('tenant-a');
   });
 
-  it('should allow switching to a valid requested tenant with X-Tenant header', async () => {
+  it('should allow switching to a valid requested tenant with X-Tenant-Id header', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -57,13 +57,13 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).set('X-Tenant', 'tenant-b').resource('tenants').current({});
+    const response = await app.agent().login(user).set('X-Tenant-Id', 'tenant-b').resource('tenants').current({});
 
     expect(response.status).toBe(200);
     expect(response.body.data.id).toBe('tenant-b');
   });
 
-  it('should reject switching to an invalid tenant with X-Tenant header', async () => {
+  it('should reject switching to an invalid tenant with X-Tenant-Id header', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -84,13 +84,40 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
+    const response = await app.agent().login(user).set('X-Tenant-Id', 'tenant-b').resource('tenants').current({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.id).toBe('tenant-a');
+  });
+
+  it('should ignore legacy X-Tenant header', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'user_legacy_header',
+        email: 'user-legacy-header@example.com',
+        phone: '10000000009',
+        password: '123456',
+        tenants: ['tenant-a', 'tenant-b'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
     const response = await app.agent().login(user).set('X-Tenant', 'tenant-b').resource('tenants').current({});
 
     expect(response.status).toBe(200);
     expect(response.body.data.id).toBe('tenant-a');
   });
 
-  it('should allow requested descendant tenant with X-Tenant header', async () => {
+  it('should allow requested descendant tenant with X-Tenant-Id header', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -111,7 +138,7 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).set('X-Tenant', 'branch').resource('tenants').current({});
+    const response = await app.agent().login(user).set('X-Tenant-Id', 'branch').resource('tenants').current({});
 
     expect(response.status).toBe(200);
     expect(response.body.data.id).toBe('branch');
@@ -162,7 +189,12 @@ describe('setCurrentTenant middleware', () => {
       context: {},
     });
 
-    const response = await app.agent().login(user).set('X-Tenant', 'tenant-b').resource('tenant_guard_posts').list({});
+    const response = await app
+      .agent()
+      .login(user)
+      .set('X-Tenant-Id', 'tenant-b')
+      .resource('tenant_guard_posts')
+      .list({});
 
     expect(response.status).toBe(403);
   });

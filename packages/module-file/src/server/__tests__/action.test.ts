@@ -231,7 +231,7 @@ describe('action', () => {
       expect(tenantAResponse.status).toBe(200);
       expect(tenantAResponse.body.data.tenantId).toBe('tenant-a');
 
-      const tenantBAgent = app.agent().login(tenantUser).set('X-Tenant', 'tenant-b');
+      const tenantBAgent = app.agent().login(tenantUser).set('X-Tenant-Id', 'tenant-b');
       const tenantBResponse = await tenantBAgent.resource('attachments').create({
         [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
       });
@@ -262,7 +262,7 @@ describe('action', () => {
         [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
       });
 
-      const tenantBAgent = app.agent().login(tenantUser).set('X-Tenant', 'tenant-b');
+      const tenantBAgent = app.agent().login(tenantUser).set('X-Tenant-Id', 'tenant-b');
       const tenantBResponse = await tenantBAgent.resource('attachments').create({
         [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
       });
@@ -279,8 +279,12 @@ describe('action', () => {
         path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
       );
 
-      const tenantAFile = await fs.stat(path.join(destPath, tenantAResponse.body.data.path, tenantAResponse.body.data.filename));
-      const tenantBFile = await fs.stat(path.join(destPath, tenantBResponse.body.data.path, tenantBResponse.body.data.filename));
+      const tenantAFile = await fs.stat(
+        path.join(destPath, tenantAResponse.body.data.path, tenantAResponse.body.data.filename),
+      );
+      const tenantBFile = await fs.stat(
+        path.join(destPath, tenantBResponse.body.data.path, tenantBResponse.body.data.filename),
+      );
 
       expect(tenantAFile).toBeTruthy();
       expect(tenantBFile).toBeTruthy();

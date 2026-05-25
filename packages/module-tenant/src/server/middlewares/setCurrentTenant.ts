@@ -49,7 +49,7 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
     return next();
   }
 
-  const requestedTenantId = ctx.get('X-Tenant');
+  const requestedTenantId = ctx.get('X-Tenant-Id');
   const allowedTenantIds = await resolveAllowedTenantIds(ctx);
 
   let currentTenantId = requestedTenantId;

@@ -74,8 +74,37 @@
 - `useSwitchTenant.tsx` — 租户切换支持树形结构
 - 此阶段暂不改客户端，仅做服务端改造
 
+### Phase 6：后台链路租户上下文传播
+
+> 详细执行计划：`docs/superpowers/plans/2026-05-25-tenant-isolation-next-work.md`
+
+**文件：`packages/plugin-action-import/src/server/utils/transform.ts`**
+- 导入关联字段解析的 `find/findOne` 传递当前导入请求 `context`
+- 防止 A/B 租户同名关联记录跨租户匹配
+
+**文件：`packages/module-tenant/src/server/__tests__/tenant-import.test.ts`**
+- 增加导入关联查询租户隔离测试
+
+**文件：`packages/module-workflow/src/server/collections/executions.ts`**
+- execution 保存 `tenantId` 和最小可序列化 `tenantContext`
+
+**文件：`packages/module-workflow/src/server/Plugin.ts`、`packages/module-workflow/src/server/Processor.ts`**
+- trigger/createExecution/process/resume/retry 保存并恢复租户上下文
+- workflow repository 操作复用恢复后的 context
+
+**文件：`packages/module-workflow/src/server/triggers/DateFieldScheduleTrigger.ts`（或实际对应文件）**
+- 日期字段定时触发避免无租户上下文全量扫描 tenant-enabled 集合
+
+**文件：`packages/plugin-audit-logs/src/server/collections/auditLogs.ts` 与 hooks**
+- 审计日志记录 `tenantId`、真实操作者、平台管理员代入目标租户和上下文来源
+
+**文件：`packages/module-tenant/src/server/middlewares/setCurrentTenant.ts`**
+- 平台管理员显式 `X-Tenant-Id` 代入租户时保留 actor user，不覆盖 `currentUser`
+- 普通用户仍按 tenantUsers 与租户树访问关系校验
+
 ## 执行顺序
 
 1. Phase 1 → Phase 2 → Phase 3 → Phase 4
 2. 每个 Phase 完成后运行测试确认无回归
 3. Phase 5 视需要后续进行
+4. Phase 6 按独立提交推进：文档计划 → 导入关联查询 → workflow execution 上下文 → workflow 执行恢复 → 日期字段定时任务 → audit → 平台管理员代入

@@ -374,7 +374,17 @@ describe('workflow > triggers > schedule > date field mode', () => {
       await sleepToEvenSecond();
 
       const TenantSchedulePostRepo = db.getRepository('tenant_schedule_posts');
-      const tenantAPost = await TenantSchedulePostRepo.create({ values: { title: 'a1', tenantId: 'tenant-a' } });
+      const tenantAPost = await TenantSchedulePostRepo.create({
+        values: { title: 'a1', tenantId: 'tenant-a' },
+        context: {
+          state: {
+            currentTenant: { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+            currentTenantId: 'tenant-a',
+            currentTenantDescendantIds: [],
+            currentTenancyMode: 'tenantScoped',
+          },
+        },
+      });
       await TenantSchedulePostRepo.create({ values: { title: 'b1', tenantId: 'tenant-b' } });
 
       await sleep(2000);

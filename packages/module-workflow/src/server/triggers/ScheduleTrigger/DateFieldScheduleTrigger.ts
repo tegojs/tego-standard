@@ -85,9 +85,13 @@ function getHookId(workflow, type: string) {
   return `${type}#${workflow.id}`;
 }
 
+function isTenantCollection(collection) {
+  return collection?.options?.tenancy === 'tenantScoped' || collection?.options?.tenancy === 'tenantInherited';
+}
+
 function buildTenantContext(collection, record, tenant?) {
   const tenancyMode = collection?.options?.tenancy;
-  if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
+  if (!isTenantCollection(collection)) {
     return null;
   }
 
@@ -104,6 +108,26 @@ function buildTenantContext(collection, record, tenant?) {
       currentTenancyMode: tenancyMode,
     },
   };
+}
+
+async function buildEnabledTenantContext(db, collection, record) {
+  if (!isTenantCollection(collection)) {
+    return null;
+  }
+
+  const tenantId = record.get?.('tenantId') ?? record.tenantId;
+  if (!tenantId || !db.getRepository('tenants')) {
+    return null;
+  }
+
+  const tenant = await db.getRepository('tenants').findOne({
+    filter: {
+      id: tenantId,
+      enabled: true,
+    },
+  });
+
+  return tenant ? buildTenantContext(collection, record, tenant) : null;
 }
 
 function bindTenantContext(record, context) {
@@ -266,10 +290,7 @@ export default class ScheduleTrigger {
       },
     });
 
-    if (
-      targetCollection.options?.tenancy !== 'tenantScoped' &&
-      targetCollection.options?.tenancy !== 'tenantInherited'
-    ) {
+    if (!isTenantCollection(targetCollection)) {
       return records;
     }
 
@@ -431,7 +452,11 @@ export default class ScheduleTrigger {
       const collection = this.workflow.app.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
-      bindTenantContext(data, context || buildTenantContext(collection, data));
+      const tenantContext = context || (await buildEnabledTenantContext(this.workflow.app.db, collection, data));
+      if (isTenantCollection(collection) && !tenantContext) {
+        return;
+      }
+      bindTenantContext(data, tenantContext);
       const nextTime = this.getRecordNextTime(workflow, data);
       return this.schedule(workflow, data, nextTime, Boolean(nextTime), { transaction });
     };

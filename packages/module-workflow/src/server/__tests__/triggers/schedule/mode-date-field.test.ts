@@ -1,6 +1,5 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 async function sleepToEvenSecond() {
@@ -331,6 +330,69 @@ describe('workflow > triggers > schedule > date field mode', () => {
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(1);
       expect(executions[0].context.data.category.id).toBe(category.id);
+    });
+
+    it('should persist tenant context for tenant-scoped records', async () => {
+      db.collection({
+        name: 'tenants',
+        fields: [
+          { type: 'string', name: 'id', primaryKey: true },
+          { type: 'string', name: 'name' },
+          { type: 'string', name: 'title' },
+          { type: 'boolean', name: 'enabled', defaultValue: true },
+        ],
+      });
+      db.collection({
+        name: 'tenant_schedule_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'string', name: 'tenantId' },
+        ],
+      });
+      await db.sync();
+
+      await db.getRepository('tenants').create({
+        values: [
+          { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+          { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B', enabled: false },
+        ],
+      });
+
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'schedule',
+        config: {
+          mode: 1,
+          collection: 'tenant_schedule_posts',
+          startsOn: {
+            field: 'createdAt',
+          },
+        },
+      });
+
+      await sleepToEvenSecond();
+
+      const TenantSchedulePostRepo = db.getRepository('tenant_schedule_posts');
+      const tenantAPost = await TenantSchedulePostRepo.create({ values: { title: 'a1', tenantId: 'tenant-a' } });
+      await TenantSchedulePostRepo.create({ values: { title: 'b1', tenantId: 'tenant-b' } });
+
+      await sleep(2000);
+
+      const executions = await workflow.getExecutions();
+      expect(executions.length).toBe(1);
+      expect(executions[0].context.data.id).toBe(tenantAPost.get('id'));
+      expect(executions[0].tenantId).toBe('tenant-a');
+      expect(executions[0].tenantContext).toMatchObject({
+        currentTenant: { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        currentTenantId: 'tenant-a',
+        currentTenantDescendantIds: [],
+        currentTenancyMode: 'tenantScoped',
+      });
+      expect(executions[0].context.state).toMatchObject({
+        currentTenantId: 'tenant-a',
+        currentTenancyMode: 'tenantScoped',
+      });
     });
 
     it('on field changed', async () => {

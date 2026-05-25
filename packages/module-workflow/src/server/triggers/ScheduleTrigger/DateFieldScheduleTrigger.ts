@@ -1,4 +1,5 @@
 import { fn, literal, Op, parseCollectionName, Transactionable, where } from '@tego/server';
+
 import parser from 'cron-parser';
 
 import type Plugin from '../../Plugin';
@@ -82,6 +83,41 @@ function matchCronNextTime(cron, currentDate: Date, range: number): boolean {
 
 function getHookId(workflow, type: string) {
   return `${type}#${workflow.id}`;
+}
+
+function buildTenantContext(collection, record, tenant?) {
+  const tenancyMode = collection?.options?.tenancy;
+  if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
+    return null;
+  }
+
+  const tenantId = tenant?.get?.('id') ?? record.get?.('tenantId') ?? record.tenantId;
+  if (!tenantId) {
+    return null;
+  }
+
+  return {
+    state: {
+      currentTenant: tenant?.toJSON?.() ?? { id: tenantId },
+      currentTenantId: tenantId,
+      currentTenantDescendantIds: [],
+      currentTenancyMode: tenancyMode,
+    },
+  };
+}
+
+function bindTenantContext(record, context) {
+  if (context) {
+    Object.defineProperty(record, '__workflowTenantContext', {
+      value: context,
+      configurable: true,
+    });
+  }
+  return record;
+}
+
+function getBoundTenantContext(record) {
+  return record.__workflowTenantContext;
 }
 
 export default class ScheduleTrigger {
@@ -222,12 +258,42 @@ export default class ScheduleTrigger {
       });
     }
 
-    const { model } = db.getCollection(collection);
-    return model.findAll({
+    const targetCollection = db.getCollection(collection);
+    const { model } = targetCollection;
+    const records = await model.findAll({
       where: {
         [Op.and]: conditions,
       },
     });
+
+    if (
+      targetCollection.options?.tenancy !== 'tenantScoped' &&
+      targetCollection.options?.tenancy !== 'tenantInherited'
+    ) {
+      return records;
+    }
+
+    const tenantIds = Array.from(new Set(records.map((record) => record.get('tenantId')).filter(Boolean)));
+    if (!tenantIds.length) {
+      return [];
+    }
+
+    const tenants = await db.getRepository('tenants').find({
+      filter: {
+        id: tenantIds,
+        enabled: true,
+      },
+    });
+    const tenantsById = new Map(tenants.map((tenant) => [tenant.get('id'), tenant]));
+
+    return records
+      .map((record) =>
+        bindTenantContext(
+          record,
+          buildTenantContext(targetCollection, record, tenantsById.get(record.get('tenantId'))),
+        ),
+      )
+      .filter(getBoundTenantContext);
   }
 
   getRecordNextTime(workflow: WorkflowModel, record, nextSecond = false) {
@@ -311,21 +377,33 @@ export default class ScheduleTrigger {
 
   async trigger(workflow: WorkflowModel, record, nextTime, { transaction }: Transactionable = {}) {
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
-    const { repository, filterTargetKey } = this.workflow.app.dataSourceManager.dataSources
+    const collection = this.workflow.app.dataSourceManager.dataSources
       .get(dataSourceName)
       .collectionManager.getCollection(collectionName);
+    const { repository, filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
+    const context = getBoundTenantContext(record) || buildTenantContext(collection, record);
     const data = await repository.findOne({
       filterByTk: recordPk,
       appends: workflow.config.appends,
+      context,
       transaction,
     });
+    if (!data) {
+      return;
+    }
+    bindTenantContext(data, context);
     const key = `${workflow.id}:${recordPk}@${nextTime}`;
     this.cache.delete(key);
-    this.workflow.trigger(workflow, {
-      data: data.toJSON(),
-      date: new Date(nextTime),
-    });
+    this.workflow.trigger(
+      workflow,
+      {
+        data: data.toJSON(),
+        date: new Date(nextTime),
+        state: context?.state,
+      },
+      { context },
+    );
 
     if (!workflow.config.repeat || (workflow.config.limit && workflow.allExecuted >= workflow.config.limit - 1)) {
       return;
@@ -349,7 +427,11 @@ export default class ScheduleTrigger {
       return;
     }
 
-    const listener = async (data, { transaction }) => {
+    const listener = async (data, { transaction, context }) => {
+      const collection = this.workflow.app.dataSourceManager.dataSources
+        .get(dataSourceName)
+        .collectionManager.getCollection(collectionName);
+      bindTenantContext(data, context || buildTenantContext(collection, data));
       const nextTime = this.getRecordNextTime(workflow, data);
       return this.schedule(workflow, data, nextTime, Boolean(nextTime), { transaction });
     };

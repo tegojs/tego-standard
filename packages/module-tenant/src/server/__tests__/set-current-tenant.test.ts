@@ -144,6 +144,48 @@ describe('setCurrentTenant middleware', () => {
     expect(response.body.data.id).toBe('branch');
   });
 
+  it('should allow root user to explicitly impersonate an enabled tenant without changing current user identity', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'root_impersonation_user',
+        email: 'root-impersonation-user@example.com',
+        phone: '10000000010',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    let capturedState: any;
+    app.resourcer.use(async (ctx, next) => {
+      await next();
+      if (ctx.action?.resourceName === 'tenants' && ctx.action?.actionName === 'current') {
+        capturedState = ctx.state;
+      }
+    });
+
+    const response = await app.agent().login(user).set('X-Tenant-Id', 'tenant-b').resource('tenants').current({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.id).toBe('tenant-b');
+    expect(capturedState.currentUser.id).toBe(user.get('id'));
+    expect(capturedState.currentTenantId).toBe('tenant-b');
+    expect(capturedState.actorUserId).toBe(user.get('id'));
+    expect(capturedState.tenantContextSource).toBe('platformImpersonation');
+    expect(capturedState.impersonatedTenantId).toBe('tenant-b');
+    expect(capturedState.isTenantImpersonation).toBe(true);
+  });
+
   it('should still reject invalid tenant header on tenant-scoped business resources', async () => {
     app = await createTenantApp();
 

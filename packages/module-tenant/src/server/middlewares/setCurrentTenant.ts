@@ -7,6 +7,11 @@ function shouldFallbackForTenantBootstrap(ctx: Context) {
   return ctx.action?.resourceName === 'tenants' && ['available', 'current', 'switch'].includes(ctx.action?.actionName);
 }
 
+function isPlatformTenantImpersonator(ctx: Context) {
+  const roles = ctx.state.currentUser?.roles || [];
+  return roles.some((role: any) => (typeof role === 'string' ? role : role?.name) === 'root');
+}
+
 async function resolveAllowedTenantIds(ctx: Context) {
   const currentUser = ctx.state.currentUser;
   if (!currentUser) {
@@ -51,9 +56,15 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
 
   const requestedTenantId = ctx.get('X-Tenant-Id');
   const allowedTenantIds = await resolveAllowedTenantIds(ctx);
+  const canImpersonateTenant = !!requestedTenantId && isPlatformTenantImpersonator(ctx);
 
   let currentTenantId = requestedTenantId;
-  if (currentTenantId && !allowedTenantIds.includes(currentTenantId) && shouldFallbackForTenantBootstrap(ctx)) {
+  if (
+    currentTenantId &&
+    !allowedTenantIds.includes(currentTenantId) &&
+    !canImpersonateTenant &&
+    shouldFallbackForTenantBootstrap(ctx)
+  ) {
     currentTenantId = null;
   }
 
@@ -65,7 +76,10 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
     return next();
   }
 
-  if (!allowedTenantIds.includes(currentTenantId)) {
+  const isImpersonatingTenant =
+    !!currentTenantId && !allowedTenantIds.includes(currentTenantId) && canImpersonateTenant;
+
+  if (!isImpersonatingTenant && !allowedTenantIds.includes(currentTenantId)) {
     ctx.throw(403, 'Invalid tenant access');
   }
 
@@ -82,6 +96,10 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
 
   ctx.state.currentTenant = currentTenant.toJSON();
   ctx.state.currentTenantId = currentTenant.get('id');
+  ctx.state.actorUserId = ctx.state.currentUser.id;
+  ctx.state.tenantContextSource = isImpersonatingTenant ? 'platformImpersonation' : 'membership';
+  ctx.state.impersonatedTenantId = isImpersonatingTenant ? ctx.state.currentTenantId : null;
+  ctx.state.isTenantImpersonation = isImpersonatingTenant;
 
   // Resolve descendant IDs for inherited tenancy mode filtering
   const descendantIds = await getDescendantIds(ctx.db.getRepository('tenants'), currentTenantId as string);

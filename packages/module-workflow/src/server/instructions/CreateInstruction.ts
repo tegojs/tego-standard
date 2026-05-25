@@ -179,10 +179,7 @@ export class CreateInstruction extends Instruction {
 
     const created = await repository.create({
       ...options,
-      context: {
-        stack: Array.from(new Set((processor.execution.context.stack ?? []).concat(processor.execution.id))),
-        state: processor.options?.httpContext?.state,
-      },
+      context: processor.getRepositoryContext(),
       transaction,
     });
 
@@ -196,6 +193,7 @@ export class CreateInstruction extends Instruction {
       result = await repository.findOne({
         filterByTk: created[filterTargetKey],
         appends: Array.from(includeFields),
+        context: processor.getRepositoryContext(),
         transaction,
       });
     }

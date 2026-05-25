@@ -25,6 +25,15 @@ export default {
       name: 'context',
     },
     {
+      type: 'string',
+      name: 'tenantId',
+      index: true,
+    },
+    {
+      type: 'json',
+      name: 'tenantContext',
+    },
+    {
       type: 'integer',
       name: 'status',
     },

@@ -17,10 +17,7 @@ export class DestroyInstruction extends Instruction {
     const options = processor.getParsedValue(params, node.id);
     const result = await repository.destroy({
       ...options,
-      context: {
-        stack: Array.from(new Set((processor.execution.context.stack ?? []).concat(processor.execution.id))),
-        state: processor.options?.httpContext?.state,
-      },
+      context: processor.getRepositoryContext(),
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

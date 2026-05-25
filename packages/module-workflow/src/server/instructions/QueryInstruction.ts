@@ -42,6 +42,7 @@ export class QueryInstruction extends Instruction {
         .filter((item) => item.field)
         .map((item) => `${item.direction?.toLowerCase() === 'desc' ? '-' : ''}${item.field}`),
       appends,
+      context: processor.getRepositoryContext(),
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

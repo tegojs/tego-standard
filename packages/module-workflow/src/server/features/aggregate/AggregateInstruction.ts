@@ -30,7 +30,8 @@ export default class extends Instruction {
     const result = await repo.aggregate({
       ...options,
       method: aggregators[aggregator],
-      // transaction: processor.transaction,
+      context: processor.getRepositoryContext(),
+      transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 
     return {

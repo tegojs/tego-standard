@@ -183,15 +183,13 @@ export class UpdateOrCreateInstruction extends Instruction {
       }
     }
 
-    const instance = await (repository as Repository).findOne({ filter: options.filter, transaction });
+    const context = processor.getRepositoryContext();
+    const instance = await (repository as Repository).findOne({ filter: options.filter, context, transaction });
 
     if (instance) {
       const result = await (repository as Repository).update({
         ...options,
-        context: {
-          stack: Array.from(new Set((processor.execution.context.stack ?? []).concat(processor.execution.id))),
-          state: processor.options?.httpContext?.state,
-        },
+        context,
         transaction,
       });
 
@@ -202,10 +200,7 @@ export class UpdateOrCreateInstruction extends Instruction {
     } else {
       const created = await (repository as Repository).create({
         ...options,
-        context: {
-          stack: Array.from(new Set((processor.execution.context.stack ?? []).concat(processor.execution.id))),
-          state: processor.options?.httpContext?.state,
-        },
+        context,
         transaction,
       });
 
@@ -219,6 +214,7 @@ export class UpdateOrCreateInstruction extends Instruction {
         result = await repository.findOne({
           filterByTk: created[filterTargetKey],
           appends: Array.from(includeFields),
+          context,
           transaction,
         });
       }

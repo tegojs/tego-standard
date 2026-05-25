@@ -53,9 +53,22 @@ import type { ExecutionModel, JobModel, WorkflowModel } from './types';
 
 type ID = number | string;
 
-type Pending = [ExecutionModel, JobModel?];
+type Pending = [ExecutionModel, JobModel?, Transactionable?];
 
 type CachedEvent = [WorkflowModel, any, { context?: any }];
+
+function extractTenantContext(context: any, options: any = {}) {
+  const state = options.context?.state || options.httpContext?.state || context?.state || context?.context?.state;
+  if (!state?.currentTenantId) {
+    return null;
+  }
+
+  return {
+    currentTenant: state.currentTenant,
+    currentTenantId: state.currentTenantId,
+    currentTenantDescendantIds: state.currentTenantDescendantIds || [],
+  };
+}
 
 @InjectedPlugin({
   Services: [WorkflowRemoteCodeFetcher],
@@ -424,11 +437,14 @@ export default class PluginWorkflowServer extends Plugin {
 
     let execution;
     try {
+      const tenantContext = extractTenantContext(context, options);
       execution = await workflow.createExecution(
         {
           context,
           key: workflow.key,
           status: EXECUTION_STATUS.QUEUEING,
+          tenantId: tenantContext?.currentTenantId,
+          tenantContext,
           parentNode: options.parentNode || null,
           parentId: options.parent ? options.parent.id : null,
         },
@@ -489,7 +505,7 @@ export default class PluginWorkflowServer extends Plugin {
       const execution = await this.createExecution(...event);
       // NOTE: cache first execution for most cases
       if (execution && !this.executing && !this.pending.length) {
-        this.pending.push([execution]);
+        this.pending.push([execution, undefined, event[2]]);
       }
     } catch (err) {
       logger.error(`failed to create execution: ${err.message}`, err);

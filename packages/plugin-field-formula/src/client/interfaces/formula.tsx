@@ -180,6 +180,8 @@ export class FormulaFieldInterface extends CollectionFieldInterface {
           'select',
           'multipleSelect',
 
+          'm2o',
+          'o2m',
           // 'json'
         ],
         useCurrentFields: '{{ useCurrentFields }}',

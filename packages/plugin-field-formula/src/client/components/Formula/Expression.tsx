@@ -11,9 +11,7 @@ import {
 export const Expression = (props) => {
   const { value = '', supports = [], useCurrentFields, onChange } = props;
   const compile = useCompile();
-  const { getField } = useCollection_deprecated();
-  const { interfaces, getCollectionFields } = useCollectionManager_deprecated();
-  const fields = (useCurrentFields?.() ?? []).filter((field) => supports.includes(field.interface));
+  const { getCollectionFields } = useCollectionManager_deprecated();
 
   const options = getOptions(compile, getCollectionFields, useCurrentFields?.() ?? []);
 

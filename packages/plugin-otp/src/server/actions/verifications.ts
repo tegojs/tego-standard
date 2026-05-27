@@ -10,7 +10,7 @@ import { CODE_STATUS_UNUSED } from '../constants';
 const asyncRandomInt = promisify(randomInt);
 
 export async function create(ctx: Context, next: Next) {
-  const plugin = ctx.tego.pm.get('otp') as Plugin;
+  const plugin = (ctx.tego.pm.get('verification') || ctx.tego.pm.get('otp')) as Plugin;
 
   const { values } = ctx.action.params;
   const interceptor = plugin.interceptors.get(values?.type);

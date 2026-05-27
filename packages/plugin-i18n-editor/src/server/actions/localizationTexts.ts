@@ -62,6 +62,16 @@ const listText = async (db: Database, params: any): Promise<[any[], number]> => 
   return [await appendTranslations(db, rows, locale), count];
 };
 
+const getPlugins = async (ctx: Context, locale: string) => {
+  const cache = ctx.tego.cache as Cache;
+  const pm = ctx.tego.pm as PluginManager;
+  try {
+    return await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
+  } catch {
+    return [];
+  }
+};
+
 const list = async (ctx: Context, next: Next) => {
   const locale = ctx.get('X-Locale') || 'en-US';
   let { page = DEFAULT_PAGE, pageSize = DEFAULT_PER_PAGE, hasTranslation } = ctx.action.params;
@@ -77,9 +87,7 @@ const list = async (ctx: Context, next: Next) => {
   const [rows, count] = await listText(ctx.db, { module, keyword, hasTranslation, locale, options });
 
   // append plugin displayName
-  const cache = ctx.tego.cache as Cache;
-  const pm = ctx.tego.pm as PluginManager;
-  const plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
+  const plugins = await getPlugins(ctx, locale);
   const modules = [
     ...EXTEND_MODULES,
     ...plugins.map((plugin) => ({
@@ -152,9 +160,7 @@ const get = async (ctx: Context, next: Next) => {
     ctx.throw(404, ctx.t('Record not found'));
   }
   // append plugin displayName
-  const cache = ctx.tego.cache as Cache;
-  const pm = ctx.tego.pm as PluginManager;
-  const plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
+  const plugins = await getPlugins(ctx, locale);
   const modules = [
     ...EXTEND_MODULES,
     ...plugins.map((plugin) => ({

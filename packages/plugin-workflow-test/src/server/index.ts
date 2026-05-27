@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { createMockServer, type MockServer } from '@tachybase/test/server/mockServer';
 import { ApplicationOptions, mockDatabase, Plugin, Resourcer, SequelizeDataSource, uid } from '@tego/server';
@@ -25,10 +26,15 @@ export function sleep(ms: number) {
 
 export async function getApp(options: MockServerOptions = {}): Promise<MockServer> {
   const { plugins = [], collectionsPath, ...others } = options;
+  const defaultCollectionsPath = path.resolve(__dirname, 'collections');
+  const compiledCollectionsPath = path.resolve(__dirname, '../../dist/server/collections');
+  const resolvedCollectionsPath =
+    collectionsPath || (fs.existsSync(compiledCollectionsPath) ? compiledCollectionsPath : defaultCollectionsPath);
+
   class TestCollectionPlugin extends Plugin {
     async load() {
-      if (collectionsPath) {
-        await this.db.import({ directory: collectionsPath });
+      if (resolvedCollectionsPath) {
+        await this.db.import({ directory: resolvedCollectionsPath });
       }
     }
   }
@@ -40,9 +46,25 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
             return {
               allowed: true,
               status: 'active',
+              statusInfo: {
+                title: 'Active',
+                color: 'green',
+                allowLogin: true,
+              },
+              errorMessage: '',
               isExpired: false,
             };
           },
+          async setUserStatusCache() {},
+          async getUserStatusFromCache() {
+            return null;
+          },
+          getUserStatusCacheKey(userId: number) {
+            return `test-user-status:${userId}`;
+          },
+          async restoreUserStatus() {},
+          async clearUserStatusCache() {},
+          async recordStatusHistoryIfNotExists() {},
         });
       }
     }
@@ -84,7 +106,7 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
   const anotherDB = another.collectionManager.db;
 
   await anotherDB.import({
-    directory: path.resolve(__dirname, 'collections'),
+    directory: resolvedCollectionsPath,
   });
   await anotherDB.sync();
 

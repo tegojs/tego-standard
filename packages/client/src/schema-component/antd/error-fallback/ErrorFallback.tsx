@@ -9,6 +9,7 @@ const { Paragraph, Text, Link } = Typography;
 export const ErrorFallback = ({ error }: FallbackProps) => {
   const { resetBoundary } = useErrorBoundary();
   const { t } = useTranslation();
+  const errorStack = error instanceof Error ? error.stack : String(error);
 
   const subTitle = (
     <Trans>
@@ -37,7 +38,7 @@ export const ErrorFallback = ({ error }: FallbackProps) => {
       >
         <Paragraph copyable>
           <Text type="danger" style={{ whiteSpace: 'pre-line', textAlign: 'center' }}>
-            {error.stack}
+            {errorStack}
           </Text>
         </Paragraph>
       </Result>

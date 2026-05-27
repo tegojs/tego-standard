@@ -1,10 +1,19 @@
+import { createRequire } from 'node:module';
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
+
 import { vi } from 'vitest';
 
 import { authType } from '../../constants';
 import { OIDCAuth } from '../oidc-auth';
+
+const runtimeRequire = createRequire(import.meta.url);
+const { OIDCAuth: RuntimeOIDCAuth } = runtimeRequire('../../../dist/server/oidc-auth');
+
+const mockCreateOIDCClient = (client: any) => {
+  vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue(client);
+  vi.spyOn(RuntimeOIDCAuth.prototype, 'createOIDCClient').mockResolvedValue(client);
+};
 
 describe('oidc', () => {
   let app: MockServer;
@@ -49,7 +58,7 @@ describe('oidc', () => {
 
   it('should get auth url', async () => {
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       authorizationUrl: ({ state }) => state,
     } as any);
     const res = await agent.set('X-Authenticator', 'oidc-auth').resource('oidc').getAuthUrl();
@@ -65,13 +74,14 @@ describe('oidc', () => {
   it('should not sign in without auto signup', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         public: {
           autoSignup: false,
         },
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),
@@ -91,13 +101,14 @@ describe('oidc', () => {
   it('should sign in with auto signup', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         public: {
           autoSignup: true,
         },
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),
@@ -118,7 +129,9 @@ describe('oidc', () => {
   it('should sign in with existed email', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         oidc: {
+          ...authenticator.options.oidc,
           userBindField: 'email',
         },
         public: {
@@ -133,7 +146,7 @@ describe('oidc', () => {
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),
@@ -155,7 +168,9 @@ describe('oidc', () => {
   it('should sign in with existed username', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         oidc: {
+          ...authenticator.options.oidc,
           userBindField: 'username',
         },
         public: {
@@ -171,7 +186,7 @@ describe('oidc', () => {
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),

@@ -1,14 +1,13 @@
 import React from 'react';
-import {
-  AntdSchemaComponentProvider,
-  Application,
-  Filter,
-  Input,
-  SchemaComponent,
-  SchemaComponentProvider,
-  useActionContext,
-} from '@tachybase/client';
 import { ISchema, useForm } from '@tachybase/schema';
+
+import { Application } from '../../../../application';
+import { SchemaComponent, SchemaComponentProvider } from '../../../core';
+import { Action, ActionBar, useActionContext } from '../../action';
+import { Form } from '../../form';
+import { Input } from '../../input';
+import { InputNumber } from '../../input-number';
+import { Filter } from '../Filter';
 
 const dataSource = [
   {
@@ -165,10 +164,8 @@ const schema: ISchema = {
 
 const Root = () => {
   return (
-    <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <SchemaComponent components={{ Input, Filter }} schema={schema} />
-      </AntdSchemaComponentProvider>
+    <SchemaComponentProvider components={{ Action, ActionBar, Filter, Form, Input, InputNumber }}>
+      <SchemaComponent schema={schema} />
     </SchemaComponentProvider>
   );
 };

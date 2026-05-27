@@ -149,6 +149,8 @@ export default class ScheduleTrigger {
 
   private timer: NodeJS.Timeout | null = null;
 
+  private stopped = false;
+
   private cache: Map<string, any> = new Map();
 
   // caching workflows in range, default to 5min
@@ -160,14 +162,23 @@ export default class ScheduleTrigger {
         return;
       }
 
-      this.timer = setInterval(() => this.reload(), this.cacheCycle);
+      this.stopped = false;
+      this.timer = setInterval(() => {
+        this.reload().catch((error) => {
+          this.workflow.app.logger.error(`date field schedule reload failed, ${error}`);
+        });
+      }, this.cacheCycle);
 
-      this.reload();
+      this.reload().catch((error) => {
+        this.workflow.app.logger.error(`date field schedule reload failed, ${error}`);
+      });
     });
 
     workflow.app.on('beforeStop', () => {
+      this.stopped = true;
       if (this.timer) {
         clearInterval(this.timer);
+        this.timer = null;
       }
 
       for (const [key, timer] of this.cache.entries()) {
@@ -178,6 +189,9 @@ export default class ScheduleTrigger {
   }
 
   async reload() {
+    if (this.stopped || this.workflow.app.db.closed) {
+      return;
+    }
     const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
     const workflows = await WorkflowRepo.find({
       filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },

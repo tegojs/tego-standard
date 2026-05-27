@@ -130,7 +130,7 @@ describe('destroy action with acl', () => {
 
     const a1 = await A.repository.findOne({ filter: { title: 'a1' } });
 
-    const response = await app.agent().resource('a.bs', a1.get('id')).list();
+    const response = await app.agent().loginUsingId(1).resource('a.bs', a1.get('id')).list();
     expect(response.statusCode).toEqual(200);
   });
 
@@ -194,7 +194,7 @@ describe('destroy action with acl', () => {
 
     const p1 = await Post.repository.findOne({ filter: { title: 'p1' } });
 
-    const response = await app.agent().resource('posts.comments', p1.get('id')).list();
+    const response = await app.agent().loginUsingId(1).resource('posts.comments', p1.get('id')).list();
     expect(response.statusCode).toEqual(403);
   });
 
@@ -211,7 +211,7 @@ describe('destroy action with acl', () => {
     const p1 = await Post.repository.create({
       values: {
         title: 'p1',
-        createById: 2,
+        createdById: 2,
       },
     });
 
@@ -230,6 +230,7 @@ describe('destroy action with acl', () => {
 
     const response = await app
       .agent()
+      .loginUsingId(1)
       .resource('posts')
       .destroy({
         filterByTk: p1.get('id'),
@@ -288,6 +289,7 @@ describe('destroy action with acl', () => {
 
     const response = await app
       .agent()
+      .loginUsingId(1)
       .resource('posts')
       .destroy({
         filter: {
@@ -300,6 +302,7 @@ describe('destroy action with acl', () => {
 
     const response2 = await app
       .agent()
+      .loginUsingId(1)
       .resource('posts')
       .destroy({
         filter: {

@@ -1,9 +1,8 @@
-import xlsx from 'node-xlsx';
 import path from 'node:path';
-
-import ExportPlugin from 'packages/plugin-action-export/src/server';
-
 import type { MockServer } from '@tachybase/test';
+
+import xlsx from 'node-xlsx';
+import ExportPlugin from 'packages/plugin-action-export/src/server';
 
 import { createTenantApp } from './utils';
 
@@ -62,27 +61,33 @@ describe('tenant export', () => {
     });
 
     await app.db.getRepository('tenant_export_posts').create({
-      values: [
-        { title: 'A1', tenantId: 'tenant-a' },
-        { title: 'B1', tenantId: 'tenant-b' },
-      ],
+      values: { title: 'A1' },
+      context: { state: { currentTenantId: 'tenant-a', currentTenant: { id: 'tenant-a' } } } as any,
+    });
+    await app.db.getRepository('tenant_export_posts').create({
+      values: { title: 'B1' },
+      context: { state: { currentTenantId: 'tenant-b', currentTenant: { id: 'tenant-b' } } } as any,
     });
 
-    const response = await app.agent().login(user).resource('tenant_export_posts').export({
-      values: {
-        title: 'tenant-export-posts',
-        columns: [
-          {
-            dataIndex: ['title'],
-            defaultTitle: 'Title',
-            title: 'Title',
-          },
-        ],
-      },
-      filter: {
-        tenantId: 'tenant-b',
-      },
-    });
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_export_posts')
+      .export({
+        values: {
+          title: 'tenant-export-posts',
+          columns: [
+            {
+              dataIndex: ['title'],
+              defaultTitle: 'Title',
+              title: 'Title',
+            },
+          ],
+        },
+        filter: {
+          tenantId: 'tenant-b',
+        },
+      });
 
     expect(response.status).toBe(200);
     expect(decodeURIComponent(response.headers['content-disposition'])).toContain('tenant-export-posts_tenant-a.xlsx');
@@ -142,6 +147,11 @@ describe('tenant export', () => {
       context: {},
     });
 
+    await app.db.getRepository('tenant_export_worker_posts').create({
+      values: Array.from({ length: 2001 }, (_, index) => ({ title: `A${index + 1}` })),
+      context: { state: { currentTenantId: 'tenant-a', currentTenant: { id: 'tenant-a' } } } as any,
+    });
+
     const callPluginMethod = vi.fn(async ({ params }) => {
       expect(params.currentTenantId).toBe('tenant-a');
       expect(params.title).toBe('tenant-export-posts');
@@ -153,23 +163,28 @@ describe('tenant export', () => {
       callPluginMethod,
     } as any;
 
-    const response = await app.agent().login(user).resource('tenant_export_worker_posts').export({
-      values: {
-        title: 'tenant-export-posts',
-        columns: [
-          {
-            dataIndex: ['title'],
-            defaultTitle: 'Title',
-            title: 'Title',
-          },
-        ],
-      },
-    });
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_export_worker_posts')
+      .export({
+        values: {
+          title: 'tenant-export-posts',
+          columns: [
+            {
+              dataIndex: ['title'],
+              defaultTitle: 'Title',
+              title: 'Title',
+            },
+          ],
+        },
+      });
 
     expect(response.status).toBe(200);
     expect(callPluginMethod).toHaveBeenCalledTimes(1);
-    expect(response.body.filename).toContain(path.posix.join('tenants', 'tenant-a'));
-    expect(response.body.filename).toContain('tenant-a');
+    const workerCall = callPluginMethod.mock.results[0].value;
+    await expect(workerCall).resolves.toContain(path.posix.join('tenants', 'tenant-a'));
+    await expect(workerCall).resolves.toContain('tenant-a');
   });
 
   it('should keep original export title in download filename while appending tenant marker', async () => {
@@ -215,18 +230,22 @@ describe('tenant export', () => {
       values: [{ title: 'A1', tenantId: 'tenant-a' }],
     });
 
-    const response = await app.agent().login(user).resource('tenant_export_filename_posts').export({
-      values: {
-        title: '租户导出清单',
-        columns: [
-          {
-            dataIndex: ['title'],
-            defaultTitle: 'Title',
-            title: 'Title',
-          },
-        ],
-      },
-    });
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_export_filename_posts')
+      .export({
+        values: {
+          title: '租户导出清单',
+          columns: [
+            {
+              dataIndex: ['title'],
+              defaultTitle: 'Title',
+              title: 'Title',
+            },
+          ],
+        },
+      });
 
     expect(response.status).toBe(200);
     expect(decodeURIComponent(response.headers['content-disposition'])).toContain('租户导出清单_tenant-a.xlsx');

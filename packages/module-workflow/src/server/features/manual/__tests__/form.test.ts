@@ -19,7 +19,7 @@ describe('workflow > instructions > manual', () => {
 
   beforeEach(async () => {
     app = await getApp({
-      plugins: ['users', 'auth', 'workflow-manual'],
+      plugins: ['users', 'auth', 'evaluator-mathjs', 'workflow-manual'],
     });
     // await app.pm.get('auth').install();
     agent = app.agent();

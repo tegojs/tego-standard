@@ -78,7 +78,7 @@ export class RoleResourceActionModel extends Model {
 
           // set resource target action with current resourceName
           grantHelper.resourceTargetActionMap.set(`${role.name}.${resourceName}`, [
-            ...(grantHelper.resourceTargetActionMap.get(resourceName) || []),
+            ...(grantHelper.resourceTargetActionMap.get(`${role.name}.${resourceName}`) || []),
             targetActionPath,
           ]);
 

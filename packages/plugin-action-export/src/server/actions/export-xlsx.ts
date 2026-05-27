@@ -6,11 +6,11 @@ import xlsx from 'node-xlsx';
 import ExportPlugin from '..';
 import { EXPORT_LENGTH_MAX } from '../constants';
 import render from '../renders';
-import { buildExportDownloadName, getExportTenantId } from '../utils';
-import { columns2Appends } from '../utils';
+import { buildExportDownloadName, columns2Appends, getExportTenantId } from '../utils';
 
 export async function exportXlsx(ctx: Context, next: Next) {
-  const { title, filter, sort, fields, except } = ctx.action.params;
+  const { filter, sort, fields, except } = ctx.action.params;
+  const title = ctx.action.params.values?.title || ctx.action.params.title;
   const { resourceName, resourceOf } = ctx.action;
   const currentTenantId = getExportTenantId(ctx);
   let columns = ctx.action.params.values?.columns || ctx.action.params?.columns;

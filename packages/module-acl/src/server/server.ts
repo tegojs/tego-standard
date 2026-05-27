@@ -50,6 +50,27 @@ export class PluginACL extends Plugin {
     this.associationFieldsActions[associationType] = value;
   }
 
+  registerDefaultAssociationFieldActions() {
+    const viewAction = {
+      associationActions: ['list'],
+    };
+    const mutateAction = {
+      associationActions: ['add', 'set', 'remove'],
+      targetActions: ['list'],
+    };
+
+    this.registerAssociationFieldAction('hasMany', {
+      view: viewAction,
+      create: mutateAction,
+      update: mutateAction,
+    });
+    this.registerAssociationFieldAction('belongsToMany', {
+      view: viewAction,
+      create: mutateAction,
+      update: mutateAction,
+    });
+  }
+
   async writeResourceToACL(resourceModel: RoleResourceModel, transaction) {
     await resourceModel.writeToACL({
       acl: this.acl,
@@ -81,10 +102,73 @@ export class PluginACL extends Plugin {
     }
   }
 
+  async ensureDefaultRolesAndScopes() {
+    const roles = this.app.db.getRepository('roles');
+    const existingRoles = await roles.count();
+
+    if (existingRoles === 0) {
+      await roles.createMany({
+        records: [
+          {
+            name: 'root',
+            title: '{{t("Root")}}',
+            hidden: true,
+            snippets: ['ui.*', 'pm', 'pm.*'],
+          },
+          {
+            name: 'admin',
+            title: '{{t("Admin")}}',
+            allowConfigure: true,
+            allowNewMenu: true,
+            strategy: { actions: ['create', 'view', 'update', 'destroy'] },
+            snippets: ['ui.*', 'pm', 'pm.*'],
+          },
+          {
+            name: 'member',
+            title: '{{t("Member")}}',
+            allowNewMenu: true,
+            strategy: { actions: ['view', 'update:own', 'destroy:own', 'create'] },
+            default: true,
+            snippets: ['!ui.*', '!pm', '!pm.*'],
+          },
+        ],
+      });
+    }
+
+    const rolesResourcesScopes = this.app.db.getRepository('dataSourcesRolesResourcesScopes');
+    const existingScopes = await rolesResourcesScopes.count();
+
+    if (existingScopes === 0) {
+      await rolesResourcesScopes.createMany({
+        records: [
+          {
+            key: 'all',
+            name: '{{t("All records")}}',
+            scope: {},
+          },
+          {
+            key: 'own',
+            name: '{{t("Own records")}}',
+            scope: {
+              createdById: '{{ ctx.state.currentUser.id }}',
+            },
+          },
+          {
+            key: 'tenant',
+            name: '{{t("Current tenant records")}}',
+            scope: {
+              tenantId: '{{ ctx.state.currentTenant.id }}',
+            },
+          },
+        ],
+      });
+    }
+  }
+
   async writeRoleToACL(role: RoleModel, options: any = {}) {
     const transaction = options?.transaction;
 
-    role.writeToAcl({ acl: this.acl, withOutStrategy: true });
+    role.writeToAcl({ acl: this.acl, withOutStrategy: options.withOutStrategy });
 
     if (options.withOutResources) {
       return;
@@ -115,6 +199,8 @@ export class PluginACL extends Plugin {
       RoleResourceModel,
       RoleModel,
     });
+
+    this.registerDefaultAssociationFieldActions();
 
     this.app.acl.registerSnippet({
       name: `pm.${this.name}.roles`,
@@ -217,6 +303,24 @@ export class PluginACL extends Plugin {
       });
     });
 
+    this.app.db.on('roles.afterSave', async (model, options) => {
+      const { transaction } = options;
+
+      await this.writeRoleToACL(model, {
+        withOutResources: true,
+      });
+
+      await this.app.db.getRepository('dataSourcesRoles').updateOrCreate({
+        values: {
+          roleName: model.get('name'),
+          dataSourceKey: 'main',
+          strategy: model.get('strategy'),
+        },
+        filterKeys: ['roleName', 'dataSourceKey'],
+        transaction,
+      });
+    });
+
     this.app.db.on('roles.afterSaveWithAssociations', async (model, options) => {
       const { transaction } = options;
 
@@ -229,6 +333,7 @@ export class PluginACL extends Plugin {
         values: {
           roleName: model.get('name'),
           dataSourceKey: 'main',
+          strategy: model.get('strategy'),
         },
         filterKeys: ['roleName', 'dataSourceKey'],
         transaction,
@@ -274,9 +379,13 @@ export class PluginACL extends Plugin {
 
     this.app.db.on('collections.afterDestroy', async (model, options) => {
       const { transaction } = options;
+      const resourceName = model.get('name');
+      for (const role of this.acl.roles.values()) {
+        role.revokeResource(resourceName);
+      }
       await this.app.db.getRepository('dataSourcesRolesResources').destroy({
         filter: {
-          name: model.get('name'),
+          name: resourceName,
           dataSourceKey: 'main',
         },
         transaction,
@@ -374,7 +483,7 @@ export class PluginACL extends Plugin {
     // this.app.on('afterInstall', writeRolesToACL);
 
     this.app.on('afterInstallPlugin', async (plugin) => {
-      if (plugin.getName() !== 'user') {
+      if (!['user', 'users'].includes(plugin.getName())) {
         return;
       }
 
@@ -403,62 +512,10 @@ export class PluginACL extends Plugin {
     });
 
     this.app.on('beforeInstallPlugin', async (plugin) => {
-      // TODO
-      if (plugin.getName() !== 'user') {
+      if (!['user', 'users'].includes(plugin.getName())) {
         return;
       }
-      const roles = this.app.db.getRepository('roles');
-      await roles.createMany({
-        records: [
-          {
-            name: 'root',
-            title: '{{t("Root")}}',
-            hidden: true,
-            snippets: ['ui.*', 'pm', 'pm.*'],
-          },
-          {
-            name: 'admin',
-            title: '{{t("Admin")}}',
-            allowConfigure: true,
-            allowNewMenu: true,
-            strategy: { actions: ['create', 'view', 'update', 'destroy'] },
-            snippets: ['ui.*', 'pm', 'pm.*'],
-          },
-          {
-            name: 'member',
-            title: '{{t("Member")}}',
-            allowNewMenu: true,
-            strategy: { actions: ['view', 'update:own', 'destroy:own', 'create'] },
-            default: true,
-            snippets: ['!ui.*', '!pm', '!pm.*'],
-          },
-        ],
-      });
-
-      const rolesResourcesScopes = this.app.db.getRepository('dataSourcesRolesResourcesScopes');
-      await rolesResourcesScopes.createMany({
-        records: [
-          {
-            key: 'all',
-            name: '{{t("All records")}}',
-            scope: {},
-          },
-          {
-            key: 'own',
-            name: '{{t("Own records")}}',
-            scope: {
-              createdById: '{{ ctx.state.currentUser.id }}',
-            },
-          },
-          {
-            key: 'tenant',
-            name: '{{t("Current tenant records")}}',
-            scope: {
-              tenantId: '{{ ctx.state.currentTenant.id }}',
-            },
-          },
-        ],
-      });
+      await this.ensureDefaultRolesAndScopes();
     });
 
     this.app.on('beforeSignOut', ({ userId }) => {
@@ -559,6 +616,22 @@ export class PluginACL extends Plugin {
 
     const parseJsonTemplate = this.app.acl.parseJsonTemplate;
 
+    const getStrategyAction = (ctx: Context, resourceName: string, actionName: string) => {
+      const role = this.app.acl.getRole(ctx.state.currentRole || 'anonymous');
+      const strategyParams = role?.getStrategy()?.allow(resourceName, this.app.acl.resolveActionAlias(actionName));
+
+      if (!strategyParams) {
+        return null;
+      }
+
+      return {
+        role: role.name,
+        resource: resourceName,
+        action: actionName,
+        params: lodash.isPlainObject(strategyParams) ? strategyParams : {},
+      };
+    };
+
     this.app.acl.beforeGrantAction(async (ctx) => {
       const actionName = this.app.acl.resolveActionAlias(ctx.actionName);
 
@@ -594,17 +667,61 @@ export class PluginACL extends Plugin {
 
     this.app.acl.use(
       async (ctx: Context, next) => {
+        if (!ctx.permission?.can && ctx.permission?.resourceName) {
+          ctx.permission.can = getStrategyAction(ctx, ctx.permission.resourceName, ctx.permission.actionName);
+        }
+
+        if (ctx.permission?.can?.params?.own) {
+          ctx.permission.can.params = {
+            ...lodash.omit(ctx.permission.can.params, 'own'),
+            filter: {
+              ...ctx.permission.can.params.filter,
+              createdById: ctx.state.currentUser?.id,
+            },
+          };
+        }
+
+        if (ctx.action?.actionName === 'destroy' && ctx.permission?.can?.params?.filter) {
+          const collectionName = ctx.permission.resourceName || ctx.action.resourceName;
+          const collection = ctx.db.getCollection(collectionName);
+          if (collection) {
+            const params = await parseJsonTemplate(lodash.cloneDeep(ctx.permission.can.params), ctx);
+            const target = await ctx.db.getRepository(collectionName).findOne({
+              filterByTk: ctx.action.params.filterByTk,
+              filter: {
+                $and: [ctx.action.params.filter || {}, params.filter],
+              },
+            });
+            if (!target) {
+              ctx.permission.can = false;
+            }
+          }
+        }
+
+        await next();
+      },
+      {
+        before: 'core',
+      },
+    );
+
+    this.app.acl.use(
+      async (ctx: Context, next) => {
         const { actionName, resourceName, resourceOf } = ctx.action;
         // is association request
         if (resourceName.includes('.') && resourceOf) {
-          if (!ctx?.permission?.can?.params) {
-            return next();
-          }
-          // 关联数据去掉 filter
-          delete ctx.permission.can.params.filter;
           // 关联数据能不能处理取决于 source 是否有权限
           const [collectionName] = resourceName.split('.');
-          const action = ctx.can({ resource: collectionName, action: actionName });
+          const sourceActionName = actionName === 'list' ? 'view' : actionName;
+          let action = ctx.can({ resource: collectionName, action: sourceActionName });
+
+          if (!action) {
+            action = getStrategyAction(ctx, collectionName, sourceActionName);
+          }
+
+          if (ctx.permission?.can?.params) {
+            delete ctx.permission.can.params.filter;
+          }
 
           const availableAction = this.app.acl.getAvailableAction(actionName);
           if (availableAction?.options?.onNewRecord) {
@@ -614,6 +731,21 @@ export class PluginACL extends Plugin {
               ctx.permission.can = false;
             }
           } else {
+            if (!action) {
+              ctx.permission.can = false;
+              return next();
+            }
+
+            if (action?.params?.own) {
+              action.params = {
+                ...lodash.omit(action.params, 'own'),
+                filter: {
+                  ...action.params.filter,
+                  createdById: ctx.state.currentUser?.id,
+                },
+              };
+            }
+
             const filteredParams = this.app.acl.filterParams(ctx, collectionName, action?.params || {});
             const params = await parseJsonTemplate(filteredParams, ctx);
 
@@ -624,6 +756,8 @@ export class PluginACL extends Plugin {
 
             if (!sourceInstance) {
               ctx.permission.can = false;
+            } else {
+              ctx.permission.skip = true;
             }
           }
         }
@@ -671,6 +805,8 @@ export class PluginACL extends Plugin {
     if (repo) {
       await repo.db2cm('roles');
     }
+
+    await this.ensureDefaultRolesAndScopes();
   }
 
   async load() {

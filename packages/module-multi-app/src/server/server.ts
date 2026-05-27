@@ -41,10 +41,8 @@ const defaultSubAppUpgradeHandle: SubAppUpgradeHandler = async (mainApp: Applica
       upgrading: true,
     });
 
-    console.log({ beforeSubAppStatus });
     try {
       mainApp.setMaintainingMessage(`upgrading sub app ${instance.name}...`);
-      console.log(`${instance.name}: upgrading...`);
 
       await subApp.runAsCLI(['upgrade'], { from: 'user' });
       if (!beforeSubAppStatus && AppSupervisor.getInstance().getAppStatus(instance.name) === 'initialized') {
@@ -147,7 +145,7 @@ const defaultAppOptionsFactory = (appName: string, mainApp: Application, preset:
       ...rawDatabaseOptions,
       tablePrefix: '',
     },
-    plugins: [preset],
+    plugins: preset ? [preset] : [],
     resourcer: {
       prefix: process.env.API_BASE_PATH,
     },
@@ -207,7 +205,7 @@ export class PluginMultiAppManager extends Plugin {
           context: options.context,
         });
 
-        if ((options as any).values.options?.autoStart) {
+        if ((options as any).values.options?.autoStart || options?.context?.waitSubAppInstall) {
           const startPromise = subApp.runCommand('start', '--quickstart');
 
           if (options?.context?.waitSubAppInstall) {
@@ -231,11 +229,11 @@ export class PluginMultiAppManager extends Plugin {
 
     Gateway.getInstance().addAppSelectorMiddleware(appSelectorMiddleware(this.app));
 
-    // this.app.on('afterStart', onAfterStart(this.db));
+    this.app.on('afterStart', onAfterStart(this.db));
 
-    // this.app.on('afterUpgrade', async (app, options) => {
-    //   await this.subAppUpgradeHandler(app);
-    // });
+    this.app.on('afterUpgrade', async (app) => {
+      await this.subAppUpgradeHandler(app);
+    });
 
     const notifyStatusChange = this.notifyStatusChange.bind(this);
     this.app.on('beforeStop', async (app) => {

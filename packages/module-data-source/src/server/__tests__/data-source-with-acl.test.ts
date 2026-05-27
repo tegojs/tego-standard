@@ -1,11 +1,27 @@
 import { ICollectionManager, IModel } from '@tachybase/data-source/src/types';
-import { createMockServer, MockServer } from '@tachybase/test';
+import { createMockServer, MockServer, waitSecond } from '@tachybase/test';
+import { CollectionManager, DataSource, IRepository, Plugin } from '@tego/server';
 
-import { CollectionManager, DataSource, IRepository } from '@tego/server';
 import { SuperAgentTest } from 'supertest';
 
 describe('data source with acl', () => {
   let app: MockServer;
+
+  class TestAuthStatusPlugin extends Plugin {
+    async load() {
+      if (!this.app.authManager.userStatusService) {
+        this.app.authManager.setUserStatusService({
+          async checkUserStatus() {
+            return {
+              allowed: true,
+              status: 'active',
+              isExpired: false,
+            };
+          },
+        });
+      }
+    }
+  }
 
   const getDataSourceAgent = (agent: SuperAgentTest, dataSourceKey: string) => {
     return agent.set('X-data-source', dataSourceKey) as any;
@@ -13,7 +29,7 @@ describe('data source with acl', () => {
 
   beforeEach(async () => {
     app = await createMockServer({
-      plugins: ['tachybase'],
+      plugins: ['tachybase', TestAuthStatusPlugin],
       acl: true,
     });
 
@@ -89,6 +105,8 @@ describe('data source with acl', () => {
         options: {},
       },
     });
+
+    await waitSecond(2000);
   });
 
   afterEach(async () => {

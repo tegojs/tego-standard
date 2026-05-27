@@ -23,7 +23,7 @@ describe('tenant plugin collections', () => {
   it('should register tenant management acl snippet', async () => {
     app = await createTenantApp();
 
-    const snippet = app.acl.snippets.get('pm.tenant.manage');
+    const snippet = app.acl.snippetManager.snippets.get('pm.tenant.manage');
 
     expect(snippet).toBeTruthy();
     expect(snippet.actions).toEqual(

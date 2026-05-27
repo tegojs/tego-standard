@@ -63,6 +63,9 @@ describe('createGridCardBlockSchema', () => {
           "association": "testAssociation",
           "collection": "testCollection",
           "dataSource": "testDataSource",
+          "isLinkable": false,
+          "layoutDirection": "column",
+          "needInfiniteScroll": false,
           "params": {
             "pageSize": 12,
           },
@@ -141,6 +144,9 @@ describe('createGridCardBlockSchema', () => {
           "association": "testAssociation",
           "collection": "testCollection",
           "dataSource": "testDataSource",
+          "isLinkable": false,
+          "layoutDirection": "column",
+          "needInfiniteScroll": false,
           "params": {
             "pageSize": 12,
           },

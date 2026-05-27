@@ -125,6 +125,7 @@ export class PluginTenantServer extends Plugin {
     this.db.on('tenants.beforeCreate', async (model, options) => {
       const transaction = options?.transaction;
       const parentId = model.get('parentId') || null;
+      model.set('parentId', parentId);
       let parentPath: string | null = null;
 
       if (parentId) {
@@ -184,16 +185,20 @@ export class PluginTenantServer extends Plugin {
 
           // Update all descendant paths in the subtree
           const descendants = await repo.find({
-            filter: { path: { $like: `${oldPath}%` } },
+            filter: {
+              path: { $like: `${oldPath}%` },
+              'id.$ne': tenantId,
+            },
             transaction,
           });
 
+          model.set('path', newPath);
           for (const desc of descendants) {
             const descPath = desc.get('path') as string;
             const updatedPath = descPath.replace(oldPath, newPath);
-            await repo.update({
-              filterByTk: desc.get('id'),
-              values: { path: updatedPath },
+            desc.set('path', updatedPath);
+            await desc.save({
+              hooks: false,
               transaction,
             });
           }

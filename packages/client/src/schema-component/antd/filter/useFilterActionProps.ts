@@ -297,6 +297,12 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
       const flatFieldSchema = customFlat.unflatten(filterSchemaItem);
       flatFieldSchema['$and'] = flatFieldSchema?.['$and']?.filter(Boolean);
       flatFieldSchema['$or'] = flatFieldSchema?.['$or']?.filter(Boolean);
+      if (!flatFieldSchema['$and']?.length) {
+        delete flatFieldSchema['$and'];
+      }
+      if (!flatFieldSchema['$or']?.length) {
+        delete flatFieldSchema['$or'];
+      }
 
       return flatFieldSchema;
     } else {

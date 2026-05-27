@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, sleep, userEvent, waitFor } from '@tachybase/test/client';
 
+import { MemoryRouter } from 'react-router-dom';
+
 import App1 from '../demos/demo1';
 import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
@@ -10,9 +12,11 @@ import App6 from '../demos/demo6';
 import App7 from '../demos/demo7';
 import App8 from '../demos/demo8';
 
+const renderWithRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe('Form', () => {
   it('basic', async () => {
-    render(<App2 />);
+    renderWithRouter(<App2 />);
 
     await sleep();
 
@@ -35,7 +39,7 @@ describe('Form', () => {
   });
 
   it('decorator', async () => {
-    render(<App6 />);
+    renderWithRouter(<App6 />);
 
     // 等待默认值渲染
     await sleep();
@@ -59,7 +63,7 @@ describe('Form', () => {
   });
 
   it('Form & Drawer', async () => {
-    render(<App1 />);
+    renderWithRouter(<App1 />);
 
     const openBtn = screen.getByText('Open');
     await userEvent.click(openBtn);
@@ -67,7 +71,7 @@ describe('Form', () => {
   });
 
   it('initialValue', async () => {
-    render(<App3 />);
+    renderWithRouter(<App3 />);
 
     // 等待默认值渲染
     await sleep();
@@ -82,7 +86,7 @@ describe('Form', () => {
   });
 
   it('initialValue of decorator', async () => {
-    render(<App4 />);
+    renderWithRouter(<App4 />);
 
     const openBtn = screen.getByText('Open');
     await userEvent.click(openBtn);
@@ -96,7 +100,7 @@ describe('Form', () => {
   });
 
   it('remote data', async () => {
-    render(<App5 />);
+    renderWithRouter(<App5 />);
 
     const loading = document.querySelector('.ant-spin');
     const t1Input = document.querySelector('.t1 .ant-input') as HTMLInputElement;
@@ -122,7 +126,7 @@ describe('Form', () => {
   });
 
   it('useValues', async () => {
-    render(<App7 />);
+    renderWithRouter(<App7 />);
 
     // 等待 useRequest 返回值
     await sleep();
@@ -137,7 +141,7 @@ describe('Form', () => {
   });
 
   it('DrawerForm & async data', async () => {
-    render(<App8 />);
+    renderWithRouter(<App8 />);
 
     const editBtn = screen.getByText('Edit');
     await userEvent.click(editBtn);

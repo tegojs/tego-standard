@@ -8,6 +8,10 @@ export async function setCurrentRole(ctx: Context, next) {
     return next();
   }
 
+  if (ctx.state.currentRole && !currentRole && !ctx.state.currentUser?.toJSON) {
+    return next();
+  }
+
   if (!ctx.state.currentUser) {
     return next();
   }
@@ -15,11 +19,23 @@ export async function setCurrentRole(ctx: Context, next) {
   const attachRoles = ctx.state.attachRoles || [];
   const cache = ctx.cache as Cache;
   const repository = ctx.db.getRepository('users.roles', ctx.state.currentUser.id) as unknown as Repository;
-  const roles = (await cache.wrap(`roles:${ctx.state.currentUser.id}`, () =>
-    repository.find({
+  const roles = (await cache.wrap(`roles:${ctx.state.currentUser.id}`, async () => {
+    const userRoles = await repository.find({
       raw: true,
-    }),
-  )) as Model[];
+    });
+    const rolesUsers = await ctx.db.getRepository('rolesUsers').find({
+      filter: {
+        userId: ctx.state.currentUser.id,
+      },
+      raw: true,
+    });
+    const rolesUsersMap = new Map(rolesUsers.map((roleUser) => [roleUser.roleName, roleUser]));
+
+    return userRoles.map((role) => ({
+      ...role,
+      rolesUsers: rolesUsersMap.get(role.name),
+    }));
+  })) as Model[];
   if (!roles.length && !attachRoles.length) {
     ctx.state.currentRole = undefined;
     return ctx.throw(401, {

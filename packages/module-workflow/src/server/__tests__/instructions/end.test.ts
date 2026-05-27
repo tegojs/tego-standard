@@ -1,5 +1,4 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
 
 import WorkflowPlugin from '../..';
@@ -14,7 +13,7 @@ describe('workflow > instructions > end', () => {
 
   beforeEach(async () => {
     app = await getApp();
-    plugin = app.pm.get(WorkflowPlugin) as WorkflowPlugin;
+    plugin = (app.pm.get('workflow') || app.pm.get(WorkflowPlugin)) as WorkflowPlugin;
     db = app.db;
     PostRepo = db.getCollection('posts').repository;
 

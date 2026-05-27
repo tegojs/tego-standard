@@ -14,9 +14,20 @@ export function buildPath(parentPath: string | null | undefined, id: string): st
  * Get all descendant tenant IDs for a given tenant using the materialized path.
  */
 export async function getDescendantIds(repo: Repository, tenantId: string): Promise<string[]> {
+  const tenant = await repo.findOne({
+    filter: { id: tenantId },
+    fields: ['path'],
+  });
+
+  const path = tenant?.get('path') as string;
+  if (!path) {
+    return [];
+  }
+
   const descendants = await repo.find({
     filter: {
-      path: { $like: `/${tenantId}/%` },
+      path: { $like: `${path}%` },
+      'id.$ne': tenantId,
     },
     fields: ['id'],
   });

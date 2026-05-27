@@ -143,7 +143,7 @@ describe('PluginTenantClient', () => {
 
   it('should sync tenant editor values when initial record changes', async () => {
     const noop = async () => {};
-    const { rerender, container } = render(
+    const { rerender } = render(
       <TenantEditor
         initialValues={{
           name: 'tenant_a',
@@ -161,8 +161,8 @@ describe('PluginTenantClient', () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector('input[id="name"]')).toHaveValue('tenant_a');
-      expect(container.querySelector('input[id="title"]')).toHaveValue('Tenant A');
+      expect(document.querySelector('input[id="name"]')).toHaveValue('tenant_a');
+      expect(document.querySelector('input[id="title"]')).toHaveValue('Tenant A');
     });
 
     rerender(
@@ -183,8 +183,8 @@ describe('PluginTenantClient', () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector('input[id="name"]')).toHaveValue('tenant_b');
-      expect(container.querySelector('input[id="title"]')).toHaveValue('Tenant B');
+      expect(document.querySelector('input[id="name"]')).toHaveValue('tenant_b');
+      expect(document.querySelector('input[id="title"]')).toHaveValue('Tenant B');
     });
   });
 });

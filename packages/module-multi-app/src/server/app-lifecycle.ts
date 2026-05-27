@@ -45,6 +45,10 @@ export function LazyLoadApplication(ctx: any) {
       appOptionsFactory: ctx.appOptionsFactory,
     });
 
+    if (!appSupervisor.hasApp(name)) {
+      appSupervisor.addApp(subApp);
+    }
+
     // must skip load on upgrade
     if (!loadButNotStart) {
       await subApp.runCommand('start', '--quickstart');
@@ -83,8 +87,9 @@ export function onAfterStart(db: any) {
       for (const subAppInstance of subApps) {
         promises.push(
           (async () => {
-            if (!appSupervisor.hasApp(subAppInstance.name)) {
-              await AppSupervisor.getInstance().getApp(subAppInstance.name);
+            const subApp = await AppSupervisor.getInstance().getApp(subAppInstance.name);
+            if (subApp && !(await subApp.isStarted())) {
+              await subApp.runCommand('start', '--quickstart');
             }
           })(),
         );

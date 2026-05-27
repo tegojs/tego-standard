@@ -48,7 +48,7 @@ describe('applyTenantFilter', () => {
 
     expect(mergeParams).toHaveBeenCalledWith({
       filter: {
-        $and: [{ tenantId: 'tenant-b' }, { tenantId: 'tenant-a' }],
+        tenantId: 'tenant-a',
       },
     });
   });

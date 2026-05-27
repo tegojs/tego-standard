@@ -1,9 +1,8 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
 
-import Plugin from '..';
+import Plugin from '../Plugin';
 
 describe('workflow > instructions > loop', () => {
   let app: Application;
@@ -33,7 +32,22 @@ describe('workflow > instructions > loop', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await app.destroy();
+  });
+
+  const waitForExecutionStatus = async (expected: number, timeout = 3000) => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeout) {
+      const [execution] = await workflow.getExecutions();
+      if (execution?.status === expected) {
+        return execution;
+      }
+      await sleep(50);
+    }
+    const [execution] = await workflow.getExecutions();
+    return execution;
+  };
 
   describe('branch', () => {
     it('no branch just pass', async () => {
@@ -283,9 +297,7 @@ describe('workflow > instructions > loop', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
+      const execution = await waitForExecutionStatus(EXECUTION_STATUS.RESOLVED);
       expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
       const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
 
@@ -464,9 +476,7 @@ describe('workflow > instructions > loop', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
+      const e1 = await waitForExecutionStatus(EXECUTION_STATUS.RESOLVED);
       expect(e1.status).toEqual(EXECUTION_STATUS.RESOLVED);
       const jobs = await e1.getJobs({ order: [['id', 'ASC']] });
       expect(jobs.length).toBe(5);

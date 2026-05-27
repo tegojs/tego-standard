@@ -1,6 +1,5 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
@@ -30,7 +29,21 @@ describe('workflow > instructions > update', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await app.destroy();
+  });
+
+  const waitForWorkflowExecutions = async (targetWorkflow, expected: number, timeout = 3000) => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeout) {
+      const executions = await targetWorkflow.getExecutions();
+      if (executions.length >= expected) {
+        return executions;
+      }
+      await sleep(50);
+    }
+    return targetWorkflow.getExecutions();
+  };
 
   describe('update one', () => {
     it('params: from context', async () => {
@@ -56,7 +69,7 @@ describe('workflow > instructions > update', () => {
 
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      expect(job.result.length).toBe(1);
 
       const updatedPost = await PostRepo.findById(post.id);
       expect(updatedPost.published).toBe(true);
@@ -143,7 +156,7 @@ describe('workflow > instructions > update', () => {
 
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      expect(job.result.length).toBe(1);
 
       const updatedPost = await PostRepo.findById(post.id);
       expect(updatedPost.published).toBe(true);
@@ -185,12 +198,12 @@ describe('workflow > instructions > update', () => {
 
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      expect(job.result.length).toBe(1);
 
       const updatedPost = await PostRepo.findById(post.id);
       expect(updatedPost.published).toBe(true);
 
-      const w2Exes = await w2.getExecutions();
+      const w2Exes = await waitForWorkflowExecutions(w2, 1);
       expect(w2Exes.length).toBe(1);
     });
   });

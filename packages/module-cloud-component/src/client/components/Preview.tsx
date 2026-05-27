@@ -94,15 +94,18 @@ function ComPreview({ compileCode }: { compileCode: string }) {
       `}
     >
       <ErrorBoundary
-        fallbackRender={({ error, resetErrorBoundary }: FallbackProps) => (
-          <div>
-            <h2>{t('Ooops.')}</h2>
-            <p style={{ lineHeight: '30px', color: 'red' }}>{error.message}</p>
-            <Button type="primary" onClick={resetErrorBoundary}>
-              {t('Try again')}
-            </Button>
-          </div>
-        )}
+        fallbackRender={({ error, resetErrorBoundary }: FallbackProps) => {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return (
+            <div>
+              <h2>{t('Ooops.')}</h2>
+              <p style={{ lineHeight: '30px', color: 'red' }}>{errorMessage}</p>
+              <Button type="primary" onClick={resetErrorBoundary}>
+                {t('Try again')}
+              </Button>
+            </div>
+          );
+        }}
       >
         {!compileError && Component && <Component id={id} />}
         {compileError && (

@@ -1,5 +1,6 @@
 import type { MockServer } from '@tachybase/test';
 
+import { getDescendantIds } from '../helpers/tenant-tree';
 import { createTenantApp } from './utils';
 
 describe('tenant tree structure', () => {
@@ -73,12 +74,8 @@ describe('tenant tree structure', () => {
       ],
     });
 
-    const descendants = await app.db.getRepository('tenants').find({
-      filter: { path: { $like: '/hq/%' } },
-      sort: ['id'],
-    });
-
-    const ids = descendants.map((t: any) => t.get('id'));
+    const ids = await getDescendantIds(app.db.getRepository('tenants'), 'hq');
+    ids.sort();
     expect(ids).toEqual(['branch-a', 'branch-b', 'dept-x']);
     expect(ids).not.toContain('hq');
     expect(ids).not.toContain('other');

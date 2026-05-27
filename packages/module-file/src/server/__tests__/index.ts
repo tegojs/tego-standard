@@ -1,9 +1,11 @@
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { createMockServer, MockServer } from '@tachybase/test';
 
-import send from 'koa-send';
-import supertest from 'supertest';
 import PluginTenantServer from 'packages/module-tenant/src/server';
+import supertest from 'supertest';
+
+import usersCollection from './tables/users';
 
 export async function getApp(options = {}): Promise<MockServer> {
   const app = await createMockServer({
@@ -27,15 +29,15 @@ export async function getApp(options = {}): Promise<MockServer> {
 
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith('/storage/uploads')) {
-      await send(ctx, ctx.path, { root: process.cwd() });
+      const filePath = path.resolve(process.env.TEGO_RUNTIME_HOME || process.cwd(), `.${ctx.path}`);
+      ctx.type = path.extname(filePath);
+      ctx.body = fs.createReadStream(filePath);
       return;
     }
     await next();
   });
 
-  await app.db.import({
-    directory: path.resolve(__dirname, './tables'),
-  });
+  app.db.collection(usersCollection);
 
   await app.db.sync();
 

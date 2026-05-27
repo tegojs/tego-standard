@@ -82,3 +82,5 @@ export const createGridCardBlockUISchema = (options: {
     },
   };
 };
+
+export const createGridCardBlockSchema = createGridCardBlockUISchema;

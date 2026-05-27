@@ -2,6 +2,7 @@ import VerificationPlugin from '@tachybase/plugin-otp';
 import { createMockServer, MockServer } from '@tachybase/test';
 import { Database, Model, ModelStatic } from '@tego/server';
 
+import SmsAuthPlugin from '..';
 import { authType } from '../../constants';
 
 class Provider {
@@ -22,7 +23,7 @@ describe('signin', () => {
 
   beforeAll(async () => {
     app = await createMockServer({
-      plugins: ['users', 'auth', 'verification', 'acl', 'sms-auth', 'data-source-manager'],
+      plugins: ['users', 'auth', 'verification', 'acl', SmsAuthPlugin, 'data-source-manager'],
     });
     db = app.db;
     agent = app.agent();

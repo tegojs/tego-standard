@@ -58,7 +58,7 @@ function appendTenantFilter(original: any, tenantId: string | number) {
 }
 
 function getCurrentTenantId(ctx: Context) {
-  return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
+  return ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId;
 }
 
 function stableSerialize(value: any): string {
@@ -78,17 +78,9 @@ function stableSerialize(value: any): string {
 
 function getChartCacheKey(ctx: Context, uid: string) {
   const tenantId = getCurrentTenantId(ctx);
-  const currentUserId = ctx.state.currentUser?.id;
-  const {
-    dataSource,
-    collection,
-    measures,
-    dimensions,
-    orders,
-    filter,
-    limit,
-    sql,
-  } = ctx.action.params.values as QueryParams;
+  const currentUserId = ctx.state?.currentUser?.id;
+  const { dataSource, collection, measures, dimensions, orders, filter, limit, sql } = ctx.action.params
+    .values as QueryParams;
   const timezone = ctx.get?.('x-timezone');
   const signature = stableSerialize({
     dataSource,
@@ -111,7 +103,11 @@ function getChartCacheKey(ctx: Context, uid: string) {
 }
 
 const getDB = (ctx: Context, dataSource: string) => {
-  const ds = ctx.tego.dataSourceManager.dataSources.get(dataSource);
+  if (!dataSource) {
+    return ctx.db;
+  }
+
+  const ds = ctx.tego?.dataSourceManager.dataSources.get(dataSource);
   return ds?.collectionManager.db;
 };
 
@@ -191,7 +187,7 @@ export const parseBuilder = async (ctx: Context, next: Next) => {
     const attribute = [];
     const col = sequelize.col(field);
     if (format) {
-      attribute.push(formatter(sequelize, type, field, format, ctx.get('x-timezone')));
+      attribute.push(formatter(sequelize, type, field, format, ctx.get?.('x-timezone')));
     } else {
       attribute.push(col);
     }

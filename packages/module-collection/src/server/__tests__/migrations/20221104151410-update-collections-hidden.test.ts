@@ -52,8 +52,7 @@ describe('migration 20221104151410-update-collections-hidden test', () => {
         value: '0.8.0-alpha.10',
       },
     });
-    const migration = new UpdateCollectionsHiddenMigration({ db } as MigrationContext);
-    migration.context.tego = app;
+    const migration = new UpdateCollectionsHiddenMigration({ db, app, tego: app } as unknown as MigrationContext);
     await migration.up();
 
     let upResult = await db.getRepository('collections').find({

@@ -13,8 +13,9 @@ export function generateNTemplate(key: string) {
 }
 
 export function useTenantTranslation() {
-  const { i18n: appI18n } = useApp();
-  const t = (key: string, props = {}) => appI18n.t(key, { ns: [NAMESPACE, 'client'], nsMode: 'fallback', ...props });
+  const app = useApp();
+  const translator = app?.i18n || i18n;
+  const t = (key: string, props = {}) => translator.t(key, { ns: [NAMESPACE, 'client'], nsMode: 'fallback', ...props });
 
   return { t };
 }

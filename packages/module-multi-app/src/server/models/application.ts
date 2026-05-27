@@ -1,4 +1,4 @@
-import { Application, ApplicationOptions, md5, merge, Model, Transactionable } from '@tego/server';
+import { Application, ApplicationOptions, AppSupervisor, md5, merge, Model, Transactionable } from '@tego/server';
 
 import mergeApplicationStartEnvs from '../app-start-env';
 import { AppOptionsFactory } from '../server';
@@ -39,6 +39,12 @@ export class ApplicationModel extends Model {
         },
       };
     }
-    return new Application(subAppOptions);
+    const ApplicationClass = Object.getPrototypeOf(mainApp.constructor) as typeof Application;
+    const subApp = new ApplicationClass(subAppOptions);
+    const appSupervisor = AppSupervisor.getInstance();
+    if (!appSupervisor.hasApp(appName)) {
+      appSupervisor.addApp(subApp);
+    }
+    return subApp;
   }
 }

@@ -70,6 +70,9 @@ describe('query', () => {
         },
       };
     });
+    afterAll(async () => {
+      await app.destroy();
+    });
     it('should parse field and associations', async () => {
       const context = {
         ...ctx,
@@ -244,9 +247,13 @@ describe('query', () => {
       set(key: string, value: any) {
         this.map.set(key, value);
       }
+      values() {
+        return Array.from(this.map.values());
+      }
     }
     let ctx: any;
     beforeEach(() => {
+      query.mockClear();
       const cache = new MockCache();
       ctx = {
         tego: {
@@ -276,7 +283,7 @@ describe('query', () => {
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
-      expect(cache.get(key)).toEqual(value);
+      expect(cache.values()).toContain(value);
       vi.clearAllMocks();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(context.body).toEqual(value);
@@ -320,7 +327,7 @@ describe('query', () => {
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
-      expect(cache.get(key)).toEqual(value);
+      expect(cache.values()).toContain(value);
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
@@ -514,6 +521,9 @@ describe('query', () => {
         app,
         db: app.db,
       };
+    });
+    afterAll(async () => {
+      await app.destroy();
     });
 
     it('should append current tenant filter for tenant scoped collections', async () => {

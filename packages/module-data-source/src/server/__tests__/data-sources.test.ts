@@ -1,5 +1,4 @@
 import { createMockServer, MockServer, waitSecond } from '@tachybase/test';
-
 import { CollectionManager, DataSource } from '@tego/server';
 
 describe('data source', async () => {
@@ -49,7 +48,7 @@ describe('data source', async () => {
       },
     });
 
-    const plugin: any = app.pm.get('data-source-manager');
+    const plugin: any = app.pm.get('data-source-manager') || app.pm.get('data-source');
 
     await waitSecond(2000);
 

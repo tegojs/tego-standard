@@ -75,10 +75,29 @@ export class FormulaField extends Field {
 
     this.options = Object.assign(this.options, instance.options);
     const { name } = this.options;
+    const regex = /\{\{([^}]+)\}\}/g;
+    const variables = [];
+    let match;
 
+    while ((match = regex.exec(this.options.expression)) !== null) {
+      variables.push(match[1]);
+    }
+    const uniqueVariables = [...new Set(variables)];
+    const appends = uniqueVariables
+      .map((item) => {
+        if (item.includes('.')) {
+          const parts = item.split('.');
+          parts.pop();
+          const result = parts.join('.');
+          return result;
+        }
+        return '';
+      })
+      .filter(Boolean);
     const records = await this.collection.repository.find({
       order: [this.collection.model.primaryKeyAttribute],
       transaction,
+      appends,
     });
 
     for (const record of records) {

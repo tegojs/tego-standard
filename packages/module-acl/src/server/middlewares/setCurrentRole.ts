@@ -29,12 +29,20 @@ export async function setCurrentRole(ctx: Context, next) {
       },
       raw: true,
     });
-    const rolesUsersMap = new Map(rolesUsers.map((roleUser) => [roleUser.roleName, roleUser]));
+    const rolesUsersMap = new Map(
+      rolesUsers.map((roleUser) => {
+        const item = roleUser?.toJSON?.() || roleUser;
+        return [item.roleName, item];
+      }),
+    );
 
-    return userRoles.map((role) => ({
-      ...role,
-      rolesUsers: rolesUsersMap.get(role.name),
-    }));
+    return userRoles.map((role) => {
+      const item = role?.toJSON?.() || role;
+      return {
+        ...item,
+        rolesUsers: rolesUsersMap.get(item.name),
+      };
+    });
   })) as Model[];
   if (!roles.length && !attachRoles.length) {
     ctx.state.currentRole = undefined;

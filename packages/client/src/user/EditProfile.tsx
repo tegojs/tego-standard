@@ -15,6 +15,8 @@ import {
 } from '../';
 import { useAPIClient } from '../api-client';
 
+type MenuItem = NonNullable<MenuProps['items']>[number];
+
 const useCloseAction = () => {
   const { setVisible } = useActionContext();
   const form = useForm();
@@ -121,7 +123,7 @@ const schema: ISchema = {
   },
 };
 
-export const useEditProfile = () => {
+export const useEditProfile = (): MenuItem => {
   const ctx = useContext(DropdownVisibleContext);
   const [visible, setVisible] = useState(false);
   const { t } = useTranslation();

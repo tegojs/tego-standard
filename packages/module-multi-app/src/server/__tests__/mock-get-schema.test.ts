@@ -5,7 +5,8 @@ import { Application, AppSupervisor, Plugin, uid } from '@tego/server';
 import { vi } from 'vitest';
 
 const serverRequire = createRequire(require.resolve('@tego/server/package.json'));
-const TachybaseGlobal = serverRequire('@tachybase/globals').default || serverRequire('@tachybase/globals');
+const coreRequire = createRequire(serverRequire.resolve('@tego/core/package.json'));
+const TachybaseGlobal = coreRequire('@tachybase/globals').default || coreRequire('@tachybase/globals');
 
 describe('test with start', () => {
   it('should load subApp on create', async () => {

@@ -6,7 +6,7 @@ import { TextAreaProps } from 'antd/es/input';
 
 export type JSONTextAreaProps = TextAreaProps & { value?: string; space?: number };
 
-export const Json = React.forwardRef<typeof Input.TextArea, JSONTextAreaProps>(
+export const Json: React.ForwardRefExoticComponent<JSONTextAreaProps & React.RefAttributes<any>> = React.forwardRef(
   ({ value, onChange, space = 2, ...props }: JSONTextAreaProps, ref: Ref<any>) => {
     const field = useField<Field>();
     const [text, setText] = useState('');

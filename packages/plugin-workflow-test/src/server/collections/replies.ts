@@ -5,5 +5,9 @@ export default {
       type: 'string',
       name: 'content',
     },
+    {
+      type: 'belongsTo',
+      name: 'comment',
+    },
   ],
 };

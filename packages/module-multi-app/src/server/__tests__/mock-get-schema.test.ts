@@ -1,7 +1,12 @@
+import { createRequire } from 'node:module';
 import { createMockServer } from '@tachybase/test';
+import { Application, AppSupervisor, Plugin, uid } from '@tego/server';
 
-import { AppSupervisor, Plugin, PluginManager, uid } from '@tego/server';
 import { vi } from 'vitest';
+
+const serverRequire = createRequire(require.resolve('@tego/server/package.json'));
+const coreRequire = createRequire(serverRequire.resolve('@tego/core/package.json'));
+const TachybaseGlobal = coreRequire('@tachybase/globals').default || coreRequire('@tachybase/globals');
 
 describe('test with start', () => {
   it('should load subApp on create', async () => {
@@ -26,65 +31,77 @@ describe('test with start', () => {
       }
     }
 
-    const resolvePlugin = PluginManager.resolvePlugin;
-    PluginManager.resolvePlugin = function (name, ...args) {
-      if (name === 'test-package') {
-        return TestPlugin;
-      }
-      return resolvePlugin.bind(this)(name, ...args);
-    };
-
-    const app = await createMockServer({
-      plugins: ['multi-app-manager'],
+    const presets = TachybaseGlobal.getInstance().get<Record<string, any>>('PRESETS') || {};
+    TachybaseGlobal.getInstance().set('PRESETS', {
+      ...presets,
+      'test-package': TestPlugin,
     });
 
-    const db = app.db;
+    let app: Application | undefined;
+    let subApp: Application | undefined;
 
-    const name = `d_${uid()}`;
+    try {
+      app = await createMockServer({
+        plugins: ['multi-app-manager'],
+      });
 
-    await db.getRepository('applications').create({
-      values: {
-        name,
-        options: {
-          plugins: ['test-package'],
+      const db = app.db;
+
+      const name = `d_${uid()}`;
+
+      await db.getRepository('applications').create({
+        values: {
+          name,
+          options: {
+            autoStart: true,
+            plugins: ['test-package'],
+          },
         },
-      },
-      context: {
-        waitSubAppInstall: true,
-      },
-    });
+        context: {
+          waitSubAppInstall: true,
+        },
+      });
 
-    expect(loadFn).toHaveBeenCalled();
-    expect(installFn).toHaveBeenCalledTimes(1);
+      expect(loadFn).toHaveBeenCalled();
+      expect(installFn).toHaveBeenCalledTimes(1);
 
-    const subApp = await AppSupervisor.getInstance().getApp(name);
-    await subApp.destroy();
-    await app.destroy();
-    PluginManager.resolvePlugin = resolvePlugin;
+      subApp = await AppSupervisor.getInstance().getApp(name);
+    } finally {
+      await subApp?.destroy();
+      await app?.destroy();
+      TachybaseGlobal.getInstance().set('PRESETS', presets);
+    }
   });
 
   it('should install into difference database', async () => {
-    const app = await createMockServer({
-      plugins: ['multi-app-manager'],
-    });
+    let app: Application | undefined;
+    let subApp: Application | undefined;
 
-    const db = app.db;
+    try {
+      app = await createMockServer({
+        plugins: ['multi-app-manager'],
+      });
 
-    const name = `d_${uid()}`;
+      const db = app.db;
 
-    await db.getRepository('applications').create({
-      values: {
-        name,
-        options: {
-          plugins: ['ui-schema-storage'],
+      const name = `d_${uid()}`;
+
+      await db.getRepository('applications').create({
+        values: {
+          name,
+          options: {
+            autoStart: true,
+            plugins: ['ui-schema-storage'],
+          },
         },
-      },
-      context: {
-        waitSubAppInstall: true,
-      },
-    });
-    const subApp = await AppSupervisor.getInstance().getApp(name);
-    await subApp.destroy();
-    await app.destroy();
+        context: {
+          waitSubAppInstall: true,
+        },
+      });
+      subApp = await AppSupervisor.getInstance().getApp(name);
+    } finally {
+      await subApp?.destroy();
+      await app?.destroy();
+    }
   });
 });

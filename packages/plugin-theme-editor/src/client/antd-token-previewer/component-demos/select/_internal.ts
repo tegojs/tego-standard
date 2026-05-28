@@ -1,3 +1,7 @@
+import type { ComponentType } from 'react';
+
 import { Select } from 'antd';
 
-export default Select._InternalPanelDoNotUseOrYouWillBeFired;
+const InternalPanel = Select._InternalPanelDoNotUseOrYouWillBeFired as ComponentType<any>;
+
+export default InternalPanel;

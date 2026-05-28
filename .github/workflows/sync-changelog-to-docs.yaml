@@ -34,7 +34,7 @@ on:
       DOCS_CHANGELOG_ZH_PATH:
         required: false
 
-run-name: "Sync Changelog - Version: ${{ github.ref_name || inputs.version || github.event.inputs.version }}"
+run-name: 'Sync Changelog - Version: ${{ github.ref_name || inputs.version || github.event.inputs.version }}'
 
 jobs:
   sync-changelog:
@@ -45,6 +45,7 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
           path: source
           # When called as reusable workflow, ensure we checkout the latest commit
@@ -215,6 +216,7 @@ jobs:
         if: steps.extract_changelog.outputs.has_changelog == 'true'
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           repository: ${{ inputs.docs_repo || github.event.inputs.docs_repo || secrets.DOCS_REPOSITORY || 'tegojs/docs' }}
           # Note: GITHUB_TOKEN cannot access cross-repository, must use DOCS_REPO_TOKEN (PAT)
           token: ${{ secrets.DOCS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
@@ -427,4 +429,3 @@ jobs:
           else
             echo "⚠ No changelog entry found for ${{ steps.version.outputs.version }}, skipping sync"
           fi
-

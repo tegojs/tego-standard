@@ -12,7 +12,7 @@ on:
         required: false
         type: string
 
-run-name: "Hotfix Create - Base: ${{ github.event.inputs.base_version || github.ref_name }}"
+run-name: 'Hotfix Create - Base: ${{ github.event.inputs.base_version || github.ref_name }}'
 
 jobs:
   create:
@@ -30,6 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
@@ -306,4 +307,3 @@ jobs:
           else
             echo "⚠ Failed to add label to PR (HTTP ${HTTP_CODE}), but continuing..."
           fi
-

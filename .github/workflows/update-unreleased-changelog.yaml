@@ -4,7 +4,7 @@ on:
   # 每周五晚上 12 点（北京时间周六凌晨 0 点）定时触发
   # UTC 时间：周五 16:00（北京时间 UTC+8 周六 00:00）
   schedule:
-    - cron: '0 16 * * 5'  # 每周五 UTC 16:00 (北京时间周六 00:00)
+    - cron: '0 16 * * 5' # 每周五 UTC 16:00 (北京时间周六 00:00)
   # 保留手动触发功能
   workflow_dispatch:
 
@@ -20,6 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
@@ -55,7 +56,7 @@ jobs:
         if: steps.check_changes.outputs.has_changes == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(changelog): update [Unreleased] section"
+          commit_message: 'chore(changelog): update [Unreleased] section'
           file_pattern: 'CHANGELOG.md CHANGELOG.zh-CN.md'
           commit_user_name: github-actions[bot]
           commit_user_email: github-actions[bot]@users.noreply.github.com
@@ -68,4 +69,3 @@ jobs:
     secrets: inherit
     with:
       version: unreleased
-

@@ -8,7 +8,7 @@ on:
         required: false
         type: string
 
-run-name: "Hotfix Publish - ${{ github.event.inputs.hotfix_branch || github.ref_name }}"
+run-name: 'Hotfix Publish - ${{ github.event.inputs.hotfix_branch || github.ref_name }}'
 
 jobs:
   detect-hotfix-pr:
@@ -123,6 +123,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
@@ -376,7 +377,7 @@ jobs:
 
       - name: Update workflow run name
         env:
-          NEW_NAME: "Hotfix Publish - ${{ needs.detect-hotfix-pr.outputs.base_version }} → ${{ steps.do_version.outputs.version }}"
+          NEW_NAME: 'Hotfix Publish - ${{ needs.detect-hotfix-pr.outputs.base_version }} → ${{ steps.do_version.outputs.version }}'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
@@ -425,4 +426,3 @@ jobs:
     secrets: inherit
     with:
       version: v${{ needs.publish.outputs.version }}
-

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **workflow**: exit branch node ([#376](https://github.com/tegojs/tego-standard/pull/376)) [c53c0f2](https://github.com/tegojs/tego-standard/commit/c53c0f2f9fae19421f849da05c65cbfc86de4bde) (@TomyJan)
+
+### 🐛 Fixed
+
+- formula fields support associated field values ([#387](https://github.com/tegojs/tego-standard/pull/387)) [c7f905e](https://github.com/tegojs/tego-standard/commit/c7f905e5e0ced6529c53b995966871c6f317d37b) (@dududuna)
+
 
 
 ## [1.6.21] - 2026-05-22

@@ -7,6 +7,14 @@
 
 ## [未发布]
 
+### ✨ 新增
+
+- **workflow**: 退出分支节点 ([#376](https://github.com/tegojs/tego-standard/pull/376)) [c53c0f2](https://github.com/tegojs/tego-standard/commit/c53c0f2f9fae19421f849da05c65cbfc86de4bde) (@TomyJan)
+
+### 🐛 修复
+
+- 公式字段支持关联字段值 ([#387](https://github.com/tegojs/tego-standard/pull/387)) [c7f905e](https://github.com/tegojs/tego-standard/commit/c7f905e5e0ced6529c53b995966871c6f317d37b) (@dududuna)
+
 
 
 ## [1.6.21] - 2026-05-22

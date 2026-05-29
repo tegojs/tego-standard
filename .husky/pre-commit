@@ -1,3 +1,4 @@
+#!/bin/sh
 # pre-commit
 node scripts/check-no-build-hash-in-version.mjs || exit 1
 pnpm lint-staged

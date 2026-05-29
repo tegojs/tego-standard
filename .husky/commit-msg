@@ -1,2 +1,3 @@
+#!/bin/sh
 # commit-msg
 pnpm commitlint --edit

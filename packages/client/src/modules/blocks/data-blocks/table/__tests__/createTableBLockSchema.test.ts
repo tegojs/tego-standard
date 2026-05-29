@@ -42,9 +42,17 @@ describe('createTableBLockSchemaV2', () => {
                 "type": "void",
                 "x-action-column": "actions",
                 "x-component": "TableV2.Column",
+                "x-component-props": {
+                  "fixed": "right",
+                  "width": 150,
+                },
                 "x-decorator": "TableV2.Column.ActionBar",
                 "x-designer": "TableV2.ActionColumnDesigner",
                 "x-initializer": "table:configureItemActions",
+                "x-toolbar": "TableColumnSchemaToolbar",
+                "x-toolbar-props": {
+                  "initializer": "table:configureItemActions",
+                },
               },
             },
             "type": "array",
@@ -60,7 +68,7 @@ describe('createTableBLockSchemaV2', () => {
           },
         },
         "type": "void",
-        "x-acl-action": "users:list",
+        "x-acl-action": "users.roles:list",
         "x-component": "CardItem",
         "x-decorator": "TableBlockProvider",
         "x-decorator-props": {

@@ -39,6 +39,8 @@ const tegoServerPackageJson = tegoServerRequire.resolve('@tego/server/package.js
 const tegoServerEntry = tegoServerRequire.resolve('@tego/server');
 const tegoCoreEntry = createRequire(tegoServerPackageJson).resolve('@tego/core');
 
+const testRequire = createRequire(path.resolve(process.cwd(), 'node_modules/@tachybase/test/package.json'));
+
 const projectAliases = [
   ...workspaceServerAliases,
   {
@@ -56,6 +58,10 @@ const projectAliases = [
   {
     find: 'packages/module-auth/src/constants',
     replacement: path.resolve(process.cwd(), 'packages/module-auth/src/constants.ts'),
+  },
+  {
+    find: '@tachybase/test/setup-server',
+    replacement: testRequire.resolve('@tachybase/test/setup-server'),
   },
 ];
 

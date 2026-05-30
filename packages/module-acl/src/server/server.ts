@@ -374,7 +374,7 @@ export class PluginACL extends Plugin {
     // this.app.on('afterInstall', writeRolesToACL);
 
     this.app.on('afterInstallPlugin', async (plugin) => {
-      if (plugin.getName() !== 'user') {
+      if (!['user', 'users'].includes(plugin.getName())) {
         return;
       }
 
@@ -403,8 +403,7 @@ export class PluginACL extends Plugin {
     });
 
     this.app.on('beforeInstallPlugin', async (plugin) => {
-      // TODO
-      if (plugin.getName() !== 'user') {
+      if (!['user', 'users'].includes(plugin.getName())) {
         return;
       }
       const roles = this.app.db.getRepository('roles');

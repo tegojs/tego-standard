@@ -13,6 +13,7 @@ catalog:
   '@tachybase/test': 1.6.13-alpha.2
   '@tego/client': 1.6.13-alpha.2
   '@tego/devkit': 1.6.13-alpha.2
+  '@tego/core': 1.6.13-alpha.2
   '@tego/server': 1.6.13-alpha.2
   '@types/express': 5.0.2
   '@types/node': 20.17.10

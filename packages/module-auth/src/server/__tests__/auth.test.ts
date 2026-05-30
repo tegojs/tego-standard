@@ -29,6 +29,9 @@ describe('auth', () => {
           return jwt.sign({ userId: user.id });
         },
         cache: app.cache,
+        logger: app.logger,
+        throw: (status, body) => { throw Object.assign(new Error(body?.message || 'Error'), { status, ...body }); },
+        t: (key) => key,
       } as any,
     } as any);
 

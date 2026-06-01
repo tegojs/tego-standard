@@ -42,9 +42,9 @@
     "tc": "tegod test:client",
     "tego": "tego",
     "tegod": "tegod",
-    "test": "tegod test",
-    "test:client": "tegod test:client",
-    "test:server": "tegod test:server",
+    "test": "tegod test run",
+    "test:client": "tegod test:client run",
+    "test:server": "tegod test:server run",
     "tgi": "tego install",
     "tgu": "tego upgrade",
     "ts": "tegod test:server"

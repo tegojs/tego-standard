@@ -3,13 +3,21 @@ import { ObjectField, useField, useFieldSchema } from '@tachybase/schema';
 
 import { Card } from 'antd';
 import { createStyles } from 'antd-style';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate as _useNavigate } from 'react-router-dom';
 
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
 import { useCollection } from '../../../data-source';
 import { useCollectionParentRecordData } from '../../../data-source/collection-record/CollectionRecordProvider';
 import { RecordProvider } from '../../../record-provider';
 import { useGridCardDetailUrl, useGridCustomPageUrl } from './hooks';
+
+function useNavigate() {
+  try {
+    return _useNavigate();
+  } catch {
+    return () => {};
+  }
+}
 
 const useStyles = createStyles(({ css }) => {
   return {

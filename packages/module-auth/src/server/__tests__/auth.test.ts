@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { BaseAuth, Database, Model } from '@tego/server';
 
 describe('auth', () => {
@@ -25,12 +24,16 @@ describe('auth', () => {
       userCollection: db.getCollection('users'),
       ctx: {
         app,
+        tego: app,
         getBearerToken() {
           return jwt.sign({ userId: user.id });
         },
         cache: app.cache,
         logger: app.logger,
-        throw: (status, body) => { throw Object.assign(new Error(body?.message || 'Error'), { status, ...body }); },
+        headers: {},
+        throw: (status, body) => {
+          throw Object.assign(new Error(body?.message || 'Error'), { status, ...body });
+        },
         t: (key) => key,
       } as any,
     } as any);

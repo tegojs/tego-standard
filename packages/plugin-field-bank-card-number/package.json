@@ -22,7 +22,7 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:"

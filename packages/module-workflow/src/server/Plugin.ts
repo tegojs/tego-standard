@@ -570,6 +570,11 @@ export default class PluginWorkflowServer extends Plugin {
       if (execution.status !== 0) {
         const executionDuration = execution.updatedAt.getTime() - execution.createdAt.getTime();
         await execution.update({ executionCost: executionDuration }, { transaction: options.transaction });
+        const deleteOnStatus = (execution as any).workflow?.options?.deleteExecutionOnStatus;
+        if (Array.isArray(deleteOnStatus) && deleteOnStatus.includes(execution.status)) {
+          await (execution as any).destroy({ transaction: options.transaction });
+          return;
+        }
       }
       if (execution.status && execution.parentNode) {
         // 根据parentId找到parent

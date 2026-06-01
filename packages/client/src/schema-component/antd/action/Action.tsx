@@ -6,7 +6,7 @@ import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate as _useNavigate } from 'react-router-dom';
 
 import { StablePopover, useActionContext } from '../..';
 import { useDesignable } from '../../';
@@ -35,6 +35,14 @@ import { useCompiledAction } from './hooks/useCompiledAction';
 import { useGetAriaLabelOfAction } from './hooks/useGetAriaLabelOfAction';
 import { ComposedAction } from './types';
 import { linkageAction } from './utils';
+
+function useNavigate() {
+  try {
+    return _useNavigate();
+  } catch {
+    return () => {};
+  }
+}
 
 export const Action: ComposedAction = withDynamicSchemaProps(
   observer((props: any) => {
@@ -67,7 +75,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
     const Designer = useDesigner();
     const field = useField<any>();
     const app = useApp();
-    const pageMode = app.usePageMode();
+    const pageMode = app.usePageMode?.();
     const fieldSchema = useFieldSchema();
     const { run, element } = useCompiledAction(useAction, actionCallback);
     const form = useForm();

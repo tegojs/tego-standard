@@ -34,7 +34,7 @@ ReadPretty.File = function File(props: UploadProps) {
   const [rotate, setRotate] = useState(0);
   const { wrapSSR, hashId, componentCls: prefixCls } = useStyles();
   const useUploadStyleVal = (useUploadStyle as any).default ? (useUploadStyle as any).default : useUploadStyle;
-  const previewList = app.AttachmentPreviewManager.get();
+  const previewList = app.AttachmentPreviewManager?.get?.() || {};
   useUploadStyleVal(prefixCls);
   return wrapSSR(
     <div>

@@ -77,6 +77,15 @@ config.test.poolOptions = {
 };
 for (const project of config.test.projects || []) {
   project.test.alias = [...projectAliases, ...(project.test.alias || [])];
+  if (project.test.name === 'server') {
+    // @tachybase/test ESM entry (es/index.mjs) uses createRequire which fails in vitest ESM context.
+    // Force CJS entry for server tests.
+    const testCjsEntry = testRequire.resolve('@tachybase/test');
+    project.test.alias = [
+      ...(project.test.alias || []),
+      { find: '@tachybase/test', replacement: testCjsEntry },
+    ];
+  }
   if (project.test.name === 'client') {
     const setupFiles = project.test.setupFiles;
     project.test.setupFiles = Array.isArray(setupFiles) ? [...setupFiles, clientSetupFile] : [setupFiles, clientSetupFile].filter(Boolean);

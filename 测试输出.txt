@@ -1,0 +1,859 @@
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 244 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL   client  packages/client/src/api-client/__tests__/APIClient.test.tsx [ packages/client/src/api-client/__tests__/APIClient.test.tsx ]
+ FAIL   client  packages/client/src/application/__tests__/Application.test.tsx [ packages/client/src/application/__tests__/Application.test.tsx ]
+ FAIL   client  packages/client/src/application/__tests__/hooks.test.tsx [ packages/client/src/application/__tests__/hooks.test.tsx ]
+ FAIL   client  packages/client/src/application/__tests__/Plugin.test.ts [ packages/client/src/application/__tests__/Plugin.test.ts ]
+ FAIL   client  packages/client/src/application/__tests__/PluginSettingsManager.test.ts [ packages/client/src/application/__tests__/PluginSettingsManager.test.ts ]
+ FAIL   client  packages/client/src/application/__tests__/RouterManager.test.tsx [ packages/client/src/application/__tests__/RouterManager.test.tsx ]
+ FAIL   client  packages/client/src/application/__tests__/SchemaInitializer.test.ts [ packages/client/src/application/__tests__/SchemaInitializer.test.ts ]
+ FAIL   client  packages/client/src/application/__tests__/SchemaToolbar.test.tsx [ packages/client/src/application/__tests__/SchemaToolbar.test.tsx ]
+ FAIL   client  packages/client/src/application/__tests__/utils.test.tsx [ packages/client/src/application/__tests__/utils.test.tsx ]
+ FAIL   client  packages/client/src/filter-provider/__tests__/utiles.test.ts [ packages/client/src/filter-provider/__tests__/utiles.test.ts ]
+ FAIL   client  packages/client/src/data-source/__tests__/utils.test.ts [ packages/client/src/data-source/__tests__/utils.test.ts ]
+ FAIL   client  packages/client/src/flag-provider/__tests__/flag-provider.test.tsx [ packages/client/src/flag-provider/__tests__/flag-provider.test.tsx ]
+ FAIL   client  packages/client/src/icon/__tests__/icon.test.tsx [ packages/client/src/icon/__tests__/icon.test.tsx ]
+ FAIL   client  packages/client/src/schema-initializer/__tests__/utils.test.ts [ packages/client/src/schema-initializer/__tests__/utils.test.ts ]
+ FAIL   client  packages/client/src/user/__tests__/current-user-settings-menu-provider.test.tsx [ packages/client/src/user/__tests__/current-user-settings-menu-provider.test.tsx ]
+ FAIL   client  packages/client/src/variables/__tests__/useVariables.test.tsx [ packages/client/src/variables/__tests__/useVariables.test.tsx ]
+ FAIL   client  packages/plugin-block-calendar/src/client/__tests__/calendar.test.tsx [ packages/plugin-block-calendar/src/client/__tests__/calendar.test.tsx ]
+ FAIL   client  packages/plugin-block-calendar/src/client/__tests__/createCalendarBlockSchema.test.ts [ packages/plugin-block-calendar/src/client/__tests__/createCalendarBlockSchema.test.ts ]
+ FAIL   client  packages/plugin-block-charts/src/client/__tests__/chart-api.test.ts [ packages/plugin-block-charts/src/client/__tests__/chart-api.test.ts ]
+ FAIL   client  packages/plugin-block-charts/src/client/__tests__/chart-configure.test.tsx [ packages/plugin-block-charts/src/client/__tests__/chart-configure.test.tsx ]
+ FAIL   client  packages/plugin-block-charts/src/client/__tests__/chart-renderer.test.tsx [ packages/plugin-block-charts/src/client/__tests__/chart-renderer.test.tsx ]
+ FAIL   client  packages/plugin-block-charts/src/client/__tests__/hooks.test.ts [ packages/plugin-block-charts/src/client/__tests__/hooks.test.ts ]
+ FAIL   client  packages/plugin-block-gantt/src/client/__tests__/createGanttBlockSchema.test.ts [ packages/plugin-block-gantt/src/client/__tests__/createGanttBlockSchema.test.ts ]
+ FAIL   client  packages/plugin-block-gantt/src/client/__tests__/date-helper.test.tsx [ packages/plugin-block-gantt/src/client/__tests__/date-helper.test.tsx ]
+ FAIL   client  packages/plugin-block-kanban/src/client/__tests__/createKanbanBlockSchema.test.ts [ packages/plugin-block-kanban/src/client/__tests__/createKanbanBlockSchema.test.ts ]
+ FAIL   client  packages/plugin-field-bank-card-number/src/client/__tests__/formatBankCard.test.ts [ packages/plugin-field-bank-card-number/src/client/__tests__/formatBankCard.test.ts ]
+ FAIL   client  packages/client/src/application/__tests__/hoc/withDynamicSchemaProps.test.tsx [ packages/client/src/application/__tests__/hoc/withDynamicSchemaProps.test.tsx ]
+ FAIL   client  packages/client/src/application/__tests__/utils/remotePlugins.test.ts [ packages/client/src/application/__tests__/utils/remotePlugins.test.ts ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection/AssociationProvider.test.tsx [ packages/client/src/data-source/__tests__/collection/AssociationProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection/Collection.test.tsx [ packages/client/src/data-source/__tests__/collection/Collection.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection/CollectionManager.test.tsx [ packages/client/src/data-source/__tests__/collection/CollectionManager.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection/CollectionManagerProvider.test.tsx [ packages/client/src/data-source/__tests__/collection/CollectionManagerProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection/CollectionProvider.test.tsx [ packages/client/src/data-source/__tests__/collection/CollectionProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection/ExtendCollectionsProvider.test.tsx [ packages/client/src/data-source/__tests__/collection/ExtendCollectionsProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection-field/CollectionField.test.tsx [ packages/client/src/data-source/__tests__/collection-field/CollectionField.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection-field/CollectionFieldProvider.test.tsx [ packages/client/src/data-source/__tests__/collection-field/CollectionFieldProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection-record/CollectionRecord.test.tsx [ packages/client/src/data-source/__tests__/collection-record/CollectionRecord.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection-record/CollectionRecordProvider.test.tsx [ packages/client/src/data-source/__tests__/collection-record/CollectionRecordProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection-record/isNewRecord.test.ts [ packages/client/src/data-source/__tests__/collection-record/isNewRecord.test.ts ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection-field-interface/CollectionFieldInterfaceManager.test.ts [ packages/client/src/data-source/__tests__/collection-field-interface/CollectionFieldInterfaceManager.test.ts ]
+ FAIL   client  packages/client/src/data-source/__tests__/components/CollectionDeletedPlaceholder.test.tsx [ packages/client/src/data-source/__tests__/components/CollectionDeletedPlaceholder.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/collection-template/CollectionTemplateManager.test.ts [ packages/client/src/data-source/__tests__/collection-template/CollectionTemplateManager.test.ts ]
+ FAIL   client  packages/client/src/data-source/__tests__/data-block/DataBlockProvider.test.tsx [ packages/client/src/data-source/__tests__/data-block/DataBlockProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/data-source/CollectionDataSourceProvider.test.tsx [ packages/client/src/data-source/__tests__/data-source/CollectionDataSourceProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/data-source/DataSource.test.ts [ packages/client/src/data-source/__tests__/data-source/DataSource.test.ts ]
+ FAIL   client  packages/client/src/data-source/__tests__/data-source/DataSourceManager.test.ts [ packages/client/src/data-source/__tests__/data-source/DataSourceManager.test.ts ]
+ FAIL   client  packages/client/src/data-source/__tests__/data-source/DataSourceManagerProvider.test.tsx [ packages/client/src/data-source/__tests__/data-source/DataSourceManagerProvider.test.tsx ]
+ FAIL   client  packages/client/src/data-source/__tests__/data-source/DataSourceProvider.test.tsx [ packages/client/src/data-source/__tests__/data-source/DataSourceProvider.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/hooks/__tests__/designable.test.ts [ packages/client/src/schema-component/hooks/__tests__/designable.test.ts ]
+ FAIL   client  packages/client/src/schema-component/hooks/__tests__/splitWrapSchema.test.ts [ packages/client/src/schema-component/hooks/__tests__/splitWrapSchema.test.ts ]
+ FAIL   client  packages/client/src/variables/__tests__/utils/filterEmptyValues.test.ts [ packages/client/src/variables/__tests__/utils/filterEmptyValues.test.ts ]
+ FAIL   client  packages/client/src/variables/__tests__/utils/getPath.test.ts [ packages/client/src/variables/__tests__/utils/getPath.test.ts ]
+ FAIL   client  packages/client/src/variables/__tests__/utils/getVariableName.test.ts [ packages/client/src/variables/__tests__/utils/getVariableName.test.ts ]
+ FAIL   client  packages/client/src/variables/__tests__/utils/isVariable.test.ts [ packages/client/src/variables/__tests__/utils/isVariable.test.ts ]
+ FAIL   client  packages/client/src/variables/__tests__/utils/transformVariableValue.test.ts [ packages/client/src/variables/__tests__/utils/transformVariableValue.test.ts ]
+ FAIL   client  packages/client/src/variables/__tests__/utils/uniq.test.ts [ packages/client/src/variables/__tests__/utils/uniq.test.ts ]
+ FAIL   client  packages/plugin-block-map/src/client/__tests__/block/createMapBlockSchema.test.ts [ packages/plugin-block-map/src/client/__tests__/block/createMapBlockSchema.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/action/__tests__/action.test.tsx [ packages/client/src/schema-component/antd/action/__tests__/action.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/association-select/__tests__/association-select.test.tsx [ packages/client/src/schema-component/antd/association-select/__tests__/association-select.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/card-item/__tests__/card-item.test.tsx [ packages/client/src/schema-component/antd/card-item/__tests__/card-item.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/block-item/__tests__/block-item.test.tsx [ packages/client/src/schema-component/antd/block-item/__tests__/block-item.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/cascader/__tests__/cascader.test.tsx [ packages/client/src/schema-component/antd/cascader/__tests__/cascader.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/checkbox/__tests__/checkbox.test.tsx [ packages/client/src/schema-component/antd/checkbox/__tests__/checkbox.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/collection-select/__tests__/collection-select.test.tsx [ packages/client/src/schema-component/antd/collection-select/__tests__/collection-select.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/color-select/__tests__/color-select.test.tsx [ packages/client/src/schema-component/antd/color-select/__tests__/color-select.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/cron/__tests__/cron-set.test.tsx [ packages/client/src/schema-component/antd/cron/__tests__/cron-set.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/date-picker/__tests__/date-picker.test.tsx [ packages/client/src/schema-component/antd/date-picker/__tests__/date-picker.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/date-picker/__tests__/getDateRanges.test.ts [ packages/client/src/schema-component/antd/date-picker/__tests__/getDateRanges.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/date-picker/__tests__/mapDatePicker.test.ts [ packages/client/src/schema-component/antd/date-picker/__tests__/mapDatePicker.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/date-picker/__tests__/mapRangePicker.test.ts [ packages/client/src/schema-component/antd/date-picker/__tests__/mapRangePicker.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/date-picker/__tests__/util.test.ts [ packages/client/src/schema-component/antd/date-picker/__tests__/util.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/details/__tests__/details.test.tsx [ packages/client/src/schema-component/antd/details/__tests__/details.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/error-fallback/__tests__/error-fallback.test.tsx [ packages/client/src/schema-component/antd/error-fallback/__tests__/error-fallback.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/form/__tests__/form.test.tsx [ packages/client/src/schema-component/antd/form/__tests__/form.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/form-v2/__tests__/form-v2.test.tsx [ packages/client/src/schema-component/antd/form-v2/__tests__/form-v2.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/form-item/__tests__/form-item.test.tsx [ packages/client/src/schema-component/antd/form-item/__tests__/form-item.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/form-item/__tests__/SchemaSettingOptions.test.ts [ packages/client/src/schema-component/antd/form-item/__tests__/SchemaSettingOptions.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/form-item/__tests__/utils.test.ts [ packages/client/src/schema-component/antd/form-item/__tests__/utils.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/grid/__tests__/grid.test.tsx [ packages/client/src/schema-component/antd/grid/__tests__/grid.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/icon-picker/__tests__/icon-picker.test.tsx [ packages/client/src/schema-component/antd/icon-picker/__tests__/icon-picker.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/list/__tests__/list.test.tsx [ packages/client/src/schema-component/antd/list/__tests__/list.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/input/__tests__/Input.test.tsx [ packages/client/src/schema-component/antd/input/__tests__/Input.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/markdown/__tests__/markdown.test.tsx [ packages/client/src/schema-component/antd/markdown/__tests__/markdown.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/grid-card/__tests__/grid-card.test.tsx [ packages/client/src/schema-component/antd/grid-card/__tests__/grid-card.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/input-number/__tests__/input-number.test.tsx [ packages/client/src/schema-component/antd/input-number/__tests__/input-number.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/menu/__tests__/menu.test.tsx [ packages/client/src/schema-component/antd/menu/__tests__/menu.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/page/__tests__/page.test.tsx [ packages/client/src/schema-component/antd/page/__tests__/page.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/pagination/__tests__/pagination.test.tsx [ packages/client/src/schema-component/antd/pagination/__tests__/pagination.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/percent/__tests__/percent.test.tsx [ packages/client/src/schema-component/antd/percent/__tests__/percent.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/password/__tests__/password.test.tsx [ packages/client/src/schema-component/antd/password/__tests__/password.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/password/__tests__/utils.test.ts [ packages/client/src/schema-component/antd/password/__tests__/utils.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/preview/__tests__/preview.test.tsx [ packages/client/src/schema-component/antd/preview/__tests__/preview.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/radio/__tests__/radio.test.tsx [ packages/client/src/schema-component/antd/radio/__tests__/radio.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/rich-text/__tests__/rich-text.test.tsx [ packages/client/src/schema-component/antd/rich-text/__tests__/rich-text.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/record-picker/__tests__/record-picker.test.tsx [ packages/client/src/schema-component/antd/record-picker/__tests__/record-picker.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/remote-select/__tests__/remote-select.test.tsx [ packages/client/src/schema-component/antd/remote-select/__tests__/remote-select.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/select/__tests__/select.test.tsx [ packages/client/src/schema-component/antd/select/__tests__/select.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/select/__tests__/utils.test.ts [ packages/client/src/schema-component/antd/select/__tests__/utils.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/table-v2/__tests__/table-v2.test.tsx [ packages/client/src/schema-component/antd/table-v2/__tests__/table-v2.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/table/__tests__/table.test.tsx [ packages/client/src/schema-component/antd/table/__tests__/table.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/tabs/__tests__/tabs.test.tsx [ packages/client/src/schema-component/antd/tabs/__tests__/tabs.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/tree-select/__tests__/tree-select.test.tsx [ packages/client/src/schema-component/antd/tree-select/__tests__/tree-select.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/time-picker/__tests__/time-picker.test.tsx [ packages/client/src/schema-component/antd/time-picker/__tests__/time-picker.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/upload/__tests__/upload.test.tsx [ packages/client/src/schema-component/antd/upload/__tests__/upload.test.tsx ]
+ FAIL   client  packages/client/src/schema-component/antd/variable/__tests__/variable.test.tsx [ packages/client/src/schema-component/antd/variable/__tests__/variable.test.tsx ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/details-multi/__tests__/createDetailsBlockWithPagingUISchema.test.ts [ packages/client/src/modules/blocks/data-blocks/details-multi/__tests__/createDetailsBlockWithPagingUISchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/form/__tests__/createCreateFormBlockUISchema.test.ts [ packages/client/src/modules/blocks/data-blocks/form/__tests__/createCreateFormBlockUISchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/form/__tests__/createEditFormBlockUISchema.test.ts [ packages/client/src/modules/blocks/data-blocks/form/__tests__/createEditFormBlockUISchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/details-single/__tests__/createDetailsBlockWithoutPagingUISchema.test.ts [ packages/client/src/modules/blocks/data-blocks/details-single/__tests__/createDetailsBlockWithoutPagingUISchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/list/__tests__/createListBlockSchema.test.ts [ packages/client/src/modules/blocks/data-blocks/list/__tests__/createListBlockSchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/table/__tests__/createTableBLockSchema.test.ts [ packages/client/src/modules/blocks/data-blocks/table/__tests__/createTableBLockSchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/table-selector/__tests__/createTableSelectorSchema.test.ts [ packages/client/src/modules/blocks/data-blocks/table-selector/__tests__/createTableSelectorSchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/data-blocks/grid-card/__tests__/createGridCardBlockSchema.test.ts [ packages/client/src/modules/blocks/data-blocks/grid-card/__tests__/createGridCardBlockSchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/filter-blocks/collapse/__tests__/createCollapseBlockSchema.test.ts [ packages/client/src/modules/blocks/filter-blocks/collapse/__tests__/createCollapseBlockSchema.test.ts ]
+ FAIL   client  packages/client/src/modules/blocks/filter-blocks/form/__tests__/createFilterFormBlockSchema.test.ts [ packages/client/src/modules/blocks/filter-blocks/form/__tests__/createFilterFormBlockSchema.test.ts ]
+ FAIL   client  packages/client/src/schema-component/antd/form-item/__tests__/hooks/useSpecialCase.test.ts [ packages/client/src/schema-component/antd/form-item/__tests__/hooks/useSpecialCase.test.ts ]
+Error: Failed to resolve import "@testing-library/react" from "vitest.setup.client.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: D:/Dev/TegoJS/tego-standard/vitest.setup.client.ts:3:26
+  1  |  import "./packages/client/src/preload";
+  2  |  import { configure } from "@testing-library/react";
+     |                             ^
+  3  |  configure({ asyncUtilTimeout: 5e3 });
+  4  |  class ResizeObserverMock {
+ ❯ TransformPluginContext._formatLog node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:31432:43
+ ❯ TransformPluginContext.error node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:31429:14
+ ❯ normalizeUrl node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:29975:18
+ ❯ node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:30033:32
+ ❯ TransformPluginContext.transform node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:30001:4
+ ❯ EnvironmentPluginContainer.transform node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:31246:14
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:26416:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/244]⎯
+
+ FAIL   client  packages/client/src/schema-component/antd/filter/__tests__/filter.test.tsx [ packages/client/src/schema-component/antd/filter/__tests__/filter.test.tsx ]
+Error: Failed to resolve import "@testing-library/react" from "vitest.setup.client.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: D:/Dev/TegoJS/tego-standard/vitest.setup.client.ts:3:26
+  1  |  import "./packages/client/src/preload";
+  2  |  import { configure } from "@testing-library/react";
+     |                             ^
+  3  |  configure({ asyncUtilTimeout: 5e3 });
+  4  |  class ResizeObserverMock {
+ ❯ TransformPluginContext._formatLog node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:31432:43
+ ❯ TransformPluginContext.error node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:31429:14
+ ❯ normalizeUrl node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:29975:18
+ ❯ node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:30033:32
+ ❯ TransformPluginContext.transform node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:30001:4
+ ❯ EnvironmentPluginContainer.transform node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:31246:14
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.0.3_@types+node@20.1_de49f173607e2bc6bd3c95fdf1a0ae88/node_modules/vite/dist/node/chunks/dep-DPTTEEJb.js:26416:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/244]⎯
+
+ FAIL   server  packages/plugin-field-snapshot/src/__tests__/fieldsHistory.test.ts [ packages/plugin-field-snapshot/src/__tests__/fieldsHistory.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-field-snapshot/src/__tests__/fieldsHistory.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| describe('actions', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/244]⎯
+
+ FAIL   server  packages/plugin-field-snapshot/src/__tests__/snapshots.test.ts [ packages/plugin-field-snapshot/src/__tests__/snapshots.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-field-snapshot/src/__tests__/snapshots.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { field_linkto } from './data/field_linkto';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/244]⎯
+
+ FAIL   server  packages/module-acl/src/server/__tests__/acl.test.ts [ packages/module-acl/src/server/__tests__/acl.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/actions.test.ts [ packages/module-acl/src/server/__tests__/actions.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/association-field.test.ts [ packages/module-acl/src/server/__tests__/association-field.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/configuration.test.ts [ packages/module-acl/src/server/__tests__/configuration.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/list-action.test.ts [ packages/module-acl/src/server/__tests__/list-action.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/middleware.test.ts [ packages/module-acl/src/server/__tests__/middleware.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/own.test.ts [ packages/module-acl/src/server/__tests__/own.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/role-check.test.ts [ packages/module-acl/src/server/__tests__/role-check.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/role-resource.test.ts [ packages/module-acl/src/server/__tests__/role-resource.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/role.test.ts [ packages/module-acl/src/server/__tests__/role.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/scope.test.ts [ packages/module-acl/src/server/__tests__/scope.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/setCurrentRole.test.ts [ packages/module-acl/src/server/__tests__/setCurrentRole.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/snippets.test.ts [ packages/module-acl/src/server/__tests__/snippets.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/users.test.ts [ packages/module-acl/src/server/__tests__/users.test.ts ]
+ FAIL   server  packages/module-acl/src/server/__tests__/write-role-to-acl.test.ts [ packages/module-acl/src/server/__tests__/write-role-to-acl.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-acl/src/server/__tests__/prepare.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| export async function prepareApp(): Promise<MockServer> {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/244]⎯
+
+ FAIL   server  packages/module-acl/src/server/__tests__/role-user.test.ts [ packages/module-acl/src/server/__tests__/role-user.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-acl/src/server/__tests__/role-user.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { BelongsToManyRepository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/244]⎯
+
+ FAIL   server  packages/module-auth/src/server/__tests__/actions.test.ts [ packages/module-auth/src/server/__tests__/actions.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-auth/src/server/__tests__/actions.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2| import Database, { Repository } from '@tego/server';
+      3|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/244]⎯
+
+ FAIL   server  packages/module-auth/src/server/__tests__/auth.test.ts [ packages/module-auth/src/server/__tests__/auth.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-auth/src/server/__tests__/auth.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2| import { BaseAuth, Database, Model } from '@tego/server';
+      3|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/244]⎯
+
+ FAIL   server  packages/module-auth/src/server/__tests__/token-blacklist.test.ts [ packages/module-auth/src/server/__tests__/token-blacklist.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-auth/src/server/__tests__/token-blacklist.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { ITokenBlacklistService, Repository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/244]⎯
+
+ FAIL   server  packages/module-backup/src/server/__tests__/api.test.ts [ packages/module-backup/src/server/__tests__/api.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-backup/src/server/__tests__/api.test.ts:3:1
+      1| import { Buffer } from 'node:buffer';
+      2| import fs from 'node:fs/promises';
+      3| import { MockServer, waitSecond } from '@tachybase/test';
+       | ^
+      4|
+      5| import { Dumper } from '../dumper';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/244]⎯
+
+ FAIL   server  packages/module-backup/src/server/__tests__/dump-action.test.ts [ packages/module-backup/src/server/__tests__/dump-action.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-backup/src/server/__tests__/dump-action.test.ts:4:1
+      2| import * as os from 'node:os';
+      3| import path from 'node:path';
+      4| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      5|
+      6| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/244]⎯
+
+ FAIL   server  packages/module-backup/src/server/__tests__/dumper.test.ts [ packages/module-backup/src/server/__tests__/dumper.test.ts ]
+ FAIL   server  packages/module-backup/src/server/__tests__/on-dump.test.ts [ packages/module-backup/src/server/__tests__/on-dump.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-backup/src/server/__tests__/index.ts:1:1
+      1| import { createMockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| export default async function createApp() {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/244]⎯
+
+ FAIL   server  packages/module-collection/src/server/__tests__/action.test.ts [ packages/module-collection/src/server/__tests__/action.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/beforeInitOptions.test.ts [ packages/module-collection/src/server/__tests__/beforeInitOptions.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/collection-categories.test.ts [ packages/module-collection/src/server/__tests__/collection-categories.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/collection-without-id-primary-field.test.ts [ packages/module-collection/src/server/__tests__/collection-without-id-primary-field.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/collections.repository.test.ts [ packages/module-collection/src/server/__tests__/collections.repository.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields.repository.test.ts [ packages/module-collection/src/server/__tests__/fields.repository.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/primary-key.test.ts [ packages/module-collection/src/server/__tests__/primary-key.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/reference-integerity.test.ts [ packages/module-collection/src/server/__tests__/reference-integerity.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/remove-collection.test.ts [ packages/module-collection/src/server/__tests__/remove-collection.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/sync.test.ts [ packages/module-collection/src/server/__tests__/sync.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/field-options/default-value.test.ts [ packages/module-collection/src/server/__tests__/field-options/default-value.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/field-options/indexes.test.ts [ packages/module-collection/src/server/__tests__/field-options/indexes.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/belongs-to-many.test.ts [ packages/module-collection/src/server/__tests__/http-api/belongs-to-many.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/collections.test.ts [ packages/module-collection/src/server/__tests__/http-api/collections.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/find.test.ts [ packages/module-collection/src/server/__tests__/http-api/find.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/has-many.test.ts [ packages/module-collection/src/server/__tests__/http-api/has-many.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/recreate.test.ts [ packages/module-collection/src/server/__tests__/http-api/recreate.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/tree.test.ts [ packages/module-collection/src/server/__tests__/http-api/tree.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/view-collection.test.ts [ packages/module-collection/src/server/__tests__/http-api/view-collection.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields/belongs-to-many.test.ts [ packages/module-collection/src/server/__tests__/fields/belongs-to-many.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields/belongsTo.test.ts [ packages/module-collection/src/server/__tests__/fields/belongsTo.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields/destroy.test.ts [ packages/module-collection/src/server/__tests__/fields/destroy.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields/hasMany.test.ts [ packages/module-collection/src/server/__tests__/fields/hasMany.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields/hasOne.test.ts [ packages/module-collection/src/server/__tests__/fields/hasOne.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields/reverseField.test.ts [ packages/module-collection/src/server/__tests__/fields/reverseField.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/fields/uuid.test.ts [ packages/module-collection/src/server/__tests__/fields/uuid.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/resources/collections.fields.test.ts [ packages/module-collection/src/server/__tests__/resources/collections.fields.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/resources/collections.test.ts [ packages/module-collection/src/server/__tests__/resources/collections.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/view/view-collection.test.ts [ packages/module-collection/src/server/__tests__/view/view-collection.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/migrations/20221104151410-update-collections-hidden.test.ts [ packages/module-collection/src/server/__tests__/migrations/20221104151410-update-collections-hidden.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/migrations/drop-ui-schema-relation.test.ts [ packages/module-collection/src/server/__tests__/migrations/drop-ui-schema-relation.test.ts ]
+ FAIL   server  packages/module-collection/src/server/__tests__/migrations/update-id-to-bigint.test.ts [ packages/module-collection/src/server/__tests__/migrations/update-id-to-bigint.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-collection/src/server/__tests__/index.ts:1:1
+      1| import { createMockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| export async function createApp(options: any = {}) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/244]⎯
+
+ FAIL   server  packages/module-collection/src/server/__tests__/through.test.ts [ packages/module-collection/src/server/__tests__/through.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-collection/src/server/__tests__/through.test.ts:1:1
+      1| import { createMockServer, startMockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| describe('collections repository', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/244]⎯
+
+ FAIL   server  packages/module-file/src/server/__tests__/action.test.ts [ packages/module-file/src/server/__tests__/action.test.ts ]
+ FAIL   server  packages/module-file/src/server/__tests__/attachment.test.ts [ packages/module-file/src/server/__tests__/attachment.test.ts ]
+ FAIL   server  packages/module-file/src/server/__tests__/storages/ali-oss.test.ts [ packages/module-file/src/server/__tests__/storages/ali-oss.test.ts ]
+ FAIL   server  packages/module-file/src/server/__tests__/storages/s3.test.ts [ packages/module-file/src/server/__tests__/storages/s3.test.ts ]
+ FAIL   server  packages/module-file/src/server/__tests__/storages/tx-cos.test.ts [ packages/module-file/src/server/__tests__/storages/tx-cos.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-file/src/server/__tests__/index.ts:2:1
+      1| import path from 'path';
+      2| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      3|
+      4| import send from 'koa-send';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/244]⎯
+
+ FAIL   server  packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts [ packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts:2:1
+      1| import { ICollectionManager, IModel } from '@tachybase/data-source/src/types';
+      2| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      3|
+      4| import { CollectionManager, DataSource, IRepository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/244]⎯
+
+ FAIL   server  packages/module-data-source/src/server/__tests__/data-sources.test.ts [ packages/module-data-source/src/server/__tests__/data-sources.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-data-source/src/server/__tests__/data-sources.test.ts:1:1
+      1| import { createMockServer, MockServer, waitSecond } from '@tachybase/test';
+       | ^
+      2|
+      3| import { CollectionManager, DataSource } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/244]⎯
+
+ FAIL   server  packages/module-error-handler/src/server/__tests__/render-error.test.ts [ packages/module-error-handler/src/server/__tests__/render-error.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-error-handler/src/server/__tests__/render-error.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2| import { Database } from '@tego/server';
+      3|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/244]⎯
+
+ FAIL   server  packages/module-multi-app/src/server/__tests__/gateway.test.ts [ packages/module-multi-app/src/server/__tests__/gateway.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-multi-app/src/server/__tests__/gateway.test.ts:1:1
+      1| import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
+       | ^
+      2|
+      3| import { AppSupervisor, Gateway, uid } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/244]⎯
+
+ FAIL   server  packages/module-multi-app/src/server/__tests__/mock-get-schema.test.ts [ packages/module-multi-app/src/server/__tests__/mock-get-schema.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-multi-app/src/server/__tests__/mock-get-schema.test.ts:2:1
+      1| import { createRequire } from 'node:module';
+      2| import { createMockServer } from '@tachybase/test';
+       | ^
+      3| import { Application, AppSupervisor, Plugin, uid } from '@tego/server';
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/244]⎯
+
+ FAIL   server  packages/module-multi-app/src/server/__tests__/multiple-apps.test.ts [ packages/module-multi-app/src/server/__tests__/multiple-apps.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-multi-app/src/server/__tests__/multiple-apps.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { AppSupervisor, Database, Gateway, uid } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/action.test.ts [ packages/module-ui-schema/src/server/__tests__/action.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/action.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/server-hook-impl.test.ts [ packages/module-ui-schema/src/server/__tests__/server-hook-impl.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/server-hook-impl.test.ts:2:1
+      1| import ModuleUiSchema, { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
+      2| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      3|
+      4| import { BelongsToManyRepository, Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/server-hook.test.ts [ packages/module-ui-schema/src/server/__tests__/server-hook.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/server-hook.test.ts:2:1
+      1| import ModuleUiSchema, { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
+      2| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      3|
+      4| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/ui-schema-model.test.ts [ packages/module-ui-schema/src/server/__tests__/ui-schema-model.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/ui-schema-model.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Collection, Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/ui-schema-repository-with-cache.test.ts [ packages/module-ui-schema/src/server/__tests__/ui-schema-repository-with-cache.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/ui-schema-repository-with-cache.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Cache, Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/ui-schema-repository.test.ts [ packages/module-ui-schema/src/server/__tests__/ui-schema-repository.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/ui-schema-repository.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Collection, Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/ui-schema.test.ts [ packages/module-ui-schema/src/server/__tests__/ui-schema.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/ui-schema.test.ts:2:1
+      1| import { ISchema } from '@tachybase/schema';
+      2| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      3|
+      4| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/244]⎯
+
+ FAIL   server  packages/module-user/src/server/__tests__/actions.test.ts [ packages/module-user/src/server/__tests__/actions.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-user/src/server/__tests__/actions.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2| import Database from '@tego/server';
+      3|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/244]⎯
+
+ FAIL   server  packages/module-user/src/server/__tests__/fields.test.ts [ packages/module-user/src/server/__tests__/fields.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-user/src/server/__tests__/fields.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { Collection as DBCollection } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/244]⎯
+
+ FAIL   server  packages/module-user/src/server/__tests__/model.test.ts [ packages/module-user/src/server/__tests__/model.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-user/src/server/__tests__/model.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/244]⎯
+
+ FAIL   server  packages/module-user/src/server/__tests__/role-users.test.ts [ packages/module-user/src/server/__tests__/role-users.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-user/src/server/__tests__/role-users.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Database, Repository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/244]⎯
+
+ FAIL   server  packages/module-workflow/src/server/__tests__/Plugin.test.ts [ packages/module-workflow/src/server/__tests__/Plugin.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/Processor.test.ts [ packages/module-workflow/src/server/__tests__/Processor.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/actions/executions.test.ts [ packages/module-workflow/src/server/__tests__/actions/executions.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/actions/nodes.test.ts [ packages/module-workflow/src/server/__tests__/actions/nodes.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/actions/workflows.test.ts [ packages/module-workflow/src/server/__tests__/actions/workflows.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/triggers/collection.test.ts [ packages/module-workflow/src/server/__tests__/triggers/collection.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/instructions/calculation.test.ts [ packages/module-workflow/src/server/__tests__/instructions/calculation.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/instructions/condition.test.ts [ packages/module-workflow/src/server/__tests__/instructions/condition.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/instructions/create.test.ts [ packages/module-workflow/src/server/__tests__/instructions/create.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/instructions/destroy.test.ts [ packages/module-workflow/src/server/__tests__/instructions/destroy.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/instructions/end.test.ts [ packages/module-workflow/src/server/__tests__/instructions/end.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/instructions/query.test.ts [ packages/module-workflow/src/server/__tests__/instructions/query.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/instructions/update.test.ts [ packages/module-workflow/src/server/__tests__/instructions/update.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/aggregate/__tests__/instruction.test.ts [ packages/module-workflow/src/server/features/aggregate/__tests__/instruction.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/dynamic-calculation/__tests__/instruction.test.ts [ packages/module-workflow/src/server/features/dynamic-calculation/__tests__/instruction.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/loop/__tests__/instruction.test.ts [ packages/module-workflow/src/server/features/loop/__tests__/instruction.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/delay/__tests__/instruction.test.ts [ packages/module-workflow/src/server/features/delay/__tests__/instruction.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/parallel/__tests__/instruction.test.ts [ packages/module-workflow/src/server/features/parallel/__tests__/instruction.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/manual/__tests__/data-source.test.ts [ packages/module-workflow/src/server/features/manual/__tests__/data-source.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/manual/__tests__/form.test.ts [ packages/module-workflow/src/server/features/manual/__tests__/form.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/manual/__tests__/mode.test.ts [ packages/module-workflow/src/server/features/manual/__tests__/mode.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/request/__tests__/instruction.test.ts [ packages/module-workflow/src/server/features/request/__tests__/instruction.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/features/sql/__tests__/instruction.test.ts [ packages/module-workflow/src/server/features/sql/__tests__/instruction.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/triggers/schedule/mode-date-field.test.ts [ packages/module-workflow/src/server/__tests__/triggers/schedule/mode-date-field.test.ts ]
+ FAIL   server  packages/module-workflow/src/server/__tests__/triggers/schedule/mode-static.test.ts [ packages/module-workflow/src/server/__tests__/triggers/schedule/mode-static.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-workflow-test/src/server/index.ts:3:1
+      1| import fs from 'node:fs';
+      2| import path from 'node:path';
+      3| import { createMockServer, type MockServer } from '@tachybase/test';
+       | ^
+      4| import { ApplicationOptions, mockDatabase, Plugin, Resourcer, SequelizeDataSource, uid } from '@tego/server';
+      5|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/244]⎯
+
+ FAIL   server  packages/module-web/src/server/__tests__/20231215215245-admin-menu-uid.test.ts [ packages/module-web/src/server/__tests__/20231215215245-admin-menu-uid.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-web/src/server/__tests__/20231215215245-admin-menu-uid.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Migration from '../migrations/20231215215247-admin-menu-uid';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/244]⎯
+
+ FAIL   server  packages/plugin-action-custom-request/src/server/__tests__/actions.test.ts [ packages/plugin-action-custom-request/src/server/__tests__/actions.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-action-custom-request/src/server/__tests__/actions.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { Context, Repository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/244]⎯
+
+ FAIL   server  packages/plugin-audit-logs/src/server/__tests__/hook.test.ts [ packages/plugin-audit-logs/src/server/__tests__/hook.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-audit-logs/src/server/__tests__/hook.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/244]⎯
+
+ FAIL   server  packages/plugin-api-keys/src/server/__tests__/actions.test.ts [ packages/plugin-api-keys/src/server/__tests__/actions.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-api-keys/src/server/__tests__/actions.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { Repository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/244]⎯
+
+ FAIL   server  packages/plugin-auth-oidc/src/server/__tests__/oidc.test.ts [ packages/plugin-auth-oidc/src/server/__tests__/oidc.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-auth-oidc/src/server/__tests__/oidc.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/244]⎯
+
+ FAIL   server  packages/plugin-auth-sms/src/server/__tests__/signin.test.ts [ packages/plugin-auth-sms/src/server/__tests__/signin.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-auth-sms/src/server/__tests__/signin.test.ts:2:1
+      1| import VerificationPlugin from '@tachybase/plugin-otp';
+      2| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      3| import { Database, Model, ModelStatic } from '@tego/server';
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/244]⎯
+
+ FAIL   server  packages/plugin-auth-saml/src/server/__tests__/saml.test.ts [ packages/plugin-auth-saml/src/server/__tests__/saml.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-auth-saml/src/server/__tests__/saml.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { SAML } from '@node-saml/node-saml';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/244]⎯
+
+ FAIL   server  packages/plugin-block-charts/src/server/__tests__/api.test.ts [ packages/plugin-block-charts/src/server/__tests__/api.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-block-charts/src/server/__tests__/api.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/244]⎯
+
+ FAIL   server  packages/plugin-block-charts/src/server/__tests__/query.test.ts [ packages/plugin-block-charts/src/server/__tests__/query.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-block-charts/src/server/__tests__/query.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import compose from 'koa-compose';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/244]⎯
+
+ FAIL   server  packages/plugin-block-map/src/server/__tests__/fields.test.ts [ packages/plugin-block-map/src/server/__tests__/fields.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-block-map/src/server/__tests__/fields.test.ts:1:1
+      1| import { mockDatabase } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/244]⎯
+
+ FAIL   server  packages/plugin-field-china-region/src/server/__tests__/action.test.ts [ packages/plugin-field-china-region/src/server/__tests__/action.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-field-china-region/src/server/__tests__/action.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/244]⎯
+
+ FAIL   server  packages/plugin-field-sequence/src/server/__tests__/sequence-field.test.ts [ packages/plugin-field-sequence/src/server/__tests__/sequence-field.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-field-sequence/src/server/__tests__/sequence-field.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import { Database } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/244]⎯
+
+ FAIL   server  packages/plugin-i18n-editor/src/server/__tests__/actions.test.ts [ packages/plugin-i18n-editor/src/server/__tests__/actions.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-i18n-editor/src/server/__tests__/actions.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { Repository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/244]⎯
+
+ FAIL   server  packages/plugin-multi-app-share-collection/src/server/__tests__/collection-sync.test.ts [ packages/plugin-multi-app-share-collection/src/server/__tests__/collection-sync.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-multi-app-share-collection/src/server/__tests__/collection-sync.test.ts:2:1
+      1| import * as process from 'node:process';
+      2| import { createMockServer, isPg, MockServer } from '@tachybase/test';
+       | ^
+      3| import { AppSupervisor, BelongsToManyRepository, Database } from '@tego/server';
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/244]⎯
+
+ FAIL   server  packages/plugin-otp/src/server/__tests__/Plugin.test.ts [ packages/plugin-otp/src/server/__tests__/Plugin.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-otp/src/server/__tests__/index.ts:2:1
+      1| import path from 'node:path';
+      2| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      3|
+      4| import { ApplicationOptions } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/244]⎯
+
+ FAIL   server  packages/module-collection/src/server/__tests__/associations/reference-integerity-check.test.ts [ packages/module-collection/src/server/__tests__/associations/reference-integerity-check.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-collection/src/server/__tests__/associations/reference-integerity-check.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/244]⎯
+
+ FAIL   server  packages/module-collection/src/server/__tests__/http-api/inherited-collection.test.ts [ packages/module-collection/src/server/__tests__/http-api/inherited-collection.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-collection/src/server/__tests__/http-api/inherited-collection.test.ts:1:1
+      1| import { MockServer, pgOnly } from '@tachybase/test';
+       | ^
+      2|
+      3| import { createApp } from '..';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/244]⎯
+
+ FAIL   server  packages/module-collection/src/server/__tests__/inherits/inherited-collection.test.ts [ packages/module-collection/src/server/__tests__/inherits/inherited-collection.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-collection/src/server/__tests__/inherits/inherited-collection.test.ts:1:1
+      1| import { pgOnly } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { BelongsToManyRepository, BelongsToRepository, HasManyRepository, Repository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/244]⎯
+
+ FAIL   server  packages/module-collection/src/server/__tests__/inherits/inhertied-collection-with-schema.test.ts [ packages/module-collection/src/server/__tests__/inherits/inhertied-collection-with-schema.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-collection/src/server/__tests__/inherits/inhertied-collection-with-schema.test.ts:1:1
+      1| import { pgOnly } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database, { Repository } from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/244]⎯
+
+ FAIL   server  packages/module-collection/src/server/__tests__/migrations/set-collection-schema.test.ts [ packages/module-collection/src/server/__tests__/migrations/set-collection-schema.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-collection/src/server/__tests__/migrations/set-collection-schema.test.ts:1:1
+      1| import { MockServer, pgOnly } from '@tachybase/test';
+       | ^
+      2| import { Database, MigrationContext } from '@tego/server';
+      3|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/244]⎯
+
+ FAIL   server  packages/module-ui-schema/src/server/__tests__/migrations/20230330214649-filter-form-block.test.ts [ packages/module-ui-schema/src/server/__tests__/migrations/20230330214649-filter-form-block.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/module-ui-schema/src/server/__tests__/migrations/20230330214649-filter-form-block.test.ts:1:1
+      1| import { createMockServer, MockServer } from '@tachybase/test';
+       | ^
+      2| import { Database } from '@tego/server';
+      3|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[54/244]⎯
+
+ FAIL   server  packages/plugin-action-export/src/server/__tests__/utils/utils.test.ts [ packages/plugin-action-export/src/server/__tests__/utils/utils.test.ts ]
+ReferenceError: require is not defined in ES module scope, you can use import instead
+ ❯ node_modules/.pnpm/@tachybase+test@1.6.13-alph_b303b44b3edd4e77fdaf386232ed785a/node_modules/@tachybase/test/es/index.mjs:212:35
+ ❯ packages/plugin-action-export/src/server/__tests__/utils/utils.test.ts:1:1
+      1| import { mockServer, MockServer } from '@tachybase/test';
+       | ^
+      2|
+      3| import Database from '@tego/server';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[55/244]⎯
+
+
+ Test Files  244 failed | 4 passed | 1 skipped (249)
+      Tests  71 passed | 34 skipped (105)
+   Start at  12:46:55
+   Duration  123.61s (transform 12.86s, setup 1582.18s, collect 7.22s, tests 5.04s, environment 264.30s, prepare 87.63s)
+
+file:///D:/Dev/TegoJS/tego-standard/node_modules/.pnpm/execa@8.0.1/node_modules/execa/lib/error.js:60
+                error = new Error(message);
+                        ^
+
+Error: Command failed with exit code 1: pnpm exec vitest run
+    at makeError (file:///D:/Dev/TegoJS/tego-standard/node_modules/.pnpm/execa@8.0.1/node_modules/execa/lib/error.js:60:11)
+    at handlePromise (file:///D:/Dev/TegoJS/tego-standard/node_modules/.pnpm/execa@8.0.1/node_modules/execa/index.js:124:26)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Command.<anonymous> (file:///D:/Dev/TegoJS/tego-standard/node_modules/.pnpm/@tego+devkit@1.6.13-alpha.3_a50f8d14c701f5e3f3f934424b1057fe/node_modules/@tego/devkit/lib/commands/test.mjs:10:5) {
+  shortMessage: 'Command failed with exit code 1: pnpm exec vitest run',
+  command: 'pnpm exec vitest run',
+  escapedCommand: 'pnpm exec vitest run',
+  exitCode: 1,
+  signal: undefined,
+  signalDescription: undefined,
+  stdout: undefined,
+  stderr: undefined,
+  cwd: 'D:\\Dev\\TegoJS\\tego-standard',
+  failed: true,
+  timedOut: false,
+  isCanceled: false,
+  killed: false
+}
+
+Node.js v20.19.0
+ ELIFECYCLE  Test failed. See above for more details.

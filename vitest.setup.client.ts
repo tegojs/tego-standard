@@ -1,8 +1,9 @@
 import './packages/client/src/preload';
 
-// Override asyncUtilTimeout from @tachybase/test/setup/client.ts (30s → 5s).
-// 30s causes failing waitFor assertions to block for 30s each, making the suite appear stuck.
 import { configure } from '@tachybase/test/client';
+
+// @tachybase/test sets asyncUtilTimeout to 30s, causing failing waitFor assertions to retry
+// for 30s each. With many failing tests this makes the suite appear to hang. Override to 5s.
 configure({ asyncUtilTimeout: 5000 });
 
 class ResizeObserverMock {

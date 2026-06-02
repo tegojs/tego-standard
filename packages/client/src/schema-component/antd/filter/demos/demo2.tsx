@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  AntdSchemaComponentProvider,
   Filter,
   Input,
   SchemaComponent,
@@ -103,9 +102,7 @@ const schema: any = {
 export default () => {
   return (
     <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <SchemaComponent components={{ Input, Filter }} schema={schema} />
-      </AntdSchemaComponentProvider>
-    </SchemaComponentProvider>
+<SchemaComponent components={{ Input, Filter }} schema={schema} />
+</SchemaComponentProvider>
   );
 };

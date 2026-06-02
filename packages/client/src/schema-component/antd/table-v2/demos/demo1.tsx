@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  AntdSchemaComponentProvider,
   APIClientProvider,
   Application,
   BlockSchemaComponentProvider,
@@ -212,12 +211,10 @@ const Root = () => {
     <APIClientProvider apiClient={apiClient}>
       <SchemaComponentProvider>
         <ExtendCollectionsProvider collections={collections.data as any}>
-          <AntdSchemaComponentProvider>
-            <BlockSchemaComponentProvider>
+<BlockSchemaComponentProvider>
               <SchemaComponent schema={schema} scope={{ useCreateAction }} />
             </BlockSchemaComponentProvider>
-          </AntdSchemaComponentProvider>
-        </ExtendCollectionsProvider>
+</ExtendCollectionsProvider>
       </SchemaComponentProvider>
     </APIClientProvider>
   );

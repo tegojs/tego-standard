@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  AntdSchemaComponentProvider,
   Filter,
   Input,
   SchemaComponent,
@@ -163,9 +162,7 @@ const CustomDynamicComponent = (props) => {
 export default () => {
   return (
     <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <SchemaComponent components={{ Input, Filter, CustomDynamicComponent }} schema={schema} />
-      </AntdSchemaComponentProvider>
-    </SchemaComponentProvider>
+<SchemaComponent components={{ Input, Filter, CustomDynamicComponent }} schema={schema} />
+</SchemaComponentProvider>
   );
 };

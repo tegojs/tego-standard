@@ -5,8 +5,6 @@ import React from 'react';
 import { Action, Application, SchemaComponent, SchemaComponentProvider, Tabs } from '@tachybase/client';
 import { ISchema } from '@tachybase/schema';
 
-import { AntdSchemaComponentProvider } from '../../AntdSchemaComponentProvider';
-
 const schema: ISchema = {
   type: 'object',
   properties: {
@@ -49,10 +47,8 @@ const schema: ISchema = {
 const Root = () => {
   return (
     <SchemaComponentProvider designable components={{ Tabs, Action }}>
-      <AntdSchemaComponentProvider>
-        <SchemaComponent schema={schema} />
-      </AntdSchemaComponentProvider>
-    </SchemaComponentProvider>
+<SchemaComponent schema={schema} />
+</SchemaComponentProvider>
   );
 };
 

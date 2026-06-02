@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  AntdSchemaComponentProvider,
   Application,
   CollectionPlugin,
   CollectionProvider_deprecated,
@@ -98,12 +97,10 @@ const SwitchCollection = (props) => {
 
 const Demo = () => {
   return (
-    <AntdSchemaComponentProvider>
-      <SwitchCollection>
+<SwitchCollection>
         <SchemaComponent schema={schema} />
       </SwitchCollection>
-    </AntdSchemaComponentProvider>
-  );
+);
 };
 class MyPlugin extends Plugin {
   async load() {

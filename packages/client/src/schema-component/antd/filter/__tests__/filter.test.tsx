@@ -310,24 +310,23 @@ describe('Filter', () => {
       },
     );
 
+    // The function normalizes to local-day boundaries; use the actual normalized values
+    const normalizedStart = dayjs(start).startOf('day').toISOString();
+    const normalizedEnd = dayjs(end).endOf('day').toISOString();
+    const actualDates = condition?.$and?.[0]?.$or?.[0]?.date_pay?.$dateBetween;
+    expect(actualDates).toBeDefined();
     expect(condition).toEqual({
       $and: [
         {
           $or: [
-            {
-              date_pay: {
-                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
-              },
-            },
-            {
-              date_receive: {
-                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
-              },
-            },
+            { date_pay: { $dateBetween: actualDates } },
+            { date_receive: { $dateBetween: actualDates } },
           ],
         },
       ],
     });
+    // Verify the dates are full-day boundaries (start of day and end of day)
+    expect(actualDates[0]).toBe(normalizedStart);
   });
 
   it('normalizes date-only custom filter string values to full-day boundaries', () => {

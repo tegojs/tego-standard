@@ -1,8 +1,10 @@
 import React from 'react';
 import {
-  AntdSchemaComponentProvider,
+  Action,
+  ActionBar,
   Application,
   Filter,
+  Form,
   Input,
   SchemaComponent,
   SchemaComponentProvider,
@@ -166,9 +168,7 @@ const schema: ISchema = {
 const Root = () => {
   return (
     <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <SchemaComponent components={{ Input, Filter }} schema={schema} />
-      </AntdSchemaComponentProvider>
+      <SchemaComponent components={{ Action, ActionBar, Form, Input, Filter }} schema={schema} />
     </SchemaComponentProvider>
   );
 };

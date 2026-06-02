@@ -6,14 +6,18 @@ import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
 import App4 from '../demos/demo4';
 
+// In jsdom, antd Drawer/Modal animations never complete (no CSS engine),
+// so the DOM element persists after close. Check for the open state class instead.
+const drawerIsOpen = () => document.querySelector('.ant-drawer-open') !== null;
+const modalIsOpen = () => document.querySelector('.ant-modal-wrap') !== null;
+
 describe('Action', () => {
   it('show the drawer when click the button', async () => {
     const { getByText } = render(<App1 />);
 
     await userEvent.click(getByText('Open'));
     await waitFor(() => {
-      // drawer
-      expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(true);
     });
     // mask
     expect(document.querySelector('.ant-drawer-mask')).toBeInTheDocument();
@@ -25,34 +29,34 @@ describe('Action', () => {
     // close button
     await userEvent.click(getByText('Close'));
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
     });
 
     // should also close when click the mask
     await userEvent.click(getByText('Open'));
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(true);
     });
     await userEvent.click(document.querySelector('.ant-drawer-mask') as HTMLElement);
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
     });
 
     // should also close when click the close icon
     await userEvent.click(getByText('Open'));
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(true);
     });
     await userEvent.click(document.querySelector('.ant-drawer-close') as HTMLElement);
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
     });
   });
 
   it('openMode', async () => {
     const { getByText } = render(<App3 />);
 
-    expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+    expect(drawerIsOpen()).toBe(false);
     expect(document.querySelector('.ant-modal')).not.toBeInTheDocument();
     expect(document.querySelector('.tb-action-page')).not.toBeInTheDocument();
 
@@ -61,7 +65,7 @@ describe('Action', () => {
     await userEvent.click(getByText('Open'));
 
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(true);
       expect(document.querySelector('.ant-modal')).not.toBeInTheDocument();
       expect(document.querySelector('.tb-action-page')).not.toBeInTheDocument();
     });
@@ -73,7 +77,7 @@ describe('Action', () => {
     await userEvent.click(getByText('Open'));
 
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
       expect(document.querySelector('.ant-modal')).toBeInTheDocument();
       expect(document.querySelector('.tb-action-page')).not.toBeInTheDocument();
     });
@@ -85,7 +89,7 @@ describe('Action', () => {
     await userEvent.click(getByText('Open'));
 
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
       expect(document.querySelector('.ant-modal')).not.toBeInTheDocument();
       expect(document.querySelector('.tb-action-page')).toBeInTheDocument();
     });
@@ -103,7 +107,7 @@ describe('Action.Drawer without Action', () => {
     await userEvent.click(getByText('Open'));
     await waitFor(() => {
       // drawer
-      expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(true);
       // mask
       expect(document.querySelector('.ant-drawer-mask')).toBeInTheDocument();
       // title
@@ -115,30 +119,30 @@ describe('Action.Drawer without Action', () => {
     // close button
     await userEvent.click(getByText('Close'));
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
     });
 
     // should also close when click the mask
     await userEvent.click(getByText('Open'));
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(true);
     });
     await userEvent.click(document.querySelector('.ant-drawer-mask') as HTMLElement);
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
     });
 
     // should also close when click the close icon
     await userEvent.click(getByText('Open'));
 
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(true);
     });
 
     await userEvent.click(document.querySelector('.ant-drawer-close') as HTMLElement);
 
     await waitFor(() => {
-      expect(document.querySelector('.ant-drawer')).not.toBeInTheDocument();
+      expect(drawerIsOpen()).toBe(false);
     });
   });
 });

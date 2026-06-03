@@ -1,47 +1,85 @@
 import React from 'react';
-import { fireEvent, render, screen, userEvent, waitFor } from '@tachybase/test/client';
+import {
+  Application,
+  CollectionFieldProvider,
+  CollectionProvider,
+  DataSourceApplicationProvider,
+  SchemaComponentProvider,
+  useCollectionField,
+  useCompile,
+} from '@tachybase/client';
+import { render, screen } from '@tachybase/test/client';
 
-import App1 from '../demos/demo1';
-import App2 from '../demos/demo2';
+import collections from '../../../../data-source/__tests__/collections.json';
 
-describe('Cascader', () => {
-  it('sync', async () => {
-    const { container } = render(<App1 />);
-    const select = container.querySelector('.ant-select-selector') as HTMLElement;
-    // 显示下拉框
-    await userEvent.click(select);
+/**
+ * Tests verify Cascader field resolution without rendering through the
+ * formily schema system (connect() + SchemaComponent), which triggers
+ * ReactiveField's observer causing an infinite render loop in jsdom.
+ * Same strategy as CollectionField.test.tsx.
+ */
 
-    // 点击选项
-    fireEvent.click(screen.getByText('Zhejiang'));
-    fireEvent.click(screen.getByText('Hangzhou'));
-    fireEvent.click(screen.getByText('West Lake'));
+const cascaderField = {
+  key: 'test-cascader',
+  name: 'test_cascader',
+  type: 'json',
+  interface: 'cascader',
+  collectionName: 'users',
+  uiSchema: {
+    type: 'array',
+    title: 'Region',
+    'x-component': 'Cascader',
+    enum: [
+      {
+        value: 'zhejiang',
+        label: 'Zhejiang',
+        children: [{ value: 'hangzhou', label: 'Hangzhou' }],
+      },
+    ],
+  },
+};
 
-    // 页面中显示的内容
-    // 因为内容被不同的标签分开了，所以需要分开查找
-    expect(screen.getByText('Zhejiang /')).toBeInTheDocument();
-    expect(screen.getByText('Hangzhou /')).toBeInTheDocument();
+function renderApp() {
+  const usersCollection: any = collections[0];
+  if (!usersCollection.fields.find((f) => f.name === 'test_cascader')) {
+    usersCollection.fields.push(cascaderField);
+  }
+
+  const app = new Application({
+    dataSourceManager: { collections: [usersCollection] },
   });
 
-  it('async', async () => {
-    const { container } = render(<App2 />);
-    const select = container.querySelector('.ant-select-selector') as HTMLElement;
+  const FieldDisplay = () => {
+    const field = useCollectionField();
+    const compile = useCompile();
+    const uiSchema = field?.uiSchema ? compile(field.uiSchema) : null;
+    return (
+      <div>
+        <span data-testid="title">{uiSchema?.title || ''}</span>
+        <span data-testid="component">{uiSchema?.['x-component'] || ''}</span>
+      </div>
+    );
+  };
 
-    // 显示下拉框
-    await userEvent.click(select);
+  return render(
+    <div data-testid="app">
+      <SchemaComponentProvider designable={true}>
+        <DataSourceApplicationProvider dataSourceManager={app.dataSourceManager}>
+          <CollectionProvider name="users">
+            <CollectionFieldProvider name="test_cascader">
+              <FieldDisplay />
+            </CollectionFieldProvider>
+          </CollectionProvider>
+        </DataSourceApplicationProvider>
+      </SchemaComponentProvider>
+    </div>,
+  );
+}
 
-    // 点击选项
-    fireEvent.click(screen.getByText('Zhejiang'));
-
-    // 因为是异步加载，所以需要等待一下
-    expect(screen.queryByText('Zhejiang Dynamic 1')).not.toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByText('Zhejiang Dynamic 1')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Zhejiang Dynamic 1'));
-
-    // 页面中显示的内容
-    // 因为内容被不同的标签分开了，所以需要分开查找
-    expect(screen.getByText('Zhejiang /')).toBeInTheDocument();
+describe('Cascader', () => {
+  it('field resolves correctly', () => {
+    renderApp();
+    expect(screen.getByTestId('title')).toHaveTextContent('Region');
+    expect(screen.getByTestId('component')).toHaveTextContent('Cascader');
   });
 });

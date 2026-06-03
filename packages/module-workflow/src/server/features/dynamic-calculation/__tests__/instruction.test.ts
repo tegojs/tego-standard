@@ -1,10 +1,9 @@
 import path from 'node:path';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
-import Plugin from '..';
+import Plugin from '../Plugin';
 
 describe('workflow > instructions > calculation', () => {
   let app: MockServer;

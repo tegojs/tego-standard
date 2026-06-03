@@ -1,9 +1,8 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
 
-import Plugin from '..';
+import Plugin from '../Plugin';
 
 describe('workflow > instructions > parallel', () => {
   let app: Application;

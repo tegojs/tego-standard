@@ -27,6 +27,7 @@
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
+    "@testing-library/react": "^16.2.0",
     "ahooks": "^3.9.0",
     "antd": "catalog:",
     "dayjs": "catalog:",

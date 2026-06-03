@@ -66,15 +66,6 @@ const projectAliases = [
 ];
 
 config.test.alias = [...projectAliases, ...(config.test.alias || [])];
-// Each client test worker loads @tachybase/client (full antd barrel export, ~500MB).
-// Limit global concurrency to prevent system OOM on multi-core machines.
-config.test.poolOptions = {
-  ...(config.test.poolOptions || {}),
-  threads: {
-    ...((config.test.poolOptions as any)?.threads || {}),
-    maxThreads: 4,
-  },
-};
 for (const project of config.test.projects || []) {
   project.test.alias = [...projectAliases, ...(project.test.alias || [])];
   if (project.test.name === 'server') {

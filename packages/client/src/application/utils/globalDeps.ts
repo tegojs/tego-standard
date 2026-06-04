@@ -25,7 +25,9 @@ import * as ReactRouter from 'react-router';
 import * as ReactRouterDom from 'react-router-dom';
 import jsxRuntime from 'react/jsx-runtime';
 
-import * as tachybaseClient from '../../index';
+// Do NOT import '../../index' at module level — it creates a circular
+// dependency (index.ts -> application -> globalDeps.ts -> index.ts) that
+// causes vitest's SSR module runner to hang.
 
 /**
  * @internal
@@ -52,7 +54,10 @@ export function defineGlobalDeps(requirejs: RequireJS) {
 
   // tachybase
   requirejs.define('@tego/client', () => tegoClient);
-  requirejs.define('@tachybase/client', () => tachybaseClient);
+  // @tachybase/client is not registered here to break the circular
+  // dependency (index.ts -> application -> globalDeps.ts -> index.ts).
+  // In practice, plugins don't require('@tachybase/client') via AMD because
+  // they are loaded BY the client and receive its exports via the API.
   requirejs.define('@tachybase/schema', () => tachybaseSchema);
   requirejs.define('@tachybase/utils/client', () => tegoClient);
 

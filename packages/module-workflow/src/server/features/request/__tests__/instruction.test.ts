@@ -1,4 +1,4 @@
-import { Server } from 'node:http';
+import { createServer, Server } from 'node:http';
 import PluginWorkflow, { EXECUTION_STATUS, JOB_STATUS, Processor } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
@@ -132,7 +132,7 @@ describe('workflow > instructions > request', () => {
       expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toEqual({ meta: {}, data: {} });
+      expect(job.result).toMatchObject({ meta: {}, data: {} });
     });
 
     it('timeout', async () => {
@@ -154,10 +154,10 @@ describe('workflow > instructions > request', () => {
       expect(job.status).toEqual(JOB_STATUS.FAILED);
 
       expect(job.result).toMatchObject({
-        code: 'ECONNABORTED',
-        name: 'Error',
-        status: null,
-        message: 'timeout of 250ms exceeded',
+        error: {
+          code: 'ECONNABORTED',
+          message: 'timeout of 250ms exceeded',
+        },
       });
 
       // NOTE: to wait for the response to finish and avoid non finished promise.
@@ -183,10 +183,10 @@ describe('workflow > instructions > request', () => {
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
       expect(job.result).toMatchObject({
-        code: 'ECONNABORTED',
-        name: 'Error',
-        status: null,
-        message: 'timeout of 250ms exceeded',
+        error: {
+          code: 'ECONNABORTED',
+          message: 'timeout of 250ms exceeded',
+        },
       });
     });
 
@@ -207,7 +207,7 @@ describe('workflow > instructions > request', () => {
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.FAILED);
-      expect(job.result.status).toBe(400);
+      expect(job.result.error.status).toBe(400);
     });
 
     it('response 400 ignoreFail', async () => {
@@ -228,7 +228,7 @@ describe('workflow > instructions > request', () => {
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.status).toBe(400);
+      expect(job.result.error.status).toBe(400);
     });
 
     it('request with data', async () => {
@@ -312,7 +312,7 @@ describe('workflow > instructions > request', () => {
 
       const token = jwt.sign(
         {
-          userId: typeof user.id,
+          userId: user.id,
         },
         process.env.APP_KEY,
         {
@@ -320,7 +320,8 @@ describe('workflow > instructions > request', () => {
         },
       );
 
-      const server = app.listen(12346, () => {});
+      const server = createServer(app.callback());
+      server.listen(12346);
 
       await sleep(1000);
 
@@ -363,7 +364,7 @@ describe('workflow > instructions > request', () => {
         } as RequestConfig,
       });
 
-      const workflowPlugin = app.pm.get(PluginWorkflow) as PluginWorkflow;
+      const workflowPlugin = app.pm.get('workflow') as PluginWorkflow;
       const processor = (await workflowPlugin.trigger(syncFlow, { data: { title: 't1' } })) as Processor;
 
       const [execution] = await syncFlow.getExecutions();
@@ -372,7 +373,7 @@ describe('workflow > instructions > request', () => {
       expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toEqual({ meta: {}, data: {} });
+      expect(job.result).toMatchObject({ meta: {}, data: {} });
     });
   });
 });

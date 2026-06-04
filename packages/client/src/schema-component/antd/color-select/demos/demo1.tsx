@@ -2,9 +2,12 @@
  * title: 勾选
  */
 import React from 'react';
-import { ColorSelect, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { ColorSelect } from '../ColorSelect';
+
+const FormItem = ({ children }) => <>{children}</>;
 
 const schema = {
   type: 'object',

@@ -1,8 +1,24 @@
 import { ICollectionManager, IModel } from '@tachybase/data-source/src/types';
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { CollectionManager, DataSource, IRepository } from '@tego/server';
+
 import { SuperAgentTest } from 'supertest';
+
+async function waitFor<T>(callback: () => T | Promise<T>, predicate: (value: T) => boolean, timeoutMs = 3000) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const value = await callback();
+    if (predicate(value)) {
+      return value;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  const value = await callback();
+  expect(predicate(value)).toBeTruthy();
+  return value;
+}
 
 describe('data source with acl', () => {
   let app: MockServer;
@@ -89,6 +105,11 @@ describe('data source with acl', () => {
         options: {},
       },
     });
+
+    await waitFor(
+      () => app.dataSourceManager.dataSources.get('mockInstance1'),
+      (dataSource) => Boolean(dataSource),
+    );
   });
 
   afterEach(async () => {
@@ -398,6 +419,5 @@ describe('data source with acl', () => {
     const checkData = checkRep.body;
 
     expect(checkData.meta.dataSources.mockInstance1).toBeDefined();
-    console.log(JSON.stringify(checkData, null, 2));
   });
 });

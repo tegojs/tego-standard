@@ -7,8 +7,9 @@ import { FILE_FIELD_NAME, STORAGE_TYPE_LOCAL } from '../constants';
 const { LOCAL_STORAGE_BASE_URL, LOCAL_STORAGE_DEST = 'storage/uploads', APP_PORT = '3000' } = process.env;
 
 const DEFAULT_LOCAL_BASE_URL = LOCAL_STORAGE_BASE_URL || `/storage/uploads`;
-
-const textFileExpectedSize = Buffer.byteLength('Hello world!\n');
+const textFilePath = path.resolve(__dirname, './files/text.txt');
+const textFileExpectedContent = await fs.readFile(textFilePath, 'utf8');
+const textFileExpectedSize = Buffer.byteLength(textFileExpectedContent);
 
 describe('action', () => {
   let app;
@@ -47,7 +48,7 @@ describe('action', () => {
     describe('default storage', () => {
       it('upload file should be ok', async () => {
         const { body } = await agent.resource('attachments').create({
-          [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+          [FILE_FIELD_NAME]: textFilePath,
         });
 
         const matcher = {
@@ -91,12 +92,12 @@ describe('action', () => {
         );
         const file = await fs.readFile(`${destPath}/${attachment.filename}`);
         // 文件是否保存到指定路径
-        expect(file.toString()).toBe('Hello world!\n');
+        expect(file.toString()).toBe(textFileExpectedContent);
 
         // 通过 url 是否能正确访问
         const url = attachment.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
-        expect(content.text).toBe('Hello world!\n');
+        expect(content.text).toBe(textFileExpectedContent);
       });
     });
 
@@ -189,7 +190,7 @@ describe('action', () => {
 
         const { body } = await agent.resource('attachments').create({
           attachmentField: 'customers.file',
-          file: path.resolve(__dirname, './files/text.txt'),
+          file: textFilePath,
         });
 
         // 文件的 url 是否正常生成
@@ -197,7 +198,7 @@ describe('action', () => {
         console.log(body.data.url);
         const url = body.data.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
-        expect(content.text).toBe('Hello world!\n');
+        expect(content.text).toBe(textFileExpectedContent);
       });
     });
   });
@@ -219,7 +220,7 @@ describe('action', () => {
       await db.sync();
 
       const { body } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
         attachmentField: 'customers.file',
       });
 
@@ -247,7 +248,7 @@ describe('action', () => {
 
     it('destroy one existing file', async () => {
       const { body } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const { data: attachment } = body;
@@ -273,11 +274,11 @@ describe('action', () => {
 
     it('destroy multiple existing files', async () => {
       const { body: f1 } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const { body: f2 } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const storage = await StorageRepo.findOne({
@@ -308,7 +309,7 @@ describe('action', () => {
 
     it('destroy record without file exists should be ok', async () => {
       const { body } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const { data: attachment } = body;

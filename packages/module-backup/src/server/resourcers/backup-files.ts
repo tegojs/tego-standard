@@ -179,48 +179,42 @@ export default {
       let useWorker = data.method === 'worker' || (data.method === 'priority' && app.worker?.available);
       const dumper = new Dumper(ctx.tego);
       const taskId = await dumper.getLockFile(ctx.tego.name);
+      let taskPromise: Promise<any>;
       if (useWorker) {
-        app.worker
-          .callPluginMethod({
-            plugin: PluginBackupRestoreServer,
-            method: 'workerCreateBackUp',
-            params: {
-              dataTypes: data.dataTypes,
-              appName: ctx.tego.name,
-              filename: taskId,
-              userId,
-            },
-            // 目前限制方法并发为1
-            concurrency: 1,
-          })
-          .then((res) => {
-            app.noticeManager.notify('backup', { level: 'info', msg: ctx.t('Done', { ns: 'backup' }) });
-          })
-          .catch((error) => {
-            app.noticeManager.notify('backup', { level: 'error', msg: error.message });
-          })
-          .finally(() => {
-            dumper.cleanLockFile(taskId, ctx.tego.name);
-          });
-      } else {
-        const plugin = app.pm.get(PluginBackupRestoreServer) as PluginBackupRestoreServer;
-        plugin
-          .workerCreateBackUp({
+        taskPromise = app.worker.callPluginMethod({
+          plugin: PluginBackupRestoreServer,
+          method: 'workerCreateBackUp',
+          params: {
             dataTypes: data.dataTypes,
             appName: ctx.tego.name,
             filename: taskId,
             userId,
-          })
-          .then((res) => {
-            app.noticeManager.notify('backup', { level: 'info', msg: ctx.t('Done', { ns: 'backup' }) });
-          })
-          .catch((error) => {
-            app.noticeManager.notify('backup', { level: 'error', msg: error.message });
-          })
-          .finally(() => {
-            dumper.cleanLockFile(taskId, ctx.tego.name);
-          });
+          },
+          // 目前限制方法并发为1
+          concurrency: 1,
+        });
+      } else {
+        const plugin = app.pm.get(PluginBackupRestoreServer) as PluginBackupRestoreServer;
+        taskPromise = plugin.workerCreateBackUp({
+          dataTypes: data.dataTypes,
+          appName: ctx.tego.name,
+          filename: taskId,
+          userId,
+        });
       }
+
+      Dumper.dumpTasks.set(taskId, taskPromise);
+      void (async () => {
+        try {
+          await taskPromise;
+          app.noticeManager.notify('backup', { level: 'info', msg: ctx.t('Done', { ns: 'backup' }) });
+        } catch (error) {
+          app.noticeManager.notify('backup', { level: 'error', msg: error.message });
+        } finally {
+          Dumper.dumpTasks.delete(taskId);
+          dumper.cleanLockFile(taskId, ctx.tego.name);
+        }
+      })();
 
       ctx.body = {
         key: taskId,

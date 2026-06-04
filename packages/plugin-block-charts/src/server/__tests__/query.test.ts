@@ -59,6 +59,7 @@ describe('query', () => {
       });
       ctx = {
         app,
+        get: vi.fn(),
         db: {
           sequelize,
           getRepository: (name: string) => app.db.getRepository(name),

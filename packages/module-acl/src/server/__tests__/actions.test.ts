@@ -27,6 +27,25 @@ describe('destroy action with acl', () => {
     await app.destroy();
   });
 
+  const createUserAgent = async (roleName = 'user') => {
+    await app.db.getRepository('roles').create({
+      values: {
+        name: roleName,
+      },
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        roles: [roleName],
+      },
+    });
+
+    return {
+      agent: app.agent().login(user).set('X-Role', roleName),
+      user,
+    };
+  };
+
   it('should create role through user resource', async () => {
     const UserCollection = app.db.getCollection('users');
 
@@ -108,29 +127,18 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const userRole = app.acl.define({
+    const { agent: userAgent } = await createUserAgent();
+
+    app.acl.define({
       role: 'user',
       strategy: {
         actions: ['view:own'],
       },
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
-      },
-      {
-        before: 'acl',
-      },
-    );
-
     const a1 = await A.repository.findOne({ filter: { title: 'a1' } });
 
-    const response = await app.agent().resource('a.bs', a1.get('id')).list();
+    const response = await userAgent.resource('a.bs', a1.get('id')).list();
     expect(response.statusCode).toEqual(200);
   });
 
@@ -172,33 +180,24 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const userRole = app.acl.define({
+    const { agent: userAgent } = await createUserAgent();
+
+    app.acl.define({
       role: 'user',
       strategy: {
         actions: ['view:own'],
       },
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
-      },
-      {
-        before: 'acl',
-      },
-    );
-
     const p1 = await Post.repository.findOne({ filter: { title: 'p1' } });
 
-    const response = await app.agent().resource('posts.comments', p1.get('id')).list();
+    const response = await userAgent.resource('posts.comments', p1.get('id')).list();
     expect(response.statusCode).toEqual(403);
   });
 
   it('should throw error when user has no permission to destroy record', async () => {
+    const { agent: userAgent, user } = await createUserAgent();
+
     const userRole = app.acl.define({
       role: 'user',
     });
@@ -211,35 +210,21 @@ describe('destroy action with acl', () => {
     const p1 = await Post.repository.create({
       values: {
         title: 'p1',
-        createById: 2,
+        createdById: user.get('id') + 1,
       },
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
-      },
-      {
-        before: 'acl',
-      },
-    );
+    const response = await userAgent.resource('posts').destroy({
+      filterByTk: p1.get('id'),
+    });
 
-    const response = await app
-      .agent()
-      .resource('posts')
-      .destroy({
-        filterByTk: p1.get('id'),
-      });
-
-    // should throw errors
-    expect(response.statusCode).toEqual(403);
+    expect(response.statusCode).toEqual(200);
+    await expect(Post.repository.findOne({ filterByTk: p1.get('id') })).resolves.toBeTruthy();
   });
 
   it('should throw error when user has no permissions with array query', async () => {
+    const { agent: userAgent } = await createUserAgent();
+
     const userRole = app.acl.define({
       role: 'user',
     });
@@ -273,39 +258,20 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
+    const response = await userAgent.resource('posts').destroy({
+      filter: {
+        'title.$in': ['p4', 'p5', 'p6'],
       },
-      {
-        before: 'acl',
+    });
+
+    expect(response.statusCode).toEqual(200);
+    expect(await Post.repository.count({ filter: { 'title.$in': ['p4', 'p5', 'p6'] } })).toEqual(3);
+
+    const response2 = await userAgent.resource('posts').destroy({
+      filter: {
+        'title.$in': ['p1'],
       },
-    );
-
-    const response = await app
-      .agent()
-      .resource('posts')
-      .destroy({
-        filter: {
-          'title.$in': ['p4', 'p5', 'p6'],
-        },
-      });
-
-    // should throw error
-    expect(response.statusCode).toEqual(403);
-
-    const response2 = await app
-      .agent()
-      .resource('posts')
-      .destroy({
-        filter: {
-          'title.$in': ['p1'],
-        },
-      });
+    });
 
     // should throw error
     expect(response2.statusCode).toEqual(200);

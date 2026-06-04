@@ -66,7 +66,9 @@ function createWithACLMetaMiddleware() {
           params: {},
           resourceName: ctx.action.resourceName,
           resourceOf: ctx.action.resourceOf,
-          mergeParams() {},
+          mergeParams(params) {
+            this.params = lodash.merge({}, this.params, params);
+          },
         },
         state: {
           currentRole: ctx.state.currentRole,
@@ -229,7 +231,9 @@ function createWithACLMetaMiddleware() {
         // FIXME: whereCases的格式很不固定 有 a->b 也有 a.b 至于a,b有没有引号也不确定,很奇怪,为防止报错只过滤一部分包含的情况
         // const regexWithQuotes = new RegExp(`"?${inc.association}"?[.]|"?${inc.association}"?->`);
         // return whereCases.some((whereCase) => regexWithQuotes.test(whereCase));
-        return whereCases.some((whereCase) => whereCase.includes(inc.association));
+        return whereCases.some(
+          (whereCase) => whereCase.includes(inc.association) || whereCase.includes(`$${inc.association}.`),
+        );
       });
     });
 
@@ -237,6 +241,7 @@ function createWithACLMetaMiddleware() {
       where: {
         [primaryKeyField]: ids,
       },
+      raw: true,
       attributes: [
         primaryKeyField,
         ...conditions.map((condition) => {
@@ -252,7 +257,7 @@ function createWithACLMetaMiddleware() {
           return [action, ids];
         }
 
-        return [action, results.filter((item) => Boolean(item.get(action))).map((item) => item.get(primaryKeyField))];
+        return [action, results.filter((item) => Boolean(item[action])).map((item) => item[primaryKeyField])];
       })
       .reduce((acc, [action, ids]) => {
         acc[action] = ids;

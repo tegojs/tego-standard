@@ -323,6 +323,7 @@ export class Restorer extends AppMigrator {
     // read file content from collection data
     const batchSize = 1000; // 定义每个批次的大小
     let batch = [];
+    const sqlResults = [];
 
     let allLength = 0;
     await readEveryLines(collectionDataPath, async (line) => {
@@ -330,7 +331,7 @@ export class Restorer extends AppMigrator {
 
       // 达到批次大小时进行处理
       if (batch.length >= batchSize) {
-        await this.insertMetaRows({
+        const result = await this.insertMetaRows({
           rows: batch,
           collectionName,
           columns,
@@ -339,13 +340,16 @@ export class Restorer extends AppMigrator {
           addSchemaTableName,
           options,
         }); // 批量处理
+        if (result) {
+          sqlResults.push(result);
+        }
         allLength += batchSize;
         batch = []; // 清空当前批次
       }
     });
 
     if (!this.importedCollections.includes(collectionName)) {
-      await this.insertMetaRows({
+      const result = await this.insertMetaRows({
         rows: batch,
         collectionName,
         columns,
@@ -354,7 +358,14 @@ export class Restorer extends AppMigrator {
         addSchemaTableName,
         options,
       });
+      if (result) {
+        sqlResults.push(result);
+      }
       allLength += batch.length;
+    }
+
+    if (options.insert === false) {
+      return sqlResults.join('\n');
     }
 
     app.logger.info(`${collectionName} imported with ${allLength} rows`);

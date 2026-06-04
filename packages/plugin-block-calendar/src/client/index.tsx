@@ -64,7 +64,7 @@ export class PluginCalendarClient extends Plugin {
     this.app.schemaInitializerManager.add(CalendarFormActionInitializers);
     this.app.schemaInitializerManager
       .get('details:configureActions')
-      .add('enableActions.deleteEvent', deleteEventActionInitializer);
+      ?.add('enableActions.deleteEvent', deleteEventActionInitializer);
   }
 }
 

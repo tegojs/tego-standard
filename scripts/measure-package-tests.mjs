@@ -268,7 +268,14 @@ function findTestFiles(absoluteDir) {
 
   function walk(currentDir, out) {
     for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
-      if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'lib') continue;
+      if (
+        entry.name === 'node_modules' ||
+        entry.name === 'dist' ||
+        entry.name === 'lib' ||
+        entry.name === 'e2e' ||
+        entry.name === '__e2e__'
+      )
+        continue;
 
       const absolute = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {

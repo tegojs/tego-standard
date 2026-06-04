@@ -46,6 +46,24 @@ export class PluginACL extends Plugin {
     return this.app.acl;
   }
 
+  registerDefaultAssociationFieldActions() {
+    const readableAssociationActions = {
+      associationActions: ['list', 'get'],
+    };
+    const writableAssociationActions = {
+      associationActions: ['add', 'set', 'remove'],
+    };
+
+    for (const associationType of ['belongsTo', 'hasOne', 'hasMany', 'belongsToMany']) {
+      this.registerAssociationFieldAction(associationType, {
+        view: readableAssociationActions,
+        export: readableAssociationActions,
+        create: writableAssociationActions,
+        update: writableAssociationActions,
+      });
+    }
+  }
+
   registerAssociationFieldAction(associationType: string, value: AssociationFieldActions) {
     this.associationFieldsActions[associationType] = value;
   }
@@ -102,6 +120,8 @@ export class PluginACL extends Plugin {
   }
 
   async beforeLoad() {
+    this.registerDefaultAssociationFieldActions();
+
     this.db.addMigrations({
       namespace: this.name,
       directory: resolve(__dirname, './migrations'),
@@ -275,13 +295,19 @@ export class PluginACL extends Plugin {
 
     this.app.db.on('collections.afterDestroy', async (model, options) => {
       const { transaction } = options;
+      const resourceName = model.get('name') as string;
+
       await this.app.db.getRepository('dataSourcesRolesResources').destroy({
         filter: {
-          name: model.get('name'),
+          name: resourceName,
           dataSourceKey: 'main',
         },
         transaction,
       });
+
+      for (const role of (this.acl as any).roles?.values?.() || []) {
+        role.revokeResource(resourceName);
+      }
     });
 
     this.app.db.on('fields.afterCreate', async (model, options) => {
@@ -590,14 +616,14 @@ export class PluginACL extends Plugin {
         const { actionName, resourceName, resourceOf } = ctx.action;
         // is association request
         if (resourceName.includes('.') && resourceOf) {
-          if (!ctx?.permission?.can?.params) {
-            return next();
-          }
           // 关联数据去掉 filter
-          delete ctx.permission.can.params.filter;
+          if (ctx?.permission?.can?.params) {
+            delete ctx.permission.can.params.filter;
+          }
           // 关联数据能不能处理取决于 source 是否有权限
           const [collectionName] = resourceName.split('.');
-          const action = ctx.can({ resource: collectionName, action: actionName });
+          const sourceActionName = this.app.acl.resolveActionAlias(actionName);
+          const action = ctx.can({ resource: collectionName, action: sourceActionName });
 
           const availableAction = this.app.acl.getAvailableAction(actionName);
           if (availableAction?.options?.onNewRecord) {
@@ -607,6 +633,11 @@ export class PluginACL extends Plugin {
               ctx.permission.can = false;
             }
           } else {
+            if (!action) {
+              ctx.permission.can = false;
+              return next();
+            }
+
             const filteredParams = this.app.acl.filterParams(ctx, collectionName, action?.params || {});
             const params = await parseJsonTemplate(filteredParams, ctx);
 
@@ -617,6 +648,8 @@ export class PluginACL extends Plugin {
 
             if (!sourceInstance) {
               ctx.permission.can = false;
+            } else if (!ctx.permission.can) {
+              ctx.permission.skip = true;
             }
           }
         }

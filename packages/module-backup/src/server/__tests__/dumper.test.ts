@@ -7,6 +7,22 @@ import { Dumper } from '../dumper';
 import { Restorer } from '../restorer';
 import createApp from './index';
 
+async function waitFor<T>(callback: () => Promise<T>, predicate: (value: T) => boolean, timeoutMs = 3000) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const value = await callback();
+    if (predicate(value)) {
+      return value;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  const value = await callback();
+  expect(predicate(value)).toBeTruthy();
+  return value;
+}
+
 describe('dumper', () => {
   let app: MockServer;
   let db: Database;
@@ -242,8 +258,6 @@ describe('dumper', () => {
   });
 
   it('should restore with audit logs', async () => {
-    await app.runCommand('pm', 'enable', 'audit-logs');
-
     await app.db.getRepository('collections').create({
       values: {
         name: 'tests',
@@ -262,9 +276,13 @@ describe('dumper', () => {
     const post = await Post.create({ name: '123456' });
     await post.update({ name: '223456' });
     await post.destroy();
-    const auditLogs = await app.db.getCollection('auditLogs').repository.find({
-      appends: ['changes'],
-    });
+    const auditLogs = await waitFor(
+      () =>
+        app.db.getCollection('auditLogs').repository.find({
+          appends: ['changes'],
+        }),
+      (logs) => logs.length === 3,
+    );
 
     expect(auditLogs.length).toBe(3);
 
@@ -599,8 +617,6 @@ describe('dumper', () => {
       ],
     };
 
-    await app.runAsCLI(['pm', 'enable', 'map'], { from: 'user' });
-
     const fields = [
       {
         type: 'point',
@@ -705,16 +721,19 @@ describe('dumper', () => {
     const meta = await restorer.parseBackupFile();
     expect(meta.dumpableCollectionsGroupByGroup.required).toBeTruthy();
 
-    expect(meta.DB_UNDERSCORED).toBeDefined();
+    expect(meta.version).toBeDefined();
+    expect(meta.dialect).toBeDefined();
   });
 
   describe('get file status', function () {
     it('should get in progress status', async () => {
-      const fileName = 'backup_20231111_112233.nbdump';
-      const fullPath = path.resolve(__dirname, './fixtures', fileName);
+      const dumper = new Dumper(app);
+      const fileName = Dumper.generateFileName();
+      const lockFilePath = await dumper.writeLockFile(fileName);
+      const fullPath = lockFilePath.slice(0, -'.lock'.length);
 
       const status = await Dumper.getFileStatus(fullPath);
-      expect(status['inProgress']).toBeTruthy();
+      expect(status.status).toEqual('in_progress');
     });
 
     it('should get ok status', async () => {

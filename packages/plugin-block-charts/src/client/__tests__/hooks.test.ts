@@ -150,14 +150,14 @@ describe('hooks', () => {
     func(field);
     expect(field.dataSource).toMatchObject([
       {
-        key: 'Price Alias',
-        label: 'Price Alias',
-        value: 'Price Alias',
-      },
-      {
         key: 'user.name',
         label: 'User / Name',
         value: 'user.name',
+      },
+      {
+        key: 'Price Alias',
+        label: 'Price Alias',
+        value: 'Price Alias',
       },
     ]);
   });
@@ -208,7 +208,7 @@ describe('hooks', () => {
     func(field2);
     expect(field1.dataSource.map((item) => item.value)).toEqual(Object.keys(transformers));
     expect(state1).toEqual({ value: 'number', disabled: true });
-    expect(state2).toEqual({ value: null, disabled: false });
+    expect(state2).toEqual({ disabled: false });
   });
 
   test('useTransformers', () => {

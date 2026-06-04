@@ -105,7 +105,7 @@ export class FieldBase {
     return matchEnum;
   }
 
-  protected getCollectionField(fieldName: string, collection: Collection, collectionName?: string) {
+  protected getCollectionField(fieldName: string, collection: Collection, collectionName?: string): { col: string } {
     let rawFieldName = fieldName;
     if (collection) {
       rawFieldName = collection.model.rawAttributes[fieldName]?.field || fieldName;

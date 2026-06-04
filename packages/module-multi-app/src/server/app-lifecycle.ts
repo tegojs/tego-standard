@@ -83,8 +83,17 @@ export function onAfterStart(db: any) {
       for (const subAppInstance of subApps) {
         promises.push(
           (async () => {
-            if (!appSupervisor.hasApp(subAppInstance.name)) {
-              await AppSupervisor.getInstance().getApp(subAppInstance.name);
+            const appName = subAppInstance.name;
+            if (!appSupervisor.hasApp(appName)) {
+              await AppSupervisor.getInstance().getApp(appName);
+            }
+            // Ensure the app is running if it was loaded but not started
+            const subAppStatus = appSupervisor.getAppStatus(appName);
+            if (subAppStatus && subAppStatus !== 'running') {
+              const subApp = await AppSupervisor.getInstance().getApp(appName, { withOutBootStrap: true });
+              if (subApp && !(await subApp.isStarted())) {
+                await subApp.runCommand('start', '--quickstart');
+              }
             }
           })(),
         );

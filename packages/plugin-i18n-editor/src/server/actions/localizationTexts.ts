@@ -79,7 +79,12 @@ const list = async (ctx: Context, next: Next) => {
   // append plugin displayName
   const cache = ctx.tego.cache as Cache;
   const pm = ctx.tego.pm as PluginManager;
-  const plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
+  let plugins: any[] = [];
+  try {
+    plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
+  } catch (e) {
+    plugins = [];
+  }
   const modules = [
     ...EXTEND_MODULES,
     ...plugins.map((plugin) => ({
@@ -154,7 +159,12 @@ const get = async (ctx: Context, next: Next) => {
   // append plugin displayName
   const cache = ctx.tego.cache as Cache;
   const pm = ctx.tego.pm as PluginManager;
-  const plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
+  let plugins: any[] = [];
+  try {
+    plugins = await cache.wrap(`lm-plugins:${locale}`, () => pm.list({ locale }));
+  } catch (e) {
+    plugins = [];
+  }
   const modules = [
     ...EXTEND_MODULES,
     ...plugins.map((plugin) => ({

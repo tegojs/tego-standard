@@ -32,7 +32,7 @@ export class SelectInstruction extends Instruction {
       }
     }
 
-    let pageArgs = paginate ? utils.pageArgsToLimitArgs(page, pageSize) : {};
+    let pageArgs = paginate ? utils.pageArgsToLimitArgs(page || DEFAULT_PAGE, pageSize || DEFAULT_PER_PAGE) : {};
     const data = await (multiple ? repository.find : repository.findOne).call(repository, {
       ...options,
       ...otherOptions,

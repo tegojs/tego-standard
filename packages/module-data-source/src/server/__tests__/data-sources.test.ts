@@ -1,5 +1,4 @@
 import { createMockServer, MockServer, waitSecond } from '@tachybase/test';
-
 import { CollectionManager, DataSource } from '@tego/server';
 
 describe('data source', async () => {
@@ -7,7 +6,7 @@ describe('data source', async () => {
 
   beforeEach(async () => {
     app = await createMockServer({
-      plugins: ['tachybase', 'data-source-manager'],
+      plugins: ['collection-manager', 'error-handler', 'data-source-manager'],
     });
   });
 

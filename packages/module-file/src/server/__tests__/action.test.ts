@@ -8,6 +8,8 @@ const { LOCAL_STORAGE_BASE_URL, LOCAL_STORAGE_DEST = 'storage/uploads', APP_PORT
 
 const DEFAULT_LOCAL_BASE_URL = LOCAL_STORAGE_BASE_URL || `/storage/uploads`;
 
+const textFileExpectedSize = Buffer.byteLength('Hello world!\n');
+
 describe('action', () => {
   let app;
   let agent;
@@ -52,7 +54,7 @@ describe('action', () => {
           title: 'text',
           extname: '.txt',
           path: '',
-          size: 13,
+          size: textFileExpectedSize,
           mimetype: 'text/plain',
           meta: {},
           storageId: 1,

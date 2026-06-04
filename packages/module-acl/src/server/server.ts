@@ -84,7 +84,7 @@ export class PluginACL extends Plugin {
   async writeRoleToACL(role: RoleModel, options: any = {}) {
     const transaction = options?.transaction;
 
-    role.writeToAcl({ acl: this.acl, withOutStrategy: true });
+    role.writeToAcl({ acl: this.acl });
 
     if (options.withOutResources) {
       return;
@@ -229,6 +229,7 @@ export class PluginACL extends Plugin {
         values: {
           roleName: model.get('name'),
           dataSourceKey: 'main',
+          strategy: model.get('strategy'),
         },
         filterKeys: ['roleName', 'dataSourceKey'],
         transaction,
@@ -641,15 +642,11 @@ export class PluginACL extends Plugin {
     );
 
     this.db.on('afterUpdateCollection', async (collection) => {
-      if (collection.options.loadedFromCollectionManager || collection.options.asStrategyResource) {
-        this.app.acl.appendStrategyResource(collection.name);
-      }
+      this.app.acl.appendStrategyResource(collection.name);
     });
 
     this.db.on('afterDefineCollection', async (collection) => {
-      if (collection.options.loadedFromCollectionManager || collection.options.asStrategyResource) {
-        this.app.acl.appendStrategyResource(collection.name);
-      }
+      this.app.acl.appendStrategyResource(collection.name);
     });
 
     this.db.on('afterRemoveCollection', (collection) => {

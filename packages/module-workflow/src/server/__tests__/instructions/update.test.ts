@@ -1,6 +1,5 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
@@ -56,7 +55,7 @@ describe('workflow > instructions > update', () => {
 
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      expect(job.result.length).toBe(1);
 
       const updatedPost = await PostRepo.findById(post.id);
       expect(updatedPost.published).toBe(true);
@@ -143,7 +142,7 @@ describe('workflow > instructions > update', () => {
 
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      expect(job.result.length).toBe(1);
 
       const updatedPost = await PostRepo.findById(post.id);
       expect(updatedPost.published).toBe(true);
@@ -185,7 +184,7 @@ describe('workflow > instructions > update', () => {
 
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      expect(job.result.length).toBe(1);
 
       const updatedPost = await PostRepo.findById(post.id);
       expect(updatedPost.published).toBe(true);

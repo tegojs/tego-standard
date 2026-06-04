@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 describe('hook', () => {
@@ -46,6 +45,8 @@ describe('hook', () => {
     const post = await Post.create({ title: 't1' });
     await post.update({ title: 't2' });
     await post.destroy();
+    // Wait for debounced audit log processing (logsDebounce = 500ms)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const auditLogs = await db.getCollection('auditLogs').repository.find({
       appends: ['changes'],
     });
@@ -76,6 +77,8 @@ describe('hook', () => {
         },
       },
     });
+    // Wait for debounced audit log processing (logsDebounce = 500ms)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const AuditLog = db.getCollection('auditLogs');
     const log = await AuditLog.repository.findOne({
       appends: ['changes'],

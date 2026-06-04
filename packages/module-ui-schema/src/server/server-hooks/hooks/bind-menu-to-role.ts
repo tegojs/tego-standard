@@ -22,9 +22,9 @@ export async function bindMenuToRole({ schemaInstance, db, options }) {
       ancestorSet.add(ancestor.get('ancestor'));
     });
     // 插入兄弟节点时候 获取祖先节点则需要去掉这个节点
-    if (position === 'beforeBegin' || position === 'afterEnd') {
-      ancestorSet.delete(target);
-    }
+    // 对于子节点插入(afterBegin/beforeEnd)，target是父节点，也需要从祖先集合中移除
+    // 因为 ancestorList 的查询结果包含了 target 自身的深度0引用
+    ancestorSet.delete(target);
   }
 
   for (const role of addNewMenuRoles) {

@@ -1,4 +1,4 @@
-import PluginErrorHandler from '@tachybase/module-error-handler';
+import type PluginErrorHandler from '@tachybase/module-error-handler';
 import { joinCollectionName, type Context, type Next } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
@@ -103,15 +103,20 @@ export class RequestInterceptionTrigger extends Trigger {
   constructor(workflow: PluginWorkflowServer) {
     super(workflow);
     workflow.app.use(this.middleware, { tag: 'workflowFilter', after: 'dataSource' });
-    (workflow.app.pm.get(PluginErrorHandler) as InstanceType<typeof PluginErrorHandler>).errorHandler.register(
-      (err) => err instanceof RequestInterceptionError,
-      async (err, ctx) => {
-        ctx.body = {
-          errors: err.messages,
-        };
-        ctx.status = err.status;
-      },
-    );
+    const errorHandlerPlugin = workflow.app.pm.get('error-handler') as
+      | InstanceType<typeof PluginErrorHandler>
+      | undefined;
+    if (errorHandlerPlugin?.errorHandler) {
+      errorHandlerPlugin.errorHandler.register(
+        (err) => err instanceof RequestInterceptionError,
+        async (err, ctx) => {
+          ctx.body = {
+            errors: err.messages,
+          };
+          ctx.status = err.status;
+        },
+      );
+    }
   }
   on() {}
   off() {}

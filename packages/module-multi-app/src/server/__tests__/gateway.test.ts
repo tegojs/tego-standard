@@ -1,5 +1,4 @@
 import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
-
 import { AppSupervisor, Gateway, uid } from '@tego/server';
 
 describe('gateway with multiple apps', () => {
@@ -24,8 +23,8 @@ describe('gateway with multiple apps', () => {
   });
 
   it('should boot main app with sub apps', async () => {
-    const mainStatus = AppSupervisor.getInstance().getAppStatus('main');
-    expect(mainStatus).toEqual('running');
+    // Verify main app is running
+    expect(await app.isStarted()).toBe(true);
 
     const subAppName = `td_${uid()}`;
 

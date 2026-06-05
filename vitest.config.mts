@@ -85,6 +85,12 @@ const projectAliases = [
     replacement: evaluatorsClientEntry,
   },
   {
+    // Force all @tachybase/schema imports to resolve to the same instance
+    // to avoid reactive module instance mismatch between copies
+    find: '@tachybase/schema',
+    replacement: tegoClientRequire.resolve('@tachybase/schema'),
+  },
+  {
     find: 'node-xlsx',
     replacement: actionImportRequire.resolve('node-xlsx'),
   },

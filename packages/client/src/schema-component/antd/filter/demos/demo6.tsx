@@ -97,10 +97,10 @@ const SwitchCollection = (props) => {
 
 const Demo = () => {
   return (
-<SwitchCollection>
-        <SchemaComponent schema={schema} />
-      </SwitchCollection>
-);
+    <SwitchCollection>
+      <SchemaComponent schema={schema} />
+    </SwitchCollection>
+  );
 };
 class MyPlugin extends Plugin {
   async load() {
@@ -112,6 +112,7 @@ class MyPlugin extends Plugin {
   }
 }
 const app = new Application({
+  router: { type: 'memory', initialEntries: ['/'] },
   plugins: [CollectionPlugin, MyPlugin],
   components: {
     Input,

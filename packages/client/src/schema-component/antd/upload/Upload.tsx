@@ -278,7 +278,7 @@ export const UploadReadFile = (props) => {
     setVisible(true);
     setFileIndex(index);
   };
-  const { viewComponet } = preview;
+  const viewComponet = preview?.viewComponet;
   return (
     <div
       key={file.uid || file.id}
@@ -301,7 +301,7 @@ export const UploadReadFile = (props) => {
               onClick={handleClick}
               style={{ lineHeight: '100%' }}
             >
-              {viewComponet({ prefixCls, file, setFileIndex, setVisible })}
+              {viewComponet ? viewComponet({ prefixCls, file, setFileIndex, setVisible }) : null}
             </a>
             <a
               target="_blank"

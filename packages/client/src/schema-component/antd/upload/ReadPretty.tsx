@@ -161,7 +161,7 @@ ReadPretty.Upload = function Upload() {
 };
 
 export const ReadFile = ({ file, prefixCls, size, images, setFileIndex, setVisible, preview }) => {
-  const { viewComponet } = preview;
+  const viewComponet = preview?.viewComponet;
   const handleClick = (e) => {
     const index = images.indexOf(file);
     e.preventDefault();
@@ -192,7 +192,7 @@ export const ReadFile = ({ file, prefixCls, size, images, setFileIndex, setVisib
               onClick={handleClick}
               style={{ lineHeight: '100%' }}
             >
-              {viewComponet({ images, size, prefixCls, file, setFileIndex, setVisible })}
+              {viewComponet ? viewComponet({ images, size, prefixCls, file, setFileIndex, setVisible }) : null}
             </a>
             <a
               target="_blank"

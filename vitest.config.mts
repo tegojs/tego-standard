@@ -85,10 +85,9 @@ const projectAliases = [
     replacement: evaluatorsClientEntry,
   },
   {
-    // Force all @tachybase/schema imports to resolve to the same instance
-    // to avoid reactive module instance mismatch between copies
-    find: '@tachybase/schema',
-    replacement: tegoClientRequire.resolve('@tachybase/schema'),
+    // Mock react-image-lightbox to prevent CSS import crash from @tachybase/components
+    find: 'react-image-lightbox',
+    replacement: path.resolve(process.cwd(), 'packages/client/src/__mocks__/empty.ts'),
   },
   {
     find: 'node-xlsx',

@@ -38,7 +38,7 @@ Upload.Attachment = connect((props: UploadProps) => {
   const [fileList, setFileList] = useState<any[]>([]);
   const [sync, setSync] = useState(true);
   const app = useApp();
-  const previewList = app.AttachmentPreviewManager.get();
+  const previewList = app?.AttachmentPreviewManager?.get() ?? {};
   const images = fileList;
   const [fileIndex, setFileIndex] = useState(0);
   const [visible, setVisible] = useState(false);

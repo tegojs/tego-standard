@@ -107,6 +107,7 @@ class MyPlugin extends Plugin {
 }
 
 const app = new Application({
+  router: { type: 'memory', initialEntries: ['/'] },
   apiClient,
   plugins: [CollectionPlugin, MyPlugin],
   components: {

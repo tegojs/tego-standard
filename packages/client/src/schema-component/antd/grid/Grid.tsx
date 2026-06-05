@@ -2,14 +2,13 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { ISchema, observer, RecursionField, Schema, uid, useField, useFieldSchema } from '@tachybase/schema';
 
 import { TinyColor } from '@ctrl/tinycolor';
-import { useDndContext, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, useDndContext, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core';
 import cls from 'classnames';
 import _ from 'lodash';
 
 import { useToken } from '../__builtins__';
 import { SchemaComponent, useDesignable, useFormBlockContext, useSchemaInitializerRender } from '../../../';
 import { useFormBlockType } from '../../../block-provider';
-import { DndContext } from '../../common/dnd-context';
 import useStyles from './Grid.style';
 
 export const GridRowContext = createContext<any>({});

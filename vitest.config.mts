@@ -39,6 +39,15 @@ const tegoServerPackageJson = tegoServerRequire.resolve('@tego/server/package.js
 const tegoServerEntry = tegoServerRequire.resolve('@tego/server');
 const tegoCoreEntry = createRequire(tegoServerPackageJson).resolve('@tego/core');
 
+// Resolve @tego/client sub-dependencies for vitest aliases
+const tegoClientPkg = tegoServerRequire.resolve('@tego/client/package.json');
+const tegoClientRequire = createRequire(tegoClientPkg);
+const sdkEntry = tegoClientRequire.resolve('@tachybase/sdk');
+const requirejsEntry = tegoClientRequire.resolve('@tachybase/requirejs');
+const utilsClientEntry = tegoClientRequire.resolve('@tachybase/utils/client');
+const componentsEntry = tegoClientRequire.resolve('@tachybase/components');
+const evaluatorsClientEntry = tegoClientRequire.resolve('@tachybase/evaluators/client');
+
 const testRequire = createRequire(path.resolve(process.cwd(), 'node_modules/@tachybase/test/package.json'));
 
 const projectAliases = [
@@ -50,6 +59,30 @@ const projectAliases = [
   {
     find: '@tego/core',
     replacement: tegoCoreEntry,
+  },
+  {
+    find: '@tego/client',
+    replacement: path.resolve(process.cwd(), 'packages/client/src/__mocks__/tego-client-shim.ts'),
+  },
+  {
+    find: '@tachybase/sdk',
+    replacement: sdkEntry,
+  },
+  {
+    find: '@tachybase/requirejs',
+    replacement: requirejsEntry,
+  },
+  {
+    find: '@tachybase/utils/client',
+    replacement: utilsClientEntry,
+  },
+  {
+    find: '@tachybase/components',
+    replacement: componentsEntry,
+  },
+  {
+    find: '@tachybase/evaluators/client',
+    replacement: evaluatorsClientEntry,
   },
   {
     find: 'node-xlsx',

@@ -25,7 +25,7 @@ const schema = {
       title: 'CronSet',
       'x-decorator': 'FormItem',
       'x-component': 'CronSet',
-      'x-component-props': 'allowClear',
+      'x-component-props': { allowClear: true },
       enum: [
         {
           label: '{{t("Daily")}}',

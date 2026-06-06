@@ -1,90 +1,63 @@
 import React from 'react';
-import {
-  Action,
-  Application,
-  BlockSchemaComponentProvider,
-  CollectionField,
-  CollectionPlugin,
-  CurrentUserProvider,
-  DEFAULT_DATA_SOURCE_KEY,
-  DEFAULT_DATA_SOURCE_TITLE,
-  FormBlockProvider,
-  FormItem,
-  FormV2,
-  Grid,
-  Input,
-  LocalDataSource,
-  Password,
-  Plugin,
-  SchemaComponent,
-} from '@tachybase/client';
-import { ISchema } from '@tachybase/schema';
+import { ISchema, useField, useForm } from '@tachybase/schema';
 
-import { mockAPIClient } from '../../../../testUtils';
-import collections from './collections';
+import { Form as AntdForm, Button, notification } from 'antd';
 
-const { apiClient, mockRequest } = mockAPIClient();
+import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
+import { Grid } from '../../grid/Grid';
+import { Input } from '../../input/Input';
+import { Password } from '../../password/Password';
+import { Form as FormV2 } from '../Form';
 
-mockRequest.onGet('/users:get').reply(200, {
-  data: {
-    id: 1,
-    nickname: '张三',
-    password: '123456',
-  },
-});
-mockRequest.onGet('/auth:check').reply(() => {
-  return [200, { data: {} }];
-});
+const FormItem = (props) => {
+  const field = useField();
+  return <AntdForm.Item label={field.title}>{props.children}</AntdForm.Item>;
+};
 
 const schema: ISchema = {
   type: 'object',
   properties: {
-    block: {
+    form: {
       type: 'void',
-      'x-decorator': 'FormBlockProvider',
-      'x-decorator-props': {
-        collection: 'users',
-        resource: 'users',
-        action: 'get',
+      'x-component': 'FormV2',
+      'x-read-pretty': true,
+      'x-component-props': {
+        initialValues: {
+          nickname: '张三',
+          password: '123456',
+        },
       },
       properties: {
-        form: {
+        grid: {
           type: 'void',
-          'x-component': 'FormV2',
-          'x-read-pretty': true,
-          'x-use-component-props': 'useFormBlockProps',
+          'x-component': 'Grid',
           properties: {
-            grid: {
+            row1: {
               type: 'void',
-              'x-component': 'Grid',
+              'x-component': 'Grid.Row',
               properties: {
-                row1: {
+                col11: {
                   type: 'void',
-                  'x-component': 'Grid.Row',
+                  'x-component': 'Grid.Col',
                   properties: {
-                    col11: {
-                      type: 'void',
-                      'x-component': 'Grid.Col',
-                      properties: {
-                        nickname: {
-                          type: 'string',
-                          'x-decorator': 'FormItem',
-                          'x-designer': 'FormItem.Designer',
-                          'x-component': 'CollectionField',
-                        },
-                      },
+                    nickname: {
+                      type: 'string',
+                      title: 'Nickname',
+                      'x-decorator': 'FormItem',
+                      'x-component': 'Input',
                     },
-                    col12: {
-                      type: 'void',
-                      'x-component': 'Grid.Col',
-                      properties: {
-                        password: {
-                          type: 'string',
-                          'x-decorator': 'FormItem',
-                          'x-designer': 'FormItem.Designer',
-                          'x-component': 'CollectionField',
-                        },
-                      },
+                  },
+                },
+                col12: {
+                  type: 'void',
+                  'x-component': 'Grid.Col',
+                  properties: {
+                    password: {
+                      type: 'string',
+                      title: 'Password',
+                      'x-decorator': 'FormItem',
+                      'x-component': 'Password',
                     },
                   },
                 },
@@ -97,40 +70,10 @@ const schema: ISchema = {
   },
 };
 
-const Demo = () => {
+export default function App() {
   return (
-    <CurrentUserProvider>
-      <BlockSchemaComponentProvider>
-        <SchemaComponent schema={schema} />
-      </BlockSchemaComponentProvider>
-    </CurrentUserProvider>
+    <SchemaComponentProvider components={{ FormV2, FormItem, Grid, Input, Password }}>
+      <SchemaComponent schema={schema} />
+    </SchemaComponentProvider>
   );
-};
-
-class MyPlugin extends Plugin {
-  async load() {
-    this.app.dataSourceManager.addDataSource(LocalDataSource, {
-      key: DEFAULT_DATA_SOURCE_KEY,
-      displayName: DEFAULT_DATA_SOURCE_TITLE,
-      collections: collections as any,
-    });
-  }
 }
-const app = new Application({
-  router: { type: 'memory', initialEntries: ['/'] },
-  apiClient,
-  plugins: [CollectionPlugin, MyPlugin],
-  components: {
-    FormBlockProvider,
-    FormItem,
-    CollectionField,
-    Input,
-    Action,
-    FormV2,
-    Password,
-    Grid,
-  },
-  providers: [Demo],
-});
-
-export default app.getRootComponent();

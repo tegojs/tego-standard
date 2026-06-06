@@ -1,29 +1,14 @@
 import React from 'react';
-import {
-  APIClientProvider,
-  Application,
-  CurrentUserProvider,
-  Form,
-  FormItem,
-  Grid,
-  Input,
-  Plugin,
-  SchemaComponent,
-  SchemaComponentProvider,
-} from '@tachybase/client';
 import { ISchema, uid } from '@tachybase/schema';
 
-import { mockAPIClient } from '../../../../testUtils';
-
-const { apiClient, mockRequest } = mockAPIClient();
-mockRequest.onGet('/auth:check').reply(() => {
-  return [200, { data: {} }];
-});
+import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { Grid } from '../Grid';
 
 const schema: ISchema = {
   type: 'void',
   name: 'grid1',
-  'x-decorator': 'Form',
   'x-component': 'Grid',
   'x-uid': uid(),
   properties: {
@@ -39,14 +24,12 @@ const schema: ISchema = {
             name: {
               type: 'string',
               title: 'Name',
-              'x-decorator': 'FormItem',
               'x-component': 'Input',
               'x-collection-field': 'posts.name',
             },
             title: {
               type: 'string',
               title: 'Title',
-              'x-decorator': 'FormItem',
               'x-component': 'Input',
               'x-collection-field': 'posts.title',
             },
@@ -59,7 +42,6 @@ const schema: ISchema = {
             intro: {
               type: 'string',
               title: 'Intro',
-              'x-decorator': 'FormItem',
               'x-component': 'Input',
             },
           },
@@ -71,31 +53,12 @@ const schema: ISchema = {
 
 const Root = () => {
   return (
-    <APIClientProvider apiClient={apiClient}>
-      <CurrentUserProvider>
-        <SchemaComponentProvider components={{ Form, Grid, Input, FormItem }}>
-          <SchemaComponent schema={schema} />
-        </SchemaComponentProvider>
-      </CurrentUserProvider>
-    </APIClientProvider>
+    <SchemaComponentProvider components={{ Grid, Input }}>
+      <SchemaComponent schema={schema} />
+    </SchemaComponentProvider>
   );
 };
 
-class MyPlugin extends Plugin {
-  async load() {
-    this.app.router.add('root', {
-      path: '/',
-      Component: Root,
-    });
-  }
+export default function App() {
+  return <Root />;
 }
-
-const app = new Application({
-  router: {
-    type: 'memory',
-    initialEntries: ['/'],
-  },
-  plugins: [MyPlugin],
-});
-
-export default app.getRootComponent();

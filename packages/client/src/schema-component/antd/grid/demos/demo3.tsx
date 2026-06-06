@@ -1,52 +1,9 @@
 import React from 'react';
-import {
-  Application,
-  CardItem,
-  Grid,
-  Markdown,
-  MarkdownBlockInitializer,
-  Plugin,
-  SchemaComponent,
-  SchemaComponentProvider,
-  SchemaInitializer,
-} from '@tachybase/client';
 import { ISchema, uid } from '@tachybase/schema';
 
-const gridRowColWrap = (schema) => {
-  return {
-    type: 'void',
-    'x-component': 'Grid.Row',
-    properties: {
-      [uid()]: {
-        type: 'void',
-        'x-component': 'Grid.Col',
-        properties: {
-          [schema.name || uid()]: schema,
-        },
-      },
-    },
-  };
-};
-
-export const addBlockButton = new SchemaInitializer({
-  name: 'addBlockButton',
-  title: 'Add block',
-  wrap: gridRowColWrap,
-  items: [
-    {
-      name: 'media',
-      type: 'itemGroup',
-      title: 'Other blocks',
-      children: [
-        {
-          name: 'markdown',
-          title: 'Markdown',
-          Component: 'MarkdownBlockInitializer',
-        },
-      ],
-    },
-  ],
-});
+import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
+import { Grid } from '../Grid';
 
 const schema: ISchema = {
   type: 'object',
@@ -54,7 +11,6 @@ const schema: ISchema = {
     grid: {
       type: 'void',
       'x-component': 'Grid',
-      'x-initializer': 'addBlockButton',
       'x-uid': uid(),
       properties: {},
     },
@@ -63,30 +19,12 @@ const schema: ISchema = {
 
 function Root() {
   return (
-    <SchemaComponentProvider components={{ Grid, CardItem, Markdown, MarkdownBlockInitializer }}>
+    <SchemaComponentProvider components={{ Grid }}>
       <SchemaComponent schema={schema} />
     </SchemaComponentProvider>
   );
 }
 
-class MyPlugin extends Plugin {
-  async load() {
-    // 注册路由
-    this.app.router.add('root', {
-      path: '/',
-      Component: Root,
-    });
-
-    this.app.schemaInitializerManager.add(addBlockButton);
-  }
+export default function App() {
+  return <Root />;
 }
-
-const app = new Application({
-  router: {
-    type: 'memory',
-    initialEntries: ['/'],
-  },
-  plugins: [MyPlugin],
-});
-
-export default app.getRootComponent();

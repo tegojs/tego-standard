@@ -7,7 +7,7 @@ import { Image, Typography } from 'antd';
 import { InputProps, TextAreaProps } from 'antd/es/input';
 import cls from 'classnames';
 
-import { useCompile } from '../..';
+import { useCompile } from '../../hooks/useCompile';
 import { EllipsisWithTooltip } from './EllipsisWithTooltip';
 import { HTMLEncode } from './shared';
 

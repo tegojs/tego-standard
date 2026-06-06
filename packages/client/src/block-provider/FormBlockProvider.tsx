@@ -1,36 +1,19 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { createForm, Form, RecursionField, Schema, useField, useFieldSchema } from '@tachybase/schema';
 
 import { Spin } from 'antd';
 
 import { withDynamicSchemaProps } from '../application/hoc/withDynamicSchemaProps';
-import {
-  CollectionRecord,
-  useCollectionManager,
-  useCollectionParentRecordData,
-  useCollectionRecord,
-} from '../data-source';
+import { useCollectionManager, useCollectionParentRecordData, useCollectionRecord } from '../data-source';
 import { RecordProvider, useRecord } from '../record-provider';
-import { useActionContext, useDesignable } from '../schema-component';
+import { useActionContext } from '../schema-component/antd/action/hooks';
 import { Templates as DataTemplateSelect } from '../schema-component/antd/form-v2/Templates';
+import { useDesignable } from '../schema-component/hooks/useDesignable';
 import { BlockProvider, useBlockRequestContext } from './BlockProvider';
+import { FormBlockContext, useFormBlockContext } from './FormBlockContext';
 import { FormActiveFieldsProvider } from './hooks/useFormActiveFields';
 
-export const FormBlockContext = createContext<{
-  form?: any;
-  type?: 'update' | 'create';
-  action?: string;
-  field?: any;
-  service?: any;
-  resource?: any;
-  updateAssociationValues?: any;
-  formBlockRef?: any;
-  collectionName?: string;
-  params?: any;
-  formRecord?: CollectionRecord;
-  [key: string]: any;
-}>({});
-FormBlockContext.displayName = 'FormBlockContext';
+export { FormBlockContext, useFormBlockContext } from './FormBlockContext';
 
 const InternalFormBlockProvider = (props) => {
   const cm = useCollectionManager();
@@ -130,14 +113,6 @@ export const FormBlockProvider = withDynamicSchemaProps((props) => {
     </BlockProvider>
   );
 });
-
-/**
- * @internal
- * @returns
- */
-export const useFormBlockContext = () => {
-  return useContext(FormBlockContext);
-};
 
 /**
  * @internal

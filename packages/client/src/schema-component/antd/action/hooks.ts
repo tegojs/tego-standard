@@ -4,7 +4,7 @@ import { useFieldSchema, useForm } from '@tachybase/schema';
 import { App } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-import { useIsDetailBlock } from '../../../block-provider/FormBlockProvider';
+import { useFormBlockContext } from '../../../block-provider/FormBlockContext';
 import { ActionContext } from './context';
 
 export const useA = () => {
@@ -58,7 +58,9 @@ export const useCloseAction = () => {
 
 export const useLinkageAction = () => {
   const fieldSchema = useFieldSchema();
-  const isRecordAction = useIsDetailBlock();
+  const ctx = useFormBlockContext();
+  const isRecordAction =
+    ctx.type !== 'create' && fieldSchema?.['x-acl-action'] !== 'create' && fieldSchema?.['x-action'] !== 'create';
   const isAction = ['Action.Link', 'Action'].includes(fieldSchema['x-component']);
   return isAction && isRecordAction;
 };

@@ -61,10 +61,6 @@ const projectAliases = [
     replacement: tegoCoreEntry,
   },
   {
-    find: '@tego/client',
-    replacement: path.resolve(process.cwd(), 'packages/client/src/__mocks__/tego-client-shim.ts'),
-  },
-  {
     find: '@tachybase/sdk',
     replacement: sdkEntry,
   },
@@ -83,11 +79,6 @@ const projectAliases = [
   {
     find: '@tachybase/evaluators/client',
     replacement: evaluatorsClientEntry,
-  },
-  {
-    // Mock react-image-lightbox to prevent CSS import crash from @tachybase/components
-    find: 'react-image-lightbox',
-    replacement: path.resolve(process.cwd(), 'packages/client/src/__mocks__/empty.ts'),
   },
   {
     // Force all @tachybase/schema imports to resolve to the same instance

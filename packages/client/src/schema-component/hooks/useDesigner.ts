@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useFieldSchema } from '@tachybase/schema';
 
-import { useComponent, useDesignable } from '.';
-import { SchemaToolbar } from '../../schema-settings';
+import { useComponent } from './useComponent';
+import { useDesignable } from './useDesignable';
 
 const Def = () => null;
 
@@ -15,7 +15,7 @@ export const useDesigner = () => {
       return fieldSchema['x-designer'] || fieldSchema['x-toolbar'];
 
     if (fieldSchema['x-settings']) {
-      return SchemaToolbar;
+      return require('../../schema-settings').SchemaToolbar;
     }
     return Def;
   }, [fieldSchema]);

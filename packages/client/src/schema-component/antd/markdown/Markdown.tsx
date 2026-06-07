@@ -5,7 +5,7 @@ import { LoadingOutlined } from '@ant-design/icons';
 import { Input as AntdInput, Spin } from 'antd';
 
 import { useGlobalTheme } from '../../../style/theme';
-import { ReadPretty as InputReadPretty } from '../input';
+import { ReadPretty as InputReadPretty } from '../input/ReadPretty';
 import { MarkdownVoid } from './Markdown.Void';
 import { useStyles } from './style';
 import { convertToText, useParseMarkdown } from './util';

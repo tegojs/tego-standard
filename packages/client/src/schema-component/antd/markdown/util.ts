@@ -20,11 +20,18 @@ export function useParseMarkdown(text: string) {
   const [html, setHtml] = useState<any>('');
   const [loading, setLoading] = useState(false);
   useEffect(() => {
+    let mounted = true;
     setLoading(true);
     parseMarkdown(text).then((r) => {
+      if (!mounted) {
+        return;
+      }
       setHtml(r);
       setLoading(false);
     });
+    return () => {
+      mounted = false;
+    };
   }, [text]);
   return { html, loading };
 }

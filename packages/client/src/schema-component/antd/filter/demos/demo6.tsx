@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import {
-  Application,
-  CollectionPlugin,
-  CollectionProvider_deprecated,
-  DEFAULT_DATA_SOURCE_KEY,
-  DEFAULT_DATA_SOURCE_TITLE,
-  Filter,
-  Input,
-  LocalDataSource,
-  Plugin,
-  SchemaComponent,
-  useCollection_deprecated,
-} from '@tachybase/client';
 
 import { Select } from 'antd';
 
+import { Application } from '../../../../application/Application';
+import { Plugin } from '../../../../application/Plugin';
+import { CollectionPlugin } from '../../../../collection-manager/collectionPlugin';
+import { CollectionProvider_deprecated } from '../../../../collection-manager/CollectionProvider_deprecated';
+import { useCollection_deprecated } from '../../../../collection-manager/hooks/useCollection_deprecated';
+import { LocalDataSource } from '../../../../data-source/data-source/DataSource';
+import {
+  DEFAULT_DATA_SOURCE_KEY,
+  DEFAULT_DATA_SOURCE_TITLE,
+} from '../../../../data-source/data-source/DataSourceManager';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { Input } from '../../input/Input';
+import { Filter } from '../Filter';
 import { useFilterOptions } from '../useFilterActionProps';
 
 const collections = [

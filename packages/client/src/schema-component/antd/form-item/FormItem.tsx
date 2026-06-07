@@ -1,24 +1,20 @@
 import React, { useEffect, useMemo } from 'react';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
-
 import { FormItem as Item } from '@tego/client';
+
 import { createStyles } from 'antd-style';
 import cx from 'classnames';
 
-import { useApp } from '../../../application';
+import { useApp } from '../../../application/hooks/useApp';
 import { useFormActiveFields } from '../../../block-provider/hooks/useFormActiveFields';
-import { ACLCollectionFieldProvider } from '../../../built-in/acl';
-import { Collection_deprecated } from '../../../collection-manager';
-import { CollectionFieldProvider, useContextConfigSetting } from '../../../data-source';
-import { GeneralSchemaDesigner } from '../../../schema-settings';
-import { useVariables } from '../../../variables';
+import { Collection_deprecated } from '../../../collection-manager/hooks/useCollection_deprecated';
+import { useContextConfigSetting } from '../../../data-source/data-block/context/ConfigSetting.provider';
 import useContextVariable from '../../../variables/hooks/useContextVariable';
-import { BlockItem } from '../block-item';
+import useVariables from '../../../variables/hooks/useVariables';
 import { HTMLEncode } from '../input/shared';
-import { FilterFormDesigner } from './FormItem.FilterFormDesigner';
 import useLazyLoadDisplayAssociationFieldsOfForm from './hooks/useLazyLoadDisplayAssociationFieldsOfForm';
 import useParseDefaultValue from './hooks/useParseDefaultValue';
-import { useEnsureOperatorsValid } from './SchemaSettingOptions';
+import { useEnsureOperatorsValid } from './operatorUtils';
 
 const useStyles = createStyles(({ css }) => {
   return {
@@ -92,12 +88,16 @@ export const FormItem = (props: any) => {
     );
   }, [showTitle]);
 
+  const item = <Item className={className} {...props} extra={extra} />;
+
+  const { CollectionFieldProvider } = require('../../../data-source/collection-field/CollectionFieldProvider');
+  const { BlockItem } = require('../block-item/BlockItem');
+  const { ACLCollectionFieldProvider } = require('../../../built-in/acl/ACLCollectionFieldProvider');
+
   return (
     <CollectionFieldProvider allowNull={true}>
       <BlockItem className={'tb-form-item'}>
-        <ACLCollectionFieldProvider>
-          <Item className={className} {...props} extra={extra} />
-        </ACLCollectionFieldProvider>
+        <ACLCollectionFieldProvider>{item}</ACLCollectionFieldProvider>
       </BlockItem>
     </CollectionFieldProvider>
   );
@@ -106,6 +106,7 @@ export const FormItem = (props: any) => {
 FormItem.displayName = 'FormItem';
 
 FormItem.Designer = function Designer() {
+  const { GeneralSchemaDesigner } = require('../../../schema-settings/GeneralSchemaDesigner');
   const app = useApp();
   const fieldSchema = useFieldSchema();
   const settingsName = `FormItemSettings:${fieldSchema['x-interface']}`;
@@ -120,4 +121,9 @@ export function isFileCollection(collection: Collection_deprecated) {
   return collection?.template === 'file';
 }
 
-FormItem.FilterFormDesigner = FilterFormDesigner;
+Object.defineProperty(FormItem, 'FilterFormDesigner', {
+  configurable: true,
+  get() {
+    return require('./FormItem.FilterFormDesigner').FilterFormDesigner;
+  },
+});

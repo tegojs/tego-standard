@@ -5,10 +5,12 @@ import { getValuesByPath } from '@tego/client';
 import _ from 'lodash';
 
 import { useRecordIndex } from '../../../../../src/record-provider';
-import { useCollection_deprecated } from '../../../../collection-manager';
+import { useCollection_deprecated } from '../../../../collection-manager/hooks/useCollection_deprecated';
 import { useCollectionRecord } from '../../../../data-source/collection-record/CollectionRecordProvider';
-import { useFlag } from '../../../../flag-provider';
-import { DEBOUNCE_WAIT, useLocalVariables, useVariables } from '../../../../variables';
+import { useFlag } from '../../../../flag-provider/hooks/useFlag';
+import { DEBOUNCE_WAIT } from '../../../../variables/constants';
+import useLocalVariables from '../../../../variables/hooks/useLocalVariables';
+import useVariables from '../../../../variables/hooks/useVariables';
 import { getPath } from '../../../../variables/utils/getPath';
 import { getVariableName } from '../../../../variables/utils/getVariableName';
 import { isVariable } from '../../../../variables/utils/isVariable';

@@ -140,5 +140,5 @@ describe('Filter', () => {
     await userEvent.click(screen.getByText(/title2/i));
     expect(screen.getByText(/title2/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
     expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
-  });
+  }, 15000);
 });

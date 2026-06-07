@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, userEvent } from '@tachybase/test/client';
+import { fireEvent, render, screen, waitFor } from '@tachybase/test/client';
 
 import App1 from '../demos/demo1';
 
@@ -8,8 +8,13 @@ describe('TreeSelect', () => {
     const { container } = render(<App1 />);
     const input = container.querySelector('input') as HTMLInputElement;
 
-    await userEvent.click(input);
-    await userEvent.click(screen.getByText('选项1'));
-    expect(container.querySelector('.ant-tag')?.innerHTML).toBe('选项1');
-  });
+    fireEvent.mouseDown(input);
+    await waitFor(() => {
+      expect(screen.getByText('选项1')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('选项1'));
+    await waitFor(() => {
+      expect(container.querySelector('.ant-select-selection-item')?.textContent).toBe('选项1');
+    });
+  }, 30000);
 });

@@ -2,9 +2,21 @@
  * title: Markdown
  */
 import React from 'react';
-import { Markdown, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
+import { useFieldSchema } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Markdown } from '../Markdown';
+
+const TestFormItem = ({ children }) => {
+  const schema = useFieldSchema();
+  return (
+    <label>
+      <span>{schema.title}</span>
+      {children}
+    </label>
+  );
+};
 
 const schema = {
   type: 'object',
@@ -35,7 +47,7 @@ const schema = {
 
 export default () => {
   return (
-    <SchemaComponentProvider components={{ Markdown, FormItem }}>
+    <SchemaComponentProvider components={{ Markdown, FormItem: TestFormItem }}>
       <SchemaComponent schema={schema} />
     </SchemaComponentProvider>
   );

@@ -1,7 +1,19 @@
 import React from 'react';
-import { Percent, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
+import { useFieldSchema } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Percent } from '../Percent';
+
+const TestFormItem = ({ children }) => {
+  const schema = useFieldSchema();
+  return (
+    <label>
+      <span>{schema.title}</span>
+      {children}
+    </label>
+  );
+};
 
 const schema = {
   type: 'object',
@@ -32,7 +44,7 @@ const schema = {
 
 export default () => {
   return (
-    <SchemaComponentProvider components={{ Percent, FormItem }}>
+    <SchemaComponentProvider components={{ Percent, FormItem: TestFormItem }}>
       <SchemaComponent schema={schema} />
     </SchemaComponentProvider>
   );

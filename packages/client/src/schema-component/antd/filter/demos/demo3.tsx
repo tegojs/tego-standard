@@ -1,16 +1,15 @@
 import React from 'react';
-import {
-  Action,
-  ActionBar,
-  Application,
-  Filter,
-  Form,
-  Input,
-  SchemaComponent,
-  SchemaComponentProvider,
-  useActionContext,
-} from '@tachybase/client';
 import { ISchema, useForm } from '@tachybase/schema';
+
+import { Application } from '../../../../application/Application';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Action } from '../../action/Action';
+import { ActionBar } from '../../action/ActionBar';
+import { useActionContext } from '../../action/hooks';
+import { Form } from '../../form/Form';
+import { Input } from '../../input/Input';
+import { Filter } from '../Filter';
 
 const dataSource = [
   {

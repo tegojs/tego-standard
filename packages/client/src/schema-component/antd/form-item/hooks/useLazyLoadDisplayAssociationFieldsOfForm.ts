@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
-
 import { nextTick } from '@tego/client';
+
 import _ from 'lodash';
 
 import { useAssociationNames } from '../../../../block-provider/hooks';
-import { useCollection_deprecated, useCollectionManager_deprecated } from '../../../../collection-manager';
+import { useCollection_deprecated } from '../../../../collection-manager/hooks/useCollection_deprecated';
+import { useCollectionManager_deprecated } from '../../../../collection-manager/hooks/useCollectionManager_deprecated';
 import { useCollectionRecordData } from '../../../../data-source/collection-record/CollectionRecordProvider';
-import { useFlag } from '../../../../flag-provider';
-import { useVariables } from '../../../../variables';
+import { useFlag } from '../../../../flag-provider/hooks/useFlag';
+import useVariables from '../../../../variables/hooks/useVariables';
 import { transformVariableValue } from '../../../../variables/utils/transformVariableValue';
 import { useSubFormValue } from '../../association-field/hooks';
 import { isDisplayField } from '../utils';

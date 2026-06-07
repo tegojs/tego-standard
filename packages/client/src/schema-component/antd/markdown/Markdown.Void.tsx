@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useGlobalTheme } from '../../../style/theme';
 import { useDesignable } from '../../hooks/useDesignable';
-import { MarkdownVoidDesigner } from './Markdown.Void.Designer';
 import { useStyles } from './style';
 import { useParseMarkdown } from './util';
 
@@ -94,4 +93,9 @@ export const MarkdownVoid: any = observer(
   { displayName: 'MarkdownVoid' },
 );
 
-MarkdownVoid.Designer = MarkdownVoidDesigner;
+Object.defineProperty(MarkdownVoid, 'Designer', {
+  configurable: true,
+  get() {
+    return require('./Markdown.Void.Designer').MarkdownVoidDesigner;
+  },
+});

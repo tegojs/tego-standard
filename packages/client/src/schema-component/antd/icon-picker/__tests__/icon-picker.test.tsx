@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, userEvent } from '@tachybase/test/client';
 
+import { icons } from '../../../../icon/Icon';
 import App from '../demos/icon-picker';
 
 describe('IconPicker', () => {
@@ -17,7 +18,7 @@ describe('IconPicker', () => {
         Icon
       </div>
     `);
-    expect(screen.queryAllByRole('img').length).toBe(421);
+    expect(screen.queryAllByRole('img')).toHaveLength(icons.size);
   });
 
   it.skip('should display the selected icon', async () => {

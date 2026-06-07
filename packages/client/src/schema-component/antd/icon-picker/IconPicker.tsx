@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { connect, isValid, mapProps, mapReadPretty } from '@tachybase/schema';
+import { useFormLayout } from '@tego/client';
 
 import { CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { useFormLayout } from '@tego/client';
 import { Button, Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 

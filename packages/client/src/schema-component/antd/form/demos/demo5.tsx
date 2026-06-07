@@ -1,18 +1,16 @@
 import React from 'react';
-import {
-  Action,
-  APIClientProvider,
-  Form,
-  SchemaComponent,
-  SchemaComponentProvider,
-  useAPIClient,
-} from '@tachybase/client';
 import { ISchema, observer, useForm } from '@tachybase/schema';
 
-import { FormItem, Input } from '@tego/client';
 import { Card, Space } from 'antd';
 
+import { APIClientProvider } from '../../../../api-client/APIClientProvider';
+import { useAPIClient } from '../../../../api-client/hooks/useAPIClient';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { Form } from '../Form';
 import { apiClient } from './apiClient';
+import { Action, ActionContextProvider, FormItem, useActionContext, useCloseAction } from './demoComponents';
 
 const schema: ISchema = {
   type: 'object',

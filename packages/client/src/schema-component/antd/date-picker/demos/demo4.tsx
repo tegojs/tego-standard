@@ -2,10 +2,24 @@
  * title: DatePicker.RangePicker
  */
 import React from 'react';
-import { DatePicker, Input, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
+import { useField } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
 import dayjs from 'dayjs';
+
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { DatePicker } from '../DatePicker';
+
+const FormItem = ({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+    </div>
+  );
+};
 
 const schema = {
   type: 'object',

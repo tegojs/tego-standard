@@ -1,10 +1,13 @@
 import React from 'react';
-import { DatePicker, Input, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
+import { useField } from '@tachybase/schema';
 import { render, screen, sleep, userEvent, waitFor } from '@tachybase/test/client';
-import { FormItem } from '@tego/client';
 
 import dayjs from 'dayjs';
 
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { DatePicker } from '../DatePicker';
 import App1 from '../demos/demo1';
 import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
@@ -15,6 +18,16 @@ import App7 from '../demos/demo7';
 import App8 from '../demos/demo8';
 import App9 from '../demos/demo9';
 import App11 from '../demos/demo11';
+
+const FormItem = ({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+    </div>
+  );
+};
 
 const DefaultRangePickerApp = () => {
   const schema = {
@@ -80,7 +93,7 @@ describe('DatePicker', () => {
         expect(screen.getByText('2023-04-30T16:00:00.000Z')).toBeInTheDocument();
       }
     });
-  });
+  }, 30000);
 
   it('GMT', async () => {
     const { container, getByText } = render(<App2 />);

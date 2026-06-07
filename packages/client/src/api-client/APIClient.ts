@@ -133,18 +133,22 @@ export class APIClient extends APIClientSDK {
         // TODO(yangqia): improve error code and message
         if (errs.find((error: { code?: string }) => error.code === 'ROLE_NOT_FOUND_ERR')) {
           this.auth.setRole(null);
-          window.location.reload();
+          this.reloadLocation();
         }
         if (errs.find((error: { code?: string }) => error.code === 'TOKEN_INVALID' || error.code === 'USER_LOCKED')) {
           this.auth.setToken(null);
         }
         if (errs.find((error: { code?: string }) => error.code === 'ROLE_NOT_FOUND_FOR_USER')) {
           this.auth.setRole(null);
-          window.location.reload();
+          this.reloadLocation();
         }
         throw error;
       },
     );
+  }
+
+  reloadLocation() {
+    window.location.reload();
   }
 
   toErrMessages(error) {

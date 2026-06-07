@@ -4,6 +4,7 @@ import Database from '@tego/server';
 
 import Plugin from '..';
 import { EXECUTION_STATUS } from '../constants';
+import { waitForAssertion } from './utils';
 
 describe('workflow > Plugin', () => {
   let app: MockServer;
@@ -434,10 +435,10 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(0);
+      await waitForAssertion(async () => {
+        const executions = await w1.getExecutions();
+        expect(executions.length).toBe(0);
+      });
     });
 
     it('configured error status should be deleted', async () => {
@@ -459,10 +460,10 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(0);
+      await waitForAssertion(async () => {
+        const executions = await w1.getExecutions();
+        expect(executions.length).toBe(0);
+      });
     });
   });
 

@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@tachybase/test/client';
 
+import { notification } from 'antd';
+
 import AssociationCreateWithoutSourceIdDemo from './data-block-demos/association-create-without-source-id';
 import AssociationTableListAndParentRecordDemo from './data-block-demos/association-table-list-and-parent-record';
 import AssociationTableListAndSourceIdDemo from './data-block-demos/association-table-list-and-source-id';
@@ -10,6 +12,10 @@ import CollectionFormRecordAndUpdateDemo from './data-block-demos/collection-for
 import CollectionTableListDemo from './data-block-demos/collection-table-list';
 
 describe('CollectionDataSourceProvider', () => {
+  afterEach(() => {
+    notification.destroy();
+  });
+
   describe('collection', () => {
     test('Table list', async () => {
       const { getByText, getByRole } = render(<CollectionTableListDemo />);

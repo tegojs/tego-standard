@@ -4,6 +4,7 @@ import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
 import type { WorkflowModel as WorkflowModelType } from '../../types';
+import { waitForAssertion } from '../utils';
 
 describe('workflow > instructions > update', () => {
   let app: MockServer;
@@ -180,17 +181,17 @@ describe('workflow > instructions > update', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       expect(post.published).toBe(false);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result.length).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(1);
+        const updatedPost = await PostRepo.findById(post.id);
+        expect(updatedPost.published).toBe(true);
 
-      const updatedPost = await PostRepo.findById(post.id);
-      expect(updatedPost.published).toBe(true);
-
-      const w2Exes = await w2.getExecutions();
-      expect(w2Exes.length).toBe(1);
+        const w2Exes = await w2.getExecutions();
+        expect(w2Exes.length).toBe(1);
+      });
     });
   });
 
@@ -219,14 +220,14 @@ describe('workflow > instructions > update', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-
-      const p2s = await AnotherPostRepo.find();
-      expect(p2s.length).toBe(1);
-      expect(p2s[0].title).toBe('t2');
+        const p2s = await AnotherPostRepo.find();
+        expect(p2s.length).toBe(1);
+        expect(p2s[0].title).toBe('t2');
+      });
     });
   });
 });

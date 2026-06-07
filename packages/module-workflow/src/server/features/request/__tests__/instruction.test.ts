@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
 
+import { waitForAssertion } from '../../../__tests__/utils';
 import { RequestConfig } from '../RequestInstruction';
 
 const HOST = 'localhost';
@@ -223,12 +224,12 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.error.status).toBe(400);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+        expect(job.result.error.status).toBe(400);
+      });
     });
 
     it('request with data', async () => {

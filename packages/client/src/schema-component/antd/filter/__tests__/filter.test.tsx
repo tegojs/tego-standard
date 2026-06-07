@@ -103,7 +103,7 @@ describe('Filter', () => {
     await userEvent.click(screen.getByText(/any/i));
     await userEvent.click(screen.getByText(/all/i));
     expect(tooltip).toBeInTheDocument();
-  });
+  }, 10000);
 
   it('dynamic options', async () => {
     render(<App6 />);

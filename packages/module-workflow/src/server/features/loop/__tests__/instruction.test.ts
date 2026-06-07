@@ -2,6 +2,7 @@ import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
+import { waitForAssertion } from '../../../__tests__/utils';
 import Plugin from '../Plugin';
 
 describe('workflow > instructions > loop', () => {
@@ -425,13 +426,13 @@ describe('workflow > instructions > loop', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const jobs = await e1.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
-      expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [e1] = await workflow.getExecutions();
+        expect(e1.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        const jobs = await e1.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+        expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('condition contains loop (target as 2)', async () => {

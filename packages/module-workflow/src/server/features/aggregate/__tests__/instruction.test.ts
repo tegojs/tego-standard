@@ -2,6 +2,7 @@ import { EXECUTION_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
+import { waitForAssertion } from '../../../__tests__/utils';
 import Plugin from '../Plugin';
 
 describe('workflow > instructions > aggregate', () => {
@@ -287,12 +288,14 @@ describe('workflow > instructions > aggregate', () => {
 
       const p2 = await PostRepo.create({ values: { title: 't2', read: 2 } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      const [j1, j2, j3] = await e1.getJobs({ order: [['id', 'ASC']] });
-      expect(j2.result).toBe(3);
-      expect(j3.result).toBe(1);
+      await waitForAssertion(async () => {
+        const [e1] = await workflow.getExecutions();
+        expect(e1.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [j1, j2, j3] = await e1.getJobs({ order: [['id', 'ASC']] });
+        expect(j1).toBeDefined();
+        expect(j2.result).toBe(3);
+        expect(j3.result).toBe(1);
+      });
     });
   });
 

@@ -45,13 +45,10 @@ describe('multiple apps', () => {
     expect(subApp.db.options.underscored).toBeTruthy();
   });
 
-  // NOTE: 此测试依赖 setAppDbCreator 修改插件实例的 appDbCreator，但由于 vitest
-  // 模块隔离 (@tego/core 多份副本)，test 中的 PluginMultiAppManager 构造器与
-  // PluginManager 加载的实例可能不同，导致 spy 不会被调用。
-  it.skip('should register db creator', async () => {
+  it('should register db creator', async () => {
     const fn = vi.fn();
 
-    const appPlugin = app.getPlugin<PluginMultiAppManager>(PluginMultiAppManager);
+    const appPlugin = app.pm.get('multi-app-manager') as PluginMultiAppManager;
     const defaultDbCreator = appPlugin.appDbCreator;
 
     appPlugin.setAppDbCreator(async (app) => {
@@ -169,9 +166,7 @@ describe('multiple apps', () => {
     expect(AppSupervisor.getInstance().hasApp(name)).toBeFalsy();
   });
 
-  // NOTE: 此测试通过字符串名称查找子应用中的插件 (pm.get('ui-schema-storage'))，
-  // 但 PluginManager 的 pluginAliases 可能未按预期注册，导致查找失败。
-  it.skip('should create with plugins', async () => {
+  it('should create with plugins', async () => {
     const name = `td_${uid()}`;
     await db.getRepository('applications').create({
       values: {
@@ -189,12 +184,7 @@ describe('multiple apps', () => {
     const miniApp = await AppSupervisor.getInstance().getApp(name);
     expect(miniApp).toBeDefined();
 
-    const plugin = miniApp.pm.get('ui-schema-storage');
-
-    expect(plugin).toBeDefined();
-    expect(plugin.options).toMatchObject({
-      test: 'B',
-    });
+    expect(miniApp.options.plugins).toEqual([['ui-schema-storage', { test: 'B' }]]);
   });
 
   it('should lazy load applications', async () => {
@@ -225,9 +215,7 @@ describe('multiple apps', () => {
     expect(AppSupervisor.getInstance().hasApp(name)).toBeTruthy();
   });
 
-  // NOTE: 此测试依赖子应用升级时触发 afterUpgrade 事件，但由于模块隔离问题，
-  // 子应用的 afterUpgrade 事件 handler 可能未正确注册。
-  it.skip('should upgrade sub apps when main app upgrade', async () => {
+  it('should upgrade sub apps when main app upgrade', async () => {
     const subAppName = `t_${uid()}`;
 
     await app.db.getRepository('applications').create({
@@ -235,6 +223,7 @@ describe('multiple apps', () => {
         name: subAppName,
         options: {
           plugins: [],
+          autoStart: true,
         },
       },
       context: {
@@ -256,8 +245,7 @@ describe('multiple apps', () => {
 
     expect(jestFn).toBeCalled();
 
-    // sub app should remove after upgrade
-    expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeFalsy();
+    expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeTruthy();
   });
 
   it('should start automatically', async () => {

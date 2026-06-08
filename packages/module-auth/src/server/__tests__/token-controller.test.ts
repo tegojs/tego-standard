@@ -1,427 +1,202 @@
-import { Cache, Database, Logger } from '@tego/server';
+import { AuthErrorCode } from '@tego/server';
 
-import { afterEach, beforeEach, describe, expect, it, MockedFunction, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  issuedTokensCollectionName,
+  RENEWED_JTI_CACHE_MS,
+  tokenPolicyCollectionName,
+  tokenPolicyRecordKey,
+} from '../../constants';
 import { TokenController } from '../token-controller';
 
-// Mock external dependencies
-vi.mock('@tachybase/database');
-vi.mock('@tachybase/cache');
-vi.mock('@tachybase/logger');
-
-const mockDatabase = vi.mocked(Database);
-const mockCache = vi.mocked(Cache);
-const mockLogger = vi.mocked(Logger);
-
-interface UserPayload {
-  id: string;
-  email?: string;
-  role?: string;
-  permissions?: string[];
-}
-
-interface TokenValidationResult {
-  valid: boolean;
-  payload?: UserPayload;
-  error?: string;
-  expired?: boolean;
-}
-
-// TODO: TokenController API changed - generateToken/validateToken/refreshToken/revokeToken no longer exist
-describe.skip('TokenController', () => {
+describe('TokenController', () => {
+  let cache: any;
+  let logger: any;
+  let issuedTokenRepo: any;
+  let tokenPolicyRepo: any;
+  let issuedTokenModel: any;
+  let app: any;
   let tokenController: TokenController;
-  let mockDb: any;
-  let mockCacheInstance: any;
 
   beforeEach(() => {
-    // Reset all mocks
-    vi.clearAllMocks();
-
-    // Setup mock instances
-    mockDb = {
-      findOne: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      destroy: vi.fn(),
-    };
-
-    mockCacheInstance = {
+    cache = {
       get: vi.fn(),
       set: vi.fn(),
-      del: vi.fn(),
-      flushall: vi.fn(),
+      wrap: vi.fn((key, getter) => getter()),
     };
+    logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+    };
+    issuedTokenRepo = {
+      updateOrCreate: vi.fn(),
+      find: vi.fn().mockResolvedValue([]),
+      destroy: vi.fn(),
+    };
+    tokenPolicyRepo = {
+      findOne: vi.fn(),
+    };
+    issuedTokenModel = {
+      update: vi.fn(),
+    };
+    app = {
+      db: {
+        getRepository: vi.fn((name) => {
+          if (name === issuedTokensCollectionName) return issuedTokenRepo;
+          if (name === tokenPolicyCollectionName) return tokenPolicyRepo;
+          throw new Error(`Unexpected repository: ${name}`);
+        }),
+        getModel: vi.fn((name) => {
+          if (name === issuedTokensCollectionName) return issuedTokenModel;
+          throw new Error(`Unexpected model: ${name}`);
+        }),
+      },
+    };
+    tokenController = new TokenController({ cache, app, logger });
+  });
 
-    mockDatabase.mockImplementation(() => mockDb);
-    mockCache.mockImplementation(() => mockCacheInstance);
+  it('adds token info and removes expired sessions for sqlite', async () => {
+    tokenPolicyRepo.findOne.mockResolvedValue({
+      config: {
+        tokenExpirationTime: '1h',
+        sessionExpirationTime: '1d',
+        expiredTokenRenewLimit: '10m',
+      },
+    });
+    issuedTokenRepo.find.mockResolvedValue([{ get: () => 'expired-token-id' }]);
 
-    tokenController = new TokenController({
-      database: mockDb,
-      cache: mockCacheInstance,
-      logger: mockLogger,
+    const result = await tokenController.add({ userId: 1 });
+
+    expect(result).toMatchObject({
+      renewed: false,
+      userId: 1,
+    });
+    expect(result.jti).toBeTruthy();
+    expect(result.issuedTime).toEqual(expect.any(Number));
+    expect(result.signInTime).toEqual(expect.any(Number));
+    expect(issuedTokenRepo.updateOrCreate).toHaveBeenCalledWith({
+      filterKeys: ['userId'],
+      values: result,
+    });
+    expect(issuedTokenRepo.destroy).toHaveBeenCalledWith({
+      filterByTk: ['expired-token-id'],
     });
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  it('skips expired session cleanup when token policy is missing', async () => {
+    tokenPolicyRepo.findOne.mockResolvedValue(null);
+
+    await tokenController.removeSessionExpiredTokens(1);
+
+    expect(issuedTokenRepo.find).not.toHaveBeenCalled();
+    expect(issuedTokenRepo.destroy).not.toHaveBeenCalled();
   });
 
-  describe('generateToken', () => {
-    it('should generate a valid JWT token for valid user data', async () => {
-      const userData: UserPayload = {
-        id: 'user123',
-        email: 'test@example.com',
-        role: 'admin',
-      };
+  it('does not destroy when there are no expired sessions', async () => {
+    tokenPolicyRepo.findOne.mockResolvedValue({
+      config: {
+        tokenExpirationTime: '1h',
+        sessionExpirationTime: '1d',
+        expiredTokenRenewLimit: '10m',
+      },
+    });
+    issuedTokenRepo.find.mockResolvedValue([]);
 
-      const token = await tokenController.generateToken(userData);
+    await tokenController.removeSessionExpiredTokens(1);
 
-      expect(token).toBeDefined();
-      expect(typeof token).toBe('string');
-      expect(token.split('.')).toHaveLength(3); // JWT has 3 parts
+    expect(issuedTokenRepo.find).toHaveBeenCalledWith({
+      filter: {
+        userId: 1,
+        signInTime: {
+          $lt: expect.any(Number),
+        },
+      },
+    });
+    expect(issuedTokenRepo.destroy).not.toHaveBeenCalled();
+  });
+
+  it('converts token policy config to milliseconds through cache.wrap', async () => {
+    tokenPolicyRepo.findOne.mockResolvedValue({
+      config: {
+        tokenExpirationTime: '1h',
+        sessionExpirationTime: '2d',
+        expiredTokenRenewLimit: '15m',
+      },
     });
 
-    it('should throw error for null user data', async () => {
-      await expect(tokenController.generateToken(null as any)).rejects.toThrow('USER_DATA_REQUIRED');
+    await expect(tokenController.getConfig()).resolves.toEqual({
+      tokenExpirationTime: 60 * 60 * 1000,
+      sessionExpirationTime: 2 * 24 * 60 * 60 * 1000,
+      expiredTokenRenewLimit: 15 * 60 * 1000,
     });
-
-    it('should throw error for undefined user data', async () => {
-      await expect(tokenController.generateToken(undefined as any)).rejects.toThrow('USER_DATA_REQUIRED');
-    });
-
-    it('should throw error for user data without id', async () => {
-      const invalidData = { email: 'test@example.com' } as any;
-      await expect(tokenController.generateToken(invalidData)).rejects.toThrow('USER_ID_REQUIRED');
-    });
-
-    it('should handle user data with special characters', async () => {
-      const userData: UserPayload = {
-        id: 'user-with-special_chars@123',
-        email: 'test+tag@example.com',
-        role: 'admin/supervisor',
-      };
-
-      const token = await tokenController.generateToken(userData);
-      expect(token).toBeDefined();
-    });
-
-    it('should generate unique tokens for different users', async () => {
-      const user1: UserPayload = { id: 'user1', email: 'user1@example.com' };
-      const user2: UserPayload = { id: 'user2', email: 'user2@example.com' };
-
-      const token1 = await tokenController.generateToken(user1);
-      const token2 = await tokenController.generateToken(user2);
-
-      expect(token1).not.toBe(token2);
-    });
-
-    it('should generate different tokens for same user at different times', async () => {
-      const userData: UserPayload = { id: 'user123', email: 'test@example.com' };
-
-      const token1 = await tokenController.generateToken(userData);
-      await new Promise((resolve) => setTimeout(resolve, 1)); // Small delay
-      const token2 = await tokenController.generateToken(userData);
-
-      expect(token1).not.toBe(token2);
+    expect(cache.wrap).toHaveBeenCalledWith('config', expect.any(Function));
+    expect(tokenPolicyRepo.findOne).toHaveBeenCalledWith({
+      filterByTk: tokenPolicyRecordKey,
     });
   });
 
-  describe('validateToken', () => {
-    let validToken: string;
-    const userData: UserPayload = { id: 'user123', email: 'test@example.com', role: 'admin' };
-
-    beforeEach(async () => {
-      validToken = await tokenController.generateToken(userData);
+  it('stores token policy config in milliseconds', async () => {
+    await tokenController.setConfig({
+      tokenExpirationTime: '30m',
+      sessionExpirationTime: '7d',
+      expiredTokenRenewLimit: '5m',
     });
 
-    it('should validate a valid token successfully', async () => {
-      const result = await tokenController.validateToken(validToken);
-
-      expect(result.valid).toBe(true);
-      expect(result.payload).toMatchObject(userData);
-      expect(result.error).toBeUndefined();
-    });
-
-    it('should reject empty token', async () => {
-      const result = await tokenController.validateToken('');
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('TOKEN_REQUIRED');
-    });
-
-    it('should reject null token', async () => {
-      const result = await tokenController.validateToken(null as any);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('TOKEN_REQUIRED');
-    });
-
-    it('should reject malformed token', async () => {
-      const result = await tokenController.validateToken('invalid.token');
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('MALFORMED_TOKEN');
-    });
-
-    it('should reject token with invalid signature', async () => {
-      const [header, payload] = validToken.split('.');
-      const invalidToken = `${header}.${payload}.invalid_signature`;
-
-      const result = await tokenController.validateToken(invalidToken);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('INVALID_SIGNATURE');
-    });
-
-    it('should handle expired tokens', async () => {
-      // Mock an expired token scenario
-      const expiredToken = await tokenController.generateToken(userData, { expiresIn: '1ms' });
-      await new Promise((resolve) => setTimeout(resolve, 10)); // Wait for expiration
-
-      const result = await tokenController.validateToken(expiredToken);
-
-      expect(result.valid).toBe(false);
-      expect(result.expired).toBe(true);
-      expect(result.error).toBe('TOKEN_EXPIRED');
-    });
-
-    it('should handle blacklisted tokens', async () => {
-      mockCacheInstance.get.mockResolvedValue('blacklisted');
-
-      const result = await tokenController.validateToken(validToken);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('TOKEN_BLACKLISTED');
-    });
-
-    it('should fallback when cache is unavailable', async () => {
-      mockCacheInstance.get.mockRejectedValue(new Error('Cache unavailable'));
-
-      const result = await tokenController.validateToken(validToken);
-
-      expect(result.valid).toBe(true); // Should still validate without cache
-      expect(result.payload).toMatchObject(userData);
+    expect(cache.set).toHaveBeenCalledWith('config', {
+      tokenExpirationTime: 30 * 60 * 1000,
+      sessionExpirationTime: 7 * 24 * 60 * 60 * 1000,
+      expiredTokenRenewLimit: 5 * 60 * 1000,
     });
   });
 
-  describe('refreshToken', () => {
-    let validToken: string;
-    const userData: UserPayload = { id: 'user123', email: 'test@example.com', role: 'admin' };
+  it('renews an existing jti and caches the renewed mapping', async () => {
+    issuedTokenModel.update.mockResolvedValue([1]);
 
-    beforeEach(async () => {
-      validToken = await tokenController.generateToken(userData);
-    });
+    const result = await tokenController.renew('old-jti');
 
-    it('should refresh a valid token successfully', async () => {
-      const newToken = await tokenController.refreshToken(validToken);
-
-      expect(newToken).toBeDefined();
-      expect(typeof newToken).toBe('string');
-      expect(newToken).not.toBe(validToken);
-
-      // Verify new token is valid
-      const validation = await tokenController.validateToken(newToken);
-      expect(validation.valid).toBe(true);
-      expect(validation.payload).toMatchObject(userData);
-    });
-
-    it('should reject refresh of invalid token', async () => {
-      await expect(tokenController.refreshToken('invalid.token')).rejects.toThrow('INVALID_TOKEN');
-    });
-
-    it('should reject refresh of expired token', async () => {
-      const expiredToken = await tokenController.generateToken(userData, { expiresIn: '1ms' });
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      await expect(tokenController.refreshToken(expiredToken)).rejects.toThrow('TOKEN_EXPIRED');
-    });
-
-    it('should blacklist old token after refresh', async () => {
-      const newToken = await tokenController.refreshToken(validToken);
-
-      expect(mockCacheInstance.set).toHaveBeenCalledWith(
-        expect.stringContaining(validToken),
-        'blacklisted',
-        expect.any(Number),
-      );
-    });
-
-    it('should handle refresh when cache is unavailable', async () => {
-      mockCacheInstance.set.mockRejectedValue(new Error('Cache unavailable'));
-
-      const newToken = await tokenController.refreshToken(validToken);
-      expect(newToken).toBeDefined();
+    expect(result.jti).toBeTruthy();
+    expect(result.jti).not.toBe('old-jti');
+    expect(result.issuedTime).toEqual(expect.any(Number));
+    expect(issuedTokenModel.update).toHaveBeenCalledWith(
+      {
+        jti: result.jti,
+        issuedTime: result.issuedTime,
+      },
+      {
+        where: { jti: 'old-jti' },
+      },
+    );
+    expect(cache.set).toHaveBeenCalledWith('jti-renewed-cahce:old-jti', result, RENEWED_JTI_CACHE_MS);
+    expect(logger.info).toHaveBeenCalledWith('jti renewed', {
+      oldJti: 'old-jti',
+      newJti: result.jti,
+      issuedTime: result.issuedTime,
     });
   });
 
-  describe('revokeToken', () => {
-    let validToken: string;
-    const userData: UserPayload = { id: 'user123', email: 'test@example.com' };
+  it('returns cached renewed jti when concurrent renew already succeeded', async () => {
+    const cached = { jti: 'new-jti', issuedTime: 123 };
+    issuedTokenModel.update.mockResolvedValue([0]);
+    cache.get.mockResolvedValue(cached);
 
-    beforeEach(async () => {
-      validToken = await tokenController.generateToken(userData);
-    });
-
-    it('should revoke a valid token successfully', async () => {
-      await tokenController.revokeToken(validToken);
-
-      expect(mockCacheInstance.set).toHaveBeenCalledWith(
-        expect.stringContaining(validToken),
-        'blacklisted',
-        expect.any(Number),
-      );
-    });
-
-    it('should make revoked token invalid', async () => {
-      await tokenController.revokeToken(validToken);
-      mockCacheInstance.get.mockResolvedValue('blacklisted');
-
-      const result = await tokenController.validateToken(validToken);
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('TOKEN_BLACKLISTED');
-    });
-
-    it('should handle revocation of invalid token gracefully', async () => {
-      await expect(tokenController.revokeToken('invalid.token')).rejects.toThrow('INVALID_TOKEN');
-    });
-
-    it('should handle cache failures during revocation', async () => {
-      mockCacheInstance.set.mockRejectedValue(new Error('Cache unavailable'));
-
-      await expect(tokenController.revokeToken(validToken)).rejects.toThrow('REVOCATION_FAILED');
-    });
+    await expect(tokenController.renew('old-jti')).resolves.toEqual(cached);
   });
 
-  describe('concurrency and performance', () => {
-    const userData: UserPayload = { id: 'user123', email: 'test@example.com' };
+  it('throws auth error when jti cannot be renewed', async () => {
+    issuedTokenModel.update.mockResolvedValue([0]);
+    cache.get.mockResolvedValue(null);
 
-    it('should handle multiple simultaneous token generations', async () => {
-      const promises = Array.from({ length: 10 }, (_, i) =>
-        tokenController.generateToken({ ...userData, id: `user${i}` }),
-      );
-
-      const results = await Promise.all(promises);
-      expect(results).toHaveLength(10);
-      expect(new Set(results).size).toBe(10); // All tokens should be unique
+    await expect(tokenController.renew('missing-jti')).rejects.toMatchObject({
+      code: AuthErrorCode.TOKEN_RENEW_FAILED,
+      message: 'Your session has expired. Please sign in again.',
     });
-
-    it('should handle rapid token validation requests', async () => {
-      const token = await tokenController.generateToken(userData);
-      const promises = Array.from({ length: 50 }, () => tokenController.validateToken(token));
-
-      const results = await Promise.all(promises);
-      results.forEach((result) => {
-        expect(result.valid).toBe(true);
-      });
-    });
-
-    it('should generate tokens within acceptable time limits', async () => {
-      const startTime = Date.now();
-      await tokenController.generateToken(userData);
-      const endTime = Date.now();
-
-      expect(endTime - startTime).toBeLessThan(1000); // Should complete within 1 second
-    });
-
-    it('should validate tokens efficiently', async () => {
-      const token = await tokenController.generateToken(userData);
-
-      const startTime = Date.now();
-      await tokenController.validateToken(token);
-      const endTime = Date.now();
-
-      expect(endTime - startTime).toBeLessThan(100); // Should complete within 100ms
-    });
-  });
-
-  describe('integration workflows', () => {
-    const userData: UserPayload = { id: 'user123', email: 'test@example.com', role: 'admin' };
-
-    it('should complete full token lifecycle successfully', async () => {
-      // Generate token
-      const token = await tokenController.generateToken(userData);
-      expect(token).toBeDefined();
-
-      // Validate token
-      const validation = await tokenController.validateToken(token);
-      expect(validation.valid).toBe(true);
-      expect(validation.payload).toMatchObject(userData);
-
-      // Refresh token
-      const newToken = await tokenController.refreshToken(token);
-      expect(newToken).toBeDefined();
-      expect(newToken).not.toBe(token);
-
-      // Revoke new token
-      await tokenController.revokeToken(newToken);
-      mockCacheInstance.get.mockResolvedValue('blacklisted');
-
-      const revokedValidation = await tokenController.validateToken(newToken);
-      expect(revokedValidation.valid).toBe(false);
-    });
-
-    it('should handle database connection failures gracefully', async () => {
-      mockDb.findOne.mockRejectedValue(new Error('Connection failed'));
-
-      // Should still work if only using JWT validation without DB lookup
-      const token = await tokenController.generateToken(userData);
-      const result = await tokenController.validateToken(token);
-      expect(result.valid).toBe(true);
-    });
-
-    it('should handle extremely large payloads', async () => {
-      const largeUserData: UserPayload = {
-        id: 'user123',
-        email: 'test@example.com',
-        permissions: Array.from({ length: 1000 }, (_, i) => `permission${i}`),
-      };
-
-      const token = await tokenController.generateToken(largeUserData);
-      expect(token).toBeDefined();
-
-      const validation = await tokenController.validateToken(token);
-      expect(validation.valid).toBe(true);
-    });
-  });
-
-  describe('edge cases and boundary conditions', () => {
-    it('should handle token with unicode characters in payload', async () => {
-      const unicodeData: UserPayload = {
-        id: 'user123',
-        email: 'test@例え.com',
-        role: '管理者',
-      };
-
-      const token = await tokenController.generateToken(unicodeData);
-      const validation = await tokenController.validateToken(token);
-
-      expect(validation.valid).toBe(true);
-      expect(validation.payload).toMatchObject(unicodeData);
-    });
-
-    it('should handle very long user IDs', async () => {
-      const longId = 'x'.repeat(1000);
-      const userData: UserPayload = { id: longId };
-
-      const token = await tokenController.generateToken(userData);
-      const validation = await tokenController.validateToken(token);
-
-      expect(validation.valid).toBe(true);
-      expect(validation.payload?.id).toBe(longId);
-    });
-
-    it('should handle empty string values in payload', async () => {
-      const emptyStringData: UserPayload = {
-        id: 'user123',
-        email: '',
-        role: '',
-      };
-
-      const token = await tokenController.generateToken(emptyStringData);
-      const validation = await tokenController.validateToken(token);
-
-      expect(validation.valid).toBe(true);
-      expect(validation.payload).toMatchObject(emptyStringData);
+    expect(logger.error).toHaveBeenCalledWith('jti renew failed', {
+      module: 'auth',
+      submodule: 'token-controller',
+      method: 'renew',
+      jti: 'missing-jti',
+      code: AuthErrorCode.TOKEN_RENEW_FAILED,
     });
   });
 });

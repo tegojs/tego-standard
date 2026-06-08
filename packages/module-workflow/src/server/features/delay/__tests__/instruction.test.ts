@@ -46,19 +46,15 @@ describe('workflow > instructions > delay', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
       await waitForWorkflowJob(workflow, (execution, [job]) => {
         expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
         expect(job.status).toBe(JOB_STATUS.PENDING);
       });
 
-      await sleep(2000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('delay to reject', async () => {
@@ -72,19 +68,15 @@ describe('workflow > instructions > delay', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
-
-      await sleep(2000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.FAILED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.FAILED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.FAILED);
+        expect(job.status).toBe(JOB_STATUS.FAILED);
+      });
     });
 
     it('delay to resolve and downstream node error', async () => {
@@ -109,14 +101,10 @@ describe('workflow > instructions > delay', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
-
-      await sleep(2000);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
       await waitForWorkflowJob(
         workflow,
@@ -144,45 +132,37 @@ describe('workflow > instructions > delay', () => {
     it('restart app should trigger delayed job', async () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
       await app.stop();
       await sleep(500);
 
       await app.start();
-      await sleep(2000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('restart app should trigger missed delayed job', async () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
       await app.stop();
       await sleep(2000);
 
       await app.start();
-      await sleep(1000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
   });
 });

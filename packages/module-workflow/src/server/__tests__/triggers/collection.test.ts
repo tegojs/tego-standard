@@ -559,12 +559,12 @@ describe('workflow > triggers > collection', () => {
       const AnotherPostRepo = anotherDB.getRepository('posts');
       const anotherPost = await AnotherPostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const e2s = await workflow.getExecutions();
-      expect(e2s.length).toBe(1);
-      expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(e2s[0].context.data.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const e2s = await workflow.getExecutions();
+        expect(e2s.length).toBe(1);
+        expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(e2s[0].context.data.title).toBe('t2');
+      });
 
       const p1s = await PostRepo.find();
       expect(p1s.length).toBe(1);

@@ -365,13 +365,14 @@ describe('workflow > instructions > manual', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
       const UserJobModel = db.getModel('users_jobs');
-      const pendingJobs = await UserJobModel.findAll({
-        order: [['userId', 'ASC']],
+      let pendingJobs;
+      await waitForAssertion(async () => {
+        pendingJobs = await UserJobModel.findAll({
+          order: [['userId', 'ASC']],
+        });
+        expect(pendingJobs.length).toBe(2);
       });
-      expect(pendingJobs.length).toBe(2);
 
       const res1 = await userAgents[0].resource('users_jobs').submit({
         filterByTk: pendingJobs[0].get('id'),
@@ -381,13 +382,13 @@ describe('workflow > instructions > manual', () => {
       });
       expect(res1.status).toBe(202);
 
-      await sleep(1000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [j1, j2] = await e2.getJobs({ order: [['createdAt', 'ASC']] });
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
-      expect(j2.result).toBe(2);
+      await waitForAssertion(async () => {
+        const [e2] = await workflow.getExecutions();
+        expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [j1, j2] = await e2.getJobs({ order: [['createdAt', 'ASC']] });
+        expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+        expect(j2.result).toBe(2);
+      });
     });
 
     it('save all forms, only reserve submitted ones', async () => {

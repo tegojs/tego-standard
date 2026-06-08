@@ -161,12 +161,12 @@ describe('workflow > triggers > collection', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       await PostRepo.update({ filterByTk: post.id, values: { title: 't2' } });
 
-      await sleep(500);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(executions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(executions[0].context.data.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(executions[0].context.data.title).toBe('t2');
+      });
     });
 
     it('field not in changed config', async () => {
@@ -586,21 +586,24 @@ describe('workflow > triggers > collection', () => {
       const AnotherPostRepo = anotherDB.getRepository('posts');
       const p1 = await AnotherPostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const e1s = await w1.getExecutions();
-      expect(e1s.length).toBe(1);
+      await waitForAssertion(async () => {
+        const e1s = await w1.getExecutions();
+        expect(e1s.length).toBe(1);
+        expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
 
       const user = await app.db.getRepository('users').findOne();
       const agent = app.agent().login(user);
 
-      const { body } = await agent.resource('workflows').revision({
+      const { body, status } = await agent.resource('workflows').revision({
         filterByTk: w1.id,
         filter: {
           key: w1.key,
         },
       });
+      expect(status).toBe(200);
       const w2 = await WorkflowModel.findByPk(body.data.id);
+      expect(w2).toBeTruthy();
       await w2.update({ enabled: true });
       expect(w2.enabled).toBe(true);
 
@@ -609,18 +612,18 @@ describe('workflow > triggers > collection', () => {
 
       const p2 = await AnotherPostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const e2s = await w1.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(e2s.length).toBe(1);
-
       const ExecutionRepo = app.db.getRepository('executions');
-      const e3s = await ExecutionRepo.find({
-        filter: {
-          workflowId: w2.id,
-        },
+      await waitForAssertion(async () => {
+        const e2s = await w1.getExecutions({ order: [['createdAt', 'ASC']] });
+        expect(e2s.length).toBe(1);
+
+        const e3s = await ExecutionRepo.find({
+          filter: {
+            workflowId: w2.id,
+          },
+        });
+        expect(e3s.length).toBe(1);
       });
-      expect(e3s.length).toBe(1);
     });
   });
 });

@@ -12,7 +12,7 @@ describe('Variable', () => {
     expect(screen.getByPlaceholderText('Null')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'variable-button' }));
-    await userEvent.click(await screen.findByText('v1'));
+    await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'v1' }));
     await waitFor(() => {
       expect(screen.getByText('v1', { selector: '.ant-tag' }).innerHTML).toMatchInlineSnapshot('"v1"');
     });
@@ -27,7 +27,7 @@ describe('Variable', () => {
     expect(variableSelector).toBeInTheDocument();
 
     await userEvent.click(variableSelector);
-    await userEvent.click(screen.getByText('v1'));
+    await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'v1' }));
     await waitFor(() => {
       expect(input.innerHTML).toMatchInlineSnapshot(
         `"<span class="ant-tag ant-tag-blue" contenteditable="false" data-variable="v1">v1</span>"`,

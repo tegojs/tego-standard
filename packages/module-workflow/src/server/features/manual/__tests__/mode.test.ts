@@ -143,12 +143,14 @@ describe('workflow > instructions > manual', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [pending] = await workflow.getExecutions();
-      expect(pending.status).toBe(EXECUTION_STATUS.STARTED);
-      const [j1] = await pending.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
+      let pending;
+      let j1;
+      await waitForAssertion(async () => {
+        [pending] = await workflow.getExecutions();
+        expect(pending.status).toBe(EXECUTION_STATUS.STARTED);
+        [j1] = await pending.getJobs();
+        expect(j1.status).toBe(JOB_STATUS.PENDING);
+      });
 
       const usersJobs = await j1.getUsersJobs();
 
@@ -160,11 +162,11 @@ describe('workflow > instructions > manual', () => {
       });
       expect(res1.status).toBe(202);
 
-      await sleep(1000);
-
-      const [j2] = await pending.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
-      expect(j2.result).toEqual({ f1: { a: 1 }, _: 'resolve' });
+      await waitForAssertion(async () => {
+        const [j2] = await pending.getJobs();
+        expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+        expect(j2.result).toEqual({ f1: { a: 1 }, _: 'resolve' });
+      });
 
       const res2 = await userAgents[0].resource('users_jobs').submit({
         filterByTk: usersJobs.find((item) => item.userId === users[0].id).id,
@@ -190,13 +192,14 @@ describe('workflow > instructions > manual', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
       const UserJobModel = db.getModel('users_jobs');
-      const usersJobs = await UserJobModel.findAll();
-      expect(usersJobs.length).toBe(1);
-      expect(usersJobs[0].get('status')).toBe(JOB_STATUS.PENDING);
-      expect(usersJobs[0].get('userId')).toBe(users[0].id);
+      let usersJobs;
+      await waitForAssertion(async () => {
+        usersJobs = await UserJobModel.findAll();
+        expect(usersJobs.length).toBe(1);
+        expect(usersJobs[0].get('status')).toBe(JOB_STATUS.PENDING);
+        expect(usersJobs[0].get('userId')).toBe(users[0].id);
+      });
 
       const res = await userAgents[0].resource('users_jobs').submit({
         filterByTk: usersJobs[0].get('id'),
@@ -206,13 +209,13 @@ describe('workflow > instructions > manual', () => {
       });
       expect(res.status).toBe(202);
 
-      await sleep(1000);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.status).toBe(JOB_STATUS.RESOLVED);
-      expect(job.result).toEqual({ f1: { a: 1 }, _: 'resolve' });
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+        expect(job.result).toEqual({ f1: { a: 1 }, _: 'resolve' });
+      });
     });
   });
 

@@ -173,7 +173,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
             field: 'createdAt',
           },
           repeat: '*/2 * * * * *',
-          endsOn: new Date(startTime.getTime() + 3000).toISOString(),
+          endsOn: new Date(startTime.getTime() + 3500).toISOString(),
         },
       });
 

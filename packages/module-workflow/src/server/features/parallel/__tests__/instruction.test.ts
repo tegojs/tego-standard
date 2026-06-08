@@ -546,15 +546,18 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      let e1;
+      let pendingJobs;
+      await waitForAssertion(async () => {
+        [e1] = await workflow.getExecutions();
+        expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-
-      const pendingJobs = await e1.getJobs();
-      expect(pendingJobs.length).toBe(4);
+        pendingJobs = await e1.getJobs();
+        expect(pendingJobs.length).toBe(4);
+      });
 
       const pending = pendingJobs.find((item) => item.nodeId === n2.id);
+      expect(pending).toBeTruthy();
       pending.set({
         status: JOB_STATUS.RESOLVED,
         result: 123,

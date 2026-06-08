@@ -55,15 +55,15 @@ describe('workflow > instructions > condition', () => {
 
       const post = await PostRepo.create({ values: {} });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.FAILED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.FAILED);
-
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toBe(1);
-      expect(jobs[0].status).toBe(JOB_STATUS.FAILED);
-      expect(jobs[0].result).toBe(false);
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toBe(1);
+        expect(jobs[0].status).toBe(JOB_STATUS.FAILED);
+        expect(jobs[0].result).toBe(false);
+      });
     });
   });
 

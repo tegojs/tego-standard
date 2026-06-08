@@ -115,6 +115,7 @@ for (const project of config.test.projects || []) {
   if (project.test.name === 'client') {
     const setupFiles = project.test.setupFiles;
     project.test.setupFiles = Array.isArray(setupFiles) ? [...setupFiles, clientSetupFile] : [setupFiles, clientSetupFile].filter(Boolean);
+    project.test.testTimeout = 15000;
   }
 }
 

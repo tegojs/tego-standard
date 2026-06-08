@@ -122,16 +122,16 @@ describe('workflow > Processor', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.ERROR);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.ERROR);
-
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(1);
-      const { status, result } = jobs[0].get();
-      expect(status).toEqual(JOB_STATUS.ERROR);
-      expect(result.message).toBe('definite error');
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toEqual(1);
+        const { status, result } = jobs[0].get();
+        expect(status).toEqual(JOB_STATUS.ERROR);
+        expect(result.message).toBe('definite error');
+      });
     });
 
     it('workflow with customized success node', async () => {
@@ -161,15 +161,15 @@ describe('workflow > Processor', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.FAILED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.FAILED);
-
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(1);
-      const { status, result } = jobs[0].get();
-      expect(status).toEqual(-100);
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toEqual(1);
+        const { status } = jobs[0].get();
+        expect(status).toEqual(-100);
+      });
     });
   });
 

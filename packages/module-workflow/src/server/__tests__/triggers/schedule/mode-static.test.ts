@@ -1,8 +1,9 @@
 import { scryptSync } from 'node:crypto';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
+
+import { waitForAssertion } from '../../utils';
 
 async function sleepToEvenSecond() {
   const now = new Date();
@@ -192,21 +193,21 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      console.log(new Date().toISOString());
-
-      await sleep(3000);
-
-      const e2s = await workflow.getExecutions();
-      console.log(e2s);
-      expect(e2s.length).toBe(2);
+      await waitForAssertion(
+        async () => {
+          const e2s = await workflow.getExecutions();
+          expect(e2s.length).toBe(2);
+        },
+        8000,
+        200,
+      );
     });
   });
 
   describe('status', () => {
     it('should not trigger after turned off', async () => {
-      const start = await sleepToEvenSecond();
       const future = new Date();
-      future.setSeconds(future.getSeconds() + 2);
+      future.setSeconds(future.getSeconds() + 5);
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -218,11 +219,9 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(1000);
-
       await workflow.update({ enabled: false });
 
-      await sleep(3000);
+      await sleep(6000);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);

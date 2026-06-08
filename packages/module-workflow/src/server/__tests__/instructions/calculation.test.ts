@@ -107,11 +107,13 @@ describe('workflow > instructions > calculation', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [n1Job, n2Job] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(n2Job.result).toBe(1);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [n1Job, n2Job] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(n1Job).toBeTruthy();
+        expect(n2Job).toBeTruthy();
+        expect(n2Job.result).toBe(1);
+      });
     });
 
     it('$system', async () => {

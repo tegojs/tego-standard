@@ -217,15 +217,15 @@ describe('workflow > instructions > loop', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-
-      expect(jobs.length).toBe(4);
-      expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
-      expect(jobs[0].result).toBe(2);
+        expect(jobs.length).toBe(4);
+        expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+        expect(jobs[0].result).toBe(2);
+      });
     });
 
     it('target is no array, set as an array', async () => {

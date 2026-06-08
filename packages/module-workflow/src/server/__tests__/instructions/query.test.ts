@@ -93,11 +93,9 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(null);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result).toBe(null);
+      });
     });
 
     it('params.filter: value from context', async () => {

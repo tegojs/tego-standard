@@ -1,4 +1,4 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
@@ -52,14 +52,14 @@ describe('workflow > instructions > update', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       expect(post.published).toBe(false);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result.length).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(1);
-
-      const updatedPost = await PostRepo.findById(post.id);
-      expect(updatedPost.published).toBe(true);
+        const updatedPost = await PostRepo.findById(post.id);
+        expect(updatedPost.published).toBe(true);
+      });
     });
 
     it('params: from job of node', async () => {
@@ -138,14 +138,14 @@ describe('workflow > instructions > update', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       expect(post.published).toBe(false);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result.length).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(1);
-
-      const updatedPost = await PostRepo.findById(post.id);
-      expect(updatedPost.published).toBe(true);
+        const updatedPost = await PostRepo.findById(post.id);
+        expect(updatedPost.published).toBe(true);
+      });
 
       const w2Exes = await w2.getExecutions();
       expect(w2Exes.length).toBe(0);

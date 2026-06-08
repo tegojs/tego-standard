@@ -113,11 +113,9 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.title).toBe(post.title);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.title).toBe(post.title);
+      });
     });
 
     it('params.filter: value from job of node', async () => {
@@ -140,11 +138,13 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs[1].result.title).toBe(post.title);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, jobs) => {
+          expect(jobs[1].result.title).toBe(post.title);
+        },
+        { jobOptions: { order: [['id', 'ASC']] } },
+      );
     });
 
     it('params.filter: by association field', async () => {
@@ -165,11 +165,9 @@ describe('workflow > instructions > query', () => {
         values: { title: 't1', tags: [tag.id] },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.id).toBe(tag.id);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.id).toBe(tag.id);
+      });
     });
 
     it('params.appends: hasMany', async () => {

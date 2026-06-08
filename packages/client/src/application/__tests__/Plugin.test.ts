@@ -1,8 +1,7 @@
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
 
-import { Application } from '../Application';
-import { Plugin } from '../Plugin';
+import { Application, Plugin } from '../../index';
 
 describe('Plugin', () => {
   it('lifecycle', async () => {
@@ -159,5 +158,17 @@ describe('PluginManager', () => {
     const app = new Application({ plugins: [[DemoPlugin, { name: 'demo' }]] });
     await app.load();
     expect(app.pm.get('demo')).toBeInstanceOf(DemoPlugin);
+  });
+
+  it('registers @tachybase/client for AMD remote plugins', async () => {
+    const app = new Application();
+    await app.load();
+
+    const clientModule = await new Promise<any>((resolve, reject) => {
+      app.requirejs.require(['@tachybase/client'], resolve, reject);
+    });
+
+    expect(clientModule.Application).toBe(Application);
+    expect(clientModule.Plugin).toBe(Plugin);
   });
 });

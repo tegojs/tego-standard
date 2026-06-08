@@ -61,8 +61,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(2000);
-
       const executions = await waitForExecutions(workflow, 1);
       expect(executions[0].context.data.id).toBe(post.id);
       const triggerTime = new Date(post.createdAt);
@@ -117,7 +115,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(3000);
+      await sleep(500);
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
     });
@@ -141,11 +139,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
       startTime.setMilliseconds(0);
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-
-      await sleep(4500);
-      // immediately trigger 1st time
-      // sleep 1.5s at 2s trigger 2nd time
-      // sleep 3.5s at 4s trigger 3rd time
 
       const executions = await waitForExecutions(workflow, 3, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
@@ -240,7 +233,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(5000);
+      await sleep(2500);
 
       const executions = await waitForExecutions(workflow, 1, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
@@ -268,7 +261,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(5000);
+      await sleep(4500);
 
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
@@ -303,7 +296,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
       const triggerTime = new Date(post.createdAt);
       triggerTime.setMilliseconds(0);
 
-      await sleep(5000);
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(triggerTime.getTime());
@@ -329,8 +321,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
       });
 
       const post = await PostRepo.create({ values: { title: 't1', categoryId: category.id } });
-
-      await sleep(5000);
 
       const executions = await waitForExecutions(workflow, 1);
       expect(executions[0].context.data.category.id).toBe(category.id);

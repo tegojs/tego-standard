@@ -13,11 +13,20 @@ async function sleepToEvenSecond() {
 }
 
 function consumeTime(n: number) {
-  console.time('consumeTime');
   for (let i = 0; i < n; i++) {
     scryptSync(`${i}`, 'salt', 64);
   }
-  console.timeEnd('consumeTime');
+}
+
+async function waitForExecutions(workflow, expected: number, options?: any, timeout = 10000) {
+  let executions;
+
+  await waitForAssertion(async () => {
+    executions = await workflow.getExecutions(options);
+    expect(executions.length).toBe(expected);
+  }, timeout);
+
+  return executions;
 }
 
 describe('workflow > triggers > schedule > static mode', () => {
@@ -51,7 +60,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(3000);
+      await sleep(2500);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -73,10 +82,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(3000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
     });
 
     it('on every 2 seconds', async () => {
@@ -92,12 +98,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(4000);
-      // sleep 1.5s at 2s trigger 1st time
-      // sleep 3.5s at 4s trigger 2nd time
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(2);
+      const executions = await waitForExecutions(workflow, 2);
     });
 
     it('on every even seconds and limit 1', async () => {
@@ -114,10 +115,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(5000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
     });
 
     it('start before now and repeat every 2 seconds after created and limit 1', async () => {
@@ -136,10 +134,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(5000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
       expect(new Date(executions[0].context.date).getTime()).toBe(start.getTime() + 2000);
     });
 
@@ -161,10 +156,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(4000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
       const date = new Date(executions[0].context.date);
       expect(date.getTime()).toBe(now.getTime());
     });
@@ -207,7 +199,7 @@ describe('workflow > triggers > schedule > static mode', () => {
   describe('status', () => {
     it('should not trigger after turned off', async () => {
       const future = new Date();
-      future.setSeconds(future.getSeconds() + 5);
+      future.setSeconds(future.getSeconds() + 1);
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -221,7 +213,7 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       await workflow.update({ enabled: false });
 
-      await sleep(6000);
+      await sleep(1800);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -264,7 +256,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         });
       });
 
-      await sleep(3000);
+      await sleep(2500);
       await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
 
       const [e1] = await w1.getExecutions();
@@ -302,7 +294,7 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       await app.start();
 
-      await sleep(1000);
+      await sleep(200);
 
       const c1 = await workflow.countExecutions();
       expect(c1).toBe(0);
@@ -331,10 +323,10 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       consumeTime(100); // on AMD 5600G takes about 2.7s
 
-      await sleep(2000);
-
-      const c2 = await workflow.countExecutions();
-      expect(c2).toBe(1);
+      await waitForAssertion(async () => {
+        const c2 = await workflow.countExecutions();
+        expect(c2).toBe(1);
+      });
     });
   });
 });

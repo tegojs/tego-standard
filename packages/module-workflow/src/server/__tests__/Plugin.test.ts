@@ -295,11 +295,12 @@ describe('workflow > Plugin', () => {
       const p2 = await PostRepo.create({ values: { title: 't2' } });
       const p3 = await PostRepo.create({ values: { title: 't3' } });
 
-      await sleep(1000);
-
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(3);
-      expect(executions.map((item) => item.status)).toEqual(Array(3).fill(EXECUTION_STATUS.RESOLVED));
+      await waitForAssertion(async () => {
+        const executions = await w1.getExecutions();
+        expect(executions.length).toBe(3);
+        expect(executions.map((item) => item.status)).toEqual(Array(3).fill(EXECUTION_STATUS.RESOLVED));
+      });
+      await waitForWorkflowIdle(app);
     });
 
     it('when server starts, process all created executions', async () => {

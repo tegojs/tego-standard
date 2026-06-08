@@ -140,16 +140,16 @@ describe('workflow > actions > workflows', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
       const { model: JobModel } = db.getCollection('jobs');
 
-      const e1c = await workflow.countExecutions();
-      expect(e1c).toBe(1);
-      const j1c = await JobModel.count();
-      expect(j1c).toBe(1);
-      const p1 = await PostRepo.findOne();
-      expect(p1.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const e1c = await workflow.countExecutions();
+        expect(e1c).toBe(1);
+        const j1c = await JobModel.count();
+        expect(j1c).toBe(1);
+        const p1 = await PostRepo.findOne();
+        expect(p1.title).toBe('t2');
+      });
 
       const { id, ...w1 } = workflow.get();
       const w2 = await WorkflowModel.create(w1);

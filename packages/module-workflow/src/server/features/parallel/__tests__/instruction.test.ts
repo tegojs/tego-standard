@@ -80,12 +80,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+      });
     });
 
     it('first branch rejected', async () => {
@@ -504,7 +504,7 @@ describe('workflow > instructions > parallel', () => {
       });
       pending.execution = execution;
       await plugin.resume(pending);
-      await waitForWorkflowIdle(app);
+      await waitForWorkflowIdle(app, { timeout: 30000 });
 
       await waitForAssertion(async () => {
         const [latestExecution] = await workflow.getExecutions();
@@ -572,7 +572,7 @@ describe('workflow > instructions > parallel', () => {
         expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
         const jobs = await e2.getJobs({ order: [['id', 'ASC']] });
         expect(jobs.length).toEqual(5);
-      });
+      }, 30000);
     });
   });
 });

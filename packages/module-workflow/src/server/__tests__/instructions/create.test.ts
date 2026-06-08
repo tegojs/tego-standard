@@ -1,4 +1,4 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
 import { waitForAssertion } from '../utils';
@@ -149,17 +149,17 @@ describe('workflow > instructions > create', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.title).toBe(post.title);
+      await waitForLatestJob((job) => {
+        expect(job.result.title).toBe(post.title);
+      });
 
       const AnotherPostRepo = app.dataSourceManager.dataSources.get('another').collectionManager.getRepository('posts');
-      const p2s = await AnotherPostRepo.find();
-      expect(p2s.length).toBe(1);
-      expect(p2s[0].title).toBe(post.title);
-      expect(p2s[0].published).toBe(true);
+      await waitForAssertion(async () => {
+        const p2s = await AnotherPostRepo.find();
+        expect(p2s.length).toBe(1);
+        expect(p2s[0].title).toBe(post.title);
+        expect(p2s[0].published).toBe(true);
+      });
     });
   });
 });

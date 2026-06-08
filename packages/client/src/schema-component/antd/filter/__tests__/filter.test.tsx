@@ -128,17 +128,21 @@ describe('Filter', () => {
 
     await userEvent.click(selector);
     // 选中 Title1
-    await userEvent.click(screen.getByText(/title1/i));
-    expect(screen.getByText(/title1/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
-    expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
+    await userEvent.click(await screen.findByText(/title1/i, { selector: '.ant-cascader-menu-item-content' }));
+    await waitFor(() => {
+      expect(screen.getByText(/title1/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
+      expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
+    });
 
     // 切换为 test2
     await userEvent.click(screen.getByText(/test1/i));
-    await userEvent.click(screen.getByText(/test2/i, { selector: '.ant-select-item-option-content' }));
+    await userEvent.click(await screen.findByText(/test2/i, { selector: '.ant-select-item-option-content' }));
     await userEvent.click(selector);
     // 选中 Title2
-    await userEvent.click(screen.getByText(/title2/i));
-    expect(screen.getByText(/title2/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
-    expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
-  }, 15000);
+    await userEvent.click(await screen.findByText(/title2/i, { selector: '.ant-cascader-menu-item-content' }));
+    await waitFor(() => {
+      expect(screen.getByText(/title2/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
+      expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
+    });
+  }, 30000);
 });

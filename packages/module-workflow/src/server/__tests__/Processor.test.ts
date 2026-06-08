@@ -310,12 +310,17 @@ describe('workflow > Processor', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      let execution;
+      let pending;
+      await waitForAssertion(async () => {
+        [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        [pending] = await execution.getJobs({ where: { nodeId: n2.id } });
+        expect(pending).toBeTruthy();
+        expect(pending.status).toEqual(JOB_STATUS.PENDING);
+      });
 
-      const [pending] = await execution.getJobs({ where: { nodeId: n2.id } });
       pending.set({
         status: JOB_STATUS.RESOLVED,
         result: 123,
@@ -350,12 +355,17 @@ describe('workflow > Processor', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      let execution;
+      let pending;
+      await waitForAssertion(async () => {
+        [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        [pending] = await execution.getJobs({ where: { nodeId: n2.id } });
+        expect(pending).toBeTruthy();
+        expect(pending.status).toEqual(JOB_STATUS.PENDING);
+      });
 
-      const [pending] = await execution.getJobs({ where: { nodeId: n2.id } });
       pending.set('result', 123);
       pending.execution = execution;
       await plugin.resume(pending);

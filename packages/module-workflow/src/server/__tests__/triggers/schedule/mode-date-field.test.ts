@@ -11,13 +11,13 @@ async function sleepToEvenSecond() {
   return now;
 }
 
-async function waitForExecutions(workflow, expected: number, options?: any) {
+async function waitForExecutions(workflow, expected: number, options?: any, timeout = 30000) {
   let executions;
 
   await waitForAssertion(async () => {
     executions = await workflow.getExecutions(options);
     expect(executions.length).toBe(expected);
-  });
+  }, timeout);
 
   return executions;
 }
@@ -84,21 +84,19 @@ describe('workflow > triggers > schedule > date field mode', () => {
         },
       });
 
-      const now = await sleepToEvenSecond();
+      const createdAt = new Date(Date.now() + 3000);
+      createdAt.setMilliseconds(0);
 
-      const post = await PostRepo.create({ values: { title: 't1' } });
+      const post = await PostRepo.create({ values: { title: 't1', createdAt } });
 
       await sleep(1000);
       const e1s = await workflow.getExecutions();
       expect(e1s.length).toBe(0);
 
-      await sleep(2000);
       const e2s = await waitForExecutions(workflow, 1);
       expect(e2s[0].context.data.id).toBe(post.id);
 
-      const triggerTime = new Date(post.createdAt.getTime() + 2000);
-      triggerTime.setMilliseconds(0);
-      expect(e2s[0].context.date).toBe(triggerTime.toISOString());
+      expect(e2s[0].context.date).toBe(new Date(createdAt.getTime() + 2000).toISOString());
     });
 
     it('starts on post.createdAt with -offset', async () => {
@@ -302,13 +300,15 @@ describe('workflow > triggers > schedule > date field mode', () => {
       startTime.setMilliseconds(0);
 
       const post = await PostRepo.create({ values: { title: 't1' } });
+      const triggerTime = new Date(post.createdAt);
+      triggerTime.setMilliseconds(0);
 
       await sleep(5000);
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
-      expect(d0).toBe(startTime.getTime());
+      expect(d0).toBe(triggerTime.getTime());
       const d1 = Date.parse(executions[1].context.date);
-      expect(d1 - 2000).toBe(startTime.getTime());
+      expect(d1 - 2000).toBe(triggerTime.getTime());
     });
 
     it('appends', async () => {

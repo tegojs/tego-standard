@@ -247,12 +247,12 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.category.title).toBe('c1');
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.data.category.title).toBe('c1');
+      });
     });
 
     it('appends belongsTo null', async () => {
@@ -276,12 +276,12 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.category).toBeNull();
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.data.category).toBeNull();
+      });
     });
 
     it('appends hasMany', async () => {

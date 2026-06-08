@@ -9,15 +9,6 @@ const nodeWebAPIs = {
 
 await import('./packages/client/src/preload');
 
-// Intercept CSS/Less requires from compiled packages
-// that use CJS require('./style.css') which fails in Node.js.
-require.extensions['.css'] = (m: any) => {
-  m.exports = {};
-};
-require.extensions['.less'] = (m: any) => {
-  m.exports = {};
-};
-
 class ResizeObserverMock {
   observe() {}
 

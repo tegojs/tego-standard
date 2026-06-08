@@ -319,7 +319,11 @@ describe('workflow > actions > workflows', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const executions = await w1.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
 
       const { body, status } = await agent.resource(`workflows`).revision({
         filterByTk: w1.id,

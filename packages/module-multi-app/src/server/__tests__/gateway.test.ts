@@ -1,6 +1,22 @@
 import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
 import { AppSupervisor, Gateway, uid } from '@tego/server';
 
+async function waitForMaintainingCode(wsClient, code: string, timeout = 10000, interval = 200) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeout) {
+    const lastMessage = wsClient.lastMessage();
+
+    if (lastMessage?.type === 'maintaining' && lastMessage?.payload?.code === code) {
+      return lastMessage;
+    }
+
+    await waitSecond(interval);
+  }
+
+  throw new Error(`Timed out waiting for maintaining code ${code}`);
+}
+
 describe('gateway with multiple apps', () => {
   let app: MockServer;
   let gateway: Gateway;
@@ -58,9 +74,7 @@ describe('gateway with multiple apps', () => {
       },
     });
 
-    await waitSecond(3000);
-    console.log(wsClient.messages);
-    const lastMessage = wsClient.lastMessage();
+    const lastMessage = await waitForMaintainingCode(wsClient, 'APP_RUNNING');
 
     expect(lastMessage).toMatchObject({
       type: 'maintaining',

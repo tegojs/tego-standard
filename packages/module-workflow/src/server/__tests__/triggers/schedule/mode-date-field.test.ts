@@ -1,13 +1,25 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
+
+import { waitForAssertion } from '../../utils';
 
 async function sleepToEvenSecond() {
   const now = new Date();
   // NOTE: align to even(0, 2, ...) + 0.5 seconds to start
   await sleep((2.5 - (now.getSeconds() % 2)) * 1000 - now.getMilliseconds());
   return now;
+}
+
+async function waitForExecutions(workflow, expected: number, options?: any) {
+  let executions;
+
+  await waitForAssertion(async () => {
+    executions = await workflow.getExecutions(options);
+    expect(executions.length).toBe(expected);
+  });
+
+  return executions;
 }
 
 describe('workflow > triggers > schedule > date field mode', () => {
@@ -51,8 +63,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await sleep(2000);
 
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
       expect(executions[0].context.data.id).toBe(post.id);
       const triggerTime = new Date(post.createdAt);
       triggerTime.setMilliseconds(0);
@@ -82,8 +93,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       expect(e1s.length).toBe(0);
 
       await sleep(2000);
-      const e2s = await workflow.getExecutions();
-      expect(e2s.length).toBe(1);
+      const e2s = await waitForExecutions(workflow, 1);
       expect(e2s[0].context.data.id).toBe(post.id);
 
       const triggerTime = new Date(post.createdAt.getTime() + 2000);
@@ -134,13 +144,12 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(5000);
+      await sleep(4500);
       // immediately trigger 1st time
       // sleep 1.5s at 2s trigger 2nd time
       // sleep 3.5s at 4s trigger 3rd time
 
-      const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(executions.length).toBe(3);
+      const executions = await waitForExecutions(workflow, 3, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
       const d1 = Date.parse(executions[1].context.date);
@@ -172,8 +181,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await sleep(5000);
 
-      const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(executions.length).toBe(2);
+      const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
       const d1 = Date.parse(executions[1].context.date);
@@ -206,8 +214,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await sleep(5000);
 
-      const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(executions.length).toBe(2);
+      const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
       const d1 = Date.parse(executions[1].context.date);
@@ -237,8 +244,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await sleep(5000);
 
-      const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
     });
@@ -266,8 +272,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await sleep(5000);
 
-      const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(executions.length).toBe(2);
+      const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
       const d1 = Date.parse(executions[1].context.date);
@@ -299,8 +304,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 
       await sleep(5000);
-      const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(executions.length).toBe(2);
+      const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
       const d1 = Date.parse(executions[1].context.date);
@@ -328,8 +332,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await sleep(5000);
 
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
       expect(executions[0].context.data.category.id).toBe(category.id);
     });
 
@@ -357,10 +360,10 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await sleep(1700);
 
-      console.log('check executions');
-
-      const e1c = await workflow.countExecutions();
-      expect(e1c).toBe(2);
+      await waitForAssertion(async () => {
+        const e1c = await workflow.countExecutions();
+        expect(e1c).toBe(2);
+      });
 
       await post.update({ createdAt: new Date(post.createdAt.getTime() - 1000) });
 

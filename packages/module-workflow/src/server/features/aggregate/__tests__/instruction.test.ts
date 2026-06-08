@@ -38,6 +38,20 @@ describe('workflow > instructions > aggregate', () => {
 
   afterEach(() => app.destroy());
 
+  async function expectLatestJobResult(result, executionCount = 1) {
+    await waitForAssertion(async () => {
+      const executions = await workflow.getExecutions({ order: [['id', 'desc']] });
+      expect(executions.length).toBeGreaterThanOrEqual(executionCount);
+
+      const [execution] = executions;
+      expect(execution).toBeTruthy();
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+
+      const [job] = await execution.getJobs();
+      expect(job.result).toBe(result);
+    });
+  }
+
   describe('based on collection', () => {
     it('count', async () => {
       const n1 = await workflow.createNode({
@@ -53,11 +67,7 @@ describe('workflow > instructions > aggregate', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      await expectLatestJobResult(1);
     });
 
     it('sum', async () => {
@@ -74,19 +84,11 @@ describe('workflow > instructions > aggregate', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1', read: 1 } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      const [j1] = await e1.getJobs();
-      expect(j1.result).toBe(1);
+      await expectLatestJobResult(1);
 
       const p2 = await PostRepo.create({ values: { title: 't2', read: 2 } });
 
-      await sleep(500);
-
-      const [e2] = await workflow.getExecutions({ order: [['id', 'desc']] });
-      const [j2] = await e2.getJobs();
-      expect(j2.result).toBe(3);
+      await expectLatestJobResult(3, 2);
     });
 
     it('avg', async () => {
@@ -103,19 +105,11 @@ describe('workflow > instructions > aggregate', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1', read: 1 } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      const [j1] = await e1.getJobs();
-      expect(j1.result).toBe(1);
+      await expectLatestJobResult(1);
 
       const p2 = await PostRepo.create({ values: { title: 't2', read: 2 } });
 
-      await sleep(500);
-
-      const [e2] = await workflow.getExecutions({ order: [['id', 'desc']] });
-      const [j2] = await e2.getJobs();
-      expect(j2.result).toBe(1.5);
+      await expectLatestJobResult(1.5, 2);
     });
 
     it('min', async () => {
@@ -132,19 +126,11 @@ describe('workflow > instructions > aggregate', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1', read: 1 } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      const [j1] = await e1.getJobs();
-      expect(j1.result).toBe(1);
+      await expectLatestJobResult(1);
 
       const p2 = await PostRepo.create({ values: { title: 't2', read: 2 } });
 
-      await sleep(500);
-
-      const [e2] = await workflow.getExecutions({ order: [['id', 'desc']] });
-      const [j2] = await e2.getJobs();
-      expect(j2.result).toBe(1);
+      await expectLatestJobResult(1, 2);
     });
 
     it('max', async () => {
@@ -161,19 +147,11 @@ describe('workflow > instructions > aggregate', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1', read: 1 } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      const [j1] = await e1.getJobs();
-      expect(j1.result).toBe(1);
+      await expectLatestJobResult(1);
 
       const p2 = await PostRepo.create({ values: { title: 't2', read: 2 } });
 
-      await sleep(500);
-
-      const [e2] = await workflow.getExecutions({ order: [['id', 'desc']] });
-      const [j2] = await e2.getJobs();
-      expect(j2.result).toBe(2);
+      await expectLatestJobResult(2, 2);
     });
   });
 
@@ -221,12 +199,12 @@ describe('workflow > instructions > aggregate', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1', comments: [{}, { status: 1 }] } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      const [j1, j2] = await e1.getJobs({ order: [['id', 'ASC']] });
-      expect(j1.result).toBe(2);
-      expect(j2.result).toBe(1);
+      await waitForAssertion(async () => {
+        const [e1] = await workflow.getExecutions();
+        const [j1, j2] = await e1.getJobs({ order: [['id', 'ASC']] });
+        expect(j1.result).toBe(2);
+        expect(j2.result).toBe(1);
+      });
     });
 
     it('sum', async () => {

@@ -16,3 +16,40 @@ export async function waitForAssertion(assertion: () => Promise<void> | void, ti
 
   throw lastError instanceof Error ? lastError : new Error('waitForAssertion timed out');
 }
+
+export async function waitForWorkflowJob(
+  workflow,
+  assertion: (execution, jobs) => Promise<void> | void,
+  options: { executionOptions?: any; jobOptions?: any; timeout?: number; interval?: number } = {},
+) {
+  const { executionOptions, jobOptions, timeout, interval } = options;
+
+  await waitForAssertion(
+    async () => {
+      const [execution] = await workflow.getExecutions(executionOptions);
+      expect(execution).toBeTruthy();
+
+      const jobs = await execution.getJobs(jobOptions);
+      expect(jobs.length).toBeGreaterThan(0);
+
+      await assertion(execution, jobs);
+    },
+    timeout,
+    interval,
+  );
+}
+
+export async function waitForWorkflowIdle(app, options: { timeout?: number; interval?: number } = {}) {
+  const { timeout, interval } = options;
+  const plugin = app.pm.get('workflow') as any;
+
+  await waitForAssertion(
+    () => {
+      expect(plugin.events?.length ?? 0).toBe(0);
+      expect(plugin.pending?.length ?? 0).toBe(0);
+      expect(plugin.executing).toBeFalsy();
+    },
+    timeout,
+    interval,
+  );
+}

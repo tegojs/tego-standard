@@ -1,6 +1,14 @@
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setupServerTestEnvironment } from '@tachybase/test/setup-server';
 import { initEnv } from '@tego/devkit';
+
+// jsonwebtoken@8 pulls in buffer-equal-constant-time, which still references
+// SlowBuffer.prototype during module initialization. Node 26 no longer exposes
+// SlowBuffer, so provide the Buffer constructor for test compatibility.
+const require = createRequire(import.meta.url);
+const buffer = require('node:buffer');
+buffer.SlowBuffer ??= buffer.Buffer;
 
 setupServerTestEnvironment({
   workspaceRoot: process.cwd(),

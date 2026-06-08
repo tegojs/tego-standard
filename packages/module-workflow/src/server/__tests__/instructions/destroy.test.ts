@@ -1,6 +1,7 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
+
+import { waitForAssertion } from '../utils';
 
 describe('workflow > instructions > destroy', () => {
   let app: Application;
@@ -29,6 +30,18 @@ describe('workflow > instructions > destroy', () => {
 
   afterEach(() => app.destroy());
 
+  async function waitForLatestJob(assertion) {
+    await waitForAssertion(async () => {
+      const [execution] = await workflow.getExecutions({ order: [['id', 'desc']] });
+      expect(execution).toBeTruthy();
+
+      const [job] = await execution.getJobs();
+      expect(job).toBeTruthy();
+
+      await assertion(job, execution);
+    });
+  }
+
   describe('destroy one', () => {
     it('params: from context', async () => {
       const n1 = await workflow.createNode({
@@ -45,14 +58,12 @@ describe('workflow > instructions > destroy', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForLatestJob(async (job) => {
+        expect(job.result).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
-
-      const count = await PostRepo.count();
-      expect(count).toBe(0);
+        const count = await PostRepo.count();
+        expect(count).toBe(0);
+      });
     });
   });
 
@@ -78,14 +89,12 @@ describe('workflow > instructions > destroy', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForLatestJob(async (job) => {
+        expect(job.result).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
-
-      const p2s = await AnotherPostRepo.find();
-      expect(p2s.length).toBe(0);
+        const p2s = await AnotherPostRepo.find();
+        expect(p2s.length).toBe(0);
+      });
     });
   });
 });

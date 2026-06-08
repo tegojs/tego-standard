@@ -98,11 +98,10 @@ describe('workflow > instructions > update', () => {
       // NOTE: the result of post immediately created will not be changed by workflow
       const { id } = await PostRepo.create({ values: { title: 'test' } });
 
-      await sleep(500);
-
-      // should get from db
-      const post = await PostRepo.findById(id);
-      expect(post.title).toBe('changed');
+      await waitForAssertion(async () => {
+        const post = await PostRepo.findById(id);
+        expect(post.title).toBe('changed');
+      });
 
       await p1.reload();
       expect(p1.title).toBe('t1');

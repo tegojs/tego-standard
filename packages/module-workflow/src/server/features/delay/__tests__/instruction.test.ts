@@ -1,7 +1,8 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
+
+import { waitForWorkflowJob } from '../../../__tests__/utils';
 
 describe('workflow > instructions > delay', () => {
   let app: Application;
@@ -47,10 +48,10 @@ describe('workflow > instructions > delay', () => {
 
       await sleep(500);
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
       await sleep(2000);
 
@@ -117,11 +118,15 @@ describe('workflow > instructions > delay', () => {
 
       await sleep(2000);
 
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.ERROR);
-      const [j2, j3] = await e2.getJobs({ order: [['id', 'ASC']] });
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
-      expect(j3.status).toBe(JOB_STATUS.ERROR);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [delayJob, errorJob]) => {
+          expect(execution.status).toEqual(EXECUTION_STATUS.ERROR);
+          expect(delayJob.status).toBe(JOB_STATUS.RESOLVED);
+          expect(errorJob.status).toBe(JOB_STATUS.ERROR);
+        },
+        { jobOptions: { order: [['id', 'ASC']] } },
+      );
     });
   });
 

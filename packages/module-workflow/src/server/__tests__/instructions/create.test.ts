@@ -1,6 +1,7 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
+
+import { waitForAssertion } from '../utils';
 
 describe('workflow > instructions > create', () => {
   let app: Application;
@@ -31,6 +32,18 @@ describe('workflow > instructions > create', () => {
 
   afterEach(() => app.destroy());
 
+  async function waitForLatestJob(assertion) {
+    await waitForAssertion(async () => {
+      const [execution] = await workflow.getExecutions({ order: [['id', 'desc']] });
+      expect(execution).toBeTruthy();
+
+      const [job] = await execution.getJobs();
+      expect(job).toBeTruthy();
+
+      await assertion(job, execution);
+    });
+  }
+
   describe('create one', () => {
     it('params: from context', async () => {
       const n1 = await workflow.createNode({
@@ -47,11 +60,9 @@ describe('workflow > instructions > create', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.postId).toBe(post.id);
+      await waitForLatestJob((job) => {
+        expect(job.result.postId).toBe(post.id);
+      });
     });
 
     it('params.values with hasMany', async () => {
@@ -72,11 +83,9 @@ describe('workflow > instructions > create', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.replies.length).toBe(2);
+      await waitForLatestJob((job) => {
+        expect(job.result.replies.length).toBe(2);
+      });
     });
 
     it('params.appends: belongsTo', async () => {
@@ -95,11 +104,9 @@ describe('workflow > instructions > create', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.post.id).toBe(post.id);
+      await waitForLatestJob((job) => {
+        expect(job.result.post.id).toBe(post.id);
+      });
     });
 
     it('params.appends: belongsToMany', async () => {
@@ -118,12 +125,10 @@ describe('workflow > instructions > create', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.posts.length).toBe(1);
-      expect(job.result.posts[0].id).toBe(post.id);
+      await waitForLatestJob((job) => {
+        expect(job.result.posts.length).toBe(1);
+        expect(job.result.posts[0].id).toBe(post.id);
+      });
     });
   });
 

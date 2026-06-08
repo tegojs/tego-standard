@@ -50,14 +50,14 @@ describe('workflow > instructions > loop', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(2);
-      expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
-      expect(jobs[0].result).toBe(0);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(2);
+        expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+        expect(jobs[0].result).toBe(0);
+      });
     });
 
     it('should exit when branch meets error', async () => {
@@ -83,15 +83,15 @@ describe('workflow > instructions > loop', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(2);
-      expect(jobs[0].status).toBe(JOB_STATUS.ERROR);
-      expect(jobs[0].result).toBe(0);
-      expect(jobs[1].status).toBe(JOB_STATUS.ERROR);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(2);
+        expect(jobs[0].status).toBe(JOB_STATUS.ERROR);
+        expect(jobs[0].result).toBe(0);
+        expect(jobs[1].status).toBe(JOB_STATUS.ERROR);
+      });
     });
   });
 
@@ -118,12 +118,14 @@ describe('workflow > instructions > loop', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(2);
-      expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
-      expect(jobs[0].result).toBe(0);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(2);
+        expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+        expect(jobs[0].result).toBe(0);
+      });
     });
 
     it('null target just pass', async () => {
@@ -249,15 +251,15 @@ describe('workflow > instructions > loop', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-
-      expect(jobs.length).toBe(3);
-      expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
-      expect(jobs[0].result).toBe(1);
+        expect(jobs.length).toBe(3);
+        expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+        expect(jobs[0].result).toBe(1);
+      });
     });
 
     it('multiple targets', async () => {
@@ -285,14 +287,16 @@ describe('workflow > instructions > loop', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
 
-      expect(jobs.length).toBe(4);
-      expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
-      expect(jobs[0].result).toBe(2);
-      expect(jobs.filter((j) => j.nodeId === n2.id).length).toBe(2);
+        expect(jobs.length).toBe(4);
+        expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+        expect(jobs[0].result).toBe(2);
+        expect(jobs.filter((j) => j.nodeId === n2.id).length).toBe(2);
+      });
     });
   });
 
@@ -324,12 +328,14 @@ describe('workflow > instructions > loop', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
-      expect(jobs[1].result).toBe('c1');
-      expect(jobs[2].result).toBe('c2');
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+        expect(jobs[1].result).toBe('c1');
+        expect(jobs[2].result).toBe('c2');
+      });
     });
   });
 
@@ -466,11 +472,13 @@ describe('workflow > instructions > loop', () => {
 
       await sleep(500);
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const jobs = await e1.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(5);
-      expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [e1] = await workflow.getExecutions();
+        expect(e1.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        const jobs = await e1.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(5);
+        expect(jobs[0].status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
   });
 });

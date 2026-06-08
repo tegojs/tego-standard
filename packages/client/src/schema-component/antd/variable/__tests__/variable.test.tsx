@@ -11,8 +11,8 @@ describe('Variable', () => {
 
     expect(screen.getByPlaceholderText('Null')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByText('x'));
-    await userEvent.click(screen.getByText('v1'));
+    await userEvent.click(screen.getByRole('button', { name: 'variable-button' }));
+    await userEvent.click(await screen.findByText('v1'));
     await waitFor(() => {
       expect(screen.getByText('v1', { selector: '.ant-tag' }).innerHTML).toMatchInlineSnapshot('"v1"');
     });

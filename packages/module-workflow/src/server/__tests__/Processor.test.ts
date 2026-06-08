@@ -1,9 +1,9 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
+import { waitForAssertion } from './utils';
 
 describe('workflow > Processor', () => {
   let app: MockServer;
@@ -53,13 +53,15 @@ describe('workflow > Processor', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-      // expect(execution.start()).rejects.toThrow();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(1);
+        // expect(execution.start()).rejects.toThrow();
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toEqual(1);
+      });
     });
 
     it('workflow with single simple node', async () => {
@@ -71,15 +73,17 @@ describe('workflow > Processor', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.context.data.title).toEqual(post.title);
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.context.data.title).toEqual(post.title);
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(1);
-      const { status, result } = jobs[0].get();
-      expect(status).toEqual(JOB_STATUS.RESOLVED);
-      expect(result).toMatchObject({ data: JSON.parse(JSON.stringify(post.toJSON())) });
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toEqual(1);
+        const { status, result } = jobs[0].get();
+        expect(status).toEqual(JOB_STATUS.RESOLVED);
+        expect(result).toMatchObject({ data: JSON.parse(JSON.stringify(post.toJSON())) });
+      });
     });
 
     it('workflow with multiple simple nodes', async () => {
@@ -139,13 +143,15 @@ describe('workflow > Processor', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(1);
-      const { status, result } = jobs[0].get();
-      expect(status).toEqual(100);
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toEqual(1);
+        const { status } = jobs[0].get();
+        expect(status).toEqual(100);
+      });
     });
 
     it('workflow with customized error node', async () => {
@@ -182,13 +188,15 @@ describe('workflow > Processor', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [pending] = await execution.getJobs();
-      expect(pending.status).toEqual(JOB_STATUS.PENDING);
-      expect(pending.result).toEqual(null);
+      let execution;
+      let pending;
+      await waitForAssertion(async () => {
+        [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        [pending] = await execution.getJobs();
+        expect(pending.status).toEqual(JOB_STATUS.PENDING);
+        expect(pending.result).toEqual(null);
+      });
 
       pending.set({
         status: JOB_STATUS.RESOLVED,
@@ -197,16 +205,17 @@ describe('workflow > Processor', () => {
       pending.execution = execution;
       await plugin.resume(pending);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [latestExecution] = await workflow.getExecutions();
+        expect(latestExecution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toEqual(2);
-      expect(jobs[0].status).toEqual(JOB_STATUS.RESOLVED);
-      expect(jobs[0].result).toEqual(123);
-      expect(jobs[1].status).toEqual(JOB_STATUS.RESOLVED);
-      expect(jobs[1].result).toEqual(123);
+        const jobs = await latestExecution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toEqual(2);
+        expect(jobs[0].status).toEqual(JOB_STATUS.RESOLVED);
+        expect(jobs[0].result).toEqual(123);
+        expect(jobs[1].status).toEqual(JOB_STATUS.RESOLVED);
+        expect(jobs[1].result).toEqual(123);
+      });
     });
 
     it('manual node should suspend execution, resuming with error should end execution', async () => {
@@ -221,26 +230,29 @@ describe('workflow > Processor', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [pending] = await execution.getJobs();
-      expect(pending.status).toEqual(JOB_STATUS.PENDING);
-      expect(pending.result).toEqual(null);
+      let execution;
+      let pending;
+      await waitForAssertion(async () => {
+        [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        [pending] = await execution.getJobs();
+        expect(pending.status).toEqual(JOB_STATUS.PENDING);
+        expect(pending.result).toEqual(null);
+      });
 
       pending.set('result', 123);
       pending.execution = execution;
       await plugin.resume(pending);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [latestExecution] = await workflow.getExecutions();
+        expect(latestExecution.status).toEqual(EXECUTION_STATUS.ERROR);
 
-      expect(execution.status).toEqual(EXECUTION_STATUS.ERROR);
-
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(1);
-      expect(jobs[0].status).toEqual(JOB_STATUS.ERROR);
-      expect(jobs[0].result.message).toEqual('input failed');
+        const jobs = await latestExecution.getJobs();
+        expect(jobs.length).toEqual(1);
+        expect(jobs[0].status).toEqual(JOB_STATUS.ERROR);
+        expect(jobs[0].result.message).toEqual('input failed');
+      });
     });
   });
 
@@ -348,12 +360,13 @@ describe('workflow > Processor', () => {
       pending.execution = execution;
       await plugin.resume(pending);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [latestExecution] = await workflow.getExecutions();
+        expect(latestExecution.status).toEqual(EXECUTION_STATUS.ERROR);
 
-      expect(execution.status).toEqual(EXECUTION_STATUS.ERROR);
-
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(2);
+        const jobs = await latestExecution.getJobs();
+        expect(jobs.length).toEqual(2);
+      });
     });
   });
 });

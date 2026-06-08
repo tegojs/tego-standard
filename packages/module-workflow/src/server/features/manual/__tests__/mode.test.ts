@@ -3,6 +3,8 @@ import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
+import { waitForAssertion } from '../../../__tests__/utils';
+
 // NOTE: skipped because time is not stable on github ci, but should work in local
 describe('workflow > instructions > manual', () => {
   let app: MockServer;
@@ -67,16 +69,22 @@ describe('workflow > instructions > manual', () => {
 
       await sleep(500);
 
-      const [pending] = await workflow.getExecutions();
-      expect(pending.status).toBe(EXECUTION_STATUS.STARTED);
-      const [j1] = await pending.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
+      let pending;
+      let j1;
+      let usersJobs;
 
-      const usersJobs = await UserJobModel.findAll();
-      expect(usersJobs.length).toBe(1);
-      expect(usersJobs[0].status).toBe(JOB_STATUS.PENDING);
-      expect(usersJobs[0].userId).toBe(users[0].id);
-      expect(usersJobs[0].jobId).toBe(j1.id);
+      await waitForAssertion(async () => {
+        [pending] = await workflow.getExecutions();
+        expect(pending.status).toBe(EXECUTION_STATUS.STARTED);
+        [j1] = await pending.getJobs();
+        expect(j1.status).toBe(JOB_STATUS.PENDING);
+
+        usersJobs = await UserJobModel.findAll();
+        expect(usersJobs.length).toBe(1);
+        expect(usersJobs[0].status).toBe(JOB_STATUS.PENDING);
+        expect(usersJobs[0].userId).toBe(users[0].id);
+        expect(usersJobs[0].jobId).toBe(j1.id);
+      });
 
       const res1 = await agent.resource('users_jobs').submit({
         filterByTk: usersJobs[0].id,
@@ -225,13 +233,14 @@ describe('workflow > instructions > manual', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
       const UserJobModel = db.getModel('users_jobs');
-      const pendingJobs = await UserJobModel.findAll({
-        order: [['userId', 'ASC']],
+      let pendingJobs;
+      await waitForAssertion(async () => {
+        pendingJobs = await UserJobModel.findAll({
+          order: [['userId', 'ASC']],
+        });
+        expect(pendingJobs.length).toBe(2);
       });
-      expect(pendingJobs.length).toBe(2);
 
       const res1 = await userAgents[0].resource('users_jobs').submit({
         filterByTk: pendingJobs[0].get('id'),

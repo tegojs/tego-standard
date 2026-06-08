@@ -1,8 +1,8 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
+import { waitForWorkflowIdle, waitForWorkflowJob } from '../utils';
 
 describe('workflow > instructions > query', () => {
   let app: Application;
@@ -35,7 +35,10 @@ describe('workflow > instructions > query', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await waitForWorkflowIdle(app);
+    await app.destroy();
+  });
 
   describe('query one', () => {
     it('params: empty', async () => {
@@ -50,9 +53,9 @@ describe('workflow > instructions > query', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.title).toBe(post.title);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.title).toBe(post.title);
+      });
     });
 
     it('params.filter: match', async () => {
@@ -70,11 +73,9 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.title).toBe(post.title);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.title).toBe(post.title);
+      });
     });
 
     it('params.filter: unmatch', async () => {
@@ -189,12 +190,10 @@ describe('workflow > instructions > query', () => {
         values: { title: 't1', comments: [comment.id] },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.comments.length).toBe(1);
-      expect(job.result.comments[0].id).toBe(comment.id);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.comments.length).toBe(1);
+        expect(job.result.comments[0].id).toBe(comment.id);
+      });
     });
 
     it('params.appends: belongsToMany', async () => {
@@ -215,10 +214,10 @@ describe('workflow > instructions > query', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.posts.length).toBe(1);
-      expect(job.result.posts[0].id).toBe(post.id);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.posts.length).toBe(1);
+        expect(job.result.posts[0].id).toBe(post.id);
+      });
     });
 
     it('params.sort', async () => {
@@ -240,11 +239,14 @@ describe('workflow > instructions > query', () => {
 
       await sleep(500);
 
-      // get the 2nd execution
-      const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
-      expect(execution.context.data.title).toBe(p2.title);
-      const [job] = await execution.getJobs();
-      expect(job.result.title).toBe(p1.title);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(execution.context.data.title).toBe(p2.title);
+          expect(job.result.title).toBe(p1.title);
+        },
+        { executionOptions: { order: [['id', 'DESC']] } },
+      );
     });
   });
 
@@ -260,12 +262,10 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(1);
-      expect(job.result[0].title).toBe(post.title);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.length).toBe(1);
+        expect(job.result[0].title).toBe(post.title);
+      });
     });
 
     it('params.filter: match', async () => {
@@ -284,12 +284,10 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(1);
-      expect(job.result[0].title).toBe(post.title);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.length).toBe(1);
+        expect(job.result[0].title).toBe(post.title);
+      });
     });
 
     it('params.filter: unmatch', async () => {
@@ -308,11 +306,9 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(0);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.length).toBe(0);
+      });
     });
 
     it('params.sort & params.page & params.pageSize', async () => {
@@ -332,12 +328,10 @@ describe('workflow > instructions > query', () => {
       const p1 = await PostRepo.create({ values: { title: 't1' } });
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(1);
-      expect(job.result[0].title).toBe(p1.title);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.result.length).toBe(1);
+        expect(job.result[0].title).toBe(p1.title);
+      });
     });
   });
 
@@ -353,13 +347,11 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.FAILED);
-      const [job] = await execution.getJobs();
-      expect(job.status).toBe(JOB_STATUS.FAILED);
-      expect(job.result).toBe(null);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toBe(EXECUTION_STATUS.FAILED);
+        expect(job.status).toBe(JOB_STATUS.FAILED);
+        expect(job.result).toBe(null);
+      });
     });
 
     it('failOnEmpty && multiple', async () => {
@@ -374,12 +366,10 @@ describe('workflow > instructions > query', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.FAILED);
-      const [job] = await execution.getJobs();
-      expect(job.result).toMatchObject([]);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toBe(EXECUTION_STATUS.FAILED);
+        expect(job.result).toMatchObject([]);
+      });
     });
   });
 
@@ -405,12 +395,10 @@ describe('workflow > instructions > query', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.title).toBe('t1');
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result.title).toBe('t1');
+      });
     });
   });
 });

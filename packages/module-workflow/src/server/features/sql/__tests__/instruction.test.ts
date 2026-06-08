@@ -2,6 +2,7 @@ import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import Database, { Application, fn } from '@tego/server';
 
+import { waitForAssertion } from '../../../__tests__/utils';
 import Plugin from '../Plugin';
 
 describe('workflow > instructions > sql', () => {
@@ -45,12 +46,12 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('empty sql', async () => {
@@ -81,12 +82,12 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-      expect(sqlJob.status).toBe(JOB_STATUS.ERROR);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(sqlJob.status).toBe(JOB_STATUS.ERROR);
+      });
     });
   });
 
@@ -139,13 +140,13 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob, queryJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
-      expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
-      expect(queryJob.result.read).toBe(post.id);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob, queryJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+        expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
+        expect(queryJob.result.read).toBe(post.id);
+      });
     });
 
     it('delete', async () => {

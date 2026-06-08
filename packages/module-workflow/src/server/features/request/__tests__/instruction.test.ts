@@ -127,13 +127,13 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toMatchObject({ meta: {}, data: {} });
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+        expect(job.result).toMatchObject({ meta: {}, data: {} });
+      });
     });
 
     it('timeout', async () => {
@@ -148,17 +148,17 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(1000);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.status).toEqual(JOB_STATUS.FAILED);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.FAILED);
-
-      expect(job.result).toMatchObject({
-        error: {
-          code: 'ECONNABORTED',
-          message: 'timeout of 250ms exceeded',
-        },
+        expect(job.result).toMatchObject({
+          error: {
+            code: 'ECONNABORTED',
+            message: 'timeout of 250ms exceeded',
+          },
+        });
       });
 
       // NOTE: to wait for the response to finish and avoid non finished promise.
@@ -203,12 +203,12 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.FAILED);
-      expect(job.result.error.status).toBe(400);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.status).toEqual(JOB_STATUS.FAILED);
+        expect(job.result.error.status).toBe(400);
+      });
     });
 
     it('response 400 ignoreFail', async () => {
@@ -244,12 +244,12 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.data).toEqual({ title: 't1' });
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+        expect(job.result.data).toEqual({ title: 't1' });
+      });
     });
 
     // TODO(bug): should not use ejs
@@ -268,12 +268,12 @@ describe('workflow > instructions > request', () => {
         values: { title },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.data).toEqual({ title });
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+        expect(job.result.data).toEqual({ title });
+      });
     });
 
     it.skip('request inside loop', async () => {
@@ -339,13 +339,16 @@ describe('workflow > instructions > request', () => {
 
       await sleep(500);
 
-      const category = await db.getRepository('categories').findOne({});
+      await waitForAssertion(async () => {
+        const category = await db.getRepository('categories').findOne({});
+        expect(category).toBeTruthy();
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.status).toBe(JOB_STATUS.RESOLVED);
-      expect(job.result.data).toMatchObject({});
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+        expect(job.result.data).toMatchObject({});
+      });
 
       server.close();
     });

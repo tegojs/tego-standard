@@ -3,6 +3,7 @@ import Database, { Application } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
 import { BRANCH_INDEX } from '../../instructions/ConditionInstruction';
+import { waitForAssertion } from '../utils';
 
 describe('workflow > instructions > condition', () => {
   let app: Application;
@@ -99,15 +100,17 @@ describe('workflow > instructions > condition', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toEqual(3);
-      expect(jobs[1].result).toEqual(true);
-      expect(jobs[1].nodeId).toEqual(n2.id);
-      expect(jobs[2].result).toEqual(true);
-      expect(jobs[2].nodeId).toEqual(n4.id);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toEqual(3);
+        expect(jobs[1].result).toEqual(true);
+        expect(jobs[1].nodeId).toEqual(n2.id);
+        expect(jobs[2].result).toEqual(true);
+        expect(jobs[2].nodeId).toEqual(n4.id);
+      });
     });
 
     it('calculation to false downstream', async () => {
@@ -139,12 +142,14 @@ describe('workflow > instructions > condition', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-      const jobs = await execution.getJobs();
-      expect(jobs.length).toEqual(2);
-      expect(jobs[1].result).toEqual(false);
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toEqual(2);
+        expect(jobs[1].result).toEqual(false);
+      });
     });
 
     it('exit branch skips remaining nodes in the same branch', async () => {
@@ -240,16 +245,15 @@ describe('workflow > instructions > condition', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      console.log('------', jobs);
-      expect(jobs.length).toBe(3);
-      expect(jobs[0].result).toBe(false);
-      expect(jobs[1].result).toBe(false);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+        expect(jobs[0].result).toBe(false);
+        expect(jobs[1].result).toBe(false);
+      });
     });
   });
 
@@ -324,9 +328,11 @@ describe('workflow > instructions > condition', () => {
 
       await sleep(500);
 
-      const [execution] = await workflow.getExecutions({ include: ['jobs'] });
-      const [job] = execution.jobs;
-      expect(job.result).toBe(true);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions({ include: ['jobs'] });
+        const [job] = execution.jobs;
+        expect(job.result).toBe(true);
+      });
     });
 
     it('or false', async () => {
@@ -406,11 +412,13 @@ describe('workflow > instructions > condition', () => {
 
         await sleep(500);
 
-        const [execution] = await workflow.getExecutions();
-        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-        const [job] = await execution.getJobs();
-        expect(job.result).toEqual(true);
+          const [job] = await execution.getJobs();
+          expect(job.result).toEqual(true);
+        });
       });
 
       it('equal: 0 != null', async () => {
@@ -431,11 +439,13 @@ describe('workflow > instructions > condition', () => {
 
         await sleep(500);
 
-        const [execution] = await workflow.getExecutions();
-        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-        const [job] = await execution.getJobs();
-        expect(job.result).toEqual(false);
+          const [job] = await execution.getJobs();
+          expect(job.result).toEqual(false);
+        });
       });
 
       it('equal: 0 == false', async () => {
@@ -455,11 +465,13 @@ describe('workflow > instructions > condition', () => {
 
         await sleep(500);
 
-        const [execution] = await workflow.getExecutions();
-        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
-        const [job] = await execution.getJobs();
-        expect(job.result).toEqual(true);
+          const [job] = await execution.getJobs();
+          expect(job.result).toEqual(true);
+        });
       });
 
       it('equal: number == number', async () => {

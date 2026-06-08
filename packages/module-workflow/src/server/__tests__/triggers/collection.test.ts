@@ -1,9 +1,9 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
+import { waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > triggers > collection', () => {
   let app: MockServer;
@@ -214,12 +214,13 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.category).toBeUndefined();
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job).toBeTruthy();
+        expect(job.result.data.category).toBeUndefined();
+      });
     });
 
     it('appends association could be accessed', async () => {
@@ -307,12 +308,12 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.comments.length).toBe(1);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.data.comments.length).toBe(1);
+      });
     });
 
     it('appends belongsToMany', async () => {
@@ -372,13 +373,13 @@ describe('workflow > triggers > collection', () => {
           },
         });
 
-        await sleep(500);
-
-        const [execution] = await workflow.getExecutions();
-        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-        expect(execution.context.data.posts.length).toBe(2);
-        expect(execution.context.data.posts.map((item) => item.title)).toEqual(['t1', 't2']);
-        expect(execution.context.data.posts.map((item) => item.tags.map((tag) => tag.id))).toEqual([tagIds, tagIds]);
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+          expect(execution.context.data.posts.length).toBe(2);
+          expect(execution.context.data.posts.map((item) => item.title)).toEqual(['t1', 't2']);
+          expect(execution.context.data.posts.map((item) => item.tags.map((tag) => tag.id))).toEqual([tagIds, tagIds]);
+        });
       });
     });
   });
@@ -408,26 +409,26 @@ describe('workflow > triggers > collection', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const posts = await PostRepo.find();
+        expect(posts.length).toBe(2);
 
-      const posts = await PostRepo.find();
-      expect(posts.length).toBe(2);
-
-      const e1s = await workflow.getExecutions();
-      expect(e1s.length).toBe(1);
-      expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e1s = await workflow.getExecutions();
+        expect(e1s.length).toBe(1);
+        expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
 
       // NOTE: second trigger to ensure no skipped event
       const p3 = await PostRepo.create({ values: { title: 't3' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const posts2 = await PostRepo.find();
+        expect(posts2.length).toBe(4);
 
-      const posts2 = await PostRepo.find();
-      expect(posts2.length).toBe(4);
-
-      const e2s = await workflow.getExecutions({ order: [['createdAt', 'DESC']] });
-      expect(e2s.length).toBe(2);
-      expect(e2s[1].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e2s = await workflow.getExecutions({ order: [['createdAt', 'DESC']] });
+        expect(e2s.length).toBe(2);
+        expect(e2s[1].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
     });
 
     it('multiple cycling trigger should not trigger more than once', async () => {
@@ -475,18 +476,29 @@ describe('workflow > triggers > collection', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const posts = await PostRepo.find();
+        expect(posts.length).toBe(2);
 
-      const posts = await PostRepo.find();
-      expect(posts.length).toBe(2);
+        const e1s = await w1.getExecutions();
+        expect(e1s.length).toBe(1);
+        expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
 
-      const e1s = await w1.getExecutions();
-      expect(e1s.length).toBe(1);
-      expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e2s = await w2.getExecutions();
+        expect(e2s.length).toBe(1);
+        expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
+      await waitForWorkflowIdle(app);
+      await waitForAssertion(async () => {
+        const posts = await PostRepo.find();
+        expect(posts.length).toBe(2);
 
-      const e2s = await w2.getExecutions();
-      expect(e2s.length).toBe(1);
-      expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e1s = await w1.getExecutions();
+        expect(e1s.length).toBe(1);
+
+        const e2s = await w2.getExecutions();
+        expect(e2s.length).toBe(1);
+      });
     });
   });
 
@@ -591,7 +603,6 @@ describe('workflow > triggers > collection', () => {
       const w2 = await WorkflowModel.findByPk(body.data.id);
       await w2.update({ enabled: true });
       expect(w2.enabled).toBe(true);
-      console.log('w2', w2.toJSON());
 
       await w1.reload();
       expect(w1.enabled).toBe(false);

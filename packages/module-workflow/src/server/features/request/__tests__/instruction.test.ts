@@ -1,4 +1,5 @@
 import { createServer, Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import PluginWorkflow, { EXECUTION_STATUS, JOB_STATUS, Processor } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
@@ -8,15 +9,30 @@ import jwt from 'jsonwebtoken';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
 
-import { waitForAssertion } from '../../../__tests__/utils';
+import { waitForAssertion, waitForWorkflowJob } from '../../../__tests__/utils';
 import { RequestConfig } from '../RequestInstruction';
 
 const HOST = 'localhost';
 
-function getRandomPort() {
-  const minPort = 1024;
-  const maxPort = 49151;
-  return Math.floor(Math.random() * (maxPort - minPort + 1)) + minPort;
+async function listen(server: Server) {
+  return new Promise<number>((resolve) => {
+    server.listen(0, () => {
+      const address = server.address() as AddressInfo;
+      resolve(address.port);
+    });
+  });
+}
+
+async function close(server: Server) {
+  return new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 }
 
 class MockAPI {
@@ -86,7 +102,7 @@ describe('workflow > instructions > request', () => {
 
   beforeEach(async () => {
     api = new MockAPI();
-    api.start();
+    await api.start();
     app = await getApp({
       resourcer: {
         prefix: '/api',
@@ -178,16 +194,14 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(1000);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toMatchObject({
-        error: {
-          code: 'ECONNABORTED',
-          message: 'timeout of 250ms exceeded',
-        },
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+        expect(job.result).toMatchObject({
+          error: {
+            code: 'ECONNABORTED',
+            message: 'timeout of 250ms exceeded',
+          },
+        });
       });
     });
 
@@ -296,14 +310,16 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
-      expect(jobs.map((item) => item.status)).toEqual(Array(3).fill(JOB_STATUS.RESOLVED));
-      expect(jobs[0].result).toBe(2);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, jobs) => {
+          expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+          expect(jobs.length).toBe(3);
+          expect(jobs.map((item) => item.status)).toEqual(Array(3).fill(JOB_STATUS.RESOLVED));
+          expect(jobs[0].result).toBe(2);
+        },
+        { jobOptions: { order: [['id', 'ASC']] } },
+      );
     });
   });
 
@@ -322,35 +338,33 @@ describe('workflow > instructions > request', () => {
       );
 
       const server = createServer(app.callback());
-      server.listen(12346);
+      const port = await listen(server);
 
-      await sleep(1000);
+      try {
+        const n1 = await workflow.createNode({
+          type: 'request',
+          config: {
+            url: `http://localhost:${port}/api/categories`,
+            method: 'POST',
+            headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
+          } as RequestConfig,
+        });
 
-      const n1 = await workflow.createNode({
-        type: 'request',
-        config: {
-          url: `http://localhost:12346/api/categories`,
-          method: 'POST',
-          headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
-        } as RequestConfig,
-      });
+        await PostRepo.create({ values: { title: 't1' } });
 
-      await PostRepo.create({ values: { title: 't1' } });
+        await waitForAssertion(async () => {
+          const category = await db.getRepository('categories').findOne({});
+          expect(category).toBeTruthy();
 
-      await sleep(500);
-
-      await waitForAssertion(async () => {
-        const category = await db.getRepository('categories').findOne({});
-        expect(category).toBeTruthy();
-
-        const [execution] = await workflow.getExecutions();
-        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-        const [job] = await execution.getJobs();
-        expect(job.status).toBe(JOB_STATUS.RESOLVED);
-        expect(job.result.data).toMatchObject({});
-      });
-
-      server.close();
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+          const [job] = await execution.getJobs();
+          expect(job.status).toBe(JOB_STATUS.RESOLVED);
+          expect(job.result.data).toMatchObject({});
+        });
+      } finally {
+        await close(server);
+      }
     });
   });
 

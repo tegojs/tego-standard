@@ -1,8 +1,8 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
 import { JOB_STATUS } from '../../constants';
-import { waitForAssertion } from '../utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > instructions > calculation', () => {
   let app: Application;
@@ -12,13 +12,23 @@ describe('workflow > instructions > calculation', () => {
   let WorkflowModel;
   let workflow;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
     CategoryRepo = db.getCollection('categories').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await CategoryRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       title: 'test workflow',
@@ -31,7 +41,12 @@ describe('workflow > instructions > calculation', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('math.js', () => {
     it('syntax error', async () => {
@@ -127,11 +142,11 @@ describe('workflow > instructions > calculation', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(2);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result).toBe(2);
+      });
     });
 
     it('$system.now()', async () => {
@@ -165,11 +180,11 @@ describe('workflow > instructions > calculation', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe('a$$0');
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result).toBe('a$$0');
+      });
     });
 
     it('text', async () => {
@@ -182,8 +197,6 @@ describe('workflow > instructions > calculation', () => {
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-
-      await sleep(500);
 
       await waitForAssertion(async () => {
         const [execution] = await workflow.getExecutions();

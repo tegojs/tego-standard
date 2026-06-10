@@ -1,7 +1,7 @@
 import ModuleUiSchema, { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
+
 import { vi } from 'vitest';
 
 describe('server hooks', () => {
@@ -10,36 +10,36 @@ describe('server hooks', () => {
   let uiSchemaRepository: UiSchemaRepository;
   let uiSchemaPlugin: ModuleUiSchema;
 
-  const schema = {
-    'x-uid': 'root',
-    name: 'root',
+  const createCollectionHookSchema = (rootUid: string, collectionName: string, fieldName: string, method: string) => ({
+    'x-uid': rootUid,
+    name: rootUid,
     properties: {
       row: {
-        'x-uid': 'table',
+        'x-uid': `${rootUid}-table`,
         'x-component': 'Table',
-        'x-collection': 'posts',
+        'x-collection': collectionName,
         'x-server-hooks': [
           {
             type: 'onCollectionDestroy',
-            collection: 'posts',
-            method: 'onCollectionDestroy',
+            collection: collectionName,
+            method,
           },
         ],
         properties: {
           col1: {
-            'x-uid': 'col1',
+            'x-uid': `${rootUid}-col1`,
             'x-component': 'Col',
             properties: {
               field1: {
-                'x-uid': 'field1',
+                'x-uid': `${rootUid}-field1`,
                 'x-component': 'Input',
-                'x-collection-field': 'posts.title',
+                'x-collection-field': `${collectionName}.${fieldName}`,
                 'x-server-hooks': [
                   {
                     type: 'onCollectionFieldDestroy',
-                    collection: 'posts',
-                    field: 'title',
-                    method: 'onFieldDestroy',
+                    collection: collectionName,
+                    field: fieldName,
+                    method,
                   },
                 ],
               },
@@ -48,13 +48,13 @@ describe('server hooks', () => {
         },
       },
     },
-  };
+  });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       plugins: ['ui-schema-storage', 'collection-manager', 'error-handler'],
@@ -63,23 +63,29 @@ describe('server hooks', () => {
     db = app.db;
 
     uiSchemaRepository = db.getRepository('uiSchemas');
-    await uiSchemaRepository.insert(schema);
 
     uiSchemaPlugin = app.getPlugin<ModuleUiSchema>('ui-schema-storage');
   });
 
   it('should call server hooks onFieldDestroy', async () => {
+    const collectionName = 'serverHookFieldPosts';
+    const fieldName = 'title';
+    const methodName = 'onFieldDestroyForFieldTest';
+    await uiSchemaRepository.insert(
+      createCollectionHookSchema('server-hook-field-root', collectionName, fieldName, methodName),
+    );
+
     const PostModel = await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     const fieldModel = await db.getRepository('fields').create({
       values: {
-        name: 'title',
+        name: fieldName,
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
@@ -89,12 +95,12 @@ describe('server hooks', () => {
     const serverHooks = uiSchemaPlugin.serverHooks;
     const hookFn = vi.fn();
 
-    serverHooks.register('onCollectionFieldDestroy', 'onFieldDestroy', hookFn);
+    serverHooks.register('onCollectionFieldDestroy', methodName, hookFn);
 
     // destroy a field
     await db.getRepository('fields').destroy({
       filter: {
-        name: 'title',
+        name: fieldName,
       },
       individualHooks: true,
     });
@@ -103,17 +109,24 @@ describe('server hooks', () => {
   });
 
   it('should call server hooks onCollectionDestroy', async () => {
+    const collectionName = 'serverHookCollectionPosts';
+    const fieldName = 'title';
+    const methodName = 'onCollectionDestroyForCollectionTest';
+    await uiSchemaRepository.insert(
+      createCollectionHookSchema('server-hook-collection-root', collectionName, fieldName, methodName),
+    );
+
     const PostModel = await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     const fieldModel = await db.getRepository('fields').create({
       values: {
-        name: 'title',
+        name: fieldName,
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
@@ -124,12 +137,12 @@ describe('server hooks', () => {
 
     const hookFn = vi.fn();
 
-    serverHooks.register('onCollectionDestroy', 'onCollectionDestroy', hookFn);
+    serverHooks.register('onCollectionDestroy', methodName, hookFn);
 
     // destroy a field
     await db.getRepository('collections').destroy({
       filter: {
-        name: 'posts',
+        name: collectionName,
       },
       individualHooks: true,
     });
@@ -138,12 +151,14 @@ describe('server hooks', () => {
   });
 
   it('should call server hooks onUiSchemaCreate', async () => {
+    const menuUid = 'server-hook-menu-create';
+    const methodName = 'afterCreateMenuForCreateTest';
     const menuSchema = {
-      'x-uid': 'menu',
+      'x-uid': menuUid,
       'x-server-hooks': [
         {
           type: 'onSelfCreate',
-          method: 'afterCreateMenu',
+          method: methodName,
         },
       ],
     };
@@ -151,7 +166,7 @@ describe('server hooks', () => {
     const serverHooks = uiSchemaPlugin.serverHooks;
     const hookFn = vi.fn();
 
-    serverHooks.register('onSelfCreate', 'afterCreateMenu', hookFn);
+    serverHooks.register('onSelfCreate', methodName, hookFn);
 
     await uiSchemaRepository.insert(menuSchema);
 
@@ -159,13 +174,16 @@ describe('server hooks', () => {
   });
 
   it('should call server hooks onAnyCollectionFieldDestroy', async () => {
+    const collectionName = 'serverHookAnyPosts';
+    const fieldName = 'title';
+    const methodName = 'testAnyCollectionFieldDestroy';
     const menuSchema = {
-      'x-uid': 'menu',
+      'x-uid': 'server-hook-any-menu',
       'x-server-hooks': [
         {
           type: 'onAnyCollectionFieldDestroy',
-          collection: 'posts',
-          method: 'test1',
+          collection: collectionName,
+          method: methodName,
         },
       ],
     };
@@ -174,15 +192,15 @@ describe('server hooks', () => {
 
     const PostModel = await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     const fieldModel = await db.getRepository('fields').create({
       values: {
-        name: 'title',
+        name: fieldName,
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
@@ -192,12 +210,12 @@ describe('server hooks', () => {
     const serverHooks = uiSchemaPlugin.serverHooks;
     const hookFn = vi.fn();
 
-    serverHooks.register('onAnyCollectionFieldDestroy', 'test1', hookFn);
+    serverHooks.register('onAnyCollectionFieldDestroy', methodName, hookFn);
 
     // destroy a field
     await db.getRepository('fields').destroy({
       filter: {
-        name: 'title',
+        name: fieldName,
       },
       individualHooks: true,
     });
@@ -206,15 +224,18 @@ describe('server hooks', () => {
   });
 
   it('should rollback after throw error', async () => {
+    const collectionName = 'serverHookRollbackPosts';
+    const fieldName = 'title';
+    const methodName = 'preventDestroyForRollbackTest';
     const testSchema = {
-      'x-uid': 'test',
-      'x-collection-field': 'posts.title',
+      'x-uid': 'server-hook-rollback-test',
+      'x-collection-field': `${collectionName}.${fieldName}`,
       'x-server-hooks': [
         {
           type: 'onCollectionFieldDestroy',
-          collection: 'posts',
-          field: 'title',
-          method: 'preventDestroy',
+          collection: collectionName,
+          field: fieldName,
+          method: methodName,
         },
       ],
     };
@@ -227,15 +248,15 @@ describe('server hooks', () => {
 
     const PostModel = await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     const fieldModel = await db.getRepository('fields').create({
       values: {
-        name: 'title',
+        name: fieldName,
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
@@ -246,7 +267,7 @@ describe('server hooks', () => {
 
     const jestFn = vi.fn();
 
-    serverHooks.register('onCollectionFieldDestroy', 'preventDestroy', async ({ options }) => {
+    serverHooks.register('onCollectionFieldDestroy', methodName, async ({ options }) => {
       await options.transaction.rollback();
       jestFn();
       throw new Error('cant delete field');
@@ -256,41 +277,42 @@ describe('server hooks', () => {
       // destroy a field
       await db.getRepository('fields').destroy({
         filter: {
-          name: 'title',
+          name: fieldName,
         },
         individualHooks: true,
       });
-    } catch (e) {
-      console.log(e);
-    }
+    } catch (e) {}
 
     expect(jestFn).toHaveBeenCalled();
     expect(
       await db.getRepository('fields').findOne({
         filter: {
-          name: 'title',
+          name: fieldName,
         },
       }),
     ).toBeDefined();
   });
 
   it('should call onSelfMove', async () => {
+    const rootUid = 'server-hook-self-move-A';
+    const targetUid = 'server-hook-self-move-D';
+    const methodName = 'testOnSelfMoveForMoveTest';
     const schema = {
-      'x-uid': 'A',
-      name: 'A',
+      'x-uid': rootUid,
+      name: rootUid,
       properties: {
         B: {
-          'x-uid': 'B',
+          'x-uid': 'server-hook-self-move-B',
           properties: {
             C: {
-              'x-uid': 'C',
+              'x-uid': 'server-hook-self-move-C',
               properties: {
                 D: {
-                  'x-uid': 'D',
+                  'x-uid': targetUid,
                   'x-server-hooks': [
                     {
                       type: 'onSelfMove',
-                      method: 'testOnSelfMove',
+                      method: methodName,
                     },
                   ],
                 },
@@ -299,7 +321,7 @@ describe('server hooks', () => {
           },
         },
         E: {
-          'x-uid': 'E',
+          'x-uid': 'server-hook-self-move-E',
         },
       },
     };
@@ -308,7 +330,7 @@ describe('server hooks', () => {
 
     const jestFn = vi.fn();
 
-    serverHooks.register('onSelfMove', 'testOnSelfMove', async ({ options }) => {
+    serverHooks.register('onSelfMove', methodName, async ({ options }) => {
       jestFn();
     });
 
@@ -316,18 +338,18 @@ describe('server hooks', () => {
 
     await uiSchemaRepository.insertAdjacent(
       'afterEnd',
-      'E',
+      'server-hook-self-move-E',
       {
-        'x-uid': 'D',
+        'x-uid': targetUid,
       },
       {
         removeParentsIfNoChildren: true,
         wrap: {
-          'x-uid': 'F',
-          name: 'F',
+          'x-uid': 'server-hook-self-move-F',
+          name: 'server-hook-self-move-F',
           properties: {
             G: {
-              'x-uid': 'G',
+              'x-uid': 'server-hook-self-move-G',
             },
           },
         },

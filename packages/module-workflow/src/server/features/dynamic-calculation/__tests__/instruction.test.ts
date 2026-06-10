@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
@@ -58,11 +58,11 @@ describe('workflow > instructions > calculation', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result).toBe(1);
+      });
     });
 
     it('dynamic expression field in association table', async () => {

@@ -1,9 +1,9 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
-import { waitForAssertion } from '../../../__tests__/utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
 
 // NOTE: skipped because time is not stable on github ci, but should work in local
 describe('workflow > instructions > manual', () => {
@@ -19,7 +19,7 @@ describe('workflow > instructions > manual', () => {
   let users;
   let UserJobModel;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp({
       plugins: ['users', 'auth', 'workflow-manual'],
     });
@@ -38,6 +38,17 @@ describe('workflow > instructions > manual', () => {
     ]);
 
     userAgents = users.map((user) => app.agent().login(user));
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await UserJobModel.destroy({ where: {} });
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await CommentRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -49,7 +60,12 @@ describe('workflow > instructions > manual', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   async function waitForPendingUserJob() {
     let j1;
@@ -69,6 +85,19 @@ describe('workflow > instructions > manual', () => {
     });
 
     return { job: j1, usersJobs };
+  }
+
+  async function waitForPendingUserJobs(expected: number) {
+    let pendingJobs;
+
+    await waitForAssertion(async () => {
+      pendingJobs = await UserJobModel.findAll({
+        order: [['userId', 'ASC']],
+      });
+      expect(pendingJobs.length).toBe(expected);
+    });
+
+    return pendingJobs;
   }
 
   describe('actions configuration', () => {
@@ -292,18 +321,7 @@ describe('workflow > instructions > manual', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [pending] = await workflow.getExecutions();
-      expect(pending.status).toBe(EXECUTION_STATUS.STARTED);
-      const [j1] = await pending.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
-
-      const usersJobs = await UserJobModel.findAll();
-      expect(usersJobs.length).toBe(1);
-      expect(usersJobs[0].status).toBe(JOB_STATUS.PENDING);
-      expect(usersJobs[0].userId).toBe(users[0].id);
-      expect(usersJobs[0].jobId).toBe(j1.id);
+      const { usersJobs } = await waitForPendingUserJob();
 
       const now = new Date();
       const res1 = await userAgents[0].resource('users_jobs').submit({
@@ -313,13 +331,14 @@ describe('workflow > instructions > manual', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.status).toBe(JOB_STATUS.RESOLVED);
-      expect(job.result).toMatchObject({ f1: { a: users[0].id, id: 3, b: 3, d: post.title }, _: 'resolve' });
+      let job;
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        [job] = await execution.getJobs();
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+        expect(job.result).toMatchObject({ f1: { a: users[0].id, id: 3, b: 3, d: post.title }, _: 'resolve' });
+      });
       const time = new Date(job.result.f1.c);
       expect(time.getTime() - now.getTime()).toBeLessThan(1000);
     });
@@ -402,13 +421,7 @@ describe('workflow > instructions > manual', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const UserJobModel = db.getModel('users_jobs');
-      const pendingJobs = await UserJobModel.findAll({
-        order: [['userId', 'ASC']],
-      });
-      expect(pendingJobs.length).toBe(2);
+      const pendingJobs = await waitForPendingUserJobs(2);
 
       const res1 = await userAgents[0].resource('users_jobs').submit({
         filterByTk: pendingJobs[0].get('id'),
@@ -418,13 +431,13 @@ describe('workflow > instructions > manual', () => {
       });
       expect(res1.status).toBe(202);
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs({ order: [['createdAt', 'ASC']] });
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
-      expect(j1.result).toMatchObject({ f1: { number: 1 } });
+      await waitForAssertion(async () => {
+        const [e1] = await workflow.getExecutions();
+        expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
+        const [j1] = await e1.getJobs({ order: [['createdAt', 'ASC']] });
+        expect(j1.status).toBe(JOB_STATUS.PENDING);
+        expect(j1.result).toMatchObject({ f1: { number: 1 } });
+      });
 
       const res2 = await userAgents[0].resource('users_jobs').submit({
         filterByTk: pendingJobs[0].get('id'),
@@ -434,15 +447,15 @@ describe('workflow > instructions > manual', () => {
       });
       expect(res2.status).toBe(202);
 
-      await sleep(500);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toBe(EXECUTION_STATUS.STARTED);
-      const [j2] = await e2.getJobs({ order: [['createdAt', 'ASC']] });
-      expect(j2.status).toBe(JOB_STATUS.PENDING);
-      expect(j2.result).toMatchObject({
-        f1: { number: 1 },
-        f2: { number: 2 },
+      await waitForAssertion(async () => {
+        const [e2] = await workflow.getExecutions();
+        expect(e2.status).toBe(EXECUTION_STATUS.STARTED);
+        const [j2] = await e2.getJobs({ order: [['createdAt', 'ASC']] });
+        expect(j2.status).toBe(JOB_STATUS.PENDING);
+        expect(j2.result).toMatchObject({
+          f1: { number: 1 },
+          f2: { number: 2 },
+        });
       });
 
       const res3 = await userAgents[0].resource('users_jobs').submit({
@@ -453,13 +466,13 @@ describe('workflow > instructions > manual', () => {
       });
       expect(res3.status).toBe(202);
 
-      await sleep(500);
-
-      const [e3] = await workflow.getExecutions();
-      expect(e3.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [j3] = await e3.getJobs({ order: [['createdAt', 'ASC']] });
-      expect(j3.status).toBe(JOB_STATUS.RESOLVED);
-      expect(j3.result).toMatchObject({ f2: { number: 3 } });
+      await waitForAssertion(async () => {
+        const [e3] = await workflow.getExecutions();
+        expect(e3.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [j3] = await e3.getJobs({ order: [['createdAt', 'ASC']] });
+        expect(j3.status).toBe(JOB_STATUS.RESOLVED);
+        expect(j3.result).toMatchObject({ f2: { number: 3 } });
+      });
     });
   });
 
@@ -482,13 +495,7 @@ describe('workflow > instructions > manual', () => {
 
         const post = await PostRepo.create({ values: { title: 't1' } });
 
-        await sleep(500);
-
-        const UserJobModel = db.getModel('users_jobs');
-        const pendingJobs = await UserJobModel.findAll({
-          order: [['userId', 'ASC']],
-        });
-        expect(pendingJobs.length).toBe(1);
+        const pendingJobs = await waitForPendingUserJobs(1);
 
         const res1 = await userAgents[0].resource('users_jobs').submit({
           filterByTk: pendingJobs[0].get('id'),
@@ -498,17 +505,17 @@ describe('workflow > instructions > manual', () => {
         });
         expect(res1.status).toBe(202);
 
-        await sleep(1000);
+        await waitForAssertion(async () => {
+          const [e1] = await workflow.getExecutions();
+          expect(e1.status).toBe(EXECUTION_STATUS.RESOLVED);
+          const [j1] = await e1.getJobs();
+          expect(j1.status).toBe(JOB_STATUS.RESOLVED);
+          expect(j1.result).toMatchObject({ f1: { status: 1 } });
 
-        const [e1] = await workflow.getExecutions();
-        expect(e1.status).toBe(EXECUTION_STATUS.RESOLVED);
-        const [j1] = await e1.getJobs();
-        expect(j1.status).toBe(JOB_STATUS.RESOLVED);
-        expect(j1.result).toMatchObject({ f1: { status: 1 } });
-
-        const comments = await CommentRepo.find();
-        expect(comments.length).toBe(1);
-        expect(comments[0]).toMatchObject({ status: 1 });
+          const comments = await CommentRepo.find();
+          expect(comments.length).toBe(1);
+          expect(comments[0]).toMatchObject({ status: 1 });
+        });
       });
 
       it('save first and then commit', async () => {
@@ -531,13 +538,7 @@ describe('workflow > instructions > manual', () => {
 
         const post = await PostRepo.create({ values: { title: 't1' } });
 
-        await sleep(500);
-
-        const UserJobModel = db.getModel('users_jobs');
-        const pendingJobs = await UserJobModel.findAll({
-          order: [['userId', 'ASC']],
-        });
-        expect(pendingJobs.length).toBe(1);
+        const pendingJobs = await waitForPendingUserJobs(1);
 
         const res1 = await userAgents[0].resource('users_jobs').submit({
           filterByTk: pendingJobs[0].get('id'),
@@ -547,16 +548,16 @@ describe('workflow > instructions > manual', () => {
         });
         expect(res1.status).toBe(202);
 
-        await sleep(500);
+        await waitForAssertion(async () => {
+          const [e1] = await workflow.getExecutions();
+          expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
+          const [j1] = await e1.getJobs();
+          expect(j1.status).toBe(JOB_STATUS.PENDING);
+          expect(j1.result).toMatchObject({ f1: { status: 1 } });
 
-        const [e1] = await workflow.getExecutions();
-        expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
-        const [j1] = await e1.getJobs();
-        expect(j1.status).toBe(JOB_STATUS.PENDING);
-        expect(j1.result).toMatchObject({ f1: { status: 1 } });
-
-        const c1 = await CommentRepo.find();
-        expect(c1.length).toBe(0);
+          const c1 = await CommentRepo.find();
+          expect(c1.length).toBe(0);
+        });
 
         const res2 = await userAgents[0].resource('users_jobs').submit({
           filterByTk: pendingJobs[0].get('id'),
@@ -565,16 +566,16 @@ describe('workflow > instructions > manual', () => {
           },
         });
 
-        await sleep(500);
+        await waitForAssertion(async () => {
+          const [e2] = await workflow.getExecutions();
+          expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
+          const [j2] = await e2.getJobs();
+          expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+          expect(j2.result).toMatchObject({ f1: { status: 1 } });
 
-        const [e2] = await workflow.getExecutions();
-        expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
-        const [j2] = await e2.getJobs();
-        expect(j2.status).toBe(JOB_STATUS.RESOLVED);
-        expect(j2.result).toMatchObject({ f1: { status: 1 } });
-
-        const c2 = await CommentRepo.find();
-        expect(c2.length).toBe(1);
+          const c2 = await CommentRepo.find();
+          expect(c2.length).toBe(1);
+        });
       });
     });
 
@@ -596,13 +597,7 @@ describe('workflow > instructions > manual', () => {
 
         const post = await PostRepo.create({ values: { title: 't1' } });
 
-        await sleep(500);
-
-        const UserJobModel = db.getModel('users_jobs');
-        const pendingJobs = await UserJobModel.findAll({
-          order: [['userId', 'ASC']],
-        });
-        expect(pendingJobs.length).toBe(1);
+        const pendingJobs = await waitForPendingUserJobs(1);
 
         const res1 = await userAgents[0].resource('users_jobs').submit({
           filterByTk: pendingJobs[0].get('id'),
@@ -612,17 +607,17 @@ describe('workflow > instructions > manual', () => {
         });
         expect(res1.status).toBe(202);
 
-        await sleep(1000);
+        await waitForAssertion(async () => {
+          const [e2] = await workflow.getExecutions();
+          expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
+          const [j1] = await e2.getJobs();
+          expect(j1.status).toBe(JOB_STATUS.RESOLVED);
+          expect(j1.result).toMatchObject({ f1: { title: 't2' } });
 
-        const [e2] = await workflow.getExecutions();
-        expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
-        const [j1] = await e2.getJobs();
-        expect(j1.status).toBe(JOB_STATUS.RESOLVED);
-        expect(j1.result).toMatchObject({ f1: { title: 't2' } });
-
-        const postsAfter = await PostRepo.find();
-        expect(postsAfter.length).toBe(1);
-        expect(postsAfter[0]).toMatchObject({ title: 't2' });
+          const postsAfter = await PostRepo.find();
+          expect(postsAfter.length).toBe(1);
+          expect(postsAfter[0]).toMatchObject({ title: 't2' });
+        });
       });
     });
   });

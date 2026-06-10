@@ -1,8 +1,8 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
-import { waitForWorkflowIdle, waitForWorkflowJob } from '../utils';
+import { waitForWorkflowIdle, waitForWorkflowJobFast as waitForWorkflowJob } from '../utils';
 
 describe('workflow > instructions > query', () => {
   let app: Application;
@@ -13,9 +13,10 @@ describe('workflow > instructions > query', () => {
   let CommentRepo;
   let WorkflowModel;
   let workflow;
+  let withAnotherDataSource = false;
 
   beforeEach(async () => {
-    app = await getApp();
+    app = await getApp({ withAnotherDataSource });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
@@ -50,8 +51,6 @@ describe('workflow > instructions > query', () => {
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-
-      await sleep(500);
 
       await waitForWorkflowJob(workflow, (execution, [job]) => {
         expect(job.result.title).toBe(post.title);
@@ -208,8 +207,6 @@ describe('workflow > instructions > query', () => {
         values: { title: 't1', tags: [tag.id] },
       });
 
-      await sleep(500);
-
       await waitForWorkflowJob(workflow, (execution, [job]) => {
         expect(job.result.posts.length).toBe(1);
         expect(job.result.posts[0].id).toBe(post.id);
@@ -229,15 +226,17 @@ describe('workflow > instructions > query', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.context.data.title).toBe(p1.title);
+        expect(job.result.title).toBe(p1.title);
+      });
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
       await waitForWorkflowJob(
         workflow,
-        (execution, [job]) => {
+        async (execution, [job]) => {
+          expect(await workflow.countExecutions()).toBe(2);
           expect(execution.context.data.title).toBe(p2.title);
           expect(job.result.title).toBe(p1.title);
         },
@@ -370,6 +369,14 @@ describe('workflow > instructions > query', () => {
   });
 
   describe('multiple data source', () => {
+    beforeAll(() => {
+      withAnotherDataSource = true;
+    });
+
+    afterAll(() => {
+      withAnotherDataSource = false;
+    });
+
     it('query on another data source', async () => {
       const AnotherPostRepo = app.dataSourceManager.dataSources.get('another').collectionManager.getRepository('posts');
       const post = await AnotherPostRepo.create({ values: { title: 't1' } });

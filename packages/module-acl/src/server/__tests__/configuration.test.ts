@@ -1,9 +1,7 @@
 import { MockServer } from '@tachybase/test';
 import { Database } from '@tego/server';
 
-import UsersPlugin from 'packages/module-user/src';
-
-import { prepareApp } from './prepare';
+import { aclCollectionManagerTestPlugins, prepareApp } from './prepare';
 
 describe('configuration', () => {
   let app: MockServer;
@@ -14,12 +12,10 @@ describe('configuration', () => {
   let userAgent;
   let guestAgent;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclCollectionManagerTestPlugins,
+    });
     db = app.db;
 
     await db.getRepository('roles').create({
@@ -53,6 +49,10 @@ describe('configuration', () => {
     userAgent = app.agent().login(user);
 
     guestAgent = app.agent();
+  });
+
+  afterAll(async () => {
+    await app.destroy();
   });
 
   it('should list collections', async () => {

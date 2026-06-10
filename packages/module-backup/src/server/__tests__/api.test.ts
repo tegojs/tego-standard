@@ -1,71 +1,98 @@
 import { Buffer } from 'node:buffer';
 import fs from 'node:fs/promises';
-import { MockServer, waitSecond } from '@tachybase/test';
+import { MockServer } from '@tachybase/test';
+import { DumpRulesGroupType } from '@tego/server';
 
 import { Dumper } from '../dumper';
-import createApp from './index';
+import createApp, { backupBaseTestPlugins, backupTestPlugins } from './index';
 
 describe('backup files', () => {
   let app: MockServer;
+  let dumper: Dumper;
+  const backupFilesToClean = new Set<string>();
 
-  beforeEach(async () => {
-    app = await createApp();
-  });
+  async function setupApp(plugins = backupTestPlugins) {
+    app = await createApp({ plugins });
+    dumper = new Dumper(app);
+  }
 
-  afterEach(async () => {
+  function markBackupFileForCleanup(fileName: string) {
+    backupFilesToClean.add(fileName);
+  }
+
+  async function cleanupBackupFiles() {
+    for (const fileName of backupFilesToClean) {
+      await fs.rm(dumper.backUpFilePath(fileName), { force: true });
+      await fs.rm(dumper.lockFilePath(fileName), { force: true });
+      await fs.rm(`${dumper.backUpFilePath(fileName)}.progress`, { force: true });
+    }
+    backupFilesToClean.clear();
+  }
+
+  async function teardownApp() {
+    await cleanupBackupFiles();
     await app.destroy();
-  });
+  }
 
-  it('should create dump file', async () => {
-    const createResponse = await app
-      .agent()
-      .resource('backupFiles')
-      .create({
-        dataTypes: ['meta', 'config', 'business'],
-      });
+  async function createBackup(groups: DumpRulesGroupType[]) {
+    const dumpKey = await dumper.runDumpTask({
+      groups: new Set(groups),
+    });
 
-    expect(createResponse.status).toBe(200);
+    await Dumper.getTaskPromise(dumpKey);
+    markBackupFileForCleanup(dumpKey);
 
-    const dumpKey = createResponse.body.data.key;
-    expect(dumpKey).toBeDefined();
+    return dumpKey;
+  }
 
-    const promise = Dumper.getTaskPromise(dumpKey);
+  describe('create action', () => {
+    beforeEach(() => setupApp(backupBaseTestPlugins));
+    afterEach(teardownApp);
 
-    await promise;
-  });
+    it('should create dump file', async () => {
+      const createResponse = await app
+        .agent()
+        .resource('backupFiles')
+        .create({
+          dataTypes: ['meta', 'config', 'business'],
+        });
 
-  describe('resource action', () => {
-    let dumpKey: string;
+      expect(createResponse.status).toBe(200);
 
-    let dumper: Dumper;
-
-    beforeEach(async () => {
-      dumper = new Dumper(app);
-
-      dumpKey = await dumper.runDumpTask({
-        groups: new Set(['meta', 'config', 'business']),
-      });
+      const dumpKey = createResponse.body.data.key;
+      expect(dumpKey).toBeDefined();
+      markBackupFileForCleanup(dumpKey);
 
       const promise = Dumper.getTaskPromise(dumpKey);
 
       await promise;
     });
+  });
+
+  describe('resource action', () => {
+    beforeAll(() => setupApp(backupBaseTestPlugins));
+    afterAll(async () => {
+      await teardownApp();
+    });
+
+    afterEach(cleanupBackupFiles);
 
     it('should list backup file with in progress status', async () => {
-      await waitSecond(1000);
       const fileName = Dumper.generateFileName();
       await dumper.writeLockFile(fileName);
+      markBackupFileForCleanup(fileName);
       const listResponse = await app.agent().resource('backupFiles').list();
 
       expect(listResponse.status).toBe(200);
 
       const body = listResponse.body;
 
-      const firstItem = body.data[0];
-      expect(firstItem.status).toEqual('in_progress');
+      const item = body.data.find((item: any) => item.name === fileName);
+      expect(item.status).toEqual('in_progress');
     });
 
     it('should list backup file', async () => {
+      await createBackup(['required']);
       const listResponse = await app.agent().resource('backupFiles').list();
 
       expect(listResponse.status).toBe(200);
@@ -77,6 +104,7 @@ describe('backup files', () => {
     });
 
     it('should get backup file', async () => {
+      const dumpKey = await createBackup(['required']);
       const getResponse = await app.agent().resource('backupFiles').get({
         filterByTk: dumpKey,
       });
@@ -86,21 +114,8 @@ describe('backup files', () => {
       expect(getResponse.body.data.name).toEqual(dumpKey);
     });
 
-    it('should restore from file name', async () => {
-      const restoreResponse = await app
-        .agent()
-        .resource('backupFiles')
-        .restore({
-          values: {
-            filterByTk: dumpKey,
-            dataTypes: ['meta', 'config', 'business'],
-          },
-        });
-
-      expect(restoreResponse.status).toBe(200);
-    });
-
     it('should download backup file as attachment stream', async () => {
+      const dumpKey = await createBackup(['required']);
       const filePath = dumper.backUpFilePath(dumpKey);
       const stats = await fs.stat(filePath);
 
@@ -125,17 +140,44 @@ describe('backup files', () => {
     });
 
     it('should destroy dump file', async () => {
+      const dumpKey = await createBackup(['required']);
       const destroyResponse = await app.agent().resource('backupFiles').destroy({
         filterByTk: dumpKey,
       });
 
       expect(destroyResponse.status).toBe(200);
+      backupFilesToClean.delete(dumpKey);
 
       const getResponse = await app.agent().resource('backupFiles').get({
         filterByTk: dumpKey,
       });
 
       expect(getResponse.status).toBe(404);
+    });
+  });
+
+  describe('restore action', () => {
+    let dumpKey: string;
+
+    beforeEach(() => setupApp());
+    afterEach(teardownApp);
+
+    beforeEach(async () => {
+      dumpKey = await createBackup(['meta', 'config', 'business']);
+    });
+
+    it('should restore from file name', async () => {
+      const restoreResponse = await app
+        .agent()
+        .resource('backupFiles')
+        .restore({
+          values: {
+            filterByTk: dumpKey,
+            dataTypes: ['meta', 'config', 'business'],
+          },
+        });
+
+      expect(restoreResponse.status).toBe(200);
     });
 
     it('should restore from upload file', async () => {
@@ -162,39 +204,44 @@ describe('backup files', () => {
     });
   });
 
-  it('should get dumpable collections', async () => {
-    await app.db.getCollection('collections').repository.create({
-      values: {
+  describe('dumpable collections', () => {
+    beforeEach(() => setupApp());
+    afterEach(teardownApp);
+
+    it('should get dumpable collections', async () => {
+      await app.db.getCollection('collections').repository.create({
+        values: {
+          name: 'test',
+          title: '测试',
+          fields: [
+            {
+              name: 'title',
+              type: 'string',
+              title: '标题',
+            },
+          ],
+        },
+        context: {},
+      });
+
+      const response = await app.agent().get('/backupFiles:dumpableCollections');
+
+      expect(response.status).toBe(200);
+
+      const body = response.body;
+
+      expect(body['required']).toBeTruthy();
+      expect(body['third-party']).toBeTruthy();
+      expect(body['custom']).toBeTruthy();
+
+      const testCollectionInfo = body['custom'].find((item: any) => item.name === 'test');
+
+      expect(testCollectionInfo).toMatchObject({
         name: 'test',
         title: '测试',
-        fields: [
-          {
-            name: 'title',
-            type: 'string',
-            title: '标题',
-          },
-        ],
-      },
-      context: {},
-    });
-
-    const response = await app.agent().get('/backupFiles:dumpableCollections');
-
-    expect(response.status).toBe(200);
-
-    const body = response.body;
-
-    expect(body['required']).toBeTruthy();
-    expect(body['third-party']).toBeTruthy();
-    expect(body['custom']).toBeTruthy();
-
-    const testCollectionInfo = body['custom'].find((item: any) => item.name === 'test');
-
-    expect(testCollectionInfo).toMatchObject({
-      name: 'test',
-      title: '测试',
-      group: 'custom',
-      origin: '@tachybase/module-collection',
+        group: 'custom',
+        origin: '@tachybase/module-collection',
+      });
     });
   });
 });

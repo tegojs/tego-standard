@@ -1,15 +1,16 @@
 import { MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
 
-import { prepareApp } from './prepare';
+import { aclRoleCheckTestPlugins, prepareApp } from './prepare';
 
 describe('write role to acl', () => {
   let app: MockServer;
   let db: Database;
 
   beforeEach(async () => {
-    app = await prepareApp();
+    app = await prepareApp({
+      plugins: aclRoleCheckTestPlugins,
+    });
     db = app.db;
   });
 

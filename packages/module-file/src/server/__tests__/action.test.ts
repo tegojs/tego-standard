@@ -18,7 +18,36 @@ describe('action', () => {
   let StorageRepo;
   let AttachmentRepo;
 
-  beforeEach(async () => {
+  async function removeAttachmentFiles() {
+    const attachments = await AttachmentRepo.find({
+      appends: ['storage'],
+      paranoid: false,
+    });
+
+    for (const attachment of attachments) {
+      const storage = attachment.get('storage');
+      if (!storage) {
+        continue;
+      }
+
+      const { documentRoot = path.join('storage', 'uploads') } = storage.options || {};
+      const destPath = path.resolve(
+        path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+        storage.path,
+      );
+      await fs.unlink(path.join(destPath, attachment.filename)).catch(() => null);
+    }
+  }
+
+  async function resetFileData() {
+    await removeAttachmentFiles();
+    await AttachmentRepo.destroy({
+      truncate: true,
+      force: true,
+    });
+  }
+
+  beforeAll(async () => {
     app = await getApp({
       database: {},
     });
@@ -40,7 +69,12 @@ describe('action', () => {
     });
   });
 
-  afterEach(async () => {
+  beforeEach(async () => {
+    await resetFileData();
+  });
+
+  afterAll(async () => {
+    await resetFileData();
     await app.destroy();
   });
 
@@ -103,8 +137,9 @@ describe('action', () => {
 
     describe('specific storage', () => {
       it('fail as 400 because file size greater than rules', async () => {
+        const collectionName = 'customersSizeRule';
         db.collection({
-          name: 'customers',
+          name: collectionName,
           fields: [
             {
               name: 'avatar',
@@ -116,7 +151,7 @@ describe('action', () => {
         });
 
         const response = await agent.resource('attachments').create({
-          attachmentField: 'customers.avatar',
+          attachmentField: `${collectionName}.avatar`,
           file: path.resolve(__dirname, './files/image.jpg'),
         });
         expect(response.status).toBe(400);
@@ -125,7 +160,7 @@ describe('action', () => {
       it('fail as 400 because file mimetype does not match', async () => {
         const textStorage = await StorageRepo.create({
           values: {
-            name: 'local2',
+            name: 'localTextOnly',
             type: STORAGE_TYPE_LOCAL,
             baseUrl: DEFAULT_LOCAL_BASE_URL,
             rules: {
@@ -134,8 +169,9 @@ describe('action', () => {
           },
         });
 
+        const collectionName = 'customersMimeRule';
         db.collection({
-          name: 'customers',
+          name: collectionName,
           fields: [
             {
               name: 'avatar',
@@ -149,7 +185,7 @@ describe('action', () => {
         // await db.sync();
 
         const response = await agent.resource('attachments').create({
-          attachmentField: 'customers.avatar',
+          attachmentField: `${collectionName}.avatar`,
           file: path.resolve(__dirname, './files/image.jpg'),
         });
 
@@ -163,7 +199,7 @@ describe('action', () => {
         // 动态添加 storage
         const storage = await StorageRepo.create({
           values: {
-            name: 'local_private',
+            name: 'localPrivate',
             type: STORAGE_TYPE_LOCAL,
             rules: {
               mimetype: ['text/*'],
@@ -176,8 +212,9 @@ describe('action', () => {
           },
         });
 
+        const collectionName = 'customersPrivateStorage';
         db.collection({
-          name: 'customers',
+          name: collectionName,
           fields: [
             {
               name: 'file',
@@ -189,13 +226,12 @@ describe('action', () => {
         });
 
         const { body } = await agent.resource('attachments').create({
-          attachmentField: 'customers.file',
+          attachmentField: `${collectionName}.file`,
           file: textFilePath,
         });
 
         // 文件的 url 是否正常生成
         expect(body.data.url).toBe(`${BASE_URL}/${urlPath}/${body.data.filename}`);
-        console.log(body.data.url);
         const url = body.data.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
         expect(content.text).toBe(textFileExpectedContent);
@@ -205,8 +241,9 @@ describe('action', () => {
 
   describe('destroy', () => {
     it('destroy one existing file with `paranoid`', async () => {
+      const collectionName = 'customersParanoidDestroy';
       db.collection({
-        name: 'customers',
+        name: collectionName,
         fields: [
           {
             name: 'file',
@@ -221,7 +258,7 @@ describe('action', () => {
 
       const { body } = await agent.resource('attachments').create({
         [FILE_FIELD_NAME]: textFilePath,
-        attachmentField: 'customers.file',
+        attachmentField: `${collectionName}.file`,
       });
 
       const { data: attachment } = body;

@@ -1,9 +1,9 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
-import { waitForAssertion, waitForWorkflowIdle } from '../utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > triggers > collection', () => {
   let app: MockServer;
@@ -13,10 +13,13 @@ describe('workflow > triggers > collection', () => {
   let CommentRepo;
   let TagRepo;
   let WorkflowModel;
+  let withAnotherDataSource = false;
+  let testPlugins = [];
 
   beforeEach(async () => {
     app = await getApp({
-      plugins: ['error-handler', 'collection-manager', 'users', 'auth'],
+      plugins: testPlugins,
+      withAnotherDataSource,
     });
 
     db = app.db;
@@ -59,10 +62,20 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
+    });
+  });
+
+  describe('collection-manager integration', () => {
+    beforeAll(() => {
+      testPlugins = ['collection-manager'];
+    });
+
+    afterAll(() => {
+      testPlugins = [];
     });
 
     it('restart server and listen a collection managed by collection-manager', async () => {
@@ -86,10 +99,10 @@ describe('workflow > triggers > collection', () => {
 
       await db.getRepository('temp').create({ values: {} });
 
-      await sleep(500);
-
-      const e1 = await workflow.getExecutions();
-      expect(e1.length).toBe(1);
+      await waitForAssertion(async () => {
+        const e1 = await workflow.getExecutions();
+        expect(e1.length).toBe(1);
+      });
 
       await app.restart();
 
@@ -97,10 +110,10 @@ describe('workflow > triggers > collection', () => {
 
       await db.getRepository('temp').create({ values: {} });
 
-      await sleep(500);
-
-      const e2 = await db.getModel('executions').findAll();
-      expect(e2.length).toBe(2);
+      await waitForAssertion(async () => {
+        const e2 = await db.getModel('executions').findAll();
+        expect(e2.length).toBe(2);
+      });
     });
   });
 
@@ -117,12 +130,12 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1', category: { title: 'c1' } } });
 
-      await sleep(500);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(executions[0].context.data.title).toBe('t1');
-      expect(executions[0].context.data.category.title).toBe('c1');
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].context.data.title).toBe('t1');
+        expect(executions[0].context.data.category.title).toBe('c1');
+      });
     });
   });
 
@@ -140,11 +153,11 @@ describe('workflow > triggers > collection', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       await PostRepo.update({ filterByTk: post.id, values: { title: 't2' } });
 
-      await sleep(500);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(executions[0].context.data.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].context.data.title).toBe('t2');
+      });
     });
 
     it('field in changed config', async () => {
@@ -183,7 +196,7 @@ describe('workflow > triggers > collection', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       await PostRepo.update({ filterByTk: post.id, values: { title: 't2' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -534,6 +547,15 @@ describe('workflow > triggers > collection', () => {
 
   describe('multiple data source', () => {
     let anotherDB: MockDatabase;
+    beforeAll(() => {
+      withAnotherDataSource = true;
+      testPlugins = ['users', 'auth'];
+    });
+    afterAll(() => {
+      withAnotherDataSource = false;
+      testPlugins = [];
+    });
+
     beforeEach(async () => {
       // @ts-ignore
       anotherDB = app.dataSourceManager.dataSources.get('another').collectionManager.db;
@@ -551,7 +573,7 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const e1s = await workflow.getExecutions();
       expect(e1s.length).toBe(0);

@@ -1,26 +1,39 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
+
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > actions > workflows', () => {
   let app: MockServer;
   let agent;
   let db: Database;
-  let PostModel;
   let PostRepo;
   let WorkflowModel;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
     agent = app.agent();
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
-    PostModel = db.getCollection('posts').model;
     PostRepo = db.getCollection('posts').repository;
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('destroy', () => {
     it('node in executed workflow could not be destroyed', async () => {
@@ -39,7 +52,10 @@ describe('workflow > actions > workflows', () => {
 
       await PostRepo.create({});
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+      });
 
       const { status } = await agent.resource('flow_nodes').destroy({
         filterByTk: n1.id,

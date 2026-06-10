@@ -1,16 +1,23 @@
 import { MockServer } from '@tachybase/test';
 
-import { prepareApp } from './prepare';
+import { aclLightTestPlugins, prepareApp } from './prepare';
 
 describe('destroy action with acl', () => {
   let app: MockServer;
-  let Post;
 
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclLightTestPlugins,
+    });
+  });
 
-    Post = app.db.collection({
-      name: 'posts',
+  afterAll(async () => {
+    await app.destroy();
+  });
+
+  const createPostCollection = async (name: string) => {
+    const Post = app.db.collection({
+      name,
       fields: [
         { type: 'string', name: 'title' },
         {
@@ -21,11 +28,8 @@ describe('destroy action with acl', () => {
     });
 
     await app.db.sync();
-  });
-
-  afterEach(async () => {
-    await app.destroy();
-  });
+    return Post;
+  };
 
   const createUserAgent = async (roleName = 'user') => {
     await app.db.getRepository('roles').create({
@@ -99,16 +103,19 @@ describe('destroy action with acl', () => {
   });
 
   it('should load the association collection when the source collection does not have the createdById field', async () => {
+    const roleName = 'acl-action-association-role';
+    const aCollection = 'aclActionA';
+    const bCollection = 'aclActionB';
     const A = app.db.collection({
-      name: 'a',
+      name: aCollection,
       fields: [
         { type: 'string', name: 'title' },
-        { type: 'belongsToMany', name: 'bs', target: 'b' },
+        { type: 'belongsToMany', name: 'bs', target: bCollection },
       ],
     });
 
-    const B = app.db.collection({
-      name: 'b',
+    app.db.collection({
+      name: bCollection,
       fields: [{ type: 'string', name: 'title' }],
     });
 
@@ -127,10 +134,10 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const { agent: userAgent } = await createUserAgent();
+    const { agent: userAgent } = await createUserAgent(roleName);
 
     app.acl.define({
-      role: 'user',
+      role: roleName,
       strategy: {
         actions: ['view:own'],
       },
@@ -138,16 +145,20 @@ describe('destroy action with acl', () => {
 
     const a1 = await A.repository.findOne({ filter: { title: 'a1' } });
 
-    const response = await userAgent.resource('a.bs', a1.get('id')).list();
+    const response = await userAgent.resource(`${aCollection}.bs`, a1.get('id')).list();
     expect(response.statusCode).toEqual(200);
   });
 
   it('should parse association acl params', async () => {
-    const Comment = app.db.collection({
-      name: 'comments',
+    const roleName = 'acl-action-parse-association-role';
+    const postCollection = 'aclActionPosts';
+    const commentCollection = 'aclActionComments';
+    const Post = await createPostCollection(postCollection);
+    app.db.collection({
+      name: commentCollection,
       fields: [
         { type: 'string', name: 'content' },
-        { type: 'belongsToMany', name: 'posts' },
+        { type: 'belongsToMany', name: 'posts', target: postCollection },
       ],
     });
 
@@ -180,10 +191,10 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const { agent: userAgent } = await createUserAgent();
+    const { agent: userAgent } = await createUserAgent(roleName);
 
     app.acl.define({
-      role: 'user',
+      role: roleName,
       strategy: {
         actions: ['view:own'],
       },
@@ -191,19 +202,22 @@ describe('destroy action with acl', () => {
 
     const p1 = await Post.repository.findOne({ filter: { title: 'p1' } });
 
-    const response = await userAgent.resource('posts.comments', p1.get('id')).list();
+    const response = await userAgent.resource(`${postCollection}.comments`, p1.get('id')).list();
     expect(response.statusCode).toEqual(403);
   });
 
   it('should throw error when user has no permission to destroy record', async () => {
-    const { agent: userAgent, user } = await createUserAgent();
+    const roleName = 'acl-action-destroy-own-role';
+    const postCollection = 'aclActionDestroyPosts';
+    const Post = await createPostCollection(postCollection);
+    const { agent: userAgent, user } = await createUserAgent(roleName);
 
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
     // user can destroy post which created by himself
-    userRole.grantAction('posts:destroy', {
+    userRole.grantAction(`${postCollection}:destroy`, {
       own: true,
     });
 
@@ -214,7 +228,7 @@ describe('destroy action with acl', () => {
       },
     });
 
-    const response = await userAgent.resource('posts').destroy({
+    const response = await userAgent.resource(postCollection).destroy({
       filterByTk: p1.get('id'),
     });
 
@@ -223,13 +237,16 @@ describe('destroy action with acl', () => {
   });
 
   it('should throw error when user has no permissions with array query', async () => {
-    const { agent: userAgent } = await createUserAgent();
+    const roleName = 'acl-action-array-query-role';
+    const postCollection = 'aclActionArrayPosts';
+    const Post = await createPostCollection(postCollection);
+    const { agent: userAgent } = await createUserAgent(roleName);
 
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
-    userRole.grantAction('posts:destroy', {
+    userRole.grantAction(`${postCollection}:destroy`, {
       filter: {
         'title.$in': ['p1', 'p2', 'p3'],
       },
@@ -258,7 +275,7 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const response = await userAgent.resource('posts').destroy({
+    const response = await userAgent.resource(postCollection).destroy({
       filter: {
         'title.$in': ['p4', 'p5', 'p6'],
       },
@@ -267,7 +284,7 @@ describe('destroy action with acl', () => {
     expect(response.statusCode).toEqual(200);
     expect(await Post.repository.count({ filter: { 'title.$in': ['p4', 'p5', 'p6'] } })).toEqual(3);
 
-    const response2 = await userAgent.resource('posts').destroy({
+    const response2 = await userAgent.resource(postCollection).destroy({
       filter: {
         'title.$in': ['p1'],
       },

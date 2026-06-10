@@ -1,7 +1,7 @@
 import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
-import { waitForAssertion } from '../utils';
+import { waitForFastAssertion as waitForAssertion } from '../utils';
 
 describe('workflow > instructions > create', () => {
   let app: Application;
@@ -10,9 +10,10 @@ describe('workflow > instructions > create', () => {
   let ReplyRepo;
   let WorkflowModel;
   let workflow;
+  let withAnotherDataSource = false;
 
   beforeEach(async () => {
-    app = await getApp();
+    app = await getApp({ withAnotherDataSource });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
@@ -133,6 +134,13 @@ describe('workflow > instructions > create', () => {
   });
 
   describe('multiple data source', () => {
+    beforeAll(() => {
+      withAnotherDataSource = true;
+    });
+    afterAll(() => {
+      withAnotherDataSource = false;
+    });
+
     it('create one', async () => {
       const n1 = await workflow.createNode({
         type: 'create',

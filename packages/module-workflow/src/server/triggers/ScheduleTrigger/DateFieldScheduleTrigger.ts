@@ -1,4 +1,5 @@
 import { fn, literal, Op, parseCollectionName, Transactionable, where } from '@tego/server';
+
 import parser from 'cron-parser';
 
 import type Plugin from '../../Plugin';
@@ -370,14 +371,13 @@ export default class ScheduleTrigger {
     const { collection } = workflow.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
-    const eventKey = `${collection}.afterSaveWithAssociations`;
     const name = getHookId(workflow, event);
-    if (this.events.has(eventKey)) {
+    if (this.events.has(name)) {
       const listener = this.events.get(name);
       // @ts-ignore
       const { db } = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager;
       db.off(event, listener);
-      this.events.delete(eventKey);
+      this.events.delete(name);
     }
   }
 }

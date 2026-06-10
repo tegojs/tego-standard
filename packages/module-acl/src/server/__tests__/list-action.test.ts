@@ -1,18 +1,24 @@
 import { MockServer } from '@tachybase/test';
 import { Database } from '@tego/server';
 
-import { prepareApp } from './prepare';
+import { aclCollectionManagerTestPlugins, aclLightTestPlugins, prepareApp } from './prepare';
 
 describe('list action with acl', () => {
   let app: MockServer;
 
-  let Post;
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclLightTestPlugins,
+    });
+  });
 
-  beforeEach(async () => {
-    app = await prepareApp();
+  afterAll(async () => {
+    await app.destroy();
+  });
 
-    Post = app.db.collection({
-      name: 'posts',
+  const createPostCollection = async (name: string) => {
+    const Post = app.db.collection({
+      name,
       createdBy: true,
       fields: [
         { type: 'string', name: 'title' },
@@ -29,14 +35,39 @@ describe('list action with acl', () => {
     });
 
     await app.db.sync();
-  });
+    return Post;
+  };
 
-  afterEach(async () => {
-    await app.destroy();
-  });
+  const createUserAgent = async (roleName: string) => {
+    await app.db.getRepository('roles').create({
+      values: {
+        name: roleName,
+      },
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        roles: [roleName],
+      },
+    });
+
+    const otherUser = await app.db.getRepository('users').create({
+      values: {},
+    });
+
+    return {
+      user,
+      otherUser,
+      userId: user.get('id'),
+      otherUserId: otherUser.get('id'),
+      agent: app.agent().login(user).set('X-Role', roleName).set('X-With-ACL-Meta', true),
+    };
+  };
 
   it('should list with meta permission that has difference primary key', async () => {
-    app.acl.addFixedParams('tests', 'destroy', () => {
+    const roleName = 'acl-list-string-pk-role';
+    const collectionName = 'aclListStringPkTests';
+    app.acl.addFixedParams(collectionName, 'destroy', () => {
       return {
         filter: {
           $and: [{ 'name.$ne': 't1' }, { 'name.$ne': 't2' }],
@@ -44,14 +75,8 @@ describe('list action with acl', () => {
       };
     });
 
-    await app.db.getRepository('roles').create({
-      values: {
-        name: 'user',
-      },
-    });
-
     const Test = app.db.collection({
-      name: 'tests',
+      name: collectionName,
       createdBy: true,
       fields: [
         { type: 'string', name: 'name', primaryKey: true },
@@ -71,30 +96,21 @@ describe('list action with acl', () => {
 
     await app.db.sync();
 
-    const user = await app.db.getRepository('users').create({
-      values: {
-        roles: ['user'],
-      },
-    });
-    const otherUser = await app.db.getRepository('users').create({
-      values: {},
-    });
-    const userId = user.get('id');
-    const otherUserId = otherUser.get('id');
+    const { agent, userId, otherUserId } = await createUserAgent(roleName);
 
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
-    userRole.grantAction('tests:view', {});
+    userRole.grantAction(`${collectionName}:view`, {});
 
-    userRole.grantAction('tests:update', {
+    userRole.grantAction(`${collectionName}:update`, {
       filter: {
         $and: [{ createdById: '{{ ctx.state.currentUser.id }}' }],
       },
     });
 
-    userRole.grantAction('tests:destroy', {});
+    userRole.grantAction(`${collectionName}:destroy`, {});
 
     await Test.model.bulkCreate([
       { name: 't1', createdById: userId },
@@ -103,13 +119,7 @@ describe('list action with acl', () => {
     ]);
 
     //@ts-ignore
-    const response = await app
-      .agent()
-      .login(user)
-      .set('X-Role', 'user')
-      .set('X-With-ACL-Meta', true)
-      .resource('tests')
-      .list({});
+    const response = await agent.resource(collectionName).list({});
 
     const data = response.body;
     expect(data.meta.allowedActions.view).toEqual(['t1', 't2', 't3']);
@@ -118,151 +128,101 @@ describe('list action with acl', () => {
   });
 
   it('should list items meta permissions by association field', async () => {
-    await app.db.getRepository('roles').create({
-      values: {
-        name: 'user',
-      },
-    });
-
-    const user = await app.db.getRepository('users').create({
-      values: {
-        roles: ['user'],
-      },
-    });
-    const otherUser = await app.db.getRepository('users').create({
-      values: {},
-    });
-    const userId = user.get('id');
-    const otherUserId = otherUser.get('id');
+    const roleName = 'acl-list-association-meta-role';
+    const collectionName = 'aclListAssociationMetaPosts';
+    const Post = await createPostCollection(collectionName);
+    const { agent, userId, otherUserId } = await createUserAgent(roleName);
 
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
-    userRole.grantAction('posts:view', {});
+    userRole.grantAction(`${collectionName}:view`, {});
 
-    userRole.grantAction('posts:update', {
+    userRole.grantAction(`${collectionName}:update`, {
       filter: {
         $and: [{ createdById: '{{ ctx.state.currentUser.id }}' }],
       },
     });
 
-    await Post.model.bulkCreate([
+    const posts = await Post.model.bulkCreate([
       { title: 'p1', createdById: userId },
       { title: 'p2', createdById: userId },
       { title: 'p3', createdById: otherUserId },
     ]);
+    const allowedViewIds = posts.map((post) => post.get('id'));
+    const allowedUpdateIds = posts.slice(0, 2).map((post) => post.get('id'));
 
-    const response = await (app as any)
-      .agent()
-      .login(user)
-      .set('X-Role', 'user')
-      .set('X-With-ACL-Meta', true)
-      .resource('posts')
-      .list();
+    const response = await (agent as any).resource(collectionName).list();
     const data = response.body;
-    expect(data.meta.allowedActions.view).toEqual([1, 2, 3]);
-    expect(data.meta.allowedActions.update).toEqual([1, 2]);
+    expect(data.meta.allowedActions.view).toEqual(allowedViewIds);
+    expect(data.meta.allowedActions.update).toEqual(allowedUpdateIds);
     expect(data.meta.allowedActions.destroy).toEqual([]);
   });
 
   it('should list items with meta permission', async () => {
-    await app.db.getRepository('roles').create({
-      values: {
-        name: 'user',
-      },
-    });
-
-    const user = await app.db.getRepository('users').create({
-      values: {
-        roles: ['user'],
-      },
-    });
-    const otherUser = await app.db.getRepository('users').create({
-      values: {},
-    });
-    const userId = user.get('id');
-    const otherUserId = otherUser.get('id');
+    const roleName = 'acl-list-meta-role';
+    const collectionName = 'aclListMetaPosts';
+    const Post = await createPostCollection(collectionName);
+    const { agent, userId, otherUserId } = await createUserAgent(roleName);
 
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
-    userRole.grantAction('posts:view', {});
+    userRole.grantAction(`${collectionName}:view`, {});
 
-    userRole.grantAction('posts:update', {
+    userRole.grantAction(`${collectionName}:update`, {
       filter: {
         $and: [{ createdById: '{{ ctx.state.currentUser.id }}' }],
       },
     });
 
-    await Post.model.bulkCreate([
+    const posts = await Post.model.bulkCreate([
       { title: 'p1', createdById: userId },
       { title: 'p2', createdById: userId },
       { title: 'p3', createdById: otherUserId },
     ]);
+    const allowedViewIds = posts.map((post) => post.get('id'));
+    const allowedUpdateIds = posts.slice(0, 2).map((post) => post.get('id'));
 
     // @ts-ignore
-    const response = await app
-      .agent()
-      .login(user)
-      .set('X-Role', 'user')
-      .set('X-With-ACL-Meta', true)
-      .resource('posts')
-      .list({});
+    const response = await agent.resource(collectionName).list({});
 
     const data = response.body;
-    expect(data.meta.allowedActions.view).toEqual([1, 2, 3]);
-    expect(data.meta.allowedActions.update).toEqual([1, 2]);
+    expect(data.meta.allowedActions.view).toEqual(allowedViewIds);
+    expect(data.meta.allowedActions.update).toEqual(allowedUpdateIds);
     expect(data.meta.allowedActions.destroy).toEqual([]);
   });
 
   it('should response item permission when request get action', async () => {
-    await app.db.getRepository('roles').create({
-      values: {
-        name: 'user',
-      },
-    });
-
-    const user = await app.db.getRepository('users').create({
-      values: {
-        roles: ['user'],
-      },
-    });
-    const otherUser = await app.db.getRepository('users').create({
-      values: {},
-    });
-    const userId = user.get('id');
-    const otherUserId = otherUser.get('id');
+    const roleName = 'acl-list-get-meta-role';
+    const collectionName = 'aclListGetMetaPosts';
+    const Post = await createPostCollection(collectionName);
+    const { agent, userId, otherUserId } = await createUserAgent(roleName);
 
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
-    userRole.grantAction('posts:view', {});
+    userRole.grantAction(`${collectionName}:view`, {});
 
-    userRole.grantAction('posts:update', {
+    userRole.grantAction(`${collectionName}:update`, {
       filter: {
         $and: [{ createdById: '{{ ctx.state.currentUser.id }}' }],
       },
     });
 
-    await Post.model.bulkCreate([
+    const [p1] = await Post.model.bulkCreate([
       { title: 'p1', createdById: userId },
       { title: 'p2', createdById: userId },
       { title: 'p3', createdById: otherUserId },
     ]);
 
     // @ts-ignore
-    const getResponse = await app
-      .agent()
-      .login(user)
-      .set('X-Role', 'user')
-      .set('X-With-ACL-Meta', true)
-      .resource('posts')
-      .get({
-        filterByTk: 1,
-      });
+    const getResponse = await agent.resource(collectionName).get({
+      filterByTk: p1.get('id'),
+    });
 
     const getBody = getResponse.body;
 
@@ -274,12 +234,10 @@ describe('list association action with acl', () => {
   let app;
   let db: Database;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclCollectionManagerTestPlugins,
+    });
     db = app.db;
 
     app.db.collection({
@@ -315,20 +273,24 @@ describe('list association action with acl', () => {
     await app.db.sync();
   });
 
+  afterAll(async () => {
+    await app.destroy();
+  });
+
   it('should list allowedActions', async () => {
     await db.getRepository('roles').create({
       values: {
-        name: 'newRole',
+        name: 'listAssociationRole',
       },
     });
 
     const user = await db.getRepository('users').create({
       values: {
-        roles: ['newRole'],
+        roles: ['listAssociationRole'],
       },
     });
 
-    await db.getRepository('roles.resources', 'newRole').create({
+    await db.getRepository('roles.resources', 'listAssociationRole').create({
       values: {
         name: 'posts',
         usingActionsConfig: true,
@@ -345,8 +307,7 @@ describe('list association action with acl', () => {
       },
     });
 
-    const userPlugin = app.pm.get('users');
-    const userAgent = app.agent().login(user).set('X-Role', 'newRole').set('X-With-ACL-Meta', true);
+    const userAgent = app.agent().login(user).set('X-Role', 'listAssociationRole').set('X-With-ACL-Meta', true);
 
     await userAgent.resource('posts').create({
       values: {
@@ -374,18 +335,17 @@ describe('list association action with acl', () => {
   it('tree list action allowActions', async () => {
     await db.getRepository('roles').create({
       values: {
-        name: 'newRole',
+        name: 'treeListAssociationRole',
       },
     });
 
     const user = await db.getRepository('users').create({
       values: {
-        roles: ['newRole'],
+        roles: ['treeListAssociationRole'],
       },
     });
 
-    const userPlugin = app.pm.get('users');
-    const agent = app.agent().login(user).set('X-Role', 'newRole').set('X-With-ACL-Meta', true);
+    const agent = app.agent().login(user).set('X-Role', 'treeListAssociationRole').set('X-With-ACL-Meta', true);
     app.acl.allow('table_a', ['*']);
     app.acl.allow('collections', ['*']);
 

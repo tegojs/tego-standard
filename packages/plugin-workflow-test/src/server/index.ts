@@ -9,6 +9,7 @@ import triggers from './triggers';
 
 export interface MockServerOptions extends ApplicationOptions {
   collectionsPath?: string;
+  withAnotherDataSource?: boolean;
 }
 
 // async function createMockServer(options: MockServerOptions) {
@@ -25,7 +26,7 @@ export function sleep(ms: number) {
 }
 
 export async function getApp(options: MockServerOptions = {}): Promise<MockServer> {
-  const { plugins = [], collectionsPath, ...others } = options;
+  const { plugins = [], collectionsPath, withAnotherDataSource = false, ...others } = options;
   const defaultCollectionsPath = path.resolve(__dirname, 'collections');
   const compiledCollectionsPath = path.resolve(__dirname, '../../dist/server/collections');
   const resolvedCollectionsPath =
@@ -90,27 +91,29 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
     ],
   });
 
-  await app.dataSourceManager.add(
-    new SequelizeDataSource({
-      name: 'another',
-      collectionManager: {
-        database: mockDatabase({
-          tablePrefix: `t${uid(5)}`,
-        }),
-      },
-      resourceManager: {},
-    }),
-  );
-  const another = app.dataSourceManager.dataSources.get('another');
-  // @ts-ignore
-  const anotherDB = another.collectionManager.db;
+  if (withAnotherDataSource) {
+    await app.dataSourceManager.add(
+      new SequelizeDataSource({
+        name: 'another',
+        collectionManager: {
+          database: mockDatabase({
+            tablePrefix: `t${uid(5)}`,
+          }),
+        },
+        resourceManager: {},
+      }),
+    );
+    const another = app.dataSourceManager.dataSources.get('another');
+    // @ts-ignore
+    const anotherDB = another.collectionManager.db;
 
-  await anotherDB.import({
-    directory: resolvedCollectionsPath,
-  });
-  await anotherDB.sync();
+    await anotherDB.import({
+      directory: resolvedCollectionsPath,
+    });
+    await anotherDB.sync();
 
-  another.acl.allow('*', '*');
+    another.acl.allow('*', '*');
+  }
 
   return app;
 }

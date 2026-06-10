@@ -3,7 +3,7 @@ import { Database } from '@tego/server';
 
 import UsersPlugin from 'packages/module-user/src';
 
-import { prepareApp } from './prepare';
+import { aclLightTestPlugins, prepareApp } from './prepare';
 
 describe('scope api', () => {
   let app: MockServer;
@@ -17,7 +17,9 @@ describe('scope api', () => {
   });
 
   beforeEach(async () => {
-    app = await prepareApp();
+    app = await prepareApp({
+      plugins: aclLightTestPlugins,
+    });
     db = app.db;
 
     const UserRepo = db.getCollection('users').repository;

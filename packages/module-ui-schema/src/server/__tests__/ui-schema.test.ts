@@ -1,29 +1,9 @@
 import { ISchema } from '@tachybase/schema';
-import { createMockServer, MockServer } from '@tachybase/test';
-
-import { Database } from '@tego/server';
+import { createMockServer } from '@tachybase/test';
 
 import { UiSchemaRepository } from '..';
 
 describe('ui-schema', () => {
-  let app: MockServer;
-  let db: Database;
-
-  let uiSchemaRepository: UiSchemaRepository;
-
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
-    app = await createMockServer({
-      registerActions: true,
-      plugins: ['ui-schema-storage'],
-    });
-    db = app.db;
-    uiSchemaRepository = db.getCollection('uiSchemas').repository as UiSchemaRepository;
-  });
-
   type SchemaProperties = Record<string, ISchema>;
   // properties、patternProperties、definitions 都是这种类型的
   describe('SchemaProperties', () => {
@@ -78,6 +58,12 @@ describe('ui-schema', () => {
 
   describe('items', () => {
     it('should insert items node', async () => {
+      const app = await createMockServer({
+        registerActions: true,
+        plugins: ['ui-schema-storage'],
+      });
+      const db = app.db;
+      const uiSchemaRepository = db.getCollection('uiSchemas').repository as UiSchemaRepository;
       const schema = {
         type: 'object',
         properties: {
@@ -172,7 +158,11 @@ describe('ui-schema', () => {
         },
       };
 
-      const result = await uiSchemaRepository.insert(schema);
+      try {
+        const result = await uiSchemaRepository.insert(schema);
+      } finally {
+        await app.destroy();
+      }
     });
 
     it('items is array or plain object', () => {

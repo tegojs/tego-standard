@@ -6,9 +6,14 @@ import { waitForAssertion } from '../../utils';
 
 async function sleepToEvenSecond() {
   const now = new Date();
-  // NOTE: align to even(0, 2, ...) + 0.5 seconds to start
-  await sleep((2.5 - (now.getSeconds() % 2)) * 1000 - now.getMilliseconds());
+  const EVEN_SECOND_BUFFER_MS = 200;
+  // NOTE: align to the next even second with a small buffer for scheduler stability.
+  await sleep((2 - (now.getSeconds() % 2)) * 1000 + EVEN_SECOND_BUFFER_MS - now.getMilliseconds());
   return now;
+}
+
+async function sleepUntil(time: Date | number, buffer = 200) {
+  await sleep(Math.max(0, (time instanceof Date ? time.getTime() : time) + buffer - Date.now()));
 }
 
 async function waitForExecutions(workflow, expected: number, options?: any, timeout = 30000) {
@@ -77,24 +82,24 @@ describe('workflow > triggers > schedule > date field mode', () => {
           collection: 'posts',
           startsOn: {
             field: 'createdAt',
-            offset: 2,
+            offset: 1,
           },
         },
       });
 
-      const createdAt = new Date(Date.now() + 3000);
+      const createdAt = new Date(Date.now() + 2000);
       createdAt.setMilliseconds(0);
 
       const post = await PostRepo.create({ values: { title: 't1', createdAt } });
 
-      await sleep(1000);
+      await sleep(500);
       const e1s = await workflow.getExecutions();
       expect(e1s.length).toBe(0);
 
       const e2s = await waitForExecutions(workflow, 1);
       expect(e2s[0].context.data.id).toBe(post.id);
 
-      expect(e2s[0].context.date).toBe(new Date(createdAt.getTime() + 2000).toISOString());
+      expect(e2s[0].context.date).toBe(new Date(createdAt.getTime() + 1000).toISOString());
     });
 
     it('starts on post.createdAt with -offset', async () => {
@@ -170,8 +175,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(5000);
-
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
@@ -203,8 +206,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(5000);
-
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
@@ -233,8 +234,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(2500);
-
       const executions = await waitForExecutions(workflow, 1, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime.getTime());
@@ -260,8 +259,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
       startTime.setMilliseconds(0);
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-
-      await sleep(4500);
 
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
       const d0 = Date.parse(executions[0].context.date);
@@ -314,7 +311,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
           collection: 'posts',
           startsOn: {
             field: 'createdAt',
-            offset: 2,
+            offset: 1,
           },
           appends: ['category'],
         },
@@ -348,8 +345,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(1700);
-
       await waitForAssertion(async () => {
         const e1c = await workflow.countExecutions();
         expect(e1c).toBe(2);
@@ -357,7 +352,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       await post.update({ createdAt: new Date(post.createdAt.getTime() - 1000) });
 
-      await sleep(3000);
+      await sleepUntil(new Date(post.createdAt).getTime() + 3000, 500);
 
       const e2c = await workflow.countExecutions();
       expect(e2c).toBe(2);

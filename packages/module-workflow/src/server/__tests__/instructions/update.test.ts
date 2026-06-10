@@ -4,7 +4,7 @@ import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
 import type { WorkflowModel as WorkflowModelType } from '../../types';
-import { waitForAssertion } from '../utils';
+import { waitForFastAssertion as waitForAssertion } from '../utils';
 
 describe('workflow > instructions > update', () => {
   let app: MockServer;
@@ -12,9 +12,10 @@ describe('workflow > instructions > update', () => {
   let PostRepo;
   let WorkflowModel;
   let workflow: WorkflowModelType;
+  let withAnotherDataSource = false;
 
   beforeEach(async () => {
-    app = await getApp();
+    app = await getApp({ withAnotherDataSource });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
@@ -195,6 +196,13 @@ describe('workflow > instructions > update', () => {
   });
 
   describe('multiple data source', () => {
+    beforeAll(() => {
+      withAnotherDataSource = true;
+    });
+    afterAll(() => {
+      withAnotherDataSource = false;
+    });
+
     it('update one', async () => {
       const AnotherPostRepo = app.dataSourceManager.dataSources.get('another').collectionManager.getRepository('posts');
       const post = await AnotherPostRepo.create({ values: { title: 't1' } });

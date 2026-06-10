@@ -1,5 +1,5 @@
 import { createServer, Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
+import type { AddressInfo, Socket } from 'node:net';
 import PluginWorkflow, { EXECUTION_STATUS, JOB_STATUS, Processor } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
@@ -9,10 +9,13 @@ import jwt from 'jsonwebtoken';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
 
-import { waitForAssertion, waitForWorkflowJob } from '../../../__tests__/utils';
+import { waitForAssertion, waitForWorkflowIdle, waitForWorkflowJob } from '../../../__tests__/utils';
 import { RequestConfig } from '../RequestInstruction';
 
 const HOST = 'localhost';
+const REQUEST_TIMEOUT_MS = 200;
+const SLOW_RESPONSE_MS = 300;
+const REQUEST_JOB_WAIT_OPTIONS = { timeout: 30000 };
 
 async function listen(server: Server) {
   return new Promise<number>((resolve) => {
@@ -39,6 +42,7 @@ class MockAPI {
   app: Koa;
   server: Server;
   port: number;
+  sockets = new Set<Socket>();
   get URL_DATA() {
     return `http://${HOST}:${this.port}/api/data`;
   }
@@ -57,7 +61,7 @@ class MockAPI {
         return ctx.throw(400);
       }
       if (ctx.path === '/api/timeout') {
-        await sleep(2000);
+        await sleep(SLOW_RESPONSE_MS);
         ctx.status = 204;
         return;
       }
@@ -74,16 +78,35 @@ class MockAPI {
 
   async start() {
     return new Promise((resolve) => {
-      this.server = this.app.listen(0, () => {
-        this.port = this.server.address()['port'];
+      this.server = createServer(this.app.callback());
+      this.server.on('connection', (socket) => {
+        this.sockets.add(socket);
+        socket.once('close', () => {
+          this.sockets.delete(socket);
+        });
+      });
+      this.server.listen(0, () => {
+        this.port = (this.server.address() as AddressInfo).port;
         resolve(true);
       });
     });
   }
 
   async close() {
-    return new Promise((resolve) => {
-      this.server.close(() => {
+    return new Promise((resolve, reject) => {
+      const forceCloseTimer = setTimeout(() => {
+        for (const socket of this.sockets) {
+          socket.destroy();
+        }
+      }, SLOW_RESPONSE_MS + 1000);
+      forceCloseTimer.unref?.();
+
+      this.server.close((error) => {
+        clearTimeout(forceCloseTimer);
+        if (error) {
+          reject(error);
+          return;
+        }
         resolve(true);
       });
     });
@@ -100,9 +123,10 @@ describe('workflow > instructions > request', () => {
   let workflow;
   let api: MockAPI;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     api = new MockAPI();
     await api.start();
+
     app = await getApp({
       resourcer: {
         prefix: '/api',
@@ -115,6 +139,18 @@ describe('workflow > instructions > request', () => {
     PostCollection = db.getCollection('posts');
     PostRepo = PostCollection.repository;
     ReplyRepo = db.getCollection('replies').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await db.getRepository('users').destroy({ filter: {} });
+    await db.getRepository('categories').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await ReplyRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -127,6 +163,11 @@ describe('workflow > instructions > request', () => {
   });
 
   afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(async () => {
     await api.close();
     await app.destroy();
   });
@@ -143,13 +184,15 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForAssertion(async () => {
-        const [execution] = await workflow.getExecutions();
-        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-        const [job] = await execution.getJobs();
-        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-        expect(job.result).toMatchObject({ meta: {}, data: {} });
-      });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result).toMatchObject({ meta: {}, data: {} });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('timeout', async () => {
@@ -158,27 +201,26 @@ describe('workflow > instructions > request', () => {
         config: {
           url: api.URL_TIMEOUT,
           method: 'GET',
-          timeout: 250,
+          timeout: REQUEST_TIMEOUT_MS,
         } as RequestConfig,
       });
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForAssertion(async () => {
-        const [execution] = await workflow.getExecutions();
-        const [job] = await execution.getJobs();
-        expect(job.status).toEqual(JOB_STATUS.FAILED);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.FAILED);
 
-        expect(job.result).toMatchObject({
-          error: {
-            code: 'ECONNABORTED',
-            message: 'timeout of 250ms exceeded',
-          },
-        });
-      });
-
-      // NOTE: to wait for the response to finish and avoid non finished promise.
-      await sleep(1500);
+          expect(job.result).toMatchObject({
+            error: {
+              code: 'ECONNABORTED',
+              message: `timeout of ${REQUEST_TIMEOUT_MS}ms exceeded`,
+            },
+          });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('ignoreFail', async () => {
@@ -187,22 +229,26 @@ describe('workflow > instructions > request', () => {
         config: {
           url: api.URL_TIMEOUT,
           method: 'GET',
-          timeout: 250,
+          timeout: REQUEST_TIMEOUT_MS,
           ignoreFail: true,
         } as RequestConfig,
       });
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForWorkflowJob(workflow, (execution, [job]) => {
-        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-        expect(job.result).toMatchObject({
-          error: {
-            code: 'ECONNABORTED',
-            message: 'timeout of 250ms exceeded',
-          },
-        });
-      });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result).toMatchObject({
+            error: {
+              code: 'ECONNABORTED',
+              message: `timeout of ${REQUEST_TIMEOUT_MS}ms exceeded`,
+            },
+          });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('response 400', async () => {
@@ -217,12 +263,14 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForAssertion(async () => {
-        const [execution] = await workflow.getExecutions();
-        const [job] = await execution.getJobs();
-        expect(job.status).toEqual(JOB_STATUS.FAILED);
-        expect(job.result.error.status).toBe(400);
-      });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.FAILED);
+          expect(job.result.error.status).toBe(400);
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('response 400 ignoreFail', async () => {
@@ -238,12 +286,14 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForAssertion(async () => {
-        const [execution] = await workflow.getExecutions();
-        const [job] = await execution.getJobs();
-        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-        expect(job.result.error.status).toBe(400);
-      });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result.error.status).toBe(400);
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('request with data', async () => {
@@ -258,12 +308,14 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForAssertion(async () => {
-        const [execution] = await workflow.getExecutions();
-        const [job] = await execution.getJobs();
-        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-        expect(job.result.data).toEqual({ title: 't1' });
-      });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result.data).toEqual({ title: 't1' });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     // TODO(bug): should not use ejs
@@ -282,12 +334,14 @@ describe('workflow > instructions > request', () => {
         values: { title },
       });
 
-      await waitForAssertion(async () => {
-        const [execution] = await workflow.getExecutions();
-        const [job] = await execution.getJobs();
-        expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-        expect(job.result.data).toEqual({ title });
-      });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result.data).toEqual({ title });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it.skip('request inside loop', async () => {

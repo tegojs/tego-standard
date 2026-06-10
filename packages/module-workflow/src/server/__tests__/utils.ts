@@ -1,5 +1,7 @@
 import { sleep } from '@tachybase/plugin-workflow-test';
 
+export const FAST_POLL_INTERVAL_MS = 50;
+
 export async function waitForAssertion(assertion: () => Promise<void> | void, timeout = 10000, interval = 200) {
   const start = Date.now();
   let lastError: unknown;
@@ -15,6 +17,10 @@ export async function waitForAssertion(assertion: () => Promise<void> | void, ti
   }
 
   throw lastError instanceof Error ? lastError : new Error('waitForAssertion timed out');
+}
+
+export async function waitForFastAssertion(assertion: () => Promise<void> | void, timeout?: number) {
+  return waitForAssertion(assertion, timeout, FAST_POLL_INTERVAL_MS);
 }
 
 export async function waitForWorkflowJob(
@@ -37,6 +43,17 @@ export async function waitForWorkflowJob(
     timeout,
     interval,
   );
+}
+
+export async function waitForWorkflowJobFast(
+  workflow,
+  assertion: (execution, jobs) => Promise<void> | void,
+  options: { executionOptions?: any; jobOptions?: any; timeout?: number; interval?: number } = {},
+) {
+  return waitForWorkflowJob(workflow, assertion, {
+    interval: FAST_POLL_INTERVAL_MS,
+    ...options,
+  });
 }
 
 export async function waitForWorkflowIdle(app, options: { timeout?: number; interval?: number } = {}) {

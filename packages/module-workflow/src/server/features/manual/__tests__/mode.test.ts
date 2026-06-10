@@ -3,7 +3,7 @@ import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
-import { waitForAssertion } from '../../../__tests__/utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
 
 // NOTE: skipped because time is not stable on github ci, but should work in local
 describe('workflow > instructions > manual', () => {
@@ -19,7 +19,7 @@ describe('workflow > instructions > manual', () => {
   let users;
   let UserJobModel;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp({
       plugins: ['users', 'auth', 'workflow-manual'],
     });
@@ -38,6 +38,17 @@ describe('workflow > instructions > manual', () => {
     ]);
 
     userAgents = users.map((user) => app.agent().login(user));
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await UserJobModel.destroy({ where: {} });
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await CommentRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -49,7 +60,12 @@ describe('workflow > instructions > manual', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   async function waitForUserJobs(expected = 2) {
     let userJobs;

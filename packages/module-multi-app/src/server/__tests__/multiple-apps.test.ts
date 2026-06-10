@@ -7,6 +7,23 @@ import { PluginMultiAppManager } from '../server';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function waitForAssertion(assertion: () => void | Promise<void>, timeout = 10000, interval = 100) {
+  const startedAt = Date.now();
+  let lastError: unknown;
+
+  while (Date.now() - startedAt < timeout) {
+    try {
+      await assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(interval);
+    }
+  }
+
+  throw lastError;
+}
+
 describe('multiple apps', () => {
   let app: MockServer;
   let db: Database;
@@ -111,8 +128,6 @@ describe('multiple apps', () => {
 
     await AppSupervisor.getInstance().removeApp(sub1);
 
-    await sleep(1000);
-
     const expectStatus = async (appName, status) => {
       const { body } = await app.agent().resource('applications').list();
       const { data } = body;
@@ -121,7 +136,7 @@ describe('multiple apps', () => {
       expect(subApp.status).toEqual(status);
     };
 
-    await expectStatus(sub1, 'stopped');
+    await waitForAssertion(() => expectStatus(sub1, 'stopped'));
 
     // start sub1
     // const startResponse = await app.agent().resource('applications').send({
@@ -324,10 +339,10 @@ describe('multiple apps', () => {
     });
 
     await app.start();
-    await sleep(10000);
-    expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeTruthy();
-    const appStatus = AppSupervisor.getInstance().getAppStatus(subAppName);
-    expect(appStatus).toEqual('running');
+    await waitForAssertion(() => {
+      expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeTruthy();
+      expect(AppSupervisor.getInstance().getAppStatus(subAppName)).toEqual('running');
+    });
   });
 
   it('should get same obj ref when asynchronously access with same sub app name', async () => {

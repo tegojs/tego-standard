@@ -1,7 +1,7 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
-import { waitForAssertion } from '../utils';
+import { waitForFastAssertion as waitForAssertion } from '../utils';
 
 describe('workflow > instructions > destroy', () => {
   let app: Application;
@@ -9,9 +9,10 @@ describe('workflow > instructions > destroy', () => {
   let PostRepo;
   let WorkflowModel;
   let workflow;
+  let withAnotherDataSource = false;
 
   beforeEach(async () => {
-    app = await getApp();
+    app = await getApp({ withAnotherDataSource });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
@@ -68,6 +69,13 @@ describe('workflow > instructions > destroy', () => {
   });
 
   describe('multiple data source', () => {
+    beforeAll(() => {
+      withAnotherDataSource = true;
+    });
+    afterAll(() => {
+      withAnotherDataSource = false;
+    });
+
     it('destroy one', async () => {
       const AnotherPostRepo = app.dataSourceManager.dataSources.get('another').collectionManager.getRepository('posts');
       const post = await AnotherPostRepo.create({ values: { title: 't1' } });

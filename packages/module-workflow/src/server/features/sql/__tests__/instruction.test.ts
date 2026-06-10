@@ -2,7 +2,7 @@ import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application, fn } from '@tego/server';
 
-import { waitForAssertion } from '../../../__tests__/utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
 import Plugin from '../Plugin';
 
 describe('workflow > instructions > sql', () => {
@@ -14,9 +14,10 @@ describe('workflow > instructions > sql', () => {
   let WorkflowModel;
   let workflow;
 
-  beforeEach(async () => {
+  async function setupApp(options: { withAnotherDataSource?: boolean } = {}) {
     app = await getApp({
       plugins: [Plugin],
+      withAnotherDataSource: options.withAnotherDataSource,
     });
 
     db = app.db;
@@ -24,7 +25,20 @@ describe('workflow > instructions > sql', () => {
     PostCollection = db.getCollection('posts');
     PostRepo = PostCollection.repository;
     ReplyRepo = db.getCollection('replies').repository;
+  }
 
+  async function resetWorkflowData() {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await ReplyRepo.destroy({ filter: {} });
+    await db.getCollection('categories').repository.destroy({ filter: {} });
+  }
+
+  async function createWorkflow() {
     workflow = await WorkflowModel.create({
       enabled: true,
       type: 'collection',
@@ -33,9 +47,23 @@ describe('workflow > instructions > sql', () => {
         collection: 'posts',
       },
     });
+  }
+
+  beforeAll(async () => {
+    await setupApp();
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    await resetWorkflowData();
+    await createWorkflow();
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('invalid', () => {
     it('no sql', async () => {
@@ -217,6 +245,16 @@ describe('workflow > instructions > sql', () => {
   });
 
   describe('multiple data source', () => {
+    beforeAll(async () => {
+      await app.destroy();
+      await setupApp({ withAnotherDataSource: true });
+    });
+
+    afterAll(async () => {
+      await app.destroy();
+      await setupApp();
+    });
+
     it('query on another data source', async () => {
       const anotherSource = app.dataSourceManager.dataSources.get('another');
       const PostCollection = anotherSource.collectionManager.getCollection('posts');

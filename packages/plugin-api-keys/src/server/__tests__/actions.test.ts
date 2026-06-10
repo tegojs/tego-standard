@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database, { Repository } from '@tego/server';
 
 describe('actions', () => {
@@ -9,10 +8,6 @@ describe('actions', () => {
   let agent;
   let resource;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
   let user;
   let testUser;
   let role;
@@ -20,7 +15,7 @@ describe('actions', () => {
   let createData;
   const expiresIn = 60 * 60 * 24;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       acl: true,
@@ -63,7 +58,19 @@ describe('actions', () => {
         expiresIn,
       },
     };
+  });
+
+  beforeEach(async () => {
+    await repo.destroy({
+      truncate: true,
+    });
+    agent = app.agent();
+    resource = agent.set('X-Role', 'admin').resource('apiKeys');
     await agent.login(user);
+  });
+
+  afterAll(async () => {
+    await app.destroy();
   });
 
   describe('create', () => {

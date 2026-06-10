@@ -3,18 +3,26 @@ import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
-import { waitForAssertion } from '../../utils';
+import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
 
 async function sleepToEvenSecond() {
   const now = new Date();
-  // NOTE: align to even(0, 2, ...) + 0.5 seconds to start
-  await sleep((2.5 - (now.getSeconds() % 2)) * 1000 - now.getMilliseconds());
+  const EVEN_SECOND_BUFFER_MS = 200;
+  // NOTE: align to the next even second with a small buffer for scheduler stability.
+  await sleep((2 - (now.getSeconds() % 2)) * 1000 + EVEN_SECOND_BUFFER_MS - now.getMilliseconds());
   return now;
 }
 
-function consumeTime(n: number) {
-  for (let i = 0; i < n; i++) {
-    scryptSync(`${i}`, 'salt', 64);
+async function sleepUntil(time: Date | number, buffer = 200) {
+  await sleep(Math.max(0, (time instanceof Date ? time.getTime() : time) + buffer - Date.now()));
+}
+
+function consumeTimeUntil(time: Date | number) {
+  const endAt = time instanceof Date ? time.getTime() : time;
+  let i = 0;
+
+  while (Date.now() < endAt) {
+    scryptSync(`${i++}`, 'salt', 64);
   }
 }
 
@@ -37,7 +45,7 @@ describe('workflow > triggers > schedule > static mode', () => {
   let WorkflowModel;
   let WorkflowRepo;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
 
     db = app.db;
@@ -48,7 +56,20 @@ describe('workflow > triggers > schedule > static mode', () => {
     CategoryRepo = db.getCollection('categories').repository;
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('configuration', () => {
     it('neither startsOn nor repeat configurated', async () => {
@@ -60,7 +81,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(2500);
+      await sleep(1000);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -139,12 +160,12 @@ describe('workflow > triggers > schedule > static mode', () => {
     });
 
     it('repeat on cron certain second', async () => {
+      await sleepToEvenSecond();
+
       const now = new Date();
       now.setMilliseconds(0);
       const startsOn = now.toISOString();
-      now.setSeconds(now.getSeconds() + 3);
-
-      await sleep(1500);
+      now.setSeconds(now.getSeconds() + 2);
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -213,7 +234,7 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       await workflow.update({ enabled: false });
 
-      await sleep(1800);
+      await sleepUntil(future);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -256,7 +277,10 @@ describe('workflow > triggers > schedule > static mode', () => {
         });
       });
 
-      await sleep(2500);
+      await waitForAssertion(async () => {
+        expect(await w1.countExecutions()).toBe(1);
+        expect(await w2.countExecutions()).toBe(1);
+      });
       await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
 
       const [e1] = await w1.getExecutions();
@@ -290,7 +314,7 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       await app.stop();
 
-      await sleep(3000);
+      await sleepUntil(start, 1000);
 
       await app.start();
 
@@ -321,7 +345,7 @@ describe('workflow > triggers > schedule > static mode', () => {
       const c1 = await workflow.countExecutions();
       expect(c1).toBe(0);
 
-      consumeTime(100); // on AMD 5600G takes about 2.7s
+      consumeTimeUntil(start.getTime() + 500);
 
       await waitForAssertion(async () => {
         const c2 = await workflow.countExecutions();

@@ -1,7 +1,7 @@
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
-import { prepareApp } from './prepare';
+import { aclTestPlugins, prepareApp } from './prepare';
 
 describe('actions', () => {
   let app: MockServer;
@@ -9,17 +9,17 @@ describe('actions', () => {
   let adminUser;
   let agent;
   let adminAgent;
-  let pluginUser;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     process.env.INIT_ROOT_EMAIL = 'test@tachybase.com';
     process.env.INIT_ROOT_PASSWORD = '123456';
     process.env.INIT_ROOT_NICKNAME = 'Test';
 
-    app = await prepareApp();
+    app = await prepareApp({
+      plugins: aclTestPlugins,
+    });
     db = app.db;
 
-    pluginUser = app.pm.get('users');
     adminUser = await db.getRepository('users').findOne({
       filter: {
         email: process.env.INIT_ROOT_EMAIL,
@@ -31,7 +31,7 @@ describe('actions', () => {
     adminAgent = app.agent().login(adminUser);
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
@@ -80,6 +80,7 @@ describe('actions', () => {
       context: {},
     });
 
+    const roleName = 'acl-user-site-role';
     const testUser = await db.getRepository('users').create({
       values: {
         username: 'testUser',
@@ -89,7 +90,7 @@ describe('actions', () => {
 
     await db.getRepository('roles').create({
       values: {
-        name: 'testRole',
+        name: roleName,
         users: [
           {
             id: testUser.get('id'),
@@ -128,7 +129,7 @@ describe('actions', () => {
     });
 
     // create acl resource
-    const createResourcesResp = await adminAgent.resource('roles.resources', 'testRole').create({
+    const createResourcesResp = await adminAgent.resource('roles.resources', roleName).create({
       values: {
         name: 'items',
         usingActionsConfig: true,
@@ -143,7 +144,7 @@ describe('actions', () => {
 
     expect(createResourcesResp.status).toBe(200);
 
-    const item = await db.getRepository('items').create({
+    await db.getRepository('items').create({
       values: {
         name: 'testItem',
         site: site.get('id'),
@@ -158,7 +159,7 @@ describe('actions', () => {
     });
 
     // list with user
-    const userAgent: any = app.agent().login(testUser).set('x-role', 'testRole');
+    const userAgent: any = app.agent().login(testUser).set('x-role', roleName);
 
     const listResp = await userAgent.resource('items').list({});
     expect(listResp.status).toBe(200);
@@ -178,27 +179,29 @@ describe('actions', () => {
   });
 
   it('can destroy users role', async () => {
-    const role2 = await db.getRepository('roles').create({
+    const roleName = 'acl-user-destroy-role';
+    const email = 'acl-user-destroy@tachybase.com';
+    await db.getRepository('roles').create({
       values: {
-        name: 'test',
+        name: roleName,
       },
     });
 
-    const users2 = await db.getRepository('users').create({
+    await db.getRepository('users').create({
       values: {
-        email: 'test2@tachybase.com',
+        email,
         name: 'test2',
         password: '123456',
         roles: [
           {
-            name: 'test',
+            name: roleName,
           },
         ],
       },
     });
 
     let response = await agent.post('/auth:signIn').send({
-      email: 'test2@tachybase.com',
+      email,
       password: '123456',
     });
 
@@ -213,12 +216,12 @@ describe('actions', () => {
     expect(rolesCheckResponse.statusCode).toEqual(200);
 
     await db.getRepository('roles').destroy({
-      filterByTk: 'test',
+      filterByTk: roleName,
     });
     await app.cache.reset();
 
     response = await agent.post('/auth:signIn').send({
-      email: 'test2@tachybase.com',
+      email,
       password: '123456',
     });
 
@@ -231,20 +234,22 @@ describe('actions', () => {
   });
 
   it('should destroy through table record when destroy role', async () => {
+    const roleName = 'acl-user-through-role';
+    const email = 'acl-user-through@tachybase.com';
     await db.getRepository('roles').create({
       values: {
-        name: 'test',
+        name: roleName,
       },
     });
 
     const users2 = await db.getRepository('users').create({
       values: {
-        email: 'test2@tachybase.com',
+        email,
         name: 'test2',
         password: '123456',
         roles: [
           {
-            name: 'test',
+            name: roleName,
           },
         ],
       },
@@ -253,14 +258,14 @@ describe('actions', () => {
     expect(await users2.countRoles()).toEqual(1);
 
     await db.getRepository('roles').destroy({
-      filterByTk: 'test',
+      filterByTk: roleName,
     });
 
     expect(await users2.countRoles()).toEqual(0);
 
     await db.getRepository('roles').create({
       values: {
-        name: 'test',
+        name: roleName,
       },
     });
 

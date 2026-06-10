@@ -1,8 +1,8 @@
 import { EXECUTION_STATUS } from '@tachybase/plugin-workflow';
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
-import { waitForAssertion } from '../../../__tests__/utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
 import Plugin from '../Plugin';
 
 describe('workflow > instructions > aggregate', () => {
@@ -14,18 +14,31 @@ describe('workflow > instructions > aggregate', () => {
   let WorkflowModel;
   let workflow;
 
-  beforeEach(async () => {
+  async function setupApp(options: { withAnotherDataSource?: boolean } = {}) {
     app = await getApp({
       plugins: [Plugin],
+      withAnotherDataSource: options.withAnotherDataSource,
     });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
-    WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
     CommentRepo = db.getCollection('comments').repository;
     TagRepo = db.getCollection('tags').repository;
+  }
 
+  async function resetWorkflowData() {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await CommentRepo.destroy({ filter: {} });
+    await TagRepo.destroy({ filter: {} });
+  }
+
+  async function createWorkflow() {
     workflow = await WorkflowModel.create({
       enabled: true,
       type: 'collection',
@@ -34,9 +47,23 @@ describe('workflow > instructions > aggregate', () => {
         collection: 'posts',
       },
     });
+  }
+
+  beforeAll(async () => {
+    await setupApp();
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    await resetWorkflowData();
+    await createWorkflow();
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   async function expectLatestJobResult(result, executionCount = 1) {
     await waitForAssertion(async () => {
@@ -278,6 +305,16 @@ describe('workflow > instructions > aggregate', () => {
   });
 
   describe('multiple data source', () => {
+    beforeAll(async () => {
+      await app.destroy();
+      await setupApp({ withAnotherDataSource: true });
+    });
+
+    afterAll(async () => {
+      await app.destroy();
+      await setupApp();
+    });
+
     it('query on another data source', async () => {
       const AnotherPostRepo = app.dataSourceManager.dataSources.get('another').collectionManager.getRepository('posts');
       const post = await AnotherPostRepo.create({ values: { title: 't1' } });
@@ -297,12 +334,12 @@ describe('workflow > instructions > aggregate', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result).toBe(1);
+      });
     });
   });
 });

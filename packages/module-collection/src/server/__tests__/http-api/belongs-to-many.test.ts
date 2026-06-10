@@ -37,7 +37,6 @@ describe('collections repository', () => {
         createdBy: true,
         updatedBy: true,
         sortable: true,
-        logging: true,
         fields: [
           {
             name: 'id',

@@ -1,28 +1,40 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
-import { waitForAssertion } from '../utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > actions > workflows', () => {
   let app: MockServer;
   let agent;
   let db: Database;
-  let PostModel;
   let PostRepo;
   let WorkflowModel;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
     agent = app.agent();
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
-    PostModel = db.getCollection('posts').model;
     PostRepo = db.getCollection('posts').repository;
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('update', () => {
     it('update unexecuted workflow should be ok', async () => {
@@ -60,10 +72,11 @@ describe('workflow > actions > workflows', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const c1 = await workflow.countExecutions();
-      expect(c1).toBe(1);
+      await waitForAssertion(async () => {
+        const c1 = await workflow.countExecutions();
+        expect(c1).toBe(1);
+      });
+      await waitForWorkflowIdle(app);
 
       const { status } = await agent.resource('workflows').update({
         filterByTk: workflow.id,
@@ -89,23 +102,23 @@ describe('workflow > actions > workflows', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const c1 = await workflow.countExecutions();
-      expect(c1).toBe(1);
+      await waitForAssertion(async () => {
+        const c1 = await workflow.countExecutions();
+        expect(c1).toBe(1);
+      });
+      await waitForWorkflowIdle(app);
 
       const { status } = await agent.resource('workflows').update({
         filterByTk: workflow.id,
         values: {
           enabled: false,
-          key: workflow.key,
         },
       });
       expect(status).toBe(200);
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const c2 = await workflow.countExecutions();
       expect(c2).toBe(1);
@@ -162,7 +175,7 @@ describe('workflow > actions > workflows', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const w2c = await WorkflowModel.count();
       expect(w2c).toBe(0);
@@ -229,25 +242,25 @@ describe('workflow > actions > workflows', () => {
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [w1next, w2next] = await WorkflowModel.findAll({
+          order: [['id', 'ASC']],
+        });
 
-      const [w1next, w2next] = await WorkflowModel.findAll({
-        order: [['id', 'ASC']],
+        expect(w1next.enabled).toBe(false);
+        expect(w1next.current).toBe(null);
+        expect(w1next.allExecuted).toBe(2);
+        expect(w2next.enabled).toBe(true);
+        expect(w2next.current).toBe(true);
+        expect(w2next.executed).toBe(1);
+        expect(w2next.allExecuted).toBe(2);
+
+        const [e1] = await w1next.getExecutions();
+        const [e2] = await w2next.getExecutions();
+        expect(e1.key).toBe(e2.key);
+        expect(e1.workflowId).toBe(w1.id);
+        expect(e2.workflowId).toBe(w2.id);
       });
-
-      expect(w1next.enabled).toBe(false);
-      expect(w1next.current).toBe(null);
-      expect(w1next.allExecuted).toBe(2);
-      expect(w2next.enabled).toBe(true);
-      expect(w2next.current).toBe(true);
-      expect(w2next.executed).toBe(1);
-      expect(w2next.allExecuted).toBe(2);
-
-      const [e1] = await w1next.getExecutions();
-      const [e2] = await w2next.getExecutions();
-      expect(e1.key).toBe(e2.key);
-      expect(e1.workflowId).toBe(w1.id);
-      expect(e2.workflowId).toBe(w2.id);
     });
 
     it('revision with nodes', async () => {
@@ -300,11 +313,11 @@ describe('workflow > actions > workflows', () => {
         values: { title: 't1', read: 1 },
       });
 
-      await sleep(500);
-
-      const [execution] = await w2.getExecutions();
-      const [echo, calculation] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(calculation.result).toBe(2);
+      await waitForAssertion(async () => {
+        const [execution] = await w2.getExecutions();
+        const [echo, calculation] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(calculation.result).toBe(2);
+      });
     });
 
     it('duplicate workflow', async () => {
@@ -364,24 +377,24 @@ describe('workflow > actions > workflows', () => {
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [w1next, w2next] = await WorkflowModel.findAll({
+          order: [['id', 'ASC']],
+        });
 
-      const [w1next, w2next] = await WorkflowModel.findAll({
-        order: [['id', 'ASC']],
+        expect(w1next.enabled).toBe(false);
+        expect(w1next.current).toBe(true);
+        expect(w1next.executed).toBe(1);
+        expect(w1next.allExecuted).toBe(1);
+        expect(w2next.enabled).toBe(true);
+        expect(w2next.executed).toBe(1);
+        expect(w2next.allExecuted).toBe(1);
+
+        const [e1] = await w1next.getExecutions();
+        const [e2] = await w2next.getExecutions();
+        expect(e1.key).not.toBe(e2.key);
+        expect(e2.workflowId).toBe(w2.id);
       });
-
-      expect(w1next.enabled).toBe(false);
-      expect(w1next.current).toBe(true);
-      expect(w1next.executed).toBe(1);
-      expect(w1next.allExecuted).toBe(1);
-      expect(w2next.enabled).toBe(true);
-      expect(w2next.executed).toBe(1);
-      expect(w2next.allExecuted).toBe(1);
-
-      const [e1] = await w1next.getExecutions();
-      const [e2] = await w2next.getExecutions();
-      expect(e1.key).not.toBe(e2.key);
-      expect(e2.workflowId).toBe(w2.id);
     });
   });
 });

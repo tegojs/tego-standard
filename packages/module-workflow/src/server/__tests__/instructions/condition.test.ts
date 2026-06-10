@@ -3,7 +3,7 @@ import Database, { Application } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
 import { BRANCH_INDEX } from '../../instructions/ConditionInstruction';
-import { waitForAssertion } from '../utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > instructions > condition', () => {
   let app: Application;
@@ -12,12 +12,21 @@ describe('workflow > instructions > condition', () => {
   let WorkflowModel;
   let workflow;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       title: 'test workflow',
@@ -30,7 +39,12 @@ describe('workflow > instructions > condition', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   async function waitForExecutionJobs(assertion, options = {}) {
     let execution;

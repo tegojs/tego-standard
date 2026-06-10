@@ -1,10 +1,7 @@
-import { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
 import { MockServer } from '@tachybase/test';
 import { ACL, Database } from '@tego/server';
 
-import UsersPlugin from 'packages/module-user/src';
-
-import { prepareApp } from './prepare';
+import { aclCollectionManagerTestPlugins, aclTestPlugins, prepareApp } from './prepare';
 
 describe('acl', () => {
   let app: MockServer;
@@ -13,16 +10,14 @@ describe('acl', () => {
   let admin;
   let adminAgent;
 
-  let userPlugin;
-
-  let uiSchemaRepository: UiSchemaRepository;
-
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclCollectionManagerTestPlugins,
+    });
     db = app.db;
     acl = app.acl;
 
@@ -35,11 +30,11 @@ describe('acl', () => {
     });
 
     adminAgent = app.agent().login(admin);
-    uiSchemaRepository = db.getRepository('uiSchemas');
   });
 
   test('append createById', async () => {
-    const Company = await db.getRepository('collections').create({
+    const roleName = 'acl-create-by-id-role';
+    await db.getRepository('collections').create({
       context: {},
       values: {
         name: 'companies',
@@ -56,7 +51,7 @@ describe('acl', () => {
       },
     });
 
-    const Repair = await db.getRepository('collections').create({
+    await db.getRepository('collections').create({
       context: {},
       values: {
         name: 'repairs',
@@ -82,11 +77,11 @@ describe('acl', () => {
 
     await db.getRepository('roles').create({
       values: {
-        name: 'test-role',
+        name: roleName,
       },
     });
 
-    const createResp = await adminAgent.resource('roles.resources', 'test-role').create({
+    const createResp = await adminAgent.resource('roles.resources', roleName).create({
       values: {
         name: 'repairs',
         usingActionsConfig: true,
@@ -105,23 +100,21 @@ describe('acl', () => {
       values: {
         name: 'u1',
         company: { id: c1.get('id') },
-        roles: ['test-role'],
+        roles: [roleName],
       },
     });
 
-    const r1 = await db.getRepository('repairs').create({
+    await db.getRepository('repairs').create({
       values: {
         name: 'r1',
         company: { id: c1.get('id') },
       },
     });
 
-    userPlugin = app.pm.get('users') as UsersPlugin;
-
     const testAgent = app.agent().login(u1);
 
     // @ts-ignore
-    const response1 = await testAgent.resource('repairs').list({
+    await testAgent.resource('repairs').list({
       filter: {
         company: {
           id: {
@@ -132,7 +125,7 @@ describe('acl', () => {
     });
 
     // @ts-ignore
-    const response2 = await testAgent.resource('repairs').list({
+    await testAgent.resource('repairs').list({
       filter: {
         company: {
           id: {
@@ -143,7 +136,7 @@ describe('acl', () => {
     });
 
     // @ts-ignore
-    const response3 = await testAgent.resource('repairs').list({
+    await testAgent.resource('repairs').list({
       filter: {
         company: {
           id: {
@@ -154,16 +147,19 @@ describe('acl', () => {
     });
 
     const acl = app.acl;
-    const canResult = acl.can({ role: 'test-role', resource: 'repairs', action: 'list' });
+    const canResult = acl.can({ role: roleName, resource: 'repairs', action: 'list' });
     const params = canResult['params'];
 
     expect(params['fields']).toHaveLength(3);
   });
 
   it('should not have permission to list comments', async () => {
+    const roleName = 'acl-comments-role';
+    const commentsCollection = 'aclComments';
+    const postsCollection = 'aclCommentPosts';
     await db.getCollection('collections').repository.create({
       values: {
-        name: 'comments',
+        name: commentsCollection,
         fields: [
           {
             name: 'content',
@@ -176,7 +172,7 @@ describe('acl', () => {
 
     await db.getCollection('collections').repository.create({
       values: {
-        name: 'posts',
+        name: postsCollection,
         fields: [
           {
             name: 'title',
@@ -185,7 +181,7 @@ describe('acl', () => {
           {
             name: 'comments',
             type: 'hasMany',
-            target: 'comments',
+            target: commentsCollection,
             interface: 'linkTo',
           },
         ],
@@ -195,13 +191,13 @@ describe('acl', () => {
 
     await db.getRepository('roles').create({
       values: {
-        name: 'test-role',
+        name: roleName,
       },
     });
 
-    await adminAgent.resource('roles.resources', 'test-role').create({
+    await adminAgent.resource('roles.resources', roleName).create({
       values: {
-        name: 'posts',
+        name: postsCollection,
         usingActionsConfig: true,
         actions: [
           {
@@ -216,16 +212,16 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'test-role',
-        resource: 'posts.comments',
+        role: roleName,
+        resource: `${postsCollection}.comments`,
         action: 'list',
       }),
     ).not.toBeNull();
 
     expect(
       acl.can({
-        role: 'test-role',
-        resource: 'comments',
+        role: roleName,
+        resource: commentsCollection,
         action: 'list',
       }),
     ).toBeNull();
@@ -237,28 +233,61 @@ describe('acl', () => {
         email: process.env.INIT_ROOT_EMAIL,
       },
     });
-    const userPlugin = app.pm.get('users') as UsersPlugin;
 
     const adminAgent = app.agent().login(rootUser);
 
-    expect(await db.getCollection('roles').repository.count()).toBe(3);
+    const defaultRoleNames = ['root', 'admin', 'member'];
+    expect(
+      await db.getCollection('roles').repository.count({
+        filter: {
+          name: {
+            $in: defaultRoleNames,
+          },
+        },
+      }),
+    ).toBe(defaultRoleNames.length);
 
     //@ts-ignore
     await adminAgent.resource('roles').destroy({
       filterByTk: 'root',
     });
 
-    expect(await db.getCollection('roles').repository.count()).toBe(3);
+    expect(
+      await db.getCollection('roles').repository.count({
+        filter: {
+          name: {
+            $in: defaultRoleNames,
+          },
+        },
+      }),
+    ).toBe(defaultRoleNames.length);
   });
 
   it('should not destroy default roles', async () => {
-    expect(await db.getCollection('roles').repository.count()).toBe(3);
+    const defaultRoleNames = ['root', 'admin', 'member'];
+    expect(
+      await db.getCollection('roles').repository.count({
+        filter: {
+          name: {
+            $in: defaultRoleNames,
+          },
+        },
+      }),
+    ).toBe(defaultRoleNames.length);
 
     await adminAgent.resource('roles').destroy({
       filterByTk: 'root',
     });
 
-    expect(await db.getCollection('roles').repository.count()).toBe(3);
+    expect(
+      await db.getCollection('roles').repository.count({
+        filter: {
+          name: {
+            $in: defaultRoleNames,
+          },
+        },
+      }),
+    ).toBe(defaultRoleNames.length);
   });
 
   it('should not destroy all scope', async () => {
@@ -304,23 +333,25 @@ describe('acl', () => {
   });
 
   it('should works with universal actions', async () => {
+    const roleName = 'acl-universal-actions-role';
+    const resourceName = 'aclUniversalPosts';
     await db.getRepository('roles').create({
       values: {
-        name: 'new',
+        name: roleName,
       },
     });
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'posts',
+        role: roleName,
+        resource: resourceName,
         action: 'create',
       }),
     ).toBeNull();
 
     // grant universal action
     await adminAgent.resource('roles').update({
-      resourceIndex: 'new',
+      resourceIndex: roleName,
       values: {
         strategy: {
           actions: ['create'],
@@ -331,21 +362,24 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'posts',
+        role: roleName,
+        resource: resourceName,
         action: 'create',
       }),
     ).toMatchObject({
-      role: 'new',
-      resource: 'posts',
+      role: roleName,
+      resource: resourceName,
       action: 'create',
     });
   });
 
   it('should deny when resource action has no resource', async () => {
+    const roleName = 'acl-empty-resource-actions-role';
+    const c1Collection = 'aclEmptyResourceC1';
+    const c2Collection = 'aclEmptyResourceC2';
     await db.getRepository('roles').create({
       values: {
-        name: 'new',
+        name: roleName,
         strategy: {
           actions: ['update:own', 'destroy:own', 'create', 'view'],
         },
@@ -355,7 +389,7 @@ describe('acl', () => {
     // create c1 collection
     await db.getRepository('collections').create({
       values: {
-        name: 'c1',
+        name: c1Collection,
         title: 'table1',
       },
     });
@@ -363,14 +397,14 @@ describe('acl', () => {
     // create c2 collection
     await db.getRepository('collections').create({
       values: {
-        name: 'c2',
+        name: c2Collection,
         title: 'table2',
       },
     });
 
-    await adminAgent.resource('roles.resources', 'new').create({
+    await adminAgent.resource('roles.resources', roleName).create({
       values: {
-        name: 'c1',
+        name: c1Collection,
         usingActionsConfig: true,
         actions: [],
       },
@@ -378,17 +412,19 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'c1',
+        role: roleName,
+        resource: c1Collection,
         action: 'list',
       }),
     ).toBeNull();
   });
 
   it('should not append createdAt field when collection has no createdAt field', async () => {
-    const role = await db.getRepository('roles').create({
+    const roleName = 'acl-no-created-at-role';
+    const collectionName = 'aclNoCreatedAt';
+    await db.getRepository('roles').create({
       values: {
-        name: 'new',
+        name: roleName,
         strategy: {
           actions: ['list'],
         },
@@ -397,7 +433,7 @@ describe('acl', () => {
 
     await db.getRepository('collections').create({
       values: {
-        name: 'c1',
+        name: collectionName,
         autoGenId: false,
         fields: [
           { name: 'name', type: 'string', primaryKey: true },
@@ -408,9 +444,9 @@ describe('acl', () => {
       context: {},
     });
 
-    await adminAgent.resource('roles.resources', 'new').create({
+    await adminAgent.resource('roles.resources', roleName).create({
       values: {
-        name: 'c1',
+        name: collectionName,
         usingActionsConfig: true,
         actions: [
           {
@@ -423,13 +459,13 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'c1',
+        role: roleName,
+        resource: collectionName,
         action: 'view',
       }),
     ).toMatchObject({
-      role: 'new',
-      resource: 'c1',
+      role: roleName,
+      resource: collectionName,
       action: 'view',
       params: {
         fields: ['title', 'name'],
@@ -438,9 +474,12 @@ describe('acl', () => {
   });
 
   it('should works with resources actions', async () => {
-    const role = await db.getRepository('roles').create({
+    const roleName = 'acl-resource-actions-role';
+    const c1Collection = 'aclResourceActionsC1';
+    const c2Collection = 'aclResourceActionsC2';
+    await db.getRepository('roles').create({
       values: {
-        name: 'new',
+        name: roleName,
         strategy: {
           actions: ['list'],
         },
@@ -450,7 +489,7 @@ describe('acl', () => {
     // create c1 collection
     await db.getRepository('collections').create({
       values: {
-        name: 'c1',
+        name: c1Collection,
         title: 'table1',
       },
       context: {},
@@ -459,7 +498,7 @@ describe('acl', () => {
     // create c2 collection
     await db.getRepository('collections').create({
       values: {
-        name: 'c2',
+        name: c2Collection,
         title: 'table2',
       },
     });
@@ -469,7 +508,7 @@ describe('acl', () => {
       body: { data: publishedScope },
     } = await adminAgent.resource('dataSourcesRolesResourcesScopes').create({
       values: {
-        resourceName: 'c1',
+        resourceName: c1Collection,
         name: 'published',
         scope: {
           published: true,
@@ -478,9 +517,9 @@ describe('acl', () => {
     });
 
     // set admin resources
-    await adminAgent.resource('roles.resources', 'new').create({
+    await adminAgent.resource('roles.resources', roleName).create({
       values: {
-        name: 'c1',
+        name: c1Collection,
         usingActionsConfig: true,
         actions: [
           {
@@ -497,13 +536,13 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'c1',
+        role: roleName,
+        resource: c1Collection,
         action: 'create',
       }),
     ).toMatchObject({
-      role: 'new',
-      resource: 'c1',
+      role: roleName,
+      resource: c1Collection,
       action: 'create',
       params: {
         filter: { published: true },
@@ -512,13 +551,13 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'c1',
+        role: roleName,
+        resource: c1Collection,
         action: 'view',
       }),
     ).toMatchObject({
-      role: 'new',
-      resource: 'c1',
+      role: roleName,
+      resource: c1Collection,
       action: 'view',
       params: {
         fields: ['age', 'title', 'id', 'createdAt', 'updatedAt'],
@@ -526,22 +565,21 @@ describe('acl', () => {
     });
 
     // revoke action
-    const response = await adminAgent.resource('roles.resources', role.get('name')).list({
+    const response = await adminAgent.resource('roles.resources', roleName).list({
       appends: ['actions'],
     });
 
     expect(response.statusCode).toEqual(200);
 
-    const actions = response.body.data[0].actions;
     const collectionName = response.body.data[0].name;
 
-    await adminAgent.resource('roles.resources', role.get('name')).update({
+    await adminAgent.resource('roles.resources', roleName).update({
       filter: {
         name: collectionName,
         dataSourceKey: 'main',
       },
       values: {
-        name: 'c1',
+        name: c1Collection,
         usingActionsConfig: true,
         actions: [
           {
@@ -554,38 +592,40 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'c1',
+        role: roleName,
+        resource: c1Collection,
         action: 'create',
       }),
     ).toBeNull();
   });
 
   it('should revoke resource when collection destroy', async () => {
+    const roleName = 'acl-revoke-resource-role';
+    const collectionName = 'aclRevokePosts';
     await db.getRepository('roles').create({
       values: {
-        name: 'new',
+        name: roleName,
       },
     });
 
     await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     await db.getRepository('fields').create({
       values: {
-        collectionName: 'posts',
+        collectionName,
         type: 'string',
         name: 'title',
       },
     });
 
     await adminAgent.resource('roles.resources').create({
-      associatedIndex: 'new',
+      associatedIndex: roleName,
       values: {
-        name: 'posts',
+        name: collectionName,
         usingActionsConfig: true,
         actions: [
           {
@@ -598,45 +638,47 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'posts',
+        role: roleName,
+        resource: collectionName,
         action: 'view',
       }),
     ).not.toBeNull();
 
     await db.getRepository('collections').destroy({
       filter: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'posts',
+        role: roleName,
+        resource: collectionName,
         action: 'view',
       }),
     ).toBeNull();
   });
 
   it('should revoke actions when not using actions config', async () => {
+    const roleName = 'acl-revoke-actions-role';
+    const collectionName = 'aclRevokeActionPosts';
     await db.getRepository('roles').create({
       values: {
-        name: 'new',
+        name: roleName,
       },
     });
 
     await db.getRepository('collections').create({
       values: {
-        name: 'posts',
-        title: 'posts',
+        name: collectionName,
+        title: collectionName,
       },
     });
 
     await adminAgent.resource('roles.resources').create({
-      associatedIndex: 'new',
+      associatedIndex: roleName,
       values: {
-        name: 'posts',
+        name: collectionName,
         usingActionsConfig: true,
         actions: [
           {
@@ -648,25 +690,25 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'posts',
+        role: roleName,
+        resource: collectionName,
         action: 'create',
       }),
     ).toMatchObject({
-      role: 'new',
-      resource: 'posts',
+      role: roleName,
+      resource: collectionName,
       action: 'create',
     });
 
     const existsResource = await db.getRepository('dataSourcesRolesResources').findOne({
       filter: {
-        name: 'posts',
-        roleName: 'new',
+        name: collectionName,
+        roleName,
         dataSourceKey: 'main',
       },
     });
 
-    await adminAgent.resource('roles.resources', 'new').update({
+    await adminAgent.resource('roles.resources', roleName).update({
       filterByTk: existsResource.get('id'),
       values: {
         usingActionsConfig: false,
@@ -675,13 +717,13 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'posts',
+        role: roleName,
+        resource: collectionName,
         action: 'create',
       }),
     ).toBeNull();
 
-    await adminAgent.resource('roles.resources', 'new').update({
+    await adminAgent.resource('roles.resources', roleName).update({
       filterByTk: existsResource.get('id'),
       values: {
         usingActionsConfig: true,
@@ -690,42 +732,44 @@ describe('acl', () => {
 
     expect(
       acl.can({
-        role: 'new',
-        resource: 'posts',
+        role: roleName,
+        resource: collectionName,
         action: 'create',
       }),
     ).toMatchObject({
-      role: 'new',
-      resource: 'posts',
+      role: roleName,
+      resource: collectionName,
       action: 'create',
     });
   });
 
   it('should add fields when field created', async () => {
+    const roleName = 'acl-add-fields-role';
+    const collectionName = 'aclAddFieldsPosts';
     await db.getRepository('roles').create({
       values: {
-        name: 'new',
+        name: roleName,
       },
     });
 
     await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     await db.getRepository('fields').create({
       values: {
-        collectionName: 'posts',
+        collectionName,
         type: 'string',
         name: 'title',
       },
     });
 
     await adminAgent.resource('roles.resources').create({
-      associatedIndex: 'new',
+      associatedIndex: roleName,
       values: {
-        name: 'posts',
+        name: collectionName,
         usingActionsConfig: true,
         actions: [
           {
@@ -737,8 +781,8 @@ describe('acl', () => {
     });
 
     const allowFields = acl.can({
-      role: 'new',
-      resource: 'posts',
+      role: roleName,
+      resource: collectionName,
       action: 'view',
     })['params']['fields'];
 
@@ -746,69 +790,19 @@ describe('acl', () => {
 
     await db.getRepository('fields').create({
       values: {
-        collectionName: 'posts',
+        collectionName,
         type: 'string',
         name: 'description',
       },
     });
 
     const newAllowFields = acl.can({
-      role: 'new',
-      resource: 'posts',
+      role: roleName,
+      resource: collectionName,
       action: 'view',
     })['params']['fields'];
 
     expect(newAllowFields.includes('description')).toBeTruthy();
-  });
-
-  it('should get role menus', async () => {
-    const role = await db.getRepository('roles').create({
-      values: {
-        name: 'new',
-        strategy: {
-          actions: ['view'],
-        },
-      },
-    });
-
-    const menuResponse = await adminAgent.resource('roles.menuUiSchemas', 'new').list();
-
-    expect(menuResponse.statusCode).toEqual(200);
-  });
-
-  it('should toggle role menus', async () => {
-    const role = await db.getRepository('roles').create({
-      values: {
-        name: 'new',
-        strategy: {
-          actions: ['*'],
-        },
-        snippets: ['pm.*'],
-      },
-    });
-    const UserRepo = db.getCollection('users').repository;
-    const user = await UserRepo.create({
-      values: {
-        roles: ['new'],
-      },
-    });
-
-    const userAgent = app.agent().login(user);
-
-    const schema = {
-      'x-uid': 'test',
-    };
-
-    await uiSchemaRepository.insert(schema);
-
-    const response = await userAgent
-      // @ts-ignore
-      .resource('roles.menuUiSchemas', 'new')
-      .toggle({
-        values: { tk: 'test' },
-      });
-
-    expect(response.statusCode).toEqual(200);
   });
 
   it.skip('should sync data to acl after app reload', async () => {
@@ -851,6 +845,7 @@ describe('acl', () => {
   });
 
   it('should destroy new role when user are root user', async () => {
+    const roleName = 'acl-root-destroy-role';
     const rootUser = await db.getRepository('users').findOne({
       filterByTk: 1,
     });
@@ -862,21 +857,95 @@ describe('acl', () => {
       .resource('roles')
       .create({
         values: {
-          name: 'testRole',
+          name: roleName,
         },
       });
 
     expect(response.statusCode).toEqual(200);
 
-    expect(await db.getRepository('roles').findOne({ filterByTk: 'testRole' })).toBeDefined();
+    expect(await db.getRepository('roles').findOne({ filterByTk: roleName })).toBeDefined();
     const destroyResponse = await rootAgent
       // @ts-ignore
       .resource('roles')
       .destroy({
-        filterByTk: 'testRole',
+        filterByTk: roleName,
       });
 
     expect(destroyResponse.statusCode).toEqual(200);
-    expect(await db.getRepository('roles').findOne({ filterByTk: 'testRole' })).toBeNull();
+    expect(await db.getRepository('roles').findOne({ filterByTk: roleName })).toBeNull();
+  });
+});
+
+describe('acl role menus', () => {
+  let app: MockServer;
+  let db: Database;
+  let adminAgent;
+
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclTestPlugins,
+    });
+    db = app.db;
+
+    const admin = await db.getCollection('users').repository.create({
+      values: {
+        roles: ['admin'],
+      },
+    });
+
+    adminAgent = app.agent().login(admin);
+  });
+
+  afterAll(async () => {
+    await app.destroy();
+  });
+
+  it('should get role menus', async () => {
+    const roleName = 'acl-menu-list-role';
+    await db.getRepository('roles').create({
+      values: {
+        name: roleName,
+        strategy: {
+          actions: ['view'],
+        },
+      },
+    });
+
+    const menuResponse = await adminAgent.resource('roles.menuUiSchemas', roleName).list();
+
+    expect(menuResponse.statusCode).toEqual(200);
+  });
+
+  it('should toggle role menus', async () => {
+    const roleName = 'acl-menu-toggle-role';
+    await db.getRepository('roles').create({
+      values: {
+        name: roleName,
+        strategy: {
+          actions: ['*'],
+        },
+        snippets: ['pm.*'],
+      },
+    });
+    const user = await db.getCollection('users').repository.create({
+      values: {
+        roles: [roleName],
+      },
+    });
+
+    const userAgent = app.agent().login(user);
+
+    await db.getRepository('uiSchemas').insert({
+      'x-uid': 'test',
+    });
+
+    const response = await userAgent
+      // @ts-ignore
+      .resource('roles.menuUiSchemas', roleName)
+      .toggle({
+        values: { tk: 'test' },
+      });
+
+    expect(response.statusCode).toEqual(200);
   });
 });

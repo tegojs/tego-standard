@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, userEvent, waitFor, within } from '@tachybase/test/client';
+import { fireEvent, render, screen, waitFor, within } from '@tachybase/test/client';
 
 import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
@@ -8,6 +8,13 @@ import App5 from '../demos/demo5';
 import App6 from '../demos/demo6';
 
 describe('Filter', () => {
+  async function selectFilterMatchMode(tooltip: HTMLElement, value: RegExp) {
+    const selector = tooltip.querySelector('[data-testid="filter-select-all-or-any"] .ant-select-selector');
+    expect(selector).toBeInTheDocument();
+    fireEvent.mouseDown(selector!);
+    fireEvent.click(await screen.findByText(value, { selector: '.ant-select-item-option-content' }));
+  }
+
   it('Filter & Action', async () => {
     render(<App3 />);
 
@@ -15,8 +22,8 @@ describe('Filter', () => {
     await waitFor(() => {
       expect(openButton.closest('.ant-spin-blur')).not.toBeInTheDocument();
     });
-    await userEvent.click(openButton);
-    const tooltip = screen.getByRole('tooltip');
+    fireEvent.click(openButton);
+    const tooltip = await screen.findByRole('tooltip');
     expect(tooltip).toBeInTheDocument();
 
     // 弹窗中显示的内容
@@ -34,8 +41,7 @@ describe('Filter', () => {
     expect(inputs[1]).toHaveValue('aaa');
 
     // 点击下拉框中的选项，Popover 不应该关闭。详见：
-    await userEvent.click(screen.getByText(/any/i));
-    await userEvent.click(screen.getByText(/all/i));
+    await selectFilterMatchMode(tooltip, /all/i);
     expect(tooltip).toBeInTheDocument();
   }, 30000);
 
@@ -81,8 +87,8 @@ describe('Filter', () => {
   it('FilterAction', async () => {
     render(<App5 />);
 
-    await userEvent.click(await screen.findByText(/filter/i));
-    const tooltip = screen.getByRole('tooltip');
+    fireEvent.click(await screen.findByText(/filter/i));
+    const tooltip = await screen.findByRole('tooltip');
     expect(tooltip).toBeInTheDocument();
 
     // 弹窗中显示的内容
@@ -100,8 +106,7 @@ describe('Filter', () => {
     expect(inputs[1]).toHaveValue('aaa');
 
     // 点击下拉框中的选项，Popover 不应该关闭。详见：
-    await userEvent.click(screen.getByText(/any/i));
-    await userEvent.click(screen.getByText(/all/i));
+    await selectFilterMatchMode(tooltip, /all/i);
     expect(tooltip).toBeInTheDocument();
   }, 30000);
 
@@ -118,28 +123,34 @@ describe('Filter', () => {
     expect(addBtn).toBeInTheDocument();
     expect(addGroupBtn).toBeInTheDocument();
 
-    await userEvent.click(addBtn);
+    fireEvent.click(addBtn);
     const item = await waitFor(() => {
       const filterItem = document.querySelector('.nc-filter-item');
       expect(filterItem).toBeInTheDocument();
       return filterItem;
     });
-    const selector = item.querySelector('.ant-select-selector');
+    const getFieldSelector = () => {
+      const selector = item.querySelector('.ant-select-selector');
+      expect(selector).toBeInTheDocument();
+      return selector;
+    };
 
-    await userEvent.click(selector);
+    fireEvent.mouseDown(getFieldSelector());
     // 选中 Title1
-    await userEvent.click(await screen.findByText(/title1/i, { selector: '.ant-cascader-menu-item-content' }));
+    fireEvent.click(await screen.findByText(/title1/i, { selector: '.ant-cascader-menu-item-content' }));
     await waitFor(() => {
       expect(screen.getByText(/title1/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
       expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
     });
 
     // 切换为 test2
-    await userEvent.click(screen.getByText(/test1/i));
-    await userEvent.click(await screen.findByText(/test2/i, { selector: '.ant-select-item-option-content' }));
-    await userEvent.click(selector);
+    const collectionSelector = screen.getByText(/test1/i).closest('.ant-select-selector');
+    expect(collectionSelector).toBeInTheDocument();
+    fireEvent.mouseDown(collectionSelector);
+    fireEvent.click(await screen.findByText(/test2/i, { selector: '.ant-select-item-option-content' }));
+    fireEvent.mouseDown(getFieldSelector());
     // 选中 Title2
-    await userEvent.click(await screen.findByText(/title2/i, { selector: '.ant-cascader-menu-item-content' }));
+    fireEvent.click(await screen.findByText(/title2/i, { selector: '.ant-cascader-menu-item-content' }));
     await waitFor(() => {
       expect(screen.getByText(/title2/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
       expect(screen.getByText(/contains/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();

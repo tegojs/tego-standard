@@ -115,9 +115,10 @@ describe('Form', () => {
     expect(loading).toBeInTheDocument();
 
     // 等待数据加载
-    await sleep(600);
-    expect(t1Input).toHaveValue('uid');
-    expect(screen.getByText(/\{ "field2": "default value", "field1": "uid" \}/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(t1Input).toHaveValue('uid');
+      expect(screen.getByText(/\{ "field2": "default value", "field1": "uid" \}/i)).toBeInTheDocument();
+    });
   });
 
   it('useValues', async () => {

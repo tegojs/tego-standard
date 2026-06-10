@@ -1,7 +1,6 @@
 import React from 'react';
 import { ISchema, useForm } from '@tachybase/schema';
 
-import { Application } from '../../../../application/Application';
 import { SchemaComponent } from '../../../core/SchemaComponent';
 import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
 import { Action } from '../../action/Action';
@@ -172,9 +171,4 @@ const Root = () => {
   );
 };
 
-const app = new Application({
-  router: { type: 'memory', initialEntries: ['/'] },
-  providers: [Root],
-});
-
-export default app.getRootComponent();
+export default Root;

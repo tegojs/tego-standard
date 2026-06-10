@@ -34,10 +34,11 @@ const workspaceServerAliases = [
   replacement: path.resolve(process.cwd(), `packages/${packageDir}/src/server/index.ts`),
 }));
 
+const testRequire = createRequire(path.resolve(process.cwd(), 'node_modules/@tachybase/test/package.json'));
+const testServerEntry = testRequire.resolve('@tego/server');
+const testCoreEntry = testRequire.resolve('@tego/core');
+
 const tegoServerRequire = createRequire(path.resolve(process.cwd(), 'packages/module-multi-app/package.json'));
-const tegoServerPackageJson = tegoServerRequire.resolve('@tego/server/package.json');
-const tegoServerEntry = tegoServerRequire.resolve('@tego/server');
-const tegoCoreEntry = createRequire(tegoServerPackageJson).resolve('@tego/core');
 
 // Resolve @tego/client sub-dependencies for vitest aliases
 const tegoClientPkg = tegoServerRequire.resolve('@tego/client/package.json');
@@ -48,17 +49,15 @@ const utilsClientEntry = tegoClientRequire.resolve('@tachybase/utils/client');
 const componentsEntry = tegoClientRequire.resolve('@tachybase/components');
 const evaluatorsClientEntry = tegoClientRequire.resolve('@tachybase/evaluators/client');
 
-const testRequire = createRequire(path.resolve(process.cwd(), 'node_modules/@tachybase/test/package.json'));
-
 const projectAliases = [
   ...workspaceServerAliases,
   {
     find: '@tego/server',
-    replacement: tegoServerEntry,
+    replacement: testServerEntry,
   },
   {
     find: '@tego/core',
-    replacement: tegoCoreEntry,
+    replacement: testCoreEntry,
   },
   {
     find: '@tachybase/sdk',

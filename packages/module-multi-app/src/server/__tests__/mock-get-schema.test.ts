@@ -1,10 +1,12 @@
 import { createRequire } from 'node:module';
 import { createMockServer } from '@tachybase/test';
-import { Application, AppSupervisor, Plugin, uid } from '@tego/server';
+import type { Application } from '@tego/server';
 
 import { vi } from 'vitest';
 
-const serverRequire = createRequire(require.resolve('@tego/server/package.json'));
+const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
+const { AppSupervisor, Plugin, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
+const serverRequire = createRequire(moduleRequire.resolve('@tego/server/package.json'));
 const coreRequire = createRequire(serverRequire.resolve('@tego/core/package.json'));
 const TachybaseGlobal = coreRequire('@tachybase/globals').default || coreRequire('@tachybase/globals');
 

@@ -1,9 +1,13 @@
+import { createRequire } from 'node:module';
 import { createMockServer, MockServer } from '@tachybase/test';
-import { AppSupervisor, Database, Gateway, uid } from '@tego/server';
+import type { Database } from '@tego/server';
 
 import { vi } from 'vitest';
 
 import { PluginMultiAppManager } from '../server';
+
+const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
+const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

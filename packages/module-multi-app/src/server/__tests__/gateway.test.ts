@@ -1,5 +1,9 @@
+import { createRequire } from 'node:module';
 import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
-import { AppSupervisor, Gateway, uid } from '@tego/server';
+import type { Gateway as GatewayType } from '@tego/server';
+
+const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
+const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
 
 async function waitForMaintainingCode(wsClient, code: string, timeout = 10000, interval = 200) {
   const startedAt = Date.now();
@@ -19,7 +23,7 @@ async function waitForMaintainingCode(wsClient, code: string, timeout = 10000, i
 
 describe('gateway with multiple apps', () => {
   let app: MockServer;
-  let gateway: Gateway;
+  let gateway: GatewayType;
   let wsClient;
 
   beforeEach(async () => {

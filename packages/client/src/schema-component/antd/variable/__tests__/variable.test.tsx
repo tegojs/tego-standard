@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, userEvent, waitFor } from '@tachybase/test/client';
+import { fireEvent, render, screen, waitFor } from '@tachybase/test/client';
 
 import App1 from '../demos/demo1';
 import App2 from '../demos/demo2';
@@ -11,8 +11,8 @@ describe('Variable', () => {
 
     expect(screen.getByPlaceholderText('Null')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'variable-button' }));
-    await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'v1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'variable-button' }));
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'v1' }));
     await waitFor(() => {
       expect(screen.getByText('v1', { selector: '.ant-tag' }).innerHTML).toMatchInlineSnapshot('"v1"');
     });
@@ -26,8 +26,8 @@ describe('Variable', () => {
     expect(input).toBeInTheDocument();
     expect(variableSelector).toBeInTheDocument();
 
-    await userEvent.click(variableSelector);
-    await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'v1' }));
+    fireEvent.mouseDown(variableSelector!);
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'v1' }));
     await waitFor(() => {
       expect(input.innerHTML).toMatchInlineSnapshot(
         `"<span class="ant-tag ant-tag-blue" contenteditable="false" data-variable="v1">v1</span>"`,
@@ -43,8 +43,8 @@ describe('Variable', () => {
     expect(input).toBeInTheDocument();
     expect(variableSelector).toBeInTheDocument();
 
-    await userEvent.click(variableSelector);
-    await userEvent.click(screen.getByRole('menuitemcheckbox', { name: 'v1' }));
+    fireEvent.mouseDown(variableSelector!);
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'v1' }));
     await waitFor(() => {
       expect(input.value).toMatchInlineSnapshot('"{{v1}}"');
     });

@@ -9,16 +9,31 @@ describe('collections repository', () => {
   let app: Application;
   let Collection: DBCollection;
   let Field: DBCollection;
+  let shouldDestroyApp = false;
 
-  beforeEach(async () => {
+  const postgresOnlyTests = new Set([
+    'should set collection schema from env',
+    'should destroy field when collection set to difference schema',
+  ]);
+  const isPostgresTestEnvironment = () => process.env.DB_DIALECT === 'postgres';
+
+  beforeEach(async (context: any) => {
+    shouldDestroyApp = false;
+    if (postgresOnlyTests.has(context.task.name) && !isPostgresTestEnvironment()) {
+      return;
+    }
+
     app = await createApp();
     db = app.db;
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
+    shouldDestroyApp = true;
   });
 
   afterEach(async () => {
-    await app.destroy();
+    if (shouldDestroyApp) {
+      await app.destroy();
+    }
   });
 
   it('should load through table with foreignKey', async () => {
@@ -109,8 +124,6 @@ describe('collections repository', () => {
     });
 
     const throughCollection = db.getCollection('postsTags');
-    console.log(throughCollection.model.primaryKeyAttributes);
-
     await throughCollection.repository.update({
       filter: {
         postId: p1.get('id'),
@@ -373,7 +386,7 @@ describe('collections repository', () => {
   });
 
   it('should set collection schema from env', async () => {
-    if (!db.inDialect('postgres')) {
+    if (!isPostgresTestEnvironment() || !db.inDialect('postgres')) {
       return;
     }
 
@@ -909,7 +922,7 @@ describe('collections repository', () => {
   });
 
   it('should destroy field when collection set to difference schema', async () => {
-    if (db.sequelize.getDialect() !== 'postgres') {
+    if (!isPostgresTestEnvironment() || db.sequelize.getDialect() !== 'postgres') {
       return;
     }
 

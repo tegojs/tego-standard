@@ -6,22 +6,27 @@ describe('field indexes', () => {
   let app: MockServer;
   let agent;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     agent = app.agent();
-    await agent.resource('collections').create({
-      values: {
-        name: 'test1',
-      },
-    });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
+  async function createCollection(name: string) {
+    await agent.resource('collections').create({
+      values: {
+        name,
+      },
+    });
+  }
+
   it('create unique constraint after added duplicated records', async () => {
-    const tableName = 'test1';
+    const tableName = 'testUniqueAfterDuplicatedRecords';
+    await createCollection(tableName);
+
     // create an field with unique constraint
     const field = await agent.resource('collections.fields', tableName).create({
       values: {
@@ -47,8 +52,6 @@ describe('field indexes', () => {
       },
     });
 
-    console.log(response3.body);
-
     expect(response3.status).toBe(400);
 
     const response4 = await agent.resource(tableName).create({
@@ -60,7 +63,8 @@ describe('field indexes', () => {
   });
 
   it('field value cannot be duplicated with unique index', async () => {
-    const tableName = 'test1';
+    const tableName = 'testUniqueIndexLifecycle';
+    await createCollection(tableName);
 
     // create a field with unique constraint
     const field = await agent.resource('collections.fields', tableName).create({

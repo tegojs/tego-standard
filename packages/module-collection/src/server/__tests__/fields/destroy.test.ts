@@ -9,7 +9,7 @@ describe('destroy', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp({
       database: {
         tablePrefix: '',
@@ -18,37 +18,39 @@ describe('destroy', () => {
     db = app.db;
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
-
-    await Collection.repository.create({
-      values: {
-        name: 'a',
-        fields: [
-          {
-            name: 'name',
-            type: 'string',
-          },
-        ],
-      },
-      context: {},
-    });
-
-    await Collection.repository.create({
-      values: {
-        name: 'b',
-        fields: [
-          {
-            name: 'name',
-            type: 'string',
-          },
-        ],
-      },
-      context: {},
-    });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
+
+  async function createCollectionsForForeignKeyDestroy(sourceName: string, targetName: string) {
+    await Collection.repository.create({
+      values: {
+        name: sourceName,
+        fields: [
+          {
+            name: 'name',
+            type: 'string',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    await Collection.repository.create({
+      values: {
+        name: targetName,
+        fields: [
+          {
+            name: 'name',
+            type: 'string',
+          },
+        ],
+      },
+      context: {},
+    });
+  }
 
   describe('destroy field', () => {
     it('should remove field in model when field destroyed', async () => {
@@ -83,12 +85,16 @@ describe('destroy', () => {
 
   describe('destroy foreign key', () => {
     it('should destroy association field when foreign key field destroyed', async () => {
+      const sourceName = 'foreignKeyDestroyA';
+      const targetName = 'foreignKeyDestroyB';
+      await createCollectionsForForeignKeyDestroy(sourceName, targetName);
+
       await Field.repository.create({
         values: {
-          name: 'b',
+          name: targetName,
           type: 'hasOne',
-          target: 'b',
-          collectionName: 'a',
+          target: targetName,
+          collectionName: sourceName,
           foreignKey: 'a_id',
           interface: 'oho',
         },
@@ -99,8 +105,8 @@ describe('destroy', () => {
       expect(
         await Field.repository.findOne({
           filter: {
-            collectionName: 'a',
-            name: 'b',
+            collectionName: sourceName,
+            name: targetName,
           },
         }),
       ).toBeTruthy();
@@ -108,20 +114,20 @@ describe('destroy', () => {
       const foreignKeyField = await Field.repository.findOne({
         filter: {
           name: 'a_id',
-          collectionName: 'b',
+          collectionName: targetName,
         },
       });
 
       // should create foreign key
       expect(foreignKeyField).toBeTruthy();
 
-      expect(db.getCollection('b').model.rawAttributes.a_id).toBeTruthy();
+      expect(db.getCollection(targetName).model.rawAttributes.a_id).toBeTruthy();
 
       // destroy foreign key field
       await Field.repository.destroy({
         filter: {
           name: 'a_id',
-          collectionName: 'b',
+          collectionName: targetName,
         },
         context: {},
       });
@@ -130,14 +136,14 @@ describe('destroy', () => {
       expect(
         await Field.repository.findOne({
           filter: {
-            collectionName: 'a',
-            name: 'b',
+            collectionName: sourceName,
+            name: targetName,
           },
         }),
       ).toBeFalsy();
 
       // should remove foreign key
-      expect(db.getCollection('b').model.rawAttributes.a_id).toBeFalsy();
+      expect(db.getCollection(targetName).model.rawAttributes.a_id).toBeFalsy();
     });
   });
 });

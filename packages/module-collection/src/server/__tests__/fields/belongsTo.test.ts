@@ -10,14 +10,14 @@ describe('belongsTo', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     db = app.db;
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 

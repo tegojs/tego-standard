@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import { Collection } from '@tego/server';
 
 import { createApp } from '..';
@@ -9,7 +8,7 @@ describe('field defaultValue', () => {
 
   let TestCollection: Collection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     await app
       .agent()
@@ -34,7 +33,7 @@ describe('field defaultValue', () => {
       });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 

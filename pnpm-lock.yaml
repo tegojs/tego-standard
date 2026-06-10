@@ -15,6 +15,7 @@ overrides:
   '@tachybase/loader': 1.6.13-alpha.6
   '@tachybase/schema': 1.6.13-alpha.6
   '@tachybase/test': 1.6.13-alpha.6
+  '@tachybase/utils': 1.6.13-alpha.6
   '@tego/client': 1.6.13-alpha.6
   '@tego/devkit': 1.6.13-alpha.6
   '@tego/server': 1.6.13-alpha.6
@@ -259,6 +260,9 @@ importers:
       '@tachybase/schema':
         specifier: 1.6.13-alpha.6
         version: 1.6.13-alpha.6(react@18.3.1)
+      '@tachybase/utils':
+        specifier: 1.6.13-alpha.6
+        version: 1.6.13-alpha.6
       '@tego/client':
         specifier: 1.6.13-alpha.6
         version: 1.6.13-alpha.6(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

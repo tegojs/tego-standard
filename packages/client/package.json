@@ -31,6 +31,7 @@
     "@js-preview/excel": "^1.7.14",
     "@lottiefiles/dotlottie-react": "^0.9.3",
     "@tachybase/schema": "catalog:",
+    "@tachybase/utils": "catalog:",
     "@tego/client": "catalog:",
     "ahooks": "^3.9.0",
     "antd": "catalog:",

@@ -60,6 +60,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Test
+        env:
+          TZ: Asia/Shanghai
         run: pnpm test -- --reporter=default --reporter=github-actions
 
   test-coverage:

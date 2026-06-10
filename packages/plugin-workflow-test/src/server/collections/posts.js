@@ -1,6 +1,4 @@
-import type { CollectionOptions } from '@tego/server';
-
-export default {
+module.exports = {
   name: 'posts',
   createdBy: true,
   updatedBy: true,
@@ -37,4 +35,4 @@ export default {
       defaultValue: 0,
     },
   ],
-} as CollectionOptions;
+};

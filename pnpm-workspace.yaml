@@ -11,6 +11,7 @@ catalog:
   '@tachybase/loader': 1.6.13-alpha.6
   '@tachybase/schema': 1.6.13-alpha.6
   '@tachybase/test': 1.6.13-alpha.6
+  '@tachybase/utils': 1.6.13-alpha.6
   '@tego/client': 1.6.13-alpha.6
   '@tego/devkit': 1.6.13-alpha.6
   '@tego/server': 1.6.13-alpha.6
@@ -44,6 +45,7 @@ overrides:
   '@tachybase/loader': 'catalog:'
   '@tachybase/schema': 'catalog:'
   '@tachybase/test': 'catalog:'
+  '@tachybase/utils': 'catalog:'
   '@tego/client': 'catalog:'
   '@tego/devkit': 'catalog:'
   '@tego/server': 'catalog:'

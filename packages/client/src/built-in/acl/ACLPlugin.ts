@@ -1,10 +1,6 @@
 import { Plugin } from '../../application/Plugin';
-import {
-  ACLActionProvider,
-  ACLCollectionFieldProvider,
-  ACLCollectionProvider,
-  ACLMenuItemProvider,
-} from './ACLProvider';
+import { ACLCollectionFieldProvider } from './ACLCollectionFieldProvider';
+import { ACLActionProvider, ACLCollectionProvider, ACLMenuItemProvider } from './ACLProvider';
 
 export class ACLPlugin extends Plugin {
   async load() {

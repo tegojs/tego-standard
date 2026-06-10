@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, userEvent, waitFor } from '@tachybase/test/client';
+import { fireEvent, render, screen, waitFor } from '@tachybase/test/client';
 
 import App1 from '../demos/demo1';
 import App2 from '../demos/demo2';
@@ -14,7 +14,7 @@ describe('Action', () => {
   it('show the drawer when click the button', async () => {
     const { getByText } = render(<App1 />);
 
-    await userEvent.click(getByText('Open'));
+    fireEvent.click(getByText('Open'));
     await waitFor(() => {
       expect(document.querySelector('.ant-drawer-open')).toBeInTheDocument();
     });
@@ -23,39 +23,39 @@ describe('Action', () => {
     expect(getByText('Hello')).toBeInTheDocument();
 
     // close button triggers setVisible(false) - verify click doesn't throw
-    await userEvent.click(getByText('Close'));
+    fireEvent.click(getByText('Close'));
   });
 
   it('openMode', async () => {
     const { getByText } = render(<App3 />);
 
     // drawer mode
-    await userEvent.click(getByText('Drawer'));
-    await userEvent.click(getByText('Open'));
+    fireEvent.click(getByText('Drawer'));
+    fireEvent.click(getByText('Open'));
     await waitFor(() => {
       expect(document.querySelector('.ant-drawer-open')).toBeInTheDocument();
       expect(document.querySelector('.ant-modal')).not.toBeInTheDocument();
       expect(document.querySelector('.tb-action-page')).not.toBeInTheDocument();
     });
 
-    await userEvent.click(getByText('Close'));
+    fireEvent.click(getByText('Close'));
 
     // modal mode
-    await userEvent.click(getByText('Modal'));
-    await userEvent.click(getByText('Open'));
+    fireEvent.click(getByText('Modal'));
+    fireEvent.click(getByText('Open'));
     await waitFor(() => {
       expect(document.querySelector('.ant-modal')).toBeInTheDocument();
     });
 
-    await userEvent.click(getByText('Close'));
+    fireEvent.click(getByText('Close'));
 
     // page mode
-    await userEvent.click(getByText('Page'));
-    await userEvent.click(getByText('Open'));
+    fireEvent.click(getByText('Page'));
+    fireEvent.click(getByText('Open'));
     await waitFor(() => {
       expect(document.querySelector('.tb-action-page')).toBeInTheDocument();
     });
-    await userEvent.click(getByText('Close'));
+    fireEvent.click(getByText('Close'));
   });
 });
 
@@ -63,7 +63,7 @@ describe('Action.Drawer without Action', () => {
   it('show the drawer when click the button', async () => {
     const { getByText } = render(<App2 />);
 
-    await userEvent.click(getByText('Open'));
+    fireEvent.click(getByText('Open'));
     await waitFor(() => {
       expect(document.querySelector('.ant-drawer-open')).toBeInTheDocument();
       expect(document.querySelector('.ant-drawer-mask')).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe('Action.Drawer without Action', () => {
     });
 
     // close button triggers setVisible(false) - verify click doesn't throw
-    await userEvent.click(getByText('Close'));
+    fireEvent.click(getByText('Close'));
   });
 });
 

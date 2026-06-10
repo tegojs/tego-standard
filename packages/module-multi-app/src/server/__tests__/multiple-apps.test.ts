@@ -28,6 +28,14 @@ async function waitForAssertion(assertion: () => void | Promise<void>, timeout =
   throw lastError;
 }
 
+async function destroyRegisteredApp(appName: string) {
+  const app = await AppSupervisor.getInstance().getApp(appName, { withOutBootStrap: true });
+
+  if (app) {
+    await app.destroy({ logging: false });
+  }
+}
+
 describe('multiple apps', () => {
   let app: MockServer;
   let db: Database;
@@ -306,20 +314,27 @@ describe('multiple apps', () => {
 
   it('should start automatically with quick start', async () => {
     const subAppName = `t_${uid()}`;
+    const appPlugin = app.pm.get('multi-app-manager') as PluginMultiAppManager;
+    const appOptionsFactory = appPlugin.appOptionsFactory;
+
+    // Keep this focused on the quickstart path; the full preset needs plugins
+    // that are intentionally disabled in the isolated server test environment.
+    appPlugin.setAppOptionsFactory((appName, mainApp, preset) => ({
+      ...appOptionsFactory(appName, mainApp, preset),
+      plugins: [],
+    }));
 
     const subApp = await app.db.getRepository('applications').create({
       values: {
         name: subAppName,
-        options: {
-          plugins: ['tachybase'],
-        },
+        options: {},
       },
       context: {
         waitSubAppInstall: true,
       },
     });
 
-    await AppSupervisor.getInstance().removeApp(subAppName);
+    await destroyRegisteredApp(subAppName);
 
     await app.start();
 
@@ -331,7 +346,7 @@ describe('multiple apps', () => {
       },
     });
 
-    await AppSupervisor.getInstance().removeApp(subAppName);
+    await destroyRegisteredApp(subAppName);
 
     expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeFalsy();
 

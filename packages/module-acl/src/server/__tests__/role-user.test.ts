@@ -1,7 +1,6 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 import Database, { BelongsToManyRepository } from '@tego/server';
 
-import jwt from 'jsonwebtoken';
 import UsersPlugin from 'packages/module-user/src';
 
 describe('role', () => {
@@ -149,17 +148,9 @@ describe('role', () => {
     await userRolesRepo.add('test1');
     await userRolesRepo.add('test2');
 
-    const userToken = jwt.sign({ userId: user.get('id') }, 'test-key');
-    const response = await api
-      .agent()
-      .post('/users:setDefaultRole')
-      .send({
-        roleName: 'test2',
-      })
-      .set({
-        Authorization: `Bearer ${userToken}`,
-        'X-Authenticator': 'basic',
-      });
+    const response = await api.agent().login(user).post('/users:setDefaultRole').send({
+      roleName: 'test2',
+    });
 
     expect(response.statusCode).toEqual(200);
 

@@ -230,7 +230,7 @@ describe('acl', () => {
   it('should not destroy default roles when user is root user', async () => {
     const rootUser = await db.getRepository('users').findOne({
       filter: {
-        email: process.env.INIT_ROOT_EMAIL,
+        specialRole: 'root',
       },
     });
 

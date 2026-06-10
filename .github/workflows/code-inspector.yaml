@@ -62,6 +62,7 @@ jobs:
       - name: Test
         env:
           TZ: Asia/Shanghai
+          NODE_OPTIONS: --import tsx
         run: pnpm test -- --reporter=default --reporter=github-actions
 
   test-coverage:

@@ -56,7 +56,6 @@ function useDemoFormProps(): DemoFormProps {
   }, [data, form]);
 
   const onFinish = async (values: DemoFormFieldType) => {
-    console.log('values', values);
     await resource.update({
       filterByTk: data.id,
       values,
@@ -120,7 +119,6 @@ const Demo = () => {
 
 const mocks = {
   [`${collection}:update`]: function (config) {
-    console.log('config.data', config.data);
     return {
       data: 'ok',
     };

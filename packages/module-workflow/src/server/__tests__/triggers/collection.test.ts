@@ -30,7 +30,10 @@ describe('workflow > triggers > collection', () => {
     TagRepo = db.getCollection('tags').repository;
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await waitForWorkflowIdle(app);
+    await app.destroy();
+  });
 
   describe('toggle', () => {
     it('create without config should ok', async () => {

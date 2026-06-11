@@ -267,7 +267,10 @@ function createWithACLMetaMiddleware() {
           return [action, ids];
         }
 
-        return [action, results.filter((item) => Boolean(item[action])).map((item) => item[primaryKeyField])];
+        return [
+          action,
+          Array.from(new Set(results.filter((item) => Boolean(item[action])).map((item) => item[primaryKeyField]))),
+        ];
       })
       .reduce((acc, [action, ids]) => {
         acc[action] = ids;

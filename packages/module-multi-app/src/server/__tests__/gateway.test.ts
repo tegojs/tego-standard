@@ -2,17 +2,17 @@ import { createRequire } from 'node:module';
 import { createMockServer, createWsClient, MockServer, startServerWithRandomPort } from '@tachybase/test';
 import type { Gateway as GatewayType } from '@tego/server';
 
+type WsTestClient = Awaited<ReturnType<typeof createWsClient>>;
+
 const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
 const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
 
-async function waitForMaintainingCode(wsClient, code: string, timeout = 10000) {
-  try {
+async function waitForMaintainingCode(wsClient: WsTestClient, code: string, timeout = 10000) {
+  if (wsClient.messages.length > 0) {
     const lastMessage = wsClient.lastMessage();
     if (lastMessage?.type === 'maintaining' && lastMessage?.payload?.code === code) {
       return lastMessage;
     }
-  } catch (error) {
-    // No message has been received yet.
   }
 
   return new Promise((resolve, reject) => {

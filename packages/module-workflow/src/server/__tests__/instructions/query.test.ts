@@ -6,24 +6,63 @@ import { waitForWorkflowIdle, waitForWorkflowJobFast as waitForWorkflowJob } fro
 
 describe('workflow > instructions > query', () => {
   let app: Application;
+  let cachedApp: Application;
+  let cachedAppKey: string;
   let db: Database;
   let PostCollection;
   let PostRepo;
   let TagModel;
+  let TagRepo;
   let CommentRepo;
   let WorkflowModel;
   let workflow;
   let withAnotherDataSource = false;
 
-  beforeEach(async () => {
-    app = await getApp({ withAnotherDataSource });
-
+  function bindRepositories() {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostCollection = db.getCollection('posts');
     PostRepo = PostCollection.repository;
     CommentRepo = db.getCollection('comments').repository;
     TagModel = db.getCollection('tags').model;
+    TagRepo = db.getCollection('tags').repository;
+  }
+
+  async function useAppForCurrentConfig() {
+    const appKey = JSON.stringify({ withAnotherDataSource });
+
+    if (cachedAppKey !== appKey) {
+      if (cachedApp) {
+        await cachedApp.destroy();
+      }
+
+      cachedApp = await getApp({ withAnotherDataSource });
+      cachedAppKey = appKey;
+    }
+
+    app = cachedApp;
+    bindRepositories();
+  }
+
+  async function resetAppData() {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await CommentRepo.destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await TagRepo.destroy({ filter: {} });
+
+    if (withAnotherDataSource) {
+      const anotherDB = app.dataSourceManager.dataSources.get('another').collectionManager.db;
+      await anotherDB.getRepository('posts').destroy({ filter: {} });
+    }
+  }
+
+  beforeEach(async () => {
+    await useAppForCurrentConfig();
+    await resetAppData();
 
     workflow = await WorkflowModel.create({
       title: 'test workflow',
@@ -37,8 +76,12 @@ describe('workflow > instructions > query', () => {
   });
 
   afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
     await waitForWorkflowIdle(app);
-    await app.destroy();
+  });
+
+  afterAll(async () => {
+    await cachedApp?.destroy();
   });
 
   describe('query one', () => {

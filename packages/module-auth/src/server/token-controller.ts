@@ -25,6 +25,17 @@ import {
 type TokenControlService = ITokenControlService;
 
 const JTICACHEKEY = 'token-jti';
+const RENEWED_JTI_CACHE_KEY_PREFIX = 'jti-renewed-cache';
+const LEGACY_RENEWED_JTI_CACHE_KEY_PREFIX = 'jti-renewed-cahce';
+
+function getRenewedJtiCacheKey(jti: string) {
+  return `${RENEWED_JTI_CACHE_KEY_PREFIX}:${jti}`;
+}
+
+function getLegacyRenewedJtiCacheKey(jti: string) {
+  return `${LEGACY_RENEWED_JTI_CACHE_KEY_PREFIX}:${jti}`;
+}
+
 export class TokenController implements TokenControlService {
   cache: Cache;
   app: Application;
@@ -127,13 +138,21 @@ export class TokenController implements TokenControlService {
     );
 
     if (count === 1) {
-      await this.cache.set(`jti-renewed-cahce:${jti}`, { jti: newId, issuedTime }, RENEWED_JTI_CACHE_MS);
+      const renewedJtiData = { jti: newId, issuedTime };
+      await this.cache.set(getRenewedJtiCacheKey(jti), renewedJtiData, RENEWED_JTI_CACHE_MS);
+      await this.cache.set(getLegacyRenewedJtiCacheKey(jti), renewedJtiData, RENEWED_JTI_CACHE_MS);
       this.logger.info('jti renewed', { oldJti: jti, newJti: newId, issuedTime });
-      return { jti: newId, issuedTime };
+      return renewedJtiData;
     } else {
-      const cachedJtiData = await this.cache.get(`jti-renewed-cahce:${jti}`);
+      const cachedJtiData = await this.cache.get(getRenewedJtiCacheKey(jti));
       if (cachedJtiData) {
         return cachedJtiData as { jti: string; issuedTime: EpochTimeStamp };
+      }
+
+      const legacyCachedJtiData = await this.cache.get(getLegacyRenewedJtiCacheKey(jti));
+      if (legacyCachedJtiData) {
+        await this.cache.set(getRenewedJtiCacheKey(jti), legacyCachedJtiData, RENEWED_JTI_CACHE_MS);
+        return legacyCachedJtiData as { jti: string; issuedTime: EpochTimeStamp };
       }
 
       this.logger.error('jti renew failed', {

@@ -272,6 +272,7 @@ describe('multiple apps', () => {
 
     expect(jestFn).toBeCalled();
 
+    expect(AppSupervisor.getInstance().getAppStatus(subAppName)).not.toBe('initialized');
     expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeTruthy();
   });
 

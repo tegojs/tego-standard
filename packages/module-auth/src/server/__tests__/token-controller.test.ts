@@ -167,6 +167,7 @@ describe('TokenController', () => {
         where: { jti: 'old-jti' },
       },
     );
+    expect(cache.set).toHaveBeenCalledWith('jti-renewed-cache:old-jti', result, RENEWED_JTI_CACHE_MS);
     expect(cache.set).toHaveBeenCalledWith('jti-renewed-cahce:old-jti', result, RENEWED_JTI_CACHE_MS);
     expect(logger.info).toHaveBeenCalledWith('jti renewed', {
       oldJti: 'old-jti',
@@ -181,6 +182,18 @@ describe('TokenController', () => {
     cache.get.mockResolvedValue(cached);
 
     await expect(tokenController.renew('old-jti')).resolves.toEqual(cached);
+    expect(cache.get).toHaveBeenCalledWith('jti-renewed-cache:old-jti');
+  });
+
+  it('migrates cached renewed jti from legacy key', async () => {
+    const cached = { jti: 'new-jti', issuedTime: 123 };
+    issuedTokenModel.update.mockResolvedValue([0]);
+    cache.get.mockResolvedValueOnce(null).mockResolvedValueOnce(cached);
+
+    await expect(tokenController.renew('old-jti')).resolves.toEqual(cached);
+    expect(cache.get).toHaveBeenCalledWith('jti-renewed-cache:old-jti');
+    expect(cache.get).toHaveBeenCalledWith('jti-renewed-cahce:old-jti');
+    expect(cache.set).toHaveBeenCalledWith('jti-renewed-cache:old-jti', cached, RENEWED_JTI_CACHE_MS);
   });
 
   it('throws auth error when jti cannot be renewed', async () => {

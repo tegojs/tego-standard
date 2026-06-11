@@ -386,7 +386,11 @@ describe('collections repository', () => {
   });
 
   it('should set collection schema from env', async () => {
-    if (!isPostgresTestEnvironment() || !db.inDialect('postgres')) {
+    if (!isPostgresTestEnvironment()) {
+      return;
+    }
+
+    if (!db.inDialect('postgres')) {
       return;
     }
 
@@ -922,7 +926,11 @@ describe('collections repository', () => {
   });
 
   it('should destroy field when collection set to difference schema', async () => {
-    if (!isPostgresTestEnvironment() || db.sequelize.getDialect() !== 'postgres') {
+    if (!isPostgresTestEnvironment()) {
+      return;
+    }
+
+    if (db.sequelize.getDialect() !== 'postgres') {
       return;
     }
 

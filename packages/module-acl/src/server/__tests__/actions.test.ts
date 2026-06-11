@@ -206,7 +206,7 @@ describe('destroy action with acl', () => {
     expect(response.statusCode).toEqual(403);
   });
 
-  it('should throw error when user has no permission to destroy record', async () => {
+  it('should be a no-op when user has no permission to destroy record', async () => {
     const roleName = 'acl-action-destroy-own-role';
     const postCollection = 'aclActionDestroyPosts';
     const Post = await createPostCollection(postCollection);
@@ -236,7 +236,7 @@ describe('destroy action with acl', () => {
     await expect(Post.repository.findOne({ filterByTk: p1.get('id') })).resolves.toBeTruthy();
   });
 
-  it('should throw error when user has no permissions with array query', async () => {
+  it('should only destroy records matching array query permission', async () => {
     const roleName = 'acl-action-array-query-role';
     const postCollection = 'aclActionArrayPosts';
     const Post = await createPostCollection(postCollection);
@@ -281,6 +281,7 @@ describe('destroy action with acl', () => {
       },
     });
 
+    // Requests outside the configured destroy filter are accepted but do not remove records.
     expect(response.statusCode).toEqual(200);
     expect(await Post.repository.count({ filter: { 'title.$in': ['p4', 'p5', 'p6'] } })).toEqual(3);
 
@@ -290,7 +291,7 @@ describe('destroy action with acl', () => {
       },
     });
 
-    // should throw error
     expect(response2.statusCode).toEqual(200);
+    expect(await Post.repository.count({ filter: { 'title.$in': ['p1'] } })).toEqual(0);
   });
 });

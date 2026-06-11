@@ -39,7 +39,7 @@
     "tb": "node scripts/deprecated-command.mjs tb tg",
     "tbi": "node scripts/deprecated-command.mjs tbi tgi",
     "tbu": "node scripts/deprecated-command.mjs tbu tgu",
-    "tc": "tegod test:client",
+    "tc": "tegod test:client run",
     "tego": "tego",
     "tegod": "tegod",
     "test": "tegod test run",
@@ -47,7 +47,7 @@
     "test:server": "tegod test:server run",
     "tgi": "tego install",
     "tgu": "tego upgrade",
-    "ts": "tegod test:server"
+    "ts": "tegod test:server run"
   },
   "lint-staged": {
     "*.{js,json,sql,ts,tsx}": [

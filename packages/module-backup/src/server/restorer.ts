@@ -226,7 +226,7 @@ export class Restorer extends AppMigrator {
     insert?: boolean;
     clear?: boolean;
     rowCondition?: (row: any) => boolean;
-  }) {
+  }): Promise<void | string> {
     const app = this.app;
     const db = app.db;
 

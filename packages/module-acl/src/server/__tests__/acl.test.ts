@@ -113,6 +113,7 @@ describe('acl', () => {
 
     const testAgent = app.agent().login(u1);
 
+    // Repeated requests guard against ACL params accumulating duplicate fields across requests.
     // @ts-ignore
     await testAgent.resource('repairs').list({
       filter: {

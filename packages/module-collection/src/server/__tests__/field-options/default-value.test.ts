@@ -8,7 +8,7 @@ describe('field defaultValue', () => {
 
   let TestCollection: Collection;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     app = await createApp();
     await app
       .agent()
@@ -33,7 +33,7 @@ describe('field defaultValue', () => {
       });
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     await app.destroy();
   });
 

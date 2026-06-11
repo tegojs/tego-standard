@@ -43,7 +43,6 @@ describe('configuration', () => {
       },
     });
 
-    const userPlugin = app.pm.get('users') as UsersPlugin;
     adminAgent = app.agent().login(admin);
 
     userAgent = app.agent().login(user);

@@ -6,18 +6,30 @@ import { SuperAgentTest } from 'supertest';
 
 async function waitFor<T>(callback: () => T | Promise<T>, predicate: (value: T) => boolean, timeoutMs = 3000) {
   const startedAt = Date.now();
+  let lastValue: T;
 
   while (Date.now() - startedAt < timeoutMs) {
     const value = await callback();
+    lastValue = value;
     if (predicate(value)) {
       return value;
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
-  const value = await callback();
-  expect(predicate(value)).toBeTruthy();
-  return value;
+  lastValue = await callback();
+  if (predicate(lastValue)) {
+    return lastValue;
+  }
+
+  let lastValueText: string;
+  try {
+    lastValueText = JSON.stringify(lastValue);
+  } catch (error) {
+    lastValueText = String(lastValue);
+  }
+
+  throw new Error(`waitFor timed out after ${timeoutMs}ms. Last value: ${lastValueText}`);
 }
 
 describe('data source with acl', () => {

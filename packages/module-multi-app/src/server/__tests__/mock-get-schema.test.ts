@@ -8,7 +8,8 @@ const moduleRequire = createRequire(new URL('../../../package.json', import.meta
 const { AppSupervisor, Plugin, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
 const serverRequire = createRequire(moduleRequire.resolve('@tego/server/package.json'));
 const coreRequire = createRequire(serverRequire.resolve('@tego/core/package.json'));
-const TachybaseGlobal = coreRequire('@tachybase/globals').default || coreRequire('@tachybase/globals');
+const tachybaseGlobalsModule = coreRequire('@tachybase/globals');
+const TachybaseGlobal = tachybaseGlobalsModule.default ?? tachybaseGlobalsModule;
 
 describe('test with start', () => {
   it('should load subApp on create', async () => {

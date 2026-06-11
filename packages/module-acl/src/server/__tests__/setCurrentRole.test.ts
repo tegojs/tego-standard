@@ -52,15 +52,14 @@ describe('role', () => {
         },
       });
     }
-    return user;
+    return db.getRepository('users').findOne({
+      filterByTk: user.get('id'),
+      appends: ['roles'],
+    });
   };
 
   it('should set role with X-Role when exists', async () => {
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     ctx.get = function (name) {
       if (name === 'X-Role') {
         return 'admin';
@@ -72,10 +71,6 @@ describe('role', () => {
 
   it('should set role with default', async () => {
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     ctx.get = function (name) {
       if (name === 'X-Role') {
         return '';
@@ -87,10 +82,6 @@ describe('role', () => {
 
   it('should throw 401', async () => {
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     ctx.get = function (name) {
       if (name === 'X-Role') {
         return 'abc';
@@ -108,10 +99,6 @@ describe('role', () => {
 
   it('should set role with anonymous', async () => {
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     ctx.get = function (name) {
       if (name === 'X-Role') {
         return 'anonymous';
@@ -123,10 +110,6 @@ describe('role', () => {
 
   it('should set role in cache', async () => {
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     ctx.get = function (name) {
       if (name === 'X-Role') {
         return 'admin';
@@ -150,10 +133,6 @@ describe('role', () => {
       },
     });
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     await setCurrentRole(ctx, () => {});
     let roles = await ctx.cache.get(`roles:${ctx.state.currentUser.id}`);
     expect(roles).toBeDefined();
@@ -187,10 +166,6 @@ describe('role', () => {
       }
     };
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     await setCurrentRole(ctx, () => {});
     let roles = await ctx.cache.get(`roles:${ctx.state.currentUser.id}`);
     expect(roles).toBeDefined();
@@ -226,10 +201,6 @@ describe('role', () => {
       }
     };
     ctx.state.currentUser = await createUser();
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     await setCurrentRole(ctx, () => {});
     let roles = await ctx.cache.get(`roles:${ctx.state.currentUser.id}`);
     expect(roles).toBeDefined();
@@ -265,10 +236,6 @@ describe('role', () => {
       },
     });
     ctx.state.currentUser = await createUser(['admin', 'set-current-role-deleted']);
-    ctx.state.currentUser = await db.getRepository('users').findOne({
-      filterByTk: ctx.state.currentUser.id,
-      appends: ['roles'],
-    });
     await setCurrentRole(ctx, () => {});
     let roles = await ctx.cache.get(`roles:${ctx.state.currentUser.id}`);
     expect(roles).toBeDefined();

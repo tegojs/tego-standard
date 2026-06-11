@@ -30,8 +30,11 @@ describe('collections', () => {
     expect(await collection.existsInDb()).toBeTruthy();
 
     // create a database view for test
+    const queryInterface = app.db.sequelize.getQueryInterface();
+    const quotedViewName = queryInterface.quoteIdentifier(viewName);
+    const quotedTableName = app.db.utils.quoteTable(collection.getTableNameWithSchema());
     await app.db.sequelize.query(`
-      CREATE VIEW ${viewName} AS SELECT * FROM ${collection.getTableNameWithSchemaAsString()};
+      CREATE VIEW ${quotedViewName} AS SELECT * FROM ${quotedTableName};
     `);
 
     await app.agent().resource('collections').destroy({

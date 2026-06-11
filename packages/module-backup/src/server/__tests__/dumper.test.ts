@@ -31,15 +31,39 @@ describe('dumper', () => {
   let db: Database;
   const pluginOverrides = new Map<string, string[]>();
   const postgresOnlyTests = new Set(['should restore parent collection', 'should handle inherited collection order']);
+  const reusableBaseAppTests = new Set([
+    'should save dump meta to dump file',
+    'should run dump task',
+    'should get dumped collections by data types',
+    'should dump collection table structure',
+    'should get dumped collections with origin option',
+    'should get custom collections group',
+  ]);
+  let reusableBaseApp: MockServer | undefined;
   let shouldDestroyApp = false;
 
   beforeEach(async (context: any) => {
     shouldDestroyApp = false;
-    if (postgresOnlyTests.has(context.task.name) && process.env.DB_DIALECT !== 'postgres') {
+    const taskName = context.task.name;
+    if (postgresOnlyTests.has(taskName) && process.env.DB_DIALECT !== 'postgres') {
       return;
     }
 
-    const additionalPlugins = pluginOverrides.get(context.task.name) || [];
+    const additionalPlugins = pluginOverrides.get(taskName) || [];
+    if (additionalPlugins.length === 0 && reusableBaseAppTests.has(taskName)) {
+      reusableBaseApp ??= await createApp({
+        plugins: backupBaseTestPlugins,
+      });
+      app = reusableBaseApp;
+      db = app.db;
+      return;
+    }
+
+    if (reusableBaseApp) {
+      await reusableBaseApp.destroy();
+      reusableBaseApp = undefined;
+    }
+
     app = await createApp({
       plugins: [...backupBaseTestPlugins, ...additionalPlugins],
     });
@@ -51,6 +75,10 @@ describe('dumper', () => {
     if (shouldDestroyApp) {
       await app.destroy();
     }
+  });
+
+  afterAll(async () => {
+    await reusableBaseApp?.destroy();
   });
 
   function itWithPlugins(name: string, plugins: string[], fn: () => Promise<void>) {
@@ -730,9 +758,10 @@ describe('dumper', () => {
   });
 
   it('should get dumped collections by data types', async () => {
+    const collectionName = 'dumped_data_types_collection';
     await app.db.getRepository('collections').create({
       values: {
-        name: 'test_collection',
+        name: collectionName,
         fields: [
           {
             name: 'test_field1',
@@ -745,13 +774,14 @@ describe('dumper', () => {
 
     const dumper = new Dumper(app);
     const collections = await dumper.getCollectionsByDataTypes(new Set(['custom']));
-    expect(collections.includes('test_collection')).toBeTruthy();
+    expect(collections.includes(collectionName)).toBeTruthy();
   });
 
   it('should dump collection table structure', async () => {
+    const collectionName = 'dump_table_structure_collection';
     await app.db.getRepository('collections').create({
       values: {
-        name: 'test_collection',
+        name: collectionName,
         fields: [
           {
             name: 'test_field1',
@@ -764,10 +794,10 @@ describe('dumper', () => {
 
     const dumper = new Dumper(app);
     await dumper.dumpCollection({
-      name: 'test_collection',
+      name: collectionName,
     });
 
-    const collectionDir = path.resolve(dumper.workDir, 'collections', 'test_collection');
+    const collectionDir = path.resolve(dumper.workDir, 'collections', collectionName);
     const metaFile = path.resolve(collectionDir, 'meta');
     const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
 
@@ -789,9 +819,10 @@ describe('dumper', () => {
   });
 
   it('should get custom collections group', async () => {
+    const collectionName = 'custom_group_collection';
     await app.db.getRepository('collections').create({
       values: {
-        name: 'test_collection',
+        name: collectionName,
         fields: [
           {
             name: 'test_field1',

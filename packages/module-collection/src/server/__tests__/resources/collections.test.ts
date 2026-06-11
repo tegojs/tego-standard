@@ -104,10 +104,10 @@ describe('collections', () => {
     expect(app.db.hasCollection(sourceName)).toBeFalsy();
     expect(!!app.db.sequelize.modelManager.getModel(sourceName)).toBeFalsy();
     const collection2 = app.db.getCollection(targetName);
-    expect(collection2.hasField(targetName)).toBeFalsy();
+    expect(collection2.hasField(sourceName)).toBeFalsy();
     const count = await app.db.getRepository<HasManyRepository>('collections.fields', targetName).count({
       filter: {
-        name: targetName,
+        name: sourceName,
       },
     });
     expect(count).toBe(0);

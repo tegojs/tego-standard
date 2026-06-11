@@ -22,7 +22,9 @@ async function waitForAssertion(assertion: () => Promise<void> | void, timeout =
 
 async function waitForDataSourceSettled(plugin: any, dataSourceKey: string) {
   await waitForAssertion(() => {
-    expect(['loading', 'reloading']).not.toContain(plugin.dataSourceStatus[dataSourceKey]);
+    const status = plugin.dataSourceStatus[dataSourceKey];
+    expect(status).toBeDefined();
+    expect(['loading', 'reloading']).not.toContain(status);
   });
 }
 

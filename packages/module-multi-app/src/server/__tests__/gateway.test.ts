@@ -1,24 +1,39 @@
 import { createRequire } from 'node:module';
-import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
+import { createMockServer, createWsClient, MockServer, startServerWithRandomPort } from '@tachybase/test';
 import type { Gateway as GatewayType } from '@tego/server';
 
 const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
 const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
 
-async function waitForMaintainingCode(wsClient, code: string, timeout = 10000, interval = 200) {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeout) {
+async function waitForMaintainingCode(wsClient, code: string, timeout = 10000) {
+  try {
     const lastMessage = wsClient.lastMessage();
-
     if (lastMessage?.type === 'maintaining' && lastMessage?.payload?.code === code) {
       return lastMessage;
     }
-
-    await waitSecond(interval);
+  } catch (error) {
+    // No message has been received yet.
   }
 
-  throw new Error(`Timed out waiting for maintaining code ${code}`);
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      wsClient.wsc.off('message', handleMessage);
+    };
+    const handleMessage = (data) => {
+      const message = JSON.parse(data.toString());
+      if (message?.type === 'maintaining' && message?.payload?.code === code) {
+        cleanup();
+        resolve(message);
+      }
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for maintaining code ${code}`));
+    }, timeout);
+
+    wsClient.wsc.on('message', handleMessage);
+  });
 }
 
 describe('gateway with multiple apps', () => {

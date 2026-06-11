@@ -209,7 +209,9 @@ export default {
           await taskPromise;
           app.noticeManager.notify('backup', { level: 'info', msg: ctx.t('Done', { ns: 'backup' }) });
         } catch (error) {
-          app.noticeManager.notify('backup', { level: 'error', msg: error.message });
+          const msg =
+            error instanceof Error ? error.message : error ? String(error) : ctx.t('Backup failed', { ns: 'backup' });
+          app.noticeManager.notify('backup', { level: 'error', msg });
         } finally {
           Dumper.dumpTasks.delete(taskId);
           dumper.cleanLockFile(taskId, ctx.tego.name);

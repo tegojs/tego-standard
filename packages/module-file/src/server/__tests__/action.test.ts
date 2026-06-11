@@ -35,7 +35,18 @@ describe('action', () => {
         path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
         storage.path,
       );
-      await fs.unlink(path.join(destPath, attachment.filename)).catch(() => null);
+      const attachmentPath = path.join(destPath, attachment.filename);
+      try {
+        await fs.unlink(attachmentPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.error('Failed to remove attachment file', {
+            filename: attachment.filename,
+            destPath,
+            error,
+          });
+        }
+      }
     }
   }
 

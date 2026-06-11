@@ -1,5 +1,5 @@
 import { MockServer } from '@tachybase/test';
-import { ACL, Database } from '@tego/server';
+import { ACL, Database, uid } from '@tego/server';
 
 import { aclCollectionManagerTestPlugins, aclTestPlugins, prepareApp } from './prepare';
 
@@ -883,6 +883,7 @@ describe('acl role menus', () => {
   let adminAgent;
 
   beforeAll(async () => {
+    // aclTestPlugins includes ui-schema-storage for menu ACL tests; aclCollectionManagerTestPlugins is used by collection ACL coverage.
     app = await prepareApp({
       plugins: aclTestPlugins,
     });
@@ -919,6 +920,7 @@ describe('acl role menus', () => {
 
   it('should toggle role menus', async () => {
     const roleName = 'acl-menu-toggle-role';
+    const schemaUid = `acl-menu-toggle-${uid()}`;
     await db.getRepository('roles').create({
       values: {
         name: roleName,
@@ -937,14 +939,14 @@ describe('acl role menus', () => {
     const userAgent = app.agent().login(user);
 
     await db.getRepository('uiSchemas').insert({
-      'x-uid': 'test',
+      'x-uid': schemaUid,
     });
 
     const response = await userAgent
       // @ts-ignore
       .resource('roles.menuUiSchemas', roleName)
       .toggle({
-        values: { tk: 'test' },
+        values: { tk: schemaUid },
       });
 
     expect(response.statusCode).toEqual(200);

@@ -305,7 +305,15 @@ export class PluginACL extends Plugin {
         transaction,
       });
 
-      for (const role of (this.acl as any).roles?.values?.() || []) {
+      const aclRoles = (this.acl as any)?.roles;
+      if (!aclRoles || typeof aclRoles.values !== 'function') {
+        return;
+      }
+
+      for (const role of aclRoles.values()) {
+        if (!role || typeof role.revokeResource !== 'function') {
+          continue;
+        }
         role.revokeResource(resourceName);
       }
     });

@@ -127,9 +127,10 @@ describe('data source with acl', () => {
       },
     });
 
+    const dataSourceManagerPlugin = app.pm.get('data-source-manager') as any;
     await waitFor(
-      () => app.dataSourceManager.dataSources.get('mockInstance1'),
-      (dataSource) => Boolean(dataSource),
+      () => dataSourceManagerPlugin.dataSourceStatus?.['mockInstance1'],
+      (status) => status === 'loaded',
     );
   });
 

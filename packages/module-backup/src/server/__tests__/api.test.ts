@@ -88,6 +88,7 @@ describe('backup files', () => {
       const body = listResponse.body;
 
       const item = body.data.find((item: any) => item.name === fileName);
+      expect(item).toBeDefined();
       expect(item.status).toEqual('in_progress');
     });
 

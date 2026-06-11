@@ -57,6 +57,8 @@ describe('TokenController', () => {
   });
 
   it('adds token info and removes expired sessions for sqlite', async () => {
+    const originalDialect = process.env.DB_DIALECT;
+    process.env.DB_DIALECT = 'sqlite';
     tokenPolicyRepo.findOne.mockResolvedValue({
       config: {
         tokenExpirationTime: '1h',
@@ -66,7 +68,16 @@ describe('TokenController', () => {
     });
     issuedTokenRepo.find.mockResolvedValue([{ get: () => 'expired-token-id' }]);
 
-    const result = await tokenController.add({ userId: 1 });
+    let result;
+    try {
+      result = await tokenController.add({ userId: 1 });
+    } finally {
+      if (originalDialect === undefined) {
+        delete process.env.DB_DIALECT;
+      } else {
+        process.env.DB_DIALECT = originalDialect;
+      }
+    }
 
     expect(result).toMatchObject({
       renewed: false,

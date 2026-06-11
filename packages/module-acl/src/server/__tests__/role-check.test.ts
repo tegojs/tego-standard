@@ -8,12 +8,12 @@ describe('role check action', () => {
   let app: MockServer;
   let db: Database;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     app = await prepareApp();
     db = app.db;
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     await app.destroy();
   });
 

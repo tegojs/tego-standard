@@ -17,7 +17,7 @@ export const backupBaseTestPlugins = ['error-handler', 'collection', 'data-sourc
 
 export default async function createApp(options: { plugins?: string[] } = {}) {
   const app = await createMockServer({
-    plugins: options.plugins || backupTestPlugins,
+    plugins: options.plugins ?? backupTestPlugins,
   });
   return app;
 }

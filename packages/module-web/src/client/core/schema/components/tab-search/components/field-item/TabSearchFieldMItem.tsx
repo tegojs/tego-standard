@@ -5,13 +5,6 @@ import { useFieldSchema } from '@tachybase/schema';
 import { MenuProps } from 'antd';
 import { Tabs } from 'antd-mobile';
 
-type TabSearchAction = {
-  collectionField: ReturnType<ReturnType<typeof useCollection>['getField']>;
-  Designer: ReturnType<typeof useDesigner>;
-  items: NonNullable<MenuProps['items']>;
-  onSelect: (itemKey: any) => void;
-};
-
 export const TabSearchFieldMItem = withDynamicSchemaProps(
   (props) => {
     const { collectionField, Designer, items, onSelect } = useAction(props);
@@ -34,7 +27,7 @@ export const TabSearchFieldMItem = withDynamicSchemaProps(
   { displayName: 'TabSearchFieldItem' },
 );
 
-export const useAction = (props): TabSearchAction => {
+export const useAction = (props) => {
   const { list, onSelected, valueKey: _valueKey, labelKey: _labelKey, filterKey } = props;
   const { t } = useTranslation();
   const fieldSchema = useFieldSchema();

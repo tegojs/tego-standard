@@ -1,8 +1,9 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+
 import Database, { Application, fn } from '@tego/server';
 
-import Plugin from '../Plugin';
+import Plugin from '..';
 
 describe('workflow > instructions > sql', () => {
   let app: Application;

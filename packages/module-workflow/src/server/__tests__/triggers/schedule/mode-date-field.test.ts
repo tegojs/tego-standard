@@ -15,7 +15,7 @@ async function waitForExecutions(workflow, expected: number, timeout = 6000) {
 
   while (Date.now() - startedAt < timeout) {
     executions = await workflow.getExecutions();
-    if (executions.length >= expected) {
+    if (executions.length === expected) {
       return executions;
     }
     await sleep(200);
@@ -443,7 +443,9 @@ describe('workflow > triggers > schedule > date field mode', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForExecutions(workflow, 2);
+      await sleep(1700);
+
+      console.log('check executions');
 
       const e1c = await workflow.countExecutions();
       expect(e1c).toBe(2);

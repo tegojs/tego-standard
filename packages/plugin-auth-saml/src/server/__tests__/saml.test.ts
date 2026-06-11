@@ -1,19 +1,10 @@
-import { createRequire } from 'node:module';
 import { createMockServer, MockServer } from '@tachybase/test';
-import { Database } from '@tego/server';
 
 import { SAML } from '@node-saml/node-saml';
+import { Database } from '@tego/server';
 import { vi } from 'vitest';
 
 import { authType } from '../../constants';
-
-const runtimeRequire = createRequire(import.meta.url);
-const { SAML: RuntimeSAML } = runtimeRequire('../../../dist/node_modules/@node-saml/node-saml');
-
-const mockValidatePostResponse = (response: any) => {
-  vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue(response);
-  vi.spyOn(RuntimeSAML.prototype, 'validatePostResponseAsync').mockResolvedValue(response);
-};
 
 describe('saml', () => {
   let app: MockServer;
@@ -70,7 +61,7 @@ describe('saml', () => {
         },
       },
     });
-    mockValidatePostResponse({
+    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
       profile: {
         nameID: 'test@tachybase.com',
         email: 'test@tachybase.com',
@@ -98,7 +89,7 @@ describe('saml', () => {
         },
       },
     });
-    mockValidatePostResponse({
+    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
       profile: {
         nameID: 'test@tachybase.com',
         email: 'test@tachybase.com',
@@ -132,7 +123,7 @@ describe('saml', () => {
       },
     });
 
-    mockValidatePostResponse({
+    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
       profile: {
         nameID: 'old@tachybase.com',
         email: 'old@tachybase.com',
@@ -180,7 +171,7 @@ describe('saml', () => {
       },
     });
 
-    mockValidatePostResponse({
+    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
       profile: {
         nameID: 'username',
         email: 'old@tachybase.com',

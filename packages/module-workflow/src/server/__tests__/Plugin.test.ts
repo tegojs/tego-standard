@@ -1,5 +1,6 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
+
 import Database from '@tego/server';
 
 import Plugin from '..';
@@ -17,7 +18,7 @@ describe('workflow > Plugin', () => {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
-    plugin = app.pm.get(Plugin) || app.pm.get('workflow') || app.pm.get('@tachybase/module-workflow');
+    plugin = app.pm.get(Plugin) as Plugin;
   });
 
   afterEach(() => app.destroy());

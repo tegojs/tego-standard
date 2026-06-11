@@ -6,8 +6,7 @@ export class DynamicCalculation extends Instruction {
   async run(node: FlowNodeModel, prevJob, processor: Processor) {
     let { engine = 'math.js', expression = '' } = node.config;
     let scope = processor.getScope(node.id);
-    const parsedValue = typeof expression === 'string' ? parse(expression)(scope) : expression;
-    const parsed = typeof parsedValue === 'string' ? JSON.parse(parsedValue) : (parsedValue ?? {});
+    const parsed = parse(expression)(scope) ?? {};
     engine = parsed.engine;
     expression = parsed.expression;
     scope = parse(node.config.scope ?? '')(scope) ?? {};

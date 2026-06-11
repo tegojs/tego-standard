@@ -4,8 +4,8 @@ import { APIClient as APIClientSDK } from '@tego/client';
 import { Result } from 'ahooks/es/useRequest/src/types';
 import { notification } from 'antd';
 
+import { i18n } from '..';
 import { Application } from '../application';
-import { i18n } from '../i18n';
 
 const TECH_PATTERNS: RegExp[] = [
   /\bat\s+\S+\s+\(.+\)/i,

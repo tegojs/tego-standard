@@ -17,7 +17,6 @@ import {
 } from '@tachybase/client';
 import {
   action,
-  ContextCleaner,
   createForm,
   Field,
   ISchema,
@@ -27,8 +26,9 @@ import {
   useFieldSchema,
   useForm,
 } from '@tachybase/schema';
-import { ArrayTable } from '@tego/client';
+import { ContextCleaner } from '@tachybase/schema/lib/react';
 
+import { ArrayTable } from '@tego/client';
 import { Button } from 'antd';
 import _ from 'lodash';
 

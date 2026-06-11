@@ -1,7 +1,7 @@
+import path from 'node:path';
 import { createMockServer, MockServer } from '@tachybase/test';
-import { ApplicationOptions } from '@tego/server';
 
-import authorsCollection from './collections/authors';
+import { ApplicationOptions } from '@tego/server';
 
 export function sleep(ms: number) {
   return new Promise((resolve) => {
@@ -19,7 +19,9 @@ export async function getApp(options: MockAppOptions = {}): Promise<MockServer> 
     plugins: ['verification'],
   });
 
-  app.db.collection(authorsCollection);
+  await app.db.import({
+    directory: path.resolve(__dirname, './collections'),
+  });
 
   try {
     await app.db.sync();

@@ -82,11 +82,14 @@ describe('own test', () => {
   });
 
   it('should list without createBy', async () => {
-    await adminAgent.patch('/roles/admin').send({
-      strategy: {
-        actions: ['view:own'],
-      },
-    });
+    await adminAgent
+      .patch('/roles/admin')
+      .send({
+        strategy: {
+          actions: ['view:own'],
+        },
+      })
+      .set({ Authorization: 'Bearer ' + adminToken });
 
     const response = await userAgent.get('/tests:list');
     expect(response.statusCode).toEqual(200);

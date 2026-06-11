@@ -5,7 +5,6 @@ import { ArrayItems, Switch } from '@tego/client';
 import { useTranslation } from 'react-i18next';
 
 import { SchemaSettings } from '../../../../application/schema-settings/SchemaSettings';
-import type { SchemaSettingsItemType } from '../../../../application/schema-settings/types';
 import { useCollectionManager_deprecated, useSortFields } from '../../../../collection-manager';
 import { useFieldComponentName } from '../../../../common/useFieldComponentName';
 import { useCollectionManager } from '../../../../data-source';
@@ -274,7 +273,7 @@ export const allowAddNewData = {
   },
 };
 
-export const clickToSelect: SchemaSettingsItemType = {
+export const clickToSelect = {
   name: 'clicktoselect',
   type: 'modal',
   useVisible() {

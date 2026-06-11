@@ -5,22 +5,6 @@ describe('hook', () => {
   let api: MockServer;
   let db: Database;
 
-  const waitForAuditLogs = async (expected: number) => {
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < 3000) {
-      const logs = await db.getCollection('auditLogs').repository.find({
-        appends: ['changes'],
-      });
-      if (logs.length >= expected) {
-        return logs;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    return db.getCollection('auditLogs').repository.find({
-      appends: ['changes'],
-    });
-  };
-
   beforeEach(async () => {
     api = await createMockServer({
       plugins: ['audit-logs'],
@@ -61,7 +45,9 @@ describe('hook', () => {
     const post = await Post.create({ title: 't1' });
     await post.update({ title: 't2' });
     await post.destroy();
-    const auditLogs = await waitForAuditLogs(3);
+    const auditLogs = await db.getCollection('auditLogs').repository.find({
+      appends: ['changes'],
+    });
     expect(auditLogs.length).toBe(3);
 
     const titleChange = (changes) => {
@@ -94,7 +80,10 @@ describe('hook', () => {
         },
       },
     });
-    const [log] = await waitForAuditLogs(1);
+    const AuditLog = db.getCollection('auditLogs');
+    const log = await AuditLog.repository.findOne({
+      appends: ['changes'],
+    });
     expect(log.toJSON()).toMatchObject({
       collectionName: 'posts',
       type: 'create',

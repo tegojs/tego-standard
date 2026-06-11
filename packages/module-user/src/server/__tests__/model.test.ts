@@ -1,5 +1,8 @@
 import { createMockServer, MockServer } from '@tachybase/test';
+
 import Database from '@tego/server';
+
+import { UserModel } from '../models/UserModel';
 
 describe('models', () => {
   let app: MockServer;
@@ -19,7 +22,7 @@ describe('models', () => {
   it('model registeration', async () => {
     const model = db.getModel('users');
     const u1 = model.build({ nickname: 'test', password: '123' });
-    expect(u1).toHaveProperty('desensitize');
+    expect(u1).toBeInstanceOf(UserModel);
     const n = u1.desensitize();
     expect(n.password).toBeUndefined();
   });

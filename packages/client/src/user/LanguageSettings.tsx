@@ -6,9 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { SelectWithTitle, useAPIClient, useSystemSettings } from '..';
 import locale from '../locale';
 
-type MenuItem = NonNullable<MenuProps['items']>[number];
-
-export const useLanguageSettings = (): MenuItem | null => {
+export const useLanguageSettings = () => {
   const { t, i18n } = useTranslation();
   const api = useAPIClient();
   const { data } = useSystemSettings();

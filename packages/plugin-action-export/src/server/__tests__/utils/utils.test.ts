@@ -1,4 +1,5 @@
 import { mockServer, MockServer } from '@tachybase/test';
+
 import Database from '@tego/server';
 
 import {
@@ -64,11 +65,9 @@ describe('utils', () => {
     const fileName = buildWorkerExportFileName('posts', '租户导出清单', 'tenant-a');
 
     expect(fileName).toContain('tenant-a');
-    expect(fileName).toMatch(/\.xlsx$/);
+    expect(fileName).toEndWith('.xlsx');
     expect(buildWorkerExportRelativePath(fileName, 'tenant-a')).toContain('storage/uploads/tenants/tenant-a');
-    expect(buildWorkerExportRelativePath(fileName, 'tenant-a', 'custom/exports')).toContain(
-      'custom/exports/tenants/tenant-a',
-    );
+    expect(buildWorkerExportRelativePath(fileName, 'tenant-a', 'custom/exports')).toContain('custom/exports/tenants/tenant-a');
     expect(buildWorkerExportSavePath('D:/runtime/storage/uploads', 'tenant-a')).toContain('tenant-a');
   });
 });

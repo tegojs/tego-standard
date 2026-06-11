@@ -1,4 +1,5 @@
 import { createMockServer, MockServer } from '@tachybase/test';
+
 import Database, { Collection as DBCollection } from '@tego/server';
 
 describe('createdBy/updatedBy', () => {
@@ -156,14 +157,14 @@ describe('createdBy/updatedBy', () => {
         context: {
           state: {
             currentTenant: {
-              id: '2',
+              id: 2,
             },
           },
         },
       });
 
       const record = await Post.repository.findOne();
-      expect(record.get('tenantId')).toBe('2');
+      expect(record.get('tenantId')).toBe(2);
     });
   });
 });

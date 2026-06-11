@@ -1,9 +1,8 @@
 import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
+
 import { AppSupervisor, Gateway, uid } from '@tego/server';
 
-import { describe } from 'vitest';
-
-describe.sequential('gateway with multiple apps', () => {
+describe('gateway with multiple apps', () => {
   let app: MockServer;
   let gateway: Gateway;
   let wsClient;
@@ -25,7 +24,8 @@ describe.sequential('gateway with multiple apps', () => {
   });
 
   it('should boot main app with sub apps', async () => {
-    expect(await app.isStarted()).toBeTruthy();
+    const mainStatus = AppSupervisor.getInstance().getAppStatus('main');
+    expect(mainStatus).toEqual('running');
 
     const subAppName = `td_${uid()}`;
 
@@ -60,6 +60,7 @@ describe.sequential('gateway with multiple apps', () => {
     });
 
     await waitSecond(3000);
+    console.log(wsClient.messages);
     const lastMessage = wsClient.lastMessage();
 
     expect(lastMessage).toMatchObject({

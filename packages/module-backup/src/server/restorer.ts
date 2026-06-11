@@ -121,45 +121,11 @@ export class Restorer extends AppMigrator {
       });
     };
 
-    const reloadEnabledPluginRuntime = async () => {
-      const pluginRows = await this.app.db.getRepository('applicationPlugins').find({
-        filter: {
-          enabled: true,
-        },
-      });
-      for (const pluginRow of pluginRows) {
-        const pluginName = pluginRow.get('name');
-        const packageName = pluginRow.get('packageName');
-        let plugin = this.app.pm.get(pluginName);
-        if (!plugin && packageName) {
-          await this.app.pm.add(packageName, {
-            name: pluginName,
-            packageName,
-          });
-          plugin = this.app.pm.get(pluginName);
-        }
-        if (!plugin) {
-          continue;
-        }
-        plugin.enabled = true;
-        await plugin.beforeLoad?.();
-        await plugin.loadCollections?.();
-      }
-
-      for (const plugin of this.app.pm.getPlugins().values()) {
-        if (plugin.enabled) {
-          await plugin.beforeLoad?.();
-          await plugin.loadCollections?.();
-        }
-      }
-    };
-
     const { dumpableCollectionsGroupByGroup, delayCollections } = await this.parseBackupFile();
 
     // import plugins
     await importCollection('applicationPlugins');
     await this.app.reload();
-    await reloadEnabledPluginRuntime();
 
     // import required collections
     const metaCollections = dumpableCollectionsGroupByGroup.required;
@@ -192,7 +158,6 @@ export class Restorer extends AppMigrator {
     }
 
     await this.app.reload();
-    await reloadEnabledPluginRuntime();
 
     await (this.app.db.getRepository('collections') as any).load();
 
@@ -360,13 +325,12 @@ export class Restorer extends AppMigrator {
     let batch = [];
 
     let allLength = 0;
-    const sqlResults = [];
     await readEveryLines(collectionDataPath, async (line) => {
       batch.push(line);
 
       // 达到批次大小时进行处理
       if (batch.length >= batchSize) {
-        const sql = await this.insertMetaRows({
+        await this.insertMetaRows({
           rows: batch,
           collectionName,
           columns,
@@ -375,16 +339,13 @@ export class Restorer extends AppMigrator {
           addSchemaTableName,
           options,
         }); // 批量处理
-        if (sql) {
-          sqlResults.push(sql);
-        }
         allLength += batchSize;
         batch = []; // 清空当前批次
       }
     });
 
     if (!this.importedCollections.includes(collectionName)) {
-      const sql = await this.insertMetaRows({
+      await this.insertMetaRows({
         rows: batch,
         collectionName,
         columns,
@@ -393,9 +354,6 @@ export class Restorer extends AppMigrator {
         addSchemaTableName,
         options,
       });
-      if (sql) {
-        sqlResults.push(sql);
-      }
       allLength += batch.length;
     }
 
@@ -417,10 +375,6 @@ export class Restorer extends AppMigrator {
     }
 
     this.importedCollections.push(collectionName);
-
-    if (options.insert === false) {
-      return sqlResults.join('\n');
-    }
   }
 
   async importDb(options: RestoreOptions) {

@@ -14,11 +14,11 @@ import {
   Field,
   SchemaComponentsContext,
   SchemaExpressionScopeContext,
-  SchemaMarkupContext,
   useField,
   useFieldSchema,
   useForm,
 } from '@tachybase/schema';
+import { SchemaMarkupContext } from '@tachybase/schema/lib/react';
 
 import { DeleteOutlined, DragOutlined, PlusOutlined } from '@ant-design/icons';
 import { Popconfirm } from 'antd';

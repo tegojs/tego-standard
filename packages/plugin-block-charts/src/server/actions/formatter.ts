@@ -5,7 +5,7 @@ export const dateFormatFn = (
   dialect: string,
   field: string,
   format: string,
-  timezone = '+00:00',
+  timezone: string,
 ) => {
   const reversedTimezone = timezone[0] === '+' ? '-' + timezone.slice(1) : '+' + timezone.slice(1);
   switch (dialect) {
@@ -30,7 +30,7 @@ export const dateFormatFn = (
       return sequelize.fn('date_format', sequelize.col(field), format);
     case 'postgres':
       format = format.replace(/hh/g, 'HH24').replace(/mm/g, 'MI').replace(/ss/g, 'SS');
-      return sequelize.fn('format_timestamp_with_timezone', sequelize.col(field), format, reversedTimezone);
+      return sequelize.fn('format_timestamp_with_timezone', sequelize.col(field), reversedTimezone, format);
     default:
       return sequelize.col(field);
   }

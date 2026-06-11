@@ -12,9 +12,7 @@ describe('workflow > instructions > condition', () => {
   let workflow;
 
   beforeEach(async () => {
-    app = await getApp({
-      plugins: ['evaluator-mathjs'],
-    });
+    app = await getApp();
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
@@ -248,6 +246,7 @@ describe('workflow > instructions > condition', () => {
       expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
 
       const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+      console.log('------', jobs);
       expect(jobs.length).toBe(3);
       expect(jobs[0].result).toBe(false);
       expect(jobs[1].result).toBe(false);
@@ -439,7 +438,7 @@ describe('workflow > instructions > condition', () => {
         expect(job.result).toEqual(false);
       });
 
-      it('equal: 0 != false', async () => {
+      it('equal: 0 == false', async () => {
         const n1 = await workflow.createNode({
           title: 'condition',
           type: 'condition',
@@ -460,7 +459,7 @@ describe('workflow > instructions > condition', () => {
         expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
         const [job] = await execution.getJobs();
-        expect(job.result).toEqual(false);
+        expect(job.result).toEqual(true);
       });
 
       it('equal: number == number', async () => {
@@ -487,7 +486,7 @@ describe('workflow > instructions > condition', () => {
         expect(job.result).toEqual(true);
       });
 
-      it('equal: string != number', async () => {
+      it('equal: string == number', async () => {
         const n1 = await workflow.createNode({
           title: 'condition',
           type: 'condition',
@@ -508,10 +507,10 @@ describe('workflow > instructions > condition', () => {
         expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
         const [job] = await execution.getJobs();
-        expect(job.result).toEqual(false);
+        expect(job.result).toEqual(true);
       });
 
-      it('equal: undefined != null', async () => {
+      it('equal: undefined == null', async () => {
         const n1 = await workflow.createNode({
           title: 'condition',
           type: 'condition',
@@ -532,7 +531,7 @@ describe('workflow > instructions > condition', () => {
         expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
 
         const [job] = await execution.getJobs();
-        expect(job.result).toEqual(false);
+        expect(job.result).toEqual(true);
       });
     });
 

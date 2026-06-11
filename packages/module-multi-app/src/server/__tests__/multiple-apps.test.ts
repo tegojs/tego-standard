@@ -1,20 +1,13 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-import { AppSupervisor, Database, Gateway, uid } from '@tego/server';
 
-import { describe, vi } from 'vitest';
+import { AppSupervisor, Database, Gateway, uid } from '@tego/server';
+import { vi } from 'vitest';
 
 import { PluginMultiAppManager } from '../server';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const removeRegisteredApp = (server: MockServer, name: string) => {
-  const supervisors = [AppSupervisor.getInstance(), server?.['_appSupervisor']].filter(Boolean);
-  for (const supervisor of supervisors) {
-    delete supervisor.apps[name];
-    delete supervisor.appStatus[name];
-  }
-};
 
-describe.sequential('multiple apps', () => {
+describe('multiple apps', () => {
   let app: MockServer;
   let db: Database;
 
@@ -55,7 +48,7 @@ describe.sequential('multiple apps', () => {
   it('should register db creator', async () => {
     const fn = vi.fn();
 
-    const appPlugin = app.getPlugin<PluginMultiAppManager>('multi-app-manager');
+    const appPlugin = app.getPlugin<PluginMultiAppManager>(PluginMultiAppManager);
     const defaultDbCreator = appPlugin.appDbCreator;
 
     appPlugin.setAppDbCreator(async (app) => {
@@ -189,9 +182,7 @@ describe.sequential('multiple apps', () => {
     const miniApp = await AppSupervisor.getInstance().getApp(name);
     expect(miniApp).toBeDefined();
 
-    const plugin = [...miniApp.pm.pluginInstances.values()].find((plugin) =>
-      [plugin.name, plugin.options?.name, plugin.options?.packageName].includes('ui-schema-storage'),
-    );
+    const plugin = miniApp.pm.get('ui-schema-storage');
 
     expect(plugin).toBeDefined();
     expect(plugin.options).toMatchObject({
@@ -275,7 +266,7 @@ describe.sequential('multiple apps', () => {
       },
     });
 
-    removeRegisteredApp(app, subAppName);
+    await AppSupervisor.getInstance().removeApp(subAppName);
 
     await app.start();
 
@@ -283,12 +274,11 @@ describe.sequential('multiple apps', () => {
 
     await subApp.update({
       options: {
-        plugins: [],
         autoStart: true,
       },
     });
 
-    removeRegisteredApp(app, subAppName);
+    await AppSupervisor.getInstance().removeApp(subAppName);
 
     expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeFalsy();
     await app.stop();
@@ -305,7 +295,7 @@ describe.sequential('multiple apps', () => {
       values: {
         name: subAppName,
         options: {
-          plugins: [],
+          plugins: ['tachybase'],
         },
       },
       context: {
@@ -313,7 +303,7 @@ describe.sequential('multiple apps', () => {
       },
     });
 
-    removeRegisteredApp(app, subAppName);
+    await AppSupervisor.getInstance().removeApp(subAppName);
 
     await app.start();
 
@@ -321,12 +311,11 @@ describe.sequential('multiple apps', () => {
 
     await subApp.update({
       options: {
-        plugins: [],
         autoStart: true,
       },
     });
 
-    removeRegisteredApp(app, subAppName);
+    await AppSupervisor.getInstance().removeApp(subAppName);
 
     expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeFalsy();
 

@@ -283,22 +283,12 @@ export class Dumper extends AppMigrator {
   }
 
   async runDumpTask(options: DumpOptions) {
-    const backupFileName = options.fileName || Dumper.generateFileName();
-    const promise = this.dump({
+    await this.dump({
       groups: options.groups,
-      fileName: backupFileName,
+      fileName: options.fileName,
       appName: options.appName,
       userId: options.userId,
-    }).finally(() => {
-      Dumper.dumpTasks.delete(backupFileName);
     });
-
-    promise.catch((error) => {
-      this.app.logger.error(`dump task failed, ${error}`);
-    });
-
-    Dumper.dumpTasks.set(backupFileName, promise);
-    return backupFileName;
   }
 
   async dumpableCollectionsGroupByGroup() {
@@ -423,10 +413,10 @@ export class Dumper extends AppMigrator {
     const metaObj = {
       version: await this.app.version.get(),
       dialect: this.app.db.sequelize.getDialect(),
-      DB_UNDERSCORED: process.env.DB_UNDERSCORED ?? '',
-      DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX ?? '',
-      DB_SCHEMA: process.env.DB_SCHEMA ?? '',
-      COLLECTION_MANAGER_SCHEMA: process.env.COLLECTION_MANAGER_SCHEMA ?? '',
+      DB_UNDERSCORED: process.env.DB_UNDERSCORED,
+      DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX,
+      DB_SCHEMA: process.env.DB_SCHEMA,
+      COLLECTION_MANAGER_SCHEMA: process.env.COLLECTION_MANAGER_SCHEMA,
       ...additionalMeta,
     };
 

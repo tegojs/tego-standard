@@ -74,7 +74,7 @@ describe('action', () => {
           title: 'text',
           extname: '.txt',
           path: 'tenants/tenant-a',
-          size: 14,
+          size: 13,
           mimetype: 'text/plain',
           meta: {},
           storageId: 1,
@@ -111,12 +111,12 @@ describe('action', () => {
         );
         const file = await fs.readFile(`${destPath}/${attachment.path}/${attachment.filename}`);
         // 文件是否保存到指定路径
-        expect(file.toString().replace(/\r\n/g, '\n')).toBe('Hello world!\n');
+        expect(file.toString()).toBe('Hello world!\n');
 
         // 通过 url 是否能正确访问
         const url = attachment.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
-        expect(content.text.replace(/\r\n/g, '\n')).toBe('Hello world!\n');
+        expect(content.text).toBe('Hello world!\n');
       });
     });
 
@@ -217,7 +217,7 @@ describe('action', () => {
         console.log(body.data.url);
         const url = body.data.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
-        expect(content.text.replace(/\r\n/g, '\n')).toBe('Hello world!\n');
+        expect(content.text).toBe('Hello world!\n');
       });
     });
   });

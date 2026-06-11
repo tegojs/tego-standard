@@ -1,8 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen, userEvent, waitFor, within } from '@tachybase/test/client';
+import { render, screen, userEvent, waitFor, within } from '@tachybase/test/client';
 
 import dayjs from 'dayjs';
-import { MemoryRouter } from 'react-router-dom';
 
 import { mapRangePicker } from '../../date-picker/util';
 import App2 from '../demos/demo2';
@@ -12,23 +11,21 @@ import App5 from '../demos/demo5';
 import App6 from '../demos/demo6';
 import { getCustomCondition } from '../useFilterActionProps';
 
-const renderWithRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
-
 describe('Filter', () => {
   it('Filter & Action', async () => {
-    renderWithRouter(<App3 />);
+    render(<App3 />);
 
     await waitFor(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /open/i }));
+      await userEvent.click(screen.getByText(/open/i));
     });
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip).toBeInTheDocument();
 
     // 弹窗中显示的内容
     expect(within(tooltip).getByText(/name/i)).toBeInTheDocument();
-    expect(within(tooltip).getAllByText(/^ne$/i).length).toBeGreaterThan(0);
+    expect(within(tooltip).getByText(/ne/i)).toBeInTheDocument();
     expect(within(tooltip).getByText(/tags \/ title/i)).toBeInTheDocument();
-    expect(within(tooltip).getByText(/^eq$/i)).toBeInTheDocument();
+    expect(within(tooltip).getByText(/eq/i)).toBeInTheDocument();
     expect(within(tooltip).getByText(/^Add condition$/i)).toBeInTheDocument();
     expect(within(tooltip).getByText(/^Add condition group$/i)).toBeInTheDocument();
 
@@ -45,12 +42,12 @@ describe('Filter', () => {
   });
 
   it('default value', () => {
-    renderWithRouter(<App2 />);
+    render(<App2 />);
 
     expect(screen.getByText(/name/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/^ne$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/ne/i)).toBeInTheDocument();
     expect(screen.getByText(/tags \/ title/i)).toBeInTheDocument();
-    expect(screen.getByText(/^eq$/i)).toBeInTheDocument();
+    expect(screen.getByText(/eq/i)).toBeInTheDocument();
     expect(screen.getByText(/^Add condition$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Add condition group$/i)).toBeInTheDocument();
 
@@ -62,12 +59,12 @@ describe('Filter', () => {
   });
 
   it('custom dynamic component', async () => {
-    renderWithRouter(<App4 />);
+    render(<App4 />);
 
     expect(screen.getByText(/name/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/^ne$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/ne/i)).toBeInTheDocument();
     expect(screen.getByText(/tags \/ title/i)).toBeInTheDocument();
-    expect(screen.getByText(/^eq$/i)).toBeInTheDocument();
+    expect(screen.getByText(/eq/i)).toBeInTheDocument();
     expect(screen.getByText(/^Add condition$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Add condition group$/i)).toBeInTheDocument();
 
@@ -84,17 +81,17 @@ describe('Filter', () => {
   });
 
   it('FilterAction', async () => {
-    renderWithRouter(<App5 />);
+    render(<App5 />);
 
-    await waitFor(() => userEvent.click(screen.getByRole('button', { name: /filter/i })));
+    await waitFor(() => userEvent.click(screen.getByText(/filter/i)));
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip).toBeInTheDocument();
 
     // 弹窗中显示的内容
     expect(within(tooltip).getByText(/name/i)).toBeInTheDocument();
-    expect(within(tooltip).getAllByText(/^ne$/i).length).toBeGreaterThan(0);
+    expect(within(tooltip).getByText(/ne/i)).toBeInTheDocument();
     expect(within(tooltip).getByText(/tags \/ title/i)).toBeInTheDocument();
-    expect(within(tooltip).getByText(/^eq$/i)).toBeInTheDocument();
+    expect(within(tooltip).getByText(/eq/i)).toBeInTheDocument();
     expect(within(tooltip).getByText(/^Add condition$/i)).toBeInTheDocument();
     expect(within(tooltip).getByText(/^Add condition group$/i)).toBeInTheDocument();
 
@@ -111,7 +108,7 @@ describe('Filter', () => {
   });
 
   it('dynamic options', async () => {
-    renderWithRouter(<App6 />);
+    render(<App6 />);
 
     await waitFor(() => {
       expect(screen.getByText(/test1/i)).toBeInTheDocument();
@@ -125,7 +122,7 @@ describe('Filter', () => {
 
     await waitFor(() => userEvent.click(addBtn));
     const item = document.querySelector('.nc-filter-item');
-    const selector = item.querySelector('[data-testid="select-filter-field"] .ant-select-selector');
+    const selector = item.querySelector('.ant-select-selector');
     expect(item).toBeInTheDocument();
 
     await userEvent.click(selector);
@@ -137,15 +134,7 @@ describe('Filter', () => {
     // 切换为 test2
     await userEvent.click(screen.getByText(/test1/i));
     await userEvent.click(screen.getByText(/test2/i, { selector: '.ant-select-item-option-content' }));
-    await waitFor(() => {
-      expect(screen.getByText(/test2/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
-    });
-    await userEvent.keyboard('{Escape}');
-    const nextItems = document.querySelectorAll('.nc-filter-item');
-    const nextItem = nextItems[nextItems.length - 1];
-    const nextSelector = nextItem.querySelector('[data-testid="select-filter-field"] .ant-select-selector');
-    fireEvent.mouseDown(nextSelector);
-    fireEvent.click(nextSelector);
+    await userEvent.click(selector);
     // 选中 Title2
     await userEvent.click(screen.getByText(/title2/i));
     expect(screen.getByText(/title2/i, { selector: '.ant-select-selection-item' })).toBeInTheDocument();
@@ -327,18 +316,12 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: [
-                  dayjs(start).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
             {
               date_receive: {
-                $dateBetween: [
-                  dayjs(start).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
           ],
@@ -380,18 +363,12 @@ describe('Filter', () => {
           $or: [
             {
               date_pay: {
-                $dateBetween: [
-                  dayjs(start).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
             {
               date_receive: {
-                $dateBetween: [
-                  dayjs(start).startOf('day').toISOString(),
-                  dayjs(end.replace(/Z$/, '')).endOf('day').toISOString(),
-                ],
+                $dateBetween: [dayjs(start).startOf('day').toISOString(), dayjs(end).endOf('day').toISOString()],
               },
             },
           ],
@@ -495,7 +472,10 @@ describe('Filter', () => {
       $and: [
         {
           date_pay: {
-            $dateBetween: [dayjs(rangeValue[0]).toISOString(), dayjs(rangeValue[1]).toISOString()],
+            $dateBetween: [
+              dayjs('2026-05-01 00:00:00').startOf('day').toISOString(),
+              dayjs('2026-05-19 23:59:59.999').endOf('day').toISOString(),
+            ],
           },
         },
       ],

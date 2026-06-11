@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { MockServer, waitSecond } from '@tachybase/test';
+import { MockServer } from '@tachybase/test';
 import { Database } from '@tego/server';
 
 import { Dumper } from '../dumper';
@@ -243,17 +243,6 @@ describe('dumper', () => {
 
   it('should restore with audit logs', async () => {
     await app.runCommand('pm', 'enable', 'audit-logs');
-    await app.db.getRepository('applicationPlugins').updateOrCreate({
-      values: {
-        name: 'audit-logs',
-        packageName: '@tachybase/plugin-audit-logs',
-        enabled: true,
-        installed: true,
-      },
-      filterKeys: ['name'],
-    });
-    await app.pm.get('audit-logs')?.loadCollections();
-    await app.db.sync();
 
     await app.db.getRepository('collections').create({
       values: {
@@ -273,16 +262,6 @@ describe('dumper', () => {
     const post = await Post.create({ name: '123456' });
     await post.update({ name: '223456' });
     await post.destroy();
-    await app.pm.get('audit-logs').workerCreateAuditLog([
-      { type: 'create', collectionName: 'tests', recordId: post.id, changes: [] },
-      {
-        type: 'update',
-        collectionName: 'tests',
-        recordId: post.id,
-        changes: [{ field: 'name', before: '123456', after: '223456' }],
-      },
-      { type: 'destroy', collectionName: 'tests', recordId: post.id, changes: [] },
-    ]);
     const auditLogs = await app.db.getCollection('auditLogs').repository.find({
       appends: ['changes'],
     });
@@ -620,17 +599,7 @@ describe('dumper', () => {
       ],
     };
 
-    await app.pm.enable('block-map');
-    await app.db.getRepository('applicationPlugins').updateOrCreate({
-      values: {
-        name: 'block-map',
-        packageName: '@tachybase/plugin-block-map',
-        enabled: true,
-        installed: true,
-      },
-      filterKeys: ['name'],
-    });
-    app.pm.get('block-map')?.beforeLoad();
+    await app.runAsCLI(['pm', 'enable', 'map'], { from: 'user' });
 
     const fields = [
       {
@@ -673,7 +642,6 @@ describe('dumper', () => {
     const restorer = new Restorer(app, {
       backUpFilePath: result.filePath,
     });
-    app.pm.get('block-map')?.beforeLoad();
 
     await restorer.restore({
       groups: new Set(['required', 'custom']),
@@ -744,7 +712,6 @@ describe('dumper', () => {
     it('should get in progress status', async () => {
       const fileName = 'backup_20231111_112233.nbdump';
       const fullPath = path.resolve(__dirname, './fixtures', fileName);
-      await fs.promises.utimes(`${fullPath}.lock`, new Date(), new Date());
 
       const status = await Dumper.getFileStatus(fullPath);
       expect(status['inProgress']).toBeTruthy();
@@ -781,7 +748,7 @@ describe('dumper', () => {
   });
 
   it('should create dump file name', async () => {
-    expect(Dumper.generateFileName()).toMatch(/^backup_\d{8}_\d{6}_\d{4}\.tbdump$/);
+    expect(Dumper.generateFileName()).toMatch(/^backup_\d{8}_\d{6}_\d{4}\.nbdump$/);
   });
 
   it('should get dumped collections by data types', async () => {

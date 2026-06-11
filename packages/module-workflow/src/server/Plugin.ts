@@ -53,11 +53,9 @@ import type { ExecutionModel, JobModel, WorkflowModel } from './types';
 
 type ID = number | string;
 
-type WorkflowTriggerOptions = { [key: string]: any } & Transactionable;
+type Pending = [ExecutionModel, JobModel?, Transactionable?];
 
-type Pending = [ExecutionModel, JobModel?, WorkflowTriggerOptions?];
-
-type CachedEvent = [WorkflowModel, any, WorkflowTriggerOptions];
+type CachedEvent = [WorkflowModel, any, { context?: any }];
 
 function extractTenantContext(context: any, options: any = {}) {
   const state = options.context?.state || options.httpContext?.state || context?.state || context?.context?.state;
@@ -357,7 +355,7 @@ export default class PluginWorkflowServer extends Plugin {
   public trigger(
     workflow: WorkflowModel,
     context: object,
-    options: WorkflowTriggerOptions = {},
+    options: { [key: string]: any } & Transactionable = {},
   ): void | Promise<Processor | null> {
     const logger = this.getLogger(workflow.id);
     if (!this.ready) {
@@ -393,7 +391,7 @@ export default class PluginWorkflowServer extends Plugin {
   private async triggerSync(
     workflow: WorkflowModel,
     context: object,
-    options: WorkflowTriggerOptions = {},
+    options: { [key: string]: any } & Transactionable = {},
   ): Promise<Processor | null> {
     let execution;
     try {
@@ -424,19 +422,6 @@ export default class PluginWorkflowServer extends Plugin {
 
   public createProcessor(execution: ExecutionModel, options = {}): Processor {
     return new Processor(execution, { ...options, plugin: this });
-  }
-
-  private async deleteExecutionAfterProcess(execution: ExecutionModel, options: Transactionable = {}) {
-    const workflow = execution.workflow || (await execution.getWorkflow({ transaction: options.transaction }));
-    const statuses = workflow?.options?.deleteExecutionOnStatus;
-    if (!Array.isArray(statuses)) {
-      return;
-    }
-
-    await execution.reload({ transaction: options.transaction });
-    if (execution.status && statuses.includes(execution.status)) {
-      await execution.destroy({ transaction: options.transaction });
-    }
   }
 
   private async createExecution(workflow: WorkflowModel, context, options): Promise<ExecutionModel | null> {
@@ -620,7 +605,6 @@ export default class PluginWorkflowServer extends Plugin {
           logger.error(`execution (${execution.id}) error: parent job not found`);
         }
       }
-      await this.deleteExecutionAfterProcess(execution, options);
     } catch (err) {
       logger.error(`execution (${execution.id}) error: ${err.message}`, err);
     }

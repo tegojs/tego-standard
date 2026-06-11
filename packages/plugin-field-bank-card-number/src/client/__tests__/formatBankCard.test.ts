@@ -10,15 +10,13 @@ const formatBankCard = (value: string): string => {
   // 限制最长21位
   const limited = digits.slice(0, 21);
 
-  const parts = [
-    limited.slice(0, 4),
-    limited.slice(4, 8),
-    limited.slice(8, 12),
-    limited.slice(12, 16),
-    limited.slice(16),
-  ];
+  // 格式化为 4-4-4-4-5 的形式
+  const parts: string[] = [];
+  for (let i = 0; i < limited.length; i += 4) {
+    parts.push(limited.slice(i, i + 4));
+  }
 
-  return parts.filter(Boolean).join(' ');
+  return parts.join(' ');
 };
 
 // 解析格式化的银行卡号为纯数字

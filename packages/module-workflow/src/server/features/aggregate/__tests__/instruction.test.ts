@@ -1,8 +1,9 @@
 import { EXECUTION_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+
 import Database, { Application } from '@tego/server';
 
-import Plugin from '../Plugin';
+import Plugin from '..';
 
 describe('workflow > instructions > aggregate', () => {
   let app: Application;

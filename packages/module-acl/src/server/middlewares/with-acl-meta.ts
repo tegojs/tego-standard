@@ -37,21 +37,7 @@ function createWithACLMetaMiddleware() {
     // @ts-ignore
     const primaryKeyField = Model.primaryKeyField || Model.primaryKeyAttribute;
 
-    const normalizeOwnParams = (params) => {
-      if (!params?.own) {
-        return params;
-      }
-
-      return {
-        ...lodash.omit(params, 'own'),
-        filter: {
-          ...params.filter,
-          createdById: ctx.state.currentUser?.id,
-        },
-      };
-    };
-
-    const dataPath = ctx.body?.data ? 'body.data' : ctx.body?.rows ? 'body.rows' : 'body';
+    const dataPath = ctx.body?.rows ? 'body.rows' : 'body';
     let listData = lodash.get(ctx, dataPath);
 
     if (actionName === 'get') {
@@ -111,34 +97,14 @@ function createWithACLMetaMiddleware() {
         throw e;
       }
 
-      const permissionParams = actionCtx.permission?.can?.params;
-      const parsedParams = actionCtx.permission?.parsedParams;
-      const params = (() => {
-        if (permissionParams?.own) {
-          return permissionParams;
-        }
-
-        if (lodash.isEmpty(parsedParams?.filter) && !lodash.isEmpty(permissionParams?.filter)) {
-          return permissionParams;
-        }
-
-        return parsedParams || permissionParams;
-      })();
-
-      actionsParams.push([action, params ? normalizeOwnParams(params) : null, actionCtx]);
+      actionsParams.push([
+        action,
+        actionCtx.permission?.can === null && !actionCtx.permission.skip
+          ? null
+          : actionCtx.permission?.parsedParams || {},
+        actionCtx,
+      ]);
     }
-
-    const getPrimaryKeyValue = (item) => {
-      if (!item) {
-        return item;
-      }
-
-      if (item.get) {
-        return item.get(primaryKeyField);
-      }
-
-      return item[primaryKeyField];
-    };
 
     const ids = (() => {
       if (collection.options.tree) {
@@ -147,7 +113,7 @@ function createWithACLMetaMiddleware() {
         return listData.map((tree) => getAllNodeIds(tree.toJSON ? tree.toJSON() : tree)).flat();
       }
 
-      return listData.filter(Boolean).map(getPrimaryKeyValue);
+      return listData.filter(Boolean).map((item) => item[primaryKeyField]);
     })();
 
     // if all ids are empty, skip
@@ -293,18 +259,16 @@ function createWithACLMetaMiddleware() {
         return acc;
       }, {});
 
-    if (ctx.body?.rows) {
-      ctx.body = {
-        ...ctx.body,
-        allowedActions,
+    if (actionName === 'get') {
+      ctx.bodyMeta = {
+        ...ctx.bodyMeta,
+        allowedActions: allowedActions,
       };
-      return;
     }
 
-    ctx.bodyMeta = {
-      ...ctx.bodyMeta,
-      allowedActions,
-    };
+    if (actionName === 'list') {
+      ctx.body.allowedActions = allowedActions;
+    }
   };
 }
 

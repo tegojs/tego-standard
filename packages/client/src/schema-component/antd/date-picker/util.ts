@@ -122,11 +122,10 @@ export const resolveDatePickerRangeValueInfo = (
 ): DatePickerRangeValueInfo => {
   const metadataMode = getRangeValueMode(value);
   if (metadataMode) {
+    if (metadataMode === 'date' && isDatePickerDefaultRangeBoundaryPair(value)) {
+      return { mode: 'date', source: 'retained-date-boundary' };
+    }
     return { mode: metadataMode, source: 'metadata' };
-  }
-
-  if (options.preferDateBoundaryFallback && isDatePickerDefaultRangeBoundaryPair(value)) {
-    return { mode: 'date', source: 'retained-date-boundary' };
   }
 
   if (options.preferDateBoundaryFallback && isDatePickerRetainedLocalBoundaryPair(value)) {
@@ -135,6 +134,10 @@ export const resolveDatePickerRangeValueInfo = (
 
   if (options.component === 'DatePicker.RangePicker' && !options.showTime) {
     return { mode: 'date', source: 'schema' };
+  }
+
+  if (options.preferDateBoundaryFallback && isDatePickerDefaultRangeBoundaryPair(value)) {
+    return { mode: 'date', source: 'retained-date-boundary' };
   }
 
   return { source: 'unknown' };
@@ -162,14 +165,6 @@ export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {})
   // retained-date-boundary values are naive GMT (local-time + Z suffix),
   // str2moment needs gmt:true to interpret them in GMT mode for correct display.
   if (rangeValueInfo.source === 'retained-date-boundary') {
-    return { ...rest, gmt: true };
-  }
-
-  if (
-    rangeValueInfo.source === 'metadata' &&
-    rangeValueInfo.mode === 'date' &&
-    isDatePickerDefaultRangeBoundaryPair(options.value)
-  ) {
     return { ...rest, gmt: true };
   }
 

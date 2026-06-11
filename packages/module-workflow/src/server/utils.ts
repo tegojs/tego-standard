@@ -7,7 +7,7 @@ export function toJSON(data: any): any {
   if (Array.isArray(data)) {
     return data.map(toJSON);
   }
-  if (!data?.get || !data.constructor?.associations) {
+  if (!(data instanceof Model) || !data) {
     return data;
   }
   const result = data.get();

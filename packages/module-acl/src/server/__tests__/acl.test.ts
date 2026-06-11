@@ -310,13 +310,6 @@ describe('acl', () => {
       },
     });
 
-    await db.getRepository('collections').create({
-      values: {
-        name: 'posts',
-      },
-      context: {},
-    });
-
     expect(
       acl.can({
         role: 'new',

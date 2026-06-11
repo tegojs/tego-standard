@@ -1,6 +1,6 @@
 import { defineCollection } from '@tego/server';
 
-import { issuedTokensCollectionName } from '../../constants';
+import { issuedTokensCollectionName } from '../../constants.ts';
 
 export default defineCollection({
   dumpRules: {

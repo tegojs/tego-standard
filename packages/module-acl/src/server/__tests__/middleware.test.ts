@@ -70,12 +70,12 @@ describe('middleware', () => {
     await app.destroy();
   });
 
-  it('should throw 401 when no user is authenticated', async () => {
+  it('should throw 403 when no permission', async () => {
     const response = await app.agent().resource('posts').create({
       values: {},
     });
 
-    expect(response.statusCode).toEqual(401);
+    expect(response.statusCode).toEqual(403);
   });
 
   it('should return 200 when role has permission', async () => {

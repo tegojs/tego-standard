@@ -1,5 +1,6 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
+
 import Database from '@tego/server';
 
 describe('workflow > actions > workflows', () => {
@@ -11,9 +12,7 @@ describe('workflow > actions > workflows', () => {
   let WorkflowModel;
 
   beforeEach(async () => {
-    app = await getApp({
-      plugins: ['evaluator-mathjs'],
-    });
+    app = await getApp();
     agent = app.agent();
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;

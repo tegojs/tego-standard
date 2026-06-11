@@ -93,7 +93,7 @@ describe('list action with acl', () => {
     );
 
     //@ts-ignore
-    const response = await app.agent().loginUsingId(1).set('X-With-ACL-Meta', true).resource('tests').list({});
+    const response = await app.agent().set('X-With-ACL-Meta', true).resource('tests').list({});
 
     const data = response.body;
     expect(data.meta.allowedActions.view).toEqual(['t1', 't2', 't3']);
@@ -136,7 +136,7 @@ describe('list action with acl', () => {
       },
     );
 
-    const response = await (app as any).agent().loginUsingId(1).set('X-With-ACL-Meta', true).resource('posts').list();
+    const response = await (app as any).agent().set('X-With-ACL-Meta', true).resource('posts').list();
     const data = response.body;
     expect(data.meta.allowedActions.view).toEqual([1, 2, 3]);
     expect(data.meta.allowedActions.update).toEqual([1, 2]);
@@ -177,7 +177,7 @@ describe('list action with acl', () => {
     );
 
     // @ts-ignore
-    const response = await app.agent().loginUsingId(1).set('X-With-ACL-Meta', true).resource('posts').list({});
+    const response = await app.agent().set('X-With-ACL-Meta', true).resource('posts').list({});
 
     const data = response.body;
     expect(data.meta.allowedActions.view).toEqual([1, 2, 3]);
@@ -219,7 +219,7 @@ describe('list action with acl', () => {
     );
 
     // @ts-ignore
-    const getResponse = await app.agent().loginUsingId(1).set('X-With-ACL-Meta', true).resource('posts').get({
+    const getResponse = await app.agent().set('X-With-ACL-Meta', true).resource('posts').get({
       filterByTk: 1,
     });
 
@@ -303,7 +303,7 @@ describe('list association action with acl', () => {
     });
 
     const userPlugin = app.pm.get('users');
-    const userAgent = app.agent().loginUsingId(1).login(user).set('X-With-ACL-Meta', true);
+    const userAgent = app.agent().login(user).set('X-With-ACL-Meta', true);
 
     await userAgent.resource('posts').create({
       values: {
@@ -342,7 +342,7 @@ describe('list association action with acl', () => {
     });
 
     const userPlugin = app.pm.get('users');
-    const agent = app.agent().loginUsingId(1).login(user).set('X-With-ACL-Meta', true);
+    const agent = app.agent().login(user).set('X-With-ACL-Meta', true);
     app.acl.allow('table_a', ['*']);
     app.acl.allow('collections', ['*']);
 

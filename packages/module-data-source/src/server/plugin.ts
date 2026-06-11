@@ -28,11 +28,7 @@ export class PluginDataSourceManagerServer extends Plugin {
   } = {};
 
   renderJsonTemplate(template) {
-    const $env = this.app?.environment;
-    if (!$env) {
-      return template;
-    }
-    return $env.renderJsonTemplate(template);
+    return this.app.environment.renderJsonTemplate(template);
   }
 
   async beforeLoad() {
@@ -281,7 +277,7 @@ export class PluginDataSourceManagerServer extends Plugin {
         const klass = ctx.tego.dataSourceManager.factory.getClass(type);
 
         try {
-          await klass.testConnection(plugin.renderJsonTemplate(options || {}));
+          await klass.testConnection(this.renderJsonTemplate(options || {}));
         } catch (error) {
           throw new Error(`Test connection failed: ${error.message}`);
         }
@@ -445,13 +441,19 @@ export class PluginDataSourceManagerServer extends Plugin {
       const role = dataSource.acl.getRole(roleName);
 
       if (role) {
-        const pluginACL: any = this.app.pm.get('acl');
-        await model.revoke({
-          role,
-          resourceName: model.get('name'),
-          grantHelper: pluginACL.grantHelper,
-        });
+        role.revokeResource(model.get('name'));
       }
+
+      const { transaction } = options;
+      const pluginACL: any = this.app.pm.get('acl');
+      // TODO: 可能会有问题
+      await model.writeToACL({
+        grantHelper: pluginACL.grantHelper,
+        associationFieldsActions: pluginACL.associationFieldsActions,
+        acl: dataSource.acl,
+        transaction,
+        app: this.app,
+      });
     });
 
     this.app.db.on('dataSourcesRoles.afterSave', async (model: DataSourcesRolesModel, options) => {

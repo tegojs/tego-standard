@@ -1,4 +1,5 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+
 import Database, { Application } from '@tego/server';
 
 import { JOB_STATUS } from '../../constants';
@@ -12,9 +13,7 @@ describe('workflow > instructions > calculation', () => {
   let workflow;
 
   beforeEach(async () => {
-    app = await getApp({
-      plugins: ['evaluator-mathjs'],
-    });
+    app = await getApp();
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;

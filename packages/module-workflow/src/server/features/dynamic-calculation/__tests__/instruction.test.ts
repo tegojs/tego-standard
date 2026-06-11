@@ -1,9 +1,10 @@
+import path from 'node:path';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
+
 import { MockDatabase } from '@tego/server';
 
-import Plugin from '../Plugin';
-import categoryCollection from './collections/categories';
+import Plugin from '..';
 
 describe('workflow > instructions > calculation', () => {
   let app: MockServer;
@@ -15,19 +16,9 @@ describe('workflow > instructions > calculation', () => {
 
   beforeEach(async () => {
     app = await getApp({
-      plugins: ['evaluator-mathjs', Plugin],
+      plugins: [Plugin],
+      collectionsPath: path.join(__dirname, 'collections'),
     });
-    app.db.extendCollection(categoryCollection.collectionOptions, categoryCollection.mergeOptions);
-    app.db.extendCollection({
-      name: 'posts',
-      fields: [
-        {
-          type: 'expression',
-          name: 'formula',
-        },
-      ],
-    });
-    await app.db.sync();
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
@@ -52,10 +43,7 @@ describe('workflow > instructions > calculation', () => {
       const n1 = await workflow.createNode({
         type: 'dynamic-calculation',
         config: {
-          expression: {
-            engine: 'math.js',
-            expression: '1 + {{read}}',
-          },
+          expression: '{{$context.data.category}}',
           scope: '{{$context.data}}',
         },
       });
@@ -63,11 +51,10 @@ describe('workflow > instructions > calculation', () => {
       const post = await PostRepo.create({
         values: {
           title: 't1',
-          read: 0,
-          formula: JSON.stringify({
+          category: {
             engine: 'math.js',
             expression: '1 + {{read}}',
-          }),
+          },
         },
       });
 
@@ -94,7 +81,7 @@ describe('workflow > instructions > calculation', () => {
       const n2 = await workflow.createNode({
         type: 'dynamic-calculation',
         config: {
-          expression: `{{$jobsMapByNodeKey.${n1.key}.expression}}`,
+          expression: `{{$jobsMapByNodeKey.${n1.key}}}`,
           scope: '{{$context.data}}',
         },
         upstreamId: n1.id,
@@ -105,10 +92,8 @@ describe('workflow > instructions > calculation', () => {
       const category = await CategoryRepo.create({
         values: {
           title: 'c1',
-          expression: JSON.stringify({
-            engine: 'math.js',
-            expression: '1 + {{read}}',
-          }),
+          engine: 'math.js',
+          expression: '1 + {{read}}',
         },
       });
 

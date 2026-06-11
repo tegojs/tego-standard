@@ -1,4 +1,5 @@
 import { createMockServer, MockServer } from '@tachybase/test';
+
 import { Collection, Database } from '@tego/server';
 
 import { SchemaNode } from '../dao/ui_schema_node_dao';
@@ -27,8 +28,7 @@ describe('ui_schema repository', () => {
   });
 
   it('should be registered', async () => {
-    expect(repository).toHaveProperty('insertSingleNode');
-    expect(repository).toHaveProperty('getJsonSchema');
+    expect(db.getCollection('uiSchemas').repository).toBeInstanceOf(UiSchemaRepository);
   });
 
   it('should insert single ui schema node', async () => {

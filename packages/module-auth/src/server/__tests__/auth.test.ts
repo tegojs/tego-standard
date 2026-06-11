@@ -1,4 +1,5 @@
 import { createMockServer, MockServer } from '@tachybase/test';
+
 import { BaseAuth, Database, Model } from '@tego/server';
 
 describe('auth', () => {
@@ -24,20 +25,10 @@ describe('auth', () => {
       userCollection: db.getCollection('users'),
       ctx: {
         app,
-        tego: app,
-        state: {},
-        headers: {},
         getBearerToken() {
           return jwt.sign({ userId: user.id });
         },
         cache: app.cache,
-        logger: app.logger,
-        t: (message: string) => message,
-        throw(status: number, payload?: any) {
-          const error: any = new Error(payload?.message || String(status));
-          error.status = status;
-          throw error;
-        },
       } as any,
     } as any);
 
@@ -69,6 +60,7 @@ describe('auth', () => {
       filterByTk: user.id,
     });
     cacheData = await app.cache.get(auth.getCacheKey(user.id));
+    console.log(cacheData);
     expect(cacheData['nickname']).toBe('admin');
   });
 

@@ -51,7 +51,7 @@ describe('CollectionDataSourceProvider', () => {
       fireEvent.click(document.querySelector('button'));
 
       await waitFor(() => {
-        expect(screen.getAllByText('Save successfully!').length).toBeGreaterThan(0);
+        expect(screen.getByText('Save successfully!')).toBeInTheDocument();
       });
     });
 
@@ -69,7 +69,7 @@ describe('CollectionDataSourceProvider', () => {
       fireEvent.click(document.querySelector('button'));
 
       await waitFor(() => {
-        expect(screen.getAllByText('Save successfully!').length).toBeGreaterThan(0);
+        expect(screen.getByText('Save successfully!')).toBeInTheDocument();
       });
     });
 
@@ -89,7 +89,7 @@ describe('CollectionDataSourceProvider', () => {
       fireEvent.click(document.querySelector('button'));
 
       await waitFor(() => {
-        expect(screen.getAllByText('Save successfully!').length).toBeGreaterThan(0);
+        expect(screen.getByText('Save successfully!')).toBeInTheDocument();
       });
     });
   });

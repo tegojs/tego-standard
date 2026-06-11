@@ -1,5 +1,5 @@
-import { createServer } from 'node:http';
-import { createMockServer, MockServer, startServerWithRandomPort } from '@tachybase/test';
+import { createMockServer, MockServer } from '@tachybase/test';
+
 import Database, { Context, Repository } from '@tego/server';
 
 describe('actions', () => {
@@ -8,9 +8,6 @@ describe('actions', () => {
   let repo: Repository;
   let agent: ReturnType<MockServer['agent']>;
   let resource: ReturnType<ReturnType<MockServer['agent']>['resource']>;
-  let server: any;
-  let gatewayBaseURL: string;
-  let authorization: string;
 
   beforeAll(async () => {
     app = await createMockServer({
@@ -19,23 +16,10 @@ describe('actions', () => {
       plugins: ['users', 'auth', 'acl', 'custom-request', 'data-source-manager'],
     });
     db = app.db;
-    const port = await startServerWithRandomPort(({ port, host, callback }) => {
-      server = createServer(app.callback());
-      server.listen(port, host, () => callback(server));
-    });
-    gatewayBaseURL = `http://localhost:${port}`;
     repo = db.getRepository('customRequests');
     agent = app.agent();
-    resource = (agent.set('X-Role', 'admin').set('X-App', 'main') as any).resource('customRequests');
+    resource = (agent.set('X-Role', 'admin') as any).resource('customRequests');
     await agent.login(1);
-    authorization = `Bearer ${app.authManager.jwt.sign({ userId: 1 })}`;
-  });
-
-  afterAll(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-    await app.destroy();
   });
 
   describe('send', () => {
@@ -49,9 +33,8 @@ describe('actions', () => {
         values: {
           key: 'test',
           options: {
-            url: `${gatewayBaseURL}/customRequests:test`,
+            url: '/customRequests:test',
             method: 'GET',
-            headers: [{ name: 'Authorization', value: authorization }],
             data: {
               username: '{{ currentRecord.username }}',
             },
@@ -88,9 +71,8 @@ describe('actions', () => {
         values: {
           key: 'o2m',
           options: {
-            url: `${gatewayBaseURL}/customRequests:test`,
+            url: '/customRequests:test',
             method: 'GET',
-            headers: [{ name: 'Authorization', value: authorization }],
             data: {
               o2m: '{{ currentRecord.o2m.id }}',
             },
@@ -127,9 +109,9 @@ describe('actions', () => {
           key: 'test2',
           options: {
             method: 'GET',
-            headers: [{ name: 'Authorization', value: authorization }],
+            headers: [],
             params: [{ name: 'userId', value: '{{currentRecord.id}}' }],
-            url: `${gatewayBaseURL}/users:get`,
+            url: '/users:get',
             collectionName: 'users',
             data: null,
           },
@@ -155,13 +137,13 @@ describe('actions', () => {
           key: 'currentUser-with-association-data',
           options: {
             method: 'POST',
-            headers: [{ name: 'Authorization', value: authorization }],
+            headers: [],
             data: {
               a: '{{currentUser.roles.name}}',
               b: '{{currentUser.roles.title}}',
               c: '{{currentUser.roles.rolesUsers.userId}}',
             },
-            url: `${gatewayBaseURL}/customRequests:test`,
+            url: '/customRequests:test',
           },
         },
       });

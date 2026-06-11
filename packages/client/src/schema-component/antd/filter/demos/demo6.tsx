@@ -1,64 +1,82 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
+import {
+  AntdSchemaComponentProvider,
+  Application,
+  CollectionPlugin,
+  CollectionProvider_deprecated,
+  DEFAULT_DATA_SOURCE_KEY,
+  DEFAULT_DATA_SOURCE_TITLE,
+  Filter,
+  Input,
+  LocalDataSource,
+  Plugin,
+  SchemaComponent,
+  useCollection_deprecated,
+} from '@tachybase/client';
 
 import { Select } from 'antd';
 
-import { SchemaComponent, SchemaComponentProvider } from '../../../core';
-import { Input } from '../../input';
-import { Filter } from '../Filter';
+import { useFilterOptions } from '../useFilterActionProps';
 
-const optionsByCollection = {
-  test1: [
-    {
-      name: 'title1',
-      type: 'string',
-      title: 'Title1',
-      schema: {
-        title: 'Title1',
+const collections = [
+  {
+    name: 'test1',
+    template: 'general',
+    fields: [
+      {
         type: 'string',
-        'x-component': 'Input',
-        required: true,
-      },
-      interface: 'input',
-      operators: [{ label: 'contains', value: '$includes' }],
-    },
-  ],
-  test2: [
-    {
-      name: 'title2',
-      type: 'string',
-      title: 'Title2',
-      schema: {
-        title: 'Title2',
-        type: 'string',
-        'x-component': 'Input',
-        required: true,
-      },
-      interface: 'input',
-      operators: [{ label: 'contains', value: '$includes' }],
-    },
-  ],
-};
-
-const SwitchCollection = () => {
-  const [collection, setCollection] = useState<'test1' | 'test2'>('test1');
-  const schema = useMemo(
-    () => ({
-      type: 'void',
-      properties: {
-        [collection]: {
-          name: `filter_${collection}`,
-          type: 'object',
-          'x-component': 'Filter',
-          default: { $and: [{}] },
-          'x-component-props': {
-            options: optionsByCollection[collection],
-          },
+        name: 'title1',
+        interface: 'input',
+        uiSchema: {
+          title: 'Title1',
+          type: 'string',
+          'x-component': 'Input',
+          required: true,
         },
       },
-    }),
-    [collection],
-  );
+    ],
+  },
+  {
+    name: 'test2',
+    template: 'general',
+    fields: [
+      {
+        type: 'string',
+        name: 'title2',
+        interface: 'input',
+        uiSchema: {
+          title: 'Title2',
+          type: 'string',
+          'x-component': 'Input',
+          required: true,
+        },
+      },
+    ],
+  },
+];
 
+const schema: any = {
+  type: 'void',
+  properties: {
+    demo: {
+      name: 'filter',
+      type: 'object',
+      'x-component': 'Filter',
+      'x-use-component-props': () => {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        const { name } = useCollection_deprecated();
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        const options = useFilterOptions(name);
+        return {
+          options,
+        };
+      },
+    },
+  },
+};
+
+const SwitchCollection = (props) => {
+  const [collection, setCollection] = useState(collections[0].name);
   return (
     <div>
       <Select
@@ -66,24 +84,43 @@ const SwitchCollection = () => {
           { label: 'test1', value: 'test1' },
           { label: 'test2', value: 'test2' },
         ]}
-        value={collection}
+        defaultValue={'test1'}
         onChange={(value) => {
           setCollection(value);
         }}
       />
       <br />
       <br />
-      <SchemaComponent key={collection} schema={schema} />
+      <CollectionProvider_deprecated name={collection}>{props.children}</CollectionProvider_deprecated>
     </div>
   );
 };
 
 const Demo = () => {
   return (
-    <SchemaComponentProvider components={{ Input, Filter }}>
-      <SwitchCollection />
-    </SchemaComponentProvider>
+    <AntdSchemaComponentProvider>
+      <SwitchCollection>
+        <SchemaComponent schema={schema} />
+      </SwitchCollection>
+    </AntdSchemaComponentProvider>
   );
 };
+class MyPlugin extends Plugin {
+  async load() {
+    this.app.dataSourceManager.addDataSource(LocalDataSource, {
+      key: DEFAULT_DATA_SOURCE_KEY,
+      displayName: DEFAULT_DATA_SOURCE_TITLE,
+      collections: collections as any,
+    });
+  }
+}
+const app = new Application({
+  plugins: [CollectionPlugin, MyPlugin],
+  components: {
+    Input,
+    Filter,
+  },
+  providers: [Demo],
+});
 
-export default Demo;
+export default app.getRootComponent();

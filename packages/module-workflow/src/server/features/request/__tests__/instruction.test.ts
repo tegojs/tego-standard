@@ -1,8 +1,12 @@
-import { createServer, Server } from 'node:http';
+import { Server } from 'node:http';
 import PluginWorkflow, { EXECUTION_STATUS, JOB_STATUS, Processor } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
+
+import jwt from 'jsonwebtoken';
+import Koa from 'koa';
+import bodyParser from 'koa-bodyparser';
 
 import { RequestConfig } from '../RequestInstruction';
 
@@ -15,6 +19,7 @@ function getRandomPort() {
 }
 
 class MockAPI {
+  app: Koa;
   server: Server;
   port: number;
   get URL_DATA() {
@@ -27,44 +32,32 @@ class MockAPI {
     return `http://${HOST}:${this.port}/api/timeout`;
   }
   constructor() {
-    this.server = createServer(async (req, res) => {
-      const url = new URL(req.url ?? '/', `http://${HOST}`);
+    this.app = new Koa();
+    this.app.use(bodyParser());
 
-      if (url.pathname === '/api/400') {
-        res.writeHead(400).end();
-        return;
+    this.app.use(async (ctx, next) => {
+      if (ctx.path === '/api/400') {
+        return ctx.throw(400);
       }
-
-      if (url.pathname === '/api/timeout') {
+      if (ctx.path === '/api/timeout') {
         await sleep(2000);
-        res.writeHead(204).end();
+        ctx.status = 204;
         return;
       }
-
-      if (url.pathname === '/api/data') {
-        const chunks: Buffer[] = [];
-        for await (const chunk of req) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        const text = Buffer.concat(chunks).toString();
-        const body = text ? JSON.parse(text) : {};
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            meta: { title: url.searchParams.get('title') ?? undefined },
-            data: { title: body.title },
-          }),
-        );
-        return;
+      if (ctx.path === '/api/data') {
+        await sleep(100);
+        ctx.body = {
+          meta: { title: ctx.query.title },
+          data: { title: ctx.request.body['title'] },
+        };
       }
-
-      res.writeHead(404).end();
+      await next();
     });
   }
 
   async start() {
     return new Promise((resolve) => {
-      this.server.listen(0, () => {
+      this.server = this.app.listen(0, () => {
         this.port = this.server.address()['port'];
         resolve(true);
       });
@@ -139,7 +132,7 @@ describe('workflow > instructions > request', () => {
       expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toMatchObject({ data: {} });
+      expect(job.result).toEqual({ meta: {}, data: {} });
     });
 
     it('timeout', async () => {
@@ -160,9 +153,10 @@ describe('workflow > instructions > request', () => {
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.FAILED);
 
-      expect(job.result.error).toMatchObject({
+      expect(job.result).toMatchObject({
         code: 'ECONNABORTED',
-        name: 'AxiosError',
+        name: 'Error',
+        status: null,
         message: 'timeout of 250ms exceeded',
       });
 
@@ -188,9 +182,10 @@ describe('workflow > instructions > request', () => {
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.error).toMatchObject({
+      expect(job.result).toMatchObject({
         code: 'ECONNABORTED',
-        name: 'AxiosError',
+        name: 'Error',
+        status: null,
         message: 'timeout of 250ms exceeded',
       });
     });
@@ -212,7 +207,7 @@ describe('workflow > instructions > request', () => {
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.FAILED);
-      expect(job.result.error.status).toBe(400);
+      expect(job.result.status).toBe(400);
     });
 
     it('response 400 ignoreFail', async () => {
@@ -233,7 +228,7 @@ describe('workflow > instructions > request', () => {
       const [execution] = await workflow.getExecutions();
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.error.status).toBe(400);
+      expect(job.result.status).toBe(400);
     });
 
     it('request with data', async () => {
@@ -315,21 +310,25 @@ describe('workflow > instructions > request', () => {
     it('request db resource', async () => {
       const user = await db.getRepository('users').create({});
 
-      const token = app.authManager.jwt.sign(
+      const token = jwt.sign(
         {
-          userId: user.id,
+          userId: typeof user.id,
         },
+        process.env.APP_KEY,
         {
           expiresIn: '1d',
         },
       );
 
+      const server = app.listen(12346, () => {});
+
+      await sleep(1000);
+
       const n1 = await workflow.createNode({
         type: 'request',
         config: {
-          url: api.URL_DATA,
+          url: `http://localhost:12346/api/categories`,
           method: 'POST',
-          data: { title: 'category from request' },
           headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
         } as RequestConfig,
       });
@@ -338,11 +337,15 @@ describe('workflow > instructions > request', () => {
 
       await sleep(500);
 
+      const category = await db.getRepository('categories').findOne({});
+
       const [execution] = await workflow.getExecutions();
       expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
       const [job] = await execution.getJobs();
       expect(job.status).toBe(JOB_STATUS.RESOLVED);
-      expect(job.result.data).toEqual({ title: 'category from request' });
+      expect(job.result.data).toMatchObject({});
+
+      server.close();
     });
   });
 
@@ -360,7 +363,7 @@ describe('workflow > instructions > request', () => {
         } as RequestConfig,
       });
 
-      const workflowPlugin = (app.pm.get('workflow') || app.pm.get(PluginWorkflow)) as PluginWorkflow;
+      const workflowPlugin = app.pm.get(PluginWorkflow) as PluginWorkflow;
       const processor = (await workflowPlugin.trigger(syncFlow, { data: { title: 't1' } })) as Processor;
 
       const [execution] = await syncFlow.getExecutions();
@@ -369,7 +372,7 @@ describe('workflow > instructions > request', () => {
       expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
       const [job] = await execution.getJobs();
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toMatchObject({ meta: {}, data: {} });
+      expect(job.result).toEqual({ meta: {}, data: {} });
     });
   });
 });

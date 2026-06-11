@@ -74,5 +74,3 @@ export const createListBlockUISchema = (options: {
     },
   };
 };
-
-export const createListBlockSchema = createListBlockUISchema;

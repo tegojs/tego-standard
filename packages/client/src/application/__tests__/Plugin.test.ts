@@ -1,7 +1,6 @@
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
 
-import { APIClient } from '../../api-client';
 import { Application } from '../Application';
 import { Plugin } from '../Plugin';
 
@@ -62,8 +61,7 @@ describe('PluginManager', () => {
   });
 
   it('remote plugins', async () => {
-    const apiClient = new APIClient();
-    const mock = new MockAdapter(apiClient.axios);
+    const mock = new MockAdapter(axios);
     mock.onGet('pm:listEnabled').reply(200, {
       data: [
         {
@@ -96,20 +94,26 @@ describe('PluginManager', () => {
       }
     }
 
+    const mockPluginsModules = (pluginData, resolve) => {
+      remoteFn();
+      resolve({ default: Demo1Plugin }, { default: Demo2Plugin });
+    };
+
+    const requirejs: any = {
+      requirejs: mockPluginsModules,
+    };
+
+    requirejs.requirejs.config = vi.fn();
+    requirejs.requirejs.requirejs = vi.fn();
+
     const app = new Application({
-      apiClient,
       loadRemotePlugins: true,
-      devDynamicImport: async (packageName) => {
-        remoteFn();
-        return {
-          default: packageName === '@tachybase/demo' ? Demo1Plugin : Demo2Plugin,
-        };
-      },
     });
+    app.requirejs = requirejs;
 
     await app.load();
 
-    expect(remoteFn).toBeCalledTimes(2);
+    expect(remoteFn).toBeCalledTimes(1);
     expect(demo1Mock).toBeCalledTimes(1);
   });
 

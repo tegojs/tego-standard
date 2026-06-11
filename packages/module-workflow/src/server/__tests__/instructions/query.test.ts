@@ -1,4 +1,4 @@
-import { getApp } from '@tachybase/plugin-workflow-test';
+import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
@@ -17,6 +17,34 @@ describe('workflow > instructions > query', () => {
   let WorkflowModel;
   let workflow;
   let withAnotherDataSource = false;
+
+  function isSqliteBusy(error) {
+    return (
+      error?.parent?.code === 'SQLITE_BUSY' ||
+      error?.original?.code === 'SQLITE_BUSY' ||
+      error?.code === 'SQLITE_BUSY' ||
+      String(error?.message || '').includes('SQLITE_BUSY')
+    );
+  }
+
+  async function withSqliteBusyRetry<T>(operation: () => Promise<T>) {
+    let lastError;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (!isSqliteBusy(error)) {
+          throw error;
+        }
+
+        lastError = error;
+        await sleep(100 * (attempt + 1));
+      }
+    }
+
+    throw lastError;
+  }
 
   function bindRepositories() {
     db = app.db;
@@ -45,18 +73,18 @@ describe('workflow > instructions > query', () => {
   }
 
   async function resetAppData() {
-    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await withSqliteBusyRetry(() => WorkflowModel.update({ enabled: false }, { where: { enabled: true } }));
     await waitForWorkflowIdle(app);
-    await db.getRepository('jobs').destroy({ filter: {} });
-    await db.getRepository('executions').destroy({ filter: {} });
-    await db.getRepository('workflows').destroy({ filter: {} });
-    await CommentRepo.destroy({ filter: {} });
-    await PostRepo.destroy({ filter: {} });
-    await TagRepo.destroy({ filter: {} });
+    await withSqliteBusyRetry(() => db.getRepository('jobs').destroy({ filter: {} }));
+    await withSqliteBusyRetry(() => db.getRepository('executions').destroy({ filter: {} }));
+    await withSqliteBusyRetry(() => db.getRepository('workflows').destroy({ filter: {} }));
+    await withSqliteBusyRetry(() => CommentRepo.destroy({ filter: {} }));
+    await withSqliteBusyRetry(() => PostRepo.destroy({ filter: {} }));
+    await withSqliteBusyRetry(() => TagRepo.destroy({ filter: {} }));
 
     if (withAnotherDataSource) {
       const anotherDB = app.dataSourceManager.dataSources.get('another').collectionManager.db;
-      await anotherDB.getRepository('posts').destroy({ filter: {} });
+      await withSqliteBusyRetry(() => anotherDB.getRepository('posts').destroy({ filter: {} }));
     }
   }
 

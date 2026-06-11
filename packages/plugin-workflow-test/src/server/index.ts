@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { createMockServer, type MockServer } from '@tachybase/test/server/mockServer';
-import { ApplicationOptions, mockDatabase, Plugin, Resourcer, SequelizeDataSource, uid } from '@tego/server';
+import { createMockServer, mockDatabase, MockServer } from '@tachybase/test';
+import { ApplicationOptions, Plugin, Resourcer, SequelizeDataSource, uid } from '@tego/server';
 
 import functions from './functions';
 import instructions from './instructions';
@@ -32,27 +32,9 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
       }
     }
   }
-  class TestAuthStatusPlugin extends Plugin {
-    async load() {
-      if (!this.app.authManager.userStatusService) {
-        this.app.authManager.setUserStatusService({
-          async checkUserStatus() {
-            return {
-              allowed: true,
-              status: 'active',
-              isExpired: false,
-            };
-          },
-        });
-      }
-    }
-  }
   const app = await createMockServer({
     ...others,
     plugins: [
-      'error-handler',
-      'collection',
-      'user',
       [
         'workflow',
         {
@@ -64,7 +46,6 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
       'workflow-test',
       TestCollectionPlugin,
       ...plugins,
-      TestAuthStatusPlugin,
     ],
   });
 

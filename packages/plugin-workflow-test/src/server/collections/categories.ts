@@ -1,4 +1,4 @@
-import type { CollectionOptions } from '@tego/server';
+import { CollectionOptions } from '@tego/server';
 
 export default {
   name: 'categories',

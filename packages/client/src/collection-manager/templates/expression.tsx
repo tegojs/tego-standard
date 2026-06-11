@@ -62,6 +62,7 @@ export class ExpressionCollectionTemplate extends CollectionTemplate {
     'category',
     'description',
     'tenancy',
+    'legacyDataTenantIds',
     'presetFields',
   );
 }

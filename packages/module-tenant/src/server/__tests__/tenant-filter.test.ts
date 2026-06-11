@@ -27,6 +27,71 @@ describe('applyTenantFilter', () => {
     });
   });
 
+  it('should include legacy records for read actions when the current tenant is allowed', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-a',
+        currentLegacyDataTenantIds: ['tenant-a'],
+      },
+      action: {
+        actionName: 'list',
+        params: {
+          filter: {
+            status: 'published',
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [
+          { status: 'published' },
+          {
+            $or: [{ tenantId: 'tenant-a' }, { tenantId: null }],
+          },
+        ],
+      },
+    });
+  });
+
+  it('should not include legacy records for update actions', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-a',
+        currentLegacyDataTenantIds: ['tenant-a'],
+      },
+      action: {
+        actionName: 'update',
+        params: {
+          filter: {
+            status: 'draft',
+          },
+          values: {
+            title: 'Post',
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [{ status: 'draft' }, { tenantId: 'tenant-a' }],
+      },
+      values: {
+        title: 'Post',
+      },
+    });
+  });
+
   it('should merge tenant filter for export actions', () => {
     const mergeParams = vi.fn();
     const ctx = {

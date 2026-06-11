@@ -79,6 +79,7 @@ export class TreeCollectionTemplate extends CollectionTemplate {
     'category',
     'description',
     'tenancy',
+    'legacyDataTenantIds',
     'presetFields',
   );
 }

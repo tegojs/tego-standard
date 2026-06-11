@@ -64,6 +64,32 @@ export const defaultConfigurableProperties = {
     'x-component': 'Select',
     description: '{{t("Controls whether records are isolated by the current tenant.")}}',
   },
+  legacyDataTenantIds: {
+    title: '{{t("Legacy data visible to tenants")}}',
+    type: 'array',
+    name: 'legacyDataTenantIds',
+    'x-decorator': 'FormItem',
+    'x-component': 'LegacyDataTenantSelect',
+    'x-component-props': {
+      mode: 'multiple',
+    },
+    description: '{{t("Allows selected tenants to read records that do not have a tenant marker.")}}',
+    'x-reactions': {
+      dependencies: ['tenancy'],
+      when: "{{$deps[0] === 'tenantScoped' || $deps[0] === 'tenantInherited'}}",
+      fulfill: {
+        state: {
+          visible: true,
+        },
+      },
+      otherwise: {
+        state: {
+          value: [],
+          visible: false,
+        },
+      },
+    },
+  },
   presetFields: {
     title: '{{t("Preset fields")}}',
     type: 'void',
@@ -86,6 +112,7 @@ export type DefaultConfigurableKeys =
   | 'sortable'
   | 'description'
   | 'tenancy'
+  | 'legacyDataTenantIds'
   | 'presetFields';
 
 export const getConfigurableProperties = (...keys: DefaultConfigurableKeys[]) => {

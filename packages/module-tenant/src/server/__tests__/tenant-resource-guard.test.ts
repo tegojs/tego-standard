@@ -128,6 +128,99 @@ describe('tenant resource guard', () => {
     expect(foreignAfterDestroy).toBeTruthy();
   });
 
+  it('should allow configured tenants to read legacy records without allowing writes', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_guard_legacy_user',
+        email: 'tenant-guard-legacy-user@example.com',
+        phone: '10000000014',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a', 'tenant-b'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_posts',
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a'],
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    await app.db.getRepository('tenant_legacy_posts').create({
+      values: { title: 'A1' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    const legacyRecord = await app.db.getRepository('tenant_legacy_posts').create({
+      values: { title: 'Legacy' },
+    });
+
+    const tenantAAgent = app.agent().login(user);
+    const listResponse = await tenantAAgent.resource('tenant_legacy_posts').list({});
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.data.map((item) => item.title).sort()).toEqual(['A1', 'Legacy']);
+
+    const countResponse = await tenantAAgent.resource('tenant_legacy_posts').count({});
+    expect(countResponse.status).toBe(200);
+    expect(countResponse.body.data).toBe(2);
+
+    const getResponse = await tenantAAgent.resource('tenant_legacy_posts').get({
+      filterByTk: legacyRecord.get('id'),
+    });
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body.data.title).toBe('Legacy');
+
+    await tenantAAgent.resource('tenant_legacy_posts').update({
+      filterByTk: legacyRecord.get('id'),
+      values: {
+        title: 'should-not-update-legacy',
+      },
+    });
+    const legacyAfterUpdate = await app.db.getRepository('tenant_legacy_posts').findOne({
+      filterByTk: legacyRecord.get('id'),
+    });
+    expect(legacyAfterUpdate.get('title')).toBe('Legacy');
+
+    await tenantAAgent.resource('tenant_legacy_posts').destroy({
+      filterByTk: legacyRecord.get('id'),
+    });
+    const legacyAfterDestroy = await app.db.getRepository('tenant_legacy_posts').findOne({
+      filterByTk: legacyRecord.get('id'),
+    });
+    expect(legacyAfterDestroy).toBeTruthy();
+
+    await app
+      .agent()
+      .login(user)
+      .resource('tenants')
+      .switch({
+        values: {
+          tenantId: 'tenant-b',
+        },
+      });
+    const tenantBListResponse = await app.agent().login(user).resource('tenant_legacy_posts').list({});
+    expect(tenantBListResponse.status).toBe(200);
+    expect(tenantBListResponse.body.data).toHaveLength(0);
+  });
+
   it('should add tenantId field when creating tenant-enabled collections', async () => {
     app = await createTenantApp();
 

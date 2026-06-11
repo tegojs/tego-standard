@@ -3,6 +3,7 @@ import { Field, observer, useField, useForm } from '@tachybase/schema';
 
 import { AutoComplete, Select } from 'antd';
 
+import { useAPIClient } from '../../../api-client';
 import { useRecord } from '../../../record-provider';
 import { useCompile } from '../../../schema-component';
 import { useCollectionManager_deprecated } from '../../hooks';
@@ -147,6 +148,57 @@ export const SourceKey = observer(
   },
   { displayName: 'SourceKey' },
 );
+
+export const LegacyDataTenantSelect = observer(
+  (props: any) => {
+    const api = useAPIClient();
+    const field = useField<Field>();
+    const [options, setOptions] = useState([]);
+
+    useEffect(() => {
+      let canceled = false;
+
+      api
+        .resource('tenants')
+        .list({ pageSize: 200 })
+        .then((res) => {
+          if (canceled) {
+            return;
+          }
+
+          const tenants = res?.data?.data || [];
+          setOptions(
+            tenants.map((tenant: any) => ({
+              label: tenant.title || tenant.name || tenant.id,
+              value: tenant.id,
+            })),
+          );
+        })
+        .catch(() => {
+          if (!canceled) {
+            setOptions([]);
+          }
+        });
+
+      return () => {
+        canceled = true;
+      };
+    }, [api]);
+
+    return (
+      <Select
+        {...props}
+        allowClear
+        disabled={field.disabled || props.disabled}
+        mode="multiple"
+        options={options}
+        showSearch
+      />
+    );
+  },
+  { displayName: 'LegacyDataTenantSelect' },
+);
+
 export const TargetKey = observer(
   (props: any) => {
     const { value, disabled } = props;

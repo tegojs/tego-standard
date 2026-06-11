@@ -5,6 +5,9 @@ type TenantFilterContext = {
   action?: Pick<Context['action'], 'actionName' | 'params' | 'mergeParams'>;
 };
 
+const READ_ACTIONS = ['list', 'get', 'count', 'export'];
+const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
+
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {
     return filter;
@@ -34,8 +37,34 @@ function stripTenantFilter(filter: any): any {
   return next;
 }
 
-function appendFilter(original: any, tenantId: string | number) {
-  const tenantFilter = { tenantId };
+function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
+  return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
+}
+
+function buildTenantFilter(tenantId: string | number, includeLegacyData = false) {
+  if (!includeLegacyData) {
+    return { tenantId };
+  }
+
+  return {
+    $or: [{ tenantId }, { tenantId: null }],
+  };
+}
+
+function buildInheritedTenantFilter(tenantIds: Array<string | number>, includeLegacyData = false) {
+  const tenantFilter = { tenantId: { $in: tenantIds } };
+
+  if (!includeLegacyData) {
+    return tenantFilter;
+  }
+
+  return {
+    $or: [tenantFilter, { tenantId: null }],
+  };
+}
+
+function appendFilter(original: any, tenantId: string | number, includeLegacyData = false) {
+  const tenantFilter = buildTenantFilter(tenantId, includeLegacyData);
   const sanitizedOriginal = stripTenantFilter(original);
 
   if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
@@ -47,8 +76,8 @@ function appendFilter(original: any, tenantId: string | number) {
   };
 }
 
-function appendInheritedFilter(original: any, tenantIds: Array<string | number>) {
-  const tenantFilter = { tenantId: { $in: tenantIds } };
+function appendInheritedFilter(original: any, tenantIds: Array<string | number>, includeLegacyData = false) {
+  const tenantFilter = buildInheritedTenantFilter(tenantIds, includeLegacyData);
   const sanitizedOriginal = stripTenantFilter(original);
 
   if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
@@ -99,10 +128,25 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
 
   const { actionName, params } = ctx.action;
   const tenancyMode = ctx.state.currentTenancyMode;
+  const includeLegacyData = canReadLegacyData(tenantId, ctx.state.currentLegacyDataTenantIds);
 
   let tenantParams: Record<string, any> | null = null;
 
-  if (['list', 'get', 'count', 'update', 'destroy', 'export'].includes(actionName)) {
+  if (READ_ACTIONS.includes(actionName)) {
+    if (tenancyMode === 'tenantInherited') {
+      const descendantIds: Array<string | number> = ctx.state.currentTenantDescendantIds || [];
+      const allIds = [tenantId, ...descendantIds];
+      tenantParams = {
+        filter: appendInheritedFilter(params?.filter, allIds, includeLegacyData),
+      };
+    } else {
+      tenantParams = {
+        filter: appendFilter(params?.filter, tenantId, includeLegacyData),
+      };
+    }
+  }
+
+  if (WRITE_FILTER_ACTIONS.includes(actionName)) {
     if (tenancyMode === 'tenantInherited') {
       const descendantIds: Array<string | number> = ctx.state.currentTenantDescendantIds || [];
       const allIds = [tenantId, ...descendantIds];

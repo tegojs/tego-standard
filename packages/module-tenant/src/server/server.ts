@@ -74,6 +74,7 @@ export class PluginTenantServer extends Plugin {
         }
 
         ctx.state.currentTenancyMode = tenancyMode;
+        ctx.state.currentLegacyDataTenantIds = collection.options?.legacyDataTenantIds || [];
         applyTenantFilter(ctx);
       }
 

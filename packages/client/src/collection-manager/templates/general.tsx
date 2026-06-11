@@ -16,6 +16,7 @@ export class GeneralCollectionTemplate extends CollectionTemplate {
     'category',
     'description',
     'tenancy',
+    'legacyDataTenantIds',
     'presetFields',
   );
 }

@@ -7,6 +7,8 @@ import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '.
 
 describe('workflow > triggers > collection', () => {
   let app: MockServer;
+  let cachedApp: MockServer;
+  let cachedAppKey: string;
   let db: MockDatabase;
   let CategoryRepo;
   let PostRepo;
@@ -16,23 +18,63 @@ describe('workflow > triggers > collection', () => {
   let withAnotherDataSource = false;
   let testPlugins = [];
 
-  beforeEach(async () => {
-    app = await getApp({
-      plugins: testPlugins,
-      withAnotherDataSource,
-    });
-
+  function bindRepositories() {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     CategoryRepo = db.getCollection('categories').repository;
     PostRepo = db.getCollection('posts').repository;
     CommentRepo = db.getCollection('comments').repository;
     TagRepo = db.getCollection('tags').repository;
+  }
+
+  async function useAppForCurrentConfig() {
+    const appKey = JSON.stringify({ plugins: testPlugins, withAnotherDataSource });
+
+    if (cachedAppKey !== appKey) {
+      if (cachedApp) {
+        await cachedApp.destroy();
+      }
+
+      cachedApp = await getApp({
+        plugins: testPlugins,
+        withAnotherDataSource,
+      });
+      cachedAppKey = appKey;
+    }
+
+    app = cachedApp;
+    bindRepositories();
+  }
+
+  async function resetAppData() {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await CommentRepo.destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await CategoryRepo.destroy({ filter: {} });
+    await TagRepo.destroy({ filter: {} });
+
+    if (withAnotherDataSource) {
+      // @ts-ignore
+      const anotherDB = app.dataSourceManager.dataSources.get('another').collectionManager.db;
+      await anotherDB.getRepository('posts').destroy({ filter: {} });
+    }
+  }
+
+  beforeEach(async () => {
+    await useAppForCurrentConfig();
+    await resetAppData();
   });
 
   afterEach(async () => {
     await waitForWorkflowIdle(app);
-    await app.destroy();
+  });
+
+  afterAll(async () => {
+    await cachedApp?.destroy();
   });
 
   describe('toggle', () => {

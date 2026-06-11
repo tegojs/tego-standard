@@ -348,7 +348,7 @@ export class Restorer extends AppMigrator {
       }
     });
 
-    if (!this.importedCollections.includes(collectionName)) {
+    if (batch.length > 0) {
       const result = await this.insertMetaRows({
         rows: batch,
         collectionName,
@@ -385,7 +385,9 @@ export class Restorer extends AppMigrator {
       });
     }
 
-    this.importedCollections.push(collectionName);
+    if (!this.importedCollections.includes(collectionName)) {
+      this.importedCollections.push(collectionName);
+    }
   }
 
   async importDb(options: RestoreOptions) {
@@ -436,7 +438,6 @@ export class Restorer extends AppMigrator {
     const db = app.db;
     if (rows.length === 0) {
       app.logger.info(`${collectionName} has no data to import`);
-      this.importedCollections.push(collectionName);
       return;
     }
 
@@ -461,7 +462,6 @@ export class Restorer extends AppMigrator {
 
     if (rowsWithMeta.length === 0) {
       app.logger.info(`${collectionName} has no data to import`);
-      this.importedCollections.push(collectionName);
       return;
     }
 

@@ -28,8 +28,14 @@ describe('ui_schema repository with cache', () => {
 
   beforeEach(async () => {
     await cache.reset();
-    await db.getModel('uiSchemaTreePath').truncate();
-    await db.getModel('uiSchemas').truncate();
+    try {
+      await db.getModel('uiSchemaTreePath').truncate();
+      await db.getModel('uiSchemas').truncate();
+    } catch (error) {
+      throw new Error(
+        `Failed to reset ui schema test tables: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
     schema = {
       type: 'object',

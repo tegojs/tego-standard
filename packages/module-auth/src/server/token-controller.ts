@@ -26,6 +26,7 @@ type TokenControlService = ITokenControlService;
 
 const JTICACHEKEY = 'token-jti';
 const RENEWED_JTI_CACHE_KEY_PREFIX = 'jti-renewed-cache';
+// Keep the historical "cahce" key during the dual-write migration. Remove it after renewed JTI entries have aged out.
 const LEGACY_RENEWED_JTI_CACHE_KEY_PREFIX = 'jti-renewed-cahce';
 
 function getRenewedJtiCacheKey(jti: string) {

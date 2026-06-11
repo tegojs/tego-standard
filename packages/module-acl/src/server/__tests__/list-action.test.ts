@@ -309,27 +309,28 @@ describe('list association action with acl', () => {
 
     const userAgent = app.agent().login(user).set('X-Role', 'listAssociationRole').set('X-With-ACL-Meta', true);
 
-    await userAgent.resource('posts').create({
+    const createResponse = await userAgent.resource('posts').create({
       values: {
         title: 'post1',
         comments: [{ content: 'comment1' }, { content: 'comment2' }],
       },
     });
+    const postId = createResponse.body.data.id;
+    const commentIds = createResponse.body.data.comments.map((comment) => comment.id);
 
     const response = await userAgent.resource('posts').list({});
     expect(response.statusCode).toEqual(200);
 
-    const commentsResponse = await userAgent.resource('posts.comments', 1).list({});
+    const commentsResponse = await userAgent.resource('posts.comments', postId).list({});
     const data = commentsResponse.body;
 
     /**
-     * allowedActions.view == [1]
+     * allowedActions.view == commentIds
      * allowedActions.update = []
      * allowedActions.destroy = []
      */
     expect(data['meta']['allowedActions']).toBeDefined();
-    expect(data['meta']['allowedActions'].view).toContain(1);
-    expect(data['meta']['allowedActions'].view).toContain(2);
+    expect(data['meta']['allowedActions'].view).toEqual(expect.arrayContaining(commentIds));
   });
 
   it('tree list action allowActions', async () => {

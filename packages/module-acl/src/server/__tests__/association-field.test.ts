@@ -224,11 +224,11 @@ describe('association field acl', () => {
   let adminAgent;
   let createRoleWithAssociationAccess: (roleName: string) => Promise<{ user: any; userAgent: any }>;
 
-  afterAll(async () => {
+  afterEach(async () => {
     await app.destroy();
   });
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     const prepared = await prepareAssociationFieldAclApp();
     app = prepared.app;
     db = prepared.db;

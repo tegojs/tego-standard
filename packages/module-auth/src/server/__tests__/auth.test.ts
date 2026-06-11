@@ -32,7 +32,7 @@ describe('auth', () => {
         logger: app.logger,
         headers: {},
         throw: (status, body) => {
-          throw Object.assign(new Error(body?.message || 'Error'), { status, ...body });
+          throw Object.assign(new Error(body?.message || 'Error'), { ...body, status });
         },
         t: (key) => key,
       } as any,

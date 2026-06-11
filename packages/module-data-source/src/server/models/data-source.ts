@@ -43,17 +43,28 @@ const availableActions: {
 };
 
 function getDataSourceManagerPlugin(app: Application): PluginDataSourceManagerServer | undefined {
+  const isDataSourceManagerPlugin = (plugin: unknown): plugin is PluginDataSourceManagerServer => {
+    const candidate = plugin as Record<string, unknown>;
+    return (
+      !!plugin &&
+      typeof plugin === 'object' &&
+      'dataSourceStatus' in candidate &&
+      'dataSourceErrors' in candidate &&
+      typeof candidate.renderJsonTemplate === 'function'
+    );
+  };
+
   const plugin =
     (app.pm.get('data-source-manager') as PluginDataSourceManagerServer) ||
     (app.pm.get('@tachybase/module-data-source') as PluginDataSourceManagerServer);
 
-  if (plugin) {
+  if (isDataSourceManagerPlugin(plugin)) {
     return plugin;
   }
 
   for (const loadedPlugin of app.pm.getPlugins().values()) {
-    if ('dataSourceStatus' in loadedPlugin && 'dataSourceErrors' in loadedPlugin) {
-      return loadedPlugin as PluginDataSourceManagerServer;
+    if (isDataSourceManagerPlugin(loadedPlugin)) {
+      return loadedPlugin;
     }
   }
 }

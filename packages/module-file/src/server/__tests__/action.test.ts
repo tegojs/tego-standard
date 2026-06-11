@@ -40,7 +40,7 @@ describe('action', () => {
         await fs.unlink(attachmentPath);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-          console.error('Failed to remove attachment file', {
+          app.logger.error('Failed to remove attachment file', {
             filename: attachment.filename,
             destPath,
             error,

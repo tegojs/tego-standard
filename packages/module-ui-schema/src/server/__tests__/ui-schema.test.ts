@@ -159,7 +159,7 @@ describe('ui-schema', () => {
       };
 
       try {
-        const result = await uiSchemaRepository.insert(schema);
+        await uiSchemaRepository.insert(schema);
       } finally {
         await app.destroy();
       }

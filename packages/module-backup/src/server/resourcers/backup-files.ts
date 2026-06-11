@@ -214,7 +214,11 @@ export default {
           app.noticeManager.notify('backup', { level: 'error', msg });
         } finally {
           Dumper.dumpTasks.delete(taskId);
-          dumper.cleanLockFile(taskId, ctx.tego.name);
+          try {
+            await dumper.cleanLockFile(taskId, ctx.tego.name);
+          } catch (error) {
+            app.logger.error('clean backup lock file error', error);
+          }
         }
       })();
 

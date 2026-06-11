@@ -21,7 +21,12 @@ async function waitForMaintainingCode(wsClient: WsTestClient, code: string, time
       wsClient.wsc.off('message', handleMessage);
     };
     const handleMessage = (data) => {
-      const message = JSON.parse(data.toString());
+      let message;
+      try {
+        message = JSON.parse(data.toString());
+      } catch (error) {
+        return;
+      }
       if (message?.type === 'maintaining' && message?.payload?.code === code) {
         cleanup();
         resolve(message);

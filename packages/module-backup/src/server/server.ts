@@ -286,6 +286,10 @@ export default class PluginBackupRestoreServer extends Plugin {
       fileName: data.filename,
       userId: data.userId,
     });
-    await Dumper.getTaskPromise(taskId);
+    const taskPromise = Dumper.getTaskPromise(taskId);
+    if (!taskPromise) {
+      throw new Error(`Backup task ${taskId} is not tracked for app ${data.appName}`);
+    }
+    await taskPromise;
   }
 }

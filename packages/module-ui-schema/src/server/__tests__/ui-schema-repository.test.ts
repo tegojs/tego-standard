@@ -102,6 +102,7 @@ describe('ui_schema repository', () => {
   });
 
   it('should be registered', async () => {
+    // The repository can come from a compiled package instance in tests, so avoid cross-instance instanceof checks.
     expect(db.getCollection('uiSchemas').repository).toMatchObject({
       insertSingleNode: expect.any(Function),
       getJsonSchema: expect.any(Function),

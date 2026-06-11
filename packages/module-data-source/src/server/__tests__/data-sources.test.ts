@@ -1,7 +1,13 @@
 import { createMockServer, MockServer, waitSecond } from '@tachybase/test';
 import { CollectionManager, DataSource } from '@tego/server';
 
-async function waitForAssertion(assertion: () => Promise<void> | void, timeout = 5000, interval = 100) {
+import { TEST_ASSERTION_TIMEOUT } from './test-constants';
+
+async function waitForAssertion(
+  assertion: () => Promise<void> | void,
+  timeout = TEST_ASSERTION_TIMEOUT,
+  interval = 100,
+) {
   const startedAt = Date.now();
   let lastError: unknown;
 

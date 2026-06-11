@@ -239,7 +239,11 @@ export class PluginMultiAppManager extends Plugin {
     this.app.on('afterStart', onAfterStart(this.db));
 
     this.app.on('afterUpgrade', async (app, options) => {
-      await this.subAppUpgradeHandler(app);
+      try {
+        await this.subAppUpgradeHandler(app);
+      } catch (error) {
+        this.app.logger.error(error);
+      }
     });
 
     const notifyStatusChange = this.notifyStatusChange.bind(this);

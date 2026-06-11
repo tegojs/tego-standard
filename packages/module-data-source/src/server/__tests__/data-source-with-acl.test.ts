@@ -4,7 +4,13 @@ import { CollectionManager, DataSource, IRepository } from '@tego/server';
 
 import { SuperAgentTest } from 'supertest';
 
-async function waitFor<T>(callback: () => T | Promise<T>, predicate: (value: T) => boolean, timeoutMs = 3000) {
+import { TEST_ASSERTION_TIMEOUT } from './test-constants';
+
+async function waitFor<T>(
+  callback: () => T | Promise<T>,
+  predicate: (value: T) => boolean,
+  timeoutMs = TEST_ASSERTION_TIMEOUT,
+) {
   const startedAt = Date.now();
   let lastValue: T;
 

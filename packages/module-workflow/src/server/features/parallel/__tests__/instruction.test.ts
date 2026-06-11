@@ -1,8 +1,8 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
-import { waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
 import Plugin from '../Plugin';
 
 describe('workflow > instructions > parallel', () => {
@@ -13,7 +13,7 @@ describe('workflow > instructions > parallel', () => {
   let workflow;
   let plugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp({
       plugins: [Plugin],
     });
@@ -22,6 +22,15 @@ describe('workflow > instructions > parallel', () => {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -33,7 +42,12 @@ describe('workflow > instructions > parallel', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('single all', () => {
     it('all resolved', async () => {
@@ -52,8 +66,6 @@ describe('workflow > instructions > parallel', () => {
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-
-      await sleep(500);
 
       await waitForAssertion(async () => {
         const [execution] = await workflow.getExecutions();
@@ -106,8 +118,6 @@ describe('workflow > instructions > parallel', () => {
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-
-      await sleep(500);
 
       await waitForAssertion(async () => {
         const [execution] = await workflow.getExecutions();
@@ -194,8 +204,6 @@ describe('workflow > instructions > parallel', () => {
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-
-      await sleep(500);
 
       await waitForAssertion(async () => {
         const [execution] = await workflow.getExecutions();
@@ -324,8 +332,6 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
       await waitForAssertion(async () => {
         const [execution] = await workflow.getExecutions();
         expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
@@ -389,10 +395,14 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      let e1;
+      await waitForAssertion(async () => {
+        [e1] = await workflow.getExecutions();
+        expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
+        const [pending] = await e1.getJobs({ where: { nodeId: n2.id } });
+        expect(pending).toBeTruthy();
+      });
 
       const [pending] = await e1.getJobs({ where: { nodeId: n2.id } });
       pending.set({
@@ -564,8 +574,6 @@ describe('workflow > instructions > parallel', () => {
       });
       pending.execution = e1;
       await plugin.resume(pending);
-
-      await sleep(500);
 
       await waitForAssertion(async () => {
         const [e2] = await workflow.getExecutions();

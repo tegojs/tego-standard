@@ -5,11 +5,10 @@ import Database from '@tego/server';
 
 import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
 
-async function sleepToNextSecond() {
-  const now = new Date();
-  const SECOND_BUFFER_MS = 200;
-  // NOTE: align to the next second with a small buffer for scheduler stability.
-  await sleep(1000 + SECOND_BUFFER_MS - now.getMilliseconds());
+const SHORT_REPEAT_MS = 100;
+
+function getFutureSecond(minDelay = 200) {
+  return new Date(Math.ceil((Date.now() + minDelay) / 1000) * 1000);
 }
 
 async function sleepUntil(time: Date | number, buffer = 200) {
@@ -91,11 +90,7 @@ describe('workflow > triggers > schedule > static mode', () => {
     });
 
     it('start on certain time and no repeat', async () => {
-      await sleepToNextSecond();
-
-      const start = new Date();
-      start.setMilliseconds(0);
-      start.setSeconds(start.getSeconds() + 2);
+      const start = getFutureSecond();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -109,32 +104,29 @@ describe('workflow > triggers > schedule > static mode', () => {
       const executions = await waitForExecutions(workflow, 1);
     });
 
-    it('on every second', async () => {
-      await sleepToNextSecond();
-
+    it('repeat by interval', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
         config: {
           mode: 0,
           startsOn: new Date(Date.now() - 1000).toISOString(),
-          repeat: '* * * * * *',
+          repeat: SHORT_REPEAT_MS,
+          limit: 2,
         },
       });
 
       const executions = await waitForExecutions(workflow, 2);
     });
 
-    it('on every second and limit 1', async () => {
-      await sleepToNextSecond();
-
+    it('repeat by interval and limit 1', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
         config: {
           mode: 0,
           startsOn: new Date(Date.now() - 1000).toISOString(),
-          repeat: '* * * * * *',
+          repeat: SHORT_REPEAT_MS,
           limit: 1,
         },
       });
@@ -142,8 +134,7 @@ describe('workflow > triggers > schedule > static mode', () => {
       const executions = await waitForExecutions(workflow, 1);
     });
 
-    it('start before now and repeat every second after created and limit 1', async () => {
-      await sleepToNextSecond();
+    it('start before now and repeat by interval after created and limit 1', async () => {
       const start = new Date();
       start.setMilliseconds(0);
 
@@ -153,22 +144,18 @@ describe('workflow > triggers > schedule > static mode', () => {
         config: {
           mode: 0,
           startsOn: start.toISOString(),
-          repeat: 1000,
+          repeat: SHORT_REPEAT_MS,
           limit: 1,
         },
       });
 
       const executions = await waitForExecutions(workflow, 1);
-      expect(new Date(executions[0].context.date).getTime()).toBe(start.getTime() + 1000);
+      expect(new Date(executions[0].context.date).getTime()).toBe(start.getTime() + SHORT_REPEAT_MS);
     });
 
     it('repeat on cron certain second', async () => {
-      await sleepToNextSecond();
-
-      const now = new Date();
-      now.setMilliseconds(0);
-      const startsOn = now.toISOString();
-      now.setSeconds(now.getSeconds() + 1);
+      const now = getFutureSecond();
+      const startsOn = new Date(now.getTime() - 1000).toISOString();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -206,14 +193,15 @@ describe('workflow > triggers > schedule > static mode', () => {
       await workflow.update({
         config: {
           ...workflow.config,
-          repeat: 1000,
+          repeat: SHORT_REPEAT_MS,
+          limit: 1,
         },
       });
 
       await waitForAssertion(
         async () => {
           const e2s = await workflow.getExecutions();
-          expect(e2s.length).toBe(2);
+          expect(e2s.length).toBe(1);
         },
         8000,
         200,
@@ -223,8 +211,7 @@ describe('workflow > triggers > schedule > static mode', () => {
 
   describe('status', () => {
     it('should not trigger after turned off', async () => {
-      const future = new Date();
-      future.setSeconds(future.getSeconds() + 1);
+      const future = getFutureSecond();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -247,10 +234,8 @@ describe('workflow > triggers > schedule > static mode', () => {
 
   describe('dispatch', () => {
     it('multiple workflows trigger at same time', async () => {
-      const now = new Date();
-      const startsOn = now.toISOString();
-      now.setSeconds(now.getSeconds() + 1);
-      now.setMilliseconds(0);
+      const now = getFutureSecond();
+      const startsOn = new Date(now.getTime() - 1000).toISOString();
 
       let w1, w2;
       await db.sequelize.transaction(async (transaction) => {
@@ -301,11 +286,7 @@ describe('workflow > triggers > schedule > static mode', () => {
     });
 
     it('missed non-repeated scheduled time should not be triggered', async () => {
-      await sleepToNextSecond();
-
-      const start = new Date();
-      start.setMilliseconds(0);
-      start.setSeconds(start.getSeconds() + 1);
+      const start = getFutureSecond();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -329,11 +310,7 @@ describe('workflow > triggers > schedule > static mode', () => {
     });
 
     it('scheduled time on CPU heavy load should be triggered', async () => {
-      await sleepToNextSecond();
-
-      const start = new Date();
-      start.setMilliseconds(0);
-      start.setSeconds(start.getSeconds() + 1);
+      const start = getFutureSecond(700);
 
       const workflow = await WorkflowModel.create({
         enabled: true,

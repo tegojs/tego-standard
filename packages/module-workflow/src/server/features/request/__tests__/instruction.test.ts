@@ -12,14 +12,18 @@ import bodyParser from 'koa-bodyparser';
 import { waitForAssertion, waitForWorkflowIdle, waitForWorkflowJob } from '../../../__tests__/utils';
 import { RequestConfig } from '../RequestInstruction';
 
-const HOST = 'localhost';
+const HOST = '127.0.0.1';
 const REQUEST_TIMEOUT_MS = 200;
 const SLOW_RESPONSE_MS = 300;
-const REQUEST_JOB_WAIT_OPTIONS = { timeout: 30000 };
+const REQUEST_JOB_WAIT_OPTIONS = {
+  executionOptions: { order: [['id', 'DESC']] },
+  jobOptions: { order: [['id', 'ASC']] },
+  timeout: 30000,
+};
 
 async function listen(server: Server) {
   return new Promise<number>((resolve) => {
-    server.listen(0, () => {
+    server.listen(0, HOST, () => {
       const address = server.address() as AddressInfo;
       resolve(address.port);
     });
@@ -58,7 +62,9 @@ class MockAPI {
 
     this.app.use(async (ctx, next) => {
       if (ctx.path === '/api/400') {
-        return ctx.throw(400);
+        ctx.status = 400;
+        ctx.body = { error: 'Bad Request' };
+        return;
       }
       if (ctx.path === '/api/timeout') {
         await sleep(SLOW_RESPONSE_MS);
@@ -85,7 +91,7 @@ class MockAPI {
           this.sockets.delete(socket);
         });
       });
-      this.server.listen(0, () => {
+      this.server.listen(0, HOST, () => {
         this.port = (this.server.address() as AddressInfo).port;
         resolve(true);
       });
@@ -398,7 +404,7 @@ describe('workflow > instructions > request', () => {
         const n1 = await workflow.createNode({
           type: 'request',
           config: {
-            url: `http://localhost:${port}/api/categories`,
+            url: `http://${HOST}:${port}/api/categories`,
             method: 'POST',
             headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
           } as RequestConfig,
@@ -410,9 +416,9 @@ describe('workflow > instructions > request', () => {
           const category = await db.getRepository('categories').findOne({});
           expect(category).toBeTruthy();
 
-          const [execution] = await workflow.getExecutions();
+          const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
           expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-          const [job] = await execution.getJobs();
+          const [job] = await execution.getJobs({ order: [['id', 'ASC']] });
           expect(job.status).toBe(JOB_STATUS.RESOLVED);
           expect(job.result.data).toMatchObject({});
         });
@@ -439,11 +445,11 @@ describe('workflow > instructions > request', () => {
       const workflowPlugin = app.pm.get('workflow') as PluginWorkflow;
       const processor = (await workflowPlugin.trigger(syncFlow, { data: { title: 't1' } })) as Processor;
 
-      const [execution] = await syncFlow.getExecutions();
+      const [execution] = await syncFlow.getExecutions({ order: [['id', 'DESC']] });
       expect(processor.execution.id).toEqual(execution.id);
       expect(processor.execution.status).toEqual(execution.status);
       expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
+      const [job] = await execution.getJobs({ order: [['id', 'ASC']] });
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
       expect(job.result).toMatchObject({ meta: {}, data: {} });
     });

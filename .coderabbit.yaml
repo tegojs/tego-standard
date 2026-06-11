@@ -1,0 +1,4 @@
+reviews:
+  path_filters:
+    - "!packages/client"
+    - "!module-workflow"

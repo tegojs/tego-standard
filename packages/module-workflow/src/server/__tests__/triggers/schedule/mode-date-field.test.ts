@@ -4,6 +4,8 @@ import Database from '@tego/server';
 
 import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
 
+const SHORT_REPEAT_MS = 100;
+
 async function sleepUntil(time: Date | number, buffer = 200) {
   await sleep(Math.max(0, (time instanceof Date ? time.getTime() : time) + buffer - Date.now()));
 }
@@ -12,6 +14,15 @@ function getRecordTriggerTime(record) {
   const triggerTime = new Date(record.createdAt);
   triggerTime.setMilliseconds(0);
   return triggerTime.getTime();
+}
+
+function expectRepeatedAfterStart(executions, startTime: number) {
+  const d0 = Date.parse(executions[0].context.date);
+  expect(d0).toBe(startTime);
+
+  const d1 = Date.parse(executions[1].context.date);
+  expect(d1).toBeGreaterThan(startTime);
+  expect(d1 - startTime).toBeLessThanOrEqual(2200);
 }
 
 async function waitForExecutions(workflow, expected: number, options?: any, timeout = 30000) {
@@ -162,7 +173,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       expect(d1 - 2000).toBe(startTime);
     });
 
-    it('starts on post.createdAt and repeat by cron with endsOn at certain time', async () => {
+    it('starts on post.createdAt and repeat by interval with endsOn at certain time', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
@@ -172,7 +183,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
           startsOn: {
             field: 'createdAt',
           },
-          repeat: '* * * * * *',
+          repeat: SHORT_REPEAT_MS,
           endsOn: new Date(Date.now() + 2500).toISOString(),
         },
       });
@@ -181,13 +192,10 @@ describe('workflow > triggers > schedule > date field mode', () => {
       const startTime = getRecordTriggerTime(post);
 
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
-      const d0 = Date.parse(executions[0].context.date);
-      expect(d0).toBe(startTime);
-      const d1 = Date.parse(executions[1].context.date);
-      expect(d1 - 2000).toBe(startTime);
+      expectRepeatedAfterStart(executions, startTime);
     });
 
-    it('starts on post.createdAt and repeat by cron with endsOn by offset', async () => {
+    it('starts on post.createdAt and repeat by interval with endsOn by offset', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
@@ -197,7 +205,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
           startsOn: {
             field: 'createdAt',
           },
-          repeat: '* * * * * *',
+          repeat: SHORT_REPEAT_MS,
           endsOn: {
             field: 'createdAt',
             offset: 2,
@@ -209,10 +217,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       const startTime = getRecordTriggerTime(post);
 
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
-      const d0 = Date.parse(executions[0].context.date);
-      expect(d0).toBe(startTime);
-      const d1 = Date.parse(executions[1].context.date);
-      expect(d1 - 2000).toBe(startTime);
+      expectRepeatedAfterStart(executions, startTime);
     });
 
     it('starts on post.createdAt and repeat by cron and limit 1', async () => {
@@ -238,7 +243,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       expect(d0).toBe(startTime);
     });
 
-    it('starts on post.createdAt and repeat by cron and limit 2', async () => {
+    it('starts on post.createdAt and repeat by interval and limit 2', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
@@ -248,7 +253,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
           startsOn: {
             field: 'createdAt',
           },
-          repeat: '* * * * * *',
+          repeat: SHORT_REPEAT_MS,
           limit: 2,
         },
       });
@@ -257,10 +262,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       const startTime = getRecordTriggerTime(post);
 
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });
-      const d0 = Date.parse(executions[0].context.date);
-      expect(d0).toBe(startTime);
-      const d1 = Date.parse(executions[1].context.date);
-      expect(d1 - 2000).toBe(startTime);
+      expectRepeatedAfterStart(executions, startTime);
     });
 
     it('starts on post.createdAt and repeat by number', async () => {

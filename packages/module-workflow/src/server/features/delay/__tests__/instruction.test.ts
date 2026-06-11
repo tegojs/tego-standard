@@ -2,7 +2,9 @@ import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
-import { waitForWorkflowJob } from '../../../__tests__/utils';
+import { waitForWorkflowIdle, waitForWorkflowJobFast as waitForWorkflowJob } from '../../../__tests__/utils';
+
+const DELAY_MS = 1500;
 
 describe('workflow > instructions > delay', () => {
   let app: Application;
@@ -12,7 +14,7 @@ describe('workflow > instructions > delay', () => {
   let workflow;
   let plugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp({
       plugins: ['workflow-delay'],
     });
@@ -21,6 +23,15 @@ describe('workflow > instructions > delay', () => {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -32,14 +43,19 @@ describe('workflow > instructions > delay', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('runtime', () => {
     it('delay to resolved', async () => {
       const n1 = await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.RESOLVED,
         },
       });
@@ -61,7 +77,7 @@ describe('workflow > instructions > delay', () => {
       const n1 = await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.FAILED,
         },
       });
@@ -83,7 +99,7 @@ describe('workflow > instructions > delay', () => {
       const n1 = await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.RESOLVED,
         },
       });
@@ -123,7 +139,7 @@ describe('workflow > instructions > delay', () => {
       await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.RESOLVED,
         },
       });
@@ -138,7 +154,7 @@ describe('workflow > instructions > delay', () => {
       });
 
       await app.stop();
-      await sleep(500);
+      await sleep(100);
 
       await app.start();
       await waitForWorkflowJob(workflow, (execution, [job]) => {
@@ -156,7 +172,7 @@ describe('workflow > instructions > delay', () => {
       });
 
       await app.stop();
-      await sleep(2000);
+      await sleep(DELAY_MS + 100);
 
       await app.start();
       await waitForWorkflowJob(workflow, (execution, [job]) => {

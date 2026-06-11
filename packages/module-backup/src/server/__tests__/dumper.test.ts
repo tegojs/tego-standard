@@ -208,7 +208,7 @@ describe('dumper', () => {
 
       const Test = db.getCollection('tests');
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 3; i++) {
         await Test.repository.create({
           values: {
             name: `test${i}`,

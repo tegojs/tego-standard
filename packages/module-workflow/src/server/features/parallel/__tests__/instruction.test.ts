@@ -400,9 +400,14 @@ describe('workflow > instructions > parallel', () => {
         [e1] = await workflow.getExecutions();
         expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
 
-        const [pending] = await e1.getJobs({ where: { nodeId: n2.id } });
+        const jobs = await e1.getJobs();
+        const parallelJob = jobs.find((item) => item.nodeId === n1.id);
+        expect(parallelJob?.result?.[1]).toBe(JOB_STATUS.RESOLVED);
+
+        const pending = jobs.find((item) => item.nodeId === n2.id);
         expect(pending).toBeTruthy();
       });
+      await waitForWorkflowIdle(app);
 
       const [pending] = await e1.getJobs({ where: { nodeId: n2.id } });
       pending.set({
@@ -410,7 +415,7 @@ describe('workflow > instructions > parallel', () => {
         result: 123,
       });
       pending.execution = e1;
-      plugin.resume(pending);
+      await plugin.resume(pending);
 
       await waitForAssertion(async () => {
         const [execution] = await workflow.getExecutions();
@@ -496,25 +501,27 @@ describe('workflow > instructions > parallel', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 
       let execution;
-      let pending;
       await waitForAssertion(async () => {
         [execution] = await workflow.getExecutions();
         expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
 
-        const pendingJobs = await execution.getJobs();
-        expect(pendingJobs.length).toBe(4);
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toBe(4);
 
-        pending = pendingJobs.find((item) => item.nodeId === n3.id);
-        expect(pending).toBeTruthy();
+        const parallelJob = jobs.find((item) => item.nodeId === n2.id);
+        expect(parallelJob?.result?.[1]).toBe(JOB_STATUS.RESOLVED);
+
+        expect(jobs.find((item) => item.nodeId === n3.id)).toBeTruthy();
       });
+      await waitForWorkflowIdle(app);
 
+      const [pending] = await execution.getJobs({ where: { nodeId: n3.id } });
       pending.set({
         status: JOB_STATUS.RESOLVED,
         result: 123,
       });
       pending.execution = execution;
       await plugin.resume(pending);
-      await waitForWorkflowIdle(app, { timeout: 30000 });
 
       await waitForAssertion(async () => {
         const [latestExecution] = await workflow.getExecutions();
@@ -557,15 +564,21 @@ describe('workflow > instructions > parallel', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 
       let e1;
-      let pendingJobs;
       await waitForAssertion(async () => {
         [e1] = await workflow.getExecutions();
         expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
 
-        pendingJobs = await e1.getJobs();
+        const pendingJobs = await e1.getJobs();
         expect(pendingJobs.length).toBe(4);
-      });
 
+        const parallelJob = pendingJobs.find((item) => item.nodeId === n1.id);
+        expect(parallelJob?.result?.[1]).toBe(JOB_STATUS.RESOLVED);
+
+        expect(pendingJobs.find((item) => item.nodeId === n2.id)).toBeTruthy();
+      });
+      await waitForWorkflowIdle(app);
+
+      const pendingJobs = await e1.getJobs();
       const pending = pendingJobs.find((item) => item.nodeId === n2.id);
       expect(pending).toBeTruthy();
       pending.set({

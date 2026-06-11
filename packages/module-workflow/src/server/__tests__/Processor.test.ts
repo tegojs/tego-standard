@@ -1,9 +1,9 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
-import { waitForAssertion } from './utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from './utils';
 
 describe('workflow > Processor', () => {
   let app: MockServer;
@@ -13,13 +13,22 @@ describe('workflow > Processor', () => {
   let workflow;
   let plugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
     plugin = app.pm.get('workflow');
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -31,7 +40,12 @@ describe('workflow > Processor', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('base', () => {
     it('empty workflow without any nodes', async () => {

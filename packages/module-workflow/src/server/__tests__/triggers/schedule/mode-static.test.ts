@@ -154,8 +154,8 @@ describe('workflow > triggers > schedule > static mode', () => {
     });
 
     it('repeat on cron certain second', async () => {
-      const now = getFutureSecond();
-      const startsOn = new Date(now.getTime() - 1000).toISOString();
+      const now = getFutureSecond(800);
+      const startsOn = new Date(now.getTime() - 2000).toISOString();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -234,8 +234,8 @@ describe('workflow > triggers > schedule > static mode', () => {
 
   describe('dispatch', () => {
     it('multiple workflows trigger at same time', async () => {
-      const now = getFutureSecond();
-      const startsOn = new Date(now.getTime() - 1000).toISOString();
+      const now = getFutureSecond(800);
+      const startsOn = new Date(now.getTime() - 2000).toISOString();
 
       let w1, w2;
       await db.sequelize.transaction(async (transaction) => {

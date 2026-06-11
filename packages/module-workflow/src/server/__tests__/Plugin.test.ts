@@ -4,7 +4,7 @@ import Database from '@tego/server';
 
 import Plugin from '..';
 import { EXECUTION_STATUS } from '../constants';
-import { waitForAssertion, waitForWorkflowIdle } from './utils';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from './utils';
 
 describe('workflow > Plugin', () => {
   let app: MockServer;
@@ -13,18 +13,32 @@ describe('workflow > Plugin', () => {
   let WorkflowModel;
   let plugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
     plugin = app.pm.get('workflow') as any;
+  });
+
+  beforeEach(async () => {
     if (plugin) {
       plugin.ready = true;
     }
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('create', () => {
     it('create with enabled', async () => {
@@ -435,12 +449,13 @@ describe('workflow > Plugin', () => {
         },
       });
       const destroyedExecutions: Array<{ status: number; workflowId: number }> = [];
-      db.on('executions.beforeDestroy', (execution) => {
+      const listener = (execution) => {
         destroyedExecutions.push({
           status: execution.status,
           workflowId: execution.workflowId,
         });
-      });
+      };
+      db.on('executions.beforeDestroy', listener);
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
@@ -452,6 +467,7 @@ describe('workflow > Plugin', () => {
         const executions = await w1.getExecutions();
         expect(executions.length).toBe(0);
       });
+      db.off('executions.beforeDestroy', listener);
     });
 
     it('configured error status should be deleted', async () => {
@@ -471,12 +487,13 @@ describe('workflow > Plugin', () => {
         type: 'error',
       });
       const destroyedExecutions: Array<{ status: number; workflowId: number }> = [];
-      db.on('executions.beforeDestroy', (execution) => {
+      const listener = (execution) => {
         destroyedExecutions.push({
           status: execution.status,
           workflowId: execution.workflowId,
         });
-      });
+      };
+      db.on('executions.beforeDestroy', listener);
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
@@ -488,6 +505,7 @@ describe('workflow > Plugin', () => {
         const executions = await w1.getExecutions();
         expect(executions.length).toBe(0);
       });
+      db.off('executions.beforeDestroy', listener);
     });
   });
 

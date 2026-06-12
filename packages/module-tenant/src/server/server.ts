@@ -152,14 +152,18 @@ export class PluginTenantServer extends Plugin {
 
     this.db.on('tenants.beforeUpdate', async (model, options) => {
       const transaction = options?.transaction;
-      const newParentId = model.get('parentId');
+      const rawParentId = model.get('parentId');
 
-      if (newParentId === undefined) {
+      if (rawParentId === undefined) {
         return;
       }
 
+      const newParentId = rawParentId || null;
       const tenantId = model.get('id') as string;
       const repo = this.db.getRepository('tenants');
+      let parentPath: string | null = null;
+
+      model.set('parentId', newParentId);
 
       if (newParentId) {
         if (await wouldCreateCycle(repo, tenantId, newParentId)) {
@@ -175,34 +179,39 @@ export class PluginTenantServer extends Plugin {
           throw new Error(`Parent tenant "${newParentId}" not found`);
         }
 
-        const tenant = await repo.findOne({
-          filter: { id: tenantId },
+        if (!newParent.get('enabled')) {
+          throw new Error(`Parent tenant "${newParentId}" is disabled`);
+        }
+
+        parentPath = newParent.get('path') as string;
+      }
+
+      const tenant = await repo.findOne({
+        filter: { id: tenantId },
+        transaction,
+      });
+
+      if (tenant) {
+        const oldPath = tenant.get('path') as string;
+        const newPath = buildPath(parentPath, tenantId);
+
+        const descendants = await repo.find({
+          filter: {
+            path: { $like: `${oldPath}%` },
+            'id.$ne': tenantId,
+          },
           transaction,
         });
 
-        if (tenant) {
-          const oldPath = tenant.get('path') as string;
-          const newPath = buildPath(newParent.get('path') as string, tenantId);
-
-          // Update all descendant paths in the subtree
-          const descendants = await repo.find({
-            filter: {
-              path: { $like: `${oldPath}%` },
-              'id.$ne': tenantId,
-            },
+        model.set('path', newPath);
+        for (const desc of descendants) {
+          const descPath = desc.get('path') as string;
+          const updatedPath = descPath.replace(oldPath, newPath);
+          desc.set('path', updatedPath);
+          await desc.save({
+            hooks: false,
             transaction,
           });
-
-          model.set('path', newPath);
-          for (const desc of descendants) {
-            const descPath = desc.get('path') as string;
-            const updatedPath = descPath.replace(oldPath, newPath);
-            desc.set('path', updatedPath);
-            await desc.save({
-              hooks: false,
-              transaction,
-            });
-          }
         }
       }
     });

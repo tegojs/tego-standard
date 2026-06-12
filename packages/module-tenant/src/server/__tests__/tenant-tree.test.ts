@@ -130,6 +130,25 @@ describe('tenant tree structure', () => {
     ).rejects.toThrow(/cycle/i);
   });
 
+  it('should reject moving a tenant under a disabled parent', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'enabled-parent', name: 'enabled-parent', title: 'Enabled Parent' },
+        { id: 'disabled-parent', name: 'disabled-parent', title: 'Disabled Parent', enabled: false },
+        { id: 'child', name: 'child', title: 'Child', parentId: 'enabled-parent' },
+      ],
+    });
+
+    await expect(
+      app.db.getRepository('tenants').update({
+        filterByTk: 'child',
+        values: { parentId: 'disabled-parent' },
+      }),
+    ).rejects.toThrow(/disabled/);
+  });
+
   it('should update child paths when parent path changes (move subtree)', async () => {
     app = await createTenantApp();
 
@@ -157,6 +176,32 @@ describe('tenant tree structure', () => {
 
     expect(sub.get('path')).toBe('/root-b/sub/');
     expect(deep.get('path')).toBe('/root-b/sub/deep/');
+  });
+
+  it('should update child paths when moving a subtree to root', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: { id: 'root-a', name: 'root-a', title: 'Root A' },
+    });
+    await app.db.getRepository('tenants').create({
+      values: { id: 'sub', name: 'sub', title: 'Sub', parentId: 'root-a' },
+    });
+    await app.db.getRepository('tenants').create({
+      values: { id: 'deep', name: 'deep', title: 'Deep', parentId: 'sub' },
+    });
+
+    await app.db.getRepository('tenants').update({
+      filterByTk: 'sub',
+      values: { parentId: null },
+    });
+
+    const sub = await app.db.getRepository('tenants').findOne({ filter: { id: 'sub' } });
+    const deep = await app.db.getRepository('tenants').findOne({ filter: { id: 'deep' } });
+
+    expect(sub.get('parentId')).toBeNull();
+    expect(sub.get('path')).toBe('/sub/');
+    expect(deep.get('path')).toBe('/sub/deep/');
   });
 
   describe('data isolation with tenantInherited mode', () => {

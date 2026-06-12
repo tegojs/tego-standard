@@ -10,16 +10,17 @@ describe('workflow > instructions > create', () => {
   let ReplyRepo;
   let WorkflowModel;
   let workflow;
-  let withAnotherDataSource = false;
 
-  beforeEach(async () => {
+  async function setupApp(withAnotherDataSource = false) {
     app = await getApp({ withAnotherDataSource });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
     ReplyRepo = db.getCollection('replies').repository;
+  }
 
+  async function setupWorkflow() {
     workflow = await WorkflowModel.create({
       title: 'test workflow',
       enabled: true,
@@ -29,9 +30,11 @@ describe('workflow > instructions > create', () => {
         collection: 'posts',
       },
     });
-  });
+  }
 
-  afterEach(() => app.destroy());
+  async function disableWorkflows() {
+    await WorkflowModel.update({ enabled: false }, { where: {} });
+  }
 
   async function waitForLatestJob(assertion) {
     await waitForAssertion(async () => {
@@ -46,6 +49,11 @@ describe('workflow > instructions > create', () => {
   }
 
   describe('create one', () => {
+    beforeAll(() => setupApp());
+    beforeEach(setupWorkflow);
+    afterEach(disableWorkflows);
+    afterAll(() => app.destroy());
+
     it('params: from context', async () => {
       const n1 = await workflow.createNode({
         type: 'create',
@@ -134,12 +142,10 @@ describe('workflow > instructions > create', () => {
   });
 
   describe('multiple data source', () => {
-    beforeAll(() => {
-      withAnotherDataSource = true;
-    });
-    afterAll(() => {
-      withAnotherDataSource = false;
-    });
+    beforeAll(() => setupApp(true));
+    beforeEach(setupWorkflow);
+    afterEach(disableWorkflows);
+    afterAll(() => app.destroy());
 
     it('create one', async () => {
       const n1 = await workflow.createNode({

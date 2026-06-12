@@ -48,14 +48,23 @@ function createDeferred() {
 
 describe('data source', async () => {
   let app: MockServer;
+  let useSharedApp = false;
 
   beforeEach(async () => {
+    if (useSharedApp) {
+      return;
+    }
+
     app = await createMockServer({
       plugins: ['collection-manager', 'error-handler', 'data-source-manager'],
     });
   });
 
   afterEach(async () => {
+    if (useSharedApp) {
+      return;
+    }
+
     await app.destroy();
   });
 
@@ -412,7 +421,12 @@ describe('data source', async () => {
   class MockCollectionManager extends CollectionManager {}
 
   describe('data source collections', () => {
-    beforeEach(async () => {
+    beforeAll(async () => {
+      useSharedApp = true;
+      app = await createMockServer({
+        plugins: ['collection-manager', 'error-handler', 'data-source-manager'],
+      });
+
       class MockDataSource extends DataSource {
         async load(): Promise<void> {
           this.collectionManager.defineCollection({
@@ -461,6 +475,11 @@ describe('data source', async () => {
       await waitForAssertion(() => {
         expect(app.dataSourceManager.dataSources.get('mockInstance1')).toBeDefined();
       });
+    });
+
+    afterAll(async () => {
+      await app.destroy();
+      useSharedApp = false;
     });
 
     it('should get data source collections', async () => {

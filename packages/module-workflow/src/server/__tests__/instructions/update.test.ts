@@ -12,15 +12,16 @@ describe('workflow > instructions > update', () => {
   let PostRepo;
   let WorkflowModel;
   let workflow: WorkflowModelType;
-  let withAnotherDataSource = false;
 
-  beforeEach(async () => {
+  async function setupApp(withAnotherDataSource = false) {
     app = await getApp({ withAnotherDataSource });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  }
 
+  async function setupWorkflow() {
     workflow = await WorkflowModel.create({
       enabled: true,
       type: 'collection',
@@ -29,11 +30,18 @@ describe('workflow > instructions > update', () => {
         collection: 'posts',
       },
     });
-  });
+  }
 
-  afterEach(() => app.destroy());
+  async function disableWorkflows() {
+    await WorkflowModel.update({ enabled: false }, { where: {} });
+  }
 
   describe('update one', () => {
+    beforeAll(() => setupApp());
+    beforeEach(setupWorkflow);
+    afterEach(disableWorkflows);
+    afterAll(() => app.destroy());
+
     it('params: from context', async () => {
       const n1 = await workflow.createNode({
         type: 'update',
@@ -110,6 +118,13 @@ describe('workflow > instructions > update', () => {
   });
 
   describe('update batch', () => {
+    beforeEach(() => setupApp());
+    beforeEach(setupWorkflow);
+    afterEach(async () => {
+      await disableWorkflows();
+      await app.destroy();
+    });
+
     it('individualHooks off should not trigger other workflow', async () => {
       const w2 = await WorkflowModel.create({
         enabled: true,
@@ -196,12 +211,10 @@ describe('workflow > instructions > update', () => {
   });
 
   describe('multiple data source', () => {
-    beforeAll(() => {
-      withAnotherDataSource = true;
-    });
-    afterAll(() => {
-      withAnotherDataSource = false;
-    });
+    beforeAll(() => setupApp(true));
+    beforeEach(setupWorkflow);
+    afterEach(disableWorkflows);
+    afterAll(() => app.destroy());
 
     it('update one', async () => {
       const AnotherPostRepo = app.dataSourceManager.dataSources.get('another').collectionManager.getRepository('posts');

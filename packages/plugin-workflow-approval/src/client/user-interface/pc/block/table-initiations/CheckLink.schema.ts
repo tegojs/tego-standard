@@ -63,7 +63,7 @@ export const getSchemaCreateActionLaunch = (params) => {
         properties: {
           voucherType: {
             type: 'number',
-            title: tval('凭证类型'),
+            title: tval('Receipt category'),
             required: true,
             'x-decorator': 'FormItem',
             'x-component': 'RemoteSelect',
@@ -81,7 +81,7 @@ export const getSchemaCreateActionLaunch = (params) => {
               style: {
                 width: '100%',
               },
-              placeholder: tval('请选择凭证类型'),
+              placeholder: tval('Please select the receipt category'),
             },
           },
           footer: {

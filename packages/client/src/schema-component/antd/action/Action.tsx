@@ -6,7 +6,6 @@ import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { useNavigate as _useNavigate } from 'react-router-dom';
 
 import { useApp } from '../../../application';
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
@@ -19,6 +18,7 @@ import { useLocalVariables, useVariables } from '../../../variables';
 import { SortableItem } from '../../common';
 import { useCompile, useComponent, useDesigner } from '../../hooks';
 import { useDesignable } from '../../hooks/useDesignable';
+import { useOptionalNavigate } from '../../hooks/useOptionalNavigate';
 import { useProps } from '../../hooks/useProps';
 import { StablePopover } from '../popover/Popover';
 import { ActionArea } from './Action.Area';
@@ -35,14 +35,6 @@ import { useCompiledAction } from './hooks/useCompiledAction';
 import { useGetAriaLabelOfAction } from './hooks/useGetAriaLabelOfAction';
 import { ComposedAction } from './types';
 import { linkageAction } from './utils';
-
-function useNavigate() {
-  try {
-    return _useNavigate();
-  } catch {
-    return () => {};
-  }
-}
 
 export const Action: ComposedAction = withDynamicSchemaProps(
   observer((props: any) => {
@@ -67,7 +59,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
       ...others
     } = useProps(props); // 新版 UISchema（1.0 之后）中已经废弃了 useProps，这里之所以继续保留是为了兼容旧版的 UISchema
     const aclCtx = useACLActionParamsContext();
-    const navigate = useNavigate();
+    const navigate = useOptionalNavigate();
     const { wrapSSR, componentCls, hashId } = useStyles();
     const { t } = useTranslation();
     const [visible, setVisible] = useState(false);

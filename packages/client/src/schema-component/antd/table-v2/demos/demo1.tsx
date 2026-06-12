@@ -211,10 +211,10 @@ const Root = () => {
     <APIClientProvider apiClient={apiClient}>
       <SchemaComponentProvider>
         <ExtendCollectionsProvider collections={collections.data as any}>
-<BlockSchemaComponentProvider>
-              <SchemaComponent schema={schema} scope={{ useCreateAction }} />
-            </BlockSchemaComponentProvider>
-</ExtendCollectionsProvider>
+          <BlockSchemaComponentProvider>
+            <SchemaComponent schema={schema} scope={{ useCreateAction }} />
+          </BlockSchemaComponentProvider>
+        </ExtendCollectionsProvider>
       </SchemaComponentProvider>
     </APIClientProvider>
   );

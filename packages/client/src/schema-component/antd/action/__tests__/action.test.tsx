@@ -7,8 +7,14 @@ import App3 from '../demos/demo3';
 import App4 from '../demos/demo4';
 
 // In jsdom, CSS transitions/animations never fire completion events, so antd Drawer/Modal
-// animations never complete and cleanup DOM never runs. We verify open state and click
-// interactions instead of checking DOM removal after close.
+// animations never complete and cleanup DOM may not run. Assert the open state instead
+// of requiring the animated wrapper to be removed from the DOM.
+
+async function expectDrawerClosed() {
+  await waitFor(() => {
+    expect(document.querySelector('.ant-drawer-open')).not.toBeInTheDocument();
+  });
+}
 
 describe('Action', () => {
   it('show the drawer when click the button', async () => {
@@ -22,8 +28,15 @@ describe('Action', () => {
     expect(getByText('Drawer Title')).toBeInTheDocument();
     expect(getByText('Hello')).toBeInTheDocument();
 
-    // close button triggers setVisible(false) - verify click doesn't throw
     fireEvent.click(getByText('Close'));
+    await expectDrawerClosed();
+
+    fireEvent.click(getByText('Open'));
+    await waitFor(() => {
+      expect(document.querySelector('.ant-drawer-open')).toBeInTheDocument();
+    });
+    fireEvent.click(document.querySelector('.ant-drawer-mask') as HTMLElement);
+    await expectDrawerClosed();
   });
 
   it('openMode', async () => {
@@ -39,6 +52,7 @@ describe('Action', () => {
     });
 
     fireEvent.click(getByText('Close'));
+    await expectDrawerClosed();
 
     // modal mode
     fireEvent.click(getByText('Modal'));
@@ -48,6 +62,9 @@ describe('Action', () => {
     });
 
     fireEvent.click(getByText('Close'));
+    await waitFor(() => {
+      expect(document.querySelector('.ant-modal')).not.toBeInTheDocument();
+    });
 
     // page mode
     fireEvent.click(getByText('Page'));
@@ -55,7 +72,6 @@ describe('Action', () => {
     await waitFor(() => {
       expect(document.querySelector('.tb-action-page')).toBeInTheDocument();
     });
-    fireEvent.click(getByText('Close'));
   });
 });
 
@@ -71,8 +87,15 @@ describe('Action.Drawer without Action', () => {
       expect(getByText('Hello')).toBeInTheDocument();
     });
 
-    // close button triggers setVisible(false) - verify click doesn't throw
     fireEvent.click(getByText('Close'));
+    await expectDrawerClosed();
+
+    fireEvent.click(getByText('Open'));
+    await waitFor(() => {
+      expect(document.querySelector('.ant-drawer-open')).toBeInTheDocument();
+    });
+    fireEvent.click(document.querySelector('.ant-drawer-mask') as HTMLElement);
+    await expectDrawerClosed();
   });
 });
 

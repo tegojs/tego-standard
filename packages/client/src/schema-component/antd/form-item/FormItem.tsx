@@ -7,10 +7,13 @@ import cx from 'classnames';
 
 import { useApp } from '../../../application/hooks/useApp';
 import { useFormActiveFields } from '../../../block-provider/hooks/useFormActiveFields';
+import { ACLCollectionFieldProvider } from '../../../built-in/acl/ACLCollectionFieldProvider';
 import { Collection_deprecated } from '../../../collection-manager/hooks/useCollection_deprecated';
+import { CollectionFieldProvider } from '../../../data-source/collection-field/CollectionFieldProvider';
 import { useContextConfigSetting } from '../../../data-source/data-block/context/ConfigSetting.provider';
 import useContextVariable from '../../../variables/hooks/useContextVariable';
 import useVariables from '../../../variables/hooks/useVariables';
+import { BlockItem } from '../block-item/BlockItem';
 import { HTMLEncode } from '../input/shared';
 import useLazyLoadDisplayAssociationFieldsOfForm from './hooks/useLazyLoadDisplayAssociationFieldsOfForm';
 import useParseDefaultValue from './hooks/useParseDefaultValue';
@@ -89,10 +92,6 @@ export const FormItem = (props: any) => {
   }, [showTitle]);
 
   const item = <Item className={className} {...props} extra={extra} />;
-
-  const { CollectionFieldProvider } = require('../../../data-source/collection-field/CollectionFieldProvider');
-  const { BlockItem } = require('../block-item/BlockItem');
-  const { ACLCollectionFieldProvider } = require('../../../built-in/acl/ACLCollectionFieldProvider');
 
   return (
     <CollectionFieldProvider allowNull={true}>

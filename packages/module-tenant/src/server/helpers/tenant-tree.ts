@@ -15,10 +15,7 @@ export function buildPath(parentPath: string | null | undefined, id: string): st
   return path;
 }
 
-/**
- * Get all descendant tenant IDs for a given tenant using the materialized path.
- */
-export async function getDescendantIds(repo: Repository, tenantId: string): Promise<string[]> {
+async function getDescendantFilter(repo: Repository, tenantId: string) {
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['path'],
@@ -26,17 +23,43 @@ export async function getDescendantIds(repo: Repository, tenantId: string): Prom
 
   const path = tenant?.get('path') as string;
   if (!path) {
+    return null;
+  }
+
+  return {
+    path: { $like: `${path}%` },
+    'id.$ne': tenantId,
+  };
+}
+
+/**
+ * Get all descendant tenant IDs for a given tenant using the materialized path.
+ */
+export async function getDescendantIds(repo: Repository, tenantId: string): Promise<string[]> {
+  const filter = await getDescendantFilter(repo, tenantId);
+  if (!filter) {
     return [];
   }
 
   const descendants = await repo.find({
-    filter: {
-      path: { $like: `${path}%` },
-      'id.$ne': tenantId,
-    },
+    filter,
     fields: ['id'],
   });
   return descendants.map((t: any) => t.get('id'));
+}
+
+/**
+ * Get all descendant tenant records for a given tenant using the materialized path.
+ */
+export async function getDescendantTenants(repo: Repository, tenantId: string): Promise<any[]> {
+  const filter = await getDescendantFilter(repo, tenantId);
+  if (!filter) {
+    return [];
+  }
+
+  return repo.find({
+    filter,
+  });
 }
 
 /**

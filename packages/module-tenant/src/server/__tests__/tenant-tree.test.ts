@@ -1,6 +1,6 @@
 import type { MockServer } from '@tachybase/test';
 
-import { getDescendantIds } from '../helpers/tenant-tree';
+import { getDescendantIds, getDescendantTenants } from '../helpers/tenant-tree';
 import { createTenantApp } from './utils';
 
 describe('tenant tree structure', () => {
@@ -95,6 +95,29 @@ describe('tenant tree structure', () => {
     expect(ids).toEqual(['branch-a', 'branch-b', 'dept-x']);
     expect(ids).not.toContain('hq');
     expect(ids).not.toContain('other');
+  });
+
+  it('should find descendant tenant records using path LIKE query', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'hq', name: 'hq', title: 'HQ' },
+        { id: 'branch-a', name: 'branch-a', title: 'Branch A', parentId: 'hq' },
+        { id: 'branch-b', name: 'branch-b', title: 'Branch B', parentId: 'hq' },
+        { id: 'dept-x', name: 'dept-x', title: 'Dept X', parentId: 'branch-a' },
+        { id: 'other', name: 'other', title: 'Other' },
+      ],
+    });
+
+    const tenants = await getDescendantTenants(app.db.getRepository('tenants'), 'hq');
+    const ids = tenants.map((tenant: any) => tenant.get('id')).sort();
+    const titles = tenants.map((tenant: any) => tenant.get('title'));
+
+    expect(ids).toEqual(['branch-a', 'branch-b', 'dept-x']);
+    expect(titles).toContain('Branch A');
+    expect(titles).not.toContain('HQ');
+    expect(titles).not.toContain('Other');
   });
 
   it('should reject deleting a tenant that has children', async () => {

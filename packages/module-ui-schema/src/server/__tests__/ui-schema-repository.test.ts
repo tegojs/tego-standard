@@ -86,11 +86,7 @@ describe('ui_schema repository', () => {
 
   let treePathCollection: Collection;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       plugins: ['ui-schema-storage'],
@@ -99,6 +95,22 @@ describe('ui_schema repository', () => {
     db = app.db;
     repository = db.getCollection('uiSchemas').repository as UiSchemaRepository;
     treePathCollection = db.getCollection('uiSchemaTreePath');
+  });
+
+  afterAll(async () => {
+    await app.destroy();
+  });
+
+  beforeEach(async () => {
+    try {
+      await db.getModel('uiSchemaTreePath').truncate();
+      await db.getModel('uiSchemas').truncate();
+    } catch (error) {
+      throw new Error(
+        `Failed to reset ui schema test tables: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
   });
 
   it('should be registered', async () => {

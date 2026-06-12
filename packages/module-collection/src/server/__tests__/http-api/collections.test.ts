@@ -69,14 +69,62 @@ async function preparePostRelations(agent) {
 describe('collections repository', () => {
   let app: MockServer;
   let agent;
+  let associationApp: MockServer | undefined;
+  let shouldDestroyApp = false;
+  const associationResourceTests = new Set(Array.from({ length: 13 }, (_, index) => `case ${index + 1}`));
 
-  beforeEach(async () => {
+  async function resetPostRelationsData() {
+    const throughModels = [
+      (app.db.getCollection('posts').model.associations.tags as any)?.through?.model,
+      (app.db.getCollection('tags').model.associations.foos as any)?.through?.model,
+    ].filter(Boolean);
+
+    for (const model of throughModels) {
+      await model.destroy({ where: {}, truncate: true, force: true });
+    }
+
+    for (const collectionName of ['comments', 'posts', 'tags', 'foos']) {
+      await app.db.getCollection(collectionName).repository.destroy({
+        truncate: true,
+      });
+    }
+  }
+
+  beforeEach(async (context: any) => {
+    shouldDestroyApp = false;
+
+    if (associationResourceTests.has(context.task.name)) {
+      if (!associationApp) {
+        associationApp = await createApp();
+        app = associationApp;
+        agent = app.agent();
+        await preparePostRelations(agent);
+        return;
+      }
+
+      app = associationApp;
+      agent = app.agent();
+      return;
+    }
+
     app = await createApp();
     agent = app.agent();
+    shouldDestroyApp = true;
   });
 
-  afterEach(async () => {
-    await app.destroy();
+  afterEach(async (context: any) => {
+    if (associationResourceTests.has(context.task.name)) {
+      await resetPostRelationsData();
+      return;
+    }
+
+    if (shouldDestroyApp) {
+      await app.destroy();
+    }
+  });
+
+  afterAll(async () => {
+    await associationApp?.destroy();
   });
 
   it('should skip sync when create empty collection', async () => {
@@ -119,8 +167,9 @@ describe('collections repository', () => {
   });
 
   describe('association resources', () => {
-    beforeEach(async () => {
-      await preparePostRelations(agent);
+    afterAll(async () => {
+      await associationApp?.destroy();
+      associationApp = undefined;
     });
 
     it('case 1', async () => {
@@ -148,7 +197,7 @@ describe('collections repository', () => {
           'comments.title': 'comment 1',
         },
       });
-      expect(response2.body.data[0].id).toBe(1);
+      expect(response2.body.data[0].id).toBe(postId);
     });
 
     it('case 3', async () => {
@@ -184,7 +233,7 @@ describe('collections repository', () => {
           ],
         },
       });
-      expect(response2.body.data[0].id).toBe(1);
+      expect(response2.body.data[0].id).toBe(postId);
     });
 
     it('case 5', async () => {
@@ -301,7 +350,7 @@ describe('collections repository', () => {
         sort: ['-createdAt', '-id'],
       });
 
-      expect(response1.body.data[0]['id']).toEqual(3);
+      expect(response1.body.data[0].title).toEqual('Tag2');
     });
 
     it('case 11', async () => {

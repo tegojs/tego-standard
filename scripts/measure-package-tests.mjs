@@ -292,6 +292,7 @@ function buildVitestCommand(packageDir, project) {
 function runCommand(command, { cwd, timeoutSeconds }) {
   return new Promise((resolve) => {
     const started = process.hrtime.bigint();
+    let settled = false;
     const child = spawn(command[0], command.slice(1), {
       cwd,
       shell: process.platform === 'win32',
@@ -315,7 +316,27 @@ function runCommand(command, { cwd, timeoutSeconds }) {
     child.stderr.on('data', (chunk) => {
       output += chunk.toString();
     });
+    child.on('error', (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      const ended = process.hrtime.bigint();
+      const wallSeconds = Number(ended - started) / 1_000_000_000;
+      resolve({
+        exitCode: 1,
+        signal: null,
+        timedOut,
+        wallSeconds: round(wallSeconds, 3),
+        output: `${output}${error.stack || error.message}\n`,
+      });
+    });
     child.on('close', (exitCode, signal) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       clearTimeout(timer);
       const ended = process.hrtime.bigint();
       const wallSeconds = Number(ended - started) / 1_000_000_000;

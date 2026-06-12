@@ -43,7 +43,7 @@ const availableActions: {
 };
 
 function getDataSourceManagerPlugin(app: Application): PluginDataSourceManagerServer | undefined {
-  for (const pluginName of ['data-source-manager', '@tachybase/module-data-source']) {
+  for (const pluginName of ['data-source-manager', 'data-source', '@tachybase/module-data-source']) {
     const plugin = app.pm.get(pluginName) as PluginDataSourceManagerServer;
     if (plugin) {
       return plugin;

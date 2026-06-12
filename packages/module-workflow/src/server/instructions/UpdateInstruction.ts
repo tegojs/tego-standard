@@ -10,6 +10,7 @@ import { JOB_STATUS } from '../constants';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
+import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
 
 export class UpdateInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
@@ -28,6 +29,7 @@ export class UpdateInstruction extends Instruction {
     const fields = c.getFields();
     const fieldNames = Object.keys(params.values);
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
+    const repositoryContext = processor.getRepositoryContext();
 
     const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
     const token = this.workflow.app.authManager.jwt.sign({ userId });
@@ -160,10 +162,7 @@ export class UpdateInstruction extends Instruction {
         method: 'post',
         url: origin + '/api/attachments:create',
         data: form,
-        headers: {
-          ...form.getHeaders(),
-          Authorization: 'Bearer ' + token,
-        },
+        headers: buildAttachmentUploadHeaders(form.getHeaders(), token, repositoryContext),
       });
 
       return uploadResponse.data.data;
@@ -186,7 +185,7 @@ export class UpdateInstruction extends Instruction {
 
     const result = await repository.update({
       ...options,
-      context: processor.getRepositoryContext(),
+      context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

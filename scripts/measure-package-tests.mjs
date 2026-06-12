@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -124,6 +124,10 @@ console.log('');
 console.log(`Wrote ${toPosix(path.relative(repoRoot, jsonPath))}`);
 console.log(`Wrote ${toPosix(path.relative(repoRoot, markdownPath))}`);
 console.log(`Wrote ${toPosix(path.relative(repoRoot, csvPath))}`);
+
+if (results.some((item) => !item.skipped && (item.timedOut || item.exitCode !== 0))) {
+  process.exitCode = 1;
+}
 
 function parseArgs(argv) {
   const parsed = {
@@ -306,8 +310,7 @@ function runCommand(command, { cwd, timeoutSeconds }) {
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGTERM');
-      setTimeout(() => child.kill('SIGKILL'), 5000).unref();
+      terminateProcessTree(child);
     }, timeoutSeconds * 1000);
 
     child.stdout.on('data', (chunk) => {
@@ -349,6 +352,22 @@ function runCommand(command, { cwd, timeoutSeconds }) {
       });
     });
   });
+}
+
+function terminateProcessTree(child) {
+  if (!child.pid) {
+    return;
+  }
+
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+      stdio: 'ignore',
+    });
+    return;
+  }
+
+  child.kill('SIGTERM');
+  setTimeout(() => child.kill('SIGKILL'), 5000).unref();
 }
 
 function parseVitestOutput(text) {

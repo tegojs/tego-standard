@@ -72,8 +72,8 @@ export async function waitForWorkflowIdle(app, options: { timeout?: number; inte
 }
 
 export function createWorkflowTestAppCache<TApp = any>(bindApp: (app: TApp) => void) {
-  let cachedApp: TApp;
-  let cachedAppKey: string;
+  let cachedApp: TApp | undefined;
+  let cachedAppKey: string | undefined;
 
   return {
     async useApp(options: { plugins?: string[]; withAnotherDataSource?: boolean } = {}) {
@@ -88,12 +88,14 @@ export function createWorkflowTestAppCache<TApp = any>(bindApp: (app: TApp) => v
         cachedAppKey = appKey;
       }
 
-      bindApp(cachedApp);
-      return cachedApp;
+      bindApp(cachedApp as TApp);
+      return cachedApp as TApp;
     },
 
     async destroy() {
       await (cachedApp as any)?.destroy();
+      cachedApp = undefined;
+      cachedAppKey = undefined;
     },
   };
 }

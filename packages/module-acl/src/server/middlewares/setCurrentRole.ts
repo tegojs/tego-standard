@@ -1,4 +1,12 @@
-import { Cache, Context, Model, Repository } from '@tego/server';
+import { Cache, Context, Repository } from '@tego/server';
+
+type CurrentUserRole = {
+  name: string;
+  rolesUsers?: {
+    default?: boolean;
+  };
+  [key: string]: any;
+};
 
 export async function setCurrentRole(ctx: Context, next) {
   const currentRole = ctx.get('X-Role');
@@ -39,7 +47,7 @@ export async function setCurrentRole(ctx: Context, next) {
         rolesUsers: rolesUsersMap.get(item.name),
       };
     });
-  })) as Model[];
+  })) as CurrentUserRole[];
   if (!roles.length && !attachRoles.length) {
     ctx.state.currentRole = undefined;
     return ctx.throw(401, {

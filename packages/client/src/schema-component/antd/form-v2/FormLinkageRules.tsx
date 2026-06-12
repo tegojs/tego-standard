@@ -69,7 +69,7 @@ export const FormLinkageRules = ({ children, form, linkageRules }: FormLinkageRu
         dispose();
       });
     };
-  }, [linkageRules]);
+  }, [form, linkageRules, localVariables, variables]);
 
   return <>{children}</>;
 };

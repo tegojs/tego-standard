@@ -1,6 +1,5 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
-
 import { defineTegoVitestConfig } from '@tachybase/test/vitest';
 
 const actionImportRequire = createRequire(path.resolve(process.cwd(), 'packages/plugin-action-import/package.json'));
@@ -30,7 +29,7 @@ const workspaceServerAliases = [
   ['@tachybase/plugin-api-keys', 'plugin-api-keys'],
   ['@tachybase/plugin-evaluator-mathjs', 'plugin-evaluator-mathjs'],
 ].map(([packageName, packageDir]) => ({
-  find: packageName,
+  find: new RegExp(`^${packageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
   replacement: path.resolve(process.cwd(), `packages/${packageDir}/src/server/index.ts`),
 }));
 
@@ -106,10 +105,7 @@ for (const project of config.test.projects || []) {
     // @tachybase/test ESM entry (es/index.mjs) uses createRequire which fails in vitest ESM context.
     // Force CJS entry for server tests.
     const testCjsEntry = testRequire.resolve('@tachybase/test');
-    project.test.alias = [
-      ...(project.test.alias || []),
-      { find: '@tachybase/test', replacement: testCjsEntry },
-    ];
+    project.test.alias = [...(project.test.alias || []), { find: '@tachybase/test', replacement: testCjsEntry }];
   }
   if (project.test.name === 'client') {
     project.test.testTimeout = 15000;

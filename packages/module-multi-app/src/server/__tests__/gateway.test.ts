@@ -7,19 +7,26 @@ type WsTestClient = Awaited<ReturnType<typeof createWsClient>>;
 const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
 const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
 
-async function waitForMaintainingCode(wsClient: WsTestClient, code: string, timeout = 10000) {
-  if (wsClient.messages.length > 0) {
-    const matchedMessage = wsClient.messages.find(
-      (message) => message?.type === 'maintaining' && message?.payload?.code === code,
-    );
-    if (matchedMessage) {
-      return matchedMessage;
-    }
+function findMaintainingMessage(wsClient: WsTestClient, code: string) {
+  const matchedMessage = wsClient.messages.find(
+    (message) => message?.type === 'maintaining' && message?.payload?.code === code,
+  );
+  if (matchedMessage) {
+    return matchedMessage;
+  }
 
+  if (wsClient.messages.length > 0) {
     const lastMessage = wsClient.lastMessage();
     if (lastMessage?.type === 'maintaining' && lastMessage?.payload?.code === code) {
       return lastMessage;
     }
+  }
+}
+
+async function waitForMaintainingCode(wsClient: WsTestClient, code: string, timeout = 10000): Promise<unknown> {
+  const existingMessage = findMaintainingMessage(wsClient, code);
+  if (existingMessage) {
+    return existingMessage;
   }
 
   return new Promise((resolve, reject) => {
@@ -45,6 +52,12 @@ async function waitForMaintainingCode(wsClient: WsTestClient, code: string, time
     }, timeout);
 
     wsClient.wsc.on('message', handleMessage);
+
+    const matchedAfterListener = findMaintainingMessage(wsClient, code);
+    if (matchedAfterListener) {
+      cleanup();
+      resolve(matchedAfterListener);
+    }
   });
 }
 

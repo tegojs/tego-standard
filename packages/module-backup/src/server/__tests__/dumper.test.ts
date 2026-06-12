@@ -738,7 +738,7 @@ describe('dumper', () => {
   it('should run dump task', async () => {
     const dumper = new Dumper(app);
 
-    const taskId = await dumper.runDumpTask({
+    const taskId = dumper.startDumpTask({
       groups: new Set(['meta']),
     });
 
@@ -748,6 +748,18 @@ describe('dumper', () => {
     expect(promise).toBeDefined();
 
     await promise;
+  });
+
+  it('should wait for dump task completion', async () => {
+    const dumper = new Dumper(app);
+
+    const taskId = await dumper.runDumpTask({
+      groups: new Set(['meta']),
+    });
+
+    expect(taskId).toBeDefined();
+    expect(Dumper.getTaskPromise(taskId)).toBeUndefined();
+    await expect(fsPromises.stat(dumper.backUpFilePath(taskId))).resolves.toBeDefined();
   });
 
   it('should get dumped collections by data types', async () => {

@@ -284,7 +284,7 @@ export class Dumper extends AppMigrator {
     return backupFileName;
   }
 
-  async runDumpTask(options: DumpOptions) {
+  startDumpTask(options: DumpOptions) {
     const taskId = options.fileName || Dumper.generateFileName();
     const taskPromise = this.dump({
       groups: options.groups,
@@ -304,6 +304,13 @@ export class Dumper extends AppMigrator {
       },
     );
 
+    return taskId;
+  }
+
+  async runDumpTask(options: DumpOptions) {
+    const taskId = this.startDumpTask(options);
+    const taskPromise = Dumper.getTaskPromise(taskId);
+    await taskPromise;
     return taskId;
   }
 

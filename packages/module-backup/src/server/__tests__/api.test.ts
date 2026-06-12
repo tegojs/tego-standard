@@ -35,7 +35,7 @@ describe('backup files', () => {
   }
 
   async function createBackup(groups: DumpRulesGroupType[]) {
-    const dumpKey = await dumper.runDumpTask({
+    const dumpKey = dumper.startDumpTask({
       groups: new Set(groups),
     });
 

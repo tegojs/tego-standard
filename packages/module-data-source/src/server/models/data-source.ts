@@ -54,17 +54,10 @@ function getDataSourceManagerPlugin(app: Application): PluginDataSourceManagerSe
     );
   };
 
-  const plugin =
-    (app.pm.get('data-source-manager') as PluginDataSourceManagerServer) ||
-    (app.pm.get('@tachybase/module-data-source') as PluginDataSourceManagerServer);
-
-  if (isDataSourceManagerPlugin(plugin)) {
-    return plugin;
-  }
-
-  for (const loadedPlugin of app.pm.getPlugins().values()) {
-    if (isDataSourceManagerPlugin(loadedPlugin)) {
-      return loadedPlugin;
+  for (const pluginName of ['data-source-manager', '@tachybase/module-data-source']) {
+    const plugin = app.pm.get(pluginName) as PluginDataSourceManagerServer;
+    if (isDataSourceManagerPlugin(plugin)) {
+      return plugin;
     }
   }
 }

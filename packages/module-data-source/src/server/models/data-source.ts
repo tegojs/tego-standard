@@ -43,20 +43,9 @@ const availableActions: {
 };
 
 function getDataSourceManagerPlugin(app: Application): PluginDataSourceManagerServer | undefined {
-  const isDataSourceManagerPlugin = (plugin: unknown): plugin is PluginDataSourceManagerServer => {
-    const candidate = plugin as Record<string, unknown>;
-    return (
-      !!plugin &&
-      typeof plugin === 'object' &&
-      'dataSourceStatus' in candidate &&
-      'dataSourceErrors' in candidate &&
-      typeof candidate.renderJsonTemplate === 'function'
-    );
-  };
-
   for (const pluginName of ['data-source-manager', '@tachybase/module-data-source']) {
     const plugin = app.pm.get(pluginName) as PluginDataSourceManagerServer;
-    if (isDataSourceManagerPlugin(plugin)) {
+    if (plugin) {
       return plugin;
     }
   }

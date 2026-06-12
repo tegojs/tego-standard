@@ -79,7 +79,7 @@ describe('CollectionField', () => {
 
   it('no schema', () => {
     renderApp('no-ui-schema');
-    // Field without UI schema should still be provided but with no uiSchema
-    expect(screen.getByTestId('app')).toBeInTheDocument();
+    expect(screen.getByTestId('title')).toHaveTextContent('');
+    expect(screen.getByTestId('component')).toHaveTextContent('');
   });
 });

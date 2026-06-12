@@ -158,7 +158,7 @@ function createWithACLMetaMiddleware() {
         context: actionCtx,
       });
 
-      const actionSql = ctx.db.sequelize.queryInterface.queryGenerator.selectQuery(
+      const actionSql = db.sequelize.queryInterface.queryGenerator.selectQuery(
         Model.getTableName(),
         {
           where: (() => {
@@ -259,7 +259,7 @@ function createWithACLMetaMiddleware() {
       attributes: [
         primaryKeyField,
         ...conditions.map((condition) => {
-          return [ctx.db.sequelize.literal(`CASE WHEN ${condition.whereCase} THEN 1 ELSE 0 END`), condition.action];
+          return [db.sequelize.literal(`CASE WHEN ${condition.whereCase} THEN 1 ELSE 0 END`), condition.action];
         }),
       ],
       include,

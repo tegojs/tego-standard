@@ -344,7 +344,6 @@ export default class ScheduleTrigger {
     const { collection } = workflow.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
-    const eventKey = `${collection}.afterSaveWithAssociations`;
     const name = getHookId(workflow, event);
     if (this.events.has(name)) {
       return;

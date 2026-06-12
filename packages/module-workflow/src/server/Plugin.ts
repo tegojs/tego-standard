@@ -595,7 +595,7 @@ export default class PluginWorkflowServer extends Plugin {
       }
       if (shouldDeleteExecution) {
         await (execution as any).destroy({ transaction: options.transaction });
-        return;
+        return processor;
       }
     } catch (err) {
       logger.error(`execution (${execution.id}) error: ${err.message}`, err);

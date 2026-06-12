@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -229,12 +228,7 @@ function discoverPackages({ includeApps, includePackages, only }) {
       const { json, error } = readPackageJson(packageJsonPath);
       const name = json?.name || entry.name;
 
-      if (
-        only.length > 0 &&
-        !only.includes(name) &&
-        !only.includes(relDir) &&
-        !only.includes(entry.name)
-      ) {
+      if (only.length > 0 && !only.includes(name) && !only.includes(relDir) && !only.includes(entry.name)) {
         continue;
       }
 
@@ -358,14 +352,18 @@ function parseVitestOutput(text) {
     stderrBlockCount: countMatches(normalized, /^stderr \|/gm),
   };
 
-  const fileMatch = normalized.match(/Test Files\s+(?:(?<failed>\d+)\s+failed\s+\|\s+)?(?:(?<passed>\d+)\s+passed\s+)?\((?<total>\d+)\)/);
+  const fileMatch = normalized.match(
+    /Test Files\s+(?:(?<failed>\d+)\s+failed\s+\|\s+)?(?:(?<passed>\d+)\s+passed\s+)?\((?<total>\d+)\)/,
+  );
   if (fileMatch?.groups) {
     summary.testFilesTotal = toInt(fileMatch.groups.total);
     summary.testFilesPassed = toInt(fileMatch.groups.passed);
     summary.testFilesFailed = toInt(fileMatch.groups.failed);
   }
 
-  const testsMatch = normalized.match(/Tests\s+(?:(?<failed>\d+)\s+failed\s+\|\s+)?(?:(?<passed>\d+)\s+passed\s*)?(?:\|\s+(?<skipped>\d+)\s+skipped\s*)?\((?<total>\d+)\)/);
+  const testsMatch = normalized.match(
+    /Tests\s+(?:(?<failed>\d+)\s+failed\s+\|\s+)?(?:(?<passed>\d+)\s+passed\s*)?(?:\|\s+(?<skipped>\d+)\s+skipped\s*)?\((?<total>\d+)\)/,
+  );
   if (testsMatch?.groups) {
     summary.testsTotal = toInt(testsMatch.groups.total);
     summary.testsPassed = toInt(testsMatch.groups.passed);
@@ -417,7 +415,9 @@ function renderMarkdown(results, options) {
   lines.push('');
   lines.push('## Slowest Packages');
   lines.push('');
-  lines.push('| package | target | file | wall(s) | exit | timeout | files | tests | collect(s) | test(s) | heap(MB) | warnings | log |');
+  lines.push(
+    '| package | target | file | wall(s) | exit | timeout | files | tests | collect(s) | test(s) | heap(MB) | warnings | log |',
+  );
   lines.push('| --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |');
 
   for (const item of [...ran].sort((a, b) => b.wallSeconds - a.wallSeconds)) {
@@ -433,7 +433,9 @@ function renderMarkdown(results, options) {
     lines.push('None.');
   } else {
     for (const item of failed) {
-      lines.push(`- ${item.directory}: exit=${item.exitCode ?? ''}, timedOut=${item.timedOut}, wall=${item.wallSeconds}s, log=${item.logPath}`);
+      lines.push(
+        `- ${item.directory}: exit=${item.exitCode ?? ''}, timedOut=${item.timedOut}, wall=${item.wallSeconds}s, log=${item.logPath}`,
+      );
     }
   }
 
@@ -510,32 +512,33 @@ function renderCsv(results) {
 }
 
 function printPlan(items, options) {
-  const rows = options.fileLevel || options.listFiles
-    ? items.flatMap((item) =>
-        item.testFiles.length === 0
-          ? [
-              {
+  const rows =
+    options.fileLevel || options.listFiles
+      ? items.flatMap((item) =>
+          item.testFiles.length === 0
+            ? [
+                {
+                  name: item.name,
+                  directory: item.directory,
+                  file: '',
+                  tests: 0,
+                  packageJson: item.packageJsonParseError ? 'parse-error' : 'ok',
+                },
+              ]
+            : item.testFiles.map((file) => ({
                 name: item.name,
                 directory: item.directory,
-                file: '',
-                tests: 0,
+                file,
+                tests: 1,
                 packageJson: item.packageJsonParseError ? 'parse-error' : 'ok',
-              },
-            ]
-          : item.testFiles.map((file) => ({
-              name: item.name,
-              directory: item.directory,
-              file,
-              tests: 1,
-              packageJson: item.packageJsonParseError ? 'parse-error' : 'ok',
-            })),
-      )
-    : items.map((item) => ({
-        name: item.name,
-        directory: item.directory,
-        tests: item.testFileCount,
-        packageJson: item.packageJsonParseError ? 'parse-error' : 'ok',
-      }));
+              })),
+        )
+      : items.map((item) => ({
+          name: item.name,
+          directory: item.directory,
+          tests: item.testFileCount,
+          packageJson: item.packageJsonParseError ? 'parse-error' : 'ok',
+        }));
   console.table(rows);
 }
 

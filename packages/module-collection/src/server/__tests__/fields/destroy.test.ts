@@ -1,4 +1,4 @@
-import Database, { Collection as DBCollection } from '@tego/server';
+import Database, { Collection as DBCollection, uid } from '@tego/server';
 import Application from '@tego/server';
 
 import { createApp } from '..';
@@ -54,9 +54,10 @@ describe('destroy', () => {
 
   describe('destroy field', () => {
     it('should remove field in model when field destroyed', async () => {
+      const collectionName = `destroyFieldTest_${uid()}`;
       const collection = await Collection.repository.create({
         values: {
-          name: 'test',
+          name: collectionName,
           fields: [
             { name: 'f1', type: 'string' },
             {
@@ -68,18 +69,18 @@ describe('destroy', () => {
         context: {},
       });
 
-      expect(db.getCollection('test').model.rawAttributes.name).toBeDefined();
+      expect(db.getCollection(collectionName).model.rawAttributes.name).toBeDefined();
 
       await Field.repository.destroy({
         filter: {
           name: 'name',
-          collectionName: 'test',
+          collectionName,
         },
         context: {},
       });
 
-      expect(db.getCollection('test').model.rawAttributes.name).toBeUndefined();
-      expect(db.getCollection('test').model.rawAttributes.f1).toBeDefined();
+      expect(db.getCollection(collectionName).model.rawAttributes.name).toBeUndefined();
+      expect(db.getCollection(collectionName).model.rawAttributes.f1).toBeDefined();
     });
   });
 

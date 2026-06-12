@@ -1,4 +1,4 @@
-import Database, { Collection as DBCollection } from '@tego/server';
+import Database, { Collection as DBCollection, uid } from '@tego/server';
 import Application from '@tego/server';
 
 import { createApp } from '..';
@@ -22,9 +22,12 @@ describe('belongsTo', () => {
   });
 
   it('should check belongs to association keys', async () => {
+    const suffix = uid();
+    const postCollectionName = `belongsToKeyCheckPosts_${suffix}`;
+    const tagCollectionName = `belongsToKeyCheckTags_${suffix}`;
     const Post = await Collection.repository.create({
       values: {
-        name: 'posts',
+        name: postCollectionName,
         fields: [
           {
             type: 'string',
@@ -41,7 +44,7 @@ describe('belongsTo', () => {
 
     const Tag = await Collection.repository.create({
       values: {
-        name: 'tags',
+        name: tagCollectionName,
         fields: [
           {
             type: 'string',
@@ -56,9 +59,10 @@ describe('belongsTo', () => {
     try {
       await Field.repository.create({
         values: {
-          collectionName: 'posts',
+          collectionName: postCollectionName,
           type: 'belongsTo',
           name: 'tags',
+          target: tagCollectionName,
           targetKey: 'name',
           foreignKey: 'postId',
         },
@@ -74,9 +78,12 @@ describe('belongsTo', () => {
     );
   });
   it('should load belongsTo field', async () => {
+    const suffix = uid();
+    const orderCollectionName = `belongsToLoadOrders_${suffix}`;
+    const userCollectionName = `belongsToLoadUsers_${suffix}`;
     await Collection.repository.create({
       values: {
-        name: 'orders',
+        name: orderCollectionName,
         fields: [
           {
             type: 'integer',
@@ -84,7 +91,7 @@ describe('belongsTo', () => {
           },
           {
             type: 'belongsTo',
-            name: 'users',
+            name: userCollectionName,
             targetKey: 'uid',
             foreignKey: 'userId',
           },
@@ -94,7 +101,7 @@ describe('belongsTo', () => {
 
     await Collection.repository.create({
       values: {
-        name: 'users',
+        name: userCollectionName,
         fields: [
           {
             type: 'string',

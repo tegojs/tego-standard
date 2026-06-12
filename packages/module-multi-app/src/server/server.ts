@@ -242,7 +242,7 @@ export class PluginMultiAppManager extends Plugin {
       try {
         await this.subAppUpgradeHandler(app);
       } catch (error) {
-        this.app.logger.error(error);
+        this.app.logger.error(error, { module: 'multi-app-manager', method: 'afterUpgrade' });
       }
     });
 

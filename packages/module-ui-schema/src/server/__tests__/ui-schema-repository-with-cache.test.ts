@@ -34,6 +34,7 @@ describe('ui_schema repository with cache', () => {
     } catch (error) {
       throw new Error(
         `Failed to reset ui schema test tables: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
 

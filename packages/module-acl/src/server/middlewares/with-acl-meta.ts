@@ -79,7 +79,11 @@ function createWithACLMetaMiddleware() {
           resourceName: ctx.action.resourceName,
           resourceOf: ctx.action.resourceOf,
           mergeParams(params) {
-            this.params = lodash.merge({}, this.params, params);
+            this.params = lodash.mergeWith({}, this.params, params, (value, srcValue) => {
+              if (Array.isArray(value) && Array.isArray(srcValue)) {
+                return srcValue;
+              }
+            });
           },
         },
         state: {

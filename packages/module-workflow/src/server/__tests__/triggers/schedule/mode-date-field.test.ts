@@ -155,7 +155,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       expect(executions.length).toBe(0);
     });
 
-    it('starts on post.createdAt and repeat by cron', async () => {
+    it('starts on post.createdAt and repeat by cron with limit 2', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
@@ -166,6 +166,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
             field: 'createdAt',
           },
           repeat: '* * * * * *',
+          limit: 2,
         },
       });
 

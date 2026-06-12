@@ -23,7 +23,6 @@ import { QuickViewApplyButton } from './QuickApplyButton.view';
 
 export const QuickApplyButton = (props) => {
   const record = useRecord();
-  console.log('🚀 ~ QuickApplyButton ~ record:', record);
   const context = useContext(SchemaComponentContext);
   const apiClient = useAPIClient();
   const [visible, setVisible] = useState(false);

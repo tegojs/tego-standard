@@ -16,6 +16,12 @@ function getRecordTriggerTime(record) {
   return triggerTime.getTime();
 }
 
+function getFutureSecond(seconds = 2) {
+  const date = new Date(Date.now() + seconds * 1000);
+  date.setMilliseconds(0);
+  return date;
+}
+
 function expectRepeatedAfterStart(executions, startTime: number) {
   const d0 = Date.parse(executions[0].context.date);
   expect(d0).toBe(startTime);
@@ -213,7 +219,8 @@ describe('workflow > triggers > schedule > date field mode', () => {
         },
       });
 
-      const post = await PostRepo.create({ values: { title: 't1' } });
+      const createdAt = getFutureSecond();
+      const post = await PostRepo.create({ values: { title: 't1', createdAt } });
       const startTime = getRecordTriggerTime(post);
 
       const executions = await waitForExecutions(workflow, 2, { order: [['createdAt', 'ASC']] });

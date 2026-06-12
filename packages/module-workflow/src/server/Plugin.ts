@@ -547,7 +547,7 @@ export default class PluginWorkflowServer extends Plugin {
 
       this.executing = null;
 
-      if (next) {
+      if (next || this.events.length || this.pending.length) {
         this.dispatch();
       }
     })();

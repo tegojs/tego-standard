@@ -61,6 +61,22 @@ describe('tenant tree structure', () => {
     expect(leaf.get('path')).toBe('/root/mid/leaf/');
   });
 
+  it('should reject creating a tenant when the materialized path is too long', async () => {
+    app = await createTenantApp();
+
+    const longId = `tenant-${'x'.repeat(493)}`;
+
+    await expect(
+      app.db.getRepository('tenants').create({
+        values: {
+          id: longId,
+          name: longId,
+          title: 'Long Path Tenant',
+        },
+      }),
+    ).rejects.toThrow(/Tenant path exceeds maximum length of 500 characters/);
+  });
+
   it('should find descendants using path LIKE query', async () => {
     app = await createTenantApp();
 

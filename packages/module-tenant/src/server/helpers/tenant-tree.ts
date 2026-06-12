@@ -1,13 +1,18 @@
 import type { Repository } from '@tego/server';
 
+export const TENANT_PATH_MAX_LENGTH = 500;
+
 /**
  * Build the materialized path for a tenant node.
  */
 export function buildPath(parentPath: string | null | undefined, id: string): string {
-  if (parentPath) {
-    return `${parentPath}${id}/`;
+  const path = parentPath ? `${parentPath}${id}/` : `/${id}/`;
+
+  if (path.length > TENANT_PATH_MAX_LENGTH) {
+    throw new Error(`Tenant path exceeds maximum length of ${TENANT_PATH_MAX_LENGTH} characters`);
   }
-  return `/${id}/`;
+
+  return path;
 }
 
 /**

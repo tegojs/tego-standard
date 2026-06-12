@@ -513,6 +513,42 @@ describe('workflow > Plugin', () => {
         db.off('executions.beforeDestroy', listener);
       }
     });
+
+    it('configured child workflow status should be deleted after resuming parent workflow', async () => {
+      const childWorkflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'asyncTrigger',
+        options: {
+          deleteExecutionOnStatus: [EXECUTION_STATUS.RESOLVED],
+        },
+      });
+
+      const parentWorkflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: 'posts',
+        },
+      });
+      await parentWorkflow.createNode({
+        type: 'trigger-instruction',
+        config: {
+          workflowKey: childWorkflow.key,
+        },
+      });
+
+      await PostRepo.create({ values: { title: 't1' } });
+
+      await waitForAssertion(async () => {
+        const parentExecutions = await parentWorkflow.getExecutions();
+        expect(parentExecutions.length).toBe(1);
+        expect(parentExecutions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+
+        const childExecutions = await childWorkflow.getExecutions();
+        expect(childExecutions.length).toBe(0);
+      });
+    });
   });
 
   describe('sync', () => {

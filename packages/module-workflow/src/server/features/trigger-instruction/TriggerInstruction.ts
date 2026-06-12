@@ -103,14 +103,18 @@ export class TriggerInstruction extends Instruction {
           result,
         };
       } else {
+        const pendingJob = await processor.saveJob({
+          status: JOB_STATUS.PENDING,
+          nodeId: node.id,
+          nodeKey: node.key,
+          upstreamId: input?.id ?? null,
+        });
         this.workflow.trigger(wf, triggerData, {
           ...processor.options,
           parentNode: node.id,
           parent: processor.execution,
         });
-        return {
-          status: JOB_STATUS.PENDING,
-        };
+        return pendingJob;
       }
     } catch (error) {
       this.workflow.getLogger(wf.id).error(`Error triggering sub-workflow ${workflowKey}:`, error);

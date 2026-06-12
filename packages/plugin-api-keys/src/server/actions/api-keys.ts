@@ -35,8 +35,7 @@ export async function create(ctx: Context, next: Next) {
   });
   return actions.create(ctx, async () => {
     ctx.body = {
-      token: jwtToken,
-      accessToken: token,
+      token,
     };
     await next();
   });

@@ -76,10 +76,14 @@ describe('actions', () => {
   describe('create', () => {
     let result;
     let tokenData;
+    let apiAccessToken;
 
     beforeEach(async () => {
       result = (await resource.create(createData)).body.data;
-      tokenData = await app.authManager.jwt.decode(result.token);
+      apiAccessToken = result.accessToken || result.token;
+      const apiKey = await repo.findOne({ filter: { accessToken: apiAccessToken } });
+      expect(apiKey).toBeTruthy();
+      tokenData = await app.authManager.jwt.decode(apiKey.get('token'));
     });
 
     it('basic', async () => {
@@ -98,7 +102,7 @@ describe('actions', () => {
     });
 
     it('token should work', async () => {
-      const checkRes = await agent.set('Authorization', `Bearer ${result.token}`).resource('auth').check();
+      const checkRes = await agent.set('Authorization', `Bearer ${apiAccessToken}`).resource('auth').check();
       expect(checkRes.body.data.nickname).toBe(user.nickname);
     });
 
@@ -144,9 +148,11 @@ describe('actions', () => {
 
   describe('destroy', () => {
     let result;
+    let apiAccessToken;
 
     beforeEach(async () => {
       result = (await resource.create(createData)).body.data;
+      apiAccessToken = result.accessToken || result.token;
     });
 
     it('basic', async () => {
@@ -178,7 +184,7 @@ describe('actions', () => {
       await resource.destroy({
         filterByTk: data.id,
       });
-      const response = await agent.set('Authorization', `Bearer ${result.token}`).resource('auth').check();
+      const response = await agent.set('Authorization', `Bearer ${apiAccessToken}`).resource('auth').check();
       expect(response.status).toBe(401);
     });
   });

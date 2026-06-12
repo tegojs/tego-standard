@@ -1,5 +1,5 @@
 import { MockServer } from '@tachybase/test';
-import { ACL, Database, HasManyRepository } from '@tego/server';
+import { ACL, Database, HasManyRepository, uid } from '@tego/server';
 
 import { aclCollectionManagerTestPlugins, prepareApp } from './prepare';
 
@@ -224,11 +224,11 @@ describe('association field acl', () => {
   let adminAgent;
   let createRoleWithAssociationAccess: (roleName: string) => Promise<{ user: any; userAgent: any }>;
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const prepared = await prepareAssociationFieldAclApp();
     app = prepared.app;
     db = prepared.db;
@@ -269,7 +269,7 @@ describe('association field acl', () => {
   });
 
   it('should revoke association action on action revoke', async () => {
-    const roleName = 'revoke-action-role';
+    const roleName = `revoke-action-role-${uid()}`;
     await createRoleWithAssociationAccess(roleName);
 
     expect(
@@ -284,11 +284,20 @@ describe('association field acl', () => {
       action: 'add',
     });
 
-    const viewAction = await db.getRepository('dataSourcesRolesResourcesActions').findOne({
+    const roleResource = await db.getRepository('dataSourcesRolesResources').findOne({
       filter: {
-        name: 'view',
+        name: 'users',
+        roleName,
       },
     });
+
+    const viewAction = await db
+      .getRepository<HasManyRepository>('dataSourcesRolesResources.actions', roleResource.get('id') as string)
+      .findOne({
+        filter: {
+          name: 'view',
+        },
+      });
 
     const actionId = viewAction.get('id') as number;
 
@@ -320,8 +329,8 @@ describe('association field acl', () => {
   });
 
   it('should not redundant fields after field set', async () => {
-    const roleName = 'field-set-role';
-    const collectionName = 'fieldSetPosts';
+    const roleName = `field-set-role-${uid()}`;
+    const collectionName = `fieldSetPosts_${uid()}`;
     await createRoleWithAssociationAccess(roleName);
 
     await db.getRepository('collections').create({
@@ -408,7 +417,7 @@ describe('association field acl', () => {
   });
 
   it('should allow association fields access', async () => {
-    const roleName = 'allow-association-role';
+    const roleName = `allow-association-role-${uid()}`;
     ({ userAgent } = await createRoleWithAssociationAccess(roleName));
 
     const createResponse = await userAgent.resource('users').create({

@@ -3,7 +3,7 @@ import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
-import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
+import { FAST_POLL_INTERVAL_MS, waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > triggers > collection', () => {
   let app: MockServer;
@@ -48,7 +48,7 @@ describe('workflow > triggers > collection', () => {
 
   async function resetAppData() {
     await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
-    await waitForWorkflowIdle(app);
+    await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
     await db.getRepository('jobs').destroy({ filter: {} });
     await db.getRepository('executions').destroy({ filter: {} });
     await db.getRepository('workflows').destroy({ filter: {} });
@@ -70,7 +70,7 @@ describe('workflow > triggers > collection', () => {
   });
 
   afterEach(async () => {
-    await waitForWorkflowIdle(app);
+    await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
   });
 
   afterAll(async () => {
@@ -107,7 +107,7 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForWorkflowIdle(app);
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -241,7 +241,7 @@ describe('workflow > triggers > collection', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       await PostRepo.update({ filterByTk: post.id, values: { title: 't2' } });
 
-      await waitForWorkflowIdle(app);
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -546,7 +546,7 @@ describe('workflow > triggers > collection', () => {
         expect(e2s.length).toBe(1);
         expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
       });
-      await waitForWorkflowIdle(app);
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
       await waitForAssertion(async () => {
         const posts = await PostRepo.find();
         expect(posts.length).toBe(2);
@@ -618,7 +618,7 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForWorkflowIdle(app);
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
 
       const e1s = await workflow.getExecutions();
       expect(e1s.length).toBe(0);

@@ -300,6 +300,7 @@ describe('multiple apps', () => {
 
     await subApp.update({
       options: {
+        plugins: [],
         autoStart: true,
       },
     });

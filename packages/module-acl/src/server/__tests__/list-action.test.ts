@@ -415,26 +415,26 @@ describe('list association action with acl', () => {
       },
     });
 
-    await agent.resource('table_a').create({
+    const root1 = await agent.resource('table_a').create({
       values: {},
     });
 
-    await agent.resource('table_a').create({
+    const child1 = await agent.resource('table_a').create({
       values: {
         parent: {
-          id: 1,
+          id: root1.body.data.id,
         },
       },
     });
 
-    await agent.resource('table_a').create({
+    const root2 = await agent.resource('table_a').create({
       values: {},
     });
 
-    await agent.resource('table_a').create({
+    const child2 = await agent.resource('table_a').create({
       values: {
         parent: {
-          id: 3,
+          id: root2.body.data.id,
         },
       },
     });
@@ -446,6 +446,7 @@ describe('list association action with acl', () => {
       tree: true,
     });
 
-    expect(res.body.meta.allowedActions.view.sort()).toMatchObject([1, 2, 3, 4]);
+    const createdIds = [root1, child1, root2, child2].map((response) => response.body.data.id).sort();
+    expect(res.body.meta.allowedActions.view.sort()).toMatchObject(createdIds);
   });
 });

@@ -245,7 +245,7 @@ export class Restorer extends AppMigrator {
       await fsPromises.stat(collectionMetaPath);
     } catch (e) {
       app.logger.info(`${collectionName} has no meta`);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const metaContent = await fsPromises.readFile(collectionMetaPath, 'utf8');
@@ -261,7 +261,7 @@ export class Restorer extends AppMigrator {
 
     if (columns.length === 0) {
       app.logger.info(`${collectionName} has no columns`);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const fieldAttributes = lodash.mapValues(meta.attributes, (attr) => {
@@ -433,12 +433,20 @@ export class Restorer extends AppMigrator {
     }
   }
 
-  async insertMetaRows({ rows, collectionName, columns, fieldAttributes, rawAttributes, addSchemaTableName, options }) {
+  async insertMetaRows({
+    rows,
+    collectionName,
+    columns,
+    fieldAttributes,
+    rawAttributes,
+    addSchemaTableName,
+    options,
+  }): Promise<void | string> {
     const app = this.app;
     const db = app.db;
     if (rows.length === 0) {
       app.logger.info(`${collectionName} has no data to import`);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const rowsWithMeta = rows
@@ -462,7 +470,7 @@ export class Restorer extends AppMigrator {
 
     if (rowsWithMeta.length === 0) {
       app.logger.info(`${collectionName} has no data to import`);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const insertGeneratorAttributes = lodash.mapKeys(rawAttributes, (value, key) => {

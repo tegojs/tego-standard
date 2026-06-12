@@ -9,8 +9,23 @@ describe('actions', () => {
   let adminUser;
   let agent;
   let adminAgent;
+  let originalRootEmail: string | undefined;
+  let originalRootPassword: string | undefined;
+  let originalRootNickname: string | undefined;
+
+  function restoreEnv(name: string, value: string | undefined) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
 
   beforeAll(async () => {
+    originalRootEmail = process.env.INIT_ROOT_EMAIL;
+    originalRootPassword = process.env.INIT_ROOT_PASSWORD;
+    originalRootNickname = process.env.INIT_ROOT_NICKNAME;
+
     process.env.INIT_ROOT_EMAIL = 'test@tachybase.com';
     process.env.INIT_ROOT_PASSWORD = '123456';
     process.env.INIT_ROOT_NICKNAME = 'Test';
@@ -33,6 +48,9 @@ describe('actions', () => {
 
   afterAll(async () => {
     await app.destroy();
+    restoreEnv('INIT_ROOT_EMAIL', originalRootEmail);
+    restoreEnv('INIT_ROOT_PASSWORD', originalRootPassword);
+    restoreEnv('INIT_ROOT_NICKNAME', originalRootNickname);
   });
 
   it('should set scope with user associations', async () => {

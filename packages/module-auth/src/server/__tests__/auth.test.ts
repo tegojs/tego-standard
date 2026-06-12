@@ -32,6 +32,9 @@ describe('auth', () => {
         logger: app.logger,
         headers: {},
         throw: (status, body) => {
+          if (typeof body === 'string') {
+            body = { message: body };
+          }
           throw Object.assign(new Error(body?.message || 'Error'), { ...body, status });
         },
         t: (key) => key,

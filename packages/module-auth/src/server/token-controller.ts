@@ -125,6 +125,30 @@ export class TokenController implements TokenControlService {
     return data;
   }
 
+  private setLegacyRenewedJtiCache(jti: string, data: { jti: string; issuedTime: EpochTimeStamp }) {
+    try {
+      void Promise.resolve(this.cache.set(getLegacyRenewedJtiCacheKey(jti), data, RENEWED_JTI_CACHE_MS)).catch(
+        (err) => {
+          this.logger.warn('legacy renewed jti cache write failed', {
+            module: 'auth',
+            submodule: 'token-controller',
+            method: 'renew',
+            jti,
+            err,
+          });
+        },
+      );
+    } catch (err) {
+      this.logger.warn('legacy renewed jti cache write failed', {
+        module: 'auth',
+        submodule: 'token-controller',
+        method: 'renew',
+        jti,
+        err,
+      });
+    }
+  }
+
   renew: TokenControlService['renew'] = async (jti) => {
     const repo = this.app.db.getRepository(issuedTokensCollectionName);
     const model = this.app.db.getModel(issuedTokensCollectionName);
@@ -141,7 +165,7 @@ export class TokenController implements TokenControlService {
     if (count === 1) {
       const renewedJtiData = { jti: newId, issuedTime };
       await this.cache.set(getRenewedJtiCacheKey(jti), renewedJtiData, RENEWED_JTI_CACHE_MS);
-      await this.cache.set(getLegacyRenewedJtiCacheKey(jti), renewedJtiData, RENEWED_JTI_CACHE_MS);
+      this.setLegacyRenewedJtiCache(jti, renewedJtiData);
       this.logger.info('jti renewed', { oldJti: jti, newJti: newId, issuedTime });
       return renewedJtiData;
     } else {

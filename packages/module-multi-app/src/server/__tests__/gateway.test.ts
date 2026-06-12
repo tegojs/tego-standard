@@ -9,6 +9,13 @@ const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof 
 
 async function waitForMaintainingCode(wsClient: WsTestClient, code: string, timeout = 10000) {
   if (wsClient.messages.length > 0) {
+    const matchedMessage = wsClient.messages.find(
+      (message) => message?.type === 'maintaining' && message?.payload?.code === code,
+    );
+    if (matchedMessage) {
+      return matchedMessage;
+    }
+
     const lastMessage = wsClient.lastMessage();
     if (lastMessage?.type === 'maintaining' && lastMessage?.payload?.code === code) {
       return lastMessage;

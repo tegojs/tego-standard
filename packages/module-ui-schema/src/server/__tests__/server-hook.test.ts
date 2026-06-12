@@ -273,15 +273,14 @@ describe('server hooks', () => {
       throw new Error('cant delete field');
     });
 
-    try {
-      // destroy a field
-      await db.getRepository('fields').destroy({
+    await expect(
+      db.getRepository('fields').destroy({
         filter: {
           name: fieldName,
         },
         individualHooks: true,
-      });
-    } catch (e) {}
+      }),
+    ).rejects.toThrow('Transaction cannot be rolled back');
 
     expect(jestFn).toHaveBeenCalled();
     expect(

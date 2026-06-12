@@ -848,7 +848,9 @@ describe('acl', () => {
   it('should destroy new role when user are root user', async () => {
     const roleName = 'acl-root-destroy-role';
     const rootUser = await db.getRepository('users').findOne({
-      filterByTk: 1,
+      filter: {
+        specialRole: 'root',
+      },
     });
 
     const rootAgent = app.agent().login(rootUser);

@@ -30,7 +30,6 @@ describe('dumper', () => {
   let app: MockServer;
   let db: Database;
   const pluginOverrides = new Map<string, string[]>();
-  const postgresOnlyTests = new Set(['should restore parent collection', 'should handle inherited collection order']);
   const reusableBaseAppTests = new Set([
     'should save dump meta to dump file',
     'should run dump task',
@@ -45,9 +44,6 @@ describe('dumper', () => {
   beforeEach(async (context: any) => {
     shouldDestroyApp = false;
     const taskName = context.task.name;
-    if (postgresOnlyTests.has(taskName) && process.env.DB_DIALECT !== 'postgres') {
-      return;
-    }
 
     const additionalPlugins = pluginOverrides.get(taskName) || [];
     if (additionalPlugins.length === 0 && reusableBaseAppTests.has(taskName)) {
@@ -84,6 +80,11 @@ describe('dumper', () => {
   function itWithPlugins(name: string, plugins: string[], fn: () => Promise<void>) {
     pluginOverrides.set(name, plugins);
     it(name, fn);
+  }
+
+  function itPostgresOnly(name: string, fn: () => Promise<void>) {
+    const testFn = process.env.DB_DIALECT === 'postgres' ? it : it.skip;
+    testFn(name, fn);
   }
 
   it.skip('should restore from file', async () => {
@@ -245,11 +246,7 @@ describe('dumper', () => {
     });
   });
 
-  it('should restore parent collection', async () => {
-    if (process.env.DB_DIALECT !== 'postgres') {
-      return;
-    }
-
+  itPostgresOnly('should restore parent collection', async () => {
     await db.getRepository('collections').create({
       values: {
         name: 'parent',
@@ -358,11 +355,7 @@ describe('dumper', () => {
     expect(typeof changes[0].before).toBe('string');
   });
 
-  it('should handle inherited collection order', async () => {
-    if (process.env.DB_DIALECT !== 'postgres') {
-      return;
-    }
-
+  itPostgresOnly('should handle inherited collection order', async () => {
     await db.getRepository('collections').create({
       values: {
         name: 'parent1',

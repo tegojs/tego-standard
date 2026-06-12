@@ -34,7 +34,8 @@ describe('test with start', () => {
       }
     }
 
-    const presets = TachybaseGlobal.getInstance().get<Record<string, any>>('PRESETS') || {};
+    const originalPresets = TachybaseGlobal.getInstance().get<Record<string, any>>('PRESETS');
+    const presets = originalPresets ?? {};
     TachybaseGlobal.getInstance().set('PRESETS', {
       ...presets,
       'test-package': TestPlugin,
@@ -72,7 +73,7 @@ describe('test with start', () => {
     } finally {
       await subApp?.destroy();
       await app?.destroy();
-      TachybaseGlobal.getInstance().set('PRESETS', presets);
+      TachybaseGlobal.getInstance().set('PRESETS', originalPresets);
     }
   });
 

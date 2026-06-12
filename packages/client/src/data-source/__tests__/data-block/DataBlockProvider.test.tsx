@@ -16,6 +16,12 @@ describe('CollectionDataSourceProvider', () => {
     notification.destroy();
   });
 
+  const expectSaveNotification = async () => {
+    await waitFor(() => {
+      expect(screen.getByText('Save successfully!')).toBeInTheDocument();
+    });
+  };
+
   describe('collection', () => {
     test('Table list', async () => {
       const { getByText, getByRole } = render(<CollectionTableListDemo />);
@@ -56,9 +62,7 @@ describe('CollectionDataSourceProvider', () => {
 
       fireEvent.click(document.querySelector('button'));
 
-      await waitFor(() => {
-        expect(screen.getAllByText('Save successfully!').length).toBeGreaterThanOrEqual(1);
-      });
+      await expectSaveNotification();
     });
 
     test('Form create', async () => {
@@ -74,9 +78,7 @@ describe('CollectionDataSourceProvider', () => {
 
       fireEvent.click(document.querySelector('button'));
 
-      await waitFor(() => {
-        expect(screen.getAllByText('Save successfully!').length).toBeGreaterThanOrEqual(1);
-      });
+      await expectSaveNotification();
     });
 
     test('Form record & update', async () => {
@@ -94,9 +96,7 @@ describe('CollectionDataSourceProvider', () => {
 
       fireEvent.click(document.querySelector('button'));
 
-      await waitFor(() => {
-        expect(screen.getAllByText('Save successfully!').length).toBeGreaterThanOrEqual(1);
-      });
+      await expectSaveNotification();
     });
   });
 

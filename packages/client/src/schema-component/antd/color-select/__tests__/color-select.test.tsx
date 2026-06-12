@@ -15,9 +15,8 @@ describe('ColorSelect', () => {
 
     expect(screen.getByText('Volcano')).toBeInTheDocument();
 
-    // select red
     fireEvent.click(screen.getByText('Red'));
-    // 1 for dropdown option, 1 for selected value in Select
-    expect(screen.getAllByText('Red').length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelector('.ant-select-selection-item')).toHaveTextContent('Red');
+    expect(container.querySelector('.ant-tag-red')).toHaveTextContent('Red');
   });
 });

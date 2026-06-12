@@ -16,7 +16,8 @@ export const useACLActionParamsContext = () => {
 };
 
 export const useACLFieldWhitelist = () => {
-  const params = useContext(ACLActionParamsContext);
+  const context = useContext(ACLActionParamsContext);
+  const params = context?.params || context;
   const whitelist = []
     .concat(params?.whitelist || [])
     .concat(params?.fields || [])

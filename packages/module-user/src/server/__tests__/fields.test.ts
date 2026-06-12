@@ -7,7 +7,7 @@ describe('createdBy/updatedBy', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     api = await createMockServer({
       plugins: ['acl', 'users', 'collection-manager', 'error-handler', 'data-source-manager'],
     });
@@ -17,7 +17,7 @@ describe('createdBy/updatedBy', () => {
     Field = db.getCollection('fields');
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await api.destroy();
   });
 

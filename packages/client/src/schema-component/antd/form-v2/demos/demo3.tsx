@@ -1,7 +1,7 @@
 import React from 'react';
-import { ISchema, useField, useForm } from '@tachybase/schema';
+import { ISchema, useField } from '@tachybase/schema';
 
-import { Form as AntdForm, Button, notification } from 'antd';
+import { Form as AntdForm } from 'antd';
 
 import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
 import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';

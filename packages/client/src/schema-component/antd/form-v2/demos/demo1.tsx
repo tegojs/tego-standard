@@ -5,9 +5,7 @@ import { Form as AntdForm, Button, notification } from 'antd';
 
 import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
 import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
-import { Grid } from '../../grid/Grid';
 import { Input } from '../../input/Input';
-import { Password } from '../../password/Password';
 import { Form as FormV2 } from '../Form';
 
 const FormItem = (props) => {

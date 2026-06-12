@@ -510,8 +510,38 @@ describe('query', () => {
           },
         ],
       });
+      app.db.collection({
+        name: 'tenant_legacy_orders',
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a'],
+        fields: [
+          {
+            name: 'id',
+            type: 'bigInt',
+          },
+          {
+            name: 'tenantId',
+            type: 'string',
+          },
+        ],
+      });
+      app.db.collection({
+        name: 'tenant_inherited_orders',
+        tenancy: 'tenantInherited',
+        fields: [
+          {
+            name: 'id',
+            type: 'bigInt',
+          },
+          {
+            name: 'tenantId',
+            type: 'string',
+          },
+        ],
+      });
       ctx = {
         app,
+        tego: app,
         db: app.db,
       };
     });
@@ -538,6 +568,95 @@ describe('query', () => {
 
       expect(context.action.params.values.filter).toEqual({
         $and: [{ status: 'published' }, { tenantId: 'tenant-a' }],
+      });
+    });
+
+    it('should strip user tenant filters before applying the current tenant scope', async () => {
+      const context = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              collection: 'tenant_orders',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(context.action.params.values.filter).toEqual({
+        $and: [{ status: 'published' }, { tenantId: 'tenant-a' }],
+      });
+    });
+
+    it('should include legacy records for tenants allowed by collection options', async () => {
+      const context = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              collection: 'tenant_legacy_orders',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(context.action.params.values.filter).toEqual({
+        $and: [
+          { status: 'published' },
+          {
+            $or: [{ tenantId: 'tenant-a' }, { tenantId: null }],
+          },
+        ],
+      });
+    });
+
+    it('should include descendant tenants for inherited tenant collections', async () => {
+      const context = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentTenantDescendantIds: ['tenant-a-child', 'tenant-a-grandchild'],
+        },
+        action: {
+          params: {
+            values: {
+              collection: 'tenant_inherited_orders',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(context.action.params.values.filter).toEqual({
+        $and: [
+          { status: 'published' },
+          {
+            tenantId: {
+              $in: ['tenant-a', 'tenant-a-child', 'tenant-a-grandchild'],
+            },
+          },
+        ],
       });
     });
 

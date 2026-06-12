@@ -45,15 +45,70 @@ type QueryParams = Partial<{
   refresh: boolean;
 }>;
 
-function appendTenantFilter(original: any, tenantId: string | number) {
-  const tenantFilter = { tenantId };
+function stripTenantFilter(filter: any): any {
+  if (!filter || typeof filter !== 'object') {
+    return filter;
+  }
 
-  if (!original || Object.keys(original).length === 0) {
+  if (Array.isArray(filter)) {
+    return filter
+      .map(stripTenantFilter)
+      .filter((item) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+  }
+
+  const next = Object.fromEntries(
+    Object.entries(filter)
+      .filter(([key]) => key !== 'tenantId' && !key.startsWith('tenantId.'))
+      .map(([key, value]) => [key, stripTenantFilter(value)]),
+  );
+
+  for (const key of ['$and', '$or']) {
+    if (Array.isArray(next[key])) {
+      next[key] = next[key].filter((item: any) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+      if (next[key].length === 0) {
+        delete next[key];
+      }
+    }
+  }
+
+  return next;
+}
+
+function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
+  return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
+}
+
+function buildTenantFilter(tenantId: string | number, includeLegacyData = false) {
+  if (!includeLegacyData) {
+    return { tenantId };
+  }
+
+  return {
+    $or: [{ tenantId }, { tenantId: null }],
+  };
+}
+
+function buildInheritedTenantFilter(tenantIds: Array<string | number>, includeLegacyData = false) {
+  const tenantFilter = { tenantId: { $in: tenantIds } };
+
+  if (!includeLegacyData) {
     return tenantFilter;
   }
 
   return {
-    $and: [original, tenantFilter],
+    $or: [tenantFilter, { tenantId: null }],
+  };
+}
+
+function appendTenantFilter(original: any, tenantFilter: any) {
+  const sanitizedOriginal = stripTenantFilter(original);
+
+  if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
+    return tenantFilter;
+  }
+
+  return {
+    $and: [sanitizedOriginal, tenantFilter],
   };
 }
 
@@ -79,16 +134,8 @@ function stableSerialize(value: any): string {
 function getChartCacheKey(ctx: Context, uid: string) {
   const tenantId = getCurrentTenantId(ctx);
   const currentUserId = ctx.state.currentUser?.id;
-  const {
-    dataSource,
-    collection,
-    measures,
-    dimensions,
-    orders,
-    filter,
-    limit,
-    sql,
-  } = ctx.action.params.values as QueryParams;
+  const { dataSource, collection, measures, dimensions, orders, filter, limit, sql } = ctx.action.params
+    .values as QueryParams;
   const timezone = ctx.get?.('x-timezone');
   const signature = stableSerialize({
     dataSource,
@@ -381,12 +428,18 @@ export const applyTenantScope = async (ctx: Context, next: Next) => {
   const { dataSource, collection: collectionName, filter } = ctx.action.params.values as QueryParams;
   const db = getDB(ctx, dataSource) || ctx.db;
   const collection = db.getCollection(collectionName);
+  const tenancyMode = collection?.options?.tenancy;
 
-  if (collection?.options?.tenancy === 'tenantScoped') {
+  if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
     const tenantId = getCurrentTenantId(ctx);
 
     if (tenantId) {
-      ctx.action.params.values.filter = appendTenantFilter(filter, tenantId);
+      const includeLegacyData = canReadLegacyData(tenantId, collection.options?.legacyDataTenantIds);
+      const tenantFilter =
+        tenancyMode === 'tenantInherited'
+          ? buildInheritedTenantFilter([tenantId, ...(ctx.state.currentTenantDescendantIds || [])], includeLegacyData)
+          : buildTenantFilter(tenantId, includeLegacyData);
+      ctx.action.params.values.filter = appendTenantFilter(filter, tenantFilter);
     }
   }
 

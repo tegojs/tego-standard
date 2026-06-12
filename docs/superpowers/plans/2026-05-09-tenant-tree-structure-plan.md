@@ -6,11 +6,10 @@
 
 ## 2026-06-12 复核状态
 
-当前代码已完成租户树基础模型、`tenantInherited` 读过滤、当前租户子孙 ID 注入、path 创建与移动、循环检测、删除非叶子节点拒绝等主体能力。仍需注意以下未闭合或与计划不一致的点：
+当前代码已完成租户树基础模型、`tenantInherited` 读过滤、当前租户子孙 ID 注入、path 创建与移动、path 长度友好校验、循环检测、删除非叶子节点拒绝等主体能力。仍需注意以下未闭合或与计划不一致的点：
 
-- `tenant-tree.ts` 已实现 `getDescendantIds/buildPath/canManageTenant/wouldCreateCycle`，但未实现计划中的 `getDescendantTenants(repo, tenantId)`。如后续没有调用需求，可在计划中取消；否则仍需补 helper。
+- `tenant-tree.ts` 已实现 `getDescendantIds/getDescendantTenants/buildPath/canManageTenant/wouldCreateCycle`。
 - `available-tenants.ts` 当前扩展为“直接归属租户 + enabled 子孙租户”，不是本计划写的“包含用户归属租户的所有祖先”。需要结合产品决策更新代码或更新计划。
-- `path` 字段已有 `maxLength: 500`，但计划中的“深度限制/友好拒绝”还没有 hook 层实现。
 - collection-manager 动态路径已覆盖 `tenantScoped` 与 `tenantInherited` 自动补 `tenantId`；程序化 `defineCollection` 的自动补字段仍只看到 `tenantScoped` 路径。
 - Phase 6 后台链路已有部分完成，但 workflow、异步导出、图表缓存和 legacy 旧数据读范围仍需按 `tenant-isolation-review-notes.md` 与实施规划继续处理。
 

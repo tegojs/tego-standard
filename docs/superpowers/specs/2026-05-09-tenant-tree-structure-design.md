@@ -21,7 +21,7 @@
 
 - `tenantInherited` 的读过滤、`currentTenantDescendantIds` 上下文、租户树 path 创建/移动/删除非叶子保护已落地。
 - `available-tenants` 当前实现返回用户直接归属租户及其 enabled 子孙租户，不返回祖先租户；当前测试也按“父可切子、子不可切父”的规则断言。这与下文“包含用户直接归属租户的所有祖先”的原设计不同，需要产品确认后再决定是改代码还是更新设计决策。
-- `path` 字段已设置 `maxLength: 500`，但没有看到 hook 层提前校验并给出友好错误。超过长度时的用户体验仍依赖字段或数据库层报错。
+- `path` 字段已设置 `maxLength: 500`，并已在 `buildPath` 中补充 hook 级长度校验；创建或移动导致 path 超过 500 字符时会提前抛出明确错误。
 - 后台链路仍需按实施规划继续补齐：workflow 直连 repository 强制过滤、date-field schedule 的后代范围、legacy 旧数据读范围、异步导出完整上下文和图表缓存最终作用域。
 - 历史数据迁移、灰度开关和回滚工具尚未实现；当前旧数据兼容主要通过读时 `legacyDataTenantIds` 暂时解决“未迁移旧数据可见性”问题。
 

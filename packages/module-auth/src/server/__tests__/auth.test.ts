@@ -69,7 +69,6 @@ describe('auth', () => {
       filterByTk: user.id,
     });
     cacheData = await app.cache.get(auth.getCacheKey(user.id));
-    console.log(cacheData);
     expect(cacheData['nickname']).toBe('admin');
   });
 

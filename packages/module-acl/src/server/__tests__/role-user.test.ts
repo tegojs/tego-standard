@@ -65,8 +65,6 @@ describe('role', () => {
           ],
         },
       });
-    console.log('resp.body', JSON.stringify(resp.body, null, 2));
-
     expect(resp.body.data.roles[0].name).toBeDefined();
   });
 

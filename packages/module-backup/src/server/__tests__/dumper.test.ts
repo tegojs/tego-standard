@@ -441,7 +441,6 @@ describe('dumper', () => {
       includeInProgress: true,
       dir: path.join(__dirname, './fixtures/files'),
     });
-    console.log({ list });
     expect(list.length).toBe(2);
   });
 

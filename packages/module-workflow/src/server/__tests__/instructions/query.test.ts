@@ -1,13 +1,15 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { sleep } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
-import { waitForWorkflowIdle, waitForWorkflowJobFast as waitForWorkflowJob } from '../utils';
+import {
+  createWorkflowTestAppCache,
+  waitForWorkflowIdle,
+  waitForWorkflowJobFast as waitForWorkflowJob,
+} from '../utils';
 
 describe('workflow > instructions > query', () => {
   let app: Application;
-  let cachedApp: Application;
-  let cachedAppKey: string;
   let db: Database;
   let PostCollection;
   let PostRepo;
@@ -17,6 +19,11 @@ describe('workflow > instructions > query', () => {
   let WorkflowModel;
   let workflow;
   let withAnotherDataSource = false;
+
+  const appCache = createWorkflowTestAppCache<Application>((currentApp) => {
+    app = currentApp;
+    bindRepositories();
+  });
 
   function isSqliteBusy(error) {
     return (
@@ -56,22 +63,6 @@ describe('workflow > instructions > query', () => {
     TagRepo = db.getCollection('tags').repository;
   }
 
-  async function useAppForCurrentConfig() {
-    const appKey = JSON.stringify({ withAnotherDataSource });
-
-    if (cachedAppKey !== appKey) {
-      if (cachedApp) {
-        await cachedApp.destroy();
-      }
-
-      cachedApp = await getApp({ withAnotherDataSource });
-      cachedAppKey = appKey;
-    }
-
-    app = cachedApp;
-    bindRepositories();
-  }
-
   async function resetAppData() {
     await withSqliteBusyRetry(() => WorkflowModel.update({ enabled: false }, { where: { enabled: true } }));
     await waitForWorkflowIdle(app);
@@ -89,7 +80,7 @@ describe('workflow > instructions > query', () => {
   }
 
   beforeEach(async () => {
-    await useAppForCurrentConfig();
+    await appCache.useApp({ withAnotherDataSource });
     await resetAppData();
 
     workflow = await WorkflowModel.create({
@@ -109,7 +100,7 @@ describe('workflow > instructions > query', () => {
   });
 
   afterAll(async () => {
-    await cachedApp?.destroy();
+    await appCache.destroy();
   });
 
   describe('query one', () => {

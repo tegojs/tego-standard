@@ -1,4 +1,4 @@
-import { sleep } from '@tachybase/plugin-workflow-test';
+import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 
 export const FAST_POLL_INTERVAL_MS = 50;
 
@@ -69,4 +69,31 @@ export async function waitForWorkflowIdle(app, options: { timeout?: number; inte
     timeout,
     interval,
   );
+}
+
+export function createWorkflowTestAppCache<TApp = any>(bindApp: (app: TApp) => void) {
+  let cachedApp: TApp;
+  let cachedAppKey: string;
+
+  return {
+    async useApp(options: { plugins?: string[]; withAnotherDataSource?: boolean } = {}) {
+      const appKey = JSON.stringify(options);
+
+      if (cachedAppKey !== appKey) {
+        if (cachedApp) {
+          await (cachedApp as any).destroy();
+        }
+
+        cachedApp = (await getApp(options)) as TApp;
+        cachedAppKey = appKey;
+      }
+
+      bindApp(cachedApp);
+      return cachedApp;
+    },
+
+    async destroy() {
+      await (cachedApp as any)?.destroy();
+    },
+  };
 }

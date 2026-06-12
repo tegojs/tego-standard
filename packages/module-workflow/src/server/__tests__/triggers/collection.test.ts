@@ -1,14 +1,16 @@
-import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
-import { FAST_POLL_INTERVAL_MS, waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
+import {
+  createWorkflowTestAppCache,
+  FAST_POLL_INTERVAL_MS,
+  waitForFastAssertion as waitForAssertion,
+  waitForWorkflowIdle,
+} from '../utils';
 
 describe('workflow > triggers > collection', () => {
   let app: MockServer;
-  let cachedApp: MockServer;
-  let cachedAppKey: string;
   let db: MockDatabase;
   let CategoryRepo;
   let PostRepo;
@@ -18,6 +20,11 @@ describe('workflow > triggers > collection', () => {
   let withAnotherDataSource = false;
   let testPlugins = [];
 
+  const appCache = createWorkflowTestAppCache<MockServer>((currentApp) => {
+    app = currentApp;
+    bindRepositories();
+  });
+
   function bindRepositories() {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
@@ -25,25 +32,6 @@ describe('workflow > triggers > collection', () => {
     PostRepo = db.getCollection('posts').repository;
     CommentRepo = db.getCollection('comments').repository;
     TagRepo = db.getCollection('tags').repository;
-  }
-
-  async function useAppForCurrentConfig() {
-    const appKey = JSON.stringify({ plugins: testPlugins, withAnotherDataSource });
-
-    if (cachedAppKey !== appKey) {
-      if (cachedApp) {
-        await cachedApp.destroy();
-      }
-
-      cachedApp = await getApp({
-        plugins: testPlugins,
-        withAnotherDataSource,
-      });
-      cachedAppKey = appKey;
-    }
-
-    app = cachedApp;
-    bindRepositories();
   }
 
   async function resetAppData() {
@@ -65,7 +53,7 @@ describe('workflow > triggers > collection', () => {
   }
 
   beforeEach(async () => {
-    await useAppForCurrentConfig();
+    await appCache.useApp({ plugins: testPlugins, withAnotherDataSource });
     await resetAppData();
   });
 
@@ -74,7 +62,7 @@ describe('workflow > triggers > collection', () => {
   });
 
   afterAll(async () => {
-    await cachedApp?.destroy();
+    await appCache.destroy();
   });
 
   describe('toggle', () => {

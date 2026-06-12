@@ -29,10 +29,5 @@ module.exports = {
       type: 'belongsToMany',
       name: 'tags',
     },
-    {
-      type: 'integer',
-      name: 'read',
-      defaultValue: 0,
-    },
   ],
 };

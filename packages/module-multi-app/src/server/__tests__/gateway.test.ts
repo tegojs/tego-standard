@@ -7,10 +7,22 @@ type WsTestClient = Awaited<ReturnType<typeof createWsClient>>;
 const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
 const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
 
+function parseWsMessage(message: unknown) {
+  if (typeof message !== 'string') {
+    return message as any;
+  }
+
+  try {
+    return JSON.parse(message);
+  } catch (error) {
+    return undefined;
+  }
+}
+
 function findMaintainingMessage(wsClient: WsTestClient, code: string) {
-  const matchedMessage = wsClient.messages.find(
-    (message) => message?.type === 'maintaining' && message?.payload?.code === code,
-  );
+  const matchedMessage = wsClient.messages.map(parseWsMessage).find((message) => {
+    return message?.type === 'maintaining' && message?.payload?.code === code;
+  });
   if (matchedMessage) {
     return matchedMessage;
   }

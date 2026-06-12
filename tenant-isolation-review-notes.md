@@ -15,6 +15,54 @@
 - 工作流、导出、图表、审计、文件等非当前租户模块适配暂缓处理，保留在本文档中供后续逐项核对。
 - 测试基础设施、文档、catalog、AI 指南等范围污染问题暂缓处理，避免和测试开发分支目标混淆。
 
+## 文档设计与实现核对进度
+
+核对来源：
+
+- `租户隔离规划方案.md`
+- `租户隔离实施规划方案.md`
+- `docs/superpowers/specs/2026-05-09-tenant-tree-structure-design.md`
+- `docs/superpowers/plans/2026-05-09-tenant-tree-structure-plan.md`
+- `docs/superpowers/plans/2026-05-25-tenant-isolation-next-work.md`
+
+### 当前可确认完成
+
+- 租户基础模块：`packages/module-tenant` 已提供前后端入口、`tenants`/`tenantUsers`/`users` 扩展集合、当前租户解析、切换接口和管理页面。
+- 租户树基础能力：`tenants` 已有 `parentId`、`parent`、`children`、`path`；创建时生成 path；更新父节点时重算当前节点和子树 path；循环引用和删除非叶子节点有保护。
+- 请求上下文：`setCurrentTenant` 使用 `X-Tenant-Id`、默认租户和可访问租户集合解析 `ctx.state.currentTenant/currentTenantId/currentTenantDescendantIds`，普通用户伪造不可访问租户会被拒绝，root 显式代入时保留 actor 元数据。
+- 资源层主路径：`tenantResourceGuard` 覆盖主数据源和非默认数据源的 resourcer 路径，按集合 `tenancy` 设置 `currentTenancyMode/currentLegacyDataTenantIds` 并调用 `applyTenantFilter`。
+- 读写隔离语义：`applyTenantFilter` 对 `list/get/count/export` 加租户读过滤；`create` 强制写当前租户；`update/destroy` 加当前租户写过滤；`update` 移除请求体 `tenantId`。
+- 旧数据可见性：`legacyDataTenantIds` 只影响读过滤，写操作不会把 `tenantId = null` 纳入过滤，符合“旧数据只读可见、不可写”的设计。
+- collection-manager 动态开关：通过 `collections.afterCreateWithAssociations`、`collections.afterUpdateWithAssociations`、`collections.afterUpdate` 调用 `ensureTenantIdField`，动态启用 `tenantScoped`/`tenantInherited` 时会补 `tenantId` 字段并同步表结构。
+- ACL scope：`module-acl` 内建 `all`、`own`、`tenant` scope，其中 `tenant` scope 为 `tenantId: '{{ ctx.state.currentTenant.id }}'`；隔离兜底仍在资源层，和实施文档的原则一致。
+- 导入关联解析：`plugin-action-import` 的 `o2o/o2m/m2o/m2m` transform 已向 relation lookup 传递 `context: ctx`，`chinaRegion` 仍保持共享查询。
+- 文件与附件主路径：`attachments` 集合标记为 `tenantScoped`；上传时文件 path 通过 `getTenantStoragePath` 带上 `tenants/<tenantId>`；删除前按 `context: ctx` 查找附件。
+- 审计上下文主路径：`auditLogs` 已增加 `tenantId/actorUserId/impersonatedTenantId/tenantContextSource/isTenantImpersonation`，create/update/destroy hooks 从 `options.context.state` 提取审计上下文。
+
+### 与文档有出入或仍未闭合
+
+- `租户隔离实施规划方案.md` 中“导出文件细化”“异步导出和后台文件链路已保留租户上下文”的完成描述偏乐观。worker 导出只接收 `currentTenantId`，没有传递 `currentTenancyMode/currentTenantDescendantIds/currentLegacyDataTenantIds` 或已合并后的最终 filter；`tenantInherited` 和旧数据可见场景仍可能与普通导出不一致。
+- `租户隔离实施规划方案.md` 中“图表查询和缓存隔离已完成”的描述需要细化。图表查询已追加 tenant filter，缓存 key 也包含 `currentTenantId`、查询 payload、用户和时区；但 `cacheMiddleware` 在 `applyTenantScope` 前执行，key 不包含最终展开后的 descendants 或 `legacyDataTenantIds`，租户树或旧数据可见配置变化后可能复用旧缓存。
+- workflow 指令已经普遍传递 `processor.getRepositoryContext()`，但这些 repository 直连调用不会自动经过 `tenantResourceGuard`。除非底层 repository 能根据 `context.state.currentTenancyMode` 自动加租户过滤，否则“查询/更新/删除/聚合节点统一租户化”的文档目标仍未真正闭合。
+- workflow `extractTenantContext()` 当前保存 `currentTenant/currentTenantId/currentTenantDescendantIds/currentTenancyMode`，未保存 `currentLegacyDataTenantIds`。异步 workflow 恢复后无法复现 legacy 旧数据可见读范围。
+- general-action trigger 的同步触发传了 `{ httpContext: ctx }`，但异步触发仍直接调用 `this.workflow.trigger(event[0], event[1])`；此外触发前组装 payload 的 `repository.find/findOne` 没有传 `context: ctx`，payload 本身可能跨租户。
+- Date-field schedule trigger 已比旧审查结论更进一步：它会为 tenant-enabled 记录构造租户上下文，并在 `repository.findOne` 和 `workflow.trigger` 中传递 context；但 `buildTenantContext()` 对 `tenantInherited` 的 `currentTenantDescendantIds` 仍固定为空，总部租户触发后续节点时仍不能覆盖子孙租户可见范围。
+- `available-tenants` 实现与租户树设计文档有明确出入。设计文档写的是“除了用户直接归属的租户，也应包含这些租户的所有祖先”；实际 `getAccessibleTenantIds()` 返回直接租户及其 enabled 子孙，不返回祖先。当前测试也明确“用户只归属 dept 时不应包含 hq/branch”，说明实现选择已经变成“父可切子，不允许子切父”。需要更新设计文档或确认产品决策。
+- 租户树设计文档要求“path 过长超过 maxLength 时拒绝创建更深层级”，当前集合只设置 `path.maxLength = 500`，没有在 hook 中提供友好错误或提前校验；依赖数据库/字段层表现，不满足文档中的明确边界处理。
+- 租户树实现计划列出 `getDescendantTenants(repo, tenantId)`，当前 `tenant-tree.ts` 只有 `buildPath/getDescendantIds/wouldCreateCycle/canManageTenant`。如果没有调用需求，可在计划中标记为取消；否则 helper 未实现。
+- `module-user` 的 `afterDefineCollection` 仍只为程序化定义的 `tenantScoped` 集合补 `tenantId`，没有覆盖 `tenantInherited`。动态 collection-manager 路径已覆盖两者，但代码直接 define collection 的 `tenantInherited` 仍可能缺字段。
+- 新增租户字段/租户化已有表缺少迁移仍未闭合：workflow executions、auditLogs、attachments 等已有表引入字段或 tenancy 后，没有看到匹配迁移。升级环境存在缺列或旧记录不可见风险。
+- 历史数据迁移工具、灰度开关、回滚工具仍未实现。当前 `legacyDataTenantIds` 只是读时兼容旧数据可见性的配置，不等同于文档中完整迁移工具链。
+- 文档/范围污染记录需要更新：本分支相比 `origin/main` 没有 `vitest.config.mts` diff，但仍包含测试基础设施迁移文档、`pnpm-workspace.yaml` catalog 改动、`.github/copilot-instructions.md`、`AGENTS.md`、`.gitignore` 等非租户运行时改动。
+
+### 已同步更新的文档状态
+
+- `租户隔离实施规划方案.md` 已将“图表查询和缓存隔离已完成”改为“查询过滤已完成；缓存按当前 tenantId 初步隔离，但最终租户作用域/legacy 配置未纳入 key”。
+- `租户隔离实施规划方案.md` 已将“异步导出和后台文件链路已保留租户上下文”改为“异步导出已传 currentTenantId 并隔离文件名/路径；完整 tenantInherited/legacy 读范围未闭合”。
+- `租户隔离实施规划方案.md` 与 `docs/superpowers/plans/2026-05-25-tenant-isolation-next-work.md` 已将 workflow 进度改为“execution 上下文保存与部分指令 context 传递已完成；general-action、date-field schedule 后代范围、legacy 旧数据范围和直连 repository 强制过滤仍未闭合”。
+- `docs/superpowers/specs/2026-05-09-tenant-tree-structure-design.md` 与 `docs/superpowers/plans/2026-05-09-tenant-tree-structure-plan.md` 已将租户树 `available-tenants` 的祖先/子孙切换规则单独列为产品决策偏差，避免后续按旧设计误改。
+- `docs/superpowers/plans/2026-05-09-tenant-tree-structure-plan.md` 已将 `path` 深度/长度友好校验、`getDescendantTenants` helper、程序化 `tenantInherited` 自动补字段、迁移工具与灰度回滚继续列为未完成。
+
 ## 已确认问题
 
 ### 1. [暂缓处理] Workflow instructions 直接调用 repository，可能绕过租户过滤
@@ -26,7 +74,7 @@
 - `packages/module-workflow/src/server/instructions/DestroyInstruction.ts:18`
 - `packages/module-workflow/src/server/features/aggregate/AggregateInstruction.ts:30`
 
-说明：当前租户过滤主要通过 resourcer middleware 调用 `applyTenantFilter(ctx)` 注入，而这些 workflow instruction 直接调用 repository。传入 `context: processor.getRepositoryContext()` 能传递上下文值，但不会自动把 `tenantId` / `tenantInherited` / legacy 可见租户条件追加到查询、更新、删除或聚合条件里。
+说明：当前租户过滤主要通过 resourcer middleware 调用 `applyTenantFilter(ctx)` 注入。workflow instruction 已经把 `context: processor.getRepositoryContext()` 传给 repository，但这些调用不会经过 `tenantResourceGuard`，也没有看到统一代码根据 `context.state.currentTenancyMode` 自动把 `tenantId` / `tenantInherited` / legacy 可见租户条件追加到查询、更新、删除或聚合条件里。
 
 风险：workflow 查询、更新、删除、聚合租户隔离集合时可能跨租户读写。
 
@@ -141,7 +189,7 @@
 - `packages/module-workflow/src/server/triggers/ScheduleTrigger/DateFieldScheduleTrigger.ts:107`
 - `packages/module-workflow/src/server/triggers/ScheduleTrigger/DateFieldScheduleTrigger.ts:406`
 
-说明：`buildTenantContext()` 给 schedule workflow 构造上下文时，`currentTenantDescendantIds` 固定为 `[]`。如果触发记录属于 `tenantInherited` collection，后续 workflow instruction 恢复上下文后只能看到当前 tenant，不能看到其后代租户。
+说明：当前 Date-field schedule trigger 已会按记录 `tenantId` 构造租户上下文，并在加载触发记录与触发 workflow 时传递 context；但 `buildTenantContext()` 里的 `currentTenantDescendantIds` 仍固定为 `[]`。如果触发记录属于 `tenantInherited` collection，后续 workflow instruction 恢复上下文后只能看到当前 tenant，不能看到其后代租户。
 
 风险：定时字段触发的 workflow 在 `tenantInherited` 场景下读不到后代租户数据；如果修复了 instruction 租户过滤后，这里会成为新的漏范围点。
 
@@ -175,7 +223,7 @@
 - `AGENTS.md:3`
 - `.gitignore:42`
 
-说明：当前分支没有看到 `vitest.config.*` / `jest` 配置文件本身的 diff，但还包含测试基础设施迁移方案文档、`@tachybase/*` / `@tego/*` catalog 从 `1.6.11` 升到 `1.6.12`、AI 指南改写和 `.superpowers/.claude` ignore 规则。这些改动不直接属于租户隔离运行时能力，后续修复时容易和测试开发分支目标混在一起。
+说明：当前分支相比 `origin/main` 没有看到 `vitest.config.mts` / `jest` 配置文件本身的 diff，但还包含测试基础设施迁移方案文档、`@tachybase/*` / `@tego/*` catalog 从 `1.6.11` 升到 `1.6.12`、AI 指南改写和 `.superpowers/.claude` ignore 规则。这些改动不直接属于租户隔离运行时能力，后续修复时容易和测试开发分支目标混在一起。
 
 风险：合并租户隔离时把测试基础设施/依赖版本升级一起带入，增加回归面；也会让后续回滚或 cherry-pick 租户修复变复杂。
 

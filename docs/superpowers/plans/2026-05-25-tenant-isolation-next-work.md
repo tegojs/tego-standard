@@ -4,7 +4,7 @@
 
 **目标：** 补齐导入关联查询、工作流执行、审计日志和平台管理员代入的租户上下文隔离能力。
 
-**架构：** 采用最小租户上下文传播方案：请求内继续使用 `ctx.state.currentTenant/currentTenantId/currentTenantDescendantIds`，后台链路只保存和恢复必要的可序列化租户上下文。repository 操作通过传递 `context` 复用现有资源层租户过滤，不在每个业务模块重复手写 tenant filter。
+**架构：** 采用最小租户上下文传播方案：请求内继续使用 `ctx.state.currentTenant/currentTenantId/currentTenantDescendantIds`，后台链路只保存和恢复必要的可序列化租户上下文。2026-06-12 复核发现，repository 操作传递 `context` 只能携带状态，不能等同于已经复用 resourcer 级 `tenantResourceGuard`；后续仍需确认或补齐直连 repository 路径的统一租户过滤。
 
 **技术栈：** TypeScript、Tego/Tachybase server resources、module-tenant、plugin-action-import、module-workflow、plugin-audit-logs、Vitest/Jest 风格测试、pnpm。
 
@@ -17,10 +17,17 @@
 | 任务 1：更新规划文档 | 已完成 | 已提交 `docs(tenant): plan next isolation hardening`。 |
 | 任务 2：导入关联查询传递租户上下文 | 已完成 | `o2o/o2m/m2o/m2m` 关联查询已传递导入请求 `context`，并新增跨租户同名关联记录测试。 |
 | 任务 3：workflow execution 保存租户上下文 | 已完成 | execution 已保存 `tenantId` 与最小 `tenantContext`。 |
-| 任务 4：workflow 执行时恢复租户上下文 | 部分完成 | 主要 repository 指令已使用 `processor.getRepositoryContext()`；仍需补齐触发器向 execution 创建阶段传递 tenant context。 |
-| 任务 5：日期字段定时 workflow 按租户上下文执行 | 未完成 | 日期字段定时触发仍需避免无上下文扫描 tenant-enabled collection。 |
+| 任务 4：workflow 执行时恢复租户上下文 | 部分完成 | 主要 repository 指令已使用 `processor.getRepositoryContext()`；但直连 repository 调用是否会自动追加租户过滤仍未闭合，general-action 的异步触发与 payload 查询仍缺 context。 |
+| 任务 5：日期字段定时 workflow 按租户上下文执行 | 部分完成 | 日期字段定时触发已按记录构造并传递租户上下文；`tenantInherited` 场景的 `currentTenantDescendantIds` 仍固定为空，legacy 旧数据读范围也未保存。 |
 | 任务 6：审计日志记录租户与 actor context | 已完成 | audit log 字段、hooks、worker payload 保留与基础测试已完成。 |
 | 任务 7：平台管理员代入租户并写入审计上下文 | 部分完成 | 中间件显式代入和 state 元数据已完成；仍需补齐代入操作写入 audit log 的集成测试。 |
+
+补充复核项：
+
+- 异步导出 worker 当前只传递 `currentTenantId`，仍缺 `currentTenancyMode/currentTenantDescendantIds/currentLegacyDataTenantIds` 或最终合并后的 filter。
+- 图表查询已追加租户过滤，缓存 key 已包含当前 `tenantId`；但缓存生成早于最终过滤展开，未纳入 descendants 和 `legacyDataTenantIds`。
+- `available-tenants` 当前实现是直接归属租户加 enabled 子孙租户，与原租户树设计中的“包含祖先租户”不一致，需产品确认。
+- 历史数据迁移、灰度开关、回滚和已有表字段迁移仍未闭合；`legacyDataTenantIds` 只是读时兼容策略。
 
 ## 文件结构
 

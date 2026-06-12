@@ -106,6 +106,7 @@ describe('PluginManager', () => {
     requirejs.requirejs.requirejs = vi.fn();
 
     const app = new Application({
+      apiClient: axios,
       loadRemotePlugins: true,
     });
     app.requirejs = requirejs;

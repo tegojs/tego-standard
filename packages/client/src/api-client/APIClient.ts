@@ -3,7 +3,6 @@ import { APIClient as APIClientSDK } from '@tego/client';
 
 import { Result } from 'ahooks/es/useRequest/src/types';
 import { notification } from 'antd';
-import axios from 'axios';
 
 import type { Application } from '../application';
 import { i18n } from '../i18n';
@@ -67,12 +66,6 @@ export class APIClient extends APIClientSDK {
   app: Application;
   /** 该值会在 AntdAppProvider 中被重新赋值 */
   notification: any = notification;
-
-  constructor(options?: any) {
-    // When no options provided, pass the global axios instance so that
-    // test-time MockAdapter(axios) interceptors apply.
-    super(options ?? axios);
-  }
 
   cloneInstance() {
     const api = new APIClient(this.options);

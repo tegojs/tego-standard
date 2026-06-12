@@ -262,6 +262,7 @@
   "Query records from a collection. You can use variables from upstream nodes as query conditions.": "查询一个数据表中的数据。可以使用上游节点里的变量作为查询条件。",
   "Query result": "查询结果",
   "Queueing": "队列中",
+  "Quick Launch": "快速发起",
   "ReSubmit": "重新提交",
   "Reject": "否决",
   "Rejected": "否决",

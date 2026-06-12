@@ -75,7 +75,7 @@ export const getSchemaCreateActionLaunch = (params) => {
               service: {
                 resource: 'workflows',
                 params: {
-                  filter: { 'config.centralized': true, enabled: true },
+                  filter: { 'config.centralized': true, enabled: true, 'config.collection': record.collectionName },
                 },
               },
               style: {

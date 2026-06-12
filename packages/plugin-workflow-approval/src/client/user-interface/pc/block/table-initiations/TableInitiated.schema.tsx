@@ -71,7 +71,7 @@ export const schemaTableInitiated = {
             width: 60,
             className: css`
               .tb-action-link {
-                padding: 12px 12px !important;
+                padding: 12px 19px !important;
               }
             `,
           },

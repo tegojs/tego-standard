@@ -8,23 +8,22 @@ import {
   useRecord,
   useRequest,
 } from '@tachybase/client';
-import { ProviderContextWorkflow } from '@tachybase/module-workflow/client';
 import { useForm } from '@tachybase/schema';
 
 import { Result, Spin } from 'antd';
 
 import {
-  ApprovalContext,
   ApprovalDataProvider,
   ProviderContextApprovalExecution,
+  QuickCreateContext,
   ResubmitContext,
-  ResubmitProvider,
 } from '../../../../../common';
 import { ProviderQuickApplyButton } from './QuickApplyButton.provider';
 import { QuickViewApplyButton } from './QuickApplyButton.view';
 
 export const QuickApplyButton = (props) => {
-  const { id } = useRecord();
+  const record = useRecord();
+  console.log('🚀 ~ QuickApplyButton ~ record:', record);
   const context = useContext(SchemaComponentContext);
   const apiClient = useAPIClient();
   const [visible, setVisible] = useState(false);
@@ -39,7 +38,7 @@ export const QuickApplyButton = (props) => {
       resource: 'approvalExecutions',
       action: 'get',
       params: {
-        filter: { approvalId: id },
+        filter: { approvalId: record.approvalId || record.id },
         appends: [
           'execution',
           'execution.jobs',
@@ -78,12 +77,12 @@ export const QuickApplyButton = (props) => {
     run();
     apiClient
       .resource('workflows')
-      .listApprovalFlows({ filter: { 'config.centralized': true } })
+      .listApprovalFlows({ filter: { 'config.centralized': true, 'config.collection': record.collectionName } })
       .then(({ data }) => {
         setItems(data.data);
       })
       .catch(console.error);
-  }, [id]);
+  }, [record.id]);
 
   const onClick = useCallback(
     ({ key }) => {
@@ -149,11 +148,13 @@ export const QuickApplyButton = (props) => {
   return (
     <ApprovalDataProvider value={approval}>
       <ProviderContextApprovalExecution value={approvalData}>
-        <ResubmitContext.Provider value={{ isResubmit: true }}>
-          <ProviderQuickApplyButton {...{ visible, setVisible, items, context, onClick }}>
-            <QuickViewApplyButton schema={schema} approval={approval} workflow={workflow} />
-          </ProviderQuickApplyButton>
-        </ResubmitContext.Provider>
+        <QuickCreateContext.Provider value={{ isQuickCreate: true }}>
+          <ResubmitContext.Provider value={{ isResubmit: true }}>
+            <ProviderQuickApplyButton {...{ visible, setVisible, items, context, onClick }}>
+              <QuickViewApplyButton schema={schema} approval={approval} workflow={workflow} />
+            </ProviderQuickApplyButton>
+          </ResubmitContext.Provider>
+        </QuickCreateContext.Provider>
       </ProviderContextApprovalExecution>
     </ApprovalDataProvider>
   );

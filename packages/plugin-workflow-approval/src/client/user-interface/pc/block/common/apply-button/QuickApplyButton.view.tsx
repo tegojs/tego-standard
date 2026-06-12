@@ -1,17 +1,13 @@
-import { useContext } from 'react';
 import {
-  CollectionProvider_deprecated,
   DetailsBlockProvider,
   RemoteSchemaComponent,
   SchemaComponent,
   SchemaComponentProvider,
   useFormBlockContext,
 } from '@tachybase/client';
-import { ProviderContextWorkflow } from '@tachybase/module-workflow/client';
 import { useForm } from '@tachybase/schema';
 
 import {
-  ContextWithActionEnabled,
   FormBlockProvider,
   ProviderActionReminder,
   ProviderActionResubmit,
@@ -24,9 +20,8 @@ import {
   useSubmitCreate,
   useWithdrawAction,
 } from '../../../../../common';
-import { ActionBarProvider } from '../../common/providers/ActionBar.provider';
-import { ApplyActionStatusProvider } from '../../common/providers/ActionStatus.provider';
-import { WithdrawActionProvider } from '../../common/providers/ActionWithdraw.provider';
+import { ActionBarProvider } from '../providers/ActionBar.provider';
+import { WithdrawActionProvider } from '../providers/ActionWithdraw.provider';
 
 export const QuickViewApplyButton = (props) => {
   const { schema } = props;

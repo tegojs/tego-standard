@@ -2,9 +2,9 @@ import { CollectionProvider_deprecated, RemoteSchemaComponent, SchemaComponent }
 import { ProviderContextWorkflow } from '@tachybase/module-workflow/client';
 
 import { useActionResubmit, useSubmitCreate, useWithdrawAction } from '../../../../../common';
-import { ActionBarProvider } from '../../common/providers/ActionBar.provider';
-import { ApplyActionStatusProvider } from '../../common/providers/ActionStatus.provider';
-import { WithdrawActionProvider } from '../../common/providers/ActionWithdraw.provider';
+import { ActionBarProvider } from '../providers/ActionBar.provider';
+import { ApplyActionStatusProvider } from '../providers/ActionStatus.provider';
+import { WithdrawActionProvider } from '../providers/ActionWithdraw.provider';
 
 // 审批-发起: 发起按钮
 export const ViewApplyButton = (props) => {

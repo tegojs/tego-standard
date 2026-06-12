@@ -11,3 +11,4 @@ export * from './ApprovalUpdateForm.provider';
 export * from './WithActionEnabled.provider';
 export * from './ApprovalStatus.context';
 export * from './ApplyActionStatus.provider';
+export * from './QuickCreate.provider';

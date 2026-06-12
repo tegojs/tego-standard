@@ -12,9 +12,11 @@ import createApp, { backupBaseTestPlugins } from './index';
 
 async function waitFor<T>(callback: () => Promise<T>, predicate: (value: T) => boolean, timeoutMs = 3000) {
   const startedAt = Date.now();
+  let lastValue: T | undefined;
 
   while (Date.now() - startedAt < timeoutMs) {
     const value = await callback();
+    lastValue = value;
     if (predicate(value)) {
       return value;
     }
@@ -22,8 +24,11 @@ async function waitFor<T>(callback: () => Promise<T>, predicate: (value: T) => b
   }
 
   const value = await callback();
-  expect(predicate(value)).toBeTruthy();
-  return value;
+  lastValue = value;
+  if (predicate(value)) {
+    return value;
+  }
+  throw new Error(`Timed out after ${timeoutMs}ms waiting for predicate. Last value: ${JSON.stringify(lastValue)}`);
 }
 
 describe('dumper', () => {

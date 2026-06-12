@@ -457,17 +457,20 @@ describe('workflow > Plugin', () => {
       };
       db.on('executions.beforeDestroy', listener);
 
-      const p1 = await PostRepo.create({ values: { title: 't1' } });
+      try {
+        await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForAssertion(async () => {
-        expect(destroyedExecutions).toContainEqual({
-          status: EXECUTION_STATUS.RESOLVED,
-          workflowId: w1.id,
+        await waitForAssertion(async () => {
+          expect(destroyedExecutions).toContainEqual({
+            status: EXECUTION_STATUS.RESOLVED,
+            workflowId: w1.id,
+          });
+          const executions = await w1.getExecutions();
+          expect(executions.length).toBe(0);
         });
-        const executions = await w1.getExecutions();
-        expect(executions.length).toBe(0);
-      });
-      db.off('executions.beforeDestroy', listener);
+      } finally {
+        db.off('executions.beforeDestroy', listener);
+      }
     });
 
     it('configured error status should be deleted', async () => {
@@ -495,17 +498,20 @@ describe('workflow > Plugin', () => {
       };
       db.on('executions.beforeDestroy', listener);
 
-      const p1 = await PostRepo.create({ values: { title: 't1' } });
+      try {
+        await PostRepo.create({ values: { title: 't1' } });
 
-      await waitForAssertion(async () => {
-        expect(destroyedExecutions).toContainEqual({
-          status: EXECUTION_STATUS.ERROR,
-          workflowId: w1.id,
+        await waitForAssertion(async () => {
+          expect(destroyedExecutions).toContainEqual({
+            status: EXECUTION_STATUS.ERROR,
+            workflowId: w1.id,
+          });
+          const executions = await w1.getExecutions();
+          expect(executions.length).toBe(0);
         });
-        const executions = await w1.getExecutions();
-        expect(executions.length).toBe(0);
-      });
-      db.off('executions.beforeDestroy', listener);
+      } finally {
+        db.off('executions.beforeDestroy', listener);
+      }
     });
   });
 

@@ -39,6 +39,12 @@ async function destroyRegisteredApp(appName: string) {
 describe('multiple apps', () => {
   let app: MockServer;
   let db: Database;
+  const appSupervisorListeners: Array<(...args: any[]) => void> = [];
+
+  function onAppAdded(listener: (subApp: any) => void) {
+    appSupervisorListeners.push(listener);
+    AppSupervisor.getInstance().on('afterAppAdded', listener);
+  }
 
   beforeEach(async () => {
     app = await createMockServer({
@@ -48,6 +54,9 @@ describe('multiple apps', () => {
   });
 
   afterEach(async () => {
+    for (const listener of appSupervisorListeners.splice(0)) {
+      AppSupervisor.getInstance().off('afterAppAdded', listener);
+    }
     await app.destroy();
   });
 
@@ -262,7 +271,7 @@ describe('multiple apps', () => {
 
     const jestFn = vi.fn();
 
-    AppSupervisor.getInstance().on('afterAppAdded', (subApp) => {
+    onAppAdded((subApp) => {
       subApp.on('afterUpgrade', () => {
         jestFn();
       });
@@ -388,7 +397,7 @@ describe('multiple apps', () => {
 
     const instances = [];
 
-    AppSupervisor.getInstance().on('afterAppAdded', (subApp) => {
+    onAppAdded((subApp) => {
       instances.push(subApp);
     });
 

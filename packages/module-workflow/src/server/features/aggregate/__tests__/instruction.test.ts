@@ -68,7 +68,7 @@ describe('workflow > instructions > aggregate', () => {
   async function expectLatestJobResult(result, executionCount = 1) {
     await waitForAssertion(async () => {
       const executions = await workflow.getExecutions({ order: [['id', 'desc']] });
-      expect(executions.length).toBeGreaterThanOrEqual(executionCount);
+      expect(executions).toHaveLength(executionCount);
 
       const [execution] = executions;
       expect(execution).toBeTruthy();

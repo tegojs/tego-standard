@@ -1,3 +1,5 @@
+import { afterEach } from 'vitest';
+
 const nodeWebAPIs = {
   fetch: globalThis.fetch,
   Headers: globalThis.Headers,
@@ -57,6 +59,10 @@ Object.defineProperty(globalThis, 'localStorage', {
       return storage.size;
     },
   } as Storage,
+});
+
+afterEach(() => {
+  storage.clear();
 });
 
 if (!globalThis.requestAnimationFrame) {

@@ -149,13 +149,18 @@ export const getCustomCondition: any = (filter, fieldSchema, customFlat = flat) 
         );
       }
       for (const item in filterSchemaItem) {
-        if (!filterSchemaItem[item] || filterSchemaItem[item].includes('$nFilter')) {
+        const value = filterSchemaItem[item];
+        if (value == null || value === '' || (typeof value === 'string' && value.includes('$nFilter'))) {
           delete filterSchemaItem[item];
         }
       }
       const flatFieldSchema = customFlat.unflatten(filterSchemaItem);
-      flatFieldSchema['$and'] = flatFieldSchema?.['$and']?.filter(Boolean);
-      flatFieldSchema['$or'] = flatFieldSchema?.['$or']?.filter(Boolean);
+      if (Array.isArray(flatFieldSchema?.['$and'])) {
+        flatFieldSchema['$and'] = flatFieldSchema['$and'].filter(Boolean);
+      }
+      if (Array.isArray(flatFieldSchema?.['$or'])) {
+        flatFieldSchema['$or'] = flatFieldSchema['$or'].filter(Boolean);
+      }
 
       return flatFieldSchema;
     } else {

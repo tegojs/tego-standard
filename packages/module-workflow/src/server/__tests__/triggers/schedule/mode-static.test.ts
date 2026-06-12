@@ -280,7 +280,7 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       const [e2] = await w2.getExecutions();
       expect(e2).toBeDefined();
-      const d2 = new Date(e1.context.date);
+      const d2 = new Date(e2.context.date);
       d2.setMilliseconds(0);
       expect(d2.getTime()).toBe(now.getTime());
     });

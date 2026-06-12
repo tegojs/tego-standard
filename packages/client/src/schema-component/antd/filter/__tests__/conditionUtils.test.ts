@@ -91,6 +91,48 @@ describe('filter condition utils', () => {
     });
   });
 
+  it('preserves non-string literal rule values while removing unresolved variables', () => {
+    const condition = getCustomCondition(
+      {},
+      {
+        'x-filter-rules': {
+          $and: [
+            {
+              enabled: {
+                $eq: true,
+              },
+            },
+            {
+              score: {
+                $gt: 0,
+              },
+            },
+            {
+              name: {
+                $includes: '{{$nFilter.name}}',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(condition).toEqual({
+      $and: [
+        {
+          enabled: {
+            $eq: true,
+          },
+        },
+        {
+          score: {
+            $gt: 0,
+          },
+        },
+      ],
+    });
+  });
+
   it('skips nested array custom filter branches when the selected values are empty', () => {
     const condition = getCustomCondition(
       { type: [] },

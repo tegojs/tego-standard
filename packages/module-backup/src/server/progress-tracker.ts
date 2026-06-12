@@ -185,7 +185,7 @@ export class ProgressManager {
   /**
    * 清理进度文件
    */
-  async cleanProgressFile(fileName: string, appName: string): Promise<void> {
+  async cleanProgressFile(fileName: string, appName?: string): Promise<void> {
     const filePath = this.progressFilePath(fileName, appName);
     try {
       await fsPromises.unlink(filePath);

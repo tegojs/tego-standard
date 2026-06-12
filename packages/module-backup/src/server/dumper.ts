@@ -271,7 +271,7 @@ export class Dumper extends AppMigrator {
     return filePath;
   }
 
-  async cleanLockFile(fileName: string, appName: string) {
+  async cleanLockFile(fileName: string, appName?: string) {
     const filePath = this.lockFilePath(fileName, appName);
     await fsPromises.unlink(filePath);
     // 同时清理进度文件

@@ -30,6 +30,8 @@ export const FormLinkageRules = ({ children, form, linkageRules }: FormLinkageRu
   useEffect(() => {
     const id = uid();
     const disposes = [];
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    let disposed = false;
 
     form.addEffects(id, () => {
       linkageRules.forEach((rule) => {
@@ -65,7 +67,10 @@ export const FormLinkageRules = ({ children, form, linkageRules }: FormLinkageRu
                       .map((item) => JSON.stringify(item))
                       .join(',');
                   },
-                  getSubscriber(action, field, rule, variablesRef, localVariablesRef),
+                  getSubscriber(action, field, rule, variablesRef, localVariablesRef, {
+                    timers,
+                    isDisposed: () => disposed,
+                  }),
                   { fireImmediately: true },
                 ),
               );
@@ -76,10 +81,15 @@ export const FormLinkageRules = ({ children, form, linkageRules }: FormLinkageRu
     });
 
     return () => {
+      disposed = true;
       form.removeEffects(id);
       disposes.forEach((dispose) => {
         dispose();
       });
+      timers.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      timers.clear();
     };
   }, [form, linkageRules]);
 
@@ -92,8 +102,16 @@ function getSubscriber(
   rule: any,
   variablesRef: React.MutableRefObject<VariablesContextType>,
   localVariablesRef: React.MutableRefObject<VariableOption[]>,
+  scheduler: {
+    timers: Set<ReturnType<typeof setTimeout>>;
+    isDisposed: () => boolean;
+  },
 ): (value: string, oldValue: string) => void {
   return () => {
+    if (scheduler.isDisposed()) {
+      return;
+    }
+
     collectFieldStateOfLinkageRules({
       operator: action.operator,
       value: action.value,
@@ -103,9 +121,13 @@ function getSubscriber(
       localVariables: localVariablesRef.current,
     });
 
-    setTimeout(async () => {
-      const fieldName = getFieldNameByOperator(action.operator);
+    const timer = setTimeout(async () => {
+      scheduler.timers.delete(timer);
+      if (scheduler.isDisposed()) {
+        return;
+      }
 
+      const fieldName = getFieldNameByOperator(action.operator);
       if (!field.stateOfLinkageRules?.[fieldName]) {
         return;
       }
@@ -113,6 +135,10 @@ function getSubscriber(
       let stateList = field.stateOfLinkageRules[fieldName];
 
       stateList = await Promise.all(stateList);
+      if (scheduler.isDisposed()) {
+        return;
+      }
+
       stateList = stateList.filter((v) => v.condition);
 
       const lastState = stateList[stateList.length - 1];
@@ -130,6 +156,7 @@ function getSubscriber(
 
       field.stateOfLinkageRules[fieldName] = null;
     });
+    scheduler.timers.add(timer);
   };
 }
 

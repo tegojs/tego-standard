@@ -51,4 +51,3 @@ docs-repo-temp/
 
 # Workspace 保护脚本的备份文件
 pnpm-workspace.yaml.backup
-测试输出.txt

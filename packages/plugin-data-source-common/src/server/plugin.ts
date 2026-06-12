@@ -19,7 +19,7 @@ export class PluginExternalDataSourceServer extends Plugin {
   }
   async beforeEnable() {
     const plugin = this.pm.get('data-source-manager');
-    if (!plugin.enabled) {
+    if (!plugin?.enabled) {
       throw new Error(`${this.name} plugin need data source module enabled`);
     }
   }

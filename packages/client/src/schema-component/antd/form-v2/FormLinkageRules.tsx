@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Form as FormilyForm, onFieldInit, reaction, uid } from '@tachybase/schema';
 import { getValuesByPath } from '@tego/client';
 
@@ -21,6 +21,11 @@ interface FormLinkageRulesProps {
 export const FormLinkageRules = ({ children, form, linkageRules }: FormLinkageRulesProps) => {
   const variables = useVariables();
   const localVariables = useLocalVariables({ currentForm: form });
+  const variablesRef = useRef(variables);
+  const localVariablesRef = useRef(localVariables);
+
+  variablesRef.current = variables;
+  localVariablesRef.current = localVariables;
 
   useEffect(() => {
     const id = uid();
@@ -45,15 +50,22 @@ export const FormLinkageRules = ({ children, form, linkageRules }: FormLinkageRu
               disposes.push(
                 reaction(
                   () => {
+                    const latestLocalVariables = localVariablesRef.current;
                     const fieldValuesInCondition = getFieldValuesInCondition({ linkageRules, formValues: form.values });
-                    const variableValuesInCondition = getVariableValuesInCondition({ linkageRules, localVariables });
-                    const variableValuesInExpression = getVariableValuesInExpression({ action, localVariables });
+                    const variableValuesInCondition = getVariableValuesInCondition({
+                      linkageRules,
+                      localVariables: latestLocalVariables,
+                    });
+                    const variableValuesInExpression = getVariableValuesInExpression({
+                      action,
+                      localVariables: latestLocalVariables,
+                    });
 
                     return [fieldValuesInCondition, variableValuesInCondition, variableValuesInExpression]
                       .map((item) => JSON.stringify(item))
                       .join(',');
                   },
-                  getSubscriber(action, field, rule, variables, localVariables),
+                  getSubscriber(action, field, rule, variablesRef, localVariablesRef),
                   { fireImmediately: true },
                 ),
               );
@@ -69,7 +81,7 @@ export const FormLinkageRules = ({ children, form, linkageRules }: FormLinkageRu
         dispose();
       });
     };
-  }, [form, linkageRules, localVariables, variables]);
+  }, [form, linkageRules]);
 
   return <>{children}</>;
 };
@@ -78,8 +90,8 @@ function getSubscriber(
   action: any,
   field: any,
   rule: any,
-  variables: VariablesContextType,
-  localVariables: VariableOption[],
+  variablesRef: React.MutableRefObject<VariablesContextType>,
+  localVariablesRef: React.MutableRefObject<VariableOption[]>,
 ): (value: string, oldValue: string) => void {
   return () => {
     collectFieldStateOfLinkageRules({
@@ -87,8 +99,8 @@ function getSubscriber(
       value: action.value,
       field,
       condition: rule.condition,
-      variables,
-      localVariables,
+      variables: variablesRef.current,
+      localVariables: localVariablesRef.current,
     });
 
     setTimeout(async () => {

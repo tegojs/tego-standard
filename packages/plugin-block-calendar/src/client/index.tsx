@@ -62,9 +62,11 @@ export class PluginCalendarClient extends Plugin {
     this.schemaSettingsManager.add(calendarBlockSettings);
     this.app.schemaInitializerManager.add(calendarActionInitializers);
     this.app.schemaInitializerManager.add(CalendarFormActionInitializers);
-    this.app.schemaInitializerManager
-      .get('details:configureActions')
-      ?.add('enableActions.deleteEvent', deleteEventActionInitializer);
+    const detailsConfigureActions = this.app.schemaInitializerManager.get('details:configureActions');
+    if (!detailsConfigureActions) {
+      throw new Error('Calendar plugin requires details:configureActions schema initializer');
+    }
+    detailsConfigureActions.add('enableActions.deleteEvent', deleteEventActionInitializer);
   }
 }
 

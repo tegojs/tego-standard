@@ -291,7 +291,7 @@ describe('server hooks', () => {
     });
 
     const role1Menus = await db.getRepository<BelongsToManyRepository>('roles.menuUiSchemas', roleName).find();
-    expect(role1Menus.length).toEqual(1);
+    expect(role1Menus.map((menu) => menu.get('x-uid')).sort()).toEqual([childUid, rootUid]);
   });
 
   it('should bind menu to role when create new menu', async () => {

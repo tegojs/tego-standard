@@ -102,7 +102,7 @@ export class PluginACL extends Plugin {
   async writeRoleToACL(role: RoleModel, options: any = {}) {
     const transaction = options?.transaction;
 
-    role.writeToAcl({ acl: this.acl });
+    role.writeToAcl({ acl: this.acl, withOutStrategy: true });
 
     if (options.withOutResources) {
       return;
@@ -624,10 +624,11 @@ export class PluginACL extends Plugin {
         const { actionName, resourceName, resourceOf } = ctx.action;
         // is association request
         if (resourceName.includes('.') && resourceOf) {
-          // 关联数据去掉 filter
-          if (ctx?.permission?.can?.params) {
-            delete ctx.permission.can.params.filter;
+          if (!ctx?.permission?.can?.params) {
+            return next();
           }
+          // 关联数据去掉 filter
+          delete ctx.permission.can.params.filter;
           // 关联数据能不能处理取决于 source 是否有权限
           const [collectionName] = resourceName.split('.');
           const sourceActionName = this.app.acl.resolveActionAlias(actionName);
@@ -683,11 +684,15 @@ export class PluginACL extends Plugin {
     );
 
     this.db.on('afterUpdateCollection', async (collection) => {
-      this.app.acl.appendStrategyResource(collection.name);
+      if (collection.options.loadedFromCollectionManager || collection.options.asStrategyResource) {
+        this.app.acl.appendStrategyResource(collection.name);
+      }
     });
 
     this.db.on('afterDefineCollection', async (collection) => {
-      this.app.acl.appendStrategyResource(collection.name);
+      if (collection.options.loadedFromCollectionManager || collection.options.asStrategyResource) {
+        this.app.acl.appendStrategyResource(collection.name);
+      }
     });
 
     this.db.on('afterRemoveCollection', (collection) => {

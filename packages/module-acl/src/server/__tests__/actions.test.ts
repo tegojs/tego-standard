@@ -206,6 +206,64 @@ describe('destroy action with acl', () => {
     expect(response.statusCode).toEqual(403);
   });
 
+  it('should reject association access when only source collection is allowed', async () => {
+    const roleName = 'acl-action-source-only-association-role';
+    const sourceCollection = 'aclActionSourceOnlySources';
+    const targetCollection = 'aclActionSourceOnlyTargets';
+    const Source = app.db.collection({
+      name: sourceCollection,
+      fields: [
+        { type: 'string', name: 'title' },
+        { type: 'hasMany', name: 'targets', target: targetCollection },
+      ],
+    });
+
+    app.db.collection({
+      name: targetCollection,
+      fields: [{ type: 'string', name: 'title' }],
+    });
+
+    await app.db.sync();
+
+    const source = await Source.repository.create({
+      values: {
+        title: 'source',
+        targets: [{ title: 'target' }],
+      },
+    });
+
+    const { agent: userAgent } = await createUserAgent(roleName);
+    app.acl.define({
+      role: roleName,
+      strategy: {
+        actions: [],
+      },
+    });
+    app.acl.getRole(roleName).grantAction(`${sourceCollection}:view`);
+
+    const response = await userAgent.resource(`${sourceCollection}.targets`, source.get('id')).list();
+    expect(response.statusCode).toEqual(403);
+  });
+
+  it('should not sync base role strategy when writing role to acl', async () => {
+    const roleName = 'acl-action-base-role-strategy-role';
+    const role = await app.db.getRepository('roles').create({
+      values: {
+        name: roleName,
+      },
+    });
+    role.set('strategy', {
+      actions: ['view'],
+    });
+
+    const aclPlugin: any = app.pm.get('acl');
+    await aclPlugin.writeRoleToACL(role, {
+      withOutResources: true,
+    });
+
+    expect(app.acl.getRole(roleName).toJSON().strategy?.actions).not.toEqual(['view']);
+  });
+
   it('should be a no-op when user has no permission to destroy record', async () => {
     const roleName = 'acl-action-destroy-own-role';
     const postCollection = 'aclActionDestroyPosts';

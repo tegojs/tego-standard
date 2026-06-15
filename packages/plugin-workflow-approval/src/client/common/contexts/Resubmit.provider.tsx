@@ -5,7 +5,7 @@ interface ResubmitProps {
   setResubmit?: any;
 }
 
-const ResubmitContext = React.createContext<ResubmitProps>({});
+export const ResubmitContext = React.createContext<ResubmitProps>({});
 
 export const ResubmitProvider = ({ children }) => {
   const [isResubmit, setResubmit] = useState(false);

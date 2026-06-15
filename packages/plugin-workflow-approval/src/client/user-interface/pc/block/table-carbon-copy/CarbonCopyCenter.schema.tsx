@@ -7,7 +7,9 @@ import { ColumnNode } from '../../common/notice-columns/column.node';
 import { ColumnStatus } from '../../common/notice-columns/column.status';
 import { ColumnUser } from '../../common/notice-columns/column.user';
 import { ColumnWorkflow } from '../../common/notice-columns/column.workflow';
+import { QuickApplyButton } from '../common/apply-button/QuickApplyButton.component';
 import { FuzzySearch } from '../common/FuzzySearch';
+import { CreateCheckLink } from './CheckLink.create';
 
 const schemaStyles = {
   ActionbarStyle: css`
@@ -30,6 +32,8 @@ export const CarbonCopyCenter = () => (
       ColumnUser,
       ColumnStatus,
       ColumnAction,
+      CreateCheckLink,
+      QuickApplyButton,
       ColumnApprovalStatus,
     }}
   />
@@ -95,11 +99,20 @@ const schema = {
           'x-component': 'TableV2.Column',
           'x-component-props': {
             width: 60,
+            className: css`
+              .tb-action-link {
+                padding: 12px 19px !important;
+              }
+            `,
           },
           title: '{{t("Actions")}}',
           properties: {
             action: {
               'x-component': 'ColumnAction',
+            },
+            actionApply: {
+              'x-component': 'CreateCheckLink',
+              'x-component-props': {},
             },
           },
         },

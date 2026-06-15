@@ -3,7 +3,7 @@ import Database, { Application } from '@tego/server';
 
 import { waitForFastAssertion as waitForAssertion } from '../utils';
 
-describe('workflow > instructions > create', () => {
+describe.sequential('workflow > instructions > create', () => {
   let app: Application;
   let db: Database;
   let PostRepo;

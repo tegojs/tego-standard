@@ -112,7 +112,13 @@ export class TokenController implements TokenControlService {
     await this.setTokenInfo(jti, data);
 
     const logCleanupError = (err: unknown) => {
-      this.logger.error(err, { module: 'auth', submodule: 'token-controller', method: 'removeSessionExpiredTokens' });
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(message, {
+        module: 'auth',
+        submodule: 'token-controller',
+        method: 'removeSessionExpiredTokens',
+        err,
+      });
     };
 
     if (process.env.DB_DIALECT === 'sqlite') {

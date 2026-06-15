@@ -107,8 +107,8 @@ describe('actions', () => {
     });
 
     it('legacy 64-character access token should work', async () => {
-      expect(result.accessToken).toHaveLength(64);
-      const checkRes = await agent.set('Authorization', `Bearer ${result.accessToken}`).resource('auth').check();
+      expect(apiAccessToken).toHaveLength(64);
+      const checkRes = await agent.set('Authorization', `Bearer ${apiAccessToken}`).resource('auth').check();
       expect(checkRes.status).toBe(200);
       expect(checkRes.body.data.nickname).toBe(user.nickname);
     });

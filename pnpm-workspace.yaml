@@ -11,6 +11,7 @@ catalog:
   '@tachybase/loader': 1.6.13-alpha.7
   '@tachybase/schema': 1.6.13-alpha.7
   '@tachybase/test': 1.6.13-alpha.7
+  '@tachybase/utils': 1.6.13-alpha.7
   '@tego/client': 1.6.13-alpha.7
   '@tego/devkit': 1.6.13-alpha.7
   '@tego/server': 1.6.13-alpha.7
@@ -20,6 +21,7 @@ catalog:
   '@types/react-dom': 18.3.7
   antd: 5.22.5
   dayjs: 1.11.13
+  i18next: 25.10.10
   react: 18.3.1
   react-dom: 18.3.1
   react-router: 6.28.1
@@ -44,6 +46,7 @@ overrides:
   '@tachybase/loader': 'catalog:'
   '@tachybase/schema': 'catalog:'
   '@tachybase/test': 'catalog:'
+  '@tachybase/utils': 'catalog:'
   '@tego/client': 'catalog:'
   '@tego/devkit': 'catalog:'
   '@tego/server': 'catalog:'

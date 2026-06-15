@@ -4,6 +4,7 @@ import type { Database } from '@tego/server';
 
 import { vi } from 'vitest';
 
+import { onAfterStart } from '../app-lifecycle';
 import { PluginMultiAppManager } from '../server';
 
 const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
@@ -267,17 +268,15 @@ describe('multiple apps', () => {
       },
     });
 
-    await AppSupervisor.getInstance().removeApp(subAppName);
-
     const jestFn = vi.fn();
 
-    onAppAdded((subApp) => {
-      subApp.on('afterUpgrade', () => {
-        jestFn();
-      });
+    const subApp = await AppSupervisor.getInstance().getApp(subAppName);
+    subApp.on('afterUpgrade', () => {
+      jestFn();
     });
 
-    await app.runCommand('upgrade');
+    const appPlugin = app.pm.get('multi-app-manager') as PluginMultiAppManager;
+    await appPlugin.subAppUpgradeHandler(app);
 
     expect(jestFn).toBeCalled();
 
@@ -320,8 +319,11 @@ describe('multiple apps', () => {
     await app.stop();
 
     await app.start();
+    await onAfterStart(app.db)(app);
 
-    expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeTruthy();
+    await waitForAssertion(() => {
+      expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeTruthy();
+    });
   });
 
   it('should start automatically with quick start', async () => {
@@ -364,12 +366,8 @@ describe('multiple apps', () => {
 
     await app.stop();
 
-    await app.db.reconnect();
-    await AppSupervisor.getInstance().getApp(subAppName, {
-      upgrading: true,
-    });
-
     await app.start();
+    await onAfterStart(app.db)(app);
     await waitForAssertion(() => {
       expect(AppSupervisor.getInstance().hasApp(subAppName)).toBeTruthy();
       expect(AppSupervisor.getInstance().getAppStatus(subAppName)).toEqual('running');

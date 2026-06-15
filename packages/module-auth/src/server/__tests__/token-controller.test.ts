@@ -28,6 +28,7 @@ describe('TokenController', () => {
     logger = {
       error: vi.fn(),
       info: vi.fn(),
+      warn: vi.fn(),
     };
     issuedTokenRepo = {
       updateOrCreate: vi.fn(),
@@ -184,6 +185,30 @@ describe('TokenController', () => {
       oldJti: 'old-jti',
       newJti: result.jti,
       issuedTime: result.issuedTime,
+    });
+  });
+
+  it('keeps renewal successful when legacy renewed jti cache write fails', async () => {
+    const legacyCacheError = new Error('legacy cache write failed');
+    issuedTokenModel.update.mockResolvedValue([1]);
+    cache.set.mockImplementation((key) => {
+      if (key === 'jti-renewed-cahce:old-jti') {
+        return Promise.reject(legacyCacheError);
+      }
+      return Promise.resolve();
+    });
+
+    const result = await tokenController.renew('old-jti');
+
+    expect(result.jti).toBeTruthy();
+    expect(cache.set).toHaveBeenCalledWith('jti-renewed-cache:old-jti', result, RENEWED_JTI_CACHE_MS);
+    expect(cache.set).toHaveBeenCalledWith('jti-renewed-cahce:old-jti', result, RENEWED_JTI_CACHE_MS);
+    expect(logger.warn).toHaveBeenCalledWith('legacy renewed jti cache write failed', {
+      module: 'auth',
+      submodule: 'token-controller',
+      method: 'renew',
+      jti: 'old-jti',
+      err: legacyCacheError,
     });
   });
 

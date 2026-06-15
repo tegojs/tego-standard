@@ -1,4 +1,4 @@
-import type PluginErrorHandler from '@tachybase/module-error-handler';
+import PluginErrorHandler from '@tachybase/module-error-handler';
 import { Context, joinCollectionName, Model, modelAssociationByKey, Next, parseCollectionName } from '@tego/server';
 
 import _, { get, isArray } from 'lodash';
@@ -21,9 +21,8 @@ export class OmniTrigger extends Trigger {
     super(workflow);
     this.workflow.app.resourcer.registerActionHandler('trigger', this.triggerAction);
     this.workflow.app.acl.allow('*', 'trigger', 'loggedIn');
-    const errorHandlerPlugin = this.workflow.app.pm.get('error-handler') as
-      | InstanceType<typeof PluginErrorHandler>
-      | undefined;
+    const errorHandlerPlugin = (this.workflow.app.pm.get('error-handler') ||
+      this.workflow.app.pm.get(PluginErrorHandler)) as InstanceType<typeof PluginErrorHandler> | undefined;
     if (errorHandlerPlugin?.errorHandler) {
       errorHandlerPlugin.errorHandler.register(
         (err) => err instanceof CustomActionInterceptionError,

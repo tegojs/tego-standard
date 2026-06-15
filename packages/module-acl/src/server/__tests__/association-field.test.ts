@@ -118,6 +118,18 @@ async function prepareAssociationFieldAclApp() {
   return { app, db, acl, adminAgent, createRoleWithAssociationAccess };
 }
 
+function registerHasManyAssociationActions(app: MockServer) {
+  const aclPlugin = app.pm.get('acl') as any;
+  aclPlugin.registerAssociationFieldAction('hasMany', {
+    create: {
+      associationActions: ['add', 'set', 'remove'],
+    },
+    view: {
+      associationActions: ['list', 'get'],
+    },
+  });
+}
+
 describe('association test', () => {
   let app: MockServer;
   let db: Database;
@@ -141,6 +153,8 @@ describe('association test', () => {
   });
 
   it('should set association actions', async () => {
+    registerHasManyAssociationActions(app);
+
     await db.getRepository('collections').create({
       values: {
         name: 'posts',
@@ -215,6 +229,44 @@ describe('association test', () => {
   });
 });
 
+describe('association field acl defaults', () => {
+  let app: MockServer;
+  let acl: ACL;
+  let createRoleWithAssociationAccess: (roleName: string) => Promise<{ user: any; userAgent: any }>;
+
+  afterEach(async () => {
+    await app.destroy();
+  });
+
+  beforeEach(async () => {
+    const prepared = await prepareAssociationFieldAclApp();
+    app = prepared.app;
+    acl = prepared.acl;
+    createRoleWithAssociationAccess = prepared.createRoleWithAssociationAccess;
+  });
+
+  it('should not grant association actions without explicit association field action registration', async () => {
+    const roleName = `default-association-role-${uid()}`;
+    await createRoleWithAssociationAccess(roleName);
+
+    expect(
+      acl.can({
+        role: roleName,
+        resource: 'users.orders',
+        action: 'add',
+      }),
+    ).toBeNull();
+
+    expect(
+      acl.can({
+        role: roleName,
+        resource: 'users.orders',
+        action: 'list',
+      }),
+    ).toBeNull();
+  });
+});
+
 describe('association field acl', () => {
   let app: MockServer;
   let db: Database;
@@ -269,6 +321,8 @@ describe('association field acl', () => {
   });
 
   it('should revoke association action on action revoke', async () => {
+    registerHasManyAssociationActions(app);
+
     const roleName = `revoke-action-role-${uid()}`;
     await createRoleWithAssociationAccess(roleName);
 
@@ -417,6 +471,8 @@ describe('association field acl', () => {
   });
 
   it('should allow association fields access', async () => {
+    registerHasManyAssociationActions(app);
+
     const roleName = `allow-association-role-${uid()}`;
     ({ userAgent } = await createRoleWithAssociationAccess(roleName));
 

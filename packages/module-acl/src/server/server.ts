@@ -46,24 +46,6 @@ export class PluginACL extends Plugin {
     return this.app.acl;
   }
 
-  registerDefaultAssociationFieldActions() {
-    const readableAssociationActions = {
-      associationActions: ['list', 'get'],
-    };
-    const writableAssociationActions = {
-      associationActions: ['add', 'set', 'remove'],
-    };
-
-    for (const associationType of ['belongsTo', 'hasOne', 'hasMany', 'belongsToMany']) {
-      this.registerAssociationFieldAction(associationType, {
-        view: readableAssociationActions,
-        export: readableAssociationActions,
-        create: writableAssociationActions,
-        update: writableAssociationActions,
-      });
-    }
-  }
-
   registerAssociationFieldAction(associationType: string, value: AssociationFieldActions) {
     this.associationFieldsActions[associationType] = value;
   }
@@ -120,8 +102,6 @@ export class PluginACL extends Plugin {
   }
 
   async beforeLoad() {
-    this.registerDefaultAssociationFieldActions();
-
     this.db.addMigrations({
       namespace: this.name,
       directory: resolve(__dirname, './migrations'),

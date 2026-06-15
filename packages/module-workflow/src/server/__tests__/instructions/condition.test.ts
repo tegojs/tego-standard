@@ -453,7 +453,7 @@ describe('workflow > instructions > condition', () => {
         });
       });
 
-      it('equal: 0 == false', async () => {
+      it('equal: 0 != false', async () => {
         const n1 = await workflow.createNode({
           title: 'condition',
           type: 'condition',
@@ -470,7 +470,7 @@ describe('workflow > instructions > condition', () => {
 
         await waitForExecutionJobs(async (execution, [job]) => {
           expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-          expect(job.result).toEqual(true);
+          expect(job.result).toEqual(false);
         });
       });
 
@@ -495,7 +495,7 @@ describe('workflow > instructions > condition', () => {
         });
       });
 
-      it('equal: string == number', async () => {
+      it('equal: string != number', async () => {
         const n1 = await workflow.createNode({
           title: 'condition',
           type: 'condition',
@@ -512,11 +512,11 @@ describe('workflow > instructions > condition', () => {
 
         await waitForExecutionJobs(async (execution, [job]) => {
           expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-          expect(job.result).toEqual(true);
+          expect(job.result).toEqual(false);
         });
       });
 
-      it('equal: undefined == null', async () => {
+      it('equal: undefined != null', async () => {
         const n1 = await workflow.createNode({
           title: 'condition',
           type: 'condition',
@@ -533,7 +533,7 @@ describe('workflow > instructions > condition', () => {
 
         await waitForExecutionJobs(async (execution, [job]) => {
           expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-          expect(job.result).toEqual(true);
+          expect(job.result).toEqual(false);
         });
       });
     });

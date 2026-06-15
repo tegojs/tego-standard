@@ -17,13 +17,11 @@ export const calculators = new Registry<Comparer>();
 
 // built-in functions
 function equal(a, b) {
-  // eslint-disable-next-line eqeqeq -- intentional loose equality for workflow conditions
-  return a == b;
+  return a === b;
 }
 
 function notEqual(a, b) {
-  // eslint-disable-next-line eqeqeq -- intentional loose equality for workflow conditions
-  return a != b;
+  return a !== b;
 }
 
 function gt(a, b) {

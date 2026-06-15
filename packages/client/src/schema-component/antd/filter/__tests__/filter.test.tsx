@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@tachybase/test/client';
 
+import { MemoryRouter } from 'react-router-dom';
+
 import App2 from '../demos/demo2';
 import App3 from '../demos/demo3';
 import App4 from '../demos/demo4';
@@ -8,6 +10,10 @@ import App5 from '../demos/demo5';
 import App6 from '../demos/demo6';
 
 describe('Filter', () => {
+  function renderWithRouter(children: React.ReactElement) {
+    return render(<MemoryRouter>{children}</MemoryRouter>);
+  }
+
   async function selectFilterMatchMode(tooltip: HTMLElement, value: RegExp) {
     const selector = tooltip.querySelector('[data-testid="filter-select-all-or-any"] .ant-select-selector');
     expect(selector).toBeInTheDocument();
@@ -16,7 +22,7 @@ describe('Filter', () => {
   }
 
   it('Filter & Action', async () => {
-    render(<App3 />);
+    renderWithRouter(<App3 />);
 
     const openButton = await screen.findByText(/open/i);
     await waitFor(() => {
@@ -85,7 +91,7 @@ describe('Filter', () => {
   });
 
   it('FilterAction', async () => {
-    render(<App5 />);
+    renderWithRouter(<App5 />);
 
     fireEvent.click(await screen.findByText(/filter/i));
     const tooltip = await screen.findByRole('tooltip');

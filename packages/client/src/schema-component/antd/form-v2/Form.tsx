@@ -130,7 +130,7 @@ const WithForm = (props: WithFormProps) => {
   }
 
   return (
-    <React.Suspense fallback={null}>
+    <React.Suspense fallback={formElement}>
       <LazyFormLinkageRules form={form} linkageRules={linkageRules}>
         {formElement}
       </LazyFormLinkageRules>

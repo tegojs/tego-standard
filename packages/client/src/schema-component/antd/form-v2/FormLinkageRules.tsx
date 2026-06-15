@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Form as FormilyForm, onFieldInit, reaction, uid } from '@tachybase/schema';
-import { getValuesByPath } from '@tego/client';
+import { getValuesByPath } from '@tachybase/utils/client';
 
 import { ActionType } from '../../../schema-settings/LinkageRules/type';
 import useLocalVariables from '../../../variables/hooks/useLocalVariables';

@@ -1,7 +1,12 @@
 import { MockServer } from '@tachybase/test';
 import { ACL, Database, uid } from '@tego/server';
 
-import { aclCollectionManagerTestPlugins, aclTestPlugins, prepareApp } from './prepare';
+import {
+  aclCollectionManagerTestPlugins,
+  aclTestPlugins,
+  prepareApp,
+  registerHasManyAssociationActions,
+} from './prepare';
 
 describe('acl', () => {
   let app: MockServer;
@@ -155,6 +160,8 @@ describe('acl', () => {
   });
 
   it('should not have permission to list comments', async () => {
+    registerHasManyAssociationActions(app);
+
     const roleName = 'acl-comments-role';
     const commentsCollection = 'aclComments';
     const postsCollection = 'aclCommentPosts';

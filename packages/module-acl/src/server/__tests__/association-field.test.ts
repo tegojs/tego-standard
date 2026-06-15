@@ -1,7 +1,7 @@
 import { MockServer } from '@tachybase/test';
 import { ACL, Database, HasManyRepository, uid } from '@tego/server';
 
-import { aclCollectionManagerTestPlugins, prepareApp } from './prepare';
+import { aclCollectionManagerTestPlugins, prepareApp, registerHasManyAssociationActions } from './prepare';
 
 async function prepareAssociationFieldAclApp() {
   const app = await prepareApp({
@@ -116,18 +116,6 @@ async function prepareAssociationFieldAclApp() {
   }
 
   return { app, db, acl, adminAgent, createRoleWithAssociationAccess };
-}
-
-function registerHasManyAssociationActions(app: MockServer) {
-  const aclPlugin = app.pm.get('acl') as any;
-  aclPlugin.registerAssociationFieldAction('hasMany', {
-    create: {
-      associationActions: ['add', 'set', 'remove'],
-    },
-    view: {
-      associationActions: ['list', 'get'],
-    },
-  });
 }
 
 describe('association test', () => {

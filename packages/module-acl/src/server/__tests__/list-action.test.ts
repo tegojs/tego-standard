@@ -1,7 +1,12 @@
 import { MockServer } from '@tachybase/test';
 import { Database } from '@tego/server';
 
-import { aclCollectionManagerTestPlugins, aclLightTestPlugins, prepareApp } from './prepare';
+import {
+  aclCollectionManagerTestPlugins,
+  aclLightTestPlugins,
+  prepareApp,
+  registerHasManyAssociationActions,
+} from './prepare';
 
 describe('list action with acl', () => {
   let app: MockServer;
@@ -278,6 +283,8 @@ describe('list association action with acl', () => {
   });
 
   it('should list allowedActions', async () => {
+    registerHasManyAssociationActions(app);
+
     await db.getRepository('roles').create({
       values: {
         name: 'listAssociationRole',
@@ -306,6 +313,21 @@ describe('list association action with acl', () => {
         ],
       },
     });
+    app.acl.getRole('listAssociationRole').grantAction('comments:view', {
+      fields: ['content'],
+    });
+
+    expect(app.acl.can({ role: 'listAssociationRole', resource: 'posts', action: 'list' })).not.toBeNull();
+    expect(app.acl.can({ role: 'listAssociationRole', resource: 'posts.comments', action: 'list' })).toMatchObject({
+      role: 'listAssociationRole',
+      resource: 'posts.comments',
+      action: 'list',
+    });
+    expect(app.acl.can({ role: 'listAssociationRole', resource: 'comments', action: 'list' })).toMatchObject({
+      params: {
+        fields: expect.arrayContaining(['content']),
+      },
+    });
 
     const userAgent = app.agent().login(user).set('X-Role', 'listAssociationRole').set('X-With-ACL-Meta', true);
 
@@ -320,8 +342,10 @@ describe('list association action with acl', () => {
 
     const response = await userAgent.resource('posts').list({});
     expect(response.statusCode).toEqual(200);
+    expect(response.body.data.map((post) => post.id)).toContain(postId);
 
     const commentsResponse = await userAgent.resource('posts.comments', postId).list({});
+    expect(commentsResponse.statusCode).toEqual(200);
     const data = commentsResponse.body;
 
     /**

@@ -611,8 +611,7 @@ export class PluginACL extends Plugin {
           delete ctx.permission.can.params.filter;
           // 关联数据能不能处理取决于 source 是否有权限
           const [collectionName] = resourceName.split('.');
-          const sourceActionName = this.app.acl.resolveActionAlias(actionName);
-          const action = ctx.can({ resource: collectionName, action: sourceActionName });
+          const action = ctx.can({ resource: collectionName, action: actionName });
 
           const availableAction = this.app.acl.getAvailableAction(actionName);
           if (availableAction?.options?.onNewRecord) {
@@ -622,11 +621,6 @@ export class PluginACL extends Plugin {
               ctx.permission.can = false;
             }
           } else {
-            if (!action) {
-              ctx.permission.can = false;
-              return next();
-            }
-
             const filteredParams = this.app.acl.filterParams(ctx, collectionName, action?.params || {});
             const params = await parseJsonTemplate(filteredParams, ctx);
 
@@ -637,8 +631,6 @@ export class PluginACL extends Plugin {
 
             if (!sourceInstance) {
               ctx.permission.can = false;
-            } else if (!ctx.permission.can) {
-              ctx.permission.skip = true;
             }
           }
         }

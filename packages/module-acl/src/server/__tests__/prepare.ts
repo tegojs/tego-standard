@@ -24,3 +24,15 @@ export async function prepareApp(options: { plugins?: readonly string[] } = {}):
   });
   return app;
 }
+
+export function registerHasManyAssociationActions(app: MockServer) {
+  const aclPlugin = app.pm.get('acl') as any;
+  aclPlugin.registerAssociationFieldAction('hasMany', {
+    create: {
+      associationActions: ['add', 'set', 'remove'],
+    },
+    view: {
+      associationActions: ['list', 'get'],
+    },
+  });
+}

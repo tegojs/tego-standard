@@ -135,6 +135,7 @@ describe('workflow > triggers > schedule > static mode', () => {
     });
 
     it('start before now and repeat by interval after created and limit 1', async () => {
+      const repeat = 2000;
       const start = new Date();
       start.setMilliseconds(0);
 
@@ -144,13 +145,13 @@ describe('workflow > triggers > schedule > static mode', () => {
         config: {
           mode: 0,
           startsOn: start.toISOString(),
-          repeat: SHORT_REPEAT_MS,
+          repeat,
           limit: 1,
         },
       });
 
       const executions = await waitForExecutions(workflow, 1);
-      expect(new Date(executions[0].context.date).getTime()).toBe(start.getTime() + SHORT_REPEAT_MS);
+      expect(new Date(executions[0].context.date).getTime()).toBe(start.getTime() + repeat);
     });
 
     it('repeat on cron certain second', async () => {

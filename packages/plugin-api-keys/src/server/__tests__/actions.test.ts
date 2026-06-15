@@ -106,6 +106,13 @@ describe('actions', () => {
       expect(checkRes.body.data.nickname).toBe(user.nickname);
     });
 
+    it('legacy 64-character access token should work', async () => {
+      expect(result.accessToken).toHaveLength(64);
+      const checkRes = await agent.set('Authorization', `Bearer ${result.accessToken}`).resource('auth').check();
+      expect(checkRes.status).toBe(200);
+      expect(checkRes.body.data.nickname).toBe(user.nickname);
+    });
+
     it('token expiresIn correctly', async () => {
       expect(tokenData.exp - tokenData.iat).toBe(expiresIn);
     });

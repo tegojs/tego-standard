@@ -39,6 +39,24 @@ function createWorkflowWithClassOnlyErrorHandler() {
   };
 }
 
+function createWorkflowWithoutErrorHandler() {
+  const app = {
+    use: vi.fn(),
+    resourcer: {
+      registerActionHandler: vi.fn(),
+      use: vi.fn(),
+    },
+    acl: {
+      allow: vi.fn(),
+    },
+    pm: {
+      get: vi.fn(() => undefined),
+    },
+  };
+
+  return { workflow: { app } as any };
+}
+
 describe('workflow trigger error handler registration', () => {
   it('registers request interception errors when only class lookup is available', () => {
     const { workflow, errorHandlerPlugin } = createWorkflowWithClassOnlyErrorHandler();
@@ -58,5 +76,22 @@ describe('workflow trigger error handler registration', () => {
     expect(workflow.app.pm.get).toHaveBeenCalledWith('error-handler');
     expect(workflow.app.pm.get).toHaveBeenCalledWith(PluginErrorHandler);
     expect(errorHandlerPlugin.errorHandler.register).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when request interception cannot register an error handler', () => {
+    const { workflow } = createWorkflowWithoutErrorHandler();
+
+    expect(() => new RequestInterceptionTrigger(workflow)).toThrow(
+      'Workflow request interception requires the error-handler plugin',
+    );
+    expect(workflow.app.use).not.toHaveBeenCalled();
+  });
+
+  it('throws when omni trigger cannot register an error handler', () => {
+    const { workflow } = createWorkflowWithoutErrorHandler();
+
+    expect(() => new OmniTrigger(workflow)).toThrow('Workflow omni trigger requires the error-handler plugin');
+    expect(workflow.app.resourcer.registerActionHandler).not.toHaveBeenCalled();
+    expect(workflow.app.acl.allow).not.toHaveBeenCalled();
   });
 });

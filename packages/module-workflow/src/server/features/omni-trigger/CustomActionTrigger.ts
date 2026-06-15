@@ -19,21 +19,22 @@ export class OmniTrigger extends Trigger {
   static TYPE = 'general-action';
   constructor(workflow) {
     super(workflow);
-    this.workflow.app.resourcer.registerActionHandler('trigger', this.triggerAction);
-    this.workflow.app.acl.allow('*', 'trigger', 'loggedIn');
     const errorHandlerPlugin = (this.workflow.app.pm.get('error-handler') ||
       this.workflow.app.pm.get(PluginErrorHandler)) as InstanceType<typeof PluginErrorHandler> | undefined;
-    if (errorHandlerPlugin?.errorHandler) {
-      errorHandlerPlugin.errorHandler.register(
-        (err) => err instanceof CustomActionInterceptionError,
-        async (err, ctx) => {
-          ctx.body = {
-            errors: err.messages,
-          };
-          ctx.status = err.status;
-        },
-      );
+    if (!errorHandlerPlugin?.errorHandler) {
+      throw new Error('Workflow omni trigger requires the error-handler plugin');
     }
+    this.workflow.app.resourcer.registerActionHandler('trigger', this.triggerAction);
+    this.workflow.app.acl.allow('*', 'trigger', 'loggedIn');
+    errorHandlerPlugin.errorHandler.register(
+      (err) => err instanceof CustomActionInterceptionError,
+      async (err, ctx) => {
+        ctx.body = {
+          errors: err.messages,
+        };
+        ctx.status = err.status;
+      },
+    );
     workflow.app.resourcer.use(this.middleware, { tag: 'workflowTrigger', after: 'acl' });
   }
   triggerAction = async (ctx, next) => {

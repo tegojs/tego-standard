@@ -10,6 +10,16 @@ import { useDesignable } from '../../hooks/useDesignable';
 import { useStyles } from './style';
 import { useParseMarkdown } from './util';
 
+const LazyMarkdownVoidDesigner = React.lazy(() =>
+  import('./Markdown.Void.Designer').then((module) => ({ default: module.MarkdownVoidDesigner })),
+);
+
+const MarkdownVoidDesigner = (props) => (
+  <React.Suspense fallback={null}>
+    <LazyMarkdownVoidDesigner {...props} />
+  </React.Suspense>
+);
+
 const MarkdownEditor = (props: any) => {
   const { t } = useTranslation();
   const [value, setValue] = useState(props.defaultValue);
@@ -93,9 +103,4 @@ export const MarkdownVoid: any = observer(
   { displayName: 'MarkdownVoid' },
 );
 
-Object.defineProperty(MarkdownVoid, 'Designer', {
-  configurable: true,
-  get() {
-    return require('./Markdown.Void.Designer').MarkdownVoidDesigner;
-  },
-});
+MarkdownVoid.Designer = MarkdownVoidDesigner;

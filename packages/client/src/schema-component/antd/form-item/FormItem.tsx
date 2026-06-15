@@ -11,10 +11,12 @@ import { ACLCollectionFieldProvider } from '../../../built-in/acl/ACLCollectionF
 import { Collection_deprecated } from '../../../collection-manager/hooks/useCollection_deprecated';
 import { CollectionFieldProvider } from '../../../data-source/collection-field/CollectionFieldProvider';
 import { useContextConfigSetting } from '../../../data-source/data-block/context/ConfigSetting.provider';
+import { GeneralSchemaDesigner } from '../../../schema-settings/GeneralSchemaDesigner';
 import useContextVariable from '../../../variables/hooks/useContextVariable';
 import useVariables from '../../../variables/hooks/useVariables';
 import { BlockItem } from '../block-item/BlockItem';
 import { HTMLEncode } from '../input/shared';
+import { FilterFormDesigner } from './FormItem.FilterFormDesigner';
 import useLazyLoadDisplayAssociationFieldsOfForm from './hooks/useLazyLoadDisplayAssociationFieldsOfForm';
 import useParseDefaultValue from './hooks/useParseDefaultValue';
 import { useEnsureOperatorsValid } from './operatorUtils';
@@ -105,7 +107,6 @@ export const FormItem = (props: any) => {
 FormItem.displayName = 'FormItem';
 
 FormItem.Designer = function Designer() {
-  const { GeneralSchemaDesigner } = require('../../../schema-settings/GeneralSchemaDesigner');
   const app = useApp();
   const fieldSchema = useFieldSchema();
   const settingsName = `FormItemSettings:${fieldSchema['x-interface']}`;
@@ -120,9 +121,4 @@ export function isFileCollection(collection: Collection_deprecated) {
   return collection?.template === 'file';
 }
 
-Object.defineProperty(FormItem, 'FilterFormDesigner', {
-  configurable: true,
-  get() {
-    return require('./FormItem.FilterFormDesigner').FilterFormDesigner;
-  },
-});
+FormItem.FilterFormDesigner = FilterFormDesigner;

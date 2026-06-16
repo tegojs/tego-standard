@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ISchema, uid } from '@tachybase/schema';
+
+import { useTranslation } from 'react-i18next';
 
 import { ApplicationContext } from '../../../../application/context';
 import { SchemaInitializer } from '../../../../application/schema-initializer/SchemaInitializer';
@@ -7,14 +9,6 @@ import { SchemaInitializerManager } from '../../../../application/schema-initial
 import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
 import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
 import { Grid } from '../Grid';
-
-const addBlockButton = new SchemaInitializer({
-  name: 'addBlockButton',
-  title: 'Add block',
-  items: [],
-});
-
-const schemaInitializerManager = new SchemaInitializerManager([addBlockButton], {} as any);
 
 const schema: ISchema = {
   type: 'object',
@@ -30,6 +24,17 @@ const schema: ISchema = {
 };
 
 function Root() {
+  const { t } = useTranslation();
+  const schemaInitializerManager = useMemo(() => {
+    const addBlockButton = new SchemaInitializer({
+      name: 'addBlockButton',
+      title: t('Add block'),
+      items: [],
+    });
+
+    return new SchemaInitializerManager([addBlockButton], {} as any);
+  }, [t]);
+
   return (
     <ApplicationContext.Provider value={{ schemaInitializerManager } as any}>
       <SchemaComponentProvider designable components={{ Grid }}>

@@ -8,6 +8,10 @@ function escapeRegExp(value: string) {
 
 function createAssociationMatcher(association: string) {
   const parts = association.split('.').filter(Boolean);
+  if (!parts.length) {
+    return () => false;
+  }
+
   const quotedAssociation = parts.map((part) => `"?${escapeRegExp(part)}"?`).join(String.raw`\s*(?:\.|->)\s*"?`);
   const associationPattern = new RegExp(`(^|[^A-Za-z0-9_])${quotedAssociation}(?=\\s*(?:\\.|->)|[^A-Za-z0-9_]|$)`);
 

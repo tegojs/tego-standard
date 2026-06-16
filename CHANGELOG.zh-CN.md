@@ -7,15 +7,22 @@
 
 ## [未发布]
 
+
+
+## [1.6.22] - 2026-06-16
+
 ### ✨ 新增
 
-- **workflow**: 退出分支节点 ([#376](https://github.com/tegojs/tego-standard/pull/376)) [c53c0f2](https://github.com/tegojs/tego-standard/commit/c53c0f2f9fae19421f849da05c65cbfc86de4bde) (@TomyJan)
+- 批准快速添加 ([#390](https://github.com/tegojs/tego-standard/pull/390)) (@dududuna)
+- **workflow**: 退出分支节点 ([#376](https://github.com/tegojs/tego-standard/pull/376)) (@TomyJan)
 
 ### 🐛 修复
 
-- 公式字段支持关联字段值 ([#387](https://github.com/tegojs/tego-standard/pull/387)) [c7f905e](https://github.com/tegojs/tego-standard/commit/c7f905e5e0ced6529c53b995966871c6f317d37b) (@dududuna)
-
-
+- **client**: 解析过滤器表单中深层嵌套关联字段的字段名称 ([#393](https://github.com/tegojs/tego-standard/pull/393)) (@TomyJan)
+- **client**: 解决导致白屏的循环依赖 ([#392](https://github.com/tegojs/tego-standard/pull/392)) (@TomyJan)
+- **client**: 强化导出和 ACL 权限处理 ([#391](https://github.com/tegojs/tego-standard/pull/391)) (@TomyJan)
+- **test**: 稳定标准测试套件 ([#389](https://github.com/tegojs/tego-standard/pull/389)) (@TomyJan)
+- 公式字段支持关联字段值 ([#387](https://github.com/tegojs/tego-standard/pull/387)) (@dududuna)
 
 ## [1.6.21] - 2026-05-22
 
@@ -3036,7 +3043,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.21...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.22...HEAD
+[1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22
 [1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
 [1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
 [1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19

@@ -7,15 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.22] - 2026-06-16
+
 ### ✨ Added
 
-- **workflow**: exit branch node ([#376](https://github.com/tegojs/tego-standard/pull/376)) [c53c0f2](https://github.com/tegojs/tego-standard/commit/c53c0f2f9fae19421f849da05c65cbfc86de4bde) (@TomyJan)
+- approval quick add ([#390](https://github.com/tegojs/tego-standard/pull/390)) (@dududuna)
+- **workflow**: exit branch node ([#376](https://github.com/tegojs/tego-standard/pull/376)) (@TomyJan)
 
 ### 🐛 Fixed
 
-- formula fields support associated field values ([#387](https://github.com/tegojs/tego-standard/pull/387)) [c7f905e](https://github.com/tegojs/tego-standard/commit/c7f905e5e0ced6529c53b995966871c6f317d37b) (@dududuna)
-
-
+- **client**: resolve fieldNames for deeply nested association fields in filter forms ([#393](https://github.com/tegojs/tego-standard/pull/393)) (@TomyJan)
+- **client**: resolve circular dependency causing white screen ([#392](https://github.com/tegojs/tego-standard/pull/392)) (@TomyJan)
+- **client**: harden exports and ACL permission handling ([#391](https://github.com/tegojs/tego-standard/pull/391)) (@TomyJan)
+- **test**: stabilize standard test suites ([#389](https://github.com/tegojs/tego-standard/pull/389)) (@TomyJan)
+- formula fields support associated field values ([#387](https://github.com/tegojs/tego-standard/pull/387)) (@dududuna)
 
 ## [1.6.21] - 2026-05-22
 
@@ -3036,7 +3043,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.21...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.22...HEAD
+[1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22
 [1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
 [1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
 [1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19

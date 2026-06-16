@@ -7,7 +7,9 @@ import { useAPIClient } from '../api-client';
 import { SelectWithTitle } from '../common';
 import { useCurrentRoles } from './CurrentUserProvider';
 
-export const useSwitchRole = () => {
+type MenuItem = NonNullable<MenuProps['items']>[number];
+
+export const useSwitchRole = (): MenuItem | null => {
   const api = useAPIClient();
   const roles = useCurrentRoles();
   const { t } = useTranslation();

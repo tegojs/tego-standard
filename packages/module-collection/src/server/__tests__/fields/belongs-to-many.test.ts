@@ -9,14 +9,21 @@ describe('belongsToMany', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     db = app.db;
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
+  });
+
+  afterAll(async () => {
+    await app.destroy();
+  });
+
+  async function createPostTagCollections(sourceName: string, targetName: string) {
     await Collection.repository.create({
       values: {
-        name: 'posts',
+        name: sourceName,
         fields: [{ type: 'string', name: 'title' }],
       },
       context: {},
@@ -24,21 +31,22 @@ describe('belongsToMany', () => {
 
     await Collection.repository.create({
       values: {
-        name: 'tags',
+        name: targetName,
         fields: [{ type: 'string', name: 'name' }],
       },
       context: {},
     });
-  });
-
-  afterEach(async () => {
-    await app.destroy();
-  });
+  }
 
   it('should check association keys', async () => {
+    const sourceName = 'postsAssociationKeys';
+    const targetName = 'tagsAssociationKeys';
+    const throughName = 'postsTagsAssociationKeys';
+    await createPostTagCollections(sourceName, targetName);
+
     await Collection.repository.create({
       values: {
-        name: 'postsTags',
+        name: throughName,
         fields: [
           {
             type: 'string',
@@ -57,11 +65,11 @@ describe('belongsToMany', () => {
     try {
       await Field.repository.create({
         values: {
-          collectionName: 'posts',
+          collectionName: sourceName,
           type: 'belongsToMany',
           name: 'tags',
-          target: 'tags',
-          through: 'postsTags',
+          target: targetName,
+          through: throughName,
           sourceKey: 'id',
           targetKey: 'id',
           foreignKey: 'postId',
@@ -77,16 +85,19 @@ describe('belongsToMany', () => {
   });
 
   it('should throw error when through table foreign keys are same name', async () => {
+    const sourceName = 'sameForeignKeyA';
+    const targetName = 'sameForeignKeyB';
+
     await Collection.repository.create({
       values: {
-        name: 'A',
+        name: sourceName,
       },
       context: {},
     });
 
     await Collection.repository.create({
       values: {
-        name: 'B',
+        name: targetName,
       },
       context: {},
     });
@@ -98,8 +109,8 @@ describe('belongsToMany', () => {
         values: {
           name: 'bs',
           type: 'belongsToMany',
-          collectionName: 'A',
-          target: 'B',
+          collectionName: sourceName,
+          target: targetName,
           sourceKey: 'id',
           targetKey: 'id',
           foreignKey: 'a_id',
@@ -115,9 +126,13 @@ describe('belongsToMany', () => {
   });
 
   it('should define belongs to many when change alias name', async () => {
+    const sourceName = 'aliasSource';
+    const targetName = 'aliasTarget';
+    const throughName = 'aliasThrough';
+
     await Collection.repository.create({
       values: {
-        name: 'a',
+        name: sourceName,
         fields: [{ type: 'bigInt', name: 'id', primaryKey: true, autoIncrement: true }],
       },
       context: {},
@@ -125,7 +140,7 @@ describe('belongsToMany', () => {
 
     await Collection.repository.create({
       values: {
-        name: 'b',
+        name: targetName,
         fields: [{ type: 'bigInt', name: 'id', primaryKey: true, autoIncrement: true }],
       },
       context: {},
@@ -133,23 +148,21 @@ describe('belongsToMany', () => {
 
     await Collection.repository.create({
       values: {
-        name: 't1',
+        name: throughName,
         fields: [{ type: 'bigInt', name: 'id', primaryKey: true, autoIncrement: true }],
       },
       context: {},
     });
-
-    const Through = db.getCollection('t1');
 
     let error;
     try {
       await Field.repository.create({
         values: {
-          name: 't1',
+          name: throughName,
           type: 'belongsToMany',
-          target: 'b',
-          through: 't1',
-          collectionName: 'a',
+          target: targetName,
+          through: throughName,
+          collectionName: sourceName,
           sourceKey: 'id',
           targetKey: 'id',
           foreignKey: 'a_id',
@@ -169,9 +182,9 @@ describe('belongsToMany', () => {
         values: {
           name: 'xxx',
           type: 'belongsToMany',
-          target: 'b',
-          through: 't1',
-          collectionName: 'a',
+          target: targetName,
+          through: throughName,
+          collectionName: sourceName,
           sourceKey: 'id',
           targetKey: 'id',
           foreignKey: 'a_id',
@@ -187,20 +200,26 @@ describe('belongsToMany', () => {
   });
 
   it('should create belongsToMany field', async () => {
+    const sourceName = 'postsCreateBelongsToMany';
+    const targetName = 'tagsCreateBelongsToMany';
+    const throughName = 'postsCreateBelongsToManyTags';
+    await createPostTagCollections(sourceName, targetName);
+
     await Field.repository.create({
       values: {
         name: 'tags',
         type: 'belongsToMany',
-        collectionName: 'posts',
+        collectionName: sourceName,
         interface: 'm2m',
-        through: 'post_tags',
+        target: targetName,
+        through: throughName,
       },
       context: {},
     });
 
     const throughCollection = await Collection.repository.findOne({
       filter: {
-        name: 'post_tags',
+        name: throughName,
       },
     });
 
@@ -211,7 +230,7 @@ describe('belongsToMany', () => {
     if (collectionManagerSchema && mainSchema !== collectionManagerSchema && db.inDialect('postgres')) {
       expect(throughCollection.get('schema')).toEqual(collectionManagerSchema);
 
-      const tableName = db.getCollection('post_tags').model.tableName;
+      const tableName = db.getCollection(throughName).model.tableName;
 
       const mainSchema = db.options.schema || 'public';
 
@@ -232,24 +251,30 @@ describe('belongsToMany', () => {
   });
 
   it('should belongs to many fields after through collection destroyed', async () => {
+    const sourceName = 'postsDestroyThrough';
+    const targetName = 'tagsDestroyThrough';
+    const throughName = 'postsDestroyThroughTags';
+    await createPostTagCollections(sourceName, targetName);
+
     await Field.repository.create({
       values: {
         name: 'tags',
         type: 'belongsToMany',
-        collectionName: 'posts',
+        collectionName: sourceName,
         interface: 'm2m',
-        through: 'post_tags',
+        target: targetName,
+        through: throughName,
       },
       context: {},
     });
 
     const throughCollection = await Collection.repository.findOne({
       filter: {
-        name: 'post_tags',
+        name: throughName,
       },
     });
 
-    await db.getRepository('posts').create({
+    await db.getRepository(sourceName).create({
       values: [
         {
           title: 'p1',
@@ -268,7 +293,7 @@ describe('belongsToMany', () => {
       await Field.repository.count({
         filter: {
           name: 'tags',
-          collectionName: 'posts',
+          collectionName: sourceName,
         },
       }),
     ).toEqual(0);

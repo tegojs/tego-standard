@@ -3,7 +3,7 @@ import { useExpressionScope } from '@tachybase/schema';
 
 import _ from 'lodash';
 
-import { useDesignable } from '../../schema-component';
+import { useDesignable } from '../../schema-component/hooks/useDesignable';
 
 const useDefaultSchemaProps = () => undefined;
 

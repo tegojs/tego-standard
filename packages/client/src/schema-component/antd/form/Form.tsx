@@ -8,12 +8,11 @@ import {
   useField,
   useFieldSchema,
 } from '@tachybase/schema';
-
 import { FormLayout } from '@tego/client';
+
 import { Options, Result } from 'ahooks/es/useRequest/src/types';
 import { ConfigProvider, Spin } from 'antd';
 
-import { useAttach, useComponent } from '../..';
 import { useRequest } from '../../../api-client';
 import { useCollection_deprecated } from '../../../collection-manager';
 import {
@@ -23,6 +22,7 @@ import {
   SchemaSettingsTemplate,
 } from '../../../schema-settings';
 import { useSchemaTemplate } from '../../../schema-templates';
+import { useAttach, useComponent } from '../../hooks';
 
 type Opts = Options<any, any> & { uid?: string };
 

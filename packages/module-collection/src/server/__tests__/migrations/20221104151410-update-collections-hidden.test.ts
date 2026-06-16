@@ -53,7 +53,7 @@ describe('migration 20221104151410-update-collections-hidden test', () => {
       },
     });
     const migration = new UpdateCollectionsHiddenMigration({ db } as MigrationContext);
-    migration.context.tego = app;
+    migration.context.app = app;
     await migration.up();
 
     let upResult = await db.getRepository('collections').find({

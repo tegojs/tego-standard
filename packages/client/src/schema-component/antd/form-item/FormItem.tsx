@@ -1,24 +1,25 @@
 import React, { useEffect, useMemo } from 'react';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
-
 import { FormItem as Item } from '@tego/client';
+
 import { createStyles } from 'antd-style';
 import cx from 'classnames';
 
-import { useApp } from '../../../application';
+import { useApp } from '../../../application/hooks/useApp';
 import { useFormActiveFields } from '../../../block-provider/hooks/useFormActiveFields';
-import { ACLCollectionFieldProvider } from '../../../built-in/acl';
-import { Collection_deprecated } from '../../../collection-manager';
-import { CollectionFieldProvider, useContextConfigSetting } from '../../../data-source';
-import { GeneralSchemaDesigner } from '../../../schema-settings';
-import { useVariables } from '../../../variables';
+import { ACLCollectionFieldProvider } from '../../../built-in/acl/ACLCollectionFieldProvider';
+import { Collection_deprecated } from '../../../collection-manager/hooks/useCollection_deprecated';
+import { CollectionFieldProvider } from '../../../data-source/collection-field/CollectionFieldProvider';
+import { useContextConfigSetting } from '../../../data-source/data-block/context/ConfigSetting.provider';
+import { GeneralSchemaDesigner } from '../../../schema-settings/GeneralSchemaDesigner';
 import useContextVariable from '../../../variables/hooks/useContextVariable';
-import { BlockItem } from '../block-item';
+import useVariables from '../../../variables/hooks/useVariables';
+import { BlockItem } from '../block-item/BlockItem';
 import { HTMLEncode } from '../input/shared';
 import { FilterFormDesigner } from './FormItem.FilterFormDesigner';
 import useLazyLoadDisplayAssociationFieldsOfForm from './hooks/useLazyLoadDisplayAssociationFieldsOfForm';
 import useParseDefaultValue from './hooks/useParseDefaultValue';
-import { useEnsureOperatorsValid } from './SchemaSettingOptions';
+import { useEnsureOperatorsValid } from './operatorUtils';
 
 const useStyles = createStyles(({ css }) => {
   return {
@@ -92,12 +93,12 @@ export const FormItem = (props: any) => {
     );
   }, [showTitle]);
 
+  const item = <Item className={className} {...props} extra={extra} />;
+
   return (
     <CollectionFieldProvider allowNull={true}>
       <BlockItem className={'tb-form-item'}>
-        <ACLCollectionFieldProvider>
-          <Item className={className} {...props} extra={extra} />
-        </ACLCollectionFieldProvider>
+        <ACLCollectionFieldProvider>{item}</ACLCollectionFieldProvider>
       </BlockItem>
     </CollectionFieldProvider>
   );

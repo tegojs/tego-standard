@@ -3,9 +3,21 @@
  * desc: The simplest use.
  */
 import React from 'react';
-import { Radio, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
+import { observer, useField } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Radio } from '../Radio';
+
+const FormItem = observer(({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+    </div>
+  );
+});
 
 const schema = {
   type: 'object',

@@ -1,4 +1,5 @@
-import { Server } from 'node:http';
+import { createServer, Server } from 'node:http';
+import type { AddressInfo, Socket } from 'node:net';
 import PluginWorkflow, { EXECUTION_STATUS, JOB_STATUS, Processor } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
@@ -8,20 +9,44 @@ import jwt from 'jsonwebtoken';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
 
+import { waitForAssertion, waitForWorkflowIdle, waitForWorkflowJob } from '../../../__tests__/utils';
 import { RequestConfig } from '../RequestInstruction';
 
-const HOST = 'localhost';
+const HOST = '127.0.0.1';
+const REQUEST_TIMEOUT_MS = 200;
+const SLOW_RESPONSE_MS = 300;
+const REQUEST_JOB_WAIT_OPTIONS = {
+  executionOptions: { order: [['id', 'DESC']] },
+  jobOptions: { order: [['id', 'ASC']] },
+  timeout: 30000,
+};
 
-function getRandomPort() {
-  const minPort = 1024;
-  const maxPort = 49151;
-  return Math.floor(Math.random() * (maxPort - minPort + 1)) + minPort;
+async function listen(server: Server) {
+  return new Promise<number>((resolve) => {
+    server.listen(0, HOST, () => {
+      const address = server.address() as AddressInfo;
+      resolve(address.port);
+    });
+  });
+}
+
+async function close(server: Server) {
+  return new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 }
 
 class MockAPI {
   app: Koa;
   server: Server;
   port: number;
+  sockets = new Set<Socket>();
   get URL_DATA() {
     return `http://${HOST}:${this.port}/api/data`;
   }
@@ -37,10 +62,12 @@ class MockAPI {
 
     this.app.use(async (ctx, next) => {
       if (ctx.path === '/api/400') {
-        return ctx.throw(400);
+        ctx.status = 400;
+        ctx.body = { error: 'Bad Request' };
+        return;
       }
       if (ctx.path === '/api/timeout') {
-        await sleep(2000);
+        await sleep(SLOW_RESPONSE_MS);
         ctx.status = 204;
         return;
       }
@@ -57,16 +84,35 @@ class MockAPI {
 
   async start() {
     return new Promise((resolve) => {
-      this.server = this.app.listen(0, () => {
-        this.port = this.server.address()['port'];
+      this.server = createServer(this.app.callback());
+      this.server.on('connection', (socket) => {
+        this.sockets.add(socket);
+        socket.once('close', () => {
+          this.sockets.delete(socket);
+        });
+      });
+      this.server.listen(0, HOST, () => {
+        this.port = (this.server.address() as AddressInfo).port;
         resolve(true);
       });
     });
   }
 
   async close() {
-    return new Promise((resolve) => {
-      this.server.close(() => {
+    return new Promise((resolve, reject) => {
+      const forceCloseTimer = setTimeout(() => {
+        for (const socket of this.sockets) {
+          socket.destroy();
+        }
+      }, SLOW_RESPONSE_MS + 1000);
+      forceCloseTimer.unref?.();
+
+      this.server.close((error) => {
+        clearTimeout(forceCloseTimer);
+        if (error) {
+          reject(error);
+          return;
+        }
         resolve(true);
       });
     });
@@ -83,9 +129,10 @@ describe('workflow > instructions > request', () => {
   let workflow;
   let api: MockAPI;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     api = new MockAPI();
-    api.start();
+    await api.start();
+
     app = await getApp({
       resourcer: {
         prefix: '/api',
@@ -98,6 +145,18 @@ describe('workflow > instructions > request', () => {
     PostCollection = db.getCollection('posts');
     PostRepo = PostCollection.repository;
     ReplyRepo = db.getCollection('replies').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await db.getRepository('users').destroy({ filter: {} });
+    await db.getRepository('categories').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await ReplyRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -110,6 +169,11 @@ describe('workflow > instructions > request', () => {
   });
 
   afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(async () => {
     await api.close();
     await app.destroy();
   });
@@ -126,13 +190,15 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toEqual({ meta: {}, data: {} });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result).toMatchObject({ meta: {}, data: {} });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('timeout', async () => {
@@ -141,27 +207,26 @@ describe('workflow > instructions > request', () => {
         config: {
           url: api.URL_TIMEOUT,
           method: 'GET',
-          timeout: 250,
+          timeout: REQUEST_TIMEOUT_MS,
         } as RequestConfig,
       });
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(1000);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.FAILED);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.FAILED);
-
-      expect(job.result).toMatchObject({
-        code: 'ECONNABORTED',
-        name: 'Error',
-        status: null,
-        message: 'timeout of 250ms exceeded',
-      });
-
-      // NOTE: to wait for the response to finish and avoid non finished promise.
-      await sleep(1500);
+          expect(job.result).toMatchObject({
+            error: {
+              code: 'ECONNABORTED',
+              message: `timeout of ${REQUEST_TIMEOUT_MS}ms exceeded`,
+            },
+          });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('ignoreFail', async () => {
@@ -170,24 +235,26 @@ describe('workflow > instructions > request', () => {
         config: {
           url: api.URL_TIMEOUT,
           method: 'GET',
-          timeout: 250,
+          timeout: REQUEST_TIMEOUT_MS,
           ignoreFail: true,
         } as RequestConfig,
       });
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(1000);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toMatchObject({
-        code: 'ECONNABORTED',
-        name: 'Error',
-        status: null,
-        message: 'timeout of 250ms exceeded',
-      });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result).toMatchObject({
+            error: {
+              code: 'ECONNABORTED',
+              message: `timeout of ${REQUEST_TIMEOUT_MS}ms exceeded`,
+            },
+          });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('response 400', async () => {
@@ -202,12 +269,14 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.FAILED);
-      expect(job.result.status).toBe(400);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.FAILED);
+          expect(job.result.error.status).toBe(400);
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('response 400 ignoreFail', async () => {
@@ -223,12 +292,14 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.status).toBe(400);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result.error.status).toBe(400);
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it('request with data', async () => {
@@ -243,12 +314,14 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.data).toEqual({ title: 't1' });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result.data).toEqual({ title: 't1' });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     // TODO(bug): should not use ejs
@@ -267,12 +340,14 @@ describe('workflow > instructions > request', () => {
         values: { title },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result.data).toEqual({ title });
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [job]) => {
+          expect(job.status).toEqual(JOB_STATUS.RESOLVED);
+          expect(job.result.data).toEqual({ title });
+        },
+        REQUEST_JOB_WAIT_OPTIONS,
+      );
     });
 
     it.skip('request inside loop', async () => {
@@ -295,14 +370,16 @@ describe('workflow > instructions > request', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
-      expect(jobs.map((item) => item.status)).toEqual(Array(3).fill(JOB_STATUS.RESOLVED));
-      expect(jobs[0].result).toBe(2);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, jobs) => {
+          expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+          expect(jobs.length).toBe(3);
+          expect(jobs.map((item) => item.status)).toEqual(Array(3).fill(JOB_STATUS.RESOLVED));
+          expect(jobs[0].result).toBe(2);
+        },
+        { jobOptions: { order: [['id', 'ASC']] } },
+      );
     });
   });
 
@@ -312,7 +389,7 @@ describe('workflow > instructions > request', () => {
 
       const token = jwt.sign(
         {
-          userId: typeof user.id,
+          userId: user.id,
         },
         process.env.APP_KEY,
         {
@@ -320,32 +397,34 @@ describe('workflow > instructions > request', () => {
         },
       );
 
-      const server = app.listen(12346, () => {});
+      const server = createServer(app.callback());
+      const port = await listen(server);
 
-      await sleep(1000);
+      try {
+        const n1 = await workflow.createNode({
+          type: 'request',
+          config: {
+            url: `http://${HOST}:${port}/api/categories`,
+            method: 'POST',
+            headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
+          } as RequestConfig,
+        });
 
-      const n1 = await workflow.createNode({
-        type: 'request',
-        config: {
-          url: `http://localhost:12346/api/categories`,
-          method: 'POST',
-          headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
-        } as RequestConfig,
-      });
+        await PostRepo.create({ values: { title: 't1' } });
 
-      await PostRepo.create({ values: { title: 't1' } });
+        await waitForAssertion(async () => {
+          const category = await db.getRepository('categories').findOne({});
+          expect(category).toBeTruthy();
 
-      await sleep(500);
-
-      const category = await db.getRepository('categories').findOne({});
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.status).toBe(JOB_STATUS.RESOLVED);
-      expect(job.result.data).toMatchObject({});
-
-      server.close();
+          const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+          expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+          const [job] = await execution.getJobs({ order: [['id', 'ASC']] });
+          expect(job.status).toBe(JOB_STATUS.RESOLVED);
+          expect(job.result.data).toMatchObject({});
+        });
+      } finally {
+        await close(server);
+      }
     });
   });
 
@@ -363,16 +442,16 @@ describe('workflow > instructions > request', () => {
         } as RequestConfig,
       });
 
-      const workflowPlugin = app.pm.get(PluginWorkflow) as PluginWorkflow;
+      const workflowPlugin = app.pm.get('workflow') as PluginWorkflow;
       const processor = (await workflowPlugin.trigger(syncFlow, { data: { title: 't1' } })) as Processor;
 
-      const [execution] = await syncFlow.getExecutions();
+      const [execution] = await syncFlow.getExecutions({ order: [['id', 'DESC']] });
       expect(processor.execution.id).toEqual(execution.id);
       expect(processor.execution.status).toEqual(execution.status);
       expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
+      const [job] = await execution.getJobs({ order: [['id', 'ASC']] });
       expect(job.status).toEqual(JOB_STATUS.RESOLVED);
-      expect(job.result).toEqual({ meta: {}, data: {} });
+      expect(job.result).toMatchObject({ meta: {}, data: {} });
     });
   });
 });

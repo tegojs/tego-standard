@@ -1,9 +1,9 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
-import Plugin from '..';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
+import Plugin from '../Plugin';
 
 describe('workflow > instructions > parallel', () => {
   let app: Application;
@@ -13,7 +13,7 @@ describe('workflow > instructions > parallel', () => {
   let workflow;
   let plugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp({
       plugins: [Plugin],
     });
@@ -22,6 +22,15 @@ describe('workflow > instructions > parallel', () => {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -33,7 +42,12 @@ describe('workflow > instructions > parallel', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('single all', () => {
     it('all resolved', async () => {
@@ -53,12 +67,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+      });
     });
 
     it('some rejected', async () => {
@@ -78,12 +92,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+      });
     });
 
     it('first branch rejected', async () => {
@@ -105,12 +119,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(2);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(2);
+      });
     });
   });
 
@@ -135,12 +149,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(2);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(2);
+      });
     });
 
     it('first rejected', async () => {
@@ -163,12 +177,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+      });
     });
 
     it('all rejected', async () => {
@@ -191,12 +205,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.FAILED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.FAILED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+      });
     });
   });
 
@@ -221,12 +235,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(2);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(2);
+      });
     });
 
     it('first rejected', async () => {
@@ -249,12 +263,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(2);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(2);
+      });
     });
   });
 
@@ -281,12 +295,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+      });
     });
 
     it('link to multipe branches', async () => {
@@ -318,12 +332,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(4);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(4);
+      });
     });
 
     it('random branch index', async () => {
@@ -347,12 +361,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(3);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(3);
+      });
     });
 
     it('downstream has manual node', async () => {
@@ -381,10 +395,19 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      let e1;
+      await waitForAssertion(async () => {
+        [e1] = await workflow.getExecutions();
+        expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toBe(EXECUTION_STATUS.STARTED);
+        const jobs = await e1.getJobs();
+        const parallelJob = jobs.find((item) => item.nodeId === n1.id);
+        expect(parallelJob?.result?.[1]).toBe(JOB_STATUS.RESOLVED);
+
+        const pending = jobs.find((item) => item.nodeId === n2.id);
+        expect(pending).toBeTruthy();
+      });
+      await waitForWorkflowIdle(app);
 
       const [pending] = await e1.getJobs({ where: { nodeId: n2.id } });
       pending.set({
@@ -392,15 +415,14 @@ describe('workflow > instructions > parallel', () => {
         result: 123,
       });
       pending.execution = e1;
-      plugin.resume(pending);
+      await plugin.resume(pending);
 
-      await sleep(500);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await e2.getJobs({ order: [['id', 'ASC']] });
-      console.log(jobs);
-      expect(jobs.length).toBe(4);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(4);
+      });
     });
   });
 
@@ -436,12 +458,12 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toBe(5);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toBe(5);
+      });
     });
   });
 
@@ -478,15 +500,22 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      let execution;
+      await waitForAssertion(async () => {
+        [execution] = await workflow.getExecutions();
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        const jobs = await execution.getJobs();
+        expect(jobs.length).toBe(4);
 
-      const pendingJobs = await execution.getJobs();
-      expect(pendingJobs.length).toBe(4);
+        const parallelJob = jobs.find((item) => item.nodeId === n2.id);
+        expect(parallelJob?.result?.[1]).toBe(JOB_STATUS.RESOLVED);
 
-      const pending = pendingJobs.find((item) => item.nodeId === n3.id);
+        expect(jobs.find((item) => item.nodeId === n3.id)).toBeTruthy();
+      });
+      await waitForWorkflowIdle(app);
+
+      const [pending] = await execution.getJobs({ where: { nodeId: n3.id } });
       pending.set({
         status: JOB_STATUS.RESOLVED,
         result: 123,
@@ -494,11 +523,12 @@ describe('workflow > instructions > parallel', () => {
       pending.execution = execution;
       await plugin.resume(pending);
 
-      await sleep(500);
-
-      expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toEqual(5);
+      await waitForAssertion(async () => {
+        const [latestExecution] = await workflow.getExecutions();
+        expect(latestExecution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        const jobs = await latestExecution.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toEqual(5);
+      }, 30000);
     });
 
     it('parallel branches contains condition', async () => {
@@ -533,15 +563,24 @@ describe('workflow > instructions > parallel', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      let e1;
+      await waitForAssertion(async () => {
+        [e1] = await workflow.getExecutions();
+        expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
+        const pendingJobs = await e1.getJobs();
+        expect(pendingJobs.length).toBe(4);
+
+        const parallelJob = pendingJobs.find((item) => item.nodeId === n1.id);
+        expect(parallelJob?.result?.[1]).toBe(JOB_STATUS.RESOLVED);
+
+        expect(pendingJobs.find((item) => item.nodeId === n2.id)).toBeTruthy();
+      });
+      await waitForWorkflowIdle(app);
 
       const pendingJobs = await e1.getJobs();
-      expect(pendingJobs.length).toBe(4);
-
       const pending = pendingJobs.find((item) => item.nodeId === n2.id);
+      expect(pending).toBeTruthy();
       pending.set({
         status: JOB_STATUS.RESOLVED,
         result: 123,
@@ -549,12 +588,12 @@ describe('workflow > instructions > parallel', () => {
       pending.execution = e1;
       await plugin.resume(pending);
 
-      await sleep(500);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const jobs = await e2.getJobs({ order: [['id', 'ASC']] });
-      expect(jobs.length).toEqual(5);
+      await waitForAssertion(async () => {
+        const [e2] = await workflow.getExecutions();
+        expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        const jobs = await e2.getJobs({ order: [['id', 'ASC']] });
+        expect(jobs.length).toEqual(5);
+      }, 30000);
     });
   });
 });

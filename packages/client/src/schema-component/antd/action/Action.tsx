@@ -6,10 +6,7 @@ import { App, Button } from 'antd';
 import classnames from 'classnames';
 import { default as lodash } from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
-import { StablePopover, useActionContext } from '../..';
-import { useDesignable } from '../../';
 import { useApp } from '../../../application';
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
 import { useACLActionParamsContext } from '../../../built-in/acl';
@@ -20,7 +17,10 @@ import { RecordProvider } from '../../../record-provider';
 import { useLocalVariables, useVariables } from '../../../variables';
 import { SortableItem } from '../../common';
 import { useCompile, useComponent, useDesigner } from '../../hooks';
+import { useDesignable } from '../../hooks/useDesignable';
+import { useOptionalNavigate } from '../../hooks/useOptionalNavigate';
 import { useProps } from '../../hooks/useProps';
+import { StablePopover } from '../popover/Popover';
 import { ActionArea } from './Action.Area';
 import ActionContainer from './Action.Container';
 import { ActionDesigner } from './Action.Designer';
@@ -30,7 +30,7 @@ import { ActionModal } from './Action.Modal';
 import { ActionPage } from './Action.Page';
 import useStyles from './Action.style';
 import { ActionContextProvider } from './context';
-import { useA } from './hooks';
+import { useA, useActionContext } from './hooks';
 import { useCompiledAction } from './hooks/useCompiledAction';
 import { useGetAriaLabelOfAction } from './hooks/useGetAriaLabelOfAction';
 import { ComposedAction } from './types';
@@ -59,7 +59,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
       ...others
     } = useProps(props); // 新版 UISchema（1.0 之后）中已经废弃了 useProps，这里之所以继续保留是为了兼容旧版的 UISchema
     const aclCtx = useACLActionParamsContext();
-    const navigate = useNavigate();
+    const navigate = useOptionalNavigate();
     const { wrapSSR, componentCls, hashId } = useStyles();
     const { t } = useTranslation();
     const [visible, setVisible] = useState(false);
@@ -67,7 +67,7 @@ export const Action: ComposedAction = withDynamicSchemaProps(
     const Designer = useDesigner();
     const field = useField<any>();
     const app = useApp();
-    const pageMode = app.usePageMode();
+    const pageMode = app.usePageMode?.();
     const fieldSchema = useFieldSchema();
     const { run, element } = useCompiledAction(useAction, actionCallback);
     const form = useForm();

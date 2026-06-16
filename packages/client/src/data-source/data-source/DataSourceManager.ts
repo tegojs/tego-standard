@@ -4,10 +4,10 @@ import type { Application } from '../../application/Application';
 import type { Collection, CollectionOptions } from '../collection';
 import { CollectionFieldInterfaceManager, type CollectionFieldInterfaceFactory } from '../collection-field-interface';
 import { CollectionTemplateManager, type CollectionTemplateFactory } from '../collection-template';
+import { DEFAULT_DATA_SOURCE_KEY, DEFAULT_DATA_SOURCE_TITLE } from './constants';
 import { DataSource, DataSourceFactory, LocalDataSource, type DataSourceOptions } from './DataSource';
 
-export const DEFAULT_DATA_SOURCE_KEY = 'main';
-export const DEFAULT_DATA_SOURCE_TITLE = '{{t("Main")}}';
+export { DEFAULT_DATA_SOURCE_KEY, DEFAULT_DATA_SOURCE_TITLE } from './constants';
 
 export interface DataSourceManagerOptions {
   collectionTemplates?: CollectionTemplateFactory[];

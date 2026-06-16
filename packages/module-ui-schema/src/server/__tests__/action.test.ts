@@ -1,79 +1,60 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 
-import { Database } from '@tego/server';
-
 describe('action test', () => {
   let app: MockServer;
-  let db: Database;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       plugins: ['ui-schema-storage'],
     });
-    db = app.db;
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
-  test('insert action', async () => {
-    const response = await app
-      .agent()
-      .resource('uiSchemas')
-      .insert({
-        values: {
-          'x-uid': 'n1',
-          name: 'a',
-          type: 'object',
-          properties: {
-            b: {
-              'x-uid': 'n2',
-              type: 'object',
-              properties: {
-                c: { 'x-uid': 'n3' },
-              },
-            },
-            d: { 'x-uid': 'n4' },
-          },
+  const createSchema = (prefix: string) => ({
+    'x-uid': `${prefix}-n1`,
+    name: `${prefix}-a`,
+    type: 'object',
+    properties: {
+      b: {
+        'x-uid': `${prefix}-n2`,
+        type: 'object',
+        properties: {
+          c: { 'x-uid': `${prefix}-n3` },
         },
-      });
+      },
+      d: { 'x-uid': `${prefix}-n4` },
+    },
+  });
+
+  test('insert action', async () => {
+    const schema = createSchema('insert-action');
+    const response = await app.agent().resource('uiSchemas').insert({
+      values: schema,
+    });
 
     expect(response.statusCode).toEqual(200);
   });
 
   test('getJsonSchema with async node', async () => {
-    await app
-      .agent()
-      .resource('uiSchemas')
-      .insert({
-        values: {
-          'x-uid': 'n1',
-          name: 'a',
-          type: 'object',
-          properties: {
-            b: {
-              'x-async': true,
-              'x-uid': 'n2',
-              type: 'object',
-              properties: {
-                c: { 'x-uid': 'n3' },
-              },
-            },
-            d: { 'x-uid': 'n4' },
-          },
-        },
-      });
+    const schema = createSchema('async-node');
+    schema.properties.b['x-async'] = true;
+
+    await app.agent().resource('uiSchemas').insert({
+      values: schema,
+    });
 
     let response = await app.agent().resource('uiSchemas').getJsonSchema({
-      resourceIndex: 'n1',
+      resourceIndex: schema['x-uid'],
     });
 
     expect(response.body.data.properties.b).toBeUndefined();
 
     response = await app.agent().resource('uiSchemas').getJsonSchema({
-      resourceIndex: 'n1',
+      resourceIndex: schema['x-uid'],
       includeAsyncNode: true,
     });
 
@@ -81,33 +62,17 @@ describe('action test', () => {
   });
 
   test('getJsonSchema', async () => {
-    await app
-      .agent()
-      .resource('uiSchemas')
-      .insert({
-        values: {
-          'x-uid': 'n1',
-          name: 'a',
-          type: 'object',
-          properties: {
-            b: {
-              'x-uid': 'n2',
-              type: 'object',
-              properties: {
-                c: { 'x-uid': 'n3' },
-              },
-            },
-            d: { 'x-uid': 'n4' },
-          },
-        },
-      });
+    const schema = createSchema('get-json-schema');
+    await app.agent().resource('uiSchemas').insert({
+      values: schema,
+    });
 
     const response = await app.agent().resource('uiSchemas').getJsonSchema({
-      resourceIndex: 'n1',
+      resourceIndex: schema['x-uid'],
     });
 
     const { data } = response.body;
-    expect(data.properties.b.properties.c['x-uid']).toEqual('n3');
+    expect(data.properties.b.properties.c['x-uid']).toEqual('get-json-schema-n3');
   });
 
   test('getJsonSchema when uid not exists', async () => {
@@ -127,35 +92,19 @@ describe('action test', () => {
   });
 
   test('remove', async () => {
-    await app
-      .agent()
-      .resource('uiSchemas')
-      .insert({
-        values: {
-          'x-uid': 'n1',
-          name: 'a',
-          type: 'object',
-          properties: {
-            b: {
-              'x-uid': 'n2',
-              type: 'object',
-              properties: {
-                c: { 'x-uid': 'n3' },
-              },
-            },
-            d: { 'x-uid': 'n4' },
-          },
-        },
-      });
+    const schema = createSchema('remove');
+    await app.agent().resource('uiSchemas').insert({
+      values: schema,
+    });
 
     let response = await app.agent().resource('uiSchemas').remove({
-      resourceIndex: 'n2',
+      resourceIndex: 'remove-n2',
     });
 
     expect(response.statusCode).toEqual(200);
 
     response = await app.agent().resource('uiSchemas').getJsonSchema({
-      resourceIndex: 'n1',
+      resourceIndex: schema['x-uid'],
     });
 
     const { data } = response.body;
@@ -163,33 +112,17 @@ describe('action test', () => {
   });
 
   test('patch', async () => {
-    await app
-      .agent()
-      .resource('uiSchemas')
-      .insert({
-        values: {
-          'x-uid': 'n1',
-          name: 'a',
-          type: 'object',
-          properties: {
-            b: {
-              'x-uid': 'n2',
-              type: 'object',
-              properties: {
-                c: { 'x-uid': 'n3' },
-              },
-            },
-            d: { 'x-uid': 'n4' },
-          },
-        },
-      });
+    const schema = createSchema('patch');
+    await app.agent().resource('uiSchemas').insert({
+      values: schema,
+    });
 
     let response = await app
       .agent()
       .resource('uiSchemas')
       .patch({
         values: {
-          'x-uid': 'n1',
+          'x-uid': schema['x-uid'],
           properties: {
             b: {
               properties: {
@@ -204,7 +137,7 @@ describe('action test', () => {
 
     expect(response.statusCode).toEqual(200);
     response = await app.agent().resource('uiSchemas').getJsonSchema({
-      resourceIndex: 'n1',
+      resourceIndex: schema['x-uid'],
     });
 
     const { data } = response.body;
@@ -212,70 +145,56 @@ describe('action test', () => {
   });
 
   test('insert adjacent', async () => {
-    await app
-      .agent()
-      .resource('uiSchemas')
-      .insert({
-        values: {
-          'x-uid': 'n1',
-          name: 'a',
-          type: 'object',
-          properties: {
-            b: {
-              'x-uid': 'n2',
-              type: 'object',
-              properties: {
-                c: { 'x-uid': 'n3' },
-              },
-            },
-            d: { 'x-uid': 'n4' },
-          },
-        },
-      });
+    const schema = createSchema('insert-adjacent');
+    await app.agent().resource('uiSchemas').insert({
+      values: schema,
+    });
 
     let response = await app
       .agent()
       .resource('uiSchemas')
       .insertAdjacent({
-        resourceIndex: 'n2',
+        resourceIndex: 'insert-adjacent-n2',
         position: 'beforeBegin',
         values: {
-          'x-uid': 'n5',
+          'x-uid': 'insert-adjacent-n5',
           name: 'e',
         },
       });
 
     expect(response.statusCode).toEqual(200);
     response = await app.agent().resource('uiSchemas').getJsonSchema({
-      resourceIndex: 'n1',
+      resourceIndex: schema['x-uid'],
     });
 
     const { data } = response.body;
-    expect(data.properties.e['x-uid']).toEqual('n5');
+    expect(data.properties.e['x-uid']).toEqual('insert-adjacent-n5');
   });
 
   test('insert adjacent with bit schema', async () => {
     const schema = (await import('./fixtures/data')).default;
+    const rootUid = 'insert-big-root';
+    const aUid = 'insert-big-A';
 
     await app
       .agent()
       .resource('uiSchemas')
       .insert({
         values: {
-          'x-uid': 'root',
+          'x-uid': rootUid,
           properties: {
             A: {
-              'x-uid': 'A',
+              'x-uid': aUid,
             },
             B: {
-              'x-uid': 'B',
+              'x-uid': 'insert-big-B',
             },
           },
         },
       });
 
     const response = await app.agent().resource('uiSchemas').insertAdjacent({
-      resourceIndex: 'A',
+      resourceIndex: aUid,
       position: 'afterEnd',
       values: schema,
     });

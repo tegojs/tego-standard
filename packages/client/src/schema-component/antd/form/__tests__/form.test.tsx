@@ -27,8 +27,7 @@ describe('Form', () => {
       expect(screen.queryByText(/\{\}/i)).toBeInTheDocument();
     });
 
-    // 使用 waitFor 防止报错，参见：https://github.com/testing-library/user-event/issues/662#issuecomment-904365493
-    await waitFor(() => userEvent.type(input, '123'));
+    await userEvent.type(input, '123');
     await waitFor(() => {
       expect(screen.queryByText(/\{ "field1": "123" \}/i)).toBeInTheDocument();
     });
@@ -116,9 +115,10 @@ describe('Form', () => {
     expect(loading).toBeInTheDocument();
 
     // 等待数据加载
-    await sleep(600);
-    expect(t1Input).toHaveValue('uid');
-    expect(screen.getByText(/\{ "field2": "default value", "field1": "uid" \}/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(t1Input).toHaveValue('uid');
+      expect(screen.getByText(/\{ "field2": "default value", "field1": "uid" \}/i)).toBeInTheDocument();
+    });
   });
 
   it('useValues', async () => {

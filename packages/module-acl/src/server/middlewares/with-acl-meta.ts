@@ -2,6 +2,22 @@ import { NoPermissionError, snakeCase } from '@tego/server';
 
 import lodash from 'lodash';
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function createAssociationMatcher(association: string) {
+  const parts = association.split('.').filter(Boolean);
+  if (!parts.length) {
+    return () => false;
+  }
+
+  const quotedAssociation = parts.map((part) => `"?${escapeRegExp(part)}"?`).join(String.raw`\s*(?:\.|->)\s*"?`);
+  const associationPattern = new RegExp(`(^|[^A-Za-z0-9_])${quotedAssociation}(?=\\s*(?:\\.|->)|[^A-Za-z0-9_]|$)`);
+
+  return (whereCase: string) => associationPattern.test(whereCase);
+}
+
 function createWithACLMetaMiddleware() {
   return async (ctx: any, next) => {
     await next();
@@ -66,7 +82,13 @@ function createWithACLMetaMiddleware() {
           params: {},
           resourceName: ctx.action.resourceName,
           resourceOf: ctx.action.resourceOf,
-          mergeParams() {},
+          mergeParams(params) {
+            this.params = lodash.mergeWith({}, this.params, params, (value, srcValue) => {
+              if (Array.isArray(value) && Array.isArray(srcValue)) {
+                return srcValue;
+              }
+            });
+          },
         },
         state: {
           currentRole: ctx.state.currentRole,
@@ -140,7 +162,7 @@ function createWithACLMetaMiddleware() {
         context: actionCtx,
       });
 
-      const actionSql = ctx.db.sequelize.queryInterface.queryGenerator.selectQuery(
+      const actionSql = db.sequelize.queryInterface.queryGenerator.selectQuery(
         Model.getTableName(),
         {
           where: (() => {
@@ -212,7 +234,10 @@ function createWithACLMetaMiddleware() {
       );
 
       // like'("project->users"."id" = 17)' like'("users"."id" = 17)'
-      const whereCase = actionSql.match(/WHERE (.*?);/)[1];
+      const whereCase = actionSql.match(/WHERE (.*?);/)?.[1];
+      if (!whereCase) {
+        continue;
+      }
 
       conditions.push({
         whereCase,
@@ -225,22 +250,23 @@ function createWithACLMetaMiddleware() {
     const whereCases = conditions.map((condition) => condition.whereCase);
     // 过滤include 根据whereCase . 或者 -> 之后第一个关联表 include才有效
     include = include.filter((inc) => {
-      return conditions.some((condition) => {
-        // FIXME: whereCases的格式很不固定 有 a->b 也有 a.b 至于a,b有没有引号也不确定,很奇怪,为防止报错只过滤一部分包含的情况
-        // const regexWithQuotes = new RegExp(`"?${inc.association}"?[.]|"?${inc.association}"?->`);
-        // return whereCases.some((whereCase) => regexWithQuotes.test(whereCase));
-        return whereCases.some((whereCase) => whereCase.includes(inc.association));
-      });
+      if (!inc?.association) {
+        return false;
+      }
+
+      const matchesAssociation = createAssociationMatcher(inc.association);
+      return whereCases.some((whereCase) => matchesAssociation(whereCase));
     });
 
     const results = await collection.model.findAll({
       where: {
         [primaryKeyField]: ids,
       },
+      raw: true,
       attributes: [
         primaryKeyField,
         ...conditions.map((condition) => {
-          return [ctx.db.sequelize.literal(`CASE WHEN ${condition.whereCase} THEN 1 ELSE 0 END`), condition.action];
+          return [db.sequelize.literal(`CASE WHEN ${condition.whereCase} THEN 1 ELSE 0 END`), condition.action];
         }),
       ],
       include,
@@ -252,7 +278,10 @@ function createWithACLMetaMiddleware() {
           return [action, ids];
         }
 
-        return [action, results.filter((item) => Boolean(item.get(action))).map((item) => item.get(primaryKeyField))];
+        return [
+          action,
+          Array.from(new Set(results.filter((item) => Boolean(item[action])).map((item) => item[primaryKeyField]))),
+        ];
       })
       .reduce((acc, [action, ids]) => {
         acc[action] = ids;

@@ -1,7 +1,19 @@
 import React from 'react';
-import { InputNumber, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
+import { useField } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { InputNumber } from '../InputNumber';
+
+const FormItem = ({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+    </div>
+  );
+};
 
 const schema = {
   type: 'object',

@@ -42,7 +42,7 @@ describe('PluginSettingsManager', () => {
       ...test,
       name,
       label: test.title,
-      path: '/admin/settings/test',
+      path: '/_admin/test',
       isAllow: true,
       aclSnippet: 'pm.test',
       key: name,
@@ -142,15 +142,15 @@ describe('PluginSettingsManager', () => {
   it('getRouteName()', () => {
     app.systemSettingsManager.add('test1', test1);
     app.systemSettingsManager.add('test1.test2', test2);
-    expect(app.systemSettingsManager.getRouteName('test1')).toBe('admin.settings.test1');
-    expect(app.systemSettingsManager.getRouteName('test1.test2')).toBe('admin.settings.test1.test2');
+    expect(app.systemSettingsManager.getRouteName('test1')).toBe('admin-settings.test1');
+    expect(app.systemSettingsManager.getRouteName('test1.test2')).toBe('admin-settings.test1.test2');
   });
 
   it('getRoutePath()', () => {
     app.systemSettingsManager.add('test1', test1);
     app.systemSettingsManager.add('test1.test2', test2);
-    expect(app.systemSettingsManager.getRoutePath('test1')).toBe('/admin/settings/test1');
-    expect(app.systemSettingsManager.getRoutePath('test1.test2')).toBe('/admin/settings/test1/test2');
+    expect(app.systemSettingsManager.getRoutePath('test1')).toBe('/_admin/test1');
+    expect(app.systemSettingsManager.getRoutePath('test1.test2')).toBe('/_admin/test1/test2');
   });
 
   it('router', () => {

@@ -13,6 +13,9 @@ import { ISchema } from '@tachybase/schema';
 
 import MockAdapter from 'axios-mock-adapter';
 
+import { CalendarV2 } from '..';
+import PluginCalendarClient from '../..';
+import { CalendarBlockProvider, useCalendarBlockProps } from '../../schema-initializer/CalendarBlockProvider';
 import collections from './collections';
 import data from './data';
 
@@ -101,10 +104,10 @@ const mock = (api: APIClient) => {
 
 mock(apiClient);
 
-const Root = () => {
+export const Root = () => {
   return (
     <APIClientProvider apiClient={apiClient}>
-      <SchemaComponentProvider>
+      <SchemaComponentProvider components={{ CalendarBlockProvider, CalendarV2 }} scope={{ useCalendarBlockProps }}>
         <ExtendCollectionsProvider collections={collections.data as any}>
           <AntdSchemaComponentProvider>
             <BlockSchemaComponentProvider>
@@ -119,6 +122,7 @@ const Root = () => {
 
 const app = new Application({
   providers: [Root],
+  plugins: [PluginCalendarClient],
 });
 
 export default app.getRootComponent();

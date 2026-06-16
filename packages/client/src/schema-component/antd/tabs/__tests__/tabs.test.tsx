@@ -7,10 +7,16 @@ describe('Tabs', () => {
   it('basic', async () => {
     render(<App1 />);
 
-    await waitFor(async () => {
-      expect(screen.getByText('Hello1')).toBeInTheDocument();
+    expect(await screen.findByText('Tab1')).toBeInTheDocument();
+    expect(await screen.findByText('Tab2')).toBeInTheDocument();
 
-      await userEvent.click(screen.getByText('Tab2'));
+    await userEvent.click(screen.getByText('Tab1'));
+    await waitFor(() => {
+      expect(screen.getByText('Hello1')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText('Tab2'));
+    await waitFor(() => {
       expect(screen.getByText('Hello2')).toBeInTheDocument();
     });
   });

@@ -2,11 +2,23 @@
  * title: Markdown.Void
  */
 import React from 'react';
-import { Markdown, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
-import { observer, useField } from '@tachybase/schema';
+import { observer, useField, useFieldSchema } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
 import { Button } from 'antd';
+
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Markdown } from '../Markdown';
+
+const TestFormItem = ({ children }) => {
+  const schema = useFieldSchema();
+  return (
+    <label>
+      <span>{schema.title}</span>
+      {children}
+    </label>
+  );
+};
 
 const schema = {
   type: 'object',
@@ -48,7 +60,7 @@ const Editable = observer(
 
 export default () => {
   return (
-    <SchemaComponentProvider components={{ Editable, Markdown, FormItem }}>
+    <SchemaComponentProvider components={{ Editable, Markdown, FormItem: TestFormItem }}>
       <SchemaComponent schema={schema} />
     </SchemaComponentProvider>
   );

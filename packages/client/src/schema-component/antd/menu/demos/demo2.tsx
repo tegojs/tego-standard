@@ -93,6 +93,7 @@ const Root = () => {
 };
 
 const app = new Application({
+  router: { type: 'memory', initialEntries: ['/'] },
   providers: [Root],
 });
 

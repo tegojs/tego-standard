@@ -1,9 +1,13 @@
 import React from 'react';
-import { Action, Form, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
 import { ISchema, observer, useForm } from '@tachybase/schema';
 
-import { FormItem, Input } from '@tego/client';
 import { Card } from 'antd';
+
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { Form } from '../Form';
+import { Action, ActionContextProvider, FormItem, useActionContext, useCloseAction } from './demoComponents';
 
 const schema: ISchema = {
   type: 'object',

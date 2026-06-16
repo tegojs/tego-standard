@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Collection, Database } from '@tego/server';
 
 import { UiSchemaRepository } from '..';
@@ -10,11 +9,11 @@ describe('ui schema model', () => {
 
   let RelatedCollection: Collection;
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       plugins: ['ui-schema-storage'],
@@ -35,68 +34,75 @@ describe('ui schema model', () => {
     await db.sync();
   });
 
+  function createSchema(prefix: string, rootTitle = 'root-node', childTitle = 'child1') {
+    const rootUid = `${prefix}-root-uid`;
+    const rootName = `${prefix}-root-node`;
+    const childName = `${prefix}-child1`;
+
+    return {
+      rootUid,
+      rootName,
+      childName,
+      schema: {
+        'x-uid': rootUid,
+        title: rootTitle,
+        name: rootName,
+        properties: {
+          [childName]: {
+            title: childTitle,
+          },
+        },
+      },
+    };
+  }
+
   it('should create schema tree after ui_schema created', async () => {
     const uiSchemaRepository = db.getCollection('uiSchemas').repository as UiSchemaRepository;
+    const { rootUid, rootName, childName, schema } = createSchema('create-schema-tree');
 
     await RelatedCollection.repository.create({
       values: {
-        uiSchema: {
-          'x-uid': 'root-uid',
-          title: 'root-node',
-          name: 'root-node',
-          properties: {
-            child1: {
-              title: 'child1',
-            },
-          },
-        },
+        uiSchema: schema,
       },
     });
 
     const child1 = await uiSchemaRepository.findOne({
       filter: {
-        name: 'child1',
+        name: childName,
       },
     });
 
-    const tree = await uiSchemaRepository.getJsonSchema('root-uid');
+    const tree = await uiSchemaRepository.getJsonSchema(rootUid);
     expect(tree).toMatchObject({
       title: 'root-node',
       properties: {
-        child1: {
+        [childName]: {
           title: 'child1',
           'x-uid': child1.get('x-uid'),
           'x-async': false,
           'x-index': 1,
         },
       },
-      name: 'root-node',
-      'x-uid': 'root-uid',
+      name: rootName,
+      'x-uid': rootUid,
       'x-async': false,
     });
   });
 
   it('should update schema tree after ui_schema updated', async () => {
     const uiSchemaRepository = db.getCollection('uiSchemas').repository as UiSchemaRepository;
+    const { rootUid, rootName, childName, schema } = createSchema('update-schema-tree');
+    const newRootName = `${rootName}-updated`;
 
     const relatedInstance = await RelatedCollection.repository.create({
       values: {
-        uiSchema: {
-          'x-uid': 'root-uid',
-          title: 'root-node',
-          name: 'root-node',
-          properties: {
-            child1: {
-              title: 'child1',
-            },
-          },
-        },
+        uiSchema: schema,
       },
     });
 
     const child1 = await uiSchemaRepository.findOne({
       filter: {
-        name: 'child1',
+        name: childName,
       },
     });
 
@@ -105,11 +111,11 @@ describe('ui schema model', () => {
       filterByTk: relatedInstance.get('id') as string,
       values: {
         uiSchema: {
-          'x-uid': 'root-uid',
+          'x-uid': rootUid,
           title: 'new-root-title',
-          name: 'new-root-name',
+          name: newRootName,
           properties: {
-            child1: {
+            [childName]: {
               title: 'new-child1-title',
             },
           },
@@ -117,20 +123,20 @@ describe('ui schema model', () => {
       },
     });
 
-    const tree = await uiSchemaRepository.getJsonSchema('root-uid');
+    const tree = await uiSchemaRepository.getJsonSchema(rootUid);
 
     expect(tree).toMatchObject({
       title: 'new-root-title',
       properties: {
-        child1: {
+        [childName]: {
           title: 'new-child1-title',
           'x-uid': child1.get('x-uid'),
           'x-async': false,
           'x-index': 1,
         },
       },
-      name: 'new-root-name',
-      'x-uid': 'root-uid',
+      name: newRootName,
+      'x-uid': rootUid,
       'x-async': false,
     });
   });

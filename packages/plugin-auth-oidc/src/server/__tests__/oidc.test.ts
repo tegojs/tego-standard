@@ -1,10 +1,9 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
+
 import { vi } from 'vitest';
 
 import { authType } from '../../constants';
-import { OIDCAuth } from '../oidc-auth';
 
 describe('oidc', () => {
   let app: MockServer;
@@ -45,13 +44,27 @@ describe('oidc', () => {
     await db.getRepository('users').destroy({
       truncate: true,
     });
+    await db.getRepository('usersAuthenticators').destroy({
+      truncate: true,
+    });
   });
+
+  /**
+   * Mock createOIDCClient on the runtime OIDCAuth class used by the framework.
+   * Since the framework loads from dist (which may have its own bundled deps),
+   * we get the actual class from the authManager registry and mock its prototype.
+   */
+  function mockCreateOIDCClient(clientMock: any) {
+    const authTypeConfig = app.authManager.authTypes.get(authType);
+    const AuthClass = authTypeConfig.auth;
+    return vi.spyOn(AuthClass.prototype, 'createOIDCClient').mockResolvedValue(clientMock);
+  }
 
   it('should get auth url', async () => {
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       authorizationUrl: ({ state }) => state,
-    } as any);
+    });
     const res = await agent.set('X-Authenticator', 'oidc-auth').resource('oidc').getAuthUrl();
     expect(res.body.data).toBeDefined();
     const search = new URLSearchParams(decodeURIComponent(res.body.data));
@@ -65,20 +78,21 @@ describe('oidc', () => {
   it('should not sign in without auto signup', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         public: {
           autoSignup: false,
         },
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),
       userinfo: () => ({
         sub: 'user1',
       }),
-    } as any);
+    });
 
     const res = await agent
       .set('X-Authenticator', 'oidc-auth')
@@ -91,20 +105,21 @@ describe('oidc', () => {
   it('should sign in with auto signup', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         public: {
           autoSignup: true,
         },
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),
       userinfo: () => ({
         sub: 'user1',
       }),
-    } as any);
+    });
 
     const res = await agent
       .set('X-Authenticator', 'oidc-auth')
@@ -118,7 +133,9 @@ describe('oidc', () => {
   it('should sign in with existed email', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         oidc: {
+          ...authenticator.options?.oidc,
           userBindField: 'email',
         },
         public: {
@@ -133,7 +150,7 @@ describe('oidc', () => {
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),
@@ -141,7 +158,7 @@ describe('oidc', () => {
         sub: 'user1',
         email: 'test@tachybase.com',
       }),
-    } as any);
+    });
 
     const res = await agent
       .set('X-Authenticator', 'oidc-auth')
@@ -155,7 +172,9 @@ describe('oidc', () => {
   it('should sign in with existed username', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         oidc: {
+          ...authenticator.options?.oidc,
           userBindField: 'username',
         },
         public: {
@@ -171,7 +190,7 @@ describe('oidc', () => {
       },
     });
     agent = app.agent();
-    vi.spyOn(OIDCAuth.prototype, 'createOIDCClient').mockResolvedValue({
+    mockCreateOIDCClient({
       callback: (uri, { code }) => ({
         access_token: 'access_token',
       }),
@@ -179,7 +198,7 @@ describe('oidc', () => {
         username: 'username',
         sub: 'username',
       }),
-    } as any);
+    });
 
     const res = await agent
       .set('X-Authenticator', 'oidc-auth')
@@ -191,7 +210,9 @@ describe('oidc', () => {
   });
 });
 
-it('field mapping', () => {
+it('field mapping', async () => {
+  // Import OIDCAuth from the same source the test uses for the field mapping test
+  const { OIDCAuth } = await import('../oidc-auth');
   const auth = new OIDCAuth({
     authenticator: null,
     ctx: {

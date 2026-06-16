@@ -1,9 +1,7 @@
 import { MockServer } from '@tachybase/test';
 import { Database } from '@tego/server';
 
-import UsersPlugin from 'packages/module-user/src';
-
-import { prepareApp } from './prepare';
+import { aclCollectionManagerTestPlugins, prepareApp } from './prepare';
 
 describe('configuration', () => {
   let app: MockServer;
@@ -14,12 +12,10 @@ describe('configuration', () => {
   let userAgent;
   let guestAgent;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclCollectionManagerTestPlugins,
+    });
     db = app.db;
 
     await db.getRepository('roles').create({
@@ -47,12 +43,15 @@ describe('configuration', () => {
       },
     });
 
-    const userPlugin = app.pm.get('users') as UsersPlugin;
     adminAgent = app.agent().login(admin);
 
     userAgent = app.agent().login(user);
 
     guestAgent = app.agent();
+  });
+
+  afterAll(async () => {
+    await app.destroy();
   });
 
   it('should list collections', async () => {
@@ -61,8 +60,8 @@ describe('configuration', () => {
   });
 
   it('should not create/list collections', async () => {
-    expect((await guestAgent.resource('collections').create()).statusCode).toEqual(403);
-    expect((await guestAgent.resource('collections').list()).statusCode).toEqual(403);
+    expect((await guestAgent.resource('collections').create()).statusCode).toEqual(401);
+    expect((await guestAgent.resource('collections').list()).statusCode).toEqual(401);
   });
 
   it('should allow when role has allowConfigure with true value', async () => {

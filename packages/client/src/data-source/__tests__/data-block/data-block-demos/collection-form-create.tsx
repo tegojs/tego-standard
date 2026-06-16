@@ -41,7 +41,6 @@ const DemoForm: FC<DemoFormProps> = withDynamicSchemaProps((props) => {
 function useDemoFormProps(): DemoFormProps {
   const resource = useDataBlockResource();
   const onFinish = async (values: DemoFormFieldType) => {
-    console.log('values', values);
     await resource.create({
       values,
     });
@@ -80,7 +79,6 @@ const Demo = () => {
 
 const mocks = {
   [`${collection}:create`]: (config) => {
-    console.log('config.data', config.data);
     return [200, { msg: 'ok' }];
   },
 };

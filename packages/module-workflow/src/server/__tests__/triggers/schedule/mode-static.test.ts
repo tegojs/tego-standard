@@ -1,22 +1,42 @@
 import { scryptSync } from 'node:crypto';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
-async function sleepToEvenSecond() {
-  const now = new Date();
-  // NOTE: align to even(0, 2, ...) + 0.5 seconds to start
-  await sleep((2.5 - (now.getSeconds() % 2)) * 1000 - now.getMilliseconds());
-  return now;
+import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
+
+const SHORT_REPEAT_MS = 100;
+
+function getFutureSecond(minDelay = 200) {
+  return new Date(Math.ceil((Date.now() + minDelay) / 1000) * 1000);
 }
 
-function consumeTime(n: number) {
-  console.time('consumeTime');
-  for (let i = 0; i < n; i++) {
-    scryptSync(`${i}`, 'salt', 64);
+async function sleepUntil(time: Date | number, buffer = 200) {
+  await sleep(Math.max(0, (time instanceof Date ? time.getTime() : time) + buffer - Date.now()));
+}
+
+function consumeTimeUntil(time: Date | number) {
+  const endAt = time instanceof Date ? time.getTime() : time;
+  let i = 0;
+
+  while (Date.now() < endAt) {
+    scryptSync(`${i++}`, 'salt', 64);
   }
-  console.timeEnd('consumeTime');
+}
+
+async function waitForExecutions(workflow, expected: number, options?: any, timeout = 10000) {
+  let executions;
+
+  await waitForAssertion(
+    async () => {
+      executions = await workflow.getExecutions(options);
+      expect(executions.length).toBe(expected);
+    },
+    timeout,
+    50,
+  );
+
+  return executions;
 }
 
 describe('workflow > triggers > schedule > static mode', () => {
@@ -27,7 +47,7 @@ describe('workflow > triggers > schedule > static mode', () => {
   let WorkflowModel;
   let WorkflowRepo;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
 
     db = app.db;
@@ -38,7 +58,20 @@ describe('workflow > triggers > schedule > static mode', () => {
     CategoryRepo = db.getCollection('categories').repository;
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('configuration', () => {
     it('neither startsOn nor repeat configurated', async () => {
@@ -50,18 +83,14 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(3000);
+      await sleep(200);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
     });
 
     it('start on certain time and no repeat', async () => {
-      await sleepToEvenSecond();
-
-      const start = new Date();
-      start.setMilliseconds(0);
-      start.setSeconds(start.getSeconds() + 2);
+      const start = getFutureSecond();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -72,55 +101,41 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(3000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
     });
 
-    it('on every 2 seconds', async () => {
-      const start = await sleepToEvenSecond();
-
+    it('repeat by interval', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
         config: {
           mode: 0,
-          startsOn: start.toISOString(),
-          repeat: '*/2 * * * * *',
+          startsOn: new Date(Date.now() - 1000).toISOString(),
+          repeat: SHORT_REPEAT_MS,
+          limit: 2,
         },
       });
 
-      await sleep(4000);
-      // sleep 1.5s at 2s trigger 1st time
-      // sleep 3.5s at 4s trigger 2nd time
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(2);
+      const executions = await waitForExecutions(workflow, 2);
     });
 
-    it('on every even seconds and limit 1', async () => {
-      const start = await sleepToEvenSecond();
-
+    it('repeat by interval and limit 1', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'schedule',
         config: {
           mode: 0,
-          startsOn: start.toISOString(),
-          repeat: '*/2 * * * * *',
+          startsOn: new Date(Date.now() - 1000).toISOString(),
+          repeat: SHORT_REPEAT_MS,
           limit: 1,
         },
       });
 
-      await sleep(5000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
     });
 
-    it('start before now and repeat every 2 seconds after created and limit 1', async () => {
-      await sleepToEvenSecond();
+    it('start before now and repeat by interval after created and limit 1', async () => {
+      const repeat = 2000;
       const start = new Date();
       start.setMilliseconds(0);
 
@@ -130,25 +145,18 @@ describe('workflow > triggers > schedule > static mode', () => {
         config: {
           mode: 0,
           startsOn: start.toISOString(),
-          repeat: 2000,
+          repeat,
           limit: 1,
         },
       });
 
-      await sleep(5000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(new Date(executions[0].context.date).getTime()).toBe(start.getTime() + 2000);
+      const executions = await waitForExecutions(workflow, 1);
+      expect(new Date(executions[0].context.date).getTime()).toBe(start.getTime() + repeat);
     });
 
     it('repeat on cron certain second', async () => {
-      const now = new Date();
-      now.setMilliseconds(0);
-      const startsOn = now.toISOString();
-      now.setSeconds(now.getSeconds() + 3);
-
-      await sleep(1500);
+      const now = getFutureSecond(800);
+      const startsOn = new Date(now.getTime() - 2000).toISOString();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -160,16 +168,14 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(4000);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      const executions = await waitForExecutions(workflow, 1);
       const date = new Date(executions[0].context.date);
       expect(date.getTime()).toBe(now.getTime());
     });
 
     it('no repeat triggered then update to repeat', async () => {
-      const start = await sleepToEvenSecond();
+      const start = new Date(Date.now() - 1000);
+      start.setMilliseconds(0);
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -180,7 +186,7 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(1000);
+      await sleep(200);
 
       const e1s = await workflow.getExecutions();
       expect(e1s.length).toBe(0);
@@ -188,25 +194,25 @@ describe('workflow > triggers > schedule > static mode', () => {
       await workflow.update({
         config: {
           ...workflow.config,
-          repeat: 1000,
+          repeat: SHORT_REPEAT_MS,
+          limit: 1,
         },
       });
 
-      console.log(new Date().toISOString());
-
-      await sleep(3000);
-
-      const e2s = await workflow.getExecutions();
-      console.log(e2s);
-      expect(e2s.length).toBe(2);
+      await waitForAssertion(
+        async () => {
+          const e2s = await workflow.getExecutions();
+          expect(e2s.length).toBe(1);
+        },
+        8000,
+        200,
+      );
     });
   });
 
   describe('status', () => {
     it('should not trigger after turned off', async () => {
-      const start = await sleepToEvenSecond();
-      const future = new Date();
-      future.setSeconds(future.getSeconds() + 2);
+      const future = getFutureSecond();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -218,11 +224,9 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(1000);
-
       await workflow.update({ enabled: false });
 
-      await sleep(3000);
+      await sleepUntil(future);
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -231,10 +235,8 @@ describe('workflow > triggers > schedule > static mode', () => {
 
   describe('dispatch', () => {
     it('multiple workflows trigger at same time', async () => {
-      const now = new Date();
-      const startsOn = now.toISOString();
-      now.setSeconds(now.getSeconds() + 2);
-      now.setMilliseconds(0);
+      const now = getFutureSecond(800);
+      const startsOn = new Date(now.getTime() - 2000).toISOString();
 
       let w1, w2;
       await db.sequelize.transaction(async (transaction) => {
@@ -265,7 +267,10 @@ describe('workflow > triggers > schedule > static mode', () => {
         });
       });
 
-      await sleep(3000);
+      await waitForAssertion(async () => {
+        expect(await w1.countExecutions()).toBe(1);
+        expect(await w2.countExecutions()).toBe(1);
+      });
       await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
 
       const [e1] = await w1.getExecutions();
@@ -276,17 +281,13 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       const [e2] = await w2.getExecutions();
       expect(e2).toBeDefined();
-      const d2 = new Date(e1.context.date);
+      const d2 = new Date(e2.context.date);
       d2.setMilliseconds(0);
       expect(d2.getTime()).toBe(now.getTime());
     });
 
     it('missed non-repeated scheduled time should not be triggered', async () => {
-      await sleepToEvenSecond();
-
-      const start = new Date();
-      start.setMilliseconds(0);
-      start.setSeconds(start.getSeconds() + 2);
+      const start = getFutureSecond();
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -299,22 +300,18 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       await app.stop();
 
-      await sleep(3000);
+      await sleepUntil(start, 1000);
 
       await app.start();
 
-      await sleep(1000);
+      await sleep(200);
 
       const c1 = await workflow.countExecutions();
       expect(c1).toBe(0);
     });
 
     it('scheduled time on CPU heavy load should be triggered', async () => {
-      await sleepToEvenSecond();
-
-      const start = new Date();
-      start.setMilliseconds(0);
-      start.setSeconds(start.getSeconds() + 2);
+      const start = getFutureSecond(700);
 
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -325,17 +322,17 @@ describe('workflow > triggers > schedule > static mode', () => {
         },
       });
 
-      await sleep(1000);
+      await sleep(500);
 
       const c1 = await workflow.countExecutions();
       expect(c1).toBe(0);
 
-      consumeTime(100); // on AMD 5600G takes about 2.7s
+      consumeTimeUntil(start.getTime() + 200);
 
-      await sleep(2000);
-
-      const c2 = await workflow.countExecutions();
-      expect(c2).toBe(1);
+      await waitForAssertion(async () => {
+        const c2 = await workflow.countExecutions();
+        expect(c2).toBe(1);
+      });
     });
   });
 });

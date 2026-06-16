@@ -2,78 +2,129 @@ import { MockServer } from '@tachybase/test';
 
 import { createApp } from '..';
 
+async function preparePostRelations(agent) {
+  await agent.resource('collections').create({
+    values: {
+      name: 'tags',
+      fields: [
+        {
+          name: 'title',
+          type: 'string',
+        },
+      ],
+    },
+  });
+  await agent.resource('collections').create({
+    values: {
+      name: 'foos',
+      fields: [
+        {
+          name: 'title',
+          type: 'string',
+        },
+      ],
+    },
+  });
+  await agent.resource('collections.fields', 'tags').create({
+    values: {
+      name: 'foos',
+      target: 'foos',
+      type: 'belongsToMany',
+    },
+  });
+  await agent.resource('collections').create({
+    values: {
+      name: 'comments',
+      fields: [
+        {
+          name: 'title',
+          type: 'string',
+        },
+      ],
+    },
+  });
+  await agent.resource('collections').create({
+    values: {
+      name: 'posts',
+      fields: [
+        {
+          name: 'title',
+          type: 'string',
+        },
+        {
+          name: 'comments',
+          target: 'comments',
+          type: 'hasMany',
+        },
+        {
+          name: 'tags',
+          target: 'tags',
+          type: 'belongsToMany',
+        },
+      ],
+    },
+  });
+}
+
 describe('collections repository', () => {
   let app: MockServer;
   let agent;
+  let associationApp: MockServer | undefined;
+  let shouldDestroyApp = false;
+  const associationResourceTests = new Set(Array.from({ length: 13 }, (_, index) => `case ${index + 1}`));
 
-  beforeEach(async () => {
+  async function resetPostRelationsData() {
+    const throughModels = [
+      (app.db.getCollection('posts').model.associations.tags as any)?.through?.model,
+      (app.db.getCollection('tags').model.associations.foos as any)?.through?.model,
+    ].filter(Boolean);
+
+    for (const model of throughModels) {
+      await model.destroy({ where: {}, truncate: true, force: true });
+    }
+
+    for (const collectionName of ['comments', 'posts', 'tags', 'foos']) {
+      await app.db.getCollection(collectionName).repository.destroy({
+        truncate: true,
+      });
+    }
+  }
+
+  beforeEach(async (context: any) => {
+    shouldDestroyApp = false;
+
+    if (associationResourceTests.has(context.task.name)) {
+      if (!associationApp) {
+        associationApp = await createApp();
+        app = associationApp;
+        agent = app.agent();
+        await preparePostRelations(agent);
+        return;
+      }
+
+      app = associationApp;
+      agent = app.agent();
+      return;
+    }
+
     app = await createApp();
     agent = app.agent();
-    await agent.resource('collections').create({
-      values: {
-        name: 'tags',
-        fields: [
-          {
-            name: 'title',
-            type: 'string',
-          },
-        ],
-      },
-    });
-    await agent.resource('collections').create({
-      values: {
-        name: 'foos',
-        fields: [
-          {
-            name: 'title',
-            type: 'string',
-          },
-        ],
-      },
-    });
-    await agent.resource('collections.fields', 'tags').create({
-      values: {
-        name: 'foos',
-        target: 'foos',
-        type: 'belongsToMany',
-      },
-    });
-    await agent.resource('collections').create({
-      values: {
-        name: 'comments',
-        fields: [
-          {
-            name: 'title',
-            type: 'string',
-          },
-        ],
-      },
-    });
-    await agent.resource('collections').create({
-      values: {
-        name: 'posts',
-        fields: [
-          {
-            name: 'title',
-            type: 'string',
-          },
-          {
-            name: 'comments',
-            target: 'comments',
-            type: 'hasMany',
-          },
-          {
-            name: 'tags',
-            target: 'tags',
-            type: 'belongsToMany',
-          },
-        ],
-      },
-    });
+    shouldDestroyApp = true;
   });
 
-  afterEach(async () => {
-    await app.destroy();
+  afterEach(async (context: any) => {
+    if (associationResourceTests.has(context.task.name)) {
+      await resetPostRelationsData();
+      return;
+    }
+
+    if (shouldDestroyApp) {
+      await app.destroy();
+    }
+  });
+
+  afterAll(async () => {
+    await associationApp?.destroy();
   });
 
   it('should skip sync when create empty collection', async () => {
@@ -115,289 +166,294 @@ describe('collections repository', () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it('case 1', async () => {
-    const response1 = await app.agent().resource('posts').create();
-    const postId = response1.body.data.id;
-    const response2 = await app.agent().resource('posts.comments', postId).create();
-    expect(response2.statusCode).toBe(200);
-  });
-
-  it('case 2', async () => {
-    const response = await app.agent().resource('posts').create();
-    const postId = response.body.data.id;
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 1',
-      },
-    });
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 2',
-      },
-    });
-    const response2 = await agent.resource('posts').list({
-      filter: {
-        'comments.title': 'comment 1',
-      },
-    });
-    expect(response2.body.data[0].id).toBe(1);
-  });
-
-  it('case 3', async () => {
-    const response = await app.agent().resource('posts').create();
-    const postId = response.body.data.id;
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 1',
-      },
-    });
-    const response2 = await agent.resource('posts').list({
-      filter: {
-        'comments.id': 3,
-      },
-    });
-    expect(response2.body.data.length).toBe(0);
-  });
-
-  it('case 4', async () => {
-    const response = await app.agent().resource('posts').create();
-    const postId = response.body.data.id;
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 1',
-      },
-    });
-    const response2 = await agent.resource('posts').list({
-      filter: {
-        $and: [
-          {
-            'comments.title': 'comment 1',
-          },
-        ],
-      },
-    });
-    expect(response2.body.data[0].id).toBe(1);
-  });
-
-  it('case 5', async () => {
-    const response = await app.agent().resource('posts').create();
-    const postId = response.body.data.id;
-    await app.agent().resource('posts.tags', postId).create({
-      values: {},
+  describe('association resources', () => {
+    afterAll(async () => {
+      await associationApp?.destroy();
+      associationApp = undefined;
     });
 
-    expect(await app.db.getRepository('tags').count()).toEqual(1);
-  });
-
-  it('case 6', async () => {
-    const response = await agent.resource('posts').create({
-      values: {
-        tags: [
-          {},
-          {
-            title: 'Tag1',
-          },
-        ],
-      },
-    });
-    const postId = response.body.data.id;
-    const response1 = await app.agent().resource('posts.tags', postId).list();
-    expect(response1.body.data.length).toBe(2);
-  });
-
-  it('case 7', async () => {
-    const response = await agent.resource('posts').create({
-      values: {
-        tags: [
-          {},
-          {
-            title: 'Tag1',
-          },
-        ],
-      },
-    });
-    const postId = response.body.data.id;
-    const response1 = await agent.resource('posts.tags', postId).list({
-      filter: {
-        title: 'Tag1',
-      },
-    });
-    expect(response1.body.data.length).toBe(1);
-  });
-
-  it('case 8', async () => {
-    const response = await agent.resource('posts').create({
-      values: {
-        tags: [
-          {},
-          {
-            title: 'Tag1',
-          },
-          {
-            title: 'Tag2',
-          },
-        ],
-      },
-    });
-    const postId = response.body.data.id;
-    const response1 = await agent.resource('posts.tags', postId).list({
-      filter: {
-        $or: [{ title: 'Tag1' }, { title: 'Tag2' }],
-      },
-    });
-    expect(response1.body.data.length).toBe(2);
-  });
-
-  it('case 9', async () => {
-    const response = await agent.resource('posts').create({
-      values: {
-        tags: [
-          {},
-          {
-            title: 'Tag1',
-          },
-          {
-            title: 'Tag2',
-          },
-        ],
-      },
-    });
-    const postId = response.body.data.id;
-    const response1 = await agent.resource('posts.tags', postId).list({
-      filter: {
-        $or: [{ title: 'Tag1' }, { title: 'Tag2' }],
-      },
-    });
-    expect(response1.body.data.length).toBe(2);
-  });
-
-  it('case 10', async () => {
-    const response = await agent.resource('posts').create({
-      values: {
-        tags: [
-          {},
-          {
-            title: 'Tag1',
-          },
-          {
-            title: 'Tag2',
-          },
-        ],
-      },
-    });
-    const postId = response.body.data.id;
-    const response1 = await agent.resource('posts.tags', postId).list({
-      appends: ['foos'],
-      page: 1,
-      pageSize: 20,
-      sort: ['-createdAt', '-id'],
+    it('case 1', async () => {
+      const response1 = await app.agent().resource('posts').create();
+      const postId = response1.body.data.id;
+      const response2 = await app.agent().resource('posts.comments', postId).create();
+      expect(response2.statusCode).toBe(200);
     });
 
-    console.log(JSON.stringify(response1.body.data));
-
-    expect(response1.body.data[0]['id']).toEqual(3);
-  });
-
-  it('case 11', async () => {
-    const response = await app.agent().resource('posts').create();
-    const postId = response.body.data.id;
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 1',
-      },
-    });
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 2',
-      },
-    });
-    const response2 = await app.agent().resource('posts').create();
-    const postId2 = response2.body.data.id;
-    await agent.resource('posts.comments', postId2).create({
-      values: {
-        title: 'comment 2',
-      },
-    });
-    await agent.resource('posts.comments', postId2).create({
-      values: {
-        title: 'comment 2',
-      },
-    });
-    const response3 = await agent.resource('posts').list({
-      filter: {
-        $or: [
-          {
-            'comments.title': 'comment 1',
-          },
-          {
-            'comments.title': 'comment 2',
-          },
-        ],
-      },
-    });
-    expect(response3.body.data.length).toBe(2);
-  });
-
-  it('case 12', async () => {
-    const response = await app.agent().resource('posts').create();
-    const postId = response.body.data.id;
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 1',
-      },
-    });
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 2',
-      },
-    });
-    await agent.resource('posts.comments', postId).create({
-      values: {
-        title: 'comment 3',
-      },
-    });
-    const response2 = await agent.resource('posts.comments', postId).list({
-      filter: {
-        $or: [
-          {
-            title: 'comment 1',
-          },
-          {
-            title: 'comment 2',
-          },
-        ],
-      },
-    });
-    expect(response2.body.data.length).toBe(2);
-  });
-
-  it('case 13', async () => {
-    const tagRepository = app.db.getRepository('tags');
-    const tag1 = await tagRepository.create({ values: { title: 'tag1' } });
-    const tag2 = await tagRepository.create({ values: { title: 'tag2' } });
-    const tag3 = await tagRepository.create({ values: { title: 'tag3' } });
-    await agent.resource('posts').create({
-      values: {
-        tags: [tag1.get('id'), tag3.get('id')],
-      },
-    });
-    await agent.resource('posts').create({
-      values: {
-        tags: [tag2.get('id')],
-      },
-    });
-    await agent.resource('posts').create({
-      values: {
-        tags: [tag2.get('id'), tag3.get('id')],
-      },
+    it('case 2', async () => {
+      const response = await app.agent().resource('posts').create();
+      const postId = response.body.data.id;
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 1',
+        },
+      });
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 2',
+        },
+      });
+      const response2 = await agent.resource('posts').list({
+        filter: {
+          'comments.title': 'comment 1',
+        },
+      });
+      expect(response2.body.data[0].id).toBe(postId);
     });
 
-    const response1 = await agent.resource('posts').list({
-      filter: {
-        $or: [{ 'tags.title': 'tag1' }, { 'tags.title': 'tag3' }],
-      },
+    it('case 3', async () => {
+      const response = await app.agent().resource('posts').create();
+      const postId = response.body.data.id;
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 1',
+        },
+      });
+      const response2 = await agent.resource('posts').list({
+        filter: {
+          'comments.id': 3,
+        },
+      });
+      expect(response2.body.data.length).toBe(0);
     });
-    expect(response1.body.data.length).toBe(2);
+
+    it('case 4', async () => {
+      const response = await app.agent().resource('posts').create();
+      const postId = response.body.data.id;
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 1',
+        },
+      });
+      const response2 = await agent.resource('posts').list({
+        filter: {
+          $and: [
+            {
+              'comments.title': 'comment 1',
+            },
+          ],
+        },
+      });
+      expect(response2.body.data[0].id).toBe(postId);
+    });
+
+    it('case 5', async () => {
+      const response = await app.agent().resource('posts').create();
+      const postId = response.body.data.id;
+      await app.agent().resource('posts.tags', postId).create({
+        values: {},
+      });
+
+      expect(await app.db.getRepository('tags').count()).toEqual(1);
+    });
+
+    it('case 6', async () => {
+      const response = await agent.resource('posts').create({
+        values: {
+          tags: [
+            {},
+            {
+              title: 'Tag1',
+            },
+          ],
+        },
+      });
+      const postId = response.body.data.id;
+      const response1 = await app.agent().resource('posts.tags', postId).list();
+      expect(response1.body.data.length).toBe(2);
+    });
+
+    it('case 7', async () => {
+      const response = await agent.resource('posts').create({
+        values: {
+          tags: [
+            {},
+            {
+              title: 'Tag1',
+            },
+          ],
+        },
+      });
+      const postId = response.body.data.id;
+      const response1 = await agent.resource('posts.tags', postId).list({
+        filter: {
+          title: 'Tag1',
+        },
+      });
+      expect(response1.body.data.length).toBe(1);
+    });
+
+    it('case 8', async () => {
+      const response = await agent.resource('posts').create({
+        values: {
+          tags: [
+            {},
+            {
+              title: 'Tag1',
+            },
+            {
+              title: 'Tag2',
+            },
+          ],
+        },
+      });
+      const postId = response.body.data.id;
+      const response1 = await agent.resource('posts.tags', postId).list({
+        filter: {
+          $or: [{ title: 'Tag1' }, { title: 'Tag2' }],
+        },
+      });
+      expect(response1.body.data.length).toBe(2);
+    });
+
+    it('case 9', async () => {
+      const response = await agent.resource('posts').create({
+        values: {
+          tags: [
+            {},
+            {
+              title: 'Tag1',
+            },
+            {
+              title: 'Tag2',
+            },
+          ],
+        },
+      });
+      const postId = response.body.data.id;
+      const response1 = await agent.resource('posts.tags', postId).list({
+        filter: {
+          $or: [{ title: 'Tag1' }, { title: 'Tag2' }],
+        },
+      });
+      expect(response1.body.data.length).toBe(2);
+    });
+
+    it('case 10', async () => {
+      const response = await agent.resource('posts').create({
+        values: {
+          tags: [
+            {},
+            {
+              title: 'Tag1',
+            },
+            {
+              title: 'Tag2',
+            },
+          ],
+        },
+      });
+      const postId = response.body.data.id;
+      const response1 = await agent.resource('posts.tags', postId).list({
+        appends: ['foos'],
+        page: 1,
+        pageSize: 20,
+        sort: ['-createdAt', '-id'],
+      });
+
+      expect(response1.body.data[0].title).toEqual('Tag2');
+    });
+
+    it('case 11', async () => {
+      const response = await app.agent().resource('posts').create();
+      const postId = response.body.data.id;
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 1',
+        },
+      });
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 2',
+        },
+      });
+      const response2 = await app.agent().resource('posts').create();
+      const postId2 = response2.body.data.id;
+      await agent.resource('posts.comments', postId2).create({
+        values: {
+          title: 'comment 2',
+        },
+      });
+      await agent.resource('posts.comments', postId2).create({
+        values: {
+          title: 'comment 2',
+        },
+      });
+      const response3 = await agent.resource('posts').list({
+        filter: {
+          $or: [
+            {
+              'comments.title': 'comment 1',
+            },
+            {
+              'comments.title': 'comment 2',
+            },
+          ],
+        },
+      });
+      expect(response3.body.data.length).toBe(2);
+    });
+
+    it('case 12', async () => {
+      const response = await app.agent().resource('posts').create();
+      const postId = response.body.data.id;
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 1',
+        },
+      });
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 2',
+        },
+      });
+      await agent.resource('posts.comments', postId).create({
+        values: {
+          title: 'comment 3',
+        },
+      });
+      const response2 = await agent.resource('posts.comments', postId).list({
+        filter: {
+          $or: [
+            {
+              title: 'comment 1',
+            },
+            {
+              title: 'comment 2',
+            },
+          ],
+        },
+      });
+      expect(response2.body.data.length).toBe(2);
+    });
+
+    it('case 13', async () => {
+      const tagRepository = app.db.getRepository('tags');
+      const tag1 = await tagRepository.create({ values: { title: 'tag1' } });
+      const tag2 = await tagRepository.create({ values: { title: 'tag2' } });
+      const tag3 = await tagRepository.create({ values: { title: 'tag3' } });
+      await agent.resource('posts').create({
+        values: {
+          tags: [tag1.get('id'), tag3.get('id')],
+        },
+      });
+      await agent.resource('posts').create({
+        values: {
+          tags: [tag2.get('id')],
+        },
+      });
+      await agent.resource('posts').create({
+        values: {
+          tags: [tag2.get('id'), tag3.get('id')],
+        },
+      });
+
+      const response1 = await agent.resource('posts').list({
+        filter: {
+          $or: [{ 'tags.title': 'tag1' }, { 'tags.title': 'tag3' }],
+        },
+      });
+      expect(response1.body.data.length).toBe(2);
+    });
   });
 
   it('should update field with default value', async () => {

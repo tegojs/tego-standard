@@ -7,9 +7,18 @@ import { useTranslation } from 'react-i18next';
 
 import { useGlobalTheme } from '../../../style/theme';
 import { useDesignable } from '../../hooks/useDesignable';
-import { MarkdownVoidDesigner } from './Markdown.Void.Designer';
 import { useStyles } from './style';
 import { useParseMarkdown } from './util';
+
+const LazyMarkdownVoidDesigner = React.lazy(() =>
+  import('./Markdown.Void.Designer').then((module) => ({ default: module.MarkdownVoidDesigner })),
+);
+
+const MarkdownVoidDesigner = (props) => (
+  <React.Suspense fallback={null}>
+    <LazyMarkdownVoidDesigner {...props} />
+  </React.Suspense>
+);
 
 const MarkdownEditor = (props: any) => {
   const { t } = useTranslation();

@@ -2,24 +2,17 @@ import React, { useState } from 'react';
 import {
   Action,
   ActionContextProvider,
-  Form,
-  FormItem,
-  Input,
   SchemaComponent,
   SchemaComponentProvider,
   useActionContext,
 } from '@tachybase/client';
-import { ISchema, observer, useForm } from '@tachybase/schema';
+import { ISchema, observer } from '@tachybase/schema';
 
 const useCloseAction = () => {
   const { setVisible } = useActionContext();
-  const form = useForm();
   return {
     async run() {
       setVisible(false);
-      form.submit((values) => {
-        console.log(values);
-      });
     },
   };
 };
@@ -57,7 +50,7 @@ const schema: ISchema = {
 export default observer(() => {
   const [visible, setVisible] = useState(false);
   return (
-    <SchemaComponentProvider components={{ Form, Action, Input, FormItem }}>
+    <SchemaComponentProvider components={{ Action }}>
       <ActionContextProvider value={{ visible, setVisible }}>
         <a onClick={() => setVisible(true)}>Open</a>
         <SchemaComponent scope={{ useCloseAction }} schema={schema} />

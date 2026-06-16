@@ -1,52 +1,14 @@
-import React from 'react';
-import {
-  Application,
-  CardItem,
-  Grid,
-  Markdown,
-  MarkdownBlockInitializer,
-  Plugin,
-  SchemaComponent,
-  SchemaComponentProvider,
-  SchemaInitializer,
-} from '@tachybase/client';
+import React, { useMemo } from 'react';
 import { ISchema, uid } from '@tachybase/schema';
 
-const gridRowColWrap = (schema) => {
-  return {
-    type: 'void',
-    'x-component': 'Grid.Row',
-    properties: {
-      [uid()]: {
-        type: 'void',
-        'x-component': 'Grid.Col',
-        properties: {
-          [schema.name || uid()]: schema,
-        },
-      },
-    },
-  };
-};
+import { useTranslation } from 'react-i18next';
 
-export const addBlockButton = new SchemaInitializer({
-  name: 'addBlockButton',
-  title: 'Add block',
-  wrap: gridRowColWrap,
-  items: [
-    {
-      name: 'media',
-      type: 'itemGroup',
-      title: 'Other blocks',
-      children: [
-        {
-          name: 'markdown',
-          title: 'Markdown',
-          Component: 'MarkdownBlockInitializer',
-        },
-      ],
-    },
-  ],
-});
+import { ApplicationContext } from '../../../../application/context';
+import { SchemaInitializer } from '../../../../application/schema-initializer/SchemaInitializer';
+import { SchemaInitializerManager } from '../../../../application/schema-initializer/SchemaInitializerManager';
+import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
+import { Grid } from '../Grid';
 
 const schema: ISchema = {
   type: 'object',
@@ -62,31 +24,26 @@ const schema: ISchema = {
 };
 
 function Root() {
+  const { t } = useTranslation();
+  const schemaInitializerManager = useMemo(() => {
+    const addBlockButton = new SchemaInitializer({
+      name: 'addBlockButton',
+      title: t('Add block'),
+      items: [],
+    });
+
+    return new SchemaInitializerManager([addBlockButton], {} as any);
+  }, [t]);
+
   return (
-    <SchemaComponentProvider components={{ Grid, CardItem, Markdown, MarkdownBlockInitializer }}>
-      <SchemaComponent schema={schema} />
-    </SchemaComponentProvider>
+    <ApplicationContext.Provider value={{ schemaInitializerManager } as any}>
+      <SchemaComponentProvider designable components={{ Grid }}>
+        <SchemaComponent schema={schema} />
+      </SchemaComponentProvider>
+    </ApplicationContext.Provider>
   );
 }
 
-class MyPlugin extends Plugin {
-  async load() {
-    // 注册路由
-    this.app.router.add('root', {
-      path: '/',
-      Component: Root,
-    });
-
-    this.app.schemaInitializerManager.add(addBlockButton);
-  }
+export default function App() {
+  return <Root />;
 }
-
-const app = new Application({
-  router: {
-    type: 'memory',
-    initialEntries: ['/'],
-  },
-  plugins: [MyPlugin],
-});
-
-export default app.getRootComponent();

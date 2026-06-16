@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@tachybase/test/client';
 
+import { notification } from 'antd';
+
 import AssociationCreateWithoutSourceIdDemo from './data-block-demos/association-create-without-source-id';
 import AssociationTableListAndParentRecordDemo from './data-block-demos/association-table-list-and-parent-record';
 import AssociationTableListAndSourceIdDemo from './data-block-demos/association-table-list-and-source-id';
@@ -10,6 +12,16 @@ import CollectionFormRecordAndUpdateDemo from './data-block-demos/collection-for
 import CollectionTableListDemo from './data-block-demos/collection-table-list';
 
 describe('CollectionDataSourceProvider', () => {
+  afterEach(() => {
+    notification.destroy();
+  });
+
+  const expectSaveNotification = async () => {
+    await waitFor(() => {
+      expect(screen.getByText('Save successfully!')).toBeInTheDocument();
+    });
+  };
+
   describe('collection', () => {
     test('Table list', async () => {
       const { getByText, getByRole } = render(<CollectionTableListDemo />);
@@ -50,9 +62,7 @@ describe('CollectionDataSourceProvider', () => {
 
       fireEvent.click(document.querySelector('button'));
 
-      await waitFor(() => {
-        expect(screen.getByText('Save successfully!')).toBeInTheDocument();
-      });
+      await expectSaveNotification();
     });
 
     test('Form create', async () => {
@@ -68,9 +78,7 @@ describe('CollectionDataSourceProvider', () => {
 
       fireEvent.click(document.querySelector('button'));
 
-      await waitFor(() => {
-        expect(screen.getByText('Save successfully!')).toBeInTheDocument();
-      });
+      await expectSaveNotification();
     });
 
     test('Form record & update', async () => {
@@ -88,9 +96,7 @@ describe('CollectionDataSourceProvider', () => {
 
       fireEvent.click(document.querySelector('button'));
 
-      await waitFor(() => {
-        expect(screen.getByText('Save successfully!')).toBeInTheDocument();
-      });
+      await expectSaveNotification();
     });
   });
 

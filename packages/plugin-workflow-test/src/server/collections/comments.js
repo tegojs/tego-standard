@@ -1,6 +1,4 @@
-import { CollectionOptions } from '@tego/server';
-
-export default {
+module.exports = {
   name: 'comments',
   fields: [
     {
@@ -21,4 +19,4 @@ export default {
       name: 'replies',
     },
   ],
-} as CollectionOptions;
+};

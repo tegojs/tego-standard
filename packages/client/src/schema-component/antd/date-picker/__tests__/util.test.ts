@@ -143,6 +143,10 @@ describe('moment2str', () => {
 });
 
 describe('mapRangePicker', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   test('should resolve retained date range mode from live metadata first', () => {
     let value: any[];
     const dateOnlyMapped = mapRangePicker()({
@@ -156,7 +160,7 @@ describe('mapRangePicker', () => {
 
     expect(resolveDatePickerRangeValueInfo(value, { showTime: true })).toEqual({
       mode: 'date',
-      source: 'metadata',
+      source: 'retained-date-boundary',
     });
   });
 
@@ -245,7 +249,7 @@ describe('mapRangePicker', () => {
     });
 
     expect(mapped.value[0].format('YYYY-MM-DD')).toBe('2026-01-15');
-    expect(mapped.value[1].format('YYYY-MM-DD')).toBe('2026-01-16');
+    expect(mapped.value[1].format('YYYY-MM-DD')).toBe('2026-01-17');
   });
 
   test('should keep retained date-only range values as local days after enabling showTime', () => {

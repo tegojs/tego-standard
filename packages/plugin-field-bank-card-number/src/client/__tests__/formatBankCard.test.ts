@@ -12,8 +12,12 @@ const formatBankCard = (value: string): string => {
 
   // 格式化为 4-4-4-4-5 的形式
   const parts: string[] = [];
-  for (let i = 0; i < limited.length; i += 4) {
+  const groupSize = limited.length > 16 ? 16 : limited.length;
+  for (let i = 0; i < groupSize; i += 4) {
     parts.push(limited.slice(i, i + 4));
+  }
+  if (limited.length > 16) {
+    parts.push(limited.slice(16));
   }
 
   return parts.join(' ');

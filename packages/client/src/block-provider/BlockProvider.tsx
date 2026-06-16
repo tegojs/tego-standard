@@ -30,8 +30,11 @@ import {
 import { DataBlockCollector, useFilterBlock } from '../filter-provider/FilterProvider';
 import { mergeIncomingFiltersFromSourceBlocks } from '../filter-provider/incomingFilterFromSources';
 import { RecordProvider, useRecordIndex } from '../record-provider';
+import { BlockRequestContext_deprecated, useBlockRequestContext } from './BlockRequestContext';
 import { useAssociationNames } from './hooks';
 import { useDataBlockParentRecord } from './hooks/useDataBlockSourceId';
+
+export { BlockRequestContext_deprecated, useBlockRequestContext } from './BlockRequestContext';
 
 /**
  * @deprecated
@@ -40,21 +43,6 @@ export const BlockResourceContext = createContext(null);
 BlockResourceContext.displayName = 'BlockResourceContext';
 export const BlockAssociationContext = createContext(null);
 BlockAssociationContext.displayName = 'BlockAssociationContext';
-
-/**
- * @deprecated
- */
-export const BlockRequestContext_deprecated = createContext<{
-  block?: string;
-  props?: any;
-  field?: GeneralField;
-  service?: any;
-  resource?: any;
-  allowedActions?: any;
-  __parent?: any;
-  updateAssociationValues?: any[];
-}>({});
-BlockRequestContext_deprecated.displayName = 'BlockRequestContext_deprecated';
 
 export const useBlockResource = () => {
   const resource = useDataBlockResource();
@@ -114,13 +102,6 @@ export const BlockRequestProvider_deprecated = (props) => {
       </RecordProvider>
     </BlockRequestContext_deprecated.Provider>
   );
-};
-
-/**
- * @deprecated
- */
-export const useBlockRequestContext = () => {
-  return useContext(BlockRequestContext_deprecated);
 };
 
 const useStyles = createStyles(({ css }) => {

@@ -1,6 +1,6 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
+
 import dayjs from 'dayjs';
 
 import { SequenceField } from '..';
@@ -8,15 +8,21 @@ import { SequenceField } from '..';
 describe('sequence field', () => {
   let app: MockServer;
   let db: Database;
+  let collectionIndex = 0;
+  let collectionName: string;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       plugins: ['sequence-field'],
     });
     db = app.db;
   });
 
-  afterEach(async () => {
+  beforeEach(() => {
+    collectionName = `tests_${collectionIndex++}`;
+  });
+
+  afterAll(async () => {
     await app.destroy();
   });
 
@@ -24,7 +30,7 @@ describe('sequence field', () => {
     it('without any pattern will throw error', async () => {
       expect(() => {
         db.collection({
-          name: 'tests',
+          name: collectionName,
           fields: [{ type: 'sequence', name: 'name' }],
         });
       }).toThrow();
@@ -33,7 +39,7 @@ describe('sequence field', () => {
     it('with empty pattern will throw error', async () => {
       expect(() => {
         db.collection({
-          name: 'tests',
+          name: collectionName,
           fields: [{ type: 'sequence', name: 'name', patterns: [] }],
         });
       }).toThrow();
@@ -44,7 +50,7 @@ describe('sequence field', () => {
     it('no options', async () => {
       expect(() => {
         db.collection({
-          name: 'tests',
+          name: collectionName,
           fields: [{ type: 'sequence', name: 'name', patterns: [{ type: 'string' }] }],
         });
       }).toThrow();
@@ -52,7 +58,7 @@ describe('sequence field', () => {
 
     it('constant', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -63,7 +69,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe('abc');
 
@@ -76,7 +82,7 @@ describe('sequence field', () => {
     it.skip('no key', async () => {
       expect(() => {
         db.collection({
-          name: 'tests',
+          name: collectionName,
           fields: [{ type: 'sequence', name: 'name', patterns: [{ type: 'integer' }] }],
         });
       }).toThrow();
@@ -84,7 +90,7 @@ describe('sequence field', () => {
 
     it('default start from 0, digits as 1, no cycle', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -100,7 +106,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe('0');
 
@@ -110,7 +116,7 @@ describe('sequence field', () => {
 
     it('start from 9', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -129,7 +135,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe('9');
 
@@ -139,7 +145,7 @@ describe('sequence field', () => {
 
     it('start from 0, current set to 9', async () => {
       const collection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -158,14 +164,14 @@ describe('sequence field', () => {
       const SeqRepo = db.getRepository('sequences');
       await SeqRepo.create({});
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe('0');
     });
 
     it('digits more than 1, start from 9', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -185,7 +191,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe('09');
 
@@ -195,7 +201,7 @@ describe('sequence field', () => {
 
     it('cycle by day', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -217,7 +223,7 @@ describe('sequence field', () => {
       const now = new Date();
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create({
         id: 1,
         createdAt: yesterday,
@@ -239,12 +245,12 @@ describe('sequence field', () => {
 
     it('last record has no value of this field', async () => {
       const testCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [],
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBeUndefined();
 
@@ -265,7 +271,7 @@ describe('sequence field', () => {
 
     it('deleted sequence should be skipped', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -281,7 +287,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe('0');
 
@@ -293,7 +299,7 @@ describe('sequence field', () => {
 
     it('multiple integer in same field', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -313,7 +319,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe('00');
 
@@ -325,7 +331,7 @@ describe('sequence field', () => {
   describe('date pattern', () => {
     it('default to current createdAt as YYYYMMDD', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -339,14 +345,14 @@ describe('sequence field', () => {
       const now = new Date();
       const YYYYMMDD = dayjs(now).format('YYYYMMDD');
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe(YYYYMMDD);
     });
 
     it('field option', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -364,7 +370,7 @@ describe('sequence field', () => {
       const date = new Date(2022, 7, 1);
       const YYYYMMDD = dayjs(date).format('YYYYMMDD');
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create({
         date,
       });
@@ -373,7 +379,7 @@ describe('sequence field', () => {
 
     it('format option', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -387,7 +393,7 @@ describe('sequence field', () => {
       const now = new Date();
       const YYYYMMDD = dayjs(now).format('YYYY-MM-DD');
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe(YYYYMMDD);
     });
@@ -396,7 +402,7 @@ describe('sequence field', () => {
   describe('mixed pattern', () => {
     it('all patterns', async () => {
       db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -414,7 +420,7 @@ describe('sequence field', () => {
       const now = new Date();
       const YYYYMMDD = dayjs(now).format('YYYYMMDD');
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe(`A${YYYYMMDD}0`);
 
@@ -424,7 +430,7 @@ describe('sequence field', () => {
 
     it('changed after generated', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -442,7 +448,7 @@ describe('sequence field', () => {
       const now = new Date();
       const YYYYMMDD = dayjs(now).format('YYYYMMDD');
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.get('name')).toBe(`A${YYYYMMDD}0`);
 
@@ -509,7 +515,7 @@ describe('sequence field', () => {
   describe('multiple serial fields', () => {
     it('2 fields', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -537,7 +543,7 @@ describe('sequence field', () => {
       const NOW = dayjs(now).format('YYYYMMDD');
       const YESTERDAY = dayjs(yesterday).format('YYYYMMDD');
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create({ createdAt: yesterday });
       expect(item1.get('name')).toBe(`A${YESTERDAY}00`);
       expect(item1.get('code')).toBe(`C0000`);
@@ -564,7 +570,7 @@ describe('sequence field', () => {
   describe('inputable', () => {
     it('not inputable', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -584,14 +590,14 @@ describe('sequence field', () => {
       const YYYYMMDD = dayjs(now).format('YYYYMMDD');
       const name = `BB${YYYYMMDD}11`;
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const result = await TestModel.create({ name });
       expect(result.name).toBe(`A${YYYYMMDD}0`);
     });
 
     it('inputable without match', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -612,14 +618,14 @@ describe('sequence field', () => {
       const YYYYMMDD = dayjs(now).format('YYYYMMDD');
       const name = `BB${YYYYMMDD}11`;
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const result = await TestModel.create({ name });
       expect(result.name).toBe(name);
     });
 
     it('inputable with match', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -639,13 +645,13 @@ describe('sequence field', () => {
       const now = new Date();
       const YYYYMMDD = dayjs(now).format('YYYYMMDD');
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       await expect(TestModel.create({ name: `BB${YYYYMMDD}11` })).rejects.toThrow();
     });
 
     it('input value within generated sequence', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -658,7 +664,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create();
       expect(item1.name).toBe('0');
 
@@ -671,7 +677,7 @@ describe('sequence field', () => {
 
     it('input value beyond generated sequence', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -684,7 +690,7 @@ describe('sequence field', () => {
       });
       await db.sync();
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create({});
       expect(item1.name).toBe('0');
 
@@ -697,7 +703,7 @@ describe('sequence field', () => {
 
     it('input value with cycle', async () => {
       const testsCollection = db.collection({
-        name: 'tests',
+        name: collectionName,
         fields: [
           {
             type: 'sequence',
@@ -713,7 +719,7 @@ describe('sequence field', () => {
       const now = new Date();
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      const TestModel = db.getModel('tests');
+      const TestModel = db.getModel(collectionName);
       const item1 = await TestModel.create({ createdAt: yesterday });
       expect(item1.name).toBe('0');
 

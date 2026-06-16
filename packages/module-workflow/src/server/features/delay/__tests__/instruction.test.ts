@@ -1,7 +1,10 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
 import Database, { Application } from '@tego/server';
+
+import { waitForWorkflowIdle, waitForWorkflowJobFast as waitForWorkflowJob } from '../../../__tests__/utils';
+
+const DELAY_MS = 1500;
 
 describe('workflow > instructions > delay', () => {
   let app: Application;
@@ -11,7 +14,7 @@ describe('workflow > instructions > delay', () => {
   let workflow;
   let plugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp({
       plugins: ['workflow-delay'],
     });
@@ -20,6 +23,15 @@ describe('workflow > instructions > delay', () => {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -31,66 +43,63 @@ describe('workflow > instructions > delay', () => {
     });
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('runtime', () => {
     it('delay to resolved', async () => {
       const n1 = await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.RESOLVED,
         },
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
-
-      await sleep(2000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('delay to reject', async () => {
       const n1 = await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.FAILED,
         },
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
-
-      await sleep(2000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.FAILED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.FAILED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.FAILED);
+        expect(job.status).toBe(JOB_STATUS.FAILED);
+      });
     });
 
     it('delay to resolve and downstream node error', async () => {
       const n1 = await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.RESOLVED,
         },
       });
@@ -108,20 +117,20 @@ describe('workflow > instructions > delay', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
-
-      await sleep(2000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.ERROR);
-      const [j2, j3] = await e2.getJobs({ order: [['id', 'ASC']] });
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
-      expect(j3.status).toBe(JOB_STATUS.ERROR);
+      await waitForWorkflowJob(
+        workflow,
+        (execution, [delayJob, errorJob]) => {
+          expect(execution.status).toEqual(EXECUTION_STATUS.ERROR);
+          expect(delayJob.status).toBe(JOB_STATUS.RESOLVED);
+          expect(errorJob.status).toBe(JOB_STATUS.ERROR);
+        },
+        { jobOptions: { order: [['id', 'ASC']] } },
+      );
     });
   });
 
@@ -130,7 +139,7 @@ describe('workflow > instructions > delay', () => {
       await workflow.createNode({
         type: 'delay',
         config: {
-          duration: 2000,
+          duration: DELAY_MS,
           endStatus: JOB_STATUS.RESOLVED,
         },
       });
@@ -139,45 +148,37 @@ describe('workflow > instructions > delay', () => {
     it('restart app should trigger delayed job', async () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
       await app.stop();
-      await sleep(500);
+      await sleep(100);
 
       await app.start();
-      await sleep(2000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('restart app should trigger missed delayed job', async () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [e1] = await workflow.getExecutions();
-      expect(e1.status).toEqual(EXECUTION_STATUS.STARTED);
-      const [j1] = await e1.getJobs();
-      expect(j1.status).toBe(JOB_STATUS.PENDING);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.STARTED);
+        expect(job.status).toBe(JOB_STATUS.PENDING);
+      });
 
       await app.stop();
-      await sleep(2000);
+      await sleep(DELAY_MS + 100);
 
       await app.start();
-      await sleep(1000);
-
-      const [e2] = await workflow.getExecutions();
-      expect(e2.status).toEqual(EXECUTION_STATUS.RESOLVED);
-      const [j2] = await e2.getJobs();
-      expect(j2.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toEqual(EXECUTION_STATUS.RESOLVED);
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
   });
 });

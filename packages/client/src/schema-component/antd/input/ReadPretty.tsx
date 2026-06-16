@@ -1,13 +1,13 @@
 import React from 'react';
 import { useFieldSchema } from '@tachybase/schema';
-import { usePrefixCls } from '@tego/client';
 
 import { css } from '@emotion/css';
 import { Image, Typography } from 'antd';
 import { InputProps, TextAreaProps } from 'antd/es/input';
 import cls from 'classnames';
 
-import { useCompile } from '../..';
+import { usePrefixCls } from '../__builtins__';
+import { useCompile } from '../../hooks/useCompile';
 import { EllipsisWithTooltip } from './EllipsisWithTooltip';
 import { HTMLEncode } from './shared';
 

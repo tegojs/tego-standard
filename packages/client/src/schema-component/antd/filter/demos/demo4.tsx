@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import {
-  AntdSchemaComponentProvider,
-  Filter,
-  Input,
-  SchemaComponent,
-  SchemaComponentProvider,
-  Select,
-} from '@tachybase/client';
 import { ISchema } from '@tachybase/schema';
 
 import { Space } from 'antd';
+
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { Select } from '../../select/Select';
+import { Filter } from '../Filter';
 
 const options: any = [
   {
@@ -163,9 +161,7 @@ const CustomDynamicComponent = (props) => {
 export default () => {
   return (
     <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <SchemaComponent components={{ Input, Filter, CustomDynamicComponent }} schema={schema} />
-      </AntdSchemaComponentProvider>
+      <SchemaComponent components={{ Input, Filter, CustomDynamicComponent }} schema={schema} />
     </SchemaComponentProvider>
   );
 };

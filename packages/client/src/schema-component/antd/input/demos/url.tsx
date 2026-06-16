@@ -1,7 +1,22 @@
 import React from 'react';
-import { Input, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
+import { observer, useField } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../Input';
+
+const FormItem = observer(({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+      {field?.selfErrors?.map((error) => (
+        <div key={error}>{error}</div>
+      ))}
+    </div>
+  );
+});
 
 const schema = {
   type: 'object',

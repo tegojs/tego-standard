@@ -6,25 +6,28 @@ describe('recreate field', () => {
   let app: MockServer;
   let agent;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     agent = app.agent();
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
   it('should recreate field', async () => {
+    const sourceName = 'recreateFieldSource';
+    const targetName = 'recreateFieldTarget';
+
     await agent.resource('collections').create({
       values: {
-        name: 'a1',
+        name: sourceName,
       },
     });
 
     await agent.resource('collections').create({
       values: {
-        name: 'a2',
+        name: targetName,
       },
     });
 
@@ -32,11 +35,11 @@ describe('recreate field', () => {
       values: {
         name: 'a',
         type: 'string',
-        collectionName: 'a1',
+        collectionName: sourceName,
       },
     });
 
-    await agent.resource('a1').create({
+    await agent.resource(sourceName).create({
       values: {
         a: 'a-value',
       },
@@ -45,7 +48,7 @@ describe('recreate field', () => {
     await agent.resource('fields').destroy({
       filter: {
         name: 'a',
-        collectionName: 'a1',
+        collectionName: sourceName,
       },
     });
 
@@ -53,12 +56,12 @@ describe('recreate field', () => {
       values: {
         name: 'a',
         type: 'belongsToMany',
-        collectionName: 'a1',
-        target: 'a2',
+        collectionName: sourceName,
+        target: targetName,
       },
     });
 
-    const response = await agent.resource('a1').list({
+    const response = await agent.resource(sourceName).list({
       appends: ['a'],
     });
 
@@ -66,9 +69,11 @@ describe('recreate field', () => {
   });
 
   it('should reset fields', async () => {
+    const collectionName = 'resetFieldsCollection';
+
     await agent.resource('collections').create({
       values: {
-        name: 'a1',
+        name: collectionName,
         fields: [
           {
             name: 'a',
@@ -78,9 +83,9 @@ describe('recreate field', () => {
       },
     });
 
-    expect(await app.db.getRepository('fields').count()).toBe(1);
+    expect(await app.db.getRepository('fields').count({ filter: { collectionName } })).toBe(1);
     const response = await agent.resource('collections').setFields({
-      filterByTk: 'a1',
+      filterByTk: collectionName,
       values: {
         fields: [
           {
@@ -93,6 +98,6 @@ describe('recreate field', () => {
 
     expect(response.statusCode).toBe(200);
 
-    expect(await app.db.getRepository('fields').count()).toBe(1);
+    expect(await app.db.getRepository('fields').count({ filter: { collectionName } })).toBe(1);
   });
 });

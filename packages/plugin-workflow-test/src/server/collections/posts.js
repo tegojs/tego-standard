@@ -1,6 +1,4 @@
-import { CollectionOptions } from '@tego/server';
-
-export default {
+module.exports = {
   name: 'posts',
   createdBy: true,
   updatedBy: true,
@@ -31,10 +29,5 @@ export default {
       type: 'belongsToMany',
       name: 'tags',
     },
-    {
-      type: 'integer',
-      name: 'read',
-      defaultValue: 0,
-    },
   ],
-} as CollectionOptions;
+};

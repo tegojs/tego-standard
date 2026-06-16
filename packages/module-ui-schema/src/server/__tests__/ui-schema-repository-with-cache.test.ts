@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Cache, Database } from '@tego/server';
 
 import UiSchemaRepository, { GetJsonSchemaOptions, GetPropertiesOptions } from '../repository';
@@ -11,11 +10,7 @@ describe('ui_schema repository with cache', () => {
   let repository: UiSchemaRepository;
   let schema;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       plugins: ['ui-schema-storage'],
@@ -25,6 +20,23 @@ describe('ui_schema repository with cache', () => {
     repository = db.getCollection('uiSchemas').repository as UiSchemaRepository;
     cache = app.cache;
     repository.setCache(cache);
+  });
+
+  afterAll(async () => {
+    await app.destroy();
+  });
+
+  beforeEach(async () => {
+    await cache.reset();
+    try {
+      await db.getModel('uiSchemaTreePath').truncate();
+      await db.getModel('uiSchemas').truncate();
+    } catch (error) {
+      throw new Error(
+        `Failed to reset ui schema test tables: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
 
     schema = {
       type: 'object',

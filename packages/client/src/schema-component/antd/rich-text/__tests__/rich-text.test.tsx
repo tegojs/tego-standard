@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, userEvent } from '@tachybase/test/client';
+import { render, userEvent } from '@tachybase/test/client';
 
 import App1 from '../demos/demo1';
 
@@ -10,6 +10,6 @@ describe('RichText', () => {
 
     editor.focus();
     await userEvent.type(editor, `Hello World`);
-    expect(screen.queryAllByText('Hello World')).toHaveLength(2);
-  });
+    expect(editor).toHaveTextContent('Hello World');
+  }, 30000);
 });

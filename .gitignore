@@ -20,6 +20,7 @@
 .umi
 .umi-production
 /.idea
+/.tmp
 /.vscode
 /playwright
 /uploads
@@ -39,6 +40,8 @@ plugins/*
 tsconfig.paths.json
 v8-compile-cache-**
 docs-repo-temp/
+.superpowers/
+.claude/settings.local.json
 
 # 构建时生成的临时版本文件，不应提交到 git
 .version.json

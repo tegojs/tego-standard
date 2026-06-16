@@ -24,7 +24,8 @@ describe('Grid', () => {
     });
   });
 
-  it('initializer', () => {
+  it('renders configured initializer', async () => {
     render(<App3 />);
+    expect(await screen.findByText('Add block')).toBeInTheDocument();
   });
 });

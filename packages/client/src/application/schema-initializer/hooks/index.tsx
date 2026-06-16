@@ -138,7 +138,7 @@ export function useSchemaInitializerRender<P1 = ButtonProps, P2 = {}>(
   const app = useApp();
   const renderCache = React.useRef<Record<string, React.FunctionComponentElement<any>>>({});
   const initializer = useMemo(
-    () => app.schemaInitializerManager.get<P1, P2>(name),
+    () => app.schemaInitializerManager?.get<P1, P2>(name),
     [app.schemaInitializerManager, name],
   );
   const res = useMemo(() => {

@@ -34,7 +34,7 @@ ReadPretty.File = function File(props: UploadProps) {
   const [rotate, setRotate] = useState(0);
   const { wrapSSR, hashId, componentCls: prefixCls } = useStyles();
   const useUploadStyleVal = (useUploadStyle as any).default ? (useUploadStyle as any).default : useUploadStyle;
-  const previewList = app.AttachmentPreviewManager.get();
+  const previewList = app.AttachmentPreviewManager?.get?.() || {};
   useUploadStyleVal(prefixCls);
   return wrapSSR(
     <div>
@@ -161,7 +161,7 @@ ReadPretty.Upload = function Upload() {
 };
 
 export const ReadFile = ({ file, prefixCls, size, images, setFileIndex, setVisible, preview }) => {
-  const { viewComponet } = preview;
+  const viewComponet = preview?.viewComponet;
   const handleClick = (e) => {
     const index = images.indexOf(file);
     e.preventDefault();
@@ -192,7 +192,7 @@ export const ReadFile = ({ file, prefixCls, size, images, setFileIndex, setVisib
               onClick={handleClick}
               style={{ lineHeight: '100%' }}
             >
-              {viewComponet({ images, size, prefixCls, file, setFileIndex, setVisible })}
+              {viewComponet ? viewComponet({ images, size, prefixCls, file, setFileIndex, setVisible }) : null}
             </a>
             <a
               target="_blank"

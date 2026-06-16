@@ -1,6 +1,5 @@
-import { Application, CollectionFieldInterface, isTitleField } from '@tachybase/client';
-
-import collections from './collections.json';
+import { CollectionFieldInterface } from '../collection-field-interface/CollectionFieldInterface';
+import { isTitleField } from '../utils';
 
 describe('utils', () => {
   describe('isTitleField', () => {
@@ -13,12 +12,15 @@ describe('utils', () => {
       titleUsable = true;
     }
 
-    const dm = new Application({
-      dataSourceManager: {
-        collections: collections as any,
-        fieldInterfaces: [Demo1FieldInterface, Demo2FieldInterface],
+    const fieldInterfaces = {
+      demo1: new Demo1FieldInterface({} as any),
+      demo2: new Demo2FieldInterface({} as any),
+    };
+    const dm = {
+      collectionFieldInterfaceManager: {
+        getFieldInterface: (name: string) => fieldInterfaces[name],
       },
-    }).dataSourceManager;
+    } as any;
 
     it('should return false when field is foreign key', () => {
       const field = {

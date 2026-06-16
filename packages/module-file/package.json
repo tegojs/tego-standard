@@ -32,6 +32,7 @@
     "@types/multer": "^1.4.12",
     "antd": "catalog:",
     "cos-nodejs-sdk-v5": "^2.15.1",
+    "koa-send": "^5.0.1",
     "koa-static": "^5.0.0",
     "lodash": "4.17.21",
     "mime-match": "^1.0.2",

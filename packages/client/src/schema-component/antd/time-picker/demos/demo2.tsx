@@ -2,9 +2,21 @@
  * title: TimePicker.RangePicker
  */
 import React from 'react';
-import { SchemaComponent, SchemaComponentProvider, TimePicker } from '@tachybase/client';
+import { observer, useField } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { TimePicker } from '../TimePicker';
+
+const FormItem = observer(({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+    </div>
+  );
+});
 
 const schema = {
   type: 'object',

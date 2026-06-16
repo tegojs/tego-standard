@@ -29,9 +29,8 @@ describe('createEditFormBlockUISchema', () => {
                 "type": "void",
                 "x-component": "ActionBar",
                 "x-component-props": {
-                  "layout": "one-column",
                   "style": {
-                    "marginTop": 24,
+                    "marginBottom": "var(--tb-spacing)",
                   },
                 },
                 "x-initializer": "editForm:configureActions",

@@ -66,11 +66,20 @@ export const schemaTableTodos = {
           'x-component': 'TableV2.Column',
           'x-component-props': {
             width: 60,
+            className: css`
+              .tb-action-link {
+                padding: 12px 19px !important;
+              }
+            `,
           },
           title: tval('Actions', { ns: 'core' }),
           properties: {
             action: {
               'x-component': 'ViewCheckLink',
+            },
+            actionApply: {
+              'x-component': 'CreateCheckLink',
+              'x-component-props': {},
             },
           },
         },

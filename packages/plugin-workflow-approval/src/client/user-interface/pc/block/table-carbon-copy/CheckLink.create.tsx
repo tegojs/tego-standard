@@ -1,32 +1,6 @@
-import { useActionContext } from '@tachybase/client';
+import { SchemaComponent, useActionContext, useRecord } from '@tachybase/client';
 
 import { tval } from '../../../../locale';
-
-export const getSchemaActionTodos = (params) => {
-  const { record, popoverComponent, popoverComponentProps } = params;
-  return {
-    name: `assignee-view-${record.id}`,
-    type: 'void',
-    'x-component': 'Action.Link',
-    title: '{{t("View")}}',
-    properties: {
-      drawer: {
-        type: 'void',
-        'x-component': popoverComponent,
-        'x-component-props': {
-          className: 'tb-action-popup',
-          ...popoverComponentProps,
-        },
-        properties: {
-          content: {
-            type: 'void',
-            'x-component': 'CheckContent',
-          },
-        },
-      },
-    },
-  };
-};
 
 export const getSchemaCreateActionLaunch = (params) => {
   const { record, popoverComponent, popoverComponentProps } = params;
@@ -114,4 +88,18 @@ export const getSchemaCreateActionLaunch = (params) => {
       },
     },
   };
+};
+
+// 审批-抄送: 操作-快速发起
+export const CreateCheckLink = (props) => {
+  const { popoverComponent = 'Action.Modal', popoverComponentProps = {} } = props;
+  const record = useRecord();
+
+  const schema = getSchemaCreateActionLaunch({
+    record,
+    popoverComponent,
+    popoverComponentProps,
+  });
+
+  return <SchemaComponent schema={schema} />;
 };

@@ -172,11 +172,26 @@ export default function useServiceOptions(props) {
 
 export const useFieldNames = (props) => {
   const fieldSchema = useFieldSchema();
+  const { options: collectionField } = useAssociationFieldContext();
+  const { getCollection } = useCollectionManager_deprecated();
   const fieldNames =
     fieldSchema['x-component-props']?.['field']?.['uiSchema']?.['x-component-props']?.['fieldNames'] ||
     fieldSchema?.['x-component-props']?.['fieldNames'] ||
     props.fieldNames;
-  return { label: 'label', value: 'value', ...fieldNames };
+  if (fieldNames) {
+    return { label: 'label', value: 'value', ...fieldNames };
+  }
+  // For association fields without explicit fieldNames (e.g. deeply nested
+  // paths in filter forms), derive the label/value from the target collection's
+  // title field so that the Select dropdown can display options correctly.
+  if (collectionField?.target) {
+    const targetCollection = getCollection(collectionField.target);
+    if (targetCollection) {
+      const pk = targetCollection.filterTargetKey || targetCollection.getPrimaryKey?.() || 'id';
+      return { label: targetCollection.titleField || pk, value: pk };
+    }
+  }
+  return { label: 'label', value: 'value' };
 };
 
 const SubFormContext = createContext<{

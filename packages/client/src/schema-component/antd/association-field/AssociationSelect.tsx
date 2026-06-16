@@ -20,7 +20,7 @@ import { RecordProvider, useAPIClient, useApp, useCollectionRecordData } from '.
 import { isVariable } from '../../../variables/utils/isVariable';
 import { getInnermostKeyAndValue } from '../../common/utils/uitls';
 import { RemoteSelect, RemoteSelectProps } from '../remote-select';
-import useServiceOptions, { useAssociationFieldContext } from './hooks';
+import useServiceOptions, { useAssociationFieldContext, useFieldNames } from './hooks';
 
 export type AssociationSelectProps<P = any> = RemoteSelectProps<P> & {
   action?: string;
@@ -66,6 +66,7 @@ const InternalAssociationSelect = observer(
     const isAllowAddNew = fieldSchema['x-add-new'];
     const { t } = useTranslation();
     const { multiple } = props;
+    const fieldNames = useFieldNames(props);
     const form = useForm();
     const api = useAPIClient();
     const resource = api.resource(collectionField.target);
@@ -136,6 +137,7 @@ const InternalAssociationSelect = observer(
           <RemoteSelect
             style={{ width: '100%' }}
             {...props}
+            fieldNames={fieldNames}
             size={'middle'}
             objectValue={objectValue}
             value={value || innerValue}

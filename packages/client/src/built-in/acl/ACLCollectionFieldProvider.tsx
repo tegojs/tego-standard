@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Field, useField, useFieldSchema } from '@tachybase/schema';
 
 import { useACLFieldWhitelist } from './ACLContext';
@@ -11,12 +11,22 @@ export const ACLCollectionFieldProvider = (props) => {
   const { whitelist } = useACLFieldWhitelist();
   const [name] = (fieldSchema.name as string).split('.');
   const allowed = !fieldSchema['x-acl-ignore'] && whitelist.length > 0 ? whitelist.includes(name) : true;
+  const originalFieldStateRef = useRef<{ required: Field['required']; display: Field['display'] }>();
+
   useEffect(() => {
+    originalFieldStateRef.current ||= {
+      required: field.required,
+      display: field.display,
+    };
+
     if (!allowed) {
       field.required = false;
       field.display = 'hidden';
+    } else {
+      field.required = originalFieldStateRef.current.required;
+      field.display = originalFieldStateRef.current.display;
     }
-  }, [allowed]);
+  }, [allowed, field]);
 
   if (allowAll) {
     return <>{props.children}</>;

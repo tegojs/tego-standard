@@ -5,5 +5,11 @@ export function registerTachybaseClientExports(exports: unknown) {
 }
 
 export function getTachybaseClientExports() {
+  if (tachybaseClientExports == null) {
+    throw new Error(
+      '@tachybase/client exports have not been registered. Ensure the package root entry is loaded first.',
+    );
+  }
+
   return tachybaseClientExports;
 }

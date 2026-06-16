@@ -234,7 +234,7 @@ function createWithACLMetaMiddleware() {
       );
 
       // like'("project->users"."id" = 17)' like'("users"."id" = 17)'
-      const whereCase = actionSql.match(/WHERE (.*?);/)?.[1];
+      const whereCase = actionSql.match(/\bWHERE\s+([\s\S]*)$/i)?.[1]?.replace(/;\s*$/, '');
       if (!whereCase) {
         continue;
       }

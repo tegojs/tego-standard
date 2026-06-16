@@ -103,7 +103,7 @@ const InternalAssociationSelect = observer(
         data: { data },
       } = await resource.create({
         values: {
-          [field?.componentProps?.fieldNames?.label || 'id']: value,
+          [fieldNames.label || 'id']: value,
         },
       });
       if (data) {

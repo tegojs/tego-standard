@@ -1,3 +1,4 @@
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { Gateway, parseCollectionName, uid } from '@tego/server';
 
 import axios, { AxiosRequestConfig } from 'axios';
@@ -183,8 +184,9 @@ export class UpdateInstruction extends Instruction {
       }
     }
 
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'update', options);
     const result = await repository.update({
-      ...options,
+      ...repositoryOptions,
       context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });

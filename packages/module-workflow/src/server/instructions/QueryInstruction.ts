@@ -1,3 +1,4 @@
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, parseCollectionName, utils } from '@tego/server';
 
 import { Instruction } from '.';
@@ -18,9 +19,10 @@ export class QueryInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
+    const targetCollection = this.workflow.app.dataSourceManager.dataSources
       .get(dataSourceName)
       .collectionManager.getCollection(collectionName);
+    const { repository } = targetCollection;
     const { page, pageSize, sort = [], paginate = true, ...options } = processor.getParsedValue(params, node.id);
 
     const appends = options.appends
@@ -34,7 +36,8 @@ export class QueryInstruction extends Instruction {
       : options.appends;
 
     let pageArgs = paginate ? utils.pageArgsToLimitArgs(page || DEFAULT_PAGE, pageSize || DEFAULT_PER_PAGE) : {};
-    const result = await (multiple ? repository.find : repository.findOne).call(repository, {
+    const repositoryContext = processor.getRepositoryContext();
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'list', {
       ...options,
       ...otherOptions,
       ...pageArgs,
@@ -42,7 +45,10 @@ export class QueryInstruction extends Instruction {
         .filter((item) => item.field)
         .map((item) => `${item.direction?.toLowerCase() === 'desc' ? '-' : ''}${item.field}`),
       appends,
-      context: processor.getRepositoryContext(),
+    });
+    const result = await (multiple ? repository.find : repository.findOne).call(repository, {
+      ...repositoryOptions,
+      context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

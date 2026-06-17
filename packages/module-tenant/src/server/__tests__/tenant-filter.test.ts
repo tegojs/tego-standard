@@ -1,4 +1,4 @@
-import applyTenantFilter from '../helpers/tenant-filter';
+import applyTenantFilter, { applyTenantFilterToContext } from '../helpers/tenant-filter';
 
 describe('applyTenantFilter', () => {
   it('should merge tenant filter for list actions', () => {
@@ -315,6 +315,122 @@ describe('applyTenantFilter', () => {
           tenantId: { $in: ['leaf-a'] },
         },
       });
+    });
+  });
+
+  describe('applyTenantFilterToContext', () => {
+    it('should merge tenant filter into repository read options', () => {
+      const options = applyTenantFilterToContext(
+        {
+          state: {
+            currentTenantId: 'tenant-a',
+          },
+        },
+        {
+          options: {
+            tenancy: 'tenantScoped',
+          },
+        },
+        'list',
+        {
+          filter: {
+            status: 'published',
+          },
+        },
+      );
+
+      expect(options).toMatchObject({
+        filter: {
+          $and: [{ status: 'published' }, { tenantId: 'tenant-a' }],
+        },
+      });
+    });
+
+    it('should remove tenantId from repository update values and keep write filter scoped', () => {
+      const options = applyTenantFilterToContext(
+        {
+          state: {
+            currentTenantId: 'tenant-a',
+          },
+        },
+        {
+          options: {
+            tenancy: 'tenantScoped',
+          },
+        },
+        'update',
+        {
+          filter: {
+            title: 'same-title',
+          },
+          values: {
+            title: 'updated',
+            tenantId: 'tenant-b',
+          },
+        },
+      );
+
+      expect(options).toMatchObject({
+        filter: {
+          $and: [{ title: 'same-title' }, { tenantId: 'tenant-a' }],
+        },
+        values: {
+          title: 'updated',
+        },
+      });
+    });
+
+    it('should use current tenant and descendants for inherited repository reads', () => {
+      const options = applyTenantFilterToContext(
+        {
+          state: {
+            currentTenantId: 'parent-a',
+            currentTenantDescendantIds: ['child-a'],
+          },
+        },
+        {
+          options: {
+            tenancy: 'tenantInherited',
+          },
+        },
+        'aggregate',
+        {
+          filter: {
+            status: 'published',
+          },
+        },
+      );
+
+      expect(options).toMatchObject({
+        filter: {
+          $and: [{ status: 'published' }, { tenantId: { $in: ['parent-a', 'child-a'] } }],
+        },
+      });
+    });
+
+    it('should leave shared collection repository options unchanged', () => {
+      const options = {
+        filter: {
+          title: 'shared',
+        },
+      };
+
+      expect(
+        applyTenantFilterToContext(
+          {
+            state: {
+              currentTenantId: 'tenant-a',
+            },
+          },
+          {
+            options: {
+              tenancy: 'shared',
+            },
+          },
+          'list',
+          options,
+        ),
+      ).toBe(options);
     });
   });
 });

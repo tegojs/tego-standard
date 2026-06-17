@@ -1,3 +1,4 @@
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { parseCollectionName } from '@tego/server';
 
 import { Instruction } from '.';
@@ -11,13 +12,16 @@ export class DestroyInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
+    const targetCollection = this.workflow.app.dataSourceManager.dataSources
       .get(dataSourceName)
       .collectionManager.getCollection(collectionName);
+    const { repository } = targetCollection;
     const options = processor.getParsedValue(params, node.id);
+    const repositoryContext = processor.getRepositoryContext();
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'destroy', options);
     const result = await repository.destroy({
-      ...options,
-      context: processor.getRepositoryContext(),
+      ...repositoryOptions,
+      context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

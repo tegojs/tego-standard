@@ -5,8 +5,16 @@ type TenantFilterContext = {
   action?: Pick<Context['action'], 'actionName' | 'params' | 'mergeParams'>;
 };
 
-const READ_ACTIONS = ['list', 'get', 'count', 'export'];
+type TenantFilterCollection = {
+  options?: {
+    tenancy?: string;
+    legacyDataTenantIds?: Array<string | number>;
+  };
+};
+
+const READ_ACTIONS = ['list', 'get', 'count', 'export', 'aggregate'];
 const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
+const TENANT_ENABLED_MODES = ['tenantScoped', 'tenantInherited'];
 
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {
@@ -116,25 +124,22 @@ function omitTenantValue(values: any) {
   return rest;
 }
 
-export function applyTenantFilter(ctx: TenantFilterContext) {
-  const tenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
+function getTenantId(state: TenantFilterContext['state']) {
+  return state?.currentTenant?.id ?? state?.currentTenantId;
+}
+
+function buildTenantParams(actionName: string, params: any, state: TenantFilterContext['state'], tenancyMode?: string) {
+  const tenantId = getTenantId(state);
   if (!tenantId) {
-    return;
+    return null;
   }
 
-  if (!ctx.action) {
-    return;
-  }
-
-  const { actionName, params } = ctx.action;
-  const tenancyMode = ctx.state.currentTenancyMode;
-  const includeLegacyData = canReadLegacyData(tenantId, ctx.state.currentLegacyDataTenantIds);
-
+  const includeLegacyData = canReadLegacyData(tenantId, state?.currentLegacyDataTenantIds);
   let tenantParams: Record<string, any> | null = null;
 
   if (READ_ACTIONS.includes(actionName)) {
     if (tenancyMode === 'tenantInherited') {
-      const descendantIds: Array<string | number> = ctx.state.currentTenantDescendantIds || [];
+      const descendantIds: Array<string | number> = state?.currentTenantDescendantIds || [];
       const allIds = [tenantId, ...descendantIds];
       tenantParams = {
         filter: appendInheritedFilter(params?.filter, allIds, includeLegacyData),
@@ -148,7 +153,7 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
 
   if (WRITE_FILTER_ACTIONS.includes(actionName)) {
     if (tenancyMode === 'tenantInherited') {
-      const descendantIds: Array<string | number> = ctx.state.currentTenantDescendantIds || [];
+      const descendantIds: Array<string | number> = state?.currentTenantDescendantIds || [];
       const allIds = [tenantId, ...descendantIds];
       tenantParams = {
         filter: appendInheritedFilter(params?.filter, allIds),
@@ -167,18 +172,63 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
     };
   }
 
+  if (actionName === 'create') {
+    tenantParams = {
+      values: appendTenantValue(params?.values, tenantId),
+    };
+  }
+
+  return tenantParams;
+}
+
+export function applyTenantFilterToContext<TOptions extends Record<string, any>>(
+  context: Pick<TenantFilterContext, 'state'>,
+  collection: TenantFilterCollection,
+  actionName: string,
+  options: TOptions,
+) {
+  const tenancyMode = collection?.options?.tenancy || context?.state?.currentTenancyMode;
+  if (!TENANT_ENABLED_MODES.includes(tenancyMode)) {
+    return options;
+  }
+
+  const state = {
+    ...context?.state,
+    currentTenancyMode: tenancyMode,
+    currentLegacyDataTenantIds: context?.state?.currentLegacyDataTenantIds || collection?.options?.legacyDataTenantIds,
+  };
+  const tenantParams = buildTenantParams(actionName, options, state, tenancyMode);
+
+  if (!tenantParams) {
+    return options;
+  }
+
+  return {
+    ...options,
+    ...tenantParams,
+  };
+}
+
+export function applyTenantFilter(ctx: TenantFilterContext) {
+  const tenantId = getTenantId(ctx.state);
+  if (!tenantId) {
+    return;
+  }
+
+  if (!ctx.action) {
+    return;
+  }
+
+  const { actionName, params } = ctx.action;
+  const tenancyMode = ctx.state.currentTenancyMode;
+  const tenantParams = buildTenantParams(actionName, params, ctx.state, tenancyMode);
+
   if (tenantParams) {
     ctx.action.mergeParams(tenantParams);
     ctx.action.params.filter = tenantParams.filter;
     if (actionName === 'update') {
       ctx.action.params.values = tenantParams.values;
     }
-  }
-
-  if (actionName === 'create') {
-    ctx.action.mergeParams({
-      values: appendTenantValue(params?.values, tenantId),
-    });
   }
 }
 

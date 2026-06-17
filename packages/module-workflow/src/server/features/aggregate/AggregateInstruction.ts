@@ -1,3 +1,4 @@
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { DataTypes, parseCollectionName } from '@tego/server';
 
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
@@ -16,6 +17,7 @@ export default class extends Instruction {
     const options = processor.getParsedValue(params, node.id);
     const [dataSourceName, collectionName] = parseCollectionName(collection);
     const { collectionManager } = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const targetCollection = collectionManager.getCollection(collectionName);
     const repo = associated
       ? collectionManager.getRepository(
           `${association?.associatedCollection}.${association.name}`,
@@ -27,10 +29,12 @@ export default class extends Instruction {
       options.dataType = DataTypes.DOUBLE;
     }
 
+    const repositoryContext = processor.getRepositoryContext();
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'aggregate', options);
     const result = await repo.aggregate({
-      ...options,
+      ...repositoryOptions,
       method: aggregators[aggregator],
-      context: processor.getRepositoryContext(),
+      context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

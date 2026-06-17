@@ -1,10 +1,10 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
 import type { WorkflowModel as WorkflowModelType } from '../../types';
+import { waitForFastAssertion as waitForAssertion } from '../utils';
 
 describe('workflow > instructions > update', () => {
   let app: MockServer;
@@ -13,13 +13,15 @@ describe('workflow > instructions > update', () => {
   let WorkflowModel;
   let workflow: WorkflowModelType;
 
-  beforeEach(async () => {
-    app = await getApp();
+  async function setupApp(withAnotherDataSource = false) {
+    app = await getApp({ withAnotherDataSource });
 
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  }
 
+  async function setupWorkflow() {
     workflow = await WorkflowModel.create({
       enabled: true,
       type: 'collection',
@@ -28,11 +30,18 @@ describe('workflow > instructions > update', () => {
         collection: 'posts',
       },
     });
-  });
+  }
 
-  afterEach(() => app.destroy());
+  async function disableWorkflows() {
+    await WorkflowModel.update({ enabled: false }, { where: {} });
+  }
 
   describe('update one', () => {
+    beforeAll(() => setupApp());
+    beforeEach(setupWorkflow);
+    afterEach(disableWorkflows);
+    afterAll(() => app.destroy());
+
     it('params: from context', async () => {
       const n1 = await workflow.createNode({
         type: 'update',
@@ -52,14 +61,14 @@ describe('workflow > instructions > update', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       expect(post.published).toBe(false);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result.length).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
-
-      const updatedPost = await PostRepo.findById(post.id);
-      expect(updatedPost.published).toBe(true);
+        const updatedPost = await PostRepo.findById(post.id);
+        expect(updatedPost.published).toBe(true);
+      });
     });
 
     it('params: from job of node', async () => {
@@ -98,11 +107,10 @@ describe('workflow > instructions > update', () => {
       // NOTE: the result of post immediately created will not be changed by workflow
       const { id } = await PostRepo.create({ values: { title: 'test' } });
 
-      await sleep(500);
-
-      // should get from db
-      const post = await PostRepo.findById(id);
-      expect(post.title).toBe('changed');
+      await waitForAssertion(async () => {
+        const post = await PostRepo.findById(id);
+        expect(post.title).toBe('changed');
+      });
 
       await p1.reload();
       expect(p1.title).toBe('t1');
@@ -110,6 +118,13 @@ describe('workflow > instructions > update', () => {
   });
 
   describe('update batch', () => {
+    beforeEach(() => setupApp());
+    beforeEach(setupWorkflow);
+    afterEach(async () => {
+      await disableWorkflows();
+      await app.destroy();
+    });
+
     it('individualHooks off should not trigger other workflow', async () => {
       const w2 = await WorkflowModel.create({
         enabled: true,
@@ -139,14 +154,14 @@ describe('workflow > instructions > update', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       expect(post.published).toBe(false);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result.length).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
-
-      const updatedPost = await PostRepo.findById(post.id);
-      expect(updatedPost.published).toBe(true);
+        const updatedPost = await PostRepo.findById(post.id);
+        expect(updatedPost.published).toBe(true);
+      });
 
       const w2Exes = await w2.getExecutions();
       expect(w2Exes.length).toBe(0);
@@ -181,21 +196,26 @@ describe('workflow > instructions > update', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       expect(post.published).toBe(false);
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [job] = await execution.getJobs();
+        expect(job.result.length).toBe(1);
 
-      const [execution] = await workflow.getExecutions();
-      const [job] = await execution.getJobs();
-      expect(job.result).toBe(1);
+        const updatedPost = await PostRepo.findById(post.id);
+        expect(updatedPost.published).toBe(true);
 
-      const updatedPost = await PostRepo.findById(post.id);
-      expect(updatedPost.published).toBe(true);
-
-      const w2Exes = await w2.getExecutions();
-      expect(w2Exes.length).toBe(1);
+        const w2Exes = await w2.getExecutions();
+        expect(w2Exes.length).toBe(1);
+      });
     });
   });
 
   describe('multiple data source', () => {
+    beforeAll(() => setupApp(true));
+    beforeEach(setupWorkflow);
+    afterEach(disableWorkflows);
+    afterAll(() => app.destroy());
+
     it('update one', async () => {
       const AnotherPostRepo = app.dataSourceManager.dataSources.get('another').collectionManager.getRepository('posts');
       const post = await AnotherPostRepo.create({ values: { title: 't1' } });
@@ -220,14 +240,14 @@ describe('workflow > instructions > update', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
 
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-
-      const p2s = await AnotherPostRepo.find();
-      expect(p2s.length).toBe(1);
-      expect(p2s[0].title).toBe('t2');
+        const p2s = await AnotherPostRepo.find();
+        expect(p2s.length).toBe(1);
+        expect(p2s[0].title).toBe('t2');
+      });
     });
   });
 });

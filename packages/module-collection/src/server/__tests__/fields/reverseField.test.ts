@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import Database, { Collection as DBCollection } from '@tego/server';
 
 import { createApp } from '..';
@@ -10,33 +9,40 @@ describe('reverseField options', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     db = app.db;
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
-    await Collection.repository.create({
-      values: {
-        name: 'tests',
-      },
-    });
-    await Collection.repository.create({
-      values: {
-        name: 'targets',
-      },
-    });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
+  async function createCollections(sourceName: string, targetName: string) {
+    await Collection.repository.create({
+      values: {
+        name: sourceName,
+      },
+    });
+    await Collection.repository.create({
+      values: {
+        name: targetName,
+      },
+    });
+  }
+
   it('reverseField', async () => {
+    const sourceName = 'reverseFieldTests';
+    const targetName = 'reverseFieldTargets';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'targets',
+        collectionName: sourceName,
+        target: targetName,
         reverseField: {},
       },
     });
@@ -44,14 +50,14 @@ describe('reverseField options', () => {
     const json = JSON.parse(JSON.stringify(field.toJSON()));
     expect(json).toMatchObject({
       type: 'hasMany',
-      collectionName: 'tests',
-      target: 'targets',
+      collectionName: sourceName,
+      target: targetName,
       targetKey: 'id',
       sourceKey: 'id',
       reverseField: {
         type: 'belongsTo',
-        collectionName: 'targets',
-        target: 'tests',
+        collectionName: targetName,
+        target: sourceName,
         targetKey: 'id',
         sourceKey: 'id',
       },
@@ -60,11 +66,15 @@ describe('reverseField options', () => {
   });
 
   it('should sync onDelete options for reverse field', async () => {
+    const sourceName = 'reverseOnDeleteTests';
+    const targetName = 'reverseOnDeleteTargets';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'targets',
+        collectionName: sourceName,
+        target: targetName,
         onDelete: 'CASCADE',
         reverseField: {},
       },
@@ -76,11 +86,15 @@ describe('reverseField options', () => {
   });
 
   it('should update reverseField onDelete options', async () => {
+    const sourceName = 'reverseUpdateOnDeleteTests';
+    const targetName = 'reverseUpdateOnDeleteTargets';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'targets',
+        collectionName: sourceName,
+        target: targetName,
         onDelete: 'CASCADE',
         reverseField: {},
       },
@@ -103,11 +117,15 @@ describe('reverseField options', () => {
   });
 
   it('should update reverseField', async () => {
+    const sourceName = 'reverseUpdateTests';
+    const targetName = 'reverseUpdateTargets';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'targets',
+        collectionName: sourceName,
+        target: targetName,
         reverseField: {},
       },
     });
@@ -115,14 +133,14 @@ describe('reverseField options', () => {
     expect(
       await Field.repository.count({
         filter: {
-          collectionName: 'targets',
+          collectionName: targetName,
         },
       }),
     ).toEqual(1);
 
     let reverseField = await Field.repository.findOne({
       filter: {
-        collectionName: 'targets',
+        collectionName: targetName,
       },
     });
 
@@ -161,7 +179,7 @@ describe('reverseField options', () => {
     expect(
       await Field.repository.count({
         filter: {
-          collectionName: 'targets',
+          collectionName: targetName,
         },
       }),
     ).toEqual(1);
@@ -177,21 +195,24 @@ describe('reverseField options', () => {
   });
 
   it('should update uiSchema', async () => {
+    const collectionName = 'reverseUiSchemaCollection';
+    const fieldName = 'f_i02fjvduwmv';
+
     await app
       .agent()
       .resource('collections')
       .create({
         values: {
-          name: 'a',
+          name: collectionName,
         },
       });
 
     const f = await app
       .agent()
-      .resource('collections.fields', 'a')
+      .resource('collections.fields', collectionName)
       .create({
         values: {
-          name: 'f_i02fjvduwmv',
+          name: fieldName,
           interface: 'input',
           type: 'string',
           uiSchema: { type: 'string', 'x-component': 'Input', title: 'A1' },
@@ -200,9 +221,9 @@ describe('reverseField options', () => {
 
     await app
       .agent()
-      .resource('collections.fields', 'a')
+      .resource('collections.fields', collectionName)
       .update({
-        filterByTk: 'f_i02fjvduwmv',
+        filterByTk: fieldName,
         values: {
           ...f.body.data,
           uiSchema: {
@@ -212,20 +233,23 @@ describe('reverseField options', () => {
         },
       });
 
-    const f2 = await app.agent().resource('collections.fields', 'a').get({
-      filterByTk: 'f_i02fjvduwmv',
+    const f2 = await app.agent().resource('collections.fields', collectionName).get({
+      filterByTk: fieldName,
     });
 
     expect(f2.body.data.uiSchema.title).toBe('A2');
   });
 
   it('should create reverseField uiSchema', async () => {
+    const sourceName = 'reverseFieldUiSchemaA';
+    const targetName = 'reverseFieldUiSchemaB';
+
     await app
       .agent()
       .resource('collections')
       .create({
         values: {
-          name: 'a',
+          name: sourceName,
         },
       });
 
@@ -234,13 +258,13 @@ describe('reverseField options', () => {
       .resource('collections')
       .create({
         values: {
-          name: 'b',
+          name: targetName,
         },
       });
 
     await app
       .agent()
-      .resource('collections.fields', 'a')
+      .resource('collections.fields', sourceName)
       .create({
         values: {
           foreignKey: 'f_qnt8iaony6i',
@@ -263,11 +287,11 @@ describe('reverseField options', () => {
             title: 'B',
           },
           interface: 'oho',
-          target: 'b',
+          target: targetName,
         },
       });
 
-    const f1 = await app.agent().resource('collections.fields', 'b').get({
+    const f1 = await app.agent().resource('collections.fields', targetName).get({
       filterByTk: 'f_dctw6v5gsio',
     });
 

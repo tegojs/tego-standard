@@ -229,6 +229,7 @@ export class PluginACL extends Plugin {
         values: {
           roleName: model.get('name'),
           dataSourceKey: 'main',
+          strategy: model.get('strategy'),
         },
         filterKeys: ['roleName', 'dataSourceKey'],
         transaction,
@@ -274,13 +275,27 @@ export class PluginACL extends Plugin {
 
     this.app.db.on('collections.afterDestroy', async (model, options) => {
       const { transaction } = options;
+      const resourceName = model.get('name') as string;
+
       await this.app.db.getRepository('dataSourcesRolesResources').destroy({
         filter: {
-          name: model.get('name'),
+          name: resourceName,
           dataSourceKey: 'main',
         },
         transaction,
       });
+
+      const aclRoles = (this.acl as any)?.roles;
+      if (!aclRoles || typeof aclRoles.values !== 'function') {
+        return;
+      }
+
+      for (const role of aclRoles.values()) {
+        if (!role || typeof role.revokeResource !== 'function') {
+          continue;
+        }
+        role.revokeResource(resourceName);
+      }
     });
 
     this.app.db.on('fields.afterCreate', async (model, options) => {
@@ -374,7 +389,7 @@ export class PluginACL extends Plugin {
     // this.app.on('afterInstall', writeRolesToACL);
 
     this.app.on('afterInstallPlugin', async (plugin) => {
-      if (plugin.getName() !== 'user') {
+      if (!['user', 'users'].includes(plugin.getName())) {
         return;
       }
 
@@ -403,8 +418,7 @@ export class PluginACL extends Plugin {
     });
 
     this.app.on('beforeInstallPlugin', async (plugin) => {
-      // TODO
-      if (plugin.getName() !== 'user') {
+      if (!['user', 'users'].includes(plugin.getName())) {
         return;
       }
       const roles = this.app.db.getRepository('roles');

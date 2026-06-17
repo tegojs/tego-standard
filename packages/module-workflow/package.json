@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-workflow",
   "displayName": "Workflow",
-  "version": "1.6.21",
+  "version": "1.6.22",
   "description": "A powerful BPM tool that provides foundational support for business automation, with the capability to extend unlimited triggers and nodes.",
   "keywords": [
     "Workflow"
@@ -39,6 +39,7 @@
     "@types/babel__core": "7.20.5",
     "@types/ejs": "^3.1.5",
     "@types/file-saver": "^2.0.7",
+    "@types/jsonwebtoken": "^8.5.9",
     "@types/lodash": "^4.17.20",
     "@types/qrcode": "^1.5.5",
     "antd": "catalog:",
@@ -48,6 +49,9 @@
     "file-saver": "^2.0.5",
     "form-data": "^4.0.4",
     "jsonata": "^2.0.6",
+    "jsonwebtoken": "^8.5.1",
+    "koa": "^2.14.1",
+    "koa-bodyparser": "^4.3.0",
     "lodash": "4.17.21",
     "lru-cache": "11.1.0",
     "mime-types": "^3.0.1",

@@ -23,7 +23,7 @@ export interface SchemaSettingsChildrenProps {
   children: SchemaSettingsItemType[];
 }
 
-const typeComponentMap = {
+const getTypeComponentMap = () => ({
   item: SchemaSettingsItem,
   itemGroup: SchemaSettingsItemGroup,
   subMenu: SchemaSettingsSubMenu,
@@ -35,7 +35,7 @@ const typeComponentMap = {
   popup: SchemaSettingsPopupItem,
   actionModal: SchemaSettingsActionModalItem,
   modal: SchemaSettingsModalItem,
-};
+});
 
 export const SchemaSettingsChildren: FC<SchemaSettingsChildrenProps> = (props) => {
   const { children } = props;
@@ -98,7 +98,7 @@ export const SchemaSettingsChild: FC<SchemaSettingsItemType> = memo((props) => {
   }, [useChildrenRes, children]);
   const visibleResult = useVisible();
   const ComponentValue = useMemo(() => {
-    return !Component && type && typeComponentMap[type] ? typeComponentMap[type] : Component;
+    return !Component && type ? getTypeComponentMap()[type] : Component;
   }, [type, Component]);
 
   if (!visibleResult) return null;

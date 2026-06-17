@@ -1,7 +1,7 @@
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
-import { getApp, sleep } from '.';
+import { getApp } from '.';
 import Plugin, { Provider } from '..';
 
 describe('verification > Plugin', () => {
@@ -86,9 +86,10 @@ describe('verification > Plugin', () => {
         },
       });
 
-      await sleep(2000);
-
       const verification = await VerificationModel.findByPk(res1.body.data.id);
+      await verification.update({
+        expiresAt: new Date(Date.now() - 1000),
+      });
       const res2 = await agent.resource('authors').create({
         values: { phone: '1', code: verification.get('content') },
       });

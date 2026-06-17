@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getDefaultFilterOperatorValue } from '../SchemaSettingOptions';
+import { getDefaultFilterOperatorValue } from '../operatorUtils';
 
 describe('getDefaultFilterOperatorValue', () => {
   it('should infer $dateBetween from DatePicker.RangePicker component', () => {

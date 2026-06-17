@@ -159,6 +159,7 @@ export class ProgressManager {
    */
   async writeProgress(fileName: string, progress: ProgressInfo, appName?: string, userId?: number): Promise<void> {
     const filePath = this.progressFilePath(fileName, appName);
+    await fsPromises.mkdir(path.dirname(filePath), { recursive: true });
     await fsPromises.writeFile(filePath, JSON.stringify(progress), 'utf8');
 
     // 通过 WebSocket 推送进度更新
@@ -184,7 +185,7 @@ export class ProgressManager {
   /**
    * 清理进度文件
    */
-  async cleanProgressFile(fileName: string, appName: string): Promise<void> {
+  async cleanProgressFile(fileName: string, appName?: string): Promise<void> {
     const filePath = this.progressFilePath(fileName, appName);
     try {
       await fsPromises.unlink(filePath);

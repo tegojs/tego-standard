@@ -2,14 +2,10 @@
  * title: Calendar
  */
 import React from 'react';
-import {
-  AntdSchemaComponentProvider,
-  Application,
-  Plugin,
-  SchemaComponent,
-  SchemaComponentProvider,
-} from '@tachybase/client';
+import { Application, ApplicationContext, Plugin, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
 
+import { CalendarV2 } from '..';
+import PluginCalendarClient from '../..';
 import defaultValues from './defaultValues';
 
 const schema = {
@@ -56,13 +52,13 @@ const schema = {
   },
 };
 
-const Root = () => {
+export const Root = () => {
   return (
-    <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
+    <ApplicationContext.Provider value={{ schemaInitializerManager: { get: () => null } } as any}>
+      <SchemaComponentProvider components={{ CalendarV2 }}>
         <SchemaComponent schema={schema} />
-      </AntdSchemaComponentProvider>
-    </SchemaComponentProvider>
+      </SchemaComponentProvider>
+    </ApplicationContext.Provider>
   );
 };
 
@@ -81,7 +77,7 @@ const app = new Application({
     type: 'memory',
     initialEntries: ['/'],
   },
-  plugins: [MyPlugin],
+  plugins: [PluginCalendarClient, MyPlugin],
 });
 
 export default app.getRootComponent();

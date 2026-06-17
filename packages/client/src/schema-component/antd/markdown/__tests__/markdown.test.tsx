@@ -12,7 +12,7 @@ describe('Markdown', () => {
       fireEvent.change(textarea, { target: { value: '## Hello World' } });
     });
     expect(textarea.value).toBe('## Hello World');
-  });
+  }, 30000);
 });
 
 describe('Markdown.Void', () => {

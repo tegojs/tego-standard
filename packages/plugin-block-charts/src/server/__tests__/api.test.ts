@@ -1,6 +1,6 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
+
 import compose from 'koa-compose';
 
 import { parseBuilder, parseFieldAndAssociations, queryData } from '../actions/query';
@@ -55,6 +55,7 @@ describe('api', () => {
     const ctx = {
       app,
       db,
+      tego: app,
       action: {
         params: {
           values: {
@@ -87,6 +88,8 @@ describe('api', () => {
     const ctx = {
       app,
       db,
+      tego: app,
+      get: (key: string) => (key === 'x-timezone' ? '+00:00' : undefined),
       action: {
         params: {
           values: {

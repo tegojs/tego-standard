@@ -1,8 +1,21 @@
 import React from 'react';
-import { Cron, FormProvider, SchemaComponent } from '@tachybase/client';
+import { useField } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
 import { useTranslation } from 'react-i18next';
+
+import { FormProvider } from '../../../core/FormProvider';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { Cron } from '../Cron';
+
+const FormItem = ({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+    </div>
+  );
+};
 
 const schema = {
   type: 'object',

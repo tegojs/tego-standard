@@ -280,11 +280,16 @@ export default class PluginBackupRestoreServer extends Plugin {
   }
 
   async workerCreateBackUp(data: { dataTypes: string[]; appName: string; filename: string; userId?: number }) {
-    await new Dumper(this.app).runDumpTask({
+    const taskId = new Dumper(this.app).startDumpTask({
       groups: new Set(data.dataTypes) as Set<DumpRulesGroupType>,
       appName: data.appName,
       fileName: data.filename,
       userId: data.userId,
     });
+    const taskPromise = Dumper.getTaskPromise(taskId);
+    if (!taskPromise) {
+      throw new Error(`Backup task ${taskId} is not tracked for app ${data.appName}`);
+    }
+    await taskPromise;
   }
 }

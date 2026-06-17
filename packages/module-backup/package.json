@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-backup",
   "displayName": "App backup & restore",
-  "version": "1.6.21",
+  "version": "1.6.22",
   "description": "Backup and restore applications for scenarios such as application replication, migration, and upgrades.",
   "keywords": [
     "System management"
@@ -23,6 +23,9 @@
     "@hapi/topo": "^6.0.2",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-worker-thread": "workspace:*",
+    "@tachybase/plugin-audit-logs": "workspace:*",
+    "@tachybase/plugin-block-map": "workspace:*",
+    "@tachybase/plugin-field-sequence": "workspace:*",
     "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",

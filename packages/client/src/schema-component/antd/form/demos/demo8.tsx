@@ -1,19 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Action,
-  ActionContextProvider,
-  Form,
-  Input,
-  SchemaComponent,
-  SchemaComponentProvider,
-  useActionContext,
-  useCloseAction,
-  useRequest,
-} from '@tachybase/client';
 import { ISchema, observer } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
 import { Button } from 'antd';
+
+import { useRequest } from '../../../../api-client/hooks/useRequest';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { Form } from '../Form';
+import { Action, ActionContextProvider, FormItem, useActionContext, useCloseAction } from './demoComponents';
 
 const useValues = (options) => {
   const { visible } = useActionContext();

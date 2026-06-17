@@ -1,9 +1,9 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > actions > executions', () => {
   let app: MockServer;
@@ -13,12 +13,21 @@ describe('workflow > actions > executions', () => {
   let WorkflowModel;
   let workflow;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
     agent = app.agent();
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
+  });
+
+  beforeEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
 
     workflow = await WorkflowModel.create({
       enabled: true,
@@ -30,16 +39,22 @@ describe('workflow > actions > executions', () => {
     });
   });
 
-  afterEach(async () => await app.destroy());
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('destroy', () => {
     it('completed execution could be deleted', async () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
-      await sleep(500);
 
-      const e1 = await workflow.getExecutions();
-      expect(e1.length).toBe(1);
-      expect(e1[0].get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const e1 = await workflow.getExecutions();
+        expect(e1.length).toBe(1);
+        expect(e1[0].get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+      });
 
       await agent.resource('executions').destroy({
         filter: {
@@ -57,11 +72,12 @@ describe('workflow > actions > executions', () => {
       });
 
       const post = await PostRepo.create({ values: { title: 't1' } });
-      await sleep(500);
 
-      const e1 = await workflow.getExecutions();
-      expect(e1.length).toBe(1);
-      expect(e1[0].get('status')).toBe(EXECUTION_STATUS.STARTED);
+      await waitForAssertion(async () => {
+        const e1 = await workflow.getExecutions();
+        expect(e1.length).toBe(1);
+        expect(e1[0].get('status')).toBe(EXECUTION_STATUS.STARTED);
+      });
 
       await agent.resource('executions').destroy({
         filter: {

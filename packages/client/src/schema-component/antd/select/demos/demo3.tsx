@@ -2,10 +2,21 @@
  * title: Select
  */
 import React from 'react';
-import { SchemaComponent, SchemaComponentProvider, Select } from '@tachybase/client';
-import { ISchema } from '@tachybase/schema';
+import { ISchema, observer, useField } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Select } from '../Select';
+
+const FormItem = observer(({ children }) => {
+  const field = useField();
+  return (
+    <div>
+      {field?.title && <label>{field.title}</label>}
+      {children}
+    </div>
+  );
+});
 
 const options = [
   {

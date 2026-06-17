@@ -1,6 +1,5 @@
 import ModuleUiSchema, { UiSchemaRepository } from '@tachybase/plugin-ui-schema-storage';
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { BelongsToManyRepository, Database } from '@tego/server';
 
 describe('server hooks', () => {
@@ -9,25 +8,26 @@ describe('server hooks', () => {
   let uiSchemaRepository: UiSchemaRepository;
   let uiSchemaPlugin: ModuleUiSchema;
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       plugins: ['ui-schema-storage', 'collection-manager', 'error-handler', 'users', 'acl', 'data-source-manager'],
     });
-    await app.runCommand('install', '-f');
     db = app.db;
     uiSchemaRepository = db.getRepository('uiSchemas');
     uiSchemaPlugin = app.getPlugin<ModuleUiSchema>('ui-schema-storage');
   });
 
   it('should clean row struct', async () => {
+    const collectionName = 'hookCleanPosts';
+    const rootUid = 'hook-clean-grid';
     const PostModel = await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
@@ -35,7 +35,7 @@ describe('server hooks', () => {
       values: {
         name: 'title',
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
@@ -43,7 +43,7 @@ describe('server hooks', () => {
       values: {
         name: 'name',
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
@@ -51,7 +51,7 @@ describe('server hooks', () => {
       values: {
         name: 'intro',
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
@@ -61,7 +61,7 @@ describe('server hooks', () => {
       'x-decorator': 'Form',
       'x-component': 'Grid',
       'x-item-initializer': 'AddGridFormItem',
-      'x-uid': 'grid1',
+      'x-uid': rootUid,
       properties: {
         row1: {
           type: 'void',
@@ -83,7 +83,7 @@ describe('server hooks', () => {
                   'x-server-hooks': [
                     {
                       type: 'onCollectionFieldDestroy',
-                      collection: 'posts',
+                      collection: collectionName,
                       field: 'name',
                       method: 'removeSchema',
                     },
@@ -99,7 +99,7 @@ describe('server hooks', () => {
                   'x-server-hooks': [
                     {
                       type: 'onCollectionFieldDestroy',
-                      collection: 'posts',
+                      collection: collectionName,
                       field: 'title',
                       method: 'removeSchema',
                       params: {
@@ -125,7 +125,7 @@ describe('server hooks', () => {
                   'x-server-hooks': [
                     {
                       type: 'onCollectionFieldDestroy',
-                      collection: 'posts',
+                      collection: collectionName,
                       field: 'intro',
                       method: 'removeSchema',
                       params: {
@@ -150,21 +150,23 @@ describe('server hooks', () => {
       },
     });
 
-    const jsonTree = await uiSchemaRepository.getJsonSchema('grid1');
+    const jsonTree = await uiSchemaRepository.getJsonSchema(rootUid);
     expect(jsonTree['properties']['row1']['properties']['col11']).toBeDefined();
     expect(jsonTree['properties']['row1']['properties']['col12']).not.toBeDefined();
   });
 
   it('should works with breakComponent', async () => {
+    const collectionName = 'hookBreakPosts';
+    const rootUid = 'hook-break-root';
     await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
     const schema = {
-      'x-uid': 'root',
-      name: 'root',
+      'x-uid': rootUid,
+      name: rootUid,
       properties: {
         grid: {
           properties: {
@@ -177,7 +179,7 @@ describe('server hooks', () => {
                   'x-server-hooks': [
                     {
                       type: 'onCollectionDestroy',
-                      collection: 'posts',
+                      collection: collectionName,
                       method: 'removeSchema',
                       params: {
                         breakRemoveOn: { 'x-component': 'row' },
@@ -197,19 +199,21 @@ describe('server hooks', () => {
 
     await db.getRepository('collections').destroy({
       filter: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
-    const jsonTree = await uiSchemaRepository.getJsonSchema('root');
+    const jsonTree = await uiSchemaRepository.getJsonSchema(rootUid);
     expect(jsonTree['properties']['grid']['properties']['row']).toBeDefined();
     expect(jsonTree['properties']['grid']['properties']['row']['properties']).not.toBeDefined();
   });
 
   it('should remove schema when collection destroy', async () => {
+    const collectionName = 'hookRemovePosts';
+    const rootUid = 'hook-remove-root';
     await db.getRepository('collections').create({
       values: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
@@ -217,13 +221,13 @@ describe('server hooks', () => {
       values: {
         name: 'title',
         type: 'string',
-        collectionName: 'posts',
+        collectionName,
       },
     });
 
     const schema = {
-      'x-uid': 'root',
-      name: 'root',
+      'x-uid': rootUid,
+      name: rootUid,
       properties: {
         child1: {
           'x-uid': 'child1',
@@ -234,7 +238,7 @@ describe('server hooks', () => {
           'x-server-hooks': [
             {
               type: 'onCollectionDestroy',
-              collection: 'posts',
+              collection: collectionName,
               method: 'removeSchema',
             },
           ],
@@ -246,35 +250,38 @@ describe('server hooks', () => {
 
     await db.getRepository('collections').destroy({
       filter: {
-        name: 'posts',
+        name: collectionName,
       },
     });
 
-    const jsonTree = await uiSchemaRepository.getJsonSchema('root');
+    const jsonTree = await uiSchemaRepository.getJsonSchema(rootUid);
     expect(jsonTree['properties']['child1']).toBeDefined();
     expect(jsonTree['properties']['child2']).not.toBeDefined();
   });
 
   it('should bind menu to role when insert new menu using insertAdjacent', async () => {
+    const roleName = 'hookInsertMenuRole';
+    const rootUid = 'hook-insert-menu-root';
+    const childUid = 'hook-insert-menu-child';
     await db.getRepository('roles').create({
       values: {
-        name: 'role1',
+        name: roleName,
         allowConfigure: true,
         allowNewMenu: true,
       },
     });
 
     const schema = {
-      'x-uid': 'root',
-      name: 'root',
+      'x-uid': rootUid,
+      name: rootUid,
       properties: {},
     };
 
     await uiSchemaRepository.insert(schema);
 
-    await uiSchemaRepository.insertAdjacent('afterBegin', 'root', {
-      'x-uid': 'child2',
-      name: 'child2',
+    await uiSchemaRepository.insertAdjacent('afterBegin', rootUid, {
+      'x-uid': childUid,
+      name: childUid,
       'x-server-hooks': [
         {
           type: 'onSelfCreate',
@@ -283,14 +290,18 @@ describe('server hooks', () => {
       ],
     });
 
-    const role1Menus = await db.getRepository<BelongsToManyRepository>('roles.menuUiSchemas', 'role1').find();
-    expect(role1Menus.length).toEqual(1);
+    const role1Menus = await db.getRepository<BelongsToManyRepository>('roles.menuUiSchemas', roleName).find();
+    expect(role1Menus.map((menu) => menu.get('x-uid')).sort()).toEqual([childUid, rootUid]);
   });
 
   it('should bind menu to role when create new menu', async () => {
+    const roleName = 'hookCreateMenuRole';
+    const otherRoleName = 'hookCreateMenuRoleWithoutNewMenu';
+    const rootUid = 'hook-create-menu-root';
+    const childUid = 'hook-create-menu-child';
     await db.getRepository('roles').create({
       values: {
-        name: 'role1',
+        name: roleName,
         allowConfigure: true,
         allowNewMenu: true,
       },
@@ -298,18 +309,18 @@ describe('server hooks', () => {
 
     await db.getRepository('roles').create({
       values: {
-        name: 'role2',
+        name: otherRoleName,
         allowConfigure: true,
         allowNewMenu: false,
       },
     });
 
     const schema = {
-      'x-uid': 'root',
-      name: 'root',
+      'x-uid': rootUid,
+      name: rootUid,
       properties: {
         child2: {
-          'x-uid': 'child2',
+          'x-uid': childUid,
           'x-server-hooks': [
             {
               type: 'onSelfCreate',
@@ -322,17 +333,18 @@ describe('server hooks', () => {
 
     await uiSchemaRepository.insert(schema);
 
-    const role1Menus = await db.getRepository<BelongsToManyRepository>('roles.menuUiSchemas', 'role1').find();
+    const role1Menus = await db.getRepository<BelongsToManyRepository>('roles.menuUiSchemas', roleName).find();
     expect(role1Menus.length).toEqual(1);
 
-    const role2Menus = await db.getRepository<BelongsToManyRepository>('roles.menuUiSchemas', 'role2').find();
+    const role2Menus = await db.getRepository<BelongsToManyRepository>('roles.menuUiSchemas', otherRoleName).find();
     expect(role2Menus.length).toEqual(0);
   });
 
   it('should remove parents on self move', async () => {
+    const rootUid = 'hook-self-move-A';
     const schema = {
-      'x-uid': 'A',
-      name: 'A',
+      'x-uid': rootUid,
+      name: rootUid,
       properties: {
         B: {
           'x-uid': 'B',
@@ -380,7 +392,7 @@ describe('server hooks', () => {
       },
     );
 
-    const A = await uiSchemaRepository.getJsonSchema('A');
+    const A = await uiSchemaRepository.getJsonSchema(rootUid);
     expect(A).toEqual({
       properties: {
         E: {
@@ -414,8 +426,8 @@ describe('server hooks', () => {
           'x-index': 3,
         },
       },
-      name: 'A',
-      'x-uid': 'A',
+      name: rootUid,
+      'x-uid': rootUid,
       'x-async': false,
     });
   });

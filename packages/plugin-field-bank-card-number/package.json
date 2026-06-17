@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-field-bank-card-number",
   "displayName": "Collection field: Bank Card Number",
-  "version": "1.6.21",
+  "version": "1.6.22",
   "description": "Bank card number field with formatted display (4 digits per group), smart input and smart copy. Supports up to 21 digits.",
   "keywords": [
     "Collection fields",
@@ -22,7 +22,7 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",
-    "@tachybase/schema": "workspace:*",
+    "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:"

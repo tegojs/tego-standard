@@ -1,6 +1,4 @@
-import { extendCollection } from '@tego/server';
-
-export default extendCollection({
+module.exports = {
   name: 'categories',
   fields: [
     {
@@ -16,4 +14,4 @@ export default extendCollection({
       name: 'expression',
     },
   ],
-});
+};

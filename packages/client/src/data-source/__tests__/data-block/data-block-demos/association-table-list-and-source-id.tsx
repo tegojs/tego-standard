@@ -111,13 +111,14 @@ const mocks = {
       },
     ],
   },
-  [`${collection}:get/1`]: {
-    id: 1,
-    username: 'Tom',
-  },
-  [`${collection}:get/2`]: {
-    id: 1,
-    username: 'Jack',
+  [`${collection}:get`]: (config) => {
+    const filter = JSON.parse(config.params?.filter || '{}');
+    return {
+      data: {
+        id: Number(filter.id),
+        username: filter.id === '2' ? 'Jack' : 'Tom',
+      },
+    };
   },
 };
 

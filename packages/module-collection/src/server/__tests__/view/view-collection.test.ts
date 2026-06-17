@@ -1,4 +1,4 @@
-import Database, { Repository, uid, ViewCollection, ViewFieldInference } from '@tego/server';
+import Database, { Repository, uid, ViewFieldInference } from '@tego/server';
 import Application from '@tego/server';
 
 import { createApp } from '../index';
@@ -166,10 +166,6 @@ describe('view collection', function () {
       context: {},
     });
 
-    const UserCollection = db.getCollection('users');
-
-    console.log(UserCollection);
-
     await db.getRepository('users').create({
       values: [{ name: 'u1' }, { name: 'u2' }],
     });
@@ -283,7 +279,7 @@ describe('view collection', function () {
     });
 
     const viewCollection = db.getCollection(viewName);
-    expect(viewCollection).toBeInstanceOf(ViewCollection);
+    expect(viewCollection.isView()).toBe(true);
 
     let err;
     try {
@@ -386,7 +382,7 @@ describe('view collection', function () {
     });
 
     const viewCollection = db.getCollection('view_collection');
-    expect(viewCollection).toBeInstanceOf(ViewCollection);
+    expect(viewCollection.isView()).toBe(true);
 
     const results = await viewCollection.repository.find();
     expect(results.length).toBe(1);

@@ -4,7 +4,7 @@ import { connect, mapProps, mapReadPretty } from '@tachybase/schema';
 import ReactQuill from 'react-quill';
 
 import { isVariable } from '../../../variables/utils/isVariable';
-import { ReadPretty as InputReadPretty } from '../input';
+import { ReadPretty as InputReadPretty } from '../input/ReadPretty';
 import { useStyles } from './style';
 
 export const RichText = connect(

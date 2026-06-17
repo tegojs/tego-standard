@@ -1,10 +1,10 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
+import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 import Plugin from '..';
 import { EXECUTION_STATUS } from '../constants';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from './utils';
 
 describe('workflow > Plugin', () => {
   let app: MockServer;
@@ -13,15 +13,32 @@ describe('workflow > Plugin', () => {
   let WorkflowModel;
   let plugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await getApp();
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     PostRepo = db.getCollection('posts').repository;
-    plugin = app.pm.get(Plugin) as Plugin;
+    plugin = app.pm.get('workflow') as any;
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    if (plugin) {
+      plugin.ready = true;
+    }
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('create', () => {
     it('create with enabled', async () => {
@@ -64,7 +81,7 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const count = await workflow.countExecutions();
       expect(count).toBe(0);
@@ -74,10 +91,10 @@ describe('workflow > Plugin', () => {
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+      });
     });
 
     it('toggle off', async () => {
@@ -93,20 +110,20 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const c1 = await workflow.countExecutions();
-      expect(c1).toBe(1);
+      await waitForAssertion(async () => {
+        const c1 = await workflow.countExecutions();
+        expect(c1).toBe(1);
+      });
 
       await workflow.update({ enabled: false });
       expect(workflow.current).toBe(true);
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const c2 = await workflow.countExecutions();
-      expect(c2).toBe(1);
+      await waitForAssertion(async () => {
+        const c2 = await workflow.countExecutions();
+        expect(c2).toBe(1);
+      });
     });
 
     it('toggle off then on', async () => {
@@ -121,10 +138,10 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const c1 = await workflow.countExecutions();
-      expect(c1).toBe(1);
+      await waitForAssertion(async () => {
+        const c1 = await workflow.countExecutions();
+        expect(c1).toBe(1);
+      });
 
       await workflow.update({
         enabled: false,
@@ -133,7 +150,7 @@ describe('workflow > Plugin', () => {
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const c2 = await workflow.countExecutions();
       expect(c2).toBe(1);
@@ -145,10 +162,10 @@ describe('workflow > Plugin', () => {
 
       const p3 = await PostRepo.create({ values: { title: 't3' } });
 
-      await sleep(500);
-
-      const c3 = await workflow.countExecutions();
-      expect(c3).toBe(2);
+      await waitForAssertion(async () => {
+        const c3 = await workflow.countExecutions();
+        expect(c3).toBe(2);
+      });
     });
 
     it('update config', async () => {
@@ -163,10 +180,10 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const c1 = await workflow.countExecutions();
-      expect(c1).toBe(1);
+      await waitForAssertion(async () => {
+        const c1 = await workflow.countExecutions();
+        expect(c1).toBe(1);
+      });
 
       await workflow.update({
         config: {
@@ -177,7 +194,7 @@ describe('workflow > Plugin', () => {
 
       const p2 = await PostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const c2 = await workflow.countExecutions();
       expect(c2).toBe(1);
@@ -212,22 +229,22 @@ describe('workflow > Plugin', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
       const { model: JobModel } = db.getCollection('jobs');
 
-      const e1c = await workflow.countExecutions();
-      expect(e1c).toBe(1);
-      const j1c = await JobModel.count();
-      expect(j1c).toBe(1);
-      const p1 = await PostRepo.findOne();
-      expect(p1.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const e1c = await workflow.countExecutions();
+        expect(e1c).toBe(1);
+        const j1c = await JobModel.count();
+        expect(j1c).toBe(1);
+        const p1 = await PostRepo.findOne();
+        expect(p1.title).toBe('t2');
+      });
 
       await workflow.destroy();
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app);
 
       const p2c = await PostRepo.count({ filter: { title: 't1' } });
       expect(p2c).toBe(1);
@@ -265,16 +282,17 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(1000);
+      await waitForAssertion(async () => {
+        const [e1] = await w1.getExecutions();
+        expect(e1.status).toBe(EXECUTION_STATUS.RESOLVED);
 
-      const [e1] = await w1.getExecutions();
-      expect(e1.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [e2] = await w2.getExecutions();
+        expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
 
-      const [e2] = await w2.getExecutions();
-      expect(e2.status).toBe(EXECUTION_STATUS.RESOLVED);
-
-      const [e3] = await w3.getExecutions();
-      expect(e3.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [e3] = await w3.getExecutions();
+        expect(e3.status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
+      await waitForWorkflowIdle(app);
     });
 
     it('multiple events on same workflow', async () => {
@@ -291,11 +309,12 @@ describe('workflow > Plugin', () => {
       const p2 = await PostRepo.create({ values: { title: 't2' } });
       const p3 = await PostRepo.create({ values: { title: 't3' } });
 
-      await sleep(1000);
-
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(3);
-      expect(executions.map((item) => item.status)).toEqual(Array(3).fill(EXECUTION_STATUS.RESOLVED));
+      await waitForAssertion(async () => {
+        const executions = await w1.getExecutions();
+        expect(executions.length).toBe(3);
+        expect(executions.map((item) => item.status)).toEqual(Array(3).fill(EXECUTION_STATUS.RESOLVED));
+      });
+      await waitForWorkflowIdle(app);
     });
 
     it('when server starts, process all created executions', async () => {
@@ -324,10 +343,10 @@ describe('workflow > Plugin', () => {
 
       await app.start();
 
-      await sleep(500);
-
-      await e1.reload();
-      expect(e1.status).toBe(EXECUTION_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        await e1.reload();
+        expect(e1.status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
 
       await w1.update({ enabled: false });
 
@@ -361,14 +380,14 @@ describe('workflow > Plugin', () => {
 
       await app.start();
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        await e2.reload();
+        expect(e2.status).toBe(EXECUTION_STATUS.QUEUEING);
 
-      await e2.reload();
-      expect(e2.status).toBe(EXECUTION_STATUS.QUEUEING);
-
-      // queueing execution of disabled workflow should not effect other executions
-      await e3.reload();
-      expect(e3.status).toBe(EXECUTION_STATUS.RESOLVED);
+        // queueing execution of disabled workflow should not effect other executions
+        await e3.reload();
+        expect(e3.status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
     });
   });
 
@@ -385,10 +404,10 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(1);
+      await waitForAssertion(async () => {
+        const executions = await w1.getExecutions();
+        expect(executions.length).toBe(1);
+      });
     });
 
     it('status on started should not be deleted', async () => {
@@ -410,11 +429,11 @@ describe('workflow > Plugin', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(executions[0].status).toBe(EXECUTION_STATUS.STARTED);
+      await waitForAssertion(async () => {
+        const executions = await w1.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].status).toBe(EXECUTION_STATUS.STARTED);
+      });
     });
 
     it('configured resolved status should be deleted', async () => {
@@ -429,13 +448,29 @@ describe('workflow > Plugin', () => {
           collection: 'posts',
         },
       });
+      const destroyedExecutions: Array<{ status: number; workflowId: number }> = [];
+      const listener = (execution) => {
+        destroyedExecutions.push({
+          status: execution.status,
+          workflowId: execution.workflowId,
+        });
+      };
+      db.on('executions.beforeDestroy', listener);
 
-      const p1 = await PostRepo.create({ values: { title: 't1' } });
+      try {
+        await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(0);
+        await waitForAssertion(async () => {
+          expect(destroyedExecutions).toContainEqual({
+            status: EXECUTION_STATUS.RESOLVED,
+            workflowId: w1.id,
+          });
+          const executions = await w1.getExecutions();
+          expect(executions.length).toBe(0);
+        });
+      } finally {
+        db.off('executions.beforeDestroy', listener);
+      }
     });
 
     it('configured error status should be deleted', async () => {
@@ -454,13 +489,65 @@ describe('workflow > Plugin', () => {
       await w1.createNode({
         type: 'error',
       });
+      const destroyedExecutions: Array<{ status: number; workflowId: number }> = [];
+      const listener = (execution) => {
+        destroyedExecutions.push({
+          status: execution.status,
+          workflowId: execution.workflowId,
+        });
+      };
+      db.on('executions.beforeDestroy', listener);
 
-      const p1 = await PostRepo.create({ values: { title: 't1' } });
+      try {
+        await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+        await waitForAssertion(async () => {
+          expect(destroyedExecutions).toContainEqual({
+            status: EXECUTION_STATUS.ERROR,
+            workflowId: w1.id,
+          });
+          const executions = await w1.getExecutions();
+          expect(executions.length).toBe(0);
+        });
+      } finally {
+        db.off('executions.beforeDestroy', listener);
+      }
+    });
 
-      const executions = await w1.getExecutions();
-      expect(executions.length).toBe(0);
+    it('configured child workflow status should be deleted after resuming parent workflow', async () => {
+      const childWorkflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'asyncTrigger',
+        options: {
+          deleteExecutionOnStatus: [EXECUTION_STATUS.RESOLVED],
+        },
+      });
+
+      const parentWorkflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: 'posts',
+        },
+      });
+      await parentWorkflow.createNode({
+        type: 'trigger-instruction',
+        config: {
+          workflowKey: childWorkflow.key,
+        },
+      });
+
+      await PostRepo.create({ values: { title: 't1' } });
+
+      await waitForAssertion(async () => {
+        const parentExecutions = await parentWorkflow.getExecutions();
+        expect(parentExecutions.length).toBe(1);
+        expect(parentExecutions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+
+        const childExecutions = await childWorkflow.getExecutions();
+        expect(childExecutions.length).toBe(0);
+      });
     });
   });
 

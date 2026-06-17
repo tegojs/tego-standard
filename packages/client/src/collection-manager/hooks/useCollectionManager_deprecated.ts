@@ -8,7 +8,8 @@ import { useCollectionManager } from '../../data-source/collection/CollectionMan
 import { DEFAULT_DATA_SOURCE_KEY } from '../../data-source/data-source/DataSourceManager';
 import { useDataSourceManager } from '../../data-source/data-source/DataSourceManagerProvider';
 import { useDataSource } from '../../data-source/data-source/DataSourceProvider';
-import { useCompile, useSchemaComponentContext } from '../../schema-component';
+import { useCompile } from '../../schema-component/hooks/useCompile';
+import { useSchemaComponentContext } from '../../schema-component/hooks/useSchemaComponentContext';
 import { InheritanceCollectionMixin } from '../mixins/InheritanceCollectionMixin';
 import { CollectionFieldOptions_deprecated, CollectionOptions } from '../types';
 

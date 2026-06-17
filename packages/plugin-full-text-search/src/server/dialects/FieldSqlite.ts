@@ -1,5 +1,4 @@
-import { fn, literal, Op, where } from '@tego/server';
-import { col, WhereOptions } from 'sequelize';
+import { col, fn, literal, Op, where, type WhereOptions } from '@tego/server';
 
 import { handleFieldParams } from '../types';
 import { convertTimezoneOffset, escapeLike } from '../utils';

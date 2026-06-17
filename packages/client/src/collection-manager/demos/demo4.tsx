@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  AntdSchemaComponentProvider,
   ExtendCollectionsProvider,
   SchemaComponent,
   SchemaComponentProvider,
@@ -154,11 +153,9 @@ const collections = [
 export default () => {
   return (
     <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <ExtendCollectionsProvider collections={collections}>
+<ExtendCollectionsProvider collections={collections}>
           <SchemaComponent schema={schema} />
         </ExtendCollectionsProvider>
-      </AntdSchemaComponentProvider>
-    </SchemaComponentProvider>
+</SchemaComponentProvider>
   );
 };

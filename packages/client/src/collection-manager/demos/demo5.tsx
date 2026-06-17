@@ -1,6 +1,5 @@
 import React, { useContext } from 'react';
 import {
-  AntdSchemaComponentProvider,
   Application,
   CardItem,
   CollectionManagerProvider,
@@ -90,8 +89,7 @@ const FormItemInitializer = () => {
         await FormDrawer('Add field', () => {
           return (
             <CollectionManagerProvider instance={cm}>
-              <AntdSchemaComponentProvider>
-                <SchemaComponentOptions scope={schemaOptions.scope} components={schemaOptions.components}>
+<SchemaComponentOptions scope={schemaOptions.scope} components={schemaOptions.components}>
                   <FormLayout layout={'vertical'}>
                     <SchemaComponent
                       schema={{
@@ -100,8 +98,7 @@ const FormItemInitializer = () => {
                     />
                   </FormLayout>
                 </SchemaComponentOptions>
-              </AntdSchemaComponentProvider>
-            </CollectionManagerProvider>
+</CollectionManagerProvider>
           );
         }).open({
           initialValues: {},

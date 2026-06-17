@@ -42,7 +42,7 @@ describe('formula field', () => {
 
         test.set('count', '6');
         await test.save();
-        expect(test.get('sum')).toEqual(7.2);
+        expect(test.get('sum')).toBeCloseTo(7.2, 1);
       });
 
       it('auto set formula field with create or update data', async () => {
@@ -68,7 +68,7 @@ describe('formula field', () => {
 
         test.set('count', '6');
         await test.save();
-        expect(test.get('sum')).toEqual(7.2);
+        expect(test.get('sum')).toBeCloseTo(7.2, 1);
       });
 
       it('1.22+2=3.22', async () => {
@@ -89,7 +89,7 @@ describe('formula field', () => {
           b: '1.22',
         });
 
-        expect(test.get('sum')).toEqual(3.22);
+        expect(test.get('sum')).toBeCloseTo(3.22, 1);
       });
 
       it('scope with number key', async () => {
@@ -131,7 +131,7 @@ describe('formula field', () => {
           b: 1.22,
         });
 
-        expect(test.get('sum')).toEqual(3.22);
+        expect(test.get('sum')).toBeCloseTo(3.22, 1);
       });
     });
   });

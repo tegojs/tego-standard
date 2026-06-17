@@ -2,7 +2,7 @@ import { Form, Schema } from '@tachybase/schema';
 
 import { useTranslation } from 'react-i18next';
 
-import { useFormBlockContext } from '../../../block-provider';
+import { useFormBlockContext } from '../../../block-provider/FormBlockContext';
 import { CollectionFieldOptions_deprecated } from '../../../collection-manager';
 import { useBaseVariable } from './useBaseVariable';
 

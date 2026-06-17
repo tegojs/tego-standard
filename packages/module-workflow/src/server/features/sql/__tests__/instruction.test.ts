@@ -1,9 +1,9 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
-
+import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application, fn } from '@tego/server';
 
-import Plugin from '..';
+import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
+import Plugin from '../Plugin';
 
 describe('workflow > instructions > sql', () => {
   let app: Application;
@@ -14,9 +14,10 @@ describe('workflow > instructions > sql', () => {
   let WorkflowModel;
   let workflow;
 
-  beforeEach(async () => {
+  async function setupApp(options: { withAnotherDataSource?: boolean } = {}) {
     app = await getApp({
       plugins: [Plugin],
+      withAnotherDataSource: options.withAnotherDataSource,
     });
 
     db = app.db;
@@ -24,7 +25,20 @@ describe('workflow > instructions > sql', () => {
     PostCollection = db.getCollection('posts');
     PostRepo = PostCollection.repository;
     ReplyRepo = db.getCollection('replies').repository;
+  }
 
+  async function resetWorkflowData() {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await ReplyRepo.destroy({ filter: {} });
+    await db.getCollection('categories').repository.destroy({ filter: {} });
+  }
+
+  async function createWorkflow() {
     workflow = await WorkflowModel.create({
       enabled: true,
       type: 'collection',
@@ -33,9 +47,23 @@ describe('workflow > instructions > sql', () => {
         collection: 'posts',
       },
     });
+  }
+
+  beforeAll(async () => {
+    await setupApp();
   });
 
-  afterEach(() => app.destroy());
+  beforeEach(async () => {
+    await resetWorkflowData();
+    await createWorkflow();
+  });
+
+  afterEach(async () => {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app);
+  });
+
+  afterAll(() => app.destroy());
 
   describe('invalid', () => {
     it('no sql', async () => {
@@ -46,12 +74,12 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('empty sql', async () => {
@@ -64,12 +92,12 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+      });
     });
 
     it('invalid sql', async () => {
@@ -82,12 +110,12 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-      expect(sqlJob.status).toBe(JOB_STATUS.ERROR);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(sqlJob.status).toBe(JOB_STATUS.ERROR);
+      });
     });
   });
 
@@ -103,13 +131,13 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
-      // expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
-      // expect(queryJob.result.read).toBe(post.id);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+        // expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
+        // expect(queryJob.result.read).toBe(post.id);
+      });
     });
 
     it('update', async () => {
@@ -140,13 +168,13 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob, queryJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
-      expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
-      expect(queryJob.result.read).toBe(post.id);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob, queryJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+        expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
+        expect(queryJob.result.read).toBe(post.id);
+      });
     });
 
     it('delete', async () => {
@@ -177,13 +205,13 @@ describe('workflow > instructions > sql', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      const [sqlJob, queryJob] = await execution.getJobs({ order: [['id', 'ASC']] });
-      expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
-      expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
-      expect(queryJob.result).toBeNull();
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        const [sqlJob, queryJob] = await execution.getJobs({ order: [['id', 'ASC']] });
+        expect(sqlJob.status).toBe(JOB_STATUS.RESOLVED);
+        expect(queryJob.status).toBe(JOB_STATUS.RESOLVED);
+        expect(queryJob.result).toBeNull();
+      });
     });
   });
 
@@ -217,6 +245,16 @@ describe('workflow > instructions > sql', () => {
   });
 
   describe('multiple data source', () => {
+    beforeAll(async () => {
+      await app.destroy();
+      await setupApp({ withAnotherDataSource: true });
+    });
+
+    afterAll(async () => {
+      await app.destroy();
+      await setupApp();
+    });
+
     it('query on another data source', async () => {
       const anotherSource = app.dataSourceManager.dataSources.get('another');
       const PostCollection = anotherSource.collectionManager.getCollection('posts');
@@ -235,15 +273,15 @@ describe('workflow > instructions > sql', () => {
 
       await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.length).toBe(2);
-      expect(job.result[0].length).toBe(1);
-      // @ts-ignore
-      expect(job.result[0][0].id).toBe(post.id);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.length).toBe(2);
+        expect(job.result[0].length).toBe(1);
+        // @ts-ignore
+        expect(job.result[0][0].id).toBe(post.id);
+      });
     });
   });
 });

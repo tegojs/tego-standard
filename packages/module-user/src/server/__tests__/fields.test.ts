@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database, { Collection as DBCollection } from '@tego/server';
 
 describe('createdBy/updatedBy', () => {
@@ -8,7 +7,7 @@ describe('createdBy/updatedBy', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     api = await createMockServer({
       plugins: ['acl', 'users', 'collection-manager', 'error-handler', 'data-source-manager'],
     });
@@ -18,14 +17,16 @@ describe('createdBy/updatedBy', () => {
     Field = db.getCollection('fields');
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await api.destroy();
   });
 
   it('should add createdBy field', async () => {
+    const collectionName = 'created_by_users_test';
+
     await Collection.repository.create({
       values: {
-        name: 'a',
+        name: collectionName,
         autoGenId: true,
         timestamps: false,
         title: 'A',
@@ -33,13 +34,13 @@ describe('createdBy/updatedBy', () => {
       context: {},
     });
 
-    const A = db.getCollection('a');
+    const A = db.getCollection(collectionName);
 
     await Field.repository.create({
       values: {
         name: 'xxxxxx',
         type: 'belongsTo',
-        collectionName: 'a',
+        collectionName,
         target: 'users',
         foreignKey: 'createdById',
         uiSchema: {
@@ -75,7 +76,7 @@ describe('createdBy/updatedBy', () => {
   describe('collection definition', () => {
     it('case 1', async () => {
       const Post = db.collection({
-        name: 'posts',
+        name: 'posts_case_1',
         createdBy: true,
         updatedBy: true,
       });
@@ -85,7 +86,7 @@ describe('createdBy/updatedBy', () => {
 
     it('case 2', async () => {
       const Post = db.collection({
-        name: 'posts',
+        name: 'posts_case_2',
         createdBy: true,
         updatedBy: true,
       });
@@ -109,7 +110,7 @@ describe('createdBy/updatedBy', () => {
 
     it('case 3', async () => {
       const Post = db.collection({
-        name: 'posts',
+        name: 'posts_case_3',
         createdBy: true,
         updatedBy: true,
       });

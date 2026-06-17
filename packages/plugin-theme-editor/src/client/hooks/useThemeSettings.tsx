@@ -9,8 +9,10 @@ import { useThemeListContext } from '../components/ThemeListProvider';
 import { useTranslation } from '../locale';
 import { useUpdateThemeSettings } from './useUpdateThemeSettings';
 
-export const useThemeSettings = () => {
-  return useMemo<MenuProps['items'][0]>(() => {
+type MenuItem = NonNullable<MenuProps['items']>[number];
+
+export const useThemeSettings = (): MenuItem => {
+  return useMemo<MenuItem>(() => {
     return {
       key: 'theme',
       eventKey: 'theme',

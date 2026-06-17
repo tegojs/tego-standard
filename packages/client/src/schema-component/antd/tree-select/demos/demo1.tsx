@@ -2,9 +2,21 @@
  * title: TreeSelect
  */
 import React from 'react';
-import { SchemaComponent, SchemaComponentProvider, TreeSelect } from '@tachybase/client';
+import { useFieldSchema } from '@tachybase/schema';
 
-import { FormItem } from '@tego/client';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { TreeSelect } from '../TreeSelect';
+
+const TestFormItem = ({ children }) => {
+  const schema = useFieldSchema();
+  return (
+    <label>
+      <span>{schema.title}</span>
+      {children}
+    </label>
+  );
+};
 
 const dataSource = [
   {
@@ -79,7 +91,7 @@ const schema = {
 
 export default () => {
   return (
-    <SchemaComponentProvider components={{ TreeSelect, FormItem }}>
+    <SchemaComponentProvider components={{ TreeSelect, FormItem: TestFormItem }}>
       <SchemaComponent schema={schema} />
     </SchemaComponentProvider>
   );

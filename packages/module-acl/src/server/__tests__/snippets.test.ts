@@ -1,12 +1,14 @@
 import { MockServer } from '@tachybase/test';
 
-import { prepareApp } from './prepare';
+import { aclLightTestPlugins, prepareApp } from './prepare';
 
 describe('snippet', () => {
   let app: MockServer;
 
   beforeEach(async () => {
-    app = await prepareApp();
+    app = await prepareApp({
+      plugins: aclLightTestPlugins,
+    });
   });
 
   afterEach(async () => {

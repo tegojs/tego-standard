@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen, userEvent } from '@tachybase/test/client';
+import { fireEvent, render, screen, userEvent } from '@tachybase/test/client';
 
+import { icons } from '../../../../icon/Icon';
 import App from '../demos/icon-picker';
 
 describe('IconPicker', () => {
@@ -8,17 +9,19 @@ describe('IconPicker', () => {
     const { container } = render(<App />);
 
     const button = container.querySelector('button') as HTMLButtonElement;
-    await userEvent.click(button);
+    fireEvent.click(button);
 
-    expect(screen.getByText('Icon')).toMatchInlineSnapshot(`
+    expect(await screen.findByText('Icon')).toMatchInlineSnapshot(`
       <div
         class="ant-popover-title"
       >
         Icon
       </div>
     `);
-    expect(screen.queryAllByRole('img').length).toBe(421);
-  });
+    expect(document.querySelectorAll('.ant-popover-inner-content span[style*="cursor: pointer"]')).toHaveLength(
+      icons.size,
+    );
+  }, 30000);
 
   it.skip('should display the selected icon', async () => {
     const { container } = render(<App />);

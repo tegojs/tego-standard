@@ -1,5 +1,3 @@
-import { CollectionOptions } from '@tego/server';
-
 export default {
   name: 'users',
   fields: [
@@ -23,4 +21,4 @@ export default {
       target: 'attachments',
     },
   ],
-} as CollectionOptions;
+};

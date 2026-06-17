@@ -2,8 +2,9 @@ import React, { useContext, useMemo } from 'react';
 import { ISchema, Schema } from '@tachybase/schema';
 
 import { CollectionFieldOptions_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
-import { useCompile, useGetFilterOptions } from '../../../schema-component';
+import { useGetFilterOptions } from '../../../schema-component/antd/filter/useGetFilterOptions';
 import { isSpecialCaseField } from '../../../schema-component/antd/form-item/hooks/useSpecialCase';
+import { useCompile } from '../../../schema-component/hooks/useCompile';
 import { FieldOption, Option } from '../type';
 
 export interface IsDisabledParams {

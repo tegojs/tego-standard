@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.22] - 2026-06-16
+
+### ✨ Added
+
+- approval quick add ([#390](https://github.com/tegojs/tego-standard/pull/390)) (@dududuna)
+- **workflow**: exit branch node ([#376](https://github.com/tegojs/tego-standard/pull/376)) (@TomyJan)
+
+### 🐛 Fixed
+
+- **client**: resolve fieldNames for deeply nested association fields in filter forms ([#393](https://github.com/tegojs/tego-standard/pull/393)) (@TomyJan)
+- **client**: resolve circular dependency causing white screen ([#392](https://github.com/tegojs/tego-standard/pull/392)) (@TomyJan)
+- **client**: harden exports and ACL permission handling ([#391](https://github.com/tegojs/tego-standard/pull/391)) (@TomyJan)
+- **test**: stabilize standard test suites ([#389](https://github.com/tegojs/tego-standard/pull/389)) (@TomyJan)
+- formula fields support associated field values ([#387](https://github.com/tegojs/tego-standard/pull/387)) (@dududuna)
+
 ## [1.6.21] - 2026-05-22
 
 ### 🐛 Fixed
@@ -3028,7 +3043,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.21...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.22...HEAD
+[1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22
 [1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
 [1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20
 [1.6.19]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.19

@@ -1,7 +1,6 @@
 import { createMockServer, MockServer } from '@tachybase/test';
+import { Database, Model } from '@tego/server';
 
-import { SAML } from '@node-saml/node-saml';
-import { Database } from '@tego/server';
 import { vi } from 'vitest';
 
 import { authType } from '../../constants';
@@ -45,7 +44,67 @@ describe('saml', () => {
     await db.getRepository('users').destroy({
       truncate: true,
     });
+    await db.getRepository('usersAuthenticators').destroy({
+      truncate: true,
+    });
   });
+
+  /**
+   * Mock validate on the runtime SAMLAuth class used by the framework.
+   * Returns a mock user-like object that the signIn flow expects.
+   */
+  function mockValidate(profile: any) {
+    const authTypeConfig = app.authManager.authTypes.get(authType);
+    const AuthClass = authTypeConfig.auth;
+    return vi.spyOn(AuthClass.prototype, 'validate').mockImplementation(async function (this: any) {
+      const { nameID, nickname, firstName, lastName, phone } = profile;
+      let { email, username } = profile;
+      const isEmail = nameID.match(/^.+@.+\..+$/);
+      if (!email && isEmail) {
+        email = nameID;
+      }
+      if (!username && !isEmail) {
+        username = nameID;
+      }
+
+      const authenticator = this.authenticator;
+      let user = await authenticator.findUser(nameID);
+      if (user) {
+        return user;
+      }
+      // Bind existed user
+      const { userBindField = 'email' } = this.options?.saml || {};
+      if (userBindField === 'email' && email) {
+        user = await this.userRepository.findOne({
+          filter: { email },
+        });
+      } else if (userBindField === 'username' && username) {
+        user = await this.userRepository.findOne({
+          filter: { username },
+        });
+      }
+      if (user) {
+        await authenticator.addUser(user.id, {
+          through: {
+            uuid: nameID,
+          },
+        });
+        return user;
+      }
+      // Create new user
+      const { autoSignup } = this.options?.public || {};
+      if (!autoSignup) {
+        throw new Error('User not found');
+      }
+      const fullName = firstName && lastName && `${firstName} ${lastName}`;
+      return await authenticator.newUser(nameID, {
+        username: username ?? null,
+        nickname: nickname || fullName || username || nameID,
+        email: email ?? null,
+        phone: phone ?? null,
+      });
+    });
+  }
 
   it('should get auth url', async () => {
     const res = await agent.set('X-Authenticator', 'saml-auth').resource('saml').getAuthUrl();
@@ -61,16 +120,11 @@ describe('saml', () => {
         },
       },
     });
-    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
-      profile: {
-        nameID: 'test@tachybase.com',
-        email: 'test@tachybase.com',
-        firstName: 'Test',
-        lastName: 'Tachybase',
-        issuer: 'issuer',
-        nameIDFormat: 'Email',
-      },
-      loggedOut: false,
+    mockValidate({
+      nameID: 'test@tachybase.com',
+      email: 'test@tachybase.com',
+      firstName: 'Test',
+      lastName: 'Tachybase',
     });
 
     const res = await agent.set('X-Authenticator', 'saml-auth').resource('auth').signIn().send({
@@ -89,16 +143,11 @@ describe('saml', () => {
         },
       },
     });
-    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
-      profile: {
-        nameID: 'test@tachybase.com',
-        email: 'test@tachybase.com',
-        firstName: 'Test',
-        lastName: 'Tachybase',
-        issuer: 'issuer',
-        nameIDFormat: 'Email',
-      },
-      loggedOut: false,
+    mockValidate({
+      nameID: 'test@tachybase.com',
+      email: 'test@tachybase.com',
+      firstName: 'Test',
+      lastName: 'Tachybase',
     });
 
     const res = await agent.set('X-Authenticator', 'saml-auth').resource('auth').signIn().send({
@@ -113,8 +162,9 @@ describe('saml', () => {
   it('should sign in via email', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         saml: {
-          ...authenticator.options.saml,
+          ...authenticator.options?.saml,
           userBindField: 'email',
         },
         public: {
@@ -123,16 +173,11 @@ describe('saml', () => {
       },
     });
 
-    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
-      profile: {
-        nameID: 'old@tachybase.com',
-        email: 'old@tachybase.com',
-        firstName: 'Old',
-        lastName: 'Tachybase',
-        issuer: 'issuer',
-        nameIDFormat: 'Email',
-      },
-      loggedOut: false,
+    mockValidate({
+      nameID: 'old@tachybase.com',
+      email: 'old@tachybase.com',
+      firstName: 'Old',
+      lastName: 'Tachybase',
     });
 
     const email = 'old@tachybase.com';
@@ -161,8 +206,9 @@ describe('saml', () => {
   it('should sign in via usernmae', async () => {
     await authenticator.update({
       options: {
+        ...authenticator.options,
         saml: {
-          ...authenticator.options.saml,
+          ...authenticator.options?.saml,
           userBindField: 'username',
         },
         public: {
@@ -171,16 +217,11 @@ describe('saml', () => {
       },
     });
 
-    vi.spyOn(SAML.prototype, 'validatePostResponseAsync').mockResolvedValue({
-      profile: {
-        nameID: 'username',
-        email: 'old@tachybase.com',
-        firstName: 'Old',
-        lastName: 'Tachybase',
-        issuer: 'issuer',
-        nameIDFormat: '',
-      },
-      loggedOut: false,
+    mockValidate({
+      nameID: 'username',
+      email: 'old@tachybase.com',
+      firstName: 'Old',
+      lastName: 'Tachybase',
     });
 
     const email = 'old@tachybase.com';

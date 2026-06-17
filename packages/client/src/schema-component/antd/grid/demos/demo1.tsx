@@ -1,14 +1,11 @@
 import React from 'react';
-import {
-  Application,
-  BlockItem,
-  DragHandler,
-  Grid,
-  Plugin,
-  SchemaComponent,
-  SchemaComponentProvider,
-} from '@tachybase/client';
 import { observer, useFieldSchema } from '@tachybase/schema';
+
+import { DragHandler } from '../../../../schema-component/common/sortable-item/SortableItem';
+import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
+import { BlockItem } from '../../block-item/BlockItem';
+import { Grid } from '../Grid';
 
 const Block = observer(
   (props) => {
@@ -174,21 +171,6 @@ const Root = () => {
   );
 };
 
-class MyPlugin extends Plugin {
-  async load() {
-    this.app.router.add('root', {
-      path: '/',
-      Component: Root,
-    });
-  }
+export default function App() {
+  return <Root />;
 }
-
-const app = new Application({
-  router: {
-    type: 'memory',
-    initialEntries: ['/'],
-  },
-  plugins: [MyPlugin],
-});
-
-export default app.getRootComponent();

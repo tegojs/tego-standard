@@ -4,8 +4,8 @@ import { APIClient as APIClientSDK } from '@tego/client';
 import { Result } from 'ahooks/es/useRequest/src/types';
 import { notification } from 'antd';
 
-import { i18n } from '..';
-import { Application } from '../application';
+import type { Application } from '../application';
+import { i18n } from '../i18n';
 
 const TECH_PATTERNS: RegExp[] = [
   /\bat\s+\S+\s+\(.+\)/i,
@@ -130,18 +130,22 @@ export class APIClient extends APIClientSDK {
         // TODO(yangqia): improve error code and message
         if (errs.find((error: { code?: string }) => error.code === 'ROLE_NOT_FOUND_ERR')) {
           this.auth.setRole(null);
-          window.location.reload();
+          this.reloadLocation();
         }
         if (errs.find((error: { code?: string }) => error.code === 'TOKEN_INVALID' || error.code === 'USER_LOCKED')) {
           this.auth.setToken(null);
         }
         if (errs.find((error: { code?: string }) => error.code === 'ROLE_NOT_FOUND_FOR_USER')) {
           this.auth.setRole(null);
-          window.location.reload();
+          this.reloadLocation();
         }
         throw error;
       },
     );
+  }
+
+  reloadLocation() {
+    window.location.reload();
   }
 
   toErrMessages(error) {

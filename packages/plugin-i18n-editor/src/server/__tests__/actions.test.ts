@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database, { Repository } from '@tego/server';
 
 describe('actions', () => {
@@ -8,6 +7,7 @@ describe('actions', () => {
     let db: Database;
     let repo: Repository;
     let agent;
+    let originalPluginList;
 
     const clear = async () => {
       await repo.destroy({
@@ -18,6 +18,19 @@ describe('actions', () => {
       });
     };
 
+    const withFailingPluginList = async (callback: () => Promise<void>) => {
+      const originalList = app.pm.list;
+      (app.pm as any).list = async () => {
+        throw new Error('plugin list failed');
+      };
+
+      try {
+        await callback();
+      } finally {
+        (app.pm as any).list = originalList;
+      }
+    };
+
     beforeAll(async () => {
       app = await createMockServer({
         plugins: ['localization-management'],
@@ -25,9 +38,12 @@ describe('actions', () => {
       db = app.db;
       repo = db.getRepository('localizationTexts');
       agent = app.agent();
+      originalPluginList = app.pm.list;
+      (app.pm as any).list = async () => [];
     });
 
     afterAll(async () => {
+      (app.pm as any).list = originalPluginList;
       await app.destroy();
     });
 
@@ -74,6 +90,31 @@ describe('actions', () => {
         expect(res2.body.data.length).toBe(2);
         expect(res2.body.data[0].text).toBe('text');
         expect(res2.body.data[0].translation).toBeUndefined();
+      });
+
+      it('should propagate plugin list errors when listing localization texts', async () => {
+        await withFailingPluginList(async () => {
+          const res = await agent.set('X-Locale', 'fr-FR').resource('localizationTexts').list();
+          expect(res.statusCode).toBe(500);
+        });
+      });
+
+      it('should propagate plugin list errors when getting a localization text', async () => {
+        const text = await repo.findOne({
+          filter: {
+            text: 'text',
+          },
+        });
+
+        await withFailingPluginList(async () => {
+          const res = await agent
+            .set('X-Locale', 'de-DE')
+            .resource('localizationTexts')
+            .get({
+              filterByTk: text.get('id'),
+            });
+          expect(res.statusCode).toBe(500);
+        });
       });
 
       it('should search by keyword', async () => {

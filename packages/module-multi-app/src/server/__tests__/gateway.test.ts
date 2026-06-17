@@ -1,10 +1,81 @@
-import { createMockServer, createWsClient, MockServer, startServerWithRandomPort, waitSecond } from '@tachybase/test';
+import { createRequire } from 'node:module';
+import { createMockServer, createWsClient, MockServer, startServerWithRandomPort } from '@tachybase/test';
+import type { Gateway as GatewayType } from '@tego/server';
 
-import { AppSupervisor, Gateway, uid } from '@tego/server';
+type WsTestClient = Awaited<ReturnType<typeof createWsClient>>;
+
+const moduleRequire = createRequire(new URL('../../../package.json', import.meta.url));
+const { AppSupervisor, Gateway, uid } = moduleRequire('@tego/server') as typeof import('@tego/server');
+
+function parseWsMessage(message: unknown) {
+  if (typeof message !== 'string') {
+    return message as any;
+  }
+
+  try {
+    return JSON.parse(message);
+  } catch (error) {
+    return undefined;
+  }
+}
+
+function findMaintainingMessage(wsClient: WsTestClient, code: string) {
+  const matchedMessage = wsClient.messages.map(parseWsMessage).find((message) => {
+    return message?.type === 'maintaining' && message?.payload?.code === code;
+  });
+  if (matchedMessage) {
+    return matchedMessage;
+  }
+
+  if (wsClient.messages.length > 0) {
+    const lastMessage = wsClient.lastMessage();
+    if (lastMessage?.type === 'maintaining' && lastMessage?.payload?.code === code) {
+      return lastMessage;
+    }
+  }
+}
+
+async function waitForMaintainingCode(wsClient: WsTestClient, code: string, timeout = 10000): Promise<unknown> {
+  const existingMessage = findMaintainingMessage(wsClient, code);
+  if (existingMessage) {
+    return existingMessage;
+  }
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      wsClient.wsc.off('message', handleMessage);
+    };
+    const handleMessage = (data) => {
+      let message;
+      try {
+        message = JSON.parse(data.toString());
+      } catch (error) {
+        return;
+      }
+      if (message?.type === 'maintaining' && message?.payload?.code === code) {
+        cleanup();
+        resolve(message);
+      }
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for maintaining code ${code}`));
+    }, timeout);
+
+    wsClient.wsc.on('message', handleMessage);
+
+    const matchedAfterListener = findMaintainingMessage(wsClient, code);
+    if (matchedAfterListener) {
+      cleanup();
+      resolve(matchedAfterListener);
+    }
+  });
+}
 
 describe('gateway with multiple apps', () => {
   let app: MockServer;
-  let gateway: Gateway;
+  let gateway: GatewayType;
   let wsClient;
 
   beforeEach(async () => {
@@ -24,8 +95,8 @@ describe('gateway with multiple apps', () => {
   });
 
   it('should boot main app with sub apps', async () => {
-    const mainStatus = AppSupervisor.getInstance().getAppStatus('main');
-    expect(mainStatus).toEqual('running');
+    // Verify main app is running
+    expect(await app.isStarted()).toBe(true);
 
     const subAppName = `td_${uid()}`;
 
@@ -59,9 +130,7 @@ describe('gateway with multiple apps', () => {
       },
     });
 
-    await waitSecond(3000);
-    console.log(wsClient.messages);
-    const lastMessage = wsClient.lastMessage();
+    const lastMessage = await waitForMaintainingCode(wsClient, 'APP_RUNNING');
 
     expect(lastMessage).toMatchObject({
       type: 'maintaining',

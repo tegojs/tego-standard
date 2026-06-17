@@ -3,7 +3,7 @@ import { ACL, Database } from '@tego/server';
 
 import PluginUser from 'packages/module-user/src';
 
-import { prepareApp } from './prepare';
+import { aclLightTestPlugins, prepareApp } from './prepare';
 
 describe('own test', () => {
   let app: MockServer;
@@ -22,12 +22,10 @@ describe('own test', () => {
   let adminAgent;
   let userAgent;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclLightTestPlugins,
+    });
     db = app.db;
 
     const PostCollection = db.collection({
@@ -81,15 +79,24 @@ describe('own test', () => {
     userAgent = app.agent().login(user);
   });
 
+  afterEach(async () => {
+    await db.getRepository('posts').destroy({ filter: {} });
+  });
+
+  afterAll(async () => {
+    await app.destroy();
+  });
+
   it('should list without createBy', async () => {
-    await adminAgent
-      .patch('/roles/admin')
-      .send({
+    const updateResponse = await adminAgent.resource('roles').update({
+      filterByTk: 'admin',
+      values: {
         strategy: {
           actions: ['view:own'],
         },
-      })
-      .set({ Authorization: 'Bearer ' + adminToken });
+      },
+    });
+    expect(updateResponse.statusCode).toEqual(200);
 
     const response = await userAgent.get('/tests:list');
     expect(response.statusCode).toEqual(200);

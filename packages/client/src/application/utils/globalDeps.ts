@@ -25,7 +25,7 @@ import * as ReactRouter from 'react-router';
 import * as ReactRouterDom from 'react-router-dom';
 import jsxRuntime from 'react/jsx-runtime';
 
-import * as tachybaseClient from '../../index';
+import { getTachybaseClientExports } from './clientModuleRegistry';
 
 /**
  * @internal
@@ -52,7 +52,7 @@ export function defineGlobalDeps(requirejs: RequireJS) {
 
   // tachybase
   requirejs.define('@tego/client', () => tegoClient);
-  requirejs.define('@tachybase/client', () => tachybaseClient);
+  requirejs.define('@tachybase/client', () => getTachybaseClientExports());
   requirejs.define('@tachybase/schema', () => tachybaseSchema);
   requirejs.define('@tachybase/utils/client', () => tegoClient);
 

@@ -33,7 +33,7 @@ export class QueryInstruction extends Instruction {
         )
       : options.appends;
 
-    let pageArgs = paginate ? utils.pageArgsToLimitArgs(page, pageSize) : {};
+    let pageArgs = paginate ? utils.pageArgsToLimitArgs(page || DEFAULT_PAGE, pageSize || DEFAULT_PER_PAGE) : {};
     const result = await (multiple ? repository.find : repository.findOne).call(repository, {
       ...options,
       ...otherOptions,

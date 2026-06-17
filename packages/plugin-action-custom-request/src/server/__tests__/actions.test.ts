@@ -1,6 +1,6 @@
+import http from 'node:http';
 import { createMockServer, MockServer } from '@tachybase/test';
-
-import Database, { Context, Repository } from '@tego/server';
+import Database, { Context, Gateway, Repository } from '@tego/server';
 
 describe('actions', () => {
   let app: MockServer;
@@ -8,6 +8,7 @@ describe('actions', () => {
   let repo: Repository;
   let agent: ReturnType<MockServer['agent']>;
   let resource: ReturnType<ReturnType<MockServer['agent']>['resource']>;
+  let httpServer: http.Server;
 
   beforeAll(async () => {
     app = await createMockServer({
@@ -20,6 +21,16 @@ describe('actions', () => {
     agent = app.agent();
     resource = (agent.set('X-Role', 'admin') as any).resource('customRequests');
     await agent.login(1);
+
+    // Start HTTP server so the send action can make self-requests via axios
+    httpServer = http.createServer(app.callback());
+    const port = Gateway.getInstance().port;
+    await new Promise<void>((resolve) => httpServer.listen(port, '127.0.0.1', resolve));
+  });
+
+  afterAll(async () => {
+    httpServer?.close();
+    await app.destroy();
   });
 
   describe('send', () => {

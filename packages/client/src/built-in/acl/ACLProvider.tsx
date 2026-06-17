@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect } from 'react';
-import { Field, Schema, useField, useFieldSchema } from '@tachybase/schema';
+import React, { useContext } from 'react';
+import { useFieldSchema } from '@tachybase/schema';
 
 import { omit } from 'lodash';
 import { Navigate } from 'react-router-dom';
@@ -12,9 +12,14 @@ import { useResourceActionContext } from '../../collection-manager/ResourceActio
 import { useDataSourceKey } from '../../data-source/data-source/DataSourceProvider';
 import { useRecord } from '../../record-provider';
 import { SchemaComponentOptions, useDesignable } from '../../schema-component';
-
-export const ACLContext = createContext<any>({});
-ACLContext.displayName = 'ACLContext';
+import { ACLCollectionFieldProvider } from './ACLCollectionFieldProvider';
+import {
+  ACLActionParamsContext,
+  ACLContext,
+  useACLActionParamsContext,
+  useACLContext,
+  useACLFieldWhitelist,
+} from './ACLContext';
 
 // TODO: delete this，replace by `ACLPlugin`
 export const ACLProvider = (props) => {
@@ -84,13 +89,6 @@ export const useRoleRecheck = () => {
     ctx.refresh();
   };
 };
-
-export const useACLContext = () => {
-  return useContext(ACLContext);
-};
-
-export const ACLActionParamsContext = createContext<any>({});
-ACLActionParamsContext.displayName = 'ACLActionParamsContext';
 
 export const useACLRolesCheck = () => {
   const ctx = useContext(ACLContext);
@@ -209,10 +207,6 @@ export const ACLCollectionProvider = (props) => {
   return <ACLActionParamsContext.Provider value={{ params }}>{props.children}</ACLActionParamsContext.Provider>;
 };
 
-export const useACLActionParamsContext = () => {
-  return useContext(ACLActionParamsContext);
-};
-
 export const useRecordPkValue = () => {
   const { getPrimaryKey } = useCollection_deprecated();
   const record = useRecord();
@@ -252,61 +246,6 @@ export const ACLActionProvider = (props) => {
     return null;
   }
   return <ACLActionParamsContext.Provider value={params}>{props.children}</ACLActionParamsContext.Provider>;
-};
-
-export const useACLFieldWhitelist = () => {
-  const params = useContext(ACLActionParamsContext);
-  const whitelist = []
-    .concat(params?.whitelist || [])
-    .concat(params?.fields || [])
-    .concat(params?.appends || []);
-  return {
-    whitelist,
-    schemaInWhitelist(fieldSchema: Schema, isSkip?) {
-      if (isSkip) {
-        return true;
-      }
-      if (whitelist.length === 0) {
-        return true;
-      }
-      if (!fieldSchema) {
-        return true;
-      }
-      if (!fieldSchema['x-collection-field']) {
-        return true;
-      }
-      const [key1, key2] = fieldSchema['x-collection-field'].split('.');
-      return whitelist?.includes(key2 || key1);
-    },
-  };
-};
-
-export const ACLCollectionFieldProvider = (props) => {
-  const fieldSchema = useFieldSchema();
-  const field = useField<Field>();
-  const { allowAll } = useACLRoleContext();
-  const { whitelist } = useACLFieldWhitelist();
-  const [name] = (fieldSchema.name as string).split('.');
-  const allowed = !fieldSchema['x-acl-ignore'] && whitelist.length > 0 ? whitelist.includes(name) : true;
-  useEffect(() => {
-    if (!allowed) {
-      field.required = false;
-      field.display = 'hidden';
-    }
-  }, [allowed]);
-
-  if (allowAll) {
-    return <>{props.children}</>;
-  }
-
-  if (!fieldSchema['x-collection-field']) {
-    return <>{props.children}</>;
-  }
-
-  if (!allowed) {
-    return null;
-  }
-  return <>{props.children}</>;
 };
 
 export const ACLMenuItemProvider = (props) => {

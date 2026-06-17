@@ -1,6 +1,6 @@
 import { connect, mapProps, mapReadPretty } from '@tachybase/schema';
-
 import { dayjsable, formatDayjsValue } from '@tego/client';
+
 import { TimePicker as AntdTimePicker } from 'antd';
 import { TimePickerProps as AntdTimePickerProps, TimeRangePickerProps } from 'antd/es/time-picker';
 import dayjs from 'dayjs';

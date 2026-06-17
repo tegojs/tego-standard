@@ -20,6 +20,7 @@
 .umi
 .umi-production
 /.idea
+/.tmp
 /.vscode
 /playwright
 /uploads

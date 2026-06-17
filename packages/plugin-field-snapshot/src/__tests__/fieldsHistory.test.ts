@@ -3,7 +3,7 @@ import { createMockServer, MockServer } from '@tachybase/test';
 describe('actions', () => {
   let app: MockServer;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       acl: false,
@@ -11,7 +11,7 @@ describe('actions', () => {
     });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 

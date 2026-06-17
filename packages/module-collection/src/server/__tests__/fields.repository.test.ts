@@ -98,68 +98,70 @@ describe('collections repository', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     db = app.db;
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
-    await Collection.repository.create({
-      values: {
-        name: 'tests',
-      },
-    });
-    await Collection.repository.create({
-      values: {
-        name: 'foos',
-      },
-    });
-    await Collection.repository.create({
-      values: {
-        name: 'bars',
-      },
-    });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
+  async function createCollections(collectionName: string) {
+    await Collection.repository.create({
+      values: {
+        name: collectionName,
+      },
+    });
+  }
+
   it('should generate the name and key randomly', async () => {
+    const collectionName = 'testsRandomFieldName';
+    await createCollections(collectionName);
+
     const field = await Field.repository.create({
       values: {
         type: 'string',
-        collectionName: 'tests',
+        collectionName,
       },
     });
     expect(field.toJSON()).toMatchObject({
       type: 'string',
-      collectionName: 'tests',
+      collectionName,
     });
     expect(field.get('name')).toBeDefined();
     expect(field.get('key')).toBeDefined();
   });
 
   it('should not generate the name randomly', async () => {
+    const collectionName = 'testsExplicitFieldName';
+    await createCollections(collectionName);
+
     const field = await Field.repository.create({
       values: {
         type: 'string',
         name: 'name',
-        collectionName: 'tests',
+        collectionName,
       },
     });
     expect(field.toJSON()).toMatchObject({
       type: 'string',
       name: 'name',
-      collectionName: 'tests',
+      collectionName,
     });
   });
 
   it('dynamic parameters', async () => {
+    const collectionName = 'testsDynamicParameters';
+    await createCollections(collectionName);
+
     const field = await Field.repository.create({
       values: {
         type: 'string',
         name: 'name',
-        collectionName: 'tests',
+        collectionName,
         unique: true,
         defaultValue: 'abc',
       } as StringFieldOptions,
@@ -167,7 +169,7 @@ describe('collections repository', () => {
     expect(field.toJSON()).toMatchObject({
       type: 'string',
       name: 'name',
-      collectionName: 'tests',
+      collectionName,
       unique: true,
       defaultValue: 'abc',
     });

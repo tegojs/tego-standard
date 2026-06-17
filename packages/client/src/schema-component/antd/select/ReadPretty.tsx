@@ -11,6 +11,8 @@ export const ReadPretty = observer(
   (props: any) => {
     const fieldNames = { ...defaultFieldNames, ...props.fieldNames };
     const field = useField<any>();
+    const collectionField = useCollectionField();
+    const fieldSchema = useFieldSchema();
 
     if (!isValid(props.value)) {
       return <div />;
@@ -18,8 +20,6 @@ export const ReadPretty = observer(
     if (isArrayField(field) && field?.value?.length === 0) {
       return <div />;
     }
-    const collectionField = useCollectionField();
-    const fieldSchema = useFieldSchema();
     const dataSource = field.dataSource || props.options || collectionField?.uiSchema.enum || [];
     const options = getCurrentOptions(field.value, dataSource, fieldNames);
     const currentOptions = getFormulaValue(

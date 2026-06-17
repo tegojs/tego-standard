@@ -1,6 +1,5 @@
 import { CollectionRepository } from '@tachybase/module-collection';
 import { MockServer } from '@tachybase/test';
-
 import { Database } from '@tego/server';
 
 import { prepareApp } from './prepare';
@@ -19,21 +18,22 @@ describe('role check action', () => {
   });
 
   it('should return role info', async () => {
+    const roleName = 'role-check-info';
     const role = await db.getRepository('roles').create({
       values: {
-        name: 'test',
+        name: roleName,
       },
     });
 
     await role.createMenuUiSchema({
       values: {
-        name: 'test',
+        name: roleName,
       },
     });
 
     const user = await db.getRepository('users').create({
       values: {
-        roles: ['test'],
+        roles: [roleName],
       },
     });
 
@@ -46,10 +46,12 @@ describe('role check action', () => {
   });
 
   it('should return updated roles info', async () => {
+    const roleName = 'role-check-updated';
+    const collectionName = 'roleCheckC1';
     const collectionManager = db.getRepository('collections') as CollectionRepository;
     await collectionManager.create({
       values: {
-        name: 'c1',
+        name: collectionName,
         title: 'table1',
       },
       context: {},
@@ -57,7 +59,7 @@ describe('role check action', () => {
 
     await collectionManager.create({
       values: {
-        name: 'c2',
+        name: 'roleCheckC2',
         title: 'table2',
       },
       context: {},
@@ -65,10 +67,10 @@ describe('role check action', () => {
 
     await db.getRepository('roles').create({
       values: {
-        name: 'test',
+        name: roleName,
         resources: [
           {
-            name: 'c1',
+            name: collectionName,
             actions: [
               {
                 name: 'create',
@@ -81,7 +83,7 @@ describe('role check action', () => {
 
     const user = await db.getRepository('users').create({
       values: {
-        roles: ['test'],
+        roles: [roleName],
       },
     });
 
@@ -89,17 +91,17 @@ describe('role check action', () => {
 
     const checkResp1 = await agent.resource('roles').check();
     const actions = checkResp1.body.data.actions;
-    expect(actions['c1:create']).toBeDefined();
+    expect(actions[`${collectionName}:create`]).toBeDefined();
 
     // update role
     await db.getRepository('roles').update({
       filter: {
-        name: 'test',
+        name: roleName,
       },
       values: {
         resources: [
           {
-            name: 'c1',
+            name: collectionName,
             actions: [
               {
                 name: 'create',
@@ -115,7 +117,7 @@ describe('role check action', () => {
 
     const checkResp2 = await agent.resource('roles').check();
     const actions2 = checkResp2.body.data.actions;
-    expect(actions2['c1:create']).toBeDefined();
-    expect(actions2['c1:update']).toBeDefined();
+    expect(actions2[`${collectionName}:create`]).toBeDefined();
+    expect(actions2[`${collectionName}:update`]).toBeDefined();
   });
 });

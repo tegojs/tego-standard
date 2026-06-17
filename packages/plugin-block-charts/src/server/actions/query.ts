@@ -158,7 +158,10 @@ function getChartCacheKey(ctx: Context, uid: string) {
 }
 
 const getDB = (ctx: Context, dataSource: string) => {
-  const ds = ctx.tego.dataSourceManager.dataSources.get(dataSource);
+  if (!dataSource) {
+    return;
+  }
+  const ds = ctx.tego?.dataSourceManager?.dataSources.get(dataSource);
   return ds?.collectionManager.db;
 };
 

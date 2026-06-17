@@ -7,6 +7,9 @@ import { FILE_FIELD_NAME, STORAGE_TYPE_LOCAL } from '../constants';
 const { LOCAL_STORAGE_BASE_URL, LOCAL_STORAGE_DEST = 'storage/uploads', APP_PORT = '3000' } = process.env;
 
 const DEFAULT_LOCAL_BASE_URL = LOCAL_STORAGE_BASE_URL || `/storage/uploads`;
+const textFilePath = path.resolve(__dirname, './files/text.txt');
+const textFileExpectedContent = await fs.readFile(textFilePath, 'utf8');
+const textFileExpectedSize = Buffer.byteLength(textFileExpectedContent);
 
 describe('action', () => {
   let app;
@@ -16,7 +19,47 @@ describe('action', () => {
   let AttachmentRepo;
   let tenantUser;
 
-  beforeEach(async () => {
+  async function removeAttachmentFiles() {
+    const attachments = await AttachmentRepo.find({
+      appends: ['storage'],
+      paranoid: false,
+    });
+
+    for (const attachment of attachments) {
+      const storage = attachment.get('storage');
+      if (!storage) {
+        continue;
+      }
+
+      const { documentRoot = path.join('storage', 'uploads') } = storage.options || {};
+      const destPath = path.resolve(
+        path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
+        storage.path,
+      );
+      const attachmentPath = path.join(destPath, attachment.filename);
+      try {
+        await fs.unlink(attachmentPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          app.logger.error('Failed to remove attachment file', {
+            filename: attachment.filename,
+            destPath,
+            error,
+          });
+        }
+      }
+    }
+  }
+
+  async function resetFileData() {
+    await removeAttachmentFiles();
+    await AttachmentRepo.destroy({
+      truncate: true,
+      force: true,
+    });
+  }
+
+  beforeAll(async () => {
     app = await getApp({
       database: {},
     });
@@ -59,7 +102,12 @@ describe('action', () => {
     });
   });
 
-  afterEach(async () => {
+  beforeEach(async () => {
+    await resetFileData();
+  });
+
+  afterAll(async () => {
+    await resetFileData();
     await app.destroy();
   });
 
@@ -67,7 +115,7 @@ describe('action', () => {
     describe('default storage', () => {
       it('upload file should be ok', async () => {
         const { body } = await agent.resource('attachments').create({
-          [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+          [FILE_FIELD_NAME]: textFilePath,
         });
 
         const matcher = {
@@ -75,6 +123,7 @@ describe('action', () => {
           extname: '.txt',
           path: 'tenants/tenant-a',
           size: 13,
+>>>>>>> origin/main
           mimetype: 'text/plain',
           meta: {},
           storageId: 1,
@@ -111,19 +160,20 @@ describe('action', () => {
         );
         const file = await fs.readFile(`${destPath}/${attachment.path}/${attachment.filename}`);
         // 文件是否保存到指定路径
-        expect(file.toString()).toBe('Hello world!\n');
+        expect(file.toString()).toBe(textFileExpectedContent);
 
         // 通过 url 是否能正确访问
         const url = attachment.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
-        expect(content.text).toBe('Hello world!\n');
+        expect(content.text).toBe(textFileExpectedContent);
       });
     });
 
     describe('specific storage', () => {
       it('fail as 400 because file size greater than rules', async () => {
+        const collectionName = 'customersSizeRule';
         db.collection({
-          name: 'customers',
+          name: collectionName,
           fields: [
             {
               name: 'avatar',
@@ -135,7 +185,7 @@ describe('action', () => {
         });
 
         const response = await agent.resource('attachments').create({
-          attachmentField: 'customers.avatar',
+          attachmentField: `${collectionName}.avatar`,
           file: path.resolve(__dirname, './files/image.jpg'),
         });
         expect(response.status).toBe(400);
@@ -144,7 +194,7 @@ describe('action', () => {
       it('fail as 400 because file mimetype does not match', async () => {
         const textStorage = await StorageRepo.create({
           values: {
-            name: 'local2',
+            name: 'localTextOnly',
             type: STORAGE_TYPE_LOCAL,
             baseUrl: DEFAULT_LOCAL_BASE_URL,
             rules: {
@@ -153,8 +203,9 @@ describe('action', () => {
           },
         });
 
+        const collectionName = 'customersMimeRule';
         db.collection({
-          name: 'customers',
+          name: collectionName,
           fields: [
             {
               name: 'avatar',
@@ -168,7 +219,7 @@ describe('action', () => {
         // await db.sync();
 
         const response = await agent.resource('attachments').create({
-          attachmentField: 'customers.avatar',
+          attachmentField: `${collectionName}.avatar`,
           file: path.resolve(__dirname, './files/image.jpg'),
         });
 
@@ -182,7 +233,7 @@ describe('action', () => {
         // 动态添加 storage
         const storage = await StorageRepo.create({
           values: {
-            name: 'local_private',
+            name: 'localPrivate',
             type: STORAGE_TYPE_LOCAL,
             rules: {
               mimetype: ['text/*'],
@@ -195,8 +246,9 @@ describe('action', () => {
           },
         });
 
+        const collectionName = 'customersPrivateStorage';
         db.collection({
-          name: 'customers',
+          name: collectionName,
           fields: [
             {
               name: 'file',
@@ -208,16 +260,15 @@ describe('action', () => {
         });
 
         const { body } = await agent.resource('attachments').create({
-          attachmentField: 'customers.file',
-          file: path.resolve(__dirname, './files/text.txt'),
+          attachmentField: `${collectionName}.file`,
+          file: textFilePath,
         });
 
         // 文件的 url 是否正常生成
         expect(body.data.url).toBe(`${BASE_URL}/${urlPath}/tenants/tenant-a/${body.data.filename}`);
-        console.log(body.data.url);
         const url = body.data.url.replace(`http://localhost:${APP_PORT}`, '');
         const content = await agent.get(url);
-        expect(content.text).toBe('Hello world!\n');
+        expect(content.text).toBe(textFileExpectedContent);
       });
     });
   });
@@ -291,8 +342,9 @@ describe('action', () => {
     });
 
     it('destroy one existing file with `paranoid`', async () => {
+      const collectionName = 'customersParanoidDestroy';
       db.collection({
-        name: 'customers',
+        name: collectionName,
         fields: [
           {
             name: 'file',
@@ -306,8 +358,8 @@ describe('action', () => {
       await db.sync();
 
       const { body } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
-        attachmentField: 'customers.file',
+        [FILE_FIELD_NAME]: textFilePath,
+        attachmentField: `${collectionName}.file`,
       });
 
       const { data: attachment } = body;
@@ -334,7 +386,7 @@ describe('action', () => {
 
     it('destroy one existing file', async () => {
       const { body } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const { data: attachment } = body;
@@ -360,11 +412,11 @@ describe('action', () => {
 
     it('destroy multiple existing files', async () => {
       const { body: f1 } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const { body: f2 } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const storage = await StorageRepo.findOne({
@@ -396,7 +448,7 @@ describe('action', () => {
 
     it('destroy record without file exists should be ok', async () => {
       const { body } = await agent.resource('attachments').create({
-        [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
+        [FILE_FIELD_NAME]: textFilePath,
       });
 
       const { data: attachment } = body;

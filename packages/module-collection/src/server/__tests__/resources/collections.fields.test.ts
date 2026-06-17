@@ -5,21 +5,23 @@ import { createApp } from '..';
 describe('collections.fields', () => {
   let app: MockServer;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
   test('destroy field', async () => {
+    const collectionName = 'testDestroyFieldWithInitialFields';
+
     await app
       .agent()
       .resource('collections')
       .create({
         values: {
-          name: 'test1',
+          name: collectionName,
           fields: [
             {
               type: 'string',
@@ -29,7 +31,7 @@ describe('collections.fields', () => {
         },
       });
 
-    const collection = app.db.getCollection('test1');
+    const collection = app.db.getCollection(collectionName);
     const field = collection.getField('name');
 
     expect(collection.hasField('name')).toBeTruthy();
@@ -37,7 +39,7 @@ describe('collections.fields', () => {
     const r1 = await field.existsInDb();
     expect(r1).toBeTruthy();
 
-    await app.agent().resource('collections.fields', 'test1').destroy({
+    await app.agent().resource('collections.fields', collectionName).destroy({
       filterByTk: 'name',
     });
 
@@ -48,37 +50,31 @@ describe('collections.fields', () => {
   });
 
   test('destroy field', async () => {
+    const collectionName = 'testDestroyFieldAddedLater';
+
     await app
       .agent()
       .resource('collections')
       .create({
         values: {
-          name: 'test1',
+          name: collectionName,
         },
       });
     await app
       .agent()
-      .resource('collections')
-      .create({
-        values: {
-          name: 'test2',
-        },
-      });
-    await app
-      .agent()
-      .resource('collections.fields', 'test1')
+      .resource('collections.fields', collectionName)
       .create({
         values: {
           type: 'string',
           name: 'name',
         },
       });
-    const collection = app.db.getCollection('test1');
+    const collection = app.db.getCollection(collectionName);
     const field = collection.getField('name');
     expect(collection.hasField('name')).toBeTruthy();
     const r1 = await field.existsInDb();
     expect(r1).toBeTruthy();
-    await app.agent().resource('collections.fields', 'test1').destroy({
+    await app.agent().resource('collections.fields', collectionName).destroy({
       filterByTk: 'name',
     });
     expect(collection.hasField('name')).toBeFalsy();
@@ -87,12 +83,15 @@ describe('collections.fields', () => {
   });
 
   test('remove association field', async () => {
+    const sourceName = 'testRemoveAssociationFieldSource';
+    const targetName = 'testRemoveAssociationFieldTarget';
+
     await app
       .agent()
       .resource('collections')
       .create({
         values: {
-          name: 'test1',
+          name: sourceName,
         },
       });
     await app
@@ -100,30 +99,30 @@ describe('collections.fields', () => {
       .resource('collections')
       .create({
         values: {
-          name: 'test2',
+          name: targetName,
         },
       });
     await app
       .agent()
-      .resource('collections.fields', 'test1')
+      .resource('collections.fields', sourceName)
       .create({
         values: {
           type: 'belongsTo',
-          name: 'test2',
-          target: 'test2',
+          name: targetName,
+          target: targetName,
           reverseField: {
-            name: 'test1',
+            name: sourceName,
           },
         },
       });
-    const collection = app.db.getCollection('test1');
-    const collection2 = app.db.getCollection('test2');
-    expect(collection.hasField('test2')).toBeTruthy();
-    expect(collection2.hasField('test1')).toBeTruthy();
-    await app.agent().resource('collections.fields', 'test1').destroy({
-      filterByTk: 'test2',
+    const collection = app.db.getCollection(sourceName);
+    const collection2 = app.db.getCollection(targetName);
+    expect(collection.hasField(targetName)).toBeTruthy();
+    expect(collection2.hasField(sourceName)).toBeTruthy();
+    await app.agent().resource('collections.fields', sourceName).destroy({
+      filterByTk: targetName,
     });
-    expect(collection.hasField('test2')).toBeFalsy();
-    expect(collection2.hasField('test1')).toBeTruthy();
+    expect(collection.hasField(targetName)).toBeFalsy();
+    expect(collection2.hasField(sourceName)).toBeTruthy();
   });
 });

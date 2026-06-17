@@ -1,4 +1,12 @@
-import { Cache, Context, Model, Repository } from '@tego/server';
+import { Cache, Context, Repository } from '@tego/server';
+
+type CurrentUserRole = {
+  name: string;
+  rolesUsers?: {
+    default?: boolean;
+  };
+  [key: string]: any;
+};
 
 export async function setCurrentRole(ctx: Context, next) {
   const currentRole = ctx.get('X-Role');
@@ -15,11 +23,31 @@ export async function setCurrentRole(ctx: Context, next) {
   const attachRoles = ctx.state.attachRoles || [];
   const cache = ctx.cache as Cache;
   const repository = ctx.db.getRepository('users.roles', ctx.state.currentUser.id) as unknown as Repository;
-  const roles = (await cache.wrap(`roles:${ctx.state.currentUser.id}`, () =>
-    repository.find({
+  const roles = (await cache.wrap(`roles:${ctx.state.currentUser.id}`, async () => {
+    const userRoles = await repository.find({
       raw: true,
-    }),
-  )) as Model[];
+    });
+    const rolesUsers = await ctx.db.getRepository('rolesUsers').find({
+      filter: {
+        userId: ctx.state.currentUser.id,
+      },
+      raw: true,
+    });
+    const rolesUsersMap = new Map(
+      rolesUsers.map((roleUser) => {
+        const item = roleUser?.toJSON?.() || roleUser;
+        return [item.roleName, item];
+      }),
+    );
+
+    return userRoles.map((role) => {
+      const item = role?.toJSON?.() || role;
+      return {
+        ...item,
+        rolesUsers: rolesUsersMap.get(item.name),
+      };
+    });
+  })) as CurrentUserRole[];
   if (!roles.length && !attachRoles.length) {
     ctx.state.currentRole = undefined;
     return ctx.throw(401, {

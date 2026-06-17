@@ -16,16 +16,17 @@ import {
   useSchemaComponentContext,
 } from '@tachybase/client';
 import {
+  ContextCleaner,
   createForm,
   FieldContext,
   FormContext,
   SchemaComponentsContext,
   SchemaContext,
   SchemaExpressionScopeContext,
+  SchemaMarkupContext,
   SchemaOptionsContext,
   uid,
 } from '@tachybase/schema';
-import { ContextCleaner, SchemaMarkupContext } from '@tachybase/schema/lib/react';
 
 import { Layout, Tabs } from 'antd';
 import _ from 'lodash';

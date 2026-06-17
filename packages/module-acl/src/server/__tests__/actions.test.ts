@@ -1,16 +1,23 @@
 import { MockServer } from '@tachybase/test';
 
-import { prepareApp } from './prepare';
+import { aclLightTestPlugins, prepareApp } from './prepare';
 
 describe('destroy action with acl', () => {
   let app: MockServer;
-  let Post;
 
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclLightTestPlugins,
+    });
+  });
 
-    Post = app.db.collection({
-      name: 'posts',
+  afterAll(async () => {
+    await app.destroy();
+  });
+
+  const createPostCollection = async (name: string) => {
+    const Post = app.db.collection({
+      name,
       fields: [
         { type: 'string', name: 'title' },
         {
@@ -21,11 +28,27 @@ describe('destroy action with acl', () => {
     });
 
     await app.db.sync();
-  });
+    return Post;
+  };
 
-  afterEach(async () => {
-    await app.destroy();
-  });
+  const createUserAgent = async (roleName = 'user') => {
+    await app.db.getRepository('roles').create({
+      values: {
+        name: roleName,
+      },
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        roles: [roleName],
+      },
+    });
+
+    return {
+      agent: app.agent().login(user).set('X-Role', roleName),
+      user,
+    };
+  };
 
   it('should create role through user resource', async () => {
     const UserCollection = app.db.getCollection('users');
@@ -80,16 +103,19 @@ describe('destroy action with acl', () => {
   });
 
   it('should load the association collection when the source collection does not have the createdById field', async () => {
+    const roleName = 'acl-action-association-role';
+    const aCollection = 'aclActionA';
+    const bCollection = 'aclActionB';
     const A = app.db.collection({
-      name: 'a',
+      name: aCollection,
       fields: [
         { type: 'string', name: 'title' },
-        { type: 'belongsToMany', name: 'bs', target: 'b' },
+        { type: 'belongsToMany', name: 'bs', target: bCollection },
       ],
     });
 
-    const B = app.db.collection({
-      name: 'b',
+    app.db.collection({
+      name: bCollection,
       fields: [{ type: 'string', name: 'title' }],
     });
 
@@ -108,38 +134,31 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const userRole = app.acl.define({
-      role: 'user',
+    const { agent: userAgent } = await createUserAgent(roleName);
+
+    app.acl.define({
+      role: roleName,
       strategy: {
         actions: ['view:own'],
       },
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
-      },
-      {
-        before: 'acl',
-      },
-    );
-
     const a1 = await A.repository.findOne({ filter: { title: 'a1' } });
 
-    const response = await app.agent().resource('a.bs', a1.get('id')).list();
+    const response = await userAgent.resource(`${aCollection}.bs`, a1.get('id')).list();
     expect(response.statusCode).toEqual(200);
   });
 
   it('should parse association acl params', async () => {
-    const Comment = app.db.collection({
-      name: 'comments',
+    const roleName = 'acl-action-parse-association-role';
+    const postCollection = 'aclActionPosts';
+    const commentCollection = 'aclActionComments';
+    const Post = await createPostCollection(postCollection);
+    app.db.collection({
+      name: commentCollection,
       fields: [
         { type: 'string', name: 'content' },
-        { type: 'belongsToMany', name: 'posts' },
+        { type: 'belongsToMany', name: 'posts', target: postCollection },
       ],
     });
 
@@ -172,79 +191,120 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    const userRole = app.acl.define({
-      role: 'user',
+    const { agent: userAgent } = await createUserAgent(roleName);
+
+    app.acl.define({
+      role: roleName,
       strategy: {
         actions: ['view:own'],
       },
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
-      },
-      {
-        before: 'acl',
-      },
-    );
-
     const p1 = await Post.repository.findOne({ filter: { title: 'p1' } });
 
-    const response = await app.agent().resource('posts.comments', p1.get('id')).list();
+    const response = await userAgent.resource(`${postCollection}.comments`, p1.get('id')).list();
     expect(response.statusCode).toEqual(403);
   });
 
-  it('should throw error when user has no permission to destroy record', async () => {
+  it('should reject association access when only source collection is allowed', async () => {
+    const roleName = 'acl-action-source-only-association-role';
+    const sourceCollection = 'aclActionSourceOnlySources';
+    const targetCollection = 'aclActionSourceOnlyTargets';
+    const Source = app.db.collection({
+      name: sourceCollection,
+      fields: [
+        { type: 'string', name: 'title' },
+        { type: 'hasMany', name: 'targets', target: targetCollection },
+      ],
+    });
+
+    app.db.collection({
+      name: targetCollection,
+      fields: [{ type: 'string', name: 'title' }],
+    });
+
+    await app.db.sync();
+
+    const source = await Source.repository.create({
+      values: {
+        title: 'source',
+        targets: [{ title: 'target' }],
+      },
+    });
+
+    const { agent: userAgent } = await createUserAgent(roleName);
+    app.acl.define({
+      role: roleName,
+      strategy: {
+        actions: [],
+      },
+    });
+    app.acl.getRole(roleName).grantAction(`${sourceCollection}:view`);
+
+    const response = await userAgent.resource(`${sourceCollection}.targets`, source.get('id')).list();
+    expect(response.statusCode).toEqual(403);
+  });
+
+  it('should not sync base role strategy when writing role to acl', async () => {
+    const roleName = 'acl-action-base-role-strategy-role';
+    const role = await app.db.getRepository('roles').create({
+      values: {
+        name: roleName,
+      },
+    });
+    role.set('strategy', {
+      actions: ['view'],
+    });
+
+    const aclPlugin: any = app.pm.get('acl');
+    await aclPlugin.writeRoleToACL(role, {
+      withOutResources: true,
+    });
+
+    expect(app.acl.getRole(roleName).toJSON().strategy?.actions).not.toEqual(['view']);
+  });
+
+  it('should be a no-op when user has no permission to destroy record', async () => {
+    const roleName = 'acl-action-destroy-own-role';
+    const postCollection = 'aclActionDestroyPosts';
+    const Post = await createPostCollection(postCollection);
+    const { agent: userAgent, user } = await createUserAgent(roleName);
+
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
     // user can destroy post which created by himself
-    userRole.grantAction('posts:destroy', {
+    userRole.grantAction(`${postCollection}:destroy`, {
       own: true,
     });
 
     const p1 = await Post.repository.create({
       values: {
         title: 'p1',
-        createById: 2,
+        createdById: user.get('id') + 1,
       },
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
-      },
-      {
-        before: 'acl',
-      },
-    );
+    const response = await userAgent.resource(postCollection).destroy({
+      filterByTk: p1.get('id'),
+    });
 
-    const response = await app
-      .agent()
-      .resource('posts')
-      .destroy({
-        filterByTk: p1.get('id'),
-      });
-
-    // should throw errors
-    expect(response.statusCode).toEqual(403);
+    expect(response.statusCode).toEqual(200);
+    await expect(Post.repository.findOne({ filterByTk: p1.get('id') })).resolves.toBeTruthy();
   });
 
-  it('should throw error when user has no permissions with array query', async () => {
+  it('should only destroy records matching array query permission', async () => {
+    const roleName = 'acl-action-array-query-role';
+    const postCollection = 'aclActionArrayPosts';
+    const Post = await createPostCollection(postCollection);
+    const { agent: userAgent } = await createUserAgent(roleName);
+
     const userRole = app.acl.define({
-      role: 'user',
+      role: roleName,
     });
 
-    userRole.grantAction('posts:destroy', {
+    userRole.grantAction(`${postCollection}:destroy`, {
       filter: {
         'title.$in': ['p1', 'p2', 'p3'],
       },
@@ -273,41 +333,23 @@ describe('destroy action with acl', () => {
       ],
     });
 
-    app.resourcer.use(
-      (ctx, next) => {
-        ctx.state.currentRole = 'user';
-        ctx.state.currentUser = {
-          id: 1,
-        };
-        return next();
+    const response = await userAgent.resource(postCollection).destroy({
+      filter: {
+        'title.$in': ['p4', 'p5', 'p6'],
       },
-      {
-        before: 'acl',
+    });
+
+    // Requests outside the configured destroy filter are accepted but do not remove records.
+    expect(response.statusCode).toEqual(200);
+    expect(await Post.repository.count({ filter: { 'title.$in': ['p4', 'p5', 'p6'] } })).toEqual(3);
+
+    const response2 = await userAgent.resource(postCollection).destroy({
+      filter: {
+        'title.$in': ['p1'],
       },
-    );
+    });
 
-    const response = await app
-      .agent()
-      .resource('posts')
-      .destroy({
-        filter: {
-          'title.$in': ['p4', 'p5', 'p6'],
-        },
-      });
-
-    // should throw error
-    expect(response.statusCode).toEqual(403);
-
-    const response2 = await app
-      .agent()
-      .resource('posts')
-      .destroy({
-        filter: {
-          'title.$in': ['p1'],
-        },
-      });
-
-    // should throw error
     expect(response2.statusCode).toEqual(200);
+    expect(await Post.repository.count({ filter: { 'title.$in': ['p1'] } })).toEqual(0);
   });
 });

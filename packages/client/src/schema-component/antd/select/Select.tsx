@@ -1,12 +1,11 @@
 import { connect, isValid, mapProps, mapReadPretty, toArr, useFieldSchema } from '@tachybase/schema';
 
 import { CloseCircleFilled, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { isPlainObject } from '@tego/client';
 import { Select as AntdSelect, Empty, Radio, Spin, Tag, type SelectProps } from 'antd';
 
 import FormulaSelect from './FormulaSelect';
 import { ReadPretty } from './ReadPretty';
-import { defaultFieldNames, FieldNames, getCurrentOptions } from './utils';
+import { defaultFieldNames, FieldNames, getCurrentOptions, isPlainObject } from './utils';
 
 type Props = SelectProps<any, any> & {
   objectValue?: boolean;

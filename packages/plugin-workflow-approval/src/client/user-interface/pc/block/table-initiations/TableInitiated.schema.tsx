@@ -69,14 +69,24 @@ export const schemaTableInitiated = {
           'x-component': 'TableV2.Column',
           'x-component-props': {
             width: 60,
+            className: css`
+              .tb-action-link {
+                padding: 12px 19px !important;
+              }
+            `,
           },
           title: tval('Actions', { ns: 'core' }),
           properties: {
-            action: {
+            actionView: {
               'x-component': 'ViewCheckLink',
+            },
+            actionApply: {
+              'x-component': 'CreateCheckLink',
+              'x-component-props': {},
             },
           },
         },
+
         id: {
           type: 'void',
           'x-decorator': 'TableV2.Column.Decorator',

@@ -1,4 +1,4 @@
-import { useBlockRequestContext } from '../../../block-provider/BlockProvider';
+import { useBlockRequestContext } from '../../../block-provider/BlockRequestContext';
 
 export const useBlockCollection = () => {
   const ctx = useBlockRequestContext();

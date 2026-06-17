@@ -87,7 +87,7 @@ export default class PluginUsersServer extends Plugin {
         });
       }
 
-      if (collection.options.tenancy === 'tenantScoped') {
+      if (collection.options.tenancy === 'tenantScoped' || collection.options.tenancy === 'tenantInherited') {
         collection.setField('tenantId', {
           type: 'context',
           dataIndex: 'state.currentTenant.id',

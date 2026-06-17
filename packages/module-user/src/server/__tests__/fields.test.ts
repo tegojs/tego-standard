@@ -168,5 +168,32 @@ describe('createdBy/updatedBy', () => {
       const record = await Post.repository.findOne();
       expect(record.get('tenantId')).toBe(2);
     });
+
+    it('should append tenantId field and inject current tenant value for tenantInherited collection', async () => {
+      const Post = db.collection({
+        name: 'tenant_inherited_posts',
+        tenancy: 'tenantInherited',
+      });
+
+      expect(Post.hasField('tenantId')).toBeTruthy();
+
+      await db.sync();
+
+      await Post.repository.create({
+        values: {
+          tenantId: 'foreign-tenant',
+        },
+        context: {
+          state: {
+            currentTenant: {
+              id: 'tenant-a',
+            },
+          },
+        },
+      });
+
+      const record = await Post.repository.findOne();
+      expect(record.get('tenantId')).toBe('tenant-a');
+    });
   });
 });

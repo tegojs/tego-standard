@@ -68,6 +68,7 @@ function extractTenantContext(context: any, options: any = {}) {
     currentTenantId: state.currentTenantId,
     currentTenantDescendantIds: state.currentTenantDescendantIds || [],
     currentTenancyMode: state.currentTenancyMode,
+    currentLegacyDataTenantIds: state.currentLegacyDataTenantIds || [],
   };
 }
 

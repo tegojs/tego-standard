@@ -942,6 +942,9 @@ importers:
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
+      '@tachybase/module-tenant':
+        specifier: workspace:*
+        version: link:../module-tenant
       '@tachybase/schema':
         specifier: 1.6.13
         version: 1.6.13(react@18.3.1)
@@ -1279,6 +1282,42 @@ importers:
       lodash:
         specifier: 4.17.21
         version: 4.17.21
+
+  packages/module-tenant:
+    devDependencies:
+      '@tachybase/client':
+        specifier: workspace:*
+        version: link:../client
+      '@tachybase/module-acl':
+        specifier: workspace:*
+        version: link:../module-acl
+      '@tachybase/module-collection':
+        specifier: workspace:*
+        version: link:../module-collection
+      '@tachybase/module-data-source':
+        specifier: workspace:*
+        version: link:../module-data-source
+      '@tachybase/module-user':
+        specifier: workspace:*
+        version: link:../module-user
+      '@tachybase/plugin-action-export':
+        specifier: workspace:*
+        version: link:../plugin-action-export
+      '@tachybase/plugin-action-import':
+        specifier: workspace:*
+        version: link:../plugin-action-import
+      '@tachybase/test':
+        specifier: 1.6.13
+        version: 1.6.13(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.44.1)(yaml@2.8.1)
+      '@tego/client':
+        specifier: 1.6.13
+        version: 1.6.13(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tego/server':
+        specifier: 1.6.13
+        version: 1.6.13
+      antd:
+        specifier: 5.22.5
+        version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/module-ui-schema:
     devDependencies:
@@ -24777,7 +24816,7 @@ snapshots:
       '@ant-design/cssinjs-utils': 1.1.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/icons': 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/react-slick': 1.1.2(react@18.3.1)
-      '@babel/runtime': 7.28.2
+      '@babel/runtime': 7.29.7
       '@ctrl/tinycolor': 3.6.1
       '@rc-component/color-picker': 2.0.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@rc-component/mutate-observer': 1.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

@@ -191,8 +191,7 @@ describe('setCurrentTenant middleware', () => {
     expect(capturedState.isTenantImpersonation).toBe(true);
   });
 
-  // TODO: requires framework context-passthrough support (tego 1.6.14+)
-  it.skip('should write audit log metadata for root tenant impersonation', async () => {
+  it('should write audit log metadata for root tenant impersonation', async () => {
     app = await createTenantApp({ extraPlugins: ['audit-logs'] });
 
     await app.db.getRepository('tenants').create({

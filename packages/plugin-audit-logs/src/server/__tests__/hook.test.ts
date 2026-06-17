@@ -110,11 +110,10 @@ describe('hook', () => {
       collectionName: 'posts',
       type: 'create',
       userId: 1,
-      // TODO: tenant context fields require framework context-passthrough support
-      // tenantId: 'tenant-a',
-      // actorUserId: '1',
-      // tenantContextSource: 'membership',
-      // isTenantImpersonation: false,
+      tenantId: 'tenant-a',
+      actorUserId: '1',
+      tenantContextSource: 'membership',
+      isTenantImpersonation: false,
       recordId: `${post.get('id')}`,
       changes: [
         {

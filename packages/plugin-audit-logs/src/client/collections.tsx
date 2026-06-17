@@ -78,6 +78,16 @@ export const useAuditLogsCollection = () => {
         },
       },
       {
+        name: 'tenantId',
+        type: 'string',
+        interface: 'input',
+        uiSchema: {
+          type: 'string',
+          title: tval('Tenant ID'),
+          'x-component': 'Input',
+        },
+      },
+      {
         name: 'user',
         collectionName: 'auditLogs',
         type: 'belongsTo',

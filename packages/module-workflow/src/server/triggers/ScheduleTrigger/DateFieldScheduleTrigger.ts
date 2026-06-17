@@ -1,3 +1,4 @@
+import { getDescendantIds } from '@tachybase/module-tenant';
 import { fn, literal, Op, parseCollectionName, Transactionable, where } from '@tego/server';
 
 import parser from 'cron-parser';
@@ -89,7 +90,7 @@ function isTenantCollection(collection) {
   return collection?.options?.tenancy === 'tenantScoped' || collection?.options?.tenancy === 'tenantInherited';
 }
 
-function buildTenantContext(collection, record, tenant?) {
+async function buildTenantContext(db, collection, record, tenant?) {
   const tenancyMode = collection?.options?.tenancy;
   if (!isTenantCollection(collection)) {
     return null;
@@ -100,11 +101,16 @@ function buildTenantContext(collection, record, tenant?) {
     return null;
   }
 
+  const descendantIds =
+    tenancyMode === 'tenantInherited' && db.getRepository('tenants')
+      ? await getDescendantIds(db.getRepository('tenants'), `${tenantId}`)
+      : [];
+
   return {
     state: {
       currentTenant: tenant?.toJSON?.() ?? { id: tenantId },
       currentTenantId: tenantId,
-      currentTenantDescendantIds: [],
+      currentTenantDescendantIds: descendantIds,
       currentTenancyMode: tenancyMode,
     },
   };
@@ -127,7 +133,7 @@ async function buildEnabledTenantContext(db, collection, record) {
     },
   });
 
-  return tenant ? buildTenantContext(collection, record, tenant) : null;
+  return tenant ? buildTenantContext(db, collection, record, tenant) : null;
 }
 
 function bindTenantContext(record, context) {
@@ -307,14 +313,16 @@ export default class ScheduleTrigger {
     });
     const tenantsById = new Map(tenants.map((tenant) => [tenant.get('id'), tenant]));
 
-    return records
-      .map((record) =>
+    const recordsWithTenantContext = await Promise.all(
+      records.map(async (record) =>
         bindTenantContext(
           record,
-          buildTenantContext(targetCollection, record, tenantsById.get(record.get('tenantId'))),
+          await buildTenantContext(db, targetCollection, record, tenantsById.get(record.get('tenantId'))),
         ),
-      )
-      .filter(getBoundTenantContext);
+      ),
+    );
+
+    return recordsWithTenantContext.filter(getBoundTenantContext);
   }
 
   getRecordNextTime(workflow: WorkflowModel, record, nextSecond = false) {
@@ -403,7 +411,8 @@ export default class ScheduleTrigger {
       .collectionManager.getCollection(collectionName);
     const { repository, filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
-    const context = getBoundTenantContext(record) || buildTenantContext(collection, record);
+    const context =
+      getBoundTenantContext(record) || (await buildTenantContext(this.workflow.app.db, collection, record));
     const data = await repository.findOne({
       filterByTk: recordPk,
       appends: workflow.config.appends,

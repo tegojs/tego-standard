@@ -1,6 +1,7 @@
 import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
+
 import { expect } from 'vitest';
 
 import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
@@ -21,6 +22,11 @@ function getFutureSecond(seconds = 2) {
   const date = new Date(Date.now() + seconds * 1000);
   date.setMilliseconds(0);
   return date;
+}
+
+async function sleepToEvenSecond() {
+  const now = Date.now();
+  await sleep(1000 - (now % 1000) + 50);
 }
 
 function expectRepeatedAfterStart(executions, startTime: number) {
@@ -395,6 +401,76 @@ describe('workflow > triggers > schedule > date field mode', () => {
       expect(executions[0].context.state).toMatchObject({
         currentTenantId: 'tenant-a',
         currentTenancyMode: 'tenantScoped',
+      });
+    });
+
+    it('should include descendant tenant ids for tenant-inherited records', async () => {
+      db.collection({
+        name: 'tenants',
+        fields: [
+          { type: 'string', name: 'id', primaryKey: true },
+          { type: 'string', name: 'name' },
+          { type: 'string', name: 'title' },
+          { type: 'boolean', name: 'enabled', defaultValue: true },
+          { type: 'string', name: 'parentId' },
+          { type: 'string', name: 'path' },
+        ],
+      });
+      db.collection({
+        name: 'tenant_inherited_schedule_posts',
+        tenancy: 'tenantInherited',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'string', name: 'tenantId' },
+        ],
+      });
+      await db.sync();
+
+      await db.getRepository('tenants').create({
+        values: [
+          { id: 'branch-a', name: 'branch-a', title: 'Branch A', path: '/branch-a/' },
+          {
+            id: 'dept-a',
+            name: 'dept-a',
+            title: 'Dept A',
+            parentId: 'branch-a',
+            path: '/branch-a/dept-a/',
+          },
+        ],
+      });
+
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'schedule',
+        config: {
+          mode: 1,
+          collection: 'tenant_inherited_schedule_posts',
+          startsOn: {
+            field: 'createdAt',
+          },
+        },
+      });
+
+      await sleepToEvenSecond();
+
+      const TenantSchedulePostRepo = db.getRepository('tenant_inherited_schedule_posts');
+      const tenantAPost = await TenantSchedulePostRepo.create({
+        values: { title: 'a1', tenantId: 'branch-a' },
+      });
+
+      const executions = await waitForExecutions(workflow, 1);
+      expect(executions[0].context.data.id).toBe(tenantAPost.get('id'));
+      expect(executions[0].tenantId).toBe('branch-a');
+      expect(executions[0].tenantContext).toMatchObject({
+        currentTenant: { id: 'branch-a', name: 'branch-a', title: 'Branch A' },
+        currentTenantId: 'branch-a',
+        currentTenantDescendantIds: ['dept-a'],
+        currentTenancyMode: 'tenantInherited',
+      });
+      expect(executions[0].context.state).toMatchObject({
+        currentTenantId: 'branch-a',
+        currentTenantDescendantIds: ['dept-a'],
+        currentTenancyMode: 'tenantInherited',
       });
     });
 

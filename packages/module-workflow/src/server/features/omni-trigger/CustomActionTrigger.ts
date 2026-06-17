@@ -95,16 +95,16 @@ export class OmniTrigger extends Trigger {
       let data = formData;
       if (filterByTk != null) {
         if (isArray(filterByTk)) {
-          data = await repository.find({ filterByTk, appends });
+          data = await repository.find({ filterByTk, appends, context: ctx });
         } else {
-          data = await repository.findOne({ filterByTk, appends });
+          data = await repository.findOne({ filterByTk, appends, context: ctx });
         }
         if (!data) {
           continue;
         }
         Object.assign(data, formData);
       } else if (filter != null) {
-        data = await repository.find({ filter, appends });
+        data = await repository.find({ filter, appends, context: ctx });
         if (!data) {
           continue;
         }
@@ -142,7 +142,7 @@ export class OmniTrigger extends Trigger {
       return ctx.throw(500, 'Workflow on your action hangs, please contact the administrator');
     }
     for (const event of asyncGroup) {
-      this.workflow.trigger(event[0], event[1]);
+      this.workflow.trigger(event[0], event[1], { httpContext: ctx });
     }
     await next();
   };
@@ -244,6 +244,7 @@ export class OmniTrigger extends Trigger {
               payload = await model.collection.repository.findOne({
                 filterByTk: payload.get(model.primaryKeyAttribute),
                 appends,
+                context: ctx,
               });
             }
           }
@@ -260,6 +261,7 @@ export class OmniTrigger extends Trigger {
           data = await repository.findOne({
             filterByTk: pk,
             appends,
+            context: ctx,
           });
         }
         // this.workflow.trigger(workflow, {
@@ -276,7 +278,7 @@ export class OmniTrigger extends Trigger {
     }
 
     for (const event of asyncGroup) {
-      this.workflow.trigger(event[0], event[1]);
+      this.workflow.trigger(event[0], event[1], { httpContext: ctx });
     }
   }
 

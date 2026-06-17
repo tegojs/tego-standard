@@ -1,0 +1,143 @@
+import { OmniTrigger } from '../CustomActionTrigger';
+
+describe('workflow > omni trigger > custom action tenant context', () => {
+  function createTrigger(options: { workflowRecord?: any; repository?: any; workflowRepo?: any } = {}) {
+    const repository = options.repository || {
+      find: vi.fn(),
+      findOne: vi.fn(),
+    };
+    const workflowRecord =
+      options.workflowRecord ||
+      ({
+        key: 'wf-key',
+        type: OmniTrigger.TYPE,
+        sync: false,
+        config: {
+          collection: 'posts',
+        },
+      } as any);
+    const workflowRepo = options.workflowRepo || {
+      find: vi.fn().mockResolvedValue([workflowRecord]),
+    };
+    const errorHandlerPlugin = {
+      errorHandler: {
+        register: vi.fn(),
+      },
+    };
+    const workflow = {
+      app: {
+        pm: {
+          get: vi.fn().mockReturnValue(errorHandlerPlugin),
+        },
+        resourcer: {
+          registerActionHandler: vi.fn(),
+          use: vi.fn(),
+        },
+        acl: {
+          allow: vi.fn(),
+        },
+      },
+      db: {
+        getCollection: vi.fn().mockReturnValue({
+          model: {
+            build: vi.fn().mockReturnValue({
+              desensitize: () => ({ id: 1 }),
+            }),
+          },
+        }),
+        getRepository: vi.fn().mockReturnValue(workflowRepo),
+      },
+      enabledCache: new Map([[workflowRecord.id || 1, workflowRecord]]),
+      trigger: vi.fn(),
+    };
+    const trigger = new OmniTrigger(workflow as any);
+
+    return { repository, trigger, workflow, workflowRecord, workflowRepo };
+  }
+
+  function createContext(repository, actionParams: Record<string, any>) {
+    return {
+      action: {
+        params: actionParams,
+      },
+      body: null,
+      get: vi.fn((name: string) => {
+        if (name.toLowerCase() === 'x-data-source') {
+          return undefined;
+        }
+        return undefined;
+      }),
+      state: {
+        currentUser: { id: 1 },
+        currentRole: 'member',
+        currentTenantId: 'tenant-a',
+      },
+      tego: {
+        dataSourceManager: {
+          dataSources: {
+            get: vi.fn().mockReturnValue({
+              collectionManager: {
+                getCollection: vi.fn().mockReturnValue({
+                  model: {
+                    primaryKeyAttribute: 'id',
+                  },
+                  repository,
+                }),
+              },
+            }),
+          },
+        },
+      },
+    };
+  }
+
+  it('triggerAction should pass http context to payload findOne and async workflow trigger', async () => {
+    const { repository, trigger, workflow, workflowRecord } = createTrigger();
+    repository.findOne.mockResolvedValue({ id: 1, title: 'stored' });
+    const ctx = createContext(repository, {
+      actionName: 'trigger',
+      resourceName: 'posts',
+      filterByTk: 1,
+      values: { title: 'form' },
+      triggerWorkflows: workflowRecord.key,
+    });
+    const next = vi.fn();
+
+    await trigger.triggerAction(ctx as any, next);
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      filterByTk: 1,
+      appends: [],
+      context: ctx,
+    });
+    expect(workflow.trigger).toHaveBeenCalledWith(workflowRecord, expect.any(Object), { httpContext: ctx });
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('trigger should pass http context to workflow resource payload findOne and async workflow trigger', async () => {
+    const workflowRecord = {
+      key: 'wf-key',
+      type: OmniTrigger.TYPE,
+      sync: false,
+      config: {
+        collection: 'posts',
+        appends: ['comments'],
+      },
+    };
+    const { repository, trigger, workflow } = createTrigger({ workflowRecord });
+    repository.findOne.mockResolvedValue({ id: 1, title: 'stored' });
+    const ctx = createContext(repository, {
+      values: { id: 1 },
+    });
+    ctx.action.resourceName = 'workflows';
+
+    await (trigger as any).trigger(ctx, workflowRecord.key);
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      filterByTk: 1,
+      appends: ['comments'],
+      context: ctx,
+    });
+    expect(workflow.trigger).toHaveBeenCalledWith(workflowRecord, expect.any(Object), { httpContext: ctx });
+  });
+});

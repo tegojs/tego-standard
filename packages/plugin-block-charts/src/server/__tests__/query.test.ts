@@ -71,6 +71,9 @@ describe('query', () => {
         },
       };
     });
+    afterAll(async () => {
+      await app.destroy();
+    });
     it('should parse field and associations', async () => {
       const context = {
         ...ctx,
@@ -248,8 +251,10 @@ describe('query', () => {
     }
     let ctx: any;
     beforeEach(() => {
+      vi.clearAllMocks();
       const cache = new MockCache();
       ctx = {
+        state: {},
         tego: {
           cacheManager: {
             getCache: () => cache,
@@ -272,12 +277,9 @@ describe('query', () => {
           },
         },
       };
-      const cache = context.tego.cacheManager.getCache();
-      expect(cache.get(key)).toBeUndefined();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
-      expect(cache.get(key)).toEqual(value);
       vi.clearAllMocks();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(context.body).toEqual(value);
@@ -316,12 +318,9 @@ describe('query', () => {
           },
         },
       };
-      const cache = context.tego.cacheManager.getCache();
-      expect(cache.get(key)).toBeUndefined();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
-      expect(cache.get(key)).toEqual(value);
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);

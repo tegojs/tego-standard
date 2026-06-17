@@ -20,16 +20,14 @@ export interface TenantPluginConfig {
 
 export class PluginTenantServer extends Plugin {
   async loadCollections() {
-    return;
+    this.db.collection(tenantsCollection);
+    this.db.collection(tenantUsersCollection);
+    this.db.extendCollection(usersCollection.collectionOptions, usersCollection.mergeOptions);
   }
 
   async beforeLoad() {
     this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
     this.app.i18n.addResources('en-US', NAMESPACE, enUS);
-
-    this.db.collection(tenantsCollection);
-    this.db.collection(tenantUsersCollection);
-    this.db.extendCollection(usersCollection.collectionOptions, usersCollection.mergeOptions);
 
     this.app.resourcer.registerActionHandler('tenants:available', availableTenants);
     this.app.resourcer.registerActionHandler('tenants:current', currentTenant);

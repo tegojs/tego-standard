@@ -101,8 +101,7 @@ describe('tenant export', () => {
     expect(rows).not.toContainEqual(['B1']);
   });
 
-  // TODO: export plugin needs tenant-aware worker path support
-  it.skip('should pass tenant context into worker export and include tenant marker in the generated file path', async () => {
+  it('should pass tenant context into worker export and include tenant marker in the generated file path', async () => {
     app = await createTenantApp({
       extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
     });
@@ -110,6 +109,7 @@ describe('tenant export', () => {
     await app.db.getRepository('tenants').create({
       values: [
         { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-a-child', name: 'tenant-a-child', title: 'Tenant A Child', parentId: 'tenant-a' },
         { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
       ],
     });
@@ -138,7 +138,8 @@ describe('tenant export', () => {
     await app.db.getRepository('collections').create({
       values: {
         name: 'tenant_export_worker_posts',
-        tenancy: 'tenantScoped',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a'],
         fields: [
           {
             type: 'string',
@@ -151,12 +152,17 @@ describe('tenant export', () => {
 
     await app.db.getRepository('tenant_export_worker_posts').create({
       values: Array.from({ length: 2001 }, (_, index) => ({ title: `A${index + 1}` })),
-      context: { state: { currentTenantId: 'tenant-a', currentTenant: { id: 'tenant-a' } } } as any,
+      context: {
+        state: {
+          currentTenantId: 'tenant-a-child',
+          currentTenant: { id: 'tenant-a-child' },
+        },
+      } as any,
     });
 
+    let capturedWorkerParams: any;
     const callPluginMethod = vi.fn(async ({ params }) => {
-      expect(params.currentTenantId).toBe('tenant-a');
-      expect(params.title).toBe('tenant-export-posts');
+      capturedWorkerParams = params;
       return 'storage/uploads/tenants/tenant-a/tenant_export_worker_posts_tenant-a_202604181340.xlsx';
     });
 
@@ -184,6 +190,17 @@ describe('tenant export', () => {
 
     expect(response.status).toBe(200);
     expect(callPluginMethod).toHaveBeenCalledTimes(1);
+    expect(capturedWorkerParams.currentTenantId).toBe('tenant-a');
+    expect(capturedWorkerParams.tenantContext).toMatchObject({
+      currentTenant: {
+        id: 'tenant-a',
+      },
+      currentTenantId: 'tenant-a',
+      currentTenancyMode: 'tenantInherited',
+      currentLegacyDataTenantIds: ['tenant-a'],
+    });
+    expect(capturedWorkerParams.tenantContext.currentTenantDescendantIds).toContain('tenant-a-child');
+    expect(capturedWorkerParams.title).toBe('tenant-export-posts');
     const workerCall = callPluginMethod.mock.results[0].value;
     await expect(workerCall).resolves.toContain(path.posix.join('tenants', 'tenant-a'));
     await expect(workerCall).resolves.toContain('tenant-a');

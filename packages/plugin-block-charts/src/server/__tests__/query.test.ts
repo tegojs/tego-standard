@@ -486,6 +486,89 @@ describe('query', () => {
       await compose([cacheMiddleware, query])(secondContext, async () => {});
       expect(query).toBeCalledTimes(1);
     });
+
+    it('should isolate cache by inherited tenant descendants', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentTenantDescendantIds: ['tenant-a-child'],
+        },
+        db: {
+          getCollection: vi.fn().mockReturnValue({
+            options: {
+              tenancy: 'tenantInherited',
+            },
+          }),
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_inherited_orders',
+            },
+          },
+        },
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentTenantDescendantIds: ['tenant-a-child', 'tenant-a-new-child'],
+        },
+        db: firstContext.db,
+        action: firstContext.action,
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should isolate cache by legacy data tenant visibility', async () => {
+      const createContext = (legacyDataTenantIds: string[]) => ({
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        db: {
+          getCollection: vi.fn().mockReturnValue({
+            options: {
+              tenancy: 'tenantScoped',
+              legacyDataTenantIds,
+            },
+          }),
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_legacy_orders',
+            },
+          },
+        },
+      });
+
+      await compose([cacheMiddleware, query])(createContext([]), async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(createContext(['tenant-a']), async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
   });
 
   describe('applyTenantScope', () => {

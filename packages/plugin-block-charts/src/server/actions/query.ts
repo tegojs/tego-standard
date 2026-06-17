@@ -116,6 +116,41 @@ function getCurrentTenantId(ctx: Context) {
   return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
 }
 
+function normalizeTenantIds(ids?: Array<string | number>) {
+  return (ids || []).map((item) => `${item}`).sort();
+}
+
+function getLegacyDataTenantIds(ctx: Context, collection: any) {
+  if (Array.isArray(ctx.state.currentLegacyDataTenantIds)) {
+    return ctx.state.currentLegacyDataTenantIds;
+  }
+
+  return collection?.options?.legacyDataTenantIds || [];
+}
+
+function getTenantCacheScope(ctx: Context, params: QueryParams) {
+  const tenantId = getCurrentTenantId(ctx);
+
+  if (!tenantId) {
+    return null;
+  }
+
+  const db = getDB(ctx, params.dataSource) || ctx.db;
+  const collection = params.collection ? db?.getCollection?.(params.collection) : null;
+  const tenancyMode = collection?.options?.tenancy ?? ctx.state.currentTenancyMode;
+
+  if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
+    return null;
+  }
+
+  return {
+    tenancyMode,
+    tenantDescendantIds:
+      tenancyMode === 'tenantInherited' ? normalizeTenantIds(ctx.state.currentTenantDescendantIds) : [],
+    legacyDataTenantIds: normalizeTenantIds(getLegacyDataTenantIds(ctx, collection)),
+  };
+}
+
 function stableSerialize(value: any): string {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
@@ -134,8 +169,8 @@ function stableSerialize(value: any): string {
 function getChartCacheKey(ctx: Context, uid: string) {
   const tenantId = getCurrentTenantId(ctx);
   const currentUserId = ctx.state.currentUser?.id;
-  const { dataSource, collection, measures, dimensions, orders, filter, limit, sql } = ctx.action.params
-    .values as QueryParams;
+  const values = ctx.action.params.values as QueryParams;
+  const { dataSource, collection, measures, dimensions, orders, filter, limit, sql } = values;
   const timezone = ctx.get?.('x-timezone');
   const signature = stableSerialize({
     dataSource,
@@ -148,6 +183,7 @@ function getChartCacheKey(ctx: Context, uid: string) {
     sql,
     timezone,
     currentUserId,
+    tenantScope: getTenantCacheScope(ctx, values),
   });
 
   if (!tenantId) {
@@ -437,7 +473,7 @@ export const applyTenantScope = async (ctx: Context, next: Next) => {
     const tenantId = getCurrentTenantId(ctx);
 
     if (tenantId) {
-      const includeLegacyData = canReadLegacyData(tenantId, collection.options?.legacyDataTenantIds);
+      const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(ctx, collection));
       const tenantFilter =
         tenancyMode === 'tenantInherited'
           ? buildInheritedTenantFilter([tenantId, ...(ctx.state.currentTenantDescendantIds || [])], includeLegacyData)

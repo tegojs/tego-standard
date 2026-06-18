@@ -141,8 +141,7 @@ describe('createdBy/updatedBy', () => {
       expect(data.updatedBy.id).toBe(user2.get('id'));
     });
 
-    // TODO: requires tenant plugin to auto-add tenantId field
-    it.skip('should append tenantId field and inject current tenant value for tenantScoped collection', async () => {
+    it('should append tenantId field and inject current tenant value for tenantScoped collection', async () => {
       const Post = db.collection({
         name: 'tenant_posts',
         tenancy: 'tenantScoped',
@@ -166,7 +165,7 @@ describe('createdBy/updatedBy', () => {
       });
 
       const record = await Post.repository.findOne();
-      expect(record.get('tenantId')).toBe(2);
+      expect(record.get('tenantId')).toBe('2');
     });
 
     it('should append tenantId field and inject current tenant value for tenantInherited collection', async () => {

@@ -152,8 +152,7 @@ describe('workflow > triggers > collection', () => {
     });
   });
 
-  // TODO: requires framework context-passthrough support (tego 1.6.14+)
-  describe.skip('model context', () => {
+  describe('model context', () => {
     it('should persist tenant context from repository options', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,

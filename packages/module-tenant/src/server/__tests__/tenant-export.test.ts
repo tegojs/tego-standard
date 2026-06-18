@@ -13,8 +13,7 @@ describe('tenant export', () => {
     await app?.destroy();
   });
 
-  // TODO: export plugin needs tenant-aware filename support
-  it.skip('should export only current tenant records even when client passes a foreign tenant filter', async () => {
+  it('should export only current tenant records even when client passes a foreign tenant filter', async () => {
     app = await createTenantApp({
       extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
     });
@@ -206,8 +205,7 @@ describe('tenant export', () => {
     await expect(workerCall).resolves.toContain('tenant-a');
   });
 
-  // TODO: export plugin needs tenant-aware filename support
-  it.skip('should keep original export title in download filename while appending tenant marker', async () => {
+  it('should keep original export title in download filename while appending tenant marker', async () => {
     app = await createTenantApp({
       extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
     });

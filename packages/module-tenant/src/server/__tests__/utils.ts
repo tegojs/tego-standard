@@ -60,12 +60,25 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     ],
   });
 
-  // Ensure all plugin-registered collections have their tables created.
   // In some CI environments (Node 20 + Linux + sqlite3 prebuild), the
   // db.sync() inside pm.install() can silently skip newly-registered
-  // collections. An explicit sync after server creation prevents
-  // "no such table" errors when the test accesses tenant tables.
-  await app.db.sync();
+  // collections.  Sync the tenant tables individually to prevent
+  // "no such table" errors when the test accesses tenant data.
+  // We avoid a full db.sync() because some collections (e.g.
+  // collectionCategories) have cross-table dependencies that fail
+  // when synced in isolation.
+  try {
+    const tenantModel = app.db.getModel('tenants');
+    if (tenantModel) {
+      await tenantModel.sync();
+    }
+    const tenantUsersModel = app.db.getModel('tenantUsers');
+    if (tenantUsersModel) {
+      await tenantUsersModel.sync();
+    }
+  } catch {
+    // Tables may already exist from a prior install — ignore.
+  }
 
   return app;
 }

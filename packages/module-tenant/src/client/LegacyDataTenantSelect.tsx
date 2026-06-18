@@ -3,7 +3,7 @@ import { Field, observer, useField } from '@tachybase/schema';
 
 import { Select } from 'antd';
 
-import { useAPIClient } from '../../../api-client';
+import { useAPIClient } from '@tachybase/client';
 
 export const LegacyDataTenantSelect = observer(
   (props: any) => {

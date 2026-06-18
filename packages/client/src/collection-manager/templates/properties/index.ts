@@ -50,6 +50,17 @@ export const defaultConfigurableProperties = {
     'x-decorator': 'FormItem',
     'x-component': 'Input.TextArea',
   },
+  presetFields: {
+    title: '{{t("Preset fields")}}',
+    type: 'void',
+    'x-decorator': 'FormItem',
+    'x-visible': '{{ createOnly }}',
+    'x-component': PresetFields,
+  },
+};
+
+/** Tenant-specific configurable properties, injected by module-tenant plugin. */
+export const tenantConfigurableProperties = {
   tenancy: {
     title: '{{t("Tenancy mode")}}',
     type: 'string',
@@ -90,13 +101,6 @@ export const defaultConfigurableProperties = {
       },
     },
   },
-  presetFields: {
-    title: '{{t("Preset fields")}}',
-    type: 'void',
-    'x-decorator': 'FormItem',
-    'x-visible': '{{ createOnly }}',
-    'x-component': PresetFields,
-  },
 };
 
 export type DefaultConfigurableKeys =
@@ -111,8 +115,6 @@ export type DefaultConfigurableKeys =
   | 'updatedAt'
   | 'sortable'
   | 'description'
-  | 'tenancy'
-  | 'legacyDataTenantIds'
   | 'presetFields';
 
 export const getConfigurableProperties = (...keys: DefaultConfigurableKeys[]) => {

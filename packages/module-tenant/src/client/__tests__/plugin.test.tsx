@@ -1,5 +1,11 @@
 import React from 'react';
-import { Application, CurrentNavigationMenuProvider, i18n, useCurrentNavigationMenu } from '@tachybase/client';
+import {
+  Application,
+  CollectionTemplate,
+  CurrentNavigationMenuProvider,
+  i18n,
+  useCurrentNavigationMenu,
+} from '@tachybase/client';
 import { render, waitFor } from '@tachybase/test/client';
 
 import PluginTenantClient from '..';
@@ -14,6 +20,43 @@ import {
   TenantManagement,
 } from '../TenantManagement';
 import TenantMenuProvider from '../TenantMenuProvider';
+
+/** Stub templates for testing injection logic. */
+class StubGeneralTemplate extends CollectionTemplate {
+  name = 'general';
+  configurableProperties = {} as any;
+}
+class StubExpressionTemplate extends CollectionTemplate {
+  name = 'expression';
+  configurableProperties = {} as any;
+}
+class StubTreeTemplate extends CollectionTemplate {
+  name = 'tree';
+  configurableProperties = {} as any;
+}
+class StubSqlTemplate extends CollectionTemplate {
+  name = 'sql';
+  configurableProperties = {} as any;
+}
+class StubViewTemplate extends CollectionTemplate {
+  name = 'view';
+  configurableProperties = {} as any;
+}
+
+function createAppWithTemplates() {
+  return new Application({
+    plugins: [[PluginTenantClient, { name: 'tenant' }]],
+    dataSourceManager: {
+      collectionTemplates: [
+        StubGeneralTemplate,
+        StubExpressionTemplate,
+        StubTreeTemplate,
+        StubSqlTemplate,
+        StubViewTemplate,
+      ],
+    },
+  });
+}
 
 describe('PluginTenantClient', () => {
   it('should render tenant switcher in the navigation extension area', async () => {
@@ -138,6 +181,47 @@ describe('PluginTenantClient', () => {
       expect(getByTestId('tenant-text')).toHaveTextContent('租户');
     } finally {
       await i18n.changeLanguage('en-US');
+    }
+  });
+
+  it('should inject tenancy fields into standard collection templates on load', async () => {
+    const app = createAppWithTemplates();
+
+    await app.load();
+
+    const ctm = app.dataSourceManager.collectionTemplateManager;
+    for (const name of ['general', 'expression', 'tree']) {
+      const tpl = ctm.getCollectionTemplate(name);
+      expect(tpl.configurableProperties.tenancy).toMatchObject({
+        type: 'string',
+        'x-component': 'Select',
+      });
+      expect(tpl.configurableProperties.tenancy.enum).toEqual([
+        { label: '{{t("Shared collection")}}', value: 'shared' },
+        { label: '{{t("Tenant scoped")}}', value: 'tenantScoped' },
+        { label: '{{t("Tenant inherited")}}', value: 'tenantInherited' },
+      ]);
+      expect(tpl.configurableProperties.legacyDataTenantIds).toMatchObject({
+        type: 'array',
+        name: 'legacyDataTenantIds',
+        'x-component': 'LegacyDataTenantSelect',
+        'x-component-props': {
+          mode: 'multiple',
+        },
+      });
+    }
+  });
+
+  it('should not inject tenancy fields into SQL or view templates', async () => {
+    const app = createAppWithTemplates();
+
+    await app.load();
+
+    const ctm = app.dataSourceManager.collectionTemplateManager;
+    for (const name of ['sql', 'view']) {
+      const tpl = ctm.getCollectionTemplate(name);
+      expect(tpl.configurableProperties.tenancy).toBeUndefined();
+      expect(tpl.configurableProperties.legacyDataTenantIds).toBeUndefined();
     }
   });
 

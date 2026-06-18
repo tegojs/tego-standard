@@ -34,27 +34,12 @@ vi.mock('../../../i18n', () => ({
 }));
 
 describe('collection template tenancy configuration', () => {
-  it('should expose tenancy configuration for standard data collection templates', () => {
+  it('should not expose tenancy configuration in base templates (injected by module-tenant plugin)', () => {
     for (const Template of [GeneralCollectionTemplate, TreeCollectionTemplate, ExpressionCollectionTemplate]) {
       const template = new Template();
 
-      expect(template.configurableProperties.tenancy).toMatchObject({
-        type: 'string',
-        'x-component': 'Select',
-      });
-      expect(template.configurableProperties.tenancy.enum).toEqual([
-        { label: '{{t("Shared collection")}}', value: 'shared' },
-        { label: '{{t("Tenant scoped")}}', value: 'tenantScoped' },
-        { label: '{{t("Tenant inherited")}}', value: 'tenantInherited' },
-      ]);
-      expect(template.configurableProperties.legacyDataTenantIds).toMatchObject({
-        type: 'array',
-        name: 'legacyDataTenantIds',
-        'x-component': 'LegacyDataTenantSelect',
-        'x-component-props': {
-          mode: 'multiple',
-        },
-      });
+      expect(template.configurableProperties.tenancy).toBeUndefined();
+      expect(template.configurableProperties.legacyDataTenantIds).toBeUndefined();
     }
   });
 

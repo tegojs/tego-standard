@@ -1306,6 +1306,9 @@ importers:
       '@tachybase/plugin-action-import':
         specifier: workspace:*
         version: link:../plugin-action-import
+      '@tachybase/schema':
+        specifier: 1.6.13
+        version: 1.6.13(react@18.3.1)
       '@tachybase/test':
         specifier: 1.6.13
         version: 1.6.13(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.44.1)(yaml@2.8.1)

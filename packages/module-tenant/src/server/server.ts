@@ -63,6 +63,33 @@ export class PluginTenantServer extends Plugin {
       const tenancyMode = getCollectionTenancyMode(collection);
 
       if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
+        // When acl is disabled, AuthManagerMiddleware.skipCheck() returns true
+        // and ctx.auth.user / ctx.state.currentUser are never populated.
+        // Load the user from the JWT token so that tenant resolution works.
+        if (!ctx.state.currentUser && !ctx.auth?.user) {
+          const authHeader = ctx.get('Authorization') || ctx.get('authorization') || '';
+          const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+          if (token) {
+            try {
+              const parts = token.split('.');
+              if (parts.length === 3) {
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+                if (payload?.userId) {
+                  const user = await db.getRepository('users').findOne({
+                    filterByTk: payload.userId,
+                    appends: ['roles'],
+                  });
+                  if (user) {
+                    ctx.state.currentUser = user.toJSON();
+                  }
+                }
+              }
+            } catch {
+              // invalid token – silently skip
+            }
+          }
+        }
+
         if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
           await setCurrentTenant(ctx, async () => undefined);
         }

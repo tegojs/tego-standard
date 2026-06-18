@@ -9,7 +9,9 @@ type TenantFilterCollection = {
   options?: {
     tenancy?: string;
     legacyDataTenantIds?: Array<string | number>;
+    [key: string]: any;
   };
+  [key: string]: any;
 };
 
 const READ_ACTIONS = ['list', 'get', 'count', 'export', 'aggregate'];

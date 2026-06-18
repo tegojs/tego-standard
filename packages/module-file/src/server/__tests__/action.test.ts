@@ -82,10 +82,17 @@ describe('action', () => {
         phone: '10000010001',
         password: '123456',
         roles: ['admin'],
-        tenants: ['tenant-a', 'tenant-b'],
         defaultTenantId: 'tenant-a',
       },
     });
+
+    // Create tenant-user join records explicitly (the users collection in
+    // this test does not have the tenants belongsToMany field registered).
+    for (const tenantId of ['tenant-a', 'tenant-b']) {
+      await db.getRepository('tenantUsers').create({
+        values: { userId: tenantUser.get('id'), tenantId },
+      });
+    }
 
     agent = app.agent().login(tenantUser);
 

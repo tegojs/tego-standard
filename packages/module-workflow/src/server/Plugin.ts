@@ -55,7 +55,7 @@ type ID = number | string;
 
 type Pending = [ExecutionModel, JobModel?, Transactionable?];
 
-type CachedEvent = [WorkflowModel, any, { context?: any }];
+type CachedEvent = [WorkflowModel, any, { context?: any } & Transactionable];
 
 function extractTenantContext(context: any, options: any = {}) {
   const state = options.context?.state || options.httpContext?.state || context?.state || context?.context?.state;

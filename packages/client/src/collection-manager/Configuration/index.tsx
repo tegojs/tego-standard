@@ -18,6 +18,7 @@ export * from './components/CollectionFieldInterfaceTag';
 export * from './components/CollectionCategory';
 export * from './components/CollectionTemplateTag';
 export * from './ImportCollectionMetaAction';
+export { LegacyDataTenantSelect } from './components/LegacyDataTenantSelect';
 export * as CMConfigurationComponents from './components';
 
 registerValidateFormats({

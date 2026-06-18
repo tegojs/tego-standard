@@ -1,4 +1,4 @@
-import { Plugin, tenantConfigurableProperties } from '@tachybase/client';
+import { LegacyDataTenantSelect, Plugin, tenantConfigurableProperties } from '@tachybase/client';
 
 import CurrentTenantProvider from './CurrentTenantProvider';
 import { tval } from './locale';
@@ -19,6 +19,9 @@ class PluginTenantClient extends Plugin {
       aclSnippet: 'pm.tenant.manage',
       sort: 6,
     });
+
+    // Register tenant-specific schema components
+    this.app.addComponents({ LegacyDataTenantSelect });
 
     // Inject tenancy fields into collection templates that support tenant isolation
     const ctm = this.app.dataSourceManager.collectionTemplateManager;

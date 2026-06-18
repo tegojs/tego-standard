@@ -241,12 +241,14 @@
 - ACL、audit log、charts 边界路径
 - 测试/配置污染：未发现 `vitest.config.*` / `jest` 配置文件 diff；发现文档、catalog/lockfile 和 AI 指南类范围风险
 
-### 2026-06-17 补充：context 透传已确认正常
+### 2026-06-17 补充：context 透传已确认正常，测试已清理
 
 经直接测试验证，`@tachybase/database@1.6.13` 的 repository 完整传递 `context.state` 到 Sequelize hook，包括 `currentTenantId`、`actorUserId` 等自定义字段。**不需要框架适配**。
 
 此前测试失败的原因是 `dist/` 目录（`.gitignore` 中）未随源码同步更新，`createMockServer` 从 `dist/server/index.js` 加载的是旧版编译产物，缺少租户代码。重建 dist 后测试全部通过。
 
-待继续复核：
+已取消 skip 的测试：acl scope、user fields、tenant-export、workflow collection trigger（共 30 个用例全部通过）。
 
-- 用最终清单再过一遍是否有重复项可以合并，避免修复阶段重复劳动
+仍保持 skip 的测试（需进一步排查 test setup 问题）：
+- `module-file/action.test.ts` — 4 个 tenant 相关测试（test setup 问题，非框架限制）
+- `module-workflow/mode-date-field.test.ts` — 1 个 tenant context 持久化测试（需要 tenant 插件完整加载）

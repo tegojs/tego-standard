@@ -43,7 +43,7 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
-  return createMockServer({
+  const app = await createMockServer({
     registerActions: true,
     acl: true,
     plugins: [
@@ -59,4 +59,13 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       TestAuthStatusPlugin,
     ],
   });
+
+  // Ensure all plugin-registered collections have their tables created.
+  // In some CI environments (Node 20 + Linux + sqlite3 prebuild), the
+  // db.sync() inside pm.install() can silently skip newly-registered
+  // collections. An explicit sync after server creation prevents
+  // "no such table" errors when the test accesses tenant tables.
+  await app.db.sync();
+
+  return app;
 }

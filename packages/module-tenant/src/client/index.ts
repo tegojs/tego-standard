@@ -1,4 +1,5 @@
-import { LegacyDataTenantSelect, Plugin, tenantConfigurableProperties } from '@tachybase/client';
+import { Plugin, tenantConfigurableProperties } from '@tachybase/client';
+import { LegacyDataTenantSelect } from '@tachybase/client/collection-manager/Configuration/components/LegacyDataTenantSelect';
 
 import CurrentTenantProvider from './CurrentTenantProvider';
 import { tval } from './locale';

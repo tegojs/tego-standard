@@ -61,28 +61,16 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   });
 
   // Guarantee all tables exist. In CI the framework's internal db.sync()
-  // runs before plugin loadCollections(), so application tables are never
-  // created. Sync models individually; FK dependencies may cause some
-  // models to fail on first pass — retry once after all others exist.
-  await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
-  const models = Object.values(app.db.sequelize.models);
-  const failed: typeof models = [];
-  for (const model of models) {
-    try {
-      await model.sync();
-    } catch {
-      failed.push(model);
-    }
+  // runs before plugin loadCollections(), so application tables may be
+  // missing. Wrap in try-catch to never throw (prevents app leak in
+  // AppSupervisor which causes "app main already exists" cascade).
+  try {
+    await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
+    await app.db.sync();
+    await app.db.sequelize.query('PRAGMA foreign_keys = ON');
+  } catch {
+    // db.sync failure — tests will use whatever tables exist
   }
-  // Second pass for models whose FK deps were missing on first try.
-  for (const model of failed) {
-    try {
-      await model.sync();
-    } catch {
-      // still fails — table will be missing, but non-critical for tests
-    }
-  }
-  await app.db.sequelize.query('PRAGMA foreign_keys = ON');
 
   return app;
 }

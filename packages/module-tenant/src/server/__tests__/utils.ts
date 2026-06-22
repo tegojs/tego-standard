@@ -43,6 +43,20 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
+  // Ensure a post-install db.sync() so that all plugin-registered
+  // collections (tenants, tenantUsers, etc.) have their tables created.
+  // The framework's pm.install() calls db.sync() BEFORE plugin
+  // loadCollections(), so those tables are missed.
+  // SyncPlugin is added last, so its install() runs after all other
+  // plugins have been installed and their collections registered.
+  class SyncPlugin extends Plugin {
+    async install() {
+      await this.db.sequelize.query('PRAGMA foreign_keys = OFF');
+      await this.db.sync();
+      await this.db.sequelize.query('PRAGMA foreign_keys = ON');
+    }
+  }
+
   const app = await createMockServer({
     registerActions: true,
     acl: true,
@@ -57,25 +71,9 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
       ...extraPlugins,
       TestAuthStatusPlugin,
+      SyncPlugin,
     ],
   });
-
-  // In some CI environments (Node 20 + Linux + sqlite3 prebuild), the
-  // db.sync() inside pm.install() can silently skip newly-registered
-  // collections.  A targeted sync after server creation prevents
-  // "no such table" errors when the test accesses tenant data.
-  // In some CI environments (Node 20 + Linux + sqlite3 prebuild), the
-  // db.sync() inside pm.install() can silently skip newly-registered
-  // collections.  A full sync after server creation prevents
-  // "no such table" errors when the test accesses tenant data.
-  // Disable FK checks to avoid collectionCategories FK ordering issues.
-  try {
-    await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
-    await app.db.sync();
-    await app.db.sequelize.query('PRAGMA foreign_keys = ON');
-  } catch (e) {
-    app.logger?.warn?.('db.sync() in createTenantApp failed', e);
-  }
 
   return app;
 }

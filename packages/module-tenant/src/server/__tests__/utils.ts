@@ -64,7 +64,18 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   // db.sync() inside pm.install() can silently skip newly-registered
   // collections.  A targeted sync after server creation prevents
   // "no such table" errors when the test accesses tenant data.
-  await app.db.sync();
+  // In some CI environments (Node 20 + Linux + sqlite3 prebuild), the
+  // db.sync() inside pm.install() can silently skip newly-registered
+  // collections.  A full sync after server creation prevents
+  // "no such table" errors when the test accesses tenant data.
+  // Disable FK checks to avoid collectionCategories FK ordering issues.
+  try {
+    await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
+    await app.db.sync();
+    await app.db.sequelize.query('PRAGMA foreign_keys = ON');
+  } catch (e) {
+    app.logger?.warn?.('db.sync() in createTenantApp failed', e);
+  }
 
   return app;
 }

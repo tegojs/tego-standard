@@ -60,21 +60,18 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     ],
   });
 
-  // Diagnostic: list tables and verify tenants exists
-  try {
-    const [rows] = await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'");
-    if (!(rows as any[]).length) {
-      const [allTables] = await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table'");
-      console.error(
-        '[createTenantApp] tenants MISSING. Tables:',
-        (allTables as any[]).map((r: any) => r.name),
-      );
-      console.error('[createTenantApp] collections:', Array.from(app.db.collections.keys()).slice(0, 10));
-      console.error('[createTenantApp] sequelize models:', Object.keys(app.db.sequelize.models));
+  // Guarantee tenant tables exist by syncing the specific models.
+  // In CI the framework's internal db.sync() may run before plugin
+  // collections are registered; model.sync() targets one table at a
+  // time and always uses the live database handle.
+  await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
+  for (const name of ['tenants', 'tenantUsers']) {
+    const model = app.db.sequelize.models?.[name];
+    if (model) {
+      await model.sync();
     }
-  } catch (e) {
-    console.error('[createTenantApp] diagnostic failed:', e.message);
   }
+  await app.db.sequelize.query('PRAGMA foreign_keys = ON');
 
   return app;
 }

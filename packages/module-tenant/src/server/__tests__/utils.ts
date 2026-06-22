@@ -60,16 +60,12 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     ],
   });
 
-  // Guarantee tenant tables exist by syncing the specific models.
-  // In CI the framework's internal db.sync() may run before plugin
-  // collections are registered; model.sync() targets one table at a
-  // time and always uses the live database handle.
+  // Guarantee all tables exist. In CI the framework's internal db.sync()
+  // runs before plugin loadCollections(), so application tables are never
+  // created. Sync all registered models individually with FK checks off.
   await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
-  for (const name of ['tenants', 'tenantUsers']) {
-    const model = app.db.sequelize.models?.[name];
-    if (model) {
-      await model.sync();
-    }
+  for (const model of Object.values(app.db.sequelize.models)) {
+    await model.sync();
   }
   await app.db.sequelize.query('PRAGMA foreign_keys = ON');
 

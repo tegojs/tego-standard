@@ -43,20 +43,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
-  // Ensure a post-install db.sync() so that all plugin-registered
-  // collections (tenants, tenantUsers, etc.) have their tables created.
-  // The framework's pm.install() calls db.sync() BEFORE plugin
-  // loadCollections(), so those tables are missed.
-  // SyncPlugin is added last, so its install() runs after all other
-  // plugins have been installed and their collections registered.
-  class SyncPlugin extends Plugin {
-    async install() {
-      await this.db.sequelize.query('PRAGMA foreign_keys = OFF');
-      await this.db.sync();
-      await this.db.sequelize.query('PRAGMA foreign_keys = ON');
-    }
-  }
-
   const app = await createMockServer({
     registerActions: true,
     acl: true,
@@ -71,9 +57,24 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
       ...extraPlugins,
       TestAuthStatusPlugin,
-      SyncPlugin,
     ],
   });
+
+  // Diagnostic: list tables and verify tenants exists
+  try {
+    const [rows] = await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'");
+    if (!(rows as any[]).length) {
+      const [allTables] = await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table'");
+      console.error(
+        '[createTenantApp] tenants MISSING. Tables:',
+        (allTables as any[]).map((r: any) => r.name),
+      );
+      console.error('[createTenantApp] collections:', Array.from(app.db.collections.keys()).slice(0, 10));
+      console.error('[createTenantApp] sequelize models:', Object.keys(app.db.sequelize.models));
+    }
+  } catch (e) {
+    console.error('[createTenantApp] diagnostic failed:', e.message);
+  }
 
   return app;
 }

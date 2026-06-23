@@ -43,17 +43,18 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
-  // In CI the framework's pm.install() calls db.sync() BEFORE plugin
-  // loadCollections(), so application tables are never created.
-  // SyncPlugin is listed last so its install() runs after all other
-  // plugins have been installed and their collections registered.
+  // SyncPlugin runs inside pm.install() after all other plugins have
+  // registered their collections.  This is the only reliable place to
+  // create application tables because pm.install() own db.sync() runs
+  // BEFORE loadCollections().
+  //
+  // We also force in-memory SQLite (no storage file) so that
+  // isInstalled() always returns false on a fresh createMockServer
+  // call — preventing pm.install from being skipped when a previous
+  // test left a stale database file (CI uses file-based SQLite via
+  // setupServerTestEnvironment).
   class SyncPlugin extends Plugin {
     async install() {
-      // Sync all registered models to create their tables.
-      // Two passes with FK disabled: first pass creates what it can,
-      // second pass retries models whose FK deps were missing.
-      // Individual model.sync errors are swallowed to prevent
-      // cascade failures.
       try {
         await this.db.sequelize.query('PRAGMA foreign_keys = OFF');
         const models = Object.values(this.db.sequelize.models);
@@ -78,9 +79,10 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
-  const app = await createMockServer({
+  return createMockServer({
     registerActions: true,
     acl: true,
+    database: { dialect: 'sqlite' },
     plugins: [
       'acl',
       'error-handler',
@@ -95,37 +97,4 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       SyncPlugin,
     ],
   });
-
-  // Belt-and-suspenders: if SyncPlugin.install was skipped (e.g.
-  // isInstalled returned true in CI), ensure all tables exist.
-  // Use per-model sync with FK off (not db.sync which can break
-  // plugin state). Two passes: first creates what it can, second
-  // retries models whose FK deps were missing.
-  try {
-    await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
-  } catch {
-    /* ignore */
-  }
-  const models = Object.values(app.db.sequelize.models);
-  for (const m of models) {
-    try {
-      await m.sync();
-    } catch {
-      /* FK dep missing */
-    }
-  }
-  for (const m of models) {
-    try {
-      await m.sync();
-    } catch {
-      /* still fails */
-    }
-  }
-  try {
-    await app.db.sequelize.query('PRAGMA foreign_keys = ON');
-  } catch {
-    /* ignore */
-  }
-
-  return app;
 }

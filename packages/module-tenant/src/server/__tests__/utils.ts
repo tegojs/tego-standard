@@ -49,41 +49,36 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   // plugins have been installed and their collections registered.
   class SyncPlugin extends Plugin {
     async install() {
-      const sequelize = this.db.sequelize;
+      // Sync all registered models to create their tables.
+      // Two passes with FK disabled: first pass creates what it can,
+      // second pass retries models whose FK deps were missing.
+      // Individual model.sync errors are swallowed to prevent
+      // cascade failures.
       try {
-        await sequelize.transaction(async (t) => {
-          await sequelize.query('PRAGMA foreign_keys = OFF', { transaction: t });
-          await this.db.sync({ transaction: t });
-          await sequelize.query('PRAGMA foreign_keys = ON', { transaction: t });
-        });
-      } catch {
-        // FK ordering failure — per-model two-pass fallback
-        try {
-          await sequelize.query('PRAGMA foreign_keys = OFF');
-          const models = Object.values(sequelize.models);
-          for (const m of models) {
-            try {
-              await m.sync();
-            } catch {
-              /* FK dep missing */
-            }
+        await this.db.sequelize.query('PRAGMA foreign_keys = OFF');
+        const models = Object.values(this.db.sequelize.models);
+        for (const m of models) {
+          try {
+            await m.sync();
+          } catch {
+            /* FK dep or other */
           }
-          for (const m of models) {
-            try {
-              await m.sync();
-            } catch {
-              /* still fails */
-            }
-          }
-          await sequelize.query('PRAGMA foreign_keys = ON');
-        } catch {
-          /* complete failure */
         }
+        for (const m of models) {
+          try {
+            await m.sync();
+          } catch {
+            /* still fails */
+          }
+        }
+        await this.db.sequelize.query('PRAGMA foreign_keys = ON');
+      } catch {
+        /* pragma unsupported — ignore */
       }
     }
   }
 
-  return createMockServer({
+  const app = await createMockServer({
     registerActions: true,
     acl: true,
     plugins: [
@@ -100,4 +95,21 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       SyncPlugin,
     ],
   });
+
+  // Belt-and-suspenders: if SyncPlugin.install was skipped (e.g.
+  // isInstalled returned true in CI), ensure tenant tables exist.
+  // Only sync the specific models we need — not all models, to avoid
+  // interfering with plugin action registration.
+  for (const name of ['tenants', 'tenantUsers']) {
+    const m = app.db.sequelize.models?.[name];
+    if (m) {
+      try {
+        await m.sync();
+      } catch {
+        /* already exists */
+      }
+    }
+  }
+
+  return app;
 }

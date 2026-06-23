@@ -97,18 +97,34 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   });
 
   // Belt-and-suspenders: if SyncPlugin.install was skipped (e.g.
-  // isInstalled returned true in CI), ensure tenant tables exist.
-  // Only sync the specific models we need — not all models, to avoid
-  // interfering with plugin action registration.
-  for (const name of ['tenants', 'tenantUsers']) {
-    const m = app.db.sequelize.models?.[name];
-    if (m) {
-      try {
-        await m.sync();
-      } catch {
-        /* already exists */
-      }
+  // isInstalled returned true in CI), ensure all tables exist.
+  // Use per-model sync with FK off (not db.sync which can break
+  // plugin state). Two passes: first creates what it can, second
+  // retries models whose FK deps were missing.
+  try {
+    await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
+  } catch {
+    /* ignore */
+  }
+  const models = Object.values(app.db.sequelize.models);
+  for (const m of models) {
+    try {
+      await m.sync();
+    } catch {
+      /* FK dep missing */
     }
+  }
+  for (const m of models) {
+    try {
+      await m.sync();
+    } catch {
+      /* still fails */
+    }
+  }
+  try {
+    await app.db.sequelize.query('PRAGMA foreign_keys = ON');
+  } catch {
+    /* ignore */
   }
 
   return app;

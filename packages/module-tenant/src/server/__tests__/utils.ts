@@ -124,7 +124,7 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         'collection-manager',
         'auth',
         'data-source-manager',
-        [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
+        [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant', workspaceSource: true }],
         ...extraPlugins,
         TestAuthStatusPlugin,
         SyncPlugin,

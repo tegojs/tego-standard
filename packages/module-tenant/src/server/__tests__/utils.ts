@@ -77,13 +77,24 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   // setupServerTestEnvironment).
   class SyncPlugin extends Plugin {
     async install() {
+      const diag = {
+        storage: (this.db as any).options?.storage,
+        dialect: (this.db as any).options?.dialect,
+        isMemory: (this.db as any).sequelize?.options?.storage,
+        modelNames: [] as string[],
+        tenantModel: false,
+        syncedTables: [] as string[],
+      };
       try {
         await this.db.sequelize.query('PRAGMA foreign_keys = OFF');
         const models = Object.values(this.db.sequelize.models);
+        diag.modelNames = models.map((m: any) => m.tableName || m.name);
+        diag.tenantModel = models.some((m: any) => (m.tableName || m.name) === 'tenants');
         // First pass — create what we can
         for (const m of models) {
           try {
             await m.sync();
+            diag.syncedTables.push((m as any).tableName || (m as any).name);
           } catch {
             /* FK dep or other */
           }
@@ -107,6 +118,8 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       } catch {
         /* pragma unsupported — ignore */
       }
+      // eslint-disable-next-line no-console
+      console.log('[SyncPlugin DIAG]', JSON.stringify(diag));
     }
   }
 
@@ -136,6 +149,27 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     // the next test doesn't hit "app main already exists".
     await cleanupPreviousApp();
     throw err;
+  }
+  // Post-create diagnostics
+  try {
+    const dbOpts = (app.db as any).options || {};
+    const tables = await app.db.sequelize.query(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+    );
+    const collNames = Array.from(app.db.collections.keys());
+    // eslint-disable-next-line no-console
+    console.log(
+      '[createTenantApp DIAG]',
+      JSON.stringify({
+        storage: dbOpts.storage,
+        dialect: dbOpts.dialect,
+        tables: (tables[0] as any[]).map((r: any) => r.name),
+        collections: collNames,
+      }),
+    );
+  } catch (diagErr) {
+    // eslint-disable-next-line no-console
+    console.log('[createTenantApp DIAG] error:', (diagErr as Error).message);
   }
   return app;
 }

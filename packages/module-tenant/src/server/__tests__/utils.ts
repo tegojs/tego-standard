@@ -1,10 +1,32 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-import { Plugin } from '@tego/server';
+import { AppSupervisor, Plugin } from '@tego/server';
 
 import PluginTenantServer from '..';
 
+/**
+ * Remove any leftover app from a previous failed test.
+ * When createMockServer throws mid-flight the app may already be
+ * registered in AppSupervisor (the constructor calls addApp before
+ * install/start).  The next test would then hit
+ * "app main already exists".  This helper prevents that cascade.
+ */
+async function cleanupPreviousApp(): Promise<void> {
+  try {
+    const supervisor = AppSupervisor.getInstance();
+    const existing = await supervisor.getApp('main', { withOutBootStrap: true } as any);
+    if (existing) {
+      await existing.destroy({ logging: false }).catch(() => {});
+    }
+  } catch {
+    /* no previous app — that's fine */
+  }
+}
+
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
+
+  // Guarantee no stale "main" app from a previous failed test
+  await cleanupPreviousApp();
 
   class TestAuthStatusPlugin extends Plugin {
     async load() {
@@ -58,6 +80,7 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       try {
         await this.db.sequelize.query('PRAGMA foreign_keys = OFF');
         const models = Object.values(this.db.sequelize.models);
+        // First pass — create what we can
         for (const m of models) {
           try {
             await m.sync();
@@ -65,12 +88,20 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
             /* FK dep or other */
           }
         }
+        // Second pass — retry models whose FK deps now exist
         for (const m of models) {
           try {
             await m.sync();
           } catch {
             /* still fails */
           }
+        }
+        // Final fallback: full db.sync() to catch any collections
+        // that registered models after the per-model loop above.
+        try {
+          await this.db.sync();
+        } catch {
+          /* already synced */
         }
         await this.db.sequelize.query('PRAGMA foreign_keys = ON');
       } catch {
@@ -79,22 +110,32 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
-  return createMockServer({
-    registerActions: true,
-    acl: true,
-    database: { dialect: 'sqlite' },
-    plugins: [
-      'acl',
-      'error-handler',
-      'users',
-      'ui-schema-storage',
-      'collection-manager',
-      'auth',
-      'data-source-manager',
-      [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
-      ...extraPlugins,
-      TestAuthStatusPlugin,
-      SyncPlugin,
-    ],
-  });
+  let app: MockServer;
+  try {
+    app = await createMockServer({
+      registerActions: true,
+      acl: true,
+      database: { dialect: 'sqlite' },
+      plugins: [
+        'acl',
+        'error-handler',
+        'users',
+        'ui-schema-storage',
+        'collection-manager',
+        'auth',
+        'data-source-manager',
+        [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant' }],
+        ...extraPlugins,
+        TestAuthStatusPlugin,
+        SyncPlugin,
+      ],
+    });
+  } catch (err) {
+    // createMockServer may have partially constructed the app and
+    // registered it in AppSupervisor before failing.  Clean up so
+    // the next test doesn't hit "app main already exists".
+    await cleanupPreviousApp();
+    throw err;
+  }
+  return app;
 }

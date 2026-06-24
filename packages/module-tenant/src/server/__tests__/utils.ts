@@ -23,13 +23,14 @@ async function cleanupPreviousApp(): Promise<void> {
 }
 
 export async function ensureTenantBaseTables(app: MockServer): Promise<void> {
-  for (const name of ['tenants', 'tenantUsers']) {
+  for (const name of ['users', 'tenants', 'tenantUsers']) {
     const collection = app.db.getCollection(name);
     if (!collection) {
       throw new Error(`Tenant collection "${name}" is not registered`);
     }
     if (!(await app.db.collectionExistsInDb(name))) {
       await collection.sync({
+        logging: false,
         force: false,
         alter: {
           drop: false,

@@ -36,11 +36,42 @@ describe('tenant plugin collections', () => {
     await app.db.sequelize.getQueryInterface().dropTable('tenants');
 
     expect(await app.db.collectionExistsInDb('tenants')).toBe(false);
+    const exportHandler = app.resourcer.getRegisteredHandler('export');
 
     await ensureTenantBaseTables(app);
 
     expect(await app.db.collectionExistsInDb('tenants')).toBe(true);
-    expect(app.resourcer.getRegisteredHandler('export')).toBeTruthy();
+    expect(app.resourcer.getRegisteredHandler('export')).toBe(exportHandler);
+  });
+
+  it('should restore user tables needed by tenant-bound test users', async () => {
+    app = await createTenantApp();
+
+    await app.db.sequelize.getQueryInterface().dropTable('users');
+
+    expect(await app.db.collectionExistsInDb('users')).toBe(false);
+
+    await ensureTenantBaseTables(app);
+
+    expect(await app.db.collectionExistsInDb('users')).toBe(true);
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_restored_user',
+        email: 'tenant-restored-user@example.com',
+        phone: '10000010014',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    expect(user.get('id')).toBeTruthy();
   });
 
   it('should register tenant management acl snippet', async () => {

@@ -20,6 +20,12 @@ describe('tenant plugin collections', () => {
     expect(app.db.getCollection('users').getField('tenants')).toBeTruthy();
   });
 
+  it('should use an isolated in-memory sqlite database for tenant app tests', async () => {
+    app = await createTenantApp();
+
+    expect((app.db as any).options.storage).toBe(':memory:');
+  });
+
   it('should register tenant management acl snippet', async () => {
     app = await createTenantApp();
 

@@ -22,6 +22,23 @@ async function cleanupPreviousApp(): Promise<void> {
   }
 }
 
+export async function ensureTenantBaseTables(app: MockServer): Promise<void> {
+  for (const name of ['tenants', 'tenantUsers']) {
+    const collection = app.db.getCollection(name);
+    if (!collection) {
+      throw new Error(`Tenant collection "${name}" is not registered`);
+    }
+    if (!(await app.db.collectionExistsInDb(name))) {
+      await collection.sync({
+        force: false,
+        alter: {
+          drop: false,
+        },
+      });
+    }
+  }
+}
+
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
 
@@ -91,5 +108,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     await cleanupPreviousApp();
     throw err;
   }
+  await ensureTenantBaseTables(app);
   return app;
 }

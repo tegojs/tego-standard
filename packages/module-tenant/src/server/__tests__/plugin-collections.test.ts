@@ -1,7 +1,9 @@
 import type { MockServer } from '@tachybase/test';
 
+import ExportPlugin from 'packages/plugin-action-export/src/server';
+
 import { NAMESPACE } from '../../constants';
-import { createTenantApp } from './utils';
+import { createTenantApp, ensureTenantBaseTables } from './utils';
 
 describe('tenant plugin collections', () => {
   let app: MockServer;
@@ -24,6 +26,21 @@ describe('tenant plugin collections', () => {
     app = await createTenantApp();
 
     expect((app.db as any).options.storage).toBe(':memory:');
+  });
+
+  it('should restore missing tenant base tables without unregistering action handlers', async () => {
+    app = await createTenantApp({
+      extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
+    });
+
+    await app.db.sequelize.getQueryInterface().dropTable('tenants');
+
+    expect(await app.db.collectionExistsInDb('tenants')).toBe(false);
+
+    await ensureTenantBaseTables(app);
+
+    expect(await app.db.collectionExistsInDb('tenants')).toBe(true);
+    expect(app.resourcer.getRegisteredHandler('export')).toBeTruthy();
   });
 
   it('should register tenant management acl snippet', async () => {

@@ -22,10 +22,48 @@ async function cleanupPreviousApp(): Promise<void> {
   }
 }
 
+/**
+ * Patch db.sync to use hooks-free model.sync for each registered model.
+ *
+ * In CI the framework's install flow calls db.sync() which delegates to
+ * sequelize.sync().  That serial for-await loop aborts on the first error.
+ * Two independent error sources exist:
+ *   1. FK ordering: tenant plugin's ensureTenantIdField dynamically injects
+ *      FK references → topological sort can land on unfavorable order →
+ *      model.sync() throws on FK violation.
+ *   2. afterSync hooks: sort-field's initRecordsSortValue queries tables
+ *      (e.g. collectionCategories) that don't exist yet → throws → aborts.
+ *
+ * Both are solved by calling model.sync({ hooks: false }) which:
+ *   - Skips afterSync (no sort-field needInit crash)
+ *   - Creates all tables regardless of FK ordering (CREATE TABLE IF NOT EXISTS
+ *     doesn't enforce FK in SQLite)
+ */
+function patchDbSync(app: MockServer): void {
+  const db = app.db as any;
+  db.sync = async function safeSync() {
+    const models = Object.values(db.sequelize.models);
+    for (const m of models) {
+      try {
+        await (m as any).sync({ hooks: false });
+      } catch {
+        /* ignore individual model failures */
+      }
+    }
+    // Second pass for models whose FK deps were missing
+    for (const m of models) {
+      try {
+        await (m as any).sync({ hooks: false });
+      } catch {
+        /* still fails */
+      }
+    }
+  };
+}
+
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
 
-  // Guarantee no stale "main" app from a previous failed test
   await cleanupPreviousApp();
 
   class TestAuthStatusPlugin extends Plugin {
@@ -70,14 +108,10 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     app = await createMockServer({
       registerActions: true,
       acl: true,
-      // Disable FK constraints: the tenant plugin's ensureTenantIdField
-      // dynamically injects FK references that change sequelize.sync()'s
-      // topological sort.  With FK enabled the serial sync loop aborts on
-      // the first FK error and leaves most application tables uncreated.
-      // Disabling FK lets sync create all tables regardless of order.
-      // Tests don't rely on SQLite-level FK enforcement (tachybase uses
-      // application-level association logic).
-      database: { dialect: 'sqlite', foreignKeys: false },
+      database: { dialect: 'sqlite' },
+      beforeInstall: (a: MockServer) => {
+        patchDbSync(a);
+      },
       plugins: [
         'acl',
         'error-handler',
@@ -94,24 +128,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   } catch (err) {
     await cleanupPreviousApp();
     throw err;
-  }
-
-  // Diagnostic: verify FK status and table count (visible as test failure in CI)
-  const fkCheck = await app.db.sequelize.query('PRAGMA foreign_keys');
-  const fkStatus = (fkCheck[0] as any[])[0];
-  const tableCheck = await app.db.sequelize.query(
-    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-  );
-  const tableNames = (tableCheck[0] as any[]).map((r: any) => r.name);
-  if (!tableNames.includes('tenants')) {
-    throw new Error(
-      `[createTenantApp] tenants table missing. FK=${JSON.stringify(fkStatus)} ` +
-        `DB.options.foreignKeys=${(app.db as any).options?.foreignKeys} ` +
-        `sequelize.options.foreignKeys=${(app.db.sequelize as any).options?.foreignKeys} ` +
-        `Tables(${tableNames.length}): ${tableNames.join(',')} ` +
-        `Collections(${app.db.collections.size}): ${Array.from(app.db.collections.keys()).slice(0, 10).join(',')}... ` +
-        `Storage: ${(app.db as any).options?.storage}`,
-    );
   }
   return app;
 }

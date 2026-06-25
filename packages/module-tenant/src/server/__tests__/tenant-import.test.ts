@@ -7,9 +7,7 @@ import ImportPlugin from 'packages/plugin-action-import/src/server';
 
 import { createTenantApp } from './utils';
 
-// TODO: 临时跳过——CI 上因 FK 排序导致 sequelize.sync 中断，tenants 表未建
-// 本地可正常通过，待框架层修复后恢复
-describe.skip('tenant import', () => {
+describe('tenant import', () => {
   let app: MockServer;
 
   afterEach(async () => {

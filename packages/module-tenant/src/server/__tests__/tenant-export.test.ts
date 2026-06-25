@@ -18,28 +18,6 @@ describe('tenant export', () => {
       extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
     });
 
-    // DIAG: log DB and collection state right after createMockServer
-    try {
-      const dbOpts = (app.db as any).options || {};
-      const tables = await app.db.sequelize.query(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-      );
-      const collNames = Array.from(app.db.collections.keys());
-      console.error(
-        '[tenant-export DIAG]',
-        JSON.stringify({
-          storage: dbOpts.storage,
-          dialect: dbOpts.dialect,
-          tables: (tables[0] as any[]).map((r: any) => r.name),
-          collections: collNames,
-          hasTenantsTable: (tables[0] as any[]).some((r: any) => r.name === 'tenants'),
-          hasTenantsCollection: collNames.includes('tenants'),
-        }),
-      );
-    } catch (diagErr: any) {
-      console.error('[tenant-export DIAG] error:', diagErr.message);
-    }
-
     await app.db.getRepository('tenants').create({
       values: [
         { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },

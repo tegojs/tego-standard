@@ -3,17 +3,6 @@ import { AppSupervisor, Plugin } from '@tego/server';
 
 import PluginTenantServer from '..';
 
-// Monkey-patch loadCollections to add CI diagnostics
-const _origLoadCollections = PluginTenantServer.prototype.loadCollections;
-PluginTenantServer.prototype.loadCollections = async function patchedLoadCollections(this: any) {
-  // eslint-disable-next-line no-console
-  console.log('[DIAG] PluginTenantServer.loadCollections called, db.collections before:', Array.from(this.db.collections.keys()));
-  const result = await _origLoadCollections.call(this);
-  // eslint-disable-next-line no-console
-  console.log('[DIAG] PluginTenantServer.loadCollections done, db.collections after:', Array.from(this.db.collections.keys()));
-  return result;
-};
-
 /**
  * Remove any leftover app from a previous failed test.
  * When createMockServer throws mid-flight the app may already be
@@ -30,6 +19,48 @@ async function cleanupPreviousApp(): Promise<void> {
     }
   } catch {
     /* no previous app — that's fine */
+  }
+}
+
+/**
+ * In CI (file-based SQLite, fork reuse, limited resources) the framework's
+ * install flow can occasionally skip or fail to create application tables
+ * silently.  This function detects the problem and resolves it by running
+ * a safe db.sync() — which uses CREATE TABLE IF NOT EXISTS — and then
+ * verifies the critical tables actually exist.
+ */
+async function ensureTables(app: MockServer): Promise<void> {
+  const tenantsCollection = app.db.getCollection('tenants');
+  if (!tenantsCollection) {
+    throw new Error(
+      '[createTenantApp] "tenants" collection is not registered. ' +
+        `Registered collections: ${Array.from(app.db.collections.keys()).join(', ')}`,
+    );
+  }
+  // Check if the tenants table already exists in SQLite
+  const check = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
+  );
+  if ((check[0] as any[]).length > 0) {
+    return; // table exists, nothing to do
+  }
+  // Table missing — run db.sync() to create all registered tables
+  await app.db.sync();
+  // Verify
+  const verify = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
+  );
+  if ((verify[0] as any[]).length === 0) {
+    const allTables = await app.db.sequelize.query(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+    );
+    throw new Error(
+      '[createTenantApp] "tenants" table still missing after db.sync(). ' +
+        `Tables in DB: ${(allTables[0] as any[]).map((r: any) => r.name).join(', ')}. ` +
+        `Collections registered: ${Array.from(app.db.collections.keys()).join(', ')}. ` +
+        `Sequelize models: ${Object.keys((app.db.sequelize as any).models || {}).join(', ')}. ` +
+        `Storage: ${(app.db as any).options?.storage}`,
+    );
   }
 }
 
@@ -76,64 +107,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
-  // SyncPlugin runs inside pm.install() after all other plugins have
-  // registered their collections.  This is the only reliable place to
-  // create application tables because pm.install() own db.sync() runs
-  // BEFORE loadCollections().
-  //
-  // We also force in-memory SQLite (no storage file) so that
-  // isInstalled() always returns false on a fresh createMockServer
-  // call — preventing pm.install from being skipped when a previous
-  // test left a stale database file (CI uses file-based SQLite via
-  // setupServerTestEnvironment).
-  class SyncPlugin extends Plugin {
-    async install() {
-      const diag = {
-        storage: (this.db as any).options?.storage,
-        dialect: (this.db as any).options?.dialect,
-        isMemory: (this.db as any).sequelize?.options?.storage,
-        modelNames: [] as string[],
-        tenantModel: false,
-        syncedTables: [] as string[],
-      };
-      try {
-        await this.db.sequelize.query('PRAGMA foreign_keys = OFF');
-        const models = Object.values(this.db.sequelize.models);
-        diag.modelNames = models.map((m: any) => m.tableName || m.name);
-        diag.tenantModel = models.some((m: any) => (m.tableName || m.name) === 'tenants');
-        // First pass — create what we can
-        for (const m of models) {
-          try {
-            await m.sync();
-            diag.syncedTables.push((m as any).tableName || (m as any).name);
-          } catch {
-            /* FK dep or other */
-          }
-        }
-        // Second pass — retry models whose FK deps now exist
-        for (const m of models) {
-          try {
-            await m.sync();
-          } catch {
-            /* still fails */
-          }
-        }
-        // Final fallback: full db.sync() to catch any collections
-        // that registered models after the per-model loop above.
-        try {
-          await this.db.sync();
-        } catch {
-          /* already synced */
-        }
-        await this.db.sequelize.query('PRAGMA foreign_keys = ON');
-      } catch {
-        /* pragma unsupported — ignore */
-      }
-      // eslint-disable-next-line no-console
-      console.log('[SyncPlugin DIAG]', JSON.stringify(diag));
-    }
-  }
-
   let app: MockServer;
   try {
     app = await createMockServer({
@@ -151,42 +124,15 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant', workspaceSource: true }],
         ...extraPlugins,
         TestAuthStatusPlugin,
-        SyncPlugin,
       ],
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('[createTenantApp ERROR]', (err as Error).message, (err as Error).stack?.split('\n').slice(0, 5).join(' | '));
     // createMockServer may have partially constructed the app and
     // registered it in AppSupervisor before failing.  Clean up so
     // the next test doesn't hit "app main already exists".
     await cleanupPreviousApp();
     throw err;
   }
-  // Post-create diagnostics
-  try {
-    const dbOpts = (app.db as any).options || {};
-    const tables = await app.db.sequelize.query(
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-    );
-    const collNames = Array.from(app.db.collections.keys());
-    const modelNames = Object.keys((app.db.sequelize as any).models || {});
-    // eslint-disable-next-line no-console
-    console.log(
-      '[createTenantApp DIAG]',
-      JSON.stringify({
-        storage: dbOpts.storage,
-        collections: collNames,
-        models: modelNames,
-        tables: (tables[0] as any[]).map((r: any) => r.name),
-        hasTenantsColl: collNames.includes('tenants'),
-        hasTenantsModel: modelNames.includes('tenants'),
-        hasTenantsTable: (tables[0] as any[]).some((r: any) => r.name === 'tenants'),
-      }),
-    );
-  } catch (diagErr) {
-    // eslint-disable-next-line no-console
-    console.log('[createTenantApp DIAG] error:', (diagErr as Error).message);
-  }
+  await ensureTables(app);
   return app;
 }

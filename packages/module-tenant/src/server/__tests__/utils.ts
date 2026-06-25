@@ -95,5 +95,23 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     await cleanupPreviousApp();
     throw err;
   }
+
+  // Diagnostic: verify FK status and table count (visible as test failure in CI)
+  const fkCheck = await app.db.sequelize.query('PRAGMA foreign_keys');
+  const fkStatus = (fkCheck[0] as any[])[0];
+  const tableCheck = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+  );
+  const tableNames = (tableCheck[0] as any[]).map((r: any) => r.name);
+  if (!tableNames.includes('tenants')) {
+    throw new Error(
+      `[createTenantApp] tenants table missing. FK=${JSON.stringify(fkStatus)} ` +
+        `DB.options.foreignKeys=${(app.db as any).options?.foreignKeys} ` +
+        `sequelize.options.foreignKeys=${(app.db.sequelize as any).options?.foreignKeys} ` +
+        `Tables(${tableNames.length}): ${tableNames.join(',')} ` +
+        `Collections(${app.db.collections.size}): ${Array.from(app.db.collections.keys()).slice(0, 10).join(',')}... ` +
+        `Storage: ${(app.db as any).options?.storage}`,
+    );
+  }
   return app;
 }

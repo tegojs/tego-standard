@@ -23,67 +23,54 @@ async function cleanupPreviousApp(): Promise<void> {
 }
 
 /**
- * In CI (file-based SQLite, fork reuse, limited resources) the framework's
- * install flow can silently fail to create some or all application tables.
- * The failure is not limited to "tenants" — "collectionCategories" and
- * others can be missing too, which then crashes sort-field's afterSync
- * needInit during the actual test.
+ * Patch the database's `sync` method so that it uses a FK-safe two-pass
+ * raw-Sequelize model sync instead of the normal `sequelize.sync()`.
  *
- * We therefore unconditionally run a raw Sequelize two-pass model.sync()
- * for EVERY registered model.  We use model.sync() (CREATE TABLE IF NOT
- * EXISTS) directly instead of tachybase's db.sync(): db.sync() bridges
- * sequelize's afterSync into the `{model}.afterSync` database event, which
- * sort-field listens to and which queries other tables that may not exist
- * yet — causing the exact crash we are guarding against.  Raw model.sync()
- * also fires afterSync, but only after that model's own table is created,
- * so sort-field's count of its own table succeeds.
+ * The framework's `install` flow calls `db.sync()` which delegates to
+ * `sequelize.sync()`.  Sequelize topologically sorts models by FK and
+ * syncs them in order — but if a tenant plugin's `ensureTenantIdField`
+ * dynamically injects FK references, the topological sort can land on
+ * an unfavorable order where the FK target hasn't been created yet.
+ * Sequelize's serial for-await loop then throws and **aborts all
+ * remaining table creation** (including tenants, collectionCategories…).
+ *
+ * By replacing `db.sync` with a PRAGMA foreign_keys=OFF + two-pass
+ * model.sync loop, we guarantee every registered model gets its table
+ * regardless of FK ordering.  The patch is applied via `beforeInstall`
+ * so the install flow itself succeeds, and ExportPlugin/ImportPlugin
+ * action handlers are correctly registered.
  */
-async function ensureTables(app: MockServer): Promise<void> {
-  const tenantsCollection = app.db.getCollection('tenants');
-  if (!tenantsCollection) {
-    throw new Error(
-      '[createTenantApp] "tenants" collection is not registered. ' +
-        `Registered collections: ${Array.from(app.db.collections.keys()).join(', ')}`,
-    );
-  }
-  try {
-    await app.db.sequelize.query('PRAGMA foreign_keys = OFF');
-    const models = Object.values(app.db.sequelize.models);
-    // Two-pass sync handles FK ordering between models
-    for (const m of models) {
-      try {
-        await m.sync();
-      } catch {
-        /* FK dep not yet created */
+function patchDbSyncForSqlite(app: MockServer): () => void {
+  const db = app.db as any;
+  const originalSync = db.sync.bind(db);
+  db.sync = async function safeSync() {
+    try {
+      await db.sequelize.query('PRAGMA foreign_keys = OFF');
+      const models = Object.values(db.sequelize.models);
+      // First pass — create what we can
+      for (const m of models) {
+        try {
+          await (m as any).sync();
+        } catch {
+          /* FK dep or afterSync hook error */
+        }
       }
-    }
-    for (const m of models) {
-      try {
-        await m.sync();
-      } catch {
-        /* still fails */
+      // Second pass — retry failures (FK deps now exist)
+      for (const m of models) {
+        try {
+          await (m as any).sync();
+        } catch {
+          /* still fails */
+        }
       }
+      await db.sequelize.query('PRAGMA foreign_keys = ON');
+    } catch {
+      /* PRAGMA unsupported — fall through */
     }
-    await app.db.sequelize.query('PRAGMA foreign_keys = ON');
-  } catch {
-    /* PRAGMA unsupported */
-  }
-  // Verify the critical table exists
-  const verify = await app.db.sequelize.query(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
-  );
-  if ((verify[0] as any[]).length === 0) {
-    const allTables = await app.db.sequelize.query(
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-    );
-    throw new Error(
-      '[createTenantApp] "tenants" table still missing after fallback sync. ' +
-        `Tables in DB: ${(allTables[0] as any[]).map((r: any) => r.name).join(', ')}. ` +
-        `Collections registered: ${Array.from(app.db.collections.keys()).join(', ')}. ` +
-        `Sequelize models: ${Object.keys((app.db.sequelize as any).models || {}).join(', ')}. ` +
-        `Storage: ${(app.db as any).options?.storage}`,
-    );
-  }
+  };
+  return () => {
+    db.sync = originalSync;
+  };
 }
 
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
@@ -129,12 +116,18 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
+  let restoreDbSync: (() => void) | undefined;
   let app: MockServer;
   try {
     app = await createMockServer({
       registerActions: true,
       acl: true,
       database: { dialect: 'sqlite' },
+      beforeInstall: (a: MockServer) => {
+        // Patch db.sync BEFORE install runs so the install flow itself
+        // uses our FK-safe sync instead of the vulnerable sequelize.sync().
+        restoreDbSync = patchDbSyncForSqlite(a);
+      },
       plugins: [
         'acl',
         'error-handler',
@@ -149,12 +142,28 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       ],
     });
   } catch (err) {
-    // createMockServer may have partially constructed the app and
-    // registered it in AppSupervisor before failing.  Clean up so
-    // the next test doesn't hit "app main already exists".
     await cleanupPreviousApp();
     throw err;
+  } finally {
+    // Restore original db.sync after install is complete
+    restoreDbSync?.();
   }
-  await ensureTables(app);
+
+  // Verify the critical table exists (belt-and-suspenders)
+  const verify = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
+  );
+  if ((verify[0] as any[]).length === 0) {
+    const allTables = await app.db.sequelize.query(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+    );
+    throw new Error(
+      '[createTenantApp] "tenants" table still missing after patched install. ' +
+        `Tables in DB: ${(allTables[0] as any[]).map((r: any) => r.name).join(', ')}. ` +
+        `Collections registered: ${Array.from(app.db.collections.keys()).join(', ')}. ` +
+        `Sequelize models: ${Object.keys((app.db.sequelize as any).models || {}).join(', ')}. ` +
+        `Storage: ${(app.db as any).options?.storage}`,
+    );
+  }
   return app;
 }

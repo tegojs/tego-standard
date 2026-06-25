@@ -22,57 +22,6 @@ async function cleanupPreviousApp(): Promise<void> {
   }
 }
 
-/**
- * Patch the database's `sync` method so that it uses a FK-safe two-pass
- * raw-Sequelize model sync instead of the normal `sequelize.sync()`.
- *
- * The framework's `install` flow calls `db.sync()` which delegates to
- * `sequelize.sync()`.  Sequelize topologically sorts models by FK and
- * syncs them in order — but if a tenant plugin's `ensureTenantIdField`
- * dynamically injects FK references, the topological sort can land on
- * an unfavorable order where the FK target hasn't been created yet.
- * Sequelize's serial for-await loop then throws and **aborts all
- * remaining table creation** (including tenants, collectionCategories…).
- *
- * By replacing `db.sync` with a PRAGMA foreign_keys=OFF + two-pass
- * model.sync loop, we guarantee every registered model gets its table
- * regardless of FK ordering.  The patch is applied via `beforeInstall`
- * so the install flow itself succeeds, and ExportPlugin/ImportPlugin
- * action handlers are correctly registered.
- */
-function patchDbSyncForSqlite(app: MockServer): () => void {
-  const db = app.db as any;
-  const originalSync = db.sync.bind(db);
-  db.sync = async function safeSync() {
-    try {
-      await db.sequelize.query('PRAGMA foreign_keys = OFF');
-      const models = Object.values(db.sequelize.models);
-      // First pass — create what we can
-      for (const m of models) {
-        try {
-          await (m as any).sync();
-        } catch {
-          /* FK dep or afterSync hook error */
-        }
-      }
-      // Second pass — retry failures (FK deps now exist)
-      for (const m of models) {
-        try {
-          await (m as any).sync();
-        } catch {
-          /* still fails */
-        }
-      }
-      await db.sequelize.query('PRAGMA foreign_keys = ON');
-    } catch {
-      /* PRAGMA unsupported — fall through */
-    }
-  };
-  return () => {
-    db.sync = originalSync;
-  };
-}
-
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
 
@@ -116,18 +65,19 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     }
   }
 
-  let restoreDbSync: (() => void) | undefined;
   let app: MockServer;
   try {
     app = await createMockServer({
       registerActions: true,
       acl: true,
-      database: { dialect: 'sqlite' },
-      beforeInstall: (a: MockServer) => {
-        // Patch db.sync BEFORE install runs so the install flow itself
-        // uses our FK-safe sync instead of the vulnerable sequelize.sync().
-        restoreDbSync = patchDbSyncForSqlite(a);
-      },
+      // Disable FK constraints: the tenant plugin's ensureTenantIdField
+      // dynamically injects FK references that change sequelize.sync()'s
+      // topological sort.  With FK enabled the serial sync loop aborts on
+      // the first FK error and leaves most application tables uncreated.
+      // Disabling FK lets sync create all tables regardless of order.
+      // Tests don't rely on SQLite-level FK enforcement (tachybase uses
+      // application-level association logic).
+      database: { dialect: 'sqlite', foreignKeys: false },
       plugins: [
         'acl',
         'error-handler',
@@ -144,26 +94,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   } catch (err) {
     await cleanupPreviousApp();
     throw err;
-  } finally {
-    // Restore original db.sync after install is complete
-    restoreDbSync?.();
-  }
-
-  // Verify the critical table exists (belt-and-suspenders)
-  const verify = await app.db.sequelize.query(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
-  );
-  if ((verify[0] as any[]).length === 0) {
-    const allTables = await app.db.sequelize.query(
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-    );
-    throw new Error(
-      '[createTenantApp] "tenants" table still missing after patched install. ' +
-        `Tables in DB: ${(allTables[0] as any[]).map((r: any) => r.name).join(', ')}. ` +
-        `Collections registered: ${Array.from(app.db.collections.keys()).join(', ')}. ` +
-        `Sequelize models: ${Object.keys((app.db.sequelize as any).models || {}).join(', ')}. ` +
-        `Storage: ${(app.db as any).options?.storage}`,
-    );
   }
   return app;
 }

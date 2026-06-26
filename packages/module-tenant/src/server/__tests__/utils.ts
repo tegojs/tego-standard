@@ -15,6 +15,33 @@ async function cleanupPreviousApp(): Promise<void> {
   }
 }
 
+/**
+ * Replace db.sync with a safe implementation that uses
+ * queryInterface.createTable() for each registered model.
+ *
+ * This bypasses sequelize.sync()'s two failure modes in CI:
+ *   1. FK topo-sort abort: tenant plugin's ensureTenantIdField injects
+ *      FK refs → unfavorable order → FK error kills the sync loop
+ *   2. afterSync crash: sort-field's initRecordsSortValue queries
+ *      collectionCategories that doesn't exist yet → throws
+ *
+ * queryInterface.createTable() generates correct DDL from rawAttributes
+ * without triggering define() / afterDefine / afterSync hooks.
+ */
+function patchDbSyncWithCreateTable(app: MockServer): void {
+  const db = app.db as any;
+  db.sync = async function safeCreateTableSync() {
+    const qi = db.sequelize.getQueryInterface();
+    for (const model of Object.values(db.sequelize.models) as any[]) {
+      try {
+        await qi.createTable(model.tableName, model.rawAttributes, {});
+      } catch {
+        /* table may already exist */
+      }
+    }
+  };
+}
+
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
 
@@ -55,27 +82,17 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
 
   let app: MockServer;
   try {
-    // Skip the framework's install and start — we control the DB lifecycle.
-    //
-    // The framework's sequelize.sync() fails in CI because:
-    //   1. FK ordering: tenant plugin's ensureTenantIdField injects FK refs
-    //      → unfavorable topo sort → FK error aborts the sync loop
-    //   2. afterSync hooks: sort-field's initRecordsSortValue queries
-    //      collectionCategories that doesn't exist yet → throws
-    //   3. model.sync({ hooks: false }) still fails because tachybase's
-    //      database.on("afterDefine") bridge triggers sort-field during
-    //      queryInterface.createTable → define() internally
-    //
-    // Solution: call queryInterface.createTable() directly for each model,
-    // using the model's rawAttributes for correct column types. This
-    // generates proper DDL without triggering define() / afterDefine /
-    // afterSync hooks.
     app = await createMockServer({
       registerActions: true,
       acl: true,
       database: { dialect: 'sqlite' },
-      skipInstall: true,
-      skipStart: true,
+      beforeInstall: (a: MockServer) => {
+        // Patch db.sync BEFORE the install flow runs. The install command
+        // calls db.sync() twice: once in Application.install() (before
+        // collections are registered — harmless) and once in pm.install()
+        // (after collections — this is where the original fails).
+        patchDbSyncWithCreateTable(a);
+      },
       plugins: [
         'acl',
         'error-handler',
@@ -89,35 +106,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         TestAuthStatusPlugin,
       ],
     });
-
-    // Ensure a clean slate
-    await app.db.clean({ drop: true });
-
-    // Load all plugins → registers collections and their Sequelize models
-    await app.load({ hooks: false });
-
-    // Create all tables via queryInterface.createTable() — correct DDL
-    // generation without triggering afterDefine / afterSync hooks.
-    const qi = app.db.sequelize.getQueryInterface();
-    for (const model of Object.values(app.db.sequelize.models) as any[]) {
-      try {
-        await qi.createTable(model.tableName, model.rawAttributes, {
-          // CREATE TABLE IF NOT EXISTS — safe to call repeatedly
-        });
-      } catch {
-        /* table may already exist */
-      }
-    }
-
-    // Run the standard pm.install() flow — handles plugin state, events,
-    // and repository updates.  Patch loadCommands to no-op so it doesn't
-    // try to resolve plugin packages from dist/ (not available in CI).
-    const origLoadCommands = (app.pm as any).loadCommands.bind(app.pm);
-    (app.pm as any).loadCommands = async () => {};
-    await app.pm.install();
-    (app.pm as any).loadCommands = origLoadCommands;
-    await app.version.update();
-    await app.runCommandThrowError('start');
   } catch (err) {
     await cleanupPreviousApp();
     throw err;

@@ -28,17 +28,24 @@ async function cleanupPreviousApp(): Promise<void> {
  * queryInterface.createTable() generates correct DDL from rawAttributes
  * without triggering define() / afterDefine / afterSync hooks.
  */
+let syncCallLog: string[] = [];
+
 function patchDbSyncWithCreateTable(app: MockServer): void {
   const db = app.db as any;
+  syncCallLog = [];
   db.sync = async function safeCreateTableSync() {
+    const modelCount = Object.keys(db.sequelize.models).length;
     const qi = db.sequelize.getQueryInterface();
+    let created = 0;
     for (const model of Object.values(db.sequelize.models) as any[]) {
       try {
         await qi.createTable(model.tableName, model.rawAttributes, {});
+        created++;
       } catch {
         /* table may already exist or dep issue */
       }
     }
+    syncCallLog.push(`sync#${syncCallLog.length + 1}: ${modelCount}models/${created}tables`);
   };
 }
 
@@ -118,11 +125,10 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   const tableNames = (check[0] as any[]).map((r: any) => r.name);
   if (!tableNames.includes('tenants')) {
     throw new Error(
-      `[createTenantApp] tenants missing after patched install. ` +
+      `[createTenantApp] tenants missing. syncLog: [${syncCallLog.join('; ')}]. ` +
         `Tables(${tableNames.length}): ${tableNames.join(',')}. ` +
         `Models(${Object.keys((app.db.sequelize as any).models || {}).length}). ` +
         `Collections(${app.db.collections.size}). ` +
-        `db.sync name: ${app.db.sync?.name}. ` +
         `Storage: ${(app.db as any).options?.storage}`,
     );
   }

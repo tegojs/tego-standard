@@ -76,55 +76,5 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     await cleanupPreviousApp();
     throw err;
   }
-
-  // Post-create: if tenants table is missing, the framework's install flow
-  // failed silently in CI.  Recover by:
-  //   1. Creating all tables via raw DDL (bypasses FK/afterSync bugs)
-  //   2. Running plugin load hooks for any plugins that weren't loaded
-  //      (ExportPlugin.load() registers the 'export' action handler)
-  const check = await app.db.sequelize.query(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
-  );
-  if ((check[0] as any[]).length === 0) {
-    // Create all tables
-    const qi = app.db.sequelize.getQueryInterface();
-    for (const model of Object.values(app.db.sequelize.models) as any[]) {
-      try {
-        await qi.createTable(model.tableName, model.rawAttributes, {});
-      } catch {
-        /* already exists */
-      }
-    }
-    // Run load hooks for any unloaded plugins
-    const pm = (app as any).pm;
-    for (const [, plugin] of pm.getPlugins()) {
-      if (!plugin.state.loaded && plugin.enabled) {
-        try {
-          if (plugin.beforeLoad) await plugin.beforeLoad();
-          if (plugin.loadCollections) await plugin.loadCollections();
-          if (plugin.load) await plugin.load();
-          plugin.state.loaded = true;
-        } catch {
-          /* ignore individual plugin load failures */
-        }
-      }
-    }
-  }
-
-  // Final verification
-  const verify = await app.db.sequelize.query(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
-  );
-  if ((verify[0] as any[]).length === 0) {
-    const allTables = await app.db.sequelize.query(
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-    );
-    throw new Error(
-      `[createTenantApp] tenants STILL missing after fallback createTable. ` +
-        `Tables(${(allTables[0] as any[]).length}): ${(allTables[0] as any[]).map((r: any) => r.name).join(',')}. ` +
-        `Models(${Object.keys((app.db.sequelize as any).models || {}).length}). ` +
-        `Storage: ${(app.db as any).options?.storage}`,
-    );
-  }
   return app;
 }

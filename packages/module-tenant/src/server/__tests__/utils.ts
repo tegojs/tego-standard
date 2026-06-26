@@ -91,9 +91,8 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       registerActions: true,
       acl: true,
       database: { dialect: 'sqlite' },
-      beforeInstall: (a: MockServer) => {
-        patchInstall(a);
-      },
+      skipInstall: true,
+      skipStart: true,
       plugins: [
         'acl',
         'error-handler',
@@ -107,10 +106,19 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         TestAuthStatusPlugin,
       ],
     });
+
+    // Replace db.sync with safe createTable version BEFORE install
+    patchInstall(app);
+
+    // Run install directly — bypass CLI's runCommandThrowError which
+    // silently swallows errors in CI.
+    await (app as any).install({ force: true });
+    await (app as any).start();
   } catch (err: any) {
     await cleanupPreviousApp();
     throw new Error(
-      `[createTenantApp] createMockServer FAILED: ${err.message?.slice(0, 200)}. installError: ${installError}`,
+      `[createTenantApp] FAILED: ${err.message?.slice(0, 300)}. ` +
+        `installError: [${installError}]`,
     );
   }
 

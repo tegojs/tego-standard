@@ -36,7 +36,7 @@ function patchDbSyncWithCreateTable(app: MockServer): void {
       try {
         await qi.createTable(model.tableName, model.rawAttributes, {});
       } catch {
-        /* table may already exist */
+        /* table may already exist or dep issue */
       }
     }
   };
@@ -109,6 +109,22 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   } catch (err) {
     await cleanupPreviousApp();
     throw err;
+  }
+
+  // Verify tenants table exists — throw diagnostic if not
+  const check = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+  );
+  const tableNames = (check[0] as any[]).map((r: any) => r.name);
+  if (!tableNames.includes('tenants')) {
+    throw new Error(
+      `[createTenantApp] tenants missing after patched install. ` +
+        `Tables(${tableNames.length}): ${tableNames.join(',')}. ` +
+        `Models(${Object.keys((app.db.sequelize as any).models || {}).length}). ` +
+        `Collections(${app.db.collections.size}). ` +
+        `db.sync name: ${app.db.sync?.name}. ` +
+        `Storage: ${(app.db as any).options?.storage}`,
+    );
   }
   return app;
 }

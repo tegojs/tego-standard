@@ -3,13 +3,6 @@ import { AppSupervisor, Plugin } from '@tego/server';
 
 import PluginTenantServer from '..';
 
-/**
- * Remove any leftover app from a previous failed test.
- * When createMockServer throws mid-flight the app may already be
- * registered in AppSupervisor (the constructor calls addApp before
- * install/start).  The next test would then hit
- * "app main already exists".  This helper prevents that cascade.
- */
 async function cleanupPreviousApp(): Promise<void> {
   try {
     const supervisor = AppSupervisor.getInstance();
@@ -22,52 +15,6 @@ async function cleanupPreviousApp(): Promise<void> {
   }
 }
 
-/**
- * Patch db.sync to use hooks-free model.sync for each registered model.
- *
- * In CI the framework's install flow calls db.sync() which delegates to
- * sequelize.sync().  That serial for-await loop aborts on the first error.
- * Two independent error sources exist:
- *   1. FK ordering: tenant plugin's ensureTenantIdField dynamically injects
- *      FK references → topological sort can land on unfavorable order →
- *      model.sync() throws on FK violation.
- *   2. afterSync hooks: sort-field's initRecordsSortValue queries tables
- *      (e.g. collectionCategories) that don't exist yet → throws → aborts.
- *
- * Both are solved by calling model.sync({ hooks: false }) which:
- *   - Skips afterSync (no sort-field needInit crash)
- *   - Creates all tables regardless of FK ordering (CREATE TABLE IF NOT EXISTS
- *     doesn't enforce FK in SQLite)
- */
-let safeSyncCallCount = 0;
-
-function patchDbSync(app: MockServer): void {
-  const db = app.db as any;
-  db.sync = async function safeSync() {
-    safeSyncCallCount++;
-    const errors: string[] = [];
-    const models = Object.values(db.sequelize.models);
-    for (const m of models) {
-      try {
-        await (m as any).sync({ hooks: false });
-      } catch (e: any) {
-        errors.push(`${(m as any).tableName || (m as any).name}: ${e.message}`);
-      }
-    }
-    // Second pass for models whose FK deps were missing
-    for (const m of models) {
-      try {
-        await (m as any).sync({ hooks: false });
-      } catch {
-        /* still fails */
-      }
-    }
-    if (errors.length > 0) {
-      throw new Error(`[patchDbSync] ${errors.length} model sync errors: ${errors.slice(0, 5).join('; ')}`);
-    }
-  };
-}
-
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
 
@@ -78,11 +25,7 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       if (!this.app.authManager.userStatusService) {
         this.app.authManager.setUserStatusService({
           async checkUserStatus() {
-            return {
-              allowed: true,
-              status: 'active',
-              isExpired: false,
-            };
+            return { allowed: true, status: 'active', isExpired: false };
           },
         });
       }
@@ -112,13 +55,27 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
 
   let app: MockServer;
   try {
+    // Skip the framework's install and start — we control the DB lifecycle.
+    //
+    // The framework's sequelize.sync() fails in CI because:
+    //   1. FK ordering: tenant plugin's ensureTenantIdField injects FK refs
+    //      → unfavorable topo sort → FK error aborts the sync loop
+    //   2. afterSync hooks: sort-field's initRecordsSortValue queries
+    //      collectionCategories that doesn't exist yet → throws
+    //   3. model.sync({ hooks: false }) still fails because tachybase's
+    //      database.on("afterDefine") bridge triggers sort-field during
+    //      queryInterface.createTable → define() internally
+    //
+    // Solution: call queryInterface.createTable() directly for each model,
+    // using the model's rawAttributes for correct column types. This
+    // generates proper DDL without triggering define() / afterDefine /
+    // afterSync hooks.
     app = await createMockServer({
       registerActions: true,
       acl: true,
       database: { dialect: 'sqlite' },
-      beforeInstall: (a: MockServer) => {
-        patchDbSync(a);
-      },
+      skipInstall: true,
+      skipStart: true,
       plugins: [
         'acl',
         'error-handler',
@@ -132,25 +89,33 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         TestAuthStatusPlugin,
       ],
     });
+
+    // Ensure a clean slate
+    await app.db.clean({ drop: true });
+
+    // Load all plugins → registers collections and their Sequelize models
+    await app.load({ hooks: false });
+
+    // Create all tables via queryInterface.createTable() — correct DDL
+    // generation without triggering afterDefine / afterSync hooks.
+    const qi = app.db.sequelize.getQueryInterface();
+    for (const model of Object.values(app.db.sequelize.models) as any[]) {
+      try {
+        await qi.createTable(model.tableName, model.rawAttributes, {
+          // CREATE TABLE IF NOT EXISTS — safe to call repeatedly
+        });
+      } catch {
+        /* table may already exist */
+      }
+    }
+
+    // Run plugin install hooks (creates roles, etc.)
+    await app.pm.install();
+    await app.version.update();
+    await app.runCommandThrowError('start');
   } catch (err) {
     await cleanupPreviousApp();
     throw err;
-  }
-
-  // Diagnostic: check patch effectiveness
-  const tableCheck = await app.db.sequelize.query(
-    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-  );
-  const tableNames = (tableCheck[0] as any[]).map((r: any) => r.name);
-  if (!tableNames.includes('tenants')) {
-    throw new Error(
-      `[createTenantApp] safeSync called ${safeSyncCallCount}x, tenants still missing. ` +
-        `DB.sync is patched: ${app.db.sync.name === 'safeSync'}. ` +
-        `Tables(${tableNames.length}): ${tableNames.join(',')}. ` +
-        `Models(${Object.keys((app.db.sequelize as any).models || {}).length}). ` +
-        `Collections(${app.db.collections.size}). ` +
-        `Storage: ${(app.db as any).options?.storage}`,
-    );
   }
   return app;
 }

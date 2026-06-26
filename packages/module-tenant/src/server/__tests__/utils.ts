@@ -39,15 +39,19 @@ async function cleanupPreviousApp(): Promise<void> {
  *   - Creates all tables regardless of FK ordering (CREATE TABLE IF NOT EXISTS
  *     doesn't enforce FK in SQLite)
  */
+let safeSyncCallCount = 0;
+
 function patchDbSync(app: MockServer): void {
   const db = app.db as any;
   db.sync = async function safeSync() {
+    safeSyncCallCount++;
+    const errors: string[] = [];
     const models = Object.values(db.sequelize.models);
     for (const m of models) {
       try {
         await (m as any).sync({ hooks: false });
-      } catch {
-        /* ignore individual model failures */
+      } catch (e: any) {
+        errors.push(`${(m as any).tableName || (m as any).name}: ${e.message}`);
       }
     }
     // Second pass for models whose FK deps were missing
@@ -57,6 +61,9 @@ function patchDbSync(app: MockServer): void {
       } catch {
         /* still fails */
       }
+    }
+    if (errors.length > 0) {
+      throw new Error(`[patchDbSync] ${errors.length} model sync errors: ${errors.slice(0, 5).join('; ')}`);
     }
   };
 }
@@ -128,6 +135,22 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   } catch (err) {
     await cleanupPreviousApp();
     throw err;
+  }
+
+  // Diagnostic: check patch effectiveness
+  const tableCheck = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+  );
+  const tableNames = (tableCheck[0] as any[]).map((r: any) => r.name);
+  if (!tableNames.includes('tenants')) {
+    throw new Error(
+      `[createTenantApp] safeSync called ${safeSyncCallCount}x, tenants still missing. ` +
+        `DB.sync is patched: ${app.db.sync.name === 'safeSync'}. ` +
+        `Tables(${tableNames.length}): ${tableNames.join(',')}. ` +
+        `Models(${Object.keys((app.db.sequelize as any).models || {}).length}). ` +
+        `Collections(${app.db.collections.size}). ` +
+        `Storage: ${(app.db as any).options?.storage}`,
+    );
   }
   return app;
 }

@@ -15,14 +15,18 @@ async function cleanupPreviousApp(): Promise<void> {
   }
 }
 
-let installError = '';
-
-function patchInstall(app: MockServer): void {
+/**
+ * Replace db.sync with queryInterface.createTable to bypass:
+ *   1. FK topo-sort abort in sequelize.sync()
+ *   2. afterSync hooks (sort-field queries non-existent tables)
+ *
+ * Also monkey-patches pm.install to capture whether it runs.
+ */
+function patchForCI(app: MockServer): void {
   const db = app.db as any;
-  const origSync = db.sync;
-  installError = '';
 
-  // Replace db.sync with createTable-based version
+  // Replace db.sync
+  const origSync = db.sync;
   db.sync = async function safeSync() {
     const qi = db.sequelize.getQueryInterface();
     for (const model of Object.values(db.sequelize.models) as any[]) {
@@ -34,15 +38,31 @@ function patchInstall(app: MockServer): void {
     }
   };
 
-  // Wrap pm.install to capture errors
-  const pm = (app as any).pm;
-  const origPmInstall = pm.install.bind(pm);
-  pm.install = async function (...args: any[]) {
+  // Monkey-patch Application.install to add diagnostics around pm.install
+  const appAny = app as any;
+  const origAppInstall = appAny.install.bind(appAny);
+  appAny.install = async function patchedInstall(options: any) {
+    // Run clean + reInit + first db.sync + load manually
+    const reinstall = options?.clean || options?.force;
+    if (reinstall) {
+      await db.clean({ drop: true });
+    }
+    if (await appAny.isInstalled()) {
+      return; // already installed
+    }
+    // reInit is no-op for fresh app
+    await db.sync(); // first sync — only framework models
+    await appAny.load({ hooks: false }); // registers all collections/models
+
+    // NOW the real test: call pm.install
     try {
-      return await origPmInstall(...args);
+      await appAny.pm.install();
     } catch (e: any) {
-      installError = `pm.install FAILED: ${e.message?.slice(0, 200)}`;
-      throw e;
+      throw new Error(`pm.install FAILED: ${e.message?.slice(0, 200)}`);
+    }
+    await appAny.version.update();
+    if (appAny._started) {
+      await appAny.restart();
     }
   };
 }
@@ -91,8 +111,9 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       registerActions: true,
       acl: true,
       database: { dialect: 'sqlite' },
-      skipInstall: true,
-      skipStart: true,
+      beforeInstall: (a: MockServer) => {
+        patchForCI(a);
+      },
       plugins: [
         'acl',
         'error-handler',
@@ -106,20 +127,9 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         TestAuthStatusPlugin,
       ],
     });
-
-    // Replace db.sync with safe createTable version BEFORE install
-    patchInstall(app);
-
-    // Run install directly — bypass CLI's runCommandThrowError which
-    // silently swallows errors in CI.
-    await (app as any).install({ force: true });
-    await (app as any).start();
   } catch (err: any) {
     await cleanupPreviousApp();
-    throw new Error(
-      `[createTenantApp] FAILED: ${err.message?.slice(0, 300)}. ` +
-        `installError: [${installError}]`,
-    );
+    throw err;
   }
 
   const check = await app.db.sequelize.query(
@@ -128,8 +138,8 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   const tableNames = (check[0] as any[]).map((r: any) => r.name);
   if (!tableNames.includes('tenants')) {
     throw new Error(
-      `[createTenantApp] tenants missing. installError: [${installError}]. ` +
-        `Tables(${tableNames.length}): ${tableNames.slice(0, 10).join(',')}. ` +
+      `[createTenantApp] tenants missing. ` +
+        `Tables(${tableNames.length}): ${tableNames.slice(0, 8).join(',')}. ` +
         `Models(${Object.keys((app.db.sequelize as any).models || {}).length}). ` +
         `Collections(${app.db.collections.size}). ` +
         `syncName: ${app.db.sync?.name}. ` +

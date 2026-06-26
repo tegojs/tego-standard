@@ -109,8 +109,13 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       }
     }
 
-    // Run plugin install hooks (creates roles, etc.)
+    // Run the standard pm.install() flow — handles plugin state, events,
+    // and repository updates.  Patch loadCommands to no-op so it doesn't
+    // try to resolve plugin packages from dist/ (not available in CI).
+    const origLoadCommands = (app.pm as any).loadCommands.bind(app.pm);
+    (app.pm as any).loadCommands = async () => {};
     await app.pm.install();
+    (app.pm as any).loadCommands = origLoadCommands;
     await app.version.update();
     await app.runCommandThrowError('start');
   } catch (err) {

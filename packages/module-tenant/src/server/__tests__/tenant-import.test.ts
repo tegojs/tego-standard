@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { MockServer } from '@tachybase/test';
 
 import xlsx from 'node-xlsx';
-import ImportPlugin from 'packages/plugin-action-import/src/server';
+import ImportPlugin from '../../../../plugin-action-import/src/server';
 
 import { createTenantApp } from './utils';
 

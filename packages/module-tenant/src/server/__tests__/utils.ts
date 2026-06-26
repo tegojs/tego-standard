@@ -33,19 +33,31 @@ let syncCallLog: string[] = [];
 function patchDbSyncWithCreateTable(app: MockServer): void {
   const db = app.db as any;
   syncCallLog = [];
+
+  // Patch db.sync on the ACTUAL db object
+  const origSync = db.sync;
   db.sync = async function safeCreateTableSync() {
     const modelCount = Object.keys(db.sequelize.models).length;
-    const qi = db.sequelize.getQueryInterface();
-    let created = 0;
-    for (const model of Object.values(db.sequelize.models) as any[]) {
-      try {
-        await qi.createTable(model.tableName, model.rawAttributes, {});
-        created++;
-      } catch {
-        /* table may already exist or dep issue */
+    if (modelCount > 10) {
+      // This is the post-loadCollections call — create tables
+      const qi = db.sequelize.getQueryInterface();
+      for (const model of Object.values(db.sequelize.models) as any[]) {
+        try {
+          await qi.createTable(model.tableName, model.rawAttributes, {});
+        } catch {
+          /* table may already exist */
+        }
       }
     }
-    syncCallLog.push(`sync#${syncCallLog.length + 1}: ${modelCount}models/${created}tables`);
+    syncCallLog.push(`sync#${syncCallLog.length + 1}: ${modelCount}models`);
+  };
+
+  // ALSO patch pm.install to log its db.sync call
+  const pm = (app as any).pm;
+  const origPmInstall = pm.install.bind(pm);
+  pm.install = async function patchedPmInstall(...args: any[]) {
+    syncCallLog.push(`pm.install:enter db.sync.name=${db.sync.name}`);
+    return origPmInstall(...args);
   };
 }
 

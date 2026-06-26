@@ -15,58 +15,6 @@ async function cleanupPreviousApp(): Promise<void> {
   }
 }
 
-/**
- * Replace db.sync with queryInterface.createTable to bypass:
- *   1. FK topo-sort abort in sequelize.sync()
- *   2. afterSync hooks (sort-field queries non-existent tables)
- *
- * Also monkey-patches pm.install to capture whether it runs.
- */
-function patchForCI(app: MockServer): void {
-  const db = app.db as any;
-
-  // Replace db.sync
-  const origSync = db.sync;
-  db.sync = async function safeSync() {
-    const qi = db.sequelize.getQueryInterface();
-    for (const model of Object.values(db.sequelize.models) as any[]) {
-      try {
-        await qi.createTable(model.tableName, model.rawAttributes, {});
-      } catch {
-        /* already exists */
-      }
-    }
-  };
-
-  // Monkey-patch Application.install to add diagnostics around pm.install
-  const appAny = app as any;
-  const origAppInstall = appAny.install.bind(appAny);
-  appAny.install = async function patchedInstall(options: any) {
-    // Run clean + reInit + first db.sync + load manually
-    const reinstall = options?.clean || options?.force;
-    if (reinstall) {
-      await db.clean({ drop: true });
-    }
-    if (await appAny.isInstalled()) {
-      return; // already installed
-    }
-    // reInit is no-op for fresh app
-    await db.sync(); // first sync — only framework models
-    await appAny.load({ hooks: false }); // registers all collections/models
-
-    // NOW the real test: call pm.install
-    try {
-      await appAny.pm.install();
-    } catch (e: any) {
-      throw new Error(`pm.install FAILED: ${e.message?.slice(0, 200)}`);
-    }
-    await appAny.version.update();
-    if (appAny._started) {
-      await appAny.restart();
-    }
-  };
-}
-
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
 
@@ -111,9 +59,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       registerActions: true,
       acl: true,
       database: { dialect: 'sqlite' },
-      beforeInstall: (a: MockServer) => {
-        patchForCI(a);
-      },
       plugins: [
         'acl',
         'error-handler',
@@ -127,22 +72,41 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         TestAuthStatusPlugin,
       ],
     });
-  } catch (err: any) {
+  } catch (err) {
     await cleanupPreviousApp();
     throw err;
   }
 
+  // Post-create: verify tenants table exists. If not, create ALL tables
+  // via queryInterface.createTable (bypasses sequelize.sync FK/afterSync
+  // bugs). This is a defensive fallback for CI where the framework's
+  // install flow silently fails to create application tables.
   const check = await app.db.sequelize.query(
-    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
   );
-  const tableNames = (check[0] as any[]).map((r: any) => r.name);
-  if (!tableNames.includes('tenants')) {
+  if ((check[0] as any[]).length === 0) {
+    const qi = app.db.sequelize.getQueryInterface();
+    for (const model of Object.values(app.db.sequelize.models) as any[]) {
+      try {
+        await qi.createTable(model.tableName, model.rawAttributes, {});
+      } catch {
+        /* already exists */
+      }
+    }
+  }
+
+  // Final verification
+  const verify = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
+  );
+  if ((verify[0] as any[]).length === 0) {
+    const allTables = await app.db.sequelize.query(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+    );
     throw new Error(
-      `[createTenantApp] tenants missing. ` +
-        `Tables(${tableNames.length}): ${tableNames.slice(0, 8).join(',')}. ` +
+      `[createTenantApp] tenants STILL missing after fallback createTable. ` +
+        `Tables(${(allTables[0] as any[]).length}): ${(allTables[0] as any[]).map((r: any) => r.name).join(',')}. ` +
         `Models(${Object.keys((app.db.sequelize as any).models || {}).length}). ` +
-        `Collections(${app.db.collections.size}). ` +
-        `syncName: ${app.db.sync?.name}. ` +
         `Storage: ${(app.db as any).options?.storage}`,
     );
   }

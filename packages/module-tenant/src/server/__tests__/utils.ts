@@ -77,20 +77,36 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     throw err;
   }
 
-  // Post-create: verify tenants table exists. If not, create ALL tables
-  // via queryInterface.createTable (bypasses sequelize.sync FK/afterSync
-  // bugs). This is a defensive fallback for CI where the framework's
-  // install flow silently fails to create application tables.
+  // Post-create: if tenants table is missing, the framework's install flow
+  // failed silently in CI.  Recover by:
+  //   1. Creating all tables via raw DDL (bypasses FK/afterSync bugs)
+  //   2. Running plugin load hooks for any plugins that weren't loaded
+  //      (ExportPlugin.load() registers the 'export' action handler)
   const check = await app.db.sequelize.query(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
   );
   if ((check[0] as any[]).length === 0) {
+    // Create all tables
     const qi = app.db.sequelize.getQueryInterface();
     for (const model of Object.values(app.db.sequelize.models) as any[]) {
       try {
         await qi.createTable(model.tableName, model.rawAttributes, {});
       } catch {
         /* already exists */
+      }
+    }
+    // Run load hooks for any unloaded plugins
+    const pm = (app as any).pm;
+    for (const [, plugin] of pm.getPlugins()) {
+      if (!plugin.state.loaded && plugin.enabled) {
+        try {
+          if (plugin.beforeLoad) await plugin.beforeLoad();
+          if (plugin.loadCollections) await plugin.loadCollections();
+          if (plugin.load) await plugin.load();
+          plugin.state.loaded = true;
+        } catch {
+          /* ignore individual plugin load failures */
+        }
       }
     }
   }

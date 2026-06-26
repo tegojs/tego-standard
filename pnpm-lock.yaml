@@ -37,6 +37,11 @@ overrides:
   tego: 1.6.13
   wrap-ansi: 7.0.0
 
+patchedDependencies:
+  '@tachybase/database@1.6.13':
+    hash: 75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40
+    path: patches/@tachybase+database+1.6.13.patch
+
 importers:
 
   .:
@@ -22795,7 +22800,7 @@ snapshots:
   '@tachybase/actions@1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/cache': 1.6.13
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       koa: 2.16.3
@@ -22816,7 +22821,7 @@ snapshots:
   '@tachybase/actions@1.6.13(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
       '@tachybase/cache': 1.6.13
-      '@tachybase/database': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       koa: 2.16.3
@@ -22837,7 +22842,7 @@ snapshots:
   '@tachybase/actions@1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/cache': 1.6.13
-      '@tachybase/database': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       koa: 2.16.3
@@ -22858,7 +22863,7 @@ snapshots:
   '@tachybase/auth@1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       jsonwebtoken: 8.5.1
@@ -22877,7 +22882,7 @@ snapshots:
   '@tachybase/auth@1.6.13(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
       '@tachybase/actions': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       jsonwebtoken: 8.5.1
@@ -22896,7 +22901,7 @@ snapshots:
   '@tachybase/auth@1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/actions': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       jsonwebtoken: 8.5.1
@@ -22947,7 +22952,7 @@ snapshots:
     dependencies:
       '@tachybase/acl': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       deepmerge: 4.3.1
@@ -22969,7 +22974,7 @@ snapshots:
     dependencies:
       '@tachybase/acl': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       deepmerge: 4.3.1
@@ -22991,7 +22996,7 @@ snapshots:
     dependencies:
       '@tachybase/acl': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/actions': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       deepmerge: 4.3.1
@@ -23013,7 +23018,7 @@ snapshots:
     dependencies:
       '@tachybase/acl': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       deepmerge: 4.3.1
@@ -23035,7 +23040,7 @@ snapshots:
     dependencies:
       '@tachybase/acl': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/actions': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.13
       '@tachybase/utils': 1.6.13
       deepmerge: 4.3.1
@@ -23053,7 +23058,7 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/database@1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/database@1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/globals': 1.6.13
       '@tachybase/logger': 1.6.13
@@ -23086,7 +23091,7 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/database@1.6.13(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/database@1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
       '@tachybase/globals': 1.6.13
       '@tachybase/logger': 1.6.13
@@ -23119,7 +23124,7 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/database@1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/database@1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/globals': 1.6.13
       '@tachybase/logger': 1.6.13
@@ -23214,7 +23219,7 @@ snapshots:
     dependencies:
       '@faker-js/faker': 9.9.0
       '@playwright/test': 1.56.1
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/globals': 1.6.13
       '@tachybase/schema': 1.6.13(react@18.3.1)
       '@tego/core': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23311,7 +23316,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/di': 1.6.13
       '@tachybase/globals': 1.6.13
       '@tachybase/loader': 1.6.13
@@ -23367,7 +23372,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/di': 1.6.13
       '@tachybase/globals': 1.6.13
       '@tachybase/loader': 1.6.13
@@ -23423,7 +23428,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/di': 1.6.13
       '@tachybase/globals': 1.6.13
       '@tachybase/loader': 1.6.13
@@ -23479,7 +23484,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/di': 1.6.13
       '@tachybase/globals': 1.6.13
       '@tachybase/loader': 1.6.13
@@ -23535,7 +23540,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(pg@8.16.3)
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/di': 1.6.13
       '@tachybase/globals': 1.6.13
       '@tachybase/loader': 1.6.13
@@ -23671,7 +23676,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/di': 1.6.13
       '@tachybase/evaluators': 1.6.13
       '@tachybase/logger': 1.6.13
@@ -23700,7 +23705,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.13(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/di': 1.6.13
       '@tachybase/evaluators': 1.6.13
       '@tachybase/logger': 1.6.13
@@ -23729,7 +23734,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/di': 1.6.13
       '@tachybase/evaluators': 1.6.13
       '@tachybase/logger': 1.6.13
@@ -23758,7 +23763,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(pg@8.16.3)
-      '@tachybase/database': 1.6.13(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/di': 1.6.13
       '@tachybase/evaluators': 1.6.13
       '@tachybase/logger': 1.6.13
@@ -32957,7 +32962,7 @@ snapshots:
       '@tachybase/auth': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/cache': 1.6.13
       '@tachybase/data-source': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.13(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.13(patch_hash=75b327d5c44f7934e222e0e070c74f932605c3f14782abb38d8aa955c5c11b40)(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/evaluators': 1.6.13
       '@tachybase/globals': 1.6.13
       '@tachybase/loader': 1.6.13

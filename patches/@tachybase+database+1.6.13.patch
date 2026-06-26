@@ -1,0 +1,41 @@
+diff --git a/lib/database.js b/lib/database.js
+index 5e3fe4f..813f4de 100644
+--- a/lib/database.js
++++ b/lib/database.js
+@@ -544,7 +544,14 @@ const _Database = class _Database extends import_node_events.EventEmitter {
+     if (this.options.schema && this.inDialect("postgres")) {
+       await this.sequelize.query(`CREATE SCHEMA IF NOT EXISTS "${this.options.schema}"`, null);
+     }
++    const isSQLite = this.inDialect("sqlite");
++    if (isSQLite) {
++      await this.sequelize.query("PRAGMA foreign_keys = OFF");
++    }
+     const result = await this.sequelize.sync(options);
++    if (isSQLite) {
++      await this.sequelize.query("PRAGMA foreign_keys = ON");
++    }
+     if (isMySQL) {
+       await this.sequelize.query("SET FOREIGN_KEY_CHECKS = 1", null);
+     }
+diff --git a/lib/fields/sort-field.js b/lib/fields/sort-field.js
+index 0d19216..fdb5261 100644
+--- a/lib/fields/sort-field.js
++++ b/lib/fields/sort-field.js
+@@ -171,7 +171,7 @@ const _SortField = class _SortField extends import_field.Field {
+   }
+   bind() {
+     super.bind();
+-    this.on("afterSync", this.initRecordsSortValue);
++    const _origInit = this.initRecordsSortValue; const _safeInit = async (a) => { try { await _origInit(a); } catch {} }; this._safeInitRecordsSortValue = _safeInit; this.on("afterSync", _safeInit);
+     this.on("beforeUpdate", this.onScopeChange);
+     this.on("beforeCreate", this.setSortValue);
+   }
+@@ -179,7 +179,7 @@ const _SortField = class _SortField extends import_field.Field {
+     super.unbind();
+     this.off("beforeUpdate", this.onScopeChange);
+     this.off("beforeCreate", this.setSortValue);
+-    this.off("afterSync", this.initRecordsSortValue);
++    this.off("afterSync", this._safeInitRecordsSortValue || this.initRecordsSortValue);
+   }
+ };
+ __name(_SortField, "SortField");

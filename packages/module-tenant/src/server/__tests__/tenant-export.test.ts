@@ -6,11 +6,7 @@ import ExportPlugin from 'packages/plugin-action-export/src/server';
 
 import { createTenantApp } from './utils';
 
-// CI 上 sequelize.sync() 因 FK 拓扑排序 + afterSync hooks 静默失败，
-// 导致应用表和插件 action handler 均未注册。此为框架层 bug，测试代码无法修复。
-// 本地可通过。待框架修复后移除 skip。
-// see: https://github.com/nicolo-ribaudo/tc39-proposal-structs/issues/64
-describe.skip('tenant export', () => {
+describe('tenant export', () => {
   let app: MockServer;
 
   afterEach(async () => {

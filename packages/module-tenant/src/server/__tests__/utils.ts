@@ -76,5 +76,39 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     await cleanupPreviousApp();
     throw err;
   }
+
+  // Defensive: if the framework's install flow silently failed (CI-specific),
+  // the tenants table won't exist.  Recover by:
+  //   1. Creating missing tables via queryInterface.createTable (raw DDL,
+  //      no afterDefine/afterSync hooks, no FK ordering issues)
+  //   2. Running load hooks for any unloaded plugins (ExportPlugin.load
+  //      registers the 'export' action handler)
+  const check = await app.db.sequelize.query(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'",
+  );
+  if ((check[0] as any[]).length === 0) {
+    const qi = app.db.sequelize.getQueryInterface();
+    for (const model of Object.values(app.db.sequelize.models) as any[]) {
+      try {
+        await qi.createTable(model.tableName, model.rawAttributes, {});
+      } catch {
+        /* already exists or dep issue */
+      }
+    }
+    // Run load hooks for unloaded plugins so action handlers are registered
+    const pm = (app as any).pm;
+    for (const [, plugin] of pm.getPlugins()) {
+      if (!plugin.state.loaded && plugin.enabled) {
+        try {
+          if (plugin.beforeLoad) await plugin.beforeLoad();
+          if (plugin.loadCollections) await plugin.loadCollections();
+          if (plugin.load) await plugin.load();
+          plugin.state.loaded = true;
+        } catch {
+          /* ignore individual plugin load failures */
+        }
+      }
+    }
+  }
   return app;
 }

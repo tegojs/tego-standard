@@ -15,7 +15,7 @@ describe('tenant export', () => {
 
   it('should export only current tenant records even when client passes a foreign tenant filter', async () => {
     app = await createTenantApp({
-      extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
+      extraPlugins: [[ExportPlugin, { name: 'action-export' }]],
     });
 
     await app.db.getRepository('tenants').create({
@@ -102,7 +102,7 @@ describe('tenant export', () => {
 
   it('should pass tenant context into worker export and include tenant marker in the generated file path', async () => {
     app = await createTenantApp({
-      extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
+      extraPlugins: [[ExportPlugin, { name: 'action-export' }]],
     });
 
     await app.db.getRepository('tenants').create({
@@ -207,7 +207,7 @@ describe('tenant export', () => {
 
   it('should keep original export title in download filename while appending tenant marker', async () => {
     app = await createTenantApp({
-      extraPlugins: [[ExportPlugin, { name: 'action-export', packageName: '@tachybase/plugin-action-export' }]],
+      extraPlugins: [[ExportPlugin, { name: 'action-export' }]],
     });
 
     await app.db.getRepository('tenants').create({

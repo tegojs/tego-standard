@@ -16,7 +16,7 @@ describe('tenant import', () => {
 
   it('should ignore imported tenantId values and persist the current tenant instead', async () => {
     app = await createTenantApp({
-      extraPlugins: [[ImportPlugin, { name: 'action-import', packageName: '@tachybase/plugin-action-import' }]],
+      extraPlugins: [[ImportPlugin, { name: 'action-import' }]],
     });
 
     await app.db.getRepository('tenants').create({
@@ -98,7 +98,7 @@ describe('tenant import', () => {
 
   it('should resolve imported relation values within the current tenant context', async () => {
     app = await createTenantApp({
-      extraPlugins: [[ImportPlugin, { name: 'action-import', packageName: '@tachybase/plugin-action-import' }]],
+      extraPlugins: [[ImportPlugin, { name: 'action-import' }]],
     });
 
     await app.db.getRepository('tenants').create({

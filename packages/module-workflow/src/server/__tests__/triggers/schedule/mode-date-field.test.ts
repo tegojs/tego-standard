@@ -18,8 +18,10 @@ function getRecordTriggerTime(record) {
   return triggerTime.getTime();
 }
 
-function getFutureSecond(minDelay = 800) {
-  return new Date(Math.ceil((Date.now() + minDelay) / 1000) * 1000);
+function getFutureSecond(seconds = 2) {
+  const date = new Date(Date.now() + seconds * 1000);
+  date.setMilliseconds(0);
+  return date;
 }
 
 async function sleepToEvenSecond() {

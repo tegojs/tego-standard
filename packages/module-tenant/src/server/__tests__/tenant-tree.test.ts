@@ -10,10 +10,10 @@ describe('tenant tree structure', () => {
     await app.destroy();
   });
 
-  it('should auto-generate path on create with no parent (root tenant)', async () => {
+  it('should generate materialized paths for root, child and multi-level tenants', async () => {
     app = await createTenantApp();
 
-    const tenant = await app.db.getRepository('tenants').create({
+    const rootTenant = await app.db.getRepository('tenants').create({
       values: {
         id: 'root-1',
         name: 'root-1',
@@ -21,44 +21,24 @@ describe('tenant tree structure', () => {
       },
     });
 
-    expect(tenant.get('path')).toBe('/root-1/');
-    expect(tenant.get('parentId')).toBeNull();
-  });
-
-  it('should auto-generate path on create with parent', async () => {
-    app = await createTenantApp();
-
-    await app.db.getRepository('tenants').create({
-      values: { id: 'parent-1', name: 'parent-1', title: 'Parent 1' },
-    });
-
     const child = await app.db.getRepository('tenants').create({
       values: {
         id: 'child-1',
         name: 'child-1',
         title: 'Child 1',
-        parentId: 'parent-1',
+        parentId: 'root-1',
       },
     });
 
-    expect(child.get('path')).toBe('/parent-1/child-1/');
-    expect(child.get('parentId')).toBe('parent-1');
-  });
-
-  it('should build multi-level paths correctly', async () => {
-    app = await createTenantApp();
-
-    await app.db.getRepository('tenants').create({
-      values: { id: 'root', name: 'root', title: 'Root' },
-    });
-    await app.db.getRepository('tenants').create({
-      values: { id: 'mid', name: 'mid', title: 'Mid', parentId: 'root' },
-    });
     const leaf = await app.db.getRepository('tenants').create({
-      values: { id: 'leaf', name: 'leaf', title: 'Leaf', parentId: 'mid' },
+      values: { id: 'leaf', name: 'leaf', title: 'Leaf', parentId: 'child-1' },
     });
 
-    expect(leaf.get('path')).toBe('/root/mid/leaf/');
+    expect(rootTenant.get('path')).toBe('/root-1/');
+    expect(rootTenant.get('parentId')).toBeNull();
+    expect(child.get('path')).toBe('/root-1/child-1/');
+    expect(child.get('parentId')).toBe('root-1');
+    expect(leaf.get('path')).toBe('/root-1/child-1/leaf/');
   });
 
   it('should reject creating a tenant when the materialized path is too long', async () => {
@@ -77,7 +57,7 @@ describe('tenant tree structure', () => {
     ).rejects.toThrow(/Tenant path exceeds maximum length of 500 characters/);
   });
 
-  it('should find descendants using path LIKE query', async () => {
+  it('should find descendant ids and tenant records using path LIKE query', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -95,26 +75,12 @@ describe('tenant tree structure', () => {
     expect(ids).toEqual(['branch-a', 'branch-b', 'dept-x']);
     expect(ids).not.toContain('hq');
     expect(ids).not.toContain('other');
-  });
-
-  it('should find descendant tenant records using path LIKE query', async () => {
-    app = await createTenantApp();
-
-    await app.db.getRepository('tenants').create({
-      values: [
-        { id: 'hq', name: 'hq', title: 'HQ' },
-        { id: 'branch-a', name: 'branch-a', title: 'Branch A', parentId: 'hq' },
-        { id: 'branch-b', name: 'branch-b', title: 'Branch B', parentId: 'hq' },
-        { id: 'dept-x', name: 'dept-x', title: 'Dept X', parentId: 'branch-a' },
-        { id: 'other', name: 'other', title: 'Other' },
-      ],
-    });
 
     const tenants = await getDescendantTenants(app.db.getRepository('tenants'), 'hq');
-    const ids = tenants.map((tenant: any) => tenant.get('id')).sort();
+    const tenantIds = tenants.map((tenant: any) => tenant.get('id')).sort();
     const titles = tenants.map((tenant: any) => tenant.get('title'));
 
-    expect(ids).toEqual(['branch-a', 'branch-b', 'dept-x']);
+    expect(tenantIds).toEqual(['branch-a', 'branch-b', 'dept-x']);
     expect(titles).toContain('Branch A');
     expect(titles).not.toContain('HQ');
     expect(titles).not.toContain('Other');
@@ -288,10 +254,10 @@ describe('tenant tree structure', () => {
       return application;
     }
 
-    it('should see own + descendant records for tenantInherited collections', async () => {
+    it('should enforce inherited visibility and current tenant on create', async () => {
       app = await setupInheritedApp();
 
-      const user = await app.db.getRepository('users').create({
+      const hqUser = await app.db.getRepository('users').create({
         values: {
           username: 'hq_user',
           email: 'hq@example.com',
@@ -303,24 +269,20 @@ describe('tenant tree structure', () => {
         },
       });
 
-      const response = await app
+      const hqResponse = await app
         .agent()
-        .login(user)
+        .login(hqUser)
         .resource('inherited_posts')
         .list({
           sort: ['title'],
         });
 
-      expect(response.status).toBe(200);
-      const titles = response.body.data.map((r: any) => r.title);
+      expect(hqResponse.status).toBe(200);
+      const hqTitles = hqResponse.body.data.map((r: any) => r.title);
       // HQ sees all: own + branch-a + branch-b + dept-1
-      expect(titles).toEqual(['Post-branch-a', 'Post-branch-b', 'Post-dept-1', 'Post-hq']);
-    });
+      expect(hqTitles).toEqual(['Post-branch-a', 'Post-branch-b', 'Post-dept-1', 'Post-hq']);
 
-    it('should only see own + own descendants at branch level', async () => {
-      app = await setupInheritedApp();
-
-      const user = await app.db.getRepository('users').create({
+      const branchUser = await app.db.getRepository('users').create({
         values: {
           username: 'branch_user',
           email: 'branch@example.com',
@@ -332,24 +294,20 @@ describe('tenant tree structure', () => {
         },
       });
 
-      const response = await app
+      const branchResponse = await app
         .agent()
-        .login(user)
+        .login(branchUser)
         .resource('inherited_posts')
         .list({
           sort: ['title'],
         });
 
-      expect(response.status).toBe(200);
-      const titles = response.body.data.map((r: any) => r.title);
+      expect(branchResponse.status).toBe(200);
+      const branchTitles = branchResponse.body.data.map((r: any) => r.title);
       // branch-a sees: own + dept-1
-      expect(titles).toEqual(['Post-branch-a', 'Post-dept-1']);
-    });
+      expect(branchTitles).toEqual(['Post-branch-a', 'Post-dept-1']);
 
-    it('should only see own records at leaf level', async () => {
-      app = await setupInheritedApp();
-
-      const user = await app.db.getRepository('users').create({
+      const deptUser = await app.db.getRepository('users').create({
         values: {
           username: 'dept_user',
           email: 'dept@example.com',
@@ -361,17 +319,13 @@ describe('tenant tree structure', () => {
         },
       });
 
-      const response = await app.agent().login(user).resource('inherited_posts').list({});
+      const deptResponse = await app.agent().login(deptUser).resource('inherited_posts').list({});
 
-      expect(response.status).toBe(200);
-      const titles = response.body.data.map((r: any) => r.title);
-      expect(titles).toEqual(['Post-dept-1']);
-    });
+      expect(deptResponse.status).toBe(200);
+      const deptTitles = deptResponse.body.data.map((r: any) => r.title);
+      expect(deptTitles).toEqual(['Post-dept-1']);
 
-    it('should still force current tenantId on create for inherited collections', async () => {
-      app = await setupInheritedApp();
-
-      const user = await app.db.getRepository('users').create({
+      const hqCreator = await app.db.getRepository('users').create({
         values: {
           username: 'hq_creator',
           email: 'hq-create@example.com',
@@ -385,7 +339,7 @@ describe('tenant tree structure', () => {
 
       const response = await app
         .agent()
-        .login(user)
+        .login(hqCreator)
         .resource('inherited_posts')
         .create({
           values: { title: 'New Post', tenantId: 'branch-a' },
@@ -402,7 +356,7 @@ describe('tenant tree structure', () => {
   });
 
   describe('available tenants with tree inheritance', () => {
-    it('should not include ancestor tenants in available list', async () => {
+    it('should include descendants but not ancestors in available list', async () => {
       app = await createTenantApp();
 
       await app.db.getRepository('tenants').create({
@@ -432,20 +386,8 @@ describe('tenant tree structure', () => {
       expect(ids).not.toContain('hq');
       expect(ids).not.toContain('branch');
       expect(ids).toContain('dept');
-    });
 
-    it('should include descendant tenants in available list', async () => {
-      app = await createTenantApp();
-
-      await app.db.getRepository('tenants').create({
-        values: [
-          { id: 'hq', name: 'hq', title: 'HQ' },
-          { id: 'branch', name: 'branch', title: 'Branch', parentId: 'hq' },
-          { id: 'dept', name: 'dept', title: 'Dept', parentId: 'branch' },
-        ],
-      });
-
-      const user = await app.db.getRepository('users').create({
+      const hqUser = await app.db.getRepository('users').create({
         values: {
           username: 'hq_member',
           email: 'hq-member@example.com',
@@ -456,16 +398,16 @@ describe('tenant tree structure', () => {
         },
       });
 
-      const response = await app.agent().login(user).resource('tenants').available({});
+      const hqResponse = await app.agent().login(hqUser).resource('tenants').available({});
 
-      expect(response.status).toBe(200);
-      const ids = response.body.data.map((t: any) => t.id);
-      expect(ids).toContain('hq');
-      expect(ids).toContain('branch');
-      expect(ids).toContain('dept');
+      expect(hqResponse.status).toBe(200);
+      const hqIds = hqResponse.body.data.map((t: any) => t.id);
+      expect(hqIds).toContain('hq');
+      expect(hqIds).toContain('branch');
+      expect(hqIds).toContain('dept');
     });
 
-    it('should allow switching to descendant tenants', async () => {
+    it('should allow switching to descendants and reject switching to ancestors', async () => {
       app = await createTenantApp();
 
       await app.db.getRepository('tenants').create({
@@ -486,7 +428,7 @@ describe('tenant tree structure', () => {
         },
       });
 
-      const response = await app
+      const descendantResponse = await app
         .agent()
         .login(user)
         .resource('tenants')
@@ -496,21 +438,10 @@ describe('tenant tree structure', () => {
           },
         });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data.id).toBe('branch');
-    });
+      expect(descendantResponse.status).toBe(200);
+      expect(descendantResponse.body.data.id).toBe('branch');
 
-    it('should reject switching from descendant tenant to ancestor tenant', async () => {
-      app = await createTenantApp();
-
-      await app.db.getRepository('tenants').create({
-        values: [
-          { id: 'hq', name: 'hq', title: 'HQ' },
-          { id: 'branch', name: 'branch', title: 'Branch', parentId: 'hq' },
-        ],
-      });
-
-      const user = await app.db.getRepository('users').create({
+      const branchUser = await app.db.getRepository('users').create({
         values: {
           username: 'branch_switcher',
           email: 'branch-switcher@example.com',
@@ -521,9 +452,9 @@ describe('tenant tree structure', () => {
         },
       });
 
-      const response = await app
+      const ancestorResponse = await app
         .agent()
-        .login(user)
+        .login(branchUser)
         .resource('tenants')
         .switch({
           values: {
@@ -531,7 +462,7 @@ describe('tenant tree structure', () => {
           },
         });
 
-      expect(response.status).toBe(403);
+      expect(ancestorResponse.status).toBe(403);
     });
   });
 });

@@ -9,18 +9,17 @@ describe('setCurrentTenant middleware', () => {
     await app.destroy();
   });
 
-  it('should resolve current tenant from the only bound tenant', async () => {
+  it('should resolve current tenant from bound tenants and tenant headers', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
-      values: {
-        id: 'tenant-a',
-        name: 'tenant-a',
-        title: 'Tenant A',
-      },
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
     });
 
-    const user = await app.db.getRepository('users').create({
+    const onlyTenantUser = await app.db.getRepository('users').create({
       values: {
         username: 'user_a',
         email: 'user-a@example.com',
@@ -31,23 +30,12 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).resource('tenants').current({});
+    const onlyTenantResponse = await app.agent().login(onlyTenantUser).resource('tenants').current({});
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.id).toBe('tenant-a');
-  });
+    expect(onlyTenantResponse.status).toBe(200);
+    expect(onlyTenantResponse.body.data.id).toBe('tenant-a');
 
-  it('should allow switching to a valid requested tenant with X-Tenant-Id header', async () => {
-    app = await createTenantApp();
-
-    await app.db.getRepository('tenants').create({
-      values: [
-        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
-        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
-      ],
-    });
-
-    const user = await app.db.getRepository('users').create({
+    const switchUser = await app.db.getRepository('users').create({
       values: {
         username: 'user_b',
         email: 'user-b@example.com',
@@ -59,23 +47,17 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).set('X-Tenant-Id', 'tenant-b').resource('tenants').current({});
+    const switchResponse = await app
+      .agent()
+      .login(switchUser)
+      .set('X-Tenant-Id', 'tenant-b')
+      .resource('tenants')
+      .current({});
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.id).toBe('tenant-b');
-  });
+    expect(switchResponse.status).toBe(200);
+    expect(switchResponse.body.data.id).toBe('tenant-b');
 
-  it('should reject switching to an invalid tenant with X-Tenant-Id header', async () => {
-    app = await createTenantApp();
-
-    await app.db.getRepository('tenants').create({
-      values: [
-        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
-        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
-      ],
-    });
-
-    const user = await app.db.getRepository('users').create({
+    const invalidHeaderUser = await app.db.getRepository('users').create({
       values: {
         username: 'user_c',
         email: 'user-c@example.com',
@@ -87,23 +69,17 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).set('X-Tenant-Id', 'tenant-b').resource('tenants').current({});
+    const invalidHeaderResponse = await app
+      .agent()
+      .login(invalidHeaderUser)
+      .set('X-Tenant-Id', 'tenant-b')
+      .resource('tenants')
+      .current({});
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.id).toBe('tenant-a');
-  });
+    expect(invalidHeaderResponse.status).toBe(200);
+    expect(invalidHeaderResponse.body.data.id).toBe('tenant-a');
 
-  it('should ignore legacy X-Tenant header', async () => {
-    app = await createTenantApp();
-
-    await app.db.getRepository('tenants').create({
-      values: [
-        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
-        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
-      ],
-    });
-
-    const user = await app.db.getRepository('users').create({
+    const legacyHeaderUser = await app.db.getRepository('users').create({
       values: {
         username: 'user_legacy_header',
         email: 'user-legacy-header@example.com',
@@ -115,10 +91,15 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).set('X-Tenant', 'tenant-b').resource('tenants').current({});
+    const legacyHeaderResponse = await app
+      .agent()
+      .login(legacyHeaderUser)
+      .set('X-Tenant', 'tenant-b')
+      .resource('tenants')
+      .current({});
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.id).toBe('tenant-a');
+    expect(legacyHeaderResponse.status).toBe(200);
+    expect(legacyHeaderResponse.body.data.id).toBe('tenant-a');
   });
 
   it('should allow requested descendant tenant with X-Tenant-Id header', async () => {
@@ -316,7 +297,7 @@ describe('setCurrentTenant middleware', () => {
     expect(response.status).toBe(403);
   });
 
-  it('should not resolve a disabled default tenant and should fallback to an enabled tenant', async () => {
+  it('should fallback from disabled default tenant and reject switching to a disabled tenant', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -326,7 +307,7 @@ describe('setCurrentTenant middleware', () => {
       ],
     });
 
-    const user = await app.db.getRepository('users').create({
+    const disabledDefaultUser = await app.db.getRepository('users').create({
       values: {
         username: 'user_disabled_default',
         email: 'user-disabled-default@example.com',
@@ -338,23 +319,12 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app.agent().login(user).resource('tenants').current({});
+    const currentResponse = await app.agent().login(disabledDefaultUser).resource('tenants').current({});
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.id).toBe('tenant-a');
-  });
+    expect(currentResponse.status).toBe(200);
+    expect(currentResponse.body.data.id).toBe('tenant-a');
 
-  it('should reject switching to a disabled tenant', async () => {
-    app = await createTenantApp();
-
-    await app.db.getRepository('tenants').create({
-      values: [
-        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A', enabled: true },
-        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B', enabled: false },
-      ],
-    });
-
-    const user = await app.db.getRepository('users').create({
+    const disabledSwitchUser = await app.db.getRepository('users').create({
       values: {
         username: 'user_disabled_switch',
         email: 'user-disabled-switch@example.com',
@@ -366,9 +336,9 @@ describe('setCurrentTenant middleware', () => {
       },
     });
 
-    const response = await app
+    const switchResponse = await app
       .agent()
-      .login(user)
+      .login(disabledSwitchUser)
       .resource('tenants')
       .switch({
         values: {
@@ -376,7 +346,7 @@ describe('setCurrentTenant middleware', () => {
         },
       });
 
-    expect(response.status).toBe(403);
+    expect(switchResponse.status).toBe(403);
   });
 
   it('should list available tenants for current user and mark the active tenant', async () => {

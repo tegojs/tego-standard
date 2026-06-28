@@ -300,7 +300,7 @@ describe('workflow > triggers > schedule > static mode', () => {
 
       await app.stop();
 
-      await sleepUntil(start, 1000);
+      await sleepUntil(start, 300);
 
       await app.start();
 

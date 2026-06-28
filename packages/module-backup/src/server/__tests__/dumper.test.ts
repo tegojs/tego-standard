@@ -42,6 +42,7 @@ describe('dumper', () => {
     'should dump collection table structure',
     'should get dumped collections with origin option',
     'should get custom collections group',
+    'should dump collection meta',
   ]);
   let reusableBaseApp: MockServer | undefined;
   let shouldDestroyApp = false;

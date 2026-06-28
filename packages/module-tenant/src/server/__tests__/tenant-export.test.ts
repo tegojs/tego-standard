@@ -149,15 +149,8 @@ describe('tenant export', () => {
       context: {},
     });
 
-    await app.db.getRepository('tenant_export_worker_posts').create({
-      values: Array.from({ length: 2001 }, (_, index) => ({ title: `A${index + 1}` })),
-      context: {
-        state: {
-          currentTenantId: 'tenant-a-child',
-          currentTenant: { id: 'tenant-a-child' },
-        },
-      } as any,
-    });
+    const workerPostsRepository = app.db.getRepository('tenant_export_worker_posts');
+    vi.spyOn(workerPostsRepository, 'count').mockResolvedValue(2001);
 
     let capturedWorkerParams: any;
     const callPluginMethod = vi.fn(async ({ params }) => {

@@ -6,13 +6,15 @@ import { createTenantApp } from './utils';
 describe('tenant plugin collections', () => {
   let app: MockServer;
 
-  afterEach(async () => {
+  beforeAll(async () => {
+    app = await createTenantApp();
+  });
+
+  afterAll(async () => {
     await app.destroy();
   });
 
   it('should not define an explicit tenantUsers field on tenants collection', async () => {
-    app = await createTenantApp();
-
     const tenantsCollection = app.db.getCollection('tenants');
 
     expect(tenantsCollection.getField('tenantUsers')).toBeFalsy();
@@ -21,8 +23,6 @@ describe('tenant plugin collections', () => {
   });
 
   it('should register tenant management acl snippet', async () => {
-    app = await createTenantApp();
-
     const snippet = app.acl.snippetManager.snippets.get('pm.tenant.manage');
 
     expect(snippet).toBeTruthy();
@@ -32,8 +32,6 @@ describe('tenant plugin collections', () => {
   });
 
   it('should register locale resources with tenant namespace', async () => {
-    app = await createTenantApp();
-
     expect(app.i18n.t('Tenant management', { lng: 'zh-CN', ns: NAMESPACE })).toBe('租户管理');
   });
 });

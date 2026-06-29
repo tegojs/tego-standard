@@ -1,6 +1,30 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import type { Plugin } from 'vite';
 import { defineTegoVitestConfig } from '@tachybase/test/vitest';
+
+/**
+ * 上游包的 sourcemap sourceRoot 路径错误或 sourcesContent 缺失，
+ * 导致 Vite injectSourcesContent 打印 "points to missing source files" 警告。
+ * 在 transform 阶段剥离这些包的 sourcemap 以消除噪音。
+ */
+function stripBrokenSourcemaps(): Plugin {
+  const brokenPkgs = [
+    '@antv/scale/',
+    '@antv/coord/',
+    '@antv/g2-extension-plot/',
+    'react-zoom-pan-pinch/',
+  ];
+  return {
+    name: 'strip-broken-sourcemaps',
+    enforce: 'pre',
+    transform(code, id) {
+      if (brokenPkgs.some((pkg) => id.includes(pkg))) {
+        return { code, map: null };
+      }
+    },
+  };
+}
 
 const actionImportRequire = createRequire(path.resolve(process.cwd(), 'packages/plugin-action-import/package.json'));
 const clientSetupFile = path.resolve(process.cwd(), './vitest.setup.client.ts');
@@ -106,9 +130,11 @@ for (const project of config.test.projects || []) {
     // Force CJS entry for server tests.
     const testCjsEntry = testRequire.resolve('@tachybase/test');
     project.test.alias = [...(project.test.alias || []), { find: '@tachybase/test', replacement: testCjsEntry }];
+    project.plugins = [stripBrokenSourcemaps(), ...(project.plugins || [])];
   }
   if (project.test.name === 'client') {
     project.test.testTimeout = 15000;
+    project.plugins = [stripBrokenSourcemaps(), ...(project.plugins || [])];
   }
 }
 

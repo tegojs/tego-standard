@@ -1,5 +1,6 @@
 import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 
+import { getCurrentTenantIdFromState } from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
 import { triggerWorkflowAndGetExecution } from '../utils';
@@ -383,14 +384,19 @@ export async function retry(ctx: Context, next: Next) {
     context: ctx,
   });
 
+  const tenantId = getCurrentTenantIdFromState(ctx.state);
   const execution = await ExecutionRepo.findOne({
-    filter: { key: workflow.key },
+    filter: {
+      key: workflow.key,
+      ...(tenantId ? { tenantId } : {}),
+    },
     sort: ['-createdAt'],
   });
   if (!execution) {
     ctx.state.messages.push({
       message: ctx.t('No execution records found for this workflow.', { ns: 'workflow' }),
     });
+    return ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
   }
 
   try {

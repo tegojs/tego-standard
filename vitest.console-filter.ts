@@ -7,6 +7,7 @@ const expectedNegativePathLogPatterns = [
   /\[error\]\s+No permissions\b/,
   /execution \(\d+\) run instruction \[sql\] for node \(\d+\) failed:/,
   /execution \(\d+\) run instruction \[error\] for node \(\d+\) failed:/,
+  /config of executed workflow can not be updated/,
   /Tenant context is required/,
   /Invalid tenant access/,
   /Tenant path exceeds maximum length of 500 characters/,

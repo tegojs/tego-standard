@@ -1,8 +1,25 @@
 import { actions, Context, Next, Op, utils } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
+import { getCurrentTenantIdFromState } from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { triggerWorkflowAndGetExecution } from '../utils';
+
+function getModelValue(model: any, key: string) {
+  return model?.get?.(key) ?? model?.[key];
+}
+
+function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
+  const tenantId = getCurrentTenantIdFromState(ctx.state);
+  if (!tenantId || !execution) {
+    return;
+  }
+
+  const executionTenantId = getModelValue(execution, 'tenantId');
+  if (`${executionTenantId}` !== `${tenantId}`) {
+    ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
+  }
+}
 
 export async function destroy(ctx: Context, next) {
   ctx.action.mergeParams({
@@ -27,6 +44,7 @@ export async function cancel(ctx: Context, next) {
   if (!execution) {
     return ctx.throw(404);
   }
+  assertExecutionInCurrentTenant(ctx, execution);
   if (execution.status) {
     return ctx.throw(400);
   }
@@ -80,6 +98,7 @@ export async function retry(ctx: Context, next: Next) {
   if (!execution) {
     ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
   }
+  assertExecutionInCurrentTenant(ctx, execution);
   const workflow = await WorkflowRepo.findOne({
     filterByTk: execution.workflowId,
     appends: ['nodes'],

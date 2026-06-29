@@ -123,12 +123,12 @@ function omitTenantValue(values: any) {
   return rest;
 }
 
-function getTenantId(state: TenantFilterContext['state']) {
+export function getCurrentTenantIdFromState(state: TenantFilterContext['state']) {
   return state?.currentTenant?.id ?? state?.currentTenantId;
 }
 
 function buildTenantParams(actionName: string, params: any, state: TenantFilterContext['state'], tenancyMode?: string) {
-  const tenantId = getTenantId(state);
+  const tenantId = getCurrentTenantIdFromState(state);
   if (!tenantId) {
     return null;
   }

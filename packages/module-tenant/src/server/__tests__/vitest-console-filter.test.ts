@@ -21,6 +21,12 @@ describe('shouldSuppressVitestConsoleOutput', () => {
     ).toBe(true);
     expect(
       shouldSuppressVitestConsoleOutput(
+        '2026-06-30 [error] config of executed workflow can not be updated meta={}',
+        'stdout',
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressVitestConsoleOutput(
         '2026-06-30 [error] SQL collection configuration requires the pm.database-connections.collections permission',
         'stdout',
       ),

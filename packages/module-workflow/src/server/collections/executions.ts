@@ -6,6 +6,7 @@ export default {
   },
   name: 'executions',
   shared: true,
+  tenancy: 'tenantScoped',
   fields: [
     {
       type: 'belongsTo',

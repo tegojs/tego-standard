@@ -1,5 +1,6 @@
 import { Database, Model, Op, Transactionable } from '@tego/server';
 
+import { getCurrentTenantIdFromState } from './helpers/tenant-context';
 import PluginWorkflowServer from './Plugin';
 import { WorkflowModel } from './types';
 
@@ -51,11 +52,14 @@ export async function triggerWorkflowAndGetExecution(
     const ExecutionRepo = db.getRepository('executions');
     const maxRetries = 10;
     const retryDelay = 200;
+    const tenantState = options.context?.state || options.httpContext?.state || (context as any)?.state;
+    const tenantId = getCurrentTenantIdFromState(tenantState);
     for (let i = 0; i < maxRetries; i++) {
       await new Promise((resolve) => setTimeout(resolve, retryDelay));
       execution = await ExecutionRepo.findOne({
         filter: {
           key: workflow.key,
+          ...(tenantId ? { tenantId } : {}),
           createdAt: {
             [Op.gte]: beforeTriggerTime,
           },

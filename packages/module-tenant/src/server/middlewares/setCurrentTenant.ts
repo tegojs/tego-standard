@@ -84,6 +84,14 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
     !!currentTenantId && !allowedTenantIds.includes(currentTenantId) && canImpersonateTenant;
 
   if (!isImpersonatingTenant && !allowedTenantIds.includes(currentTenantId)) {
+    ctx.app.emit('tenant.securityViolation', {
+      type: 'tenant_cross_tenant_attempt',
+      userId: ctx.state.currentUser?.id,
+      tenantId: requestedTenantId,
+      action: ctx.action?.actionName,
+      collectionName: ctx.action?.resourceName,
+      details: { allowedTenantIds, requestedTenantId },
+    });
     ctx.throw(403, 'Invalid tenant access');
   }
 
@@ -104,6 +112,18 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
   ctx.state.tenantContextSource = isImpersonatingTenant ? 'platformImpersonation' : 'membership';
   ctx.state.impersonatedTenantId = isImpersonatingTenant ? ctx.state.currentTenantId : null;
   ctx.state.isTenantImpersonation = isImpersonatingTenant;
+
+  if (isImpersonatingTenant) {
+    ctx.app.emit('tenant.securityViolation', {
+      type: 'tenant_impersonation',
+      userId: ctx.state.currentUser?.id,
+      actorUserId: ctx.state.currentUser?.id,
+      tenantId: currentTenantId as string,
+      action: ctx.action?.actionName,
+      collectionName: ctx.action?.resourceName,
+      details: { impersonatedTenantId: currentTenantId, originalUserId: ctx.state.currentUser?.id },
+    });
+  }
 
   // Resolve descendant IDs for inherited tenancy mode filtering
   const descendantIds = await getDescendantIds(ctx.db.getRepository('tenants'), currentTenantId as string);

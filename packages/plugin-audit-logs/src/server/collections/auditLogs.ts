@@ -51,6 +51,10 @@ export default defineCollection({
       name: 'isTenantImpersonation',
     },
     {
+      type: 'json',
+      name: 'details',
+    },
+    {
       type: 'belongsTo',
       name: 'collection',
       target: 'collections',

@@ -95,6 +95,13 @@ export class PluginTenantServer extends Plugin {
         }
 
         if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
+          ctx.app.emit('tenant.securityViolation', {
+            type: 'tenant_access_denied',
+            userId: ctx.state.currentUser?.id,
+            collectionName,
+            action: ctx.action?.actionName,
+            details: { tenancyMode },
+          });
           ctx.throw(403, 'Tenant context is required');
         }
 

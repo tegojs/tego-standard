@@ -2,7 +2,9 @@ import path from 'node:path';
 import { isMainThread } from 'node:worker_threads';
 import { Plugin, Transaction } from '@tego/server';
 
+import { createExportMonitor } from './export-monitor';
 import { afterCreate, afterDestroy, afterUpdate } from './hooks';
+import { registerSecurityEventListener } from './security-event-listener';
 
 export default class PluginActionLogs extends Plugin {
   private logsBuffer: any[] = []; // 用于存储消息的缓冲区
@@ -14,6 +16,8 @@ export default class PluginActionLogs extends Plugin {
       // 给工作线程也加监听钩子
       this.addAuditListener();
     }
+    // Register security event listener in both main and worker threads
+    registerSecurityEventListener(this);
   }
 
   async beforeLoad() {
@@ -45,6 +49,8 @@ export default class PluginActionLogs extends Plugin {
 
     this.app.acl.allow('auditLogs', ['list', 'get'], 'loggedIn');
     this.app.acl.allow('auditChanges', ['get'], 'loggedIn');
+
+    this.app.use(createExportMonitor(this), { tag: 'auditExportMonitor', before: 'dataSource' });
   }
 
   async handleSyncMessage(message: Readonly<any>): Promise<void> {

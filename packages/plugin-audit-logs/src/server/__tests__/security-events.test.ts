@@ -107,6 +107,12 @@ describe('tenant security audit events', () => {
     expect(log.get('isTenantImpersonation')).toBe(true);
     expect(log.get('impersonatedTenantId')).toBe('tenant-target');
     expect(log.get('tenantContextSource')).toBe('platformImpersonation');
+    // details must be persisted and contain the original event payload
+    const details = log.get('details');
+    expect(details).toBeDefined();
+    expect(details).not.toBeNull();
+    expect(details.impersonatedTenantId).toBe('tenant-target');
+    expect(details.originalUserId).toBe(1);
   });
 
   it('should record tenant_bulk_export_alert event', async () => {
@@ -129,6 +135,12 @@ describe('tenant security audit events', () => {
     expect(log.get('isTenantImpersonation')).toBe(false);
     expect(log.get('impersonatedTenantId')).toBeNull();
     expect(log.get('tenantContextSource')).toBeNull();
+    // details must be persisted and contain the export metrics
+    const details = log.get('details');
+    expect(details).toBeDefined();
+    expect(details).not.toBeNull();
+    expect(details.rowCount).toBe(5000);
+    expect(details.threshold).toBe(1000);
   });
 
   it('should handle events with missing optional fields', async () => {
@@ -301,5 +313,11 @@ describe('bulk export threshold', () => {
     expect(log.get('tenantId')).toBe('tenant-d');
     expect(log.get('collectionName')).toBe('export_test_col');
     expect(log.get('actorUserId')).toBeTruthy();
+    // details must contain the exact rowCount and threshold from the event
+    const details = log.get('details');
+    expect(details).toBeDefined();
+    expect(details).not.toBeNull();
+    expect(details.rowCount).toBe(1200);
+    expect(details.threshold).toBe(1000);
   });
 });

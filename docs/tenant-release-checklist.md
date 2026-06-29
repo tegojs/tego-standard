@@ -83,8 +83,6 @@ npx vitest run --project server packages/plugin-block-charts/src/server/__tests_
 ```
 图表缓存按租户 / 用户 / 查询条件 / 继承租户后代隔离；applyTenantScope 追加租户过滤并剥离冗余条件。
 
-> ⚠ **待补测试**：缓存 key 生成逻辑（`getChartCacheKey`）——租户集合剥离 filter 中的 tenantId、非租户集合保留业务 tenantId——尚无独立用例。
-
 ### plugin-audit-logs — 安全事件
 
 ```bash

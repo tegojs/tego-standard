@@ -4,6 +4,7 @@ import { Context, joinCollectionName, Model, modelAssociationByKey, Next, parseC
 import _, { get, isArray } from 'lodash';
 
 import { EXECUTION_STATUS } from '../../constants';
+import { applyTenantFilterToContext } from '../../helpers/tenant-context';
 import Trigger from '../../triggers';
 import { toJSON } from '../../utils';
 
@@ -88,23 +89,32 @@ export class OmniTrigger extends Trigger {
       const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
       const dataPath = triggerWorkflowsMap.get(workflow.key);
       const event = [workflow];
-      const { repository } = ctx.tego.dataSourceManager.dataSources
+      const targetCollection = ctx.tego.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
+      const { repository } = targetCollection;
       const formData = dataPath ? _.get(values, dataPath) : values;
       let data = formData;
       if (filterByTk != null) {
+        const findOptions = applyTenantFilterToContext(ctx, targetCollection, 'list', {
+          filterByTk,
+          appends,
+        });
         if (isArray(filterByTk)) {
-          data = await repository.find({ filterByTk, appends, context: ctx });
+          data = await repository.find({ ...findOptions, context: ctx });
         } else {
-          data = await repository.findOne({ filterByTk, appends, context: ctx });
+          data = await repository.findOne({ ...findOptions, context: ctx });
         }
         if (!data) {
           continue;
         }
         Object.assign(data, formData);
       } else if (filter != null) {
-        data = await repository.find({ filter, appends, context: ctx });
+        const findOptions = applyTenantFilterToContext(ctx, targetCollection, 'list', {
+          filter,
+          appends,
+        });
+        data = await repository.find({ ...findOptions, context: ctx });
         if (!data) {
           continue;
         }
@@ -241,9 +251,12 @@ export class OmniTrigger extends Trigger {
               continue;
             }
             if (appends.length) {
-              payload = await model.collection.repository.findOne({
+              const findOptions = applyTenantFilterToContext(ctx, model.collection, 'list', {
                 filterByTk: payload.get(model.primaryKeyAttribute),
                 appends,
+              });
+              payload = await model.collection.repository.findOne({
+                ...findOptions,
                 context: ctx,
               });
             }
@@ -252,15 +265,19 @@ export class OmniTrigger extends Trigger {
           event.push({ data: toJSON(payload), ...userInfo });
         }
       } else {
-        const { model, repository } = (<any>ctx.tego).dataSourceManager.dataSources
+        const targetCollection = (<any>ctx.tego).dataSourceManager.dataSources
           .get(dataSourceName)
           .collectionManager.getCollection(collectionName);
+        const { model, repository } = targetCollection;
         let data = trigger[1] ? get(values, trigger[1]) : values;
         const pk = get(data, model.primaryKeyAttribute);
         if (appends.length && pk != null) {
-          data = await repository.findOne({
+          const findOptions = applyTenantFilterToContext(ctx, targetCollection, 'list', {
             filterByTk: pk,
             appends,
+          });
+          data = await repository.findOne({
+            ...findOptions,
             context: ctx,
           });
         }

@@ -55,7 +55,15 @@ describe('workflow > omni trigger > custom action tenant context', () => {
     return { repository, trigger, workflow, workflowRecord, workflowRepo };
   }
 
-  function createContext(repository, actionParams: Record<string, any>) {
+  function createContext(repository, actionParams: Record<string, any>, collectionOptions: Record<string, any> = {}) {
+    const collection = {
+      model: {
+        primaryKeyAttribute: 'id',
+      },
+      options: collectionOptions,
+      repository,
+    };
+
     return {
       action: {
         params: actionParams,
@@ -77,12 +85,7 @@ describe('workflow > omni trigger > custom action tenant context', () => {
           dataSources: {
             get: vi.fn().mockReturnValue({
               collectionManager: {
-                getCollection: vi.fn().mockReturnValue({
-                  model: {
-                    primaryKeyAttribute: 'id',
-                  },
-                  repository,
-                }),
+                getCollection: vi.fn().mockReturnValue(collection),
               },
             }),
           },
@@ -139,5 +142,89 @@ describe('workflow > omni trigger > custom action tenant context', () => {
       context: ctx,
     });
     expect(workflow.trigger).toHaveBeenCalledWith(workflowRecord, expect.any(Object), { httpContext: ctx });
+  });
+
+  it('triggerAction should apply tenant filter to tenant-scoped filterByTk lookup', async () => {
+    const { repository, trigger, workflowRecord } = createTrigger();
+    repository.findOne.mockResolvedValue(null);
+    const ctx = createContext(
+      repository,
+      {
+        actionName: 'trigger',
+        resourceName: 'posts',
+        filterByTk: 1,
+        values: { title: 'form' },
+        triggerWorkflows: workflowRecord.key,
+      },
+      { tenancy: 'tenantScoped' },
+    );
+    const next = vi.fn();
+
+    await trigger.triggerAction(ctx as any, next);
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      filterByTk: 1,
+      filter: { tenantId: 'tenant-a' },
+      appends: [],
+      context: ctx,
+    });
+  });
+
+  it('triggerAction should strip user tenant filter and apply current tenant to filter lookup', async () => {
+    const { repository, trigger, workflowRecord } = createTrigger();
+    repository.find.mockResolvedValue([]);
+    const ctx = createContext(
+      repository,
+      {
+        actionName: 'trigger',
+        resourceName: 'posts',
+        filter: { tenantId: 'tenant-b', title: 'form' },
+        values: { title: 'form' },
+        triggerWorkflows: workflowRecord.key,
+      },
+      { tenancy: 'tenantScoped' },
+    );
+    const next = vi.fn();
+
+    await trigger.triggerAction(ctx as any, next);
+
+    expect(repository.find).toHaveBeenCalledWith({
+      filter: {
+        $and: [{ title: 'form' }, { tenantId: 'tenant-a' }],
+      },
+      appends: [],
+      context: ctx,
+    });
+  });
+
+  it('trigger should apply tenant filter to workflow resource payload lookup', async () => {
+    const workflowRecord = {
+      key: 'wf-key',
+      type: OmniTrigger.TYPE,
+      sync: false,
+      config: {
+        collection: 'posts',
+        appends: ['comments'],
+      },
+    };
+    const { repository, trigger } = createTrigger({ workflowRecord });
+    repository.findOne.mockResolvedValue({ id: 1, title: 'stored' });
+    const ctx = createContext(
+      repository,
+      {
+        values: { id: 1 },
+      },
+      { tenancy: 'tenantScoped' },
+    );
+    ctx.action.resourceName = 'workflows';
+
+    await (trigger as any).trigger(ctx, workflowRecord.key);
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      filterByTk: 1,
+      filter: { tenantId: 'tenant-a' },
+      appends: ['comments'],
+      context: ctx,
+    });
   });
 });

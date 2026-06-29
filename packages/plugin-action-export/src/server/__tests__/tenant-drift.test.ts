@@ -8,10 +8,10 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path, { resolve } from 'node:path';
-import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { applyTenantFilterToContext } from '../../../../module-tenant/src/server/helpers/tenant-filter';
 import ExportPlugin from '../index';
 
 const exportTenantAwareFiles = ['index.ts', 'actions/export-xlsx.ts'];

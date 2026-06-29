@@ -5,17 +5,18 @@
  * tenant-specific server capabilities (actions, middleware, collections)
  * must NOT be registered, and the application must start without errors.
  */
-import { createMockServer, mockServer, MockServer } from '@tachybase/test';
+import { createMockServer, MockServer } from '@tachybase/test';
 
 describe('module-tenant not loaded (server)', () => {
   let app: MockServer;
 
   beforeAll(async () => {
-    app = mockServer({
-      name: 'no-tenant-server',
-      plugins: [['error-handler', { subView: true }], 'acl', 'users', 'collection-manager', 'data-source-manager'],
+    app = await createMockServer({
+      registerActions: true,
+      acl: true,
+      database: { dialect: 'sqlite' },
+      plugins: ['acl', 'error-handler', 'users', 'collection-manager', 'data-source-manager'],
     });
-    await app.load();
   });
 
   afterAll(async () => {

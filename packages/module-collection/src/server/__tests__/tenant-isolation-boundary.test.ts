@@ -5,7 +5,7 @@
  * These tests verify that SQL/View collections and the workflow SQL instruction
  * do NOT automatically inject tenantId filtering — by design.
  *
- * See: docs/tenant-data-source-isolation-evaluation.md §3
+ * See: 租户隔离实施规划方案.md SQL/View/Workflow SQL boundary.
  */
 import { MockServer } from '@tachybase/test';
 import { Database, uid } from '@tego/server';

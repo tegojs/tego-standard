@@ -23,7 +23,7 @@ npx vitest run --project server \
 ```bash
 npx vitest run --project server packages/module-tenant/src/server/__tests__/tenant-resource-guard.test.ts
 ```
-CRUD 自动注入 tenantId 并限制到当前租户；无租户上下文时拒绝操作。
+CRUD 自动注入 tenantId 并限制到当前租户；无租户上下文时拒绝操作；伪造/未签名 Bearer token 返回 401。
 
 ```bash
 npx vitest run --project server packages/module-tenant/src/server/__tests__/plugin-disabled.test.ts
@@ -83,9 +83,23 @@ npx vitest run --project server packages/plugin-block-charts/src/server/__tests_
 ```
 图表缓存按租户 / 用户 / 查询条件 / 继承租户后代隔离；applyTenantScope 追加租户过滤并剥离冗余条件。
 
+> ⚠ **待补测试**：缓存 key 生成逻辑（`getChartCacheKey`）——租户集合剥离 filter 中的 tenantId、非租户集合保留业务 tenantId——尚无独立用例。
+
 ### plugin-audit-logs — 安全事件
 
 ```bash
 npx vitest run --project server packages/plugin-audit-logs/src/server/__tests__/security-events.test.ts
 ```
 记录 tenant_access_denied / cross_tenant_attempt / impersonation / bulk_export_alert 四类安全事件；不影响正常 CRUD。
+
+### 跨模块 — module-tenant 未启用时回归
+
+```bash
+npx vitest run --project server packages/module-tenant/src/server/__tests__/tenant-noop.test.ts
+```
+charts / export / file / workflow / audit 五个插件在无租户上下文时行为不变，不注入过滤、不报错。
+
+```bash
+npx vitest run --project server packages/module-tenant/src/server/__tests__/plugin-disabled.test.ts
+```
+module-tenant 完全未加载时，应用启动正常、不注册租户集合/ACL/字段、共享集合 CRUD 照常。

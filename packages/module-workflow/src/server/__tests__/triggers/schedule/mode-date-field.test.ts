@@ -24,11 +24,6 @@ function getFutureSecond(seconds = 2) {
   return date;
 }
 
-async function sleepToEvenSecond() {
-  const now = Date.now();
-  await sleep(1000 - (now % 1000) + 50);
-}
-
 function expectRepeatedAfterStart(executions, startTime: number) {
   const d0 = Date.parse(executions[0].context.date);
   expect(d0).toBe(startTime);
@@ -332,8 +327,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       expect(executions[0].context.data.category.id).toBe(category.id);
     });
 
-    // TODO: requires framework context-passthrough support (tego 1.6.14+)
-    it.skip('should persist tenant context for tenant-scoped records', async () => {
+    it('should persist tenant context for tenant-scoped records', async () => {
       db.collection({
         name: 'tenants',
         fields: [
@@ -372,9 +366,10 @@ describe('workflow > triggers > schedule > date field mode', () => {
         },
       });
 
-      await sleepToEvenSecond();
-
       const TenantSchedulePostRepo = db.getRepository('tenant_schedule_posts');
+      // create disabled-tenant record first so its no-op listener completes
+      // before the enabled-tenant record triggers an execution INSERT
+      await TenantSchedulePostRepo.create({ values: { title: 'b1', tenantId: 'tenant-b' } });
       const tenantAPost = await TenantSchedulePostRepo.create({
         values: { title: 'a1', tenantId: 'tenant-a' },
         context: {
@@ -386,7 +381,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
           },
         },
       });
-      await TenantSchedulePostRepo.create({ values: { title: 'b1', tenantId: 'tenant-b' } });
 
       const executions = await waitForExecutions(workflow, 1);
       expect(executions.length).toBe(1);
@@ -404,8 +398,7 @@ describe('workflow > triggers > schedule > date field mode', () => {
       });
     });
 
-    // TODO: requires framework context-passthrough support (tego 1.6.14+)
-    it.skip('should include descendant tenant ids for tenant-inherited records', async () => {
+    it('should include descendant tenant ids for tenant-inherited records', async () => {
       db.collection({
         name: 'tenants',
         fields: [
@@ -451,8 +444,6 @@ describe('workflow > triggers > schedule > date field mode', () => {
           },
         },
       });
-
-      await sleepToEvenSecond();
 
       const TenantSchedulePostRepo = db.getRepository('tenant_inherited_schedule_posts');
       const tenantAPost = await TenantSchedulePostRepo.create({

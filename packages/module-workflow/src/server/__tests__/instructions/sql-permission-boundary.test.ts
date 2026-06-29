@@ -17,6 +17,23 @@ import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
 import type WorkflowPlugin from '../../Plugin';
 import { triggerWorkflowAndGetExecution } from '../../utils';
 
+/** Poll until assertion passes or timeout (borrowed from __tests__/utils pattern) */
+async function waitForAssertion(assertion: () => Promise<void> | void, timeout = 10000, interval = 200) {
+  const { sleep } = await import('@tachybase/plugin-workflow-test');
+  const start = Date.now();
+  let lastError: unknown;
+  while (Date.now() - start < timeout) {
+    try {
+      await assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(interval);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('waitForAssertion timed out');
+}
+
 class TestAuthStatusPlugin extends Plugin {
   async load() {
     if (!this.app.authManager.userStatusService) {
@@ -358,6 +375,133 @@ describe('workflow > sql instruction permission boundary', () => {
         // SQL should NOT have executed
         const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE}`);
         expect(markers).toHaveLength(0);
+      });
+    });
+
+    describe('via real API (workflows:trigger action — fire-and-forget)', () => {
+      /**
+       * workflows:trigger is the original risk entry point:
+       * - Plugin.ts: acl.allow('workflows', ['trigger', 'list'], 'loggedIn')
+       * - actions/workflows.ts trigger(): passes full Koa ctx as httpContext
+       * - plugin.trigger() is NOT awaited, so execution is asynchronous
+       *
+       * These tests use the real agent/resource path and poll for execution
+       * completion to verify the processor-level SQL permission guard works.
+       */
+
+      it('admin trigger should execute SQL instruction', async () => {
+        const adminUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_admin' },
+        });
+        const agent = app.agent().login(adminUser);
+
+        // Workflow must be enabled for trigger to fire
+        const workflow = await WorkflowModel.create({
+          enabled: true,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'admin-trigger-executed')`,
+          },
+        });
+
+        // Real API trigger — fire-and-forget
+        const response = await agent.resource('workflows').trigger({
+          filterByTk: workflow.id,
+          updateData: encodeURIComponent(JSON.stringify({})),
+        });
+        // trigger action doesn't set ctx.body; 200/204 is fine
+        expect(response.status).toBeLessThan(300);
+
+        // Poll until execution completes (sync workflow finishes quickly)
+        await waitForAssertion(async () => {
+          const executions = await db.getRepository('executions').find({
+            filter: { 'workflow.id': workflow.id },
+          });
+          expect(executions.length).toBeGreaterThan(0);
+          const execution = executions[0];
+          // Must not be STARTED (still running)
+          expect(execution.get('status')).not.toBe(EXECUTION_STATUS.STARTED);
+        });
+
+        // Verify SQL executed — marker should exist
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+        expect(markers).toHaveLength(1);
+        expect((markers[0] as any).label).toBe('admin-trigger-executed');
+
+        // Verify execution and job status
+        const executions = await db.getRepository('executions').find({
+          filter: { 'workflow.id': workflow.id },
+        });
+        expect(executions[0].get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+
+        const jobs = await db.getRepository('jobs').find({
+          filter: { executionId: executions[0].id },
+        });
+        expect(jobs.length).toBeGreaterThan(0);
+        expect(jobs[0].get('status')).toBe(JOB_STATUS.RESOLVED);
+      });
+
+      it('member trigger should NOT execute SQL instruction (permission error)', async () => {
+        const memberUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_member' },
+        });
+        const agent = app.agent().login(memberUser);
+
+        // Workflow must be enabled for trigger to fire
+        const workflow = await WorkflowModel.create({
+          enabled: true,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'member-trigger-executed')`,
+          },
+        });
+
+        // Real API trigger — member is loggedIn so workflows:trigger passes ACL
+        const response = await agent.resource('workflows').trigger({
+          filterByTk: workflow.id,
+          updateData: encodeURIComponent(JSON.stringify({})),
+        });
+        expect(response.status).toBeLessThan(300);
+
+        // Poll until execution completes
+        await waitForAssertion(async () => {
+          const executions = await db.getRepository('executions').find({
+            filter: { 'workflow.id': workflow.id },
+          });
+          expect(executions.length).toBeGreaterThan(0);
+          const execution = executions[0];
+          expect(execution.get('status')).not.toBe(EXECUTION_STATUS.STARTED);
+        });
+
+        // SQL should NOT have executed
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE}`);
+        expect(markers).toHaveLength(0);
+
+        // Execution should show error status
+        const executions = await db.getRepository('executions').find({
+          filter: { 'workflow.id': workflow.id },
+        });
+        expect(executions[0].get('status')).toBe(EXECUTION_STATUS.ERROR);
+
+        // Job should contain permission error
+        const jobs = await db.getRepository('jobs').find({
+          filter: { executionId: executions[0].id },
+        });
+        expect(jobs.length).toBeGreaterThan(0);
+        const failedJob = jobs.find((j) => j.get('status') === JOB_STATUS.ERROR);
+        expect(failedJob).toBeDefined();
+        const result = failedJob.get('result');
+        expect(result?.message).toMatch(/pm\.workflow\.sql|valid role/);
       });
     });
 

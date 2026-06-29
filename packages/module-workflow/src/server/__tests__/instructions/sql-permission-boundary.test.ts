@@ -663,15 +663,27 @@ describe('workflow > sql instruction permission boundary', () => {
         // trigger action doesn't set ctx.body; 200/204 is fine
         expect(response.status).toBeLessThan(300);
 
-        // Poll until execution completes (sync workflow finishes quickly)
+        let execution;
+        let jobs;
+
+        // Poll until the fire-and-forget execution and its SQL side effect are both visible.
         await waitForAssertion(async () => {
           const executions = await db.getRepository('executions').find({
             filter: { 'workflow.id': workflow.id },
           });
           expect(executions.length).toBeGreaterThan(0);
-          const execution = executions[0];
-          // Must not be STARTED (still running)
-          expect(execution.get('status')).not.toBe(EXECUTION_STATUS.STARTED);
+          execution = executions[0];
+          expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+
+          const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+          expect(markers).toHaveLength(1);
+          expect((markers[0] as any).label).toBe('admin-trigger-executed');
+
+          jobs = await db.getRepository('jobs').find({
+            filter: { executionId: execution.id },
+          });
+          expect(jobs.length).toBeGreaterThan(0);
+          expect(jobs[0].get('status')).toBe(JOB_STATUS.RESOLVED);
         });
 
         // Verify SQL executed — marker should exist
@@ -680,10 +692,6 @@ describe('workflow > sql instruction permission boundary', () => {
         expect((markers[0] as any).label).toBe('admin-trigger-executed');
 
         // Verify execution and job status
-        const executions = await db.getRepository('executions').find({
-          filter: { 'workflow.id': workflow.id },
-        });
-        const execution = executions[0];
         expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
 
         // Execution context must NOT contain the full Koa ctx
@@ -691,9 +699,6 @@ describe('workflow > sql instruction permission boundary', () => {
         expect(ctxData).toBeDefined();
         expect(ctxData.httpContext).toBeUndefined();
 
-        const jobs = await db.getRepository('jobs').find({
-          filter: { executionId: execution.id },
-        });
         expect(jobs.length).toBeGreaterThan(0);
         expect(jobs[0].get('status')).toBe(JOB_STATUS.RESOLVED);
       });
@@ -725,14 +730,26 @@ describe('workflow > sql instruction permission boundary', () => {
         });
         expect(response.status).toBeLessThan(300);
 
-        // Poll until execution completes
+        let execution;
+        let failedJob;
+
+        // Poll until the fire-and-forget execution and its failed job are both visible.
         await waitForAssertion(async () => {
           const executions = await db.getRepository('executions').find({
             filter: { 'workflow.id': workflow.id },
           });
           expect(executions.length).toBeGreaterThan(0);
-          const execution = executions[0];
-          expect(execution.get('status')).not.toBe(EXECUTION_STATUS.STARTED);
+          execution = executions[0];
+          expect(execution.get('status')).toBe(EXECUTION_STATUS.ERROR);
+
+          const jobs = await db.getRepository('jobs').find({
+            filter: { executionId: execution.id },
+          });
+          expect(jobs.length).toBeGreaterThan(0);
+          failedJob = jobs.find((j) => j.get('status') === JOB_STATUS.ERROR);
+          expect(failedJob).toBeDefined();
+          const result = failedJob.get('result');
+          expect(result?.message).toMatch(/pm\.workflow\.sql|valid role/);
         });
 
         // SQL should NOT have executed
@@ -740,10 +757,6 @@ describe('workflow > sql instruction permission boundary', () => {
         expect(markers).toHaveLength(0);
 
         // Execution should show error status
-        const executions = await db.getRepository('executions').find({
-          filter: { 'workflow.id': workflow.id },
-        });
-        const execution = executions[0];
         expect(execution.get('status')).toBe(EXECUTION_STATUS.ERROR);
 
         // Execution context must NOT contain the full Koa ctx
@@ -752,11 +765,6 @@ describe('workflow > sql instruction permission boundary', () => {
         expect(ctxData.httpContext).toBeUndefined();
 
         // Job should contain permission error (not a ctx serialization error)
-        const jobs = await db.getRepository('jobs').find({
-          filter: { executionId: execution.id },
-        });
-        expect(jobs.length).toBeGreaterThan(0);
-        const failedJob = jobs.find((j) => j.get('status') === JOB_STATUS.ERROR);
         expect(failedJob).toBeDefined();
         const result = failedJob.get('result');
         expect(result?.message).toMatch(/pm\.workflow\.sql|valid role/);

@@ -85,6 +85,14 @@ describe('tenant security audit events', () => {
     expect(log.get('isTenantImpersonation')).toBe(false);
     expect(log.get('impersonatedTenantId')).toBeNull();
     expect(log.get('tenantContextSource')).toBeNull();
+    // userId must be persisted for attribution
+    expect(log.get('actorUserId')).toBe('7');
+    // details must carry the full troubleshooting context
+    const details = log.get('details');
+    expect(details).toBeDefined();
+    expect(details).not.toBeNull();
+    expect(details.requestedTenantId).toBe('tenant-c');
+    expect(details.allowedTenantIds).toEqual(['tenant-a']);
   });
 
   it('should record tenant_impersonation event with full impersonation fields', async () => {
@@ -94,6 +102,7 @@ describe('tenant security audit events', () => {
       actorUserId: 1,
       tenantId: 'tenant-target',
       action: 'current',
+      collectionName: 'tenants',
       details: { impersonatedTenantId: 'tenant-target', originalUserId: 1 },
     });
 
@@ -101,8 +110,9 @@ describe('tenant security audit events', () => {
     expect(log).not.toBeNull();
     expect(log.get('type')).toBe('tenant_impersonation');
     expect(log.get('tenantId')).toBe('tenant-target');
+    expect(log.get('collectionName')).toBe('tenants');
     // actorUserId stored as string in DB
-    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('actorUserId')).toBe('1');
     // Core impersonation fields — these are the key assertions
     expect(log.get('isTenantImpersonation')).toBe(true);
     expect(log.get('impersonatedTenantId')).toBe('tenant-target');
@@ -131,7 +141,7 @@ describe('tenant security audit events', () => {
     expect(log.get('type')).toBe('tenant_bulk_export_alert');
     expect(log.get('tenantId')).toBe('tenant-a');
     expect(log.get('collectionName')).toBe('orders');
-    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('actorUserId')).toBe('3');
     expect(log.get('isTenantImpersonation')).toBe(false);
     expect(log.get('impersonatedTenantId')).toBeNull();
     expect(log.get('tenantContextSource')).toBeNull();
@@ -280,7 +290,7 @@ describe('bulk export threshold', () => {
     expect(log.get('type')).toBe('tenant_bulk_export_alert');
     expect(log.get('tenantId')).toBe('tenant-b');
     expect(log.get('collectionName')).toBe('big_orders');
-    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('actorUserId')).toBe('5');
     expect(log.get('isTenantImpersonation')).toBe(false);
     // action is passed in the event but not a column in auditLogs schema
     expect(log.get('action')).toBeUndefined();
@@ -312,7 +322,7 @@ describe('bulk export threshold', () => {
     expect(log).not.toBeNull();
     expect(log.get('tenantId')).toBe('tenant-d');
     expect(log.get('collectionName')).toBe('export_test_col');
-    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('actorUserId')).toBe('10');
     // details must contain the exact rowCount and threshold from the event
     const details = log.get('details');
     expect(details).toBeDefined();

@@ -1,12 +1,39 @@
+import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 import { defineTegoVitestConfig } from '@tachybase/test/vitest';
 
+const sourceMappingURLRE = /(?:\r?\n)?\/\/# sourceMappingURL=[^\r\n]*(?:\r?\n)?$/;
+const reactZoomPanPinchDistFile = 'react-zoom-pan-pinch/dist/index.esm.js';
+
+function cleanModuleId(id: string) {
+  return id.replace(/[?#].*$/, '');
+}
+
+function normalizeModuleId(id: string) {
+  return cleanModuleId(id).replace(/\\/g, '/');
+}
+
+function filePathFromId(id: string) {
+  const filePath = cleanModuleId(id);
+  if (/^\/[A-Za-z]:/.test(filePath)) {
+    return filePath.slice(1);
+  }
+  if (filePath.startsWith('/node_modules/')) {
+    return path.resolve(process.cwd(), `.${filePath}`);
+  }
+  if (filePath.startsWith('/@fs/')) {
+    return filePath.slice('/@fs/'.length);
+  }
+  return filePath;
+}
+
 /**
  * 上游包的 sourcemap sourceRoot 路径错误或 sourcesContent 缺失，
  * 导致 Vite injectSourcesContent 打印 "points to missing source files" 警告。
- * 在 transform 阶段剥离这些包的 sourcemap 以消除噪音。
+ * 对已知直接从 dist 文件读取 map 的依赖，先在 load 阶段去掉 sourceMappingURL。
+ * 其余已知问题包继续在 transform 阶段剥离 sourcemap。
  */
 function stripBrokenSourcemaps(): Plugin {
   const brokenPkgs = [
@@ -18,6 +45,12 @@ function stripBrokenSourcemaps(): Plugin {
   return {
     name: 'strip-broken-sourcemaps',
     enforce: 'pre',
+    async load(id) {
+      if (normalizeModuleId(id).endsWith(reactZoomPanPinchDistFile)) {
+        const code = await readFile(filePathFromId(id), 'utf-8');
+        return { code: code.replace(sourceMappingURLRE, ''), map: null };
+      }
+    },
     transform(code, id) {
       if (brokenPkgs.some((pkg) => id.includes(pkg))) {
         return { code, map: null };

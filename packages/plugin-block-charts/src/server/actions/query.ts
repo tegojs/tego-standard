@@ -171,6 +171,7 @@ function getChartCacheKey(ctx: Context, uid: string) {
   const currentUserId = ctx.state.currentUser?.id;
   const values = ctx.action.params.values as QueryParams;
   const { dataSource, collection, measures, dimensions, orders, filter, limit, sql } = values;
+  const normalizedFilter = stripTenantFilter(filter);
   const timezone = ctx.get?.('x-timezone');
   const signature = stableSerialize({
     dataSource,
@@ -178,7 +179,7 @@ function getChartCacheKey(ctx: Context, uid: string) {
     measures,
     dimensions,
     orders,
-    filter,
+    filter: normalizedFilter,
     limit,
     sql,
     timezone,

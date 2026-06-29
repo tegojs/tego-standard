@@ -487,6 +487,122 @@ describe('query', () => {
       expect(query).toBeCalledTimes(1);
     });
 
+    it('should normalize tenantId in filter so malicious tenantId and clean filter share cache', async () => {
+      const cleanContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const maliciousContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(cleanContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(maliciousContext, async () => {});
+      expect(query).not.toBeCalled();
+      expect(maliciousContext.body).toEqual(value);
+    });
+
+    it('should still isolate cache by different business filter', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'draft',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
     it('should isolate cache by inherited tenant descendants', async () => {
       const firstContext = {
         ...ctx,

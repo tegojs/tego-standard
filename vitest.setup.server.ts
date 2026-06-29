@@ -1,28 +1,11 @@
-import { createRequire } from 'node:module';
 import path from 'node:path';
-import { setupServerTestEnvironment } from '@tachybase/test/setup-server';
+import { patchCjsResolverForTestRuntime, setupServerTestEnvironment } from '@tachybase/test/setup-server';
 import { initEnv } from '@tego/devkit';
 
-// Workspace dist files are CommonJS and bypass Vitest aliases, so keep their
-// core/server imports on the same runtime instance used by @tachybase/test.
-const testRequire = createRequire(path.resolve(process.cwd(), 'node_modules/@tachybase/test/package.json'));
-const runtimeResolutions = new Map([
-  ['@tego/server', testRequire.resolve('@tego/server')],
-  ['@tego/server/package.json', testRequire.resolve('@tego/server/package.json')],
-  ['@tego/core', testRequire.resolve('@tego/core')],
-  ['@tego/core/package.json', testRequire.resolve('@tego/core/package.json')],
-]);
-
-const resolverPatched = Symbol.for('tego-standard.cjs-resolver-patched');
-if (!(globalThis as any)[resolverPatched]) {
-  const { Module } = require('node:module') as typeof import('node:module');
-  const mod = Module as typeof Module & { _resolveFilename: (request: string, ...args: unknown[]) => string };
-  const original = mod._resolveFilename;
-  mod._resolveFilename = function (request: string, ...args: unknown[]) {
-    return runtimeResolutions.get(request) || original.call(this, request, ...args);
-  };
-  (globalThis as any)[resolverPatched] = true;
-}
+// Patch CJS resolver to keep @tego/server and @tego/core on the same runtime
+// instance used by @tachybase/test (prevents dual-instance bugs in workspace
+// dist files that bypass Vitest aliases).
+patchCjsResolverForTestRuntime();
 
 setupServerTestEnvironment({
   workspaceRoot: process.cwd(),

@@ -2,6 +2,41 @@ import { Context, Next, SqlCollection, SQLModel } from '@tego/server';
 
 import { CollectionModel } from '../models';
 
+/**
+ * Check if the current user has the pm.database-connections.collections snippet.
+ * SQL collection configuration actions (update, setFields) require this snippet
+ * because they modify collection structure, which is an admin-level operation.
+ *
+ * Root role always passes. This mirrors the pattern used in workflow SQL
+ * permission checks (assertSqlSnippetPermission).
+ */
+function assertCollectionConfigPermission(ctx: Context) {
+  const roleName = ctx.state?.currentRole;
+  if (!roleName) {
+    ctx.throw(403, 'SQL collection configuration requires a valid role');
+  }
+
+  // root is always allowed
+  if (roleName === 'root') {
+    return;
+  }
+
+  const acl = ctx.app?.acl || ctx.tego?.acl;
+  if (!acl) {
+    ctx.throw(403, 'SQL collection configuration requires the pm.database-connections.collections permission');
+  }
+
+  const aclRole = acl.getRole(roleName);
+  if (!aclRole) {
+    ctx.throw(403, 'SQL collection configuration requires the pm.database-connections.collections permission');
+  }
+
+  const { allowed } = aclRole.effectiveSnippets();
+  if (!allowed.includes('pm.database-connections.collections')) {
+    ctx.throw(403, 'SQL collection configuration requires the pm.database-connections.collections permission');
+  }
+}
+
 const updateCollection = async (ctx: Context, transaction: any) => {
   const { filterByTk, values } = ctx.action.params;
   const repo = ctx.db.getRepository('collections');
@@ -78,6 +113,7 @@ export default {
       await next();
     },
     setFields: async (ctx: Context, next: Next) => {
+      assertCollectionConfigPermission(ctx);
       const transaction = await ctx.tego.db.sequelize.transaction();
       try {
         const {
@@ -94,6 +130,7 @@ export default {
       await next();
     },
     update: async (ctx: Context, next: Next) => {
+      assertCollectionConfigPermission(ctx);
       const transaction = await ctx.tego.db.sequelize.transaction();
       try {
         const { upRes } = await updateCollection(ctx, transaction);

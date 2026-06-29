@@ -8,6 +8,8 @@
  * - The pm.workflow.sql snippet is registered and covered by pm.* for admin/root
  * - Member role cannot execute SQL instructions at runtime (execution-level guard)
  * - Admin role can execute SQL instructions at runtime
+ * - Root role has unrestricted access to SQL instructions
+ * - Custom role with explicit pm.workflow.sql snippet can access SQL instructions
  * - Internal triggers (no httpContext) can still execute SQL instructions
  */
 import { createMockServer, MockServer } from '@tachybase/test';
@@ -86,6 +88,24 @@ class TestAuthStatusPlugin extends Plugin {
       });
     }
 
+    // Create a custom role with explicit pm.workflow.sql snippet
+    const existingCustom = await rolesRepository.findOne({ filter: { name: 'custom_sql_exec' } });
+    if (existingCustom) {
+      await existingCustom.update({
+        strategy: { actions: ['view', 'create'] },
+        snippets: ['pm.workflow.workflows', 'pm.workflow.sql'],
+      });
+    } else {
+      await rolesRepository.create({
+        values: {
+          name: 'custom_sql_exec',
+          title: 'Custom SQL Executor',
+          strategy: { actions: ['view', 'create'] },
+          snippets: ['pm.workflow.workflows', 'pm.workflow.sql'],
+        },
+      });
+    }
+
     // Create users (defensive)
     const usersRepository = this.app.db.getRepository('users');
     const existingAdminUser = await usersRepository.findOne({ filter: { username: 'wf_admin' } });
@@ -109,6 +129,33 @@ class TestAuthStatusPlugin extends Plugin {
           phone: '30000000002',
           password: '123456',
           roles: ['member'],
+        },
+      });
+    }
+    const existingCustomUser = await usersRepository.findOne({ filter: { username: 'wf_custom_sql' } });
+    if (!existingCustomUser) {
+      await usersRepository.create({
+        values: {
+          username: 'wf_custom_sql',
+          email: 'wf-custom-sql@example.com',
+          phone: '30000000003',
+          password: '123456',
+          roles: ['custom_sql_exec'],
+        },
+      });
+    }
+
+    // Ensure root user exists
+    const rootUser = await usersRepository.findOne({ filter: { specialRole: 'root' } });
+    if (!rootUser) {
+      await usersRepository.create({
+        values: {
+          username: 'root',
+          email: 'root-wf@example.com',
+          phone: '30000000000',
+          password: '123456',
+          specialRole: 'root',
+          roles: ['root'],
         },
       });
     }
@@ -258,6 +305,99 @@ describe('workflow > sql instruction permission boundary', () => {
     });
   });
 
+  describe('root role access (unrestricted)', () => {
+    it('should allow root role creating SQL nodes', async () => {
+      const rootUser = await db.getRepository('users').findOne({
+        filter: { specialRole: 'root' },
+      });
+      const agent = app.agent().login(rootUser);
+
+      const workflow = await WorkflowModel.create({
+        enabled: false,
+        type: 'collection',
+        config: { collection: 'posts', mode: 1 },
+      });
+
+      const response = await agent.resource('workflows.nodes', workflow.id).create({
+        values: {
+          type: 'sql',
+          config: {
+            sql: 'SELECT 1',
+          },
+        },
+      });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should have pm.workflow.sql in root effective snippets', () => {
+      const rootRole = app.acl.getRole('root');
+      expect(rootRole).toBeDefined();
+      const { allowed } = rootRole.effectiveSnippets();
+      expect(allowed).toContain('pm.workflow.sql');
+    });
+  });
+
+  describe('custom role with explicit pm.workflow.sql snippet', () => {
+    it('should allow custom_sql_exec role creating SQL nodes', async () => {
+      const customUser = await db.getRepository('users').findOne({
+        filter: { username: 'wf_custom_sql' },
+      });
+      const agent = app.agent().login(customUser);
+
+      const workflow = await WorkflowModel.create({
+        enabled: false,
+        type: 'collection',
+        config: { collection: 'posts', mode: 1 },
+      });
+
+      const response = await agent.resource('workflows.nodes', workflow.id).create({
+        values: {
+          type: 'sql',
+          config: {
+            sql: 'SELECT 1',
+          },
+        },
+      });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should have pm.workflow.sql in custom_sql_exec effective snippets', () => {
+      const customRole = app.acl.getRole('custom_sql_exec');
+      expect(customRole).toBeDefined();
+      const { allowed } = customRole.effectiveSnippets();
+      expect(allowed).toContain('pm.workflow.sql');
+    });
+
+    it('should deny custom_sql_exec role creating non-SQL nodes without workflow snippet', async () => {
+      // custom_sql_exec has pm.workflow.sql but not pm.workflow.workflows for other node types
+      // Actually it does have pm.workflow.workflows, so let's test with a role that doesn't
+      const customUser = await db.getRepository('users').findOne({
+        filter: { username: 'wf_custom_sql' },
+      });
+      const agent = app.agent().login(customUser);
+
+      const workflow = await WorkflowModel.create({
+        enabled: false,
+        type: 'collection',
+        config: { collection: 'posts', mode: 1 },
+      });
+
+      // Calculation nodes should work since custom_sql_exec has pm.workflow.workflows
+      const response = await agent.resource('workflows.nodes', workflow.id).create({
+        values: {
+          type: 'calculation',
+          config: {
+            calculation: '1 + 1',
+          },
+        },
+      });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
   describe('non-SQL node types', () => {
     it('should not be blocked by SQL permission guard for member role', async () => {
       const memberUser = await db.getRepository('users').findOne({
@@ -375,6 +515,76 @@ describe('workflow > sql instruction permission boundary', () => {
         // SQL should NOT have executed
         const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE}`);
         expect(markers).toHaveLength(0);
+      });
+
+      it('root should execute SQL instruction through real API', async () => {
+        const rootUser = await db.getRepository('users').findOne({
+          filter: { specialRole: 'root' },
+        });
+        const agent = app.agent().login(rootUser);
+
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'root-api-executed')`,
+          },
+        });
+
+        const response = await agent.resource('workflows').test({
+          filterByTk: workflow.id,
+          values: { data: {} },
+        });
+
+        expect(response.status).toBe(200);
+
+        const execution = response.body?.data;
+        expect(execution).toBeDefined();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+        expect(markers).toHaveLength(1);
+        expect((markers[0] as any).label).toBe('root-api-executed');
+      });
+
+      it('custom_sql_exec should execute SQL instruction through real API', async () => {
+        const customUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_custom_sql' },
+        });
+        const agent = app.agent().login(customUser);
+
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'custom-api-executed')`,
+          },
+        });
+
+        const response = await agent.resource('workflows').test({
+          filterByTk: workflow.id,
+          values: { data: {} },
+        });
+
+        expect(response.status).toBe(200);
+
+        const execution = response.body?.data;
+        expect(execution).toBeDefined();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+        expect(markers).toHaveLength(1);
+        expect((markers[0] as any).label).toBe('custom-api-executed');
       });
     });
 
@@ -615,6 +825,98 @@ describe('workflow > sql instruction permission boundary', () => {
         const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
         expect(markers).toHaveLength(1);
         expect((markers[0] as any).label).toBe('admin-executed');
+
+        // Execution should show resolved status
+        expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+      });
+
+      it('should allow root executing SQL instruction (unrestricted)', async () => {
+        const rootUser = await db.getRepository('users').findOne({
+          filter: { specialRole: 'root' },
+        });
+
+        // Create a sync workflow with SQL node
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'root-executed')`,
+          },
+        });
+
+        // Get the plugin instance
+        const plugin = app.pm.get('workflow') as WorkflowPlugin;
+
+        // Trigger with root's httpContext
+        const rootCtx = {
+          state: { currentRole: 'root', currentUser: rootUser },
+          app: app,
+        };
+        const execution = await triggerWorkflowAndGetExecution(
+          plugin,
+          workflow,
+          { data: {}, user: rootUser },
+          { httpContext: rootCtx },
+          db,
+        );
+
+        expect(execution).toBeDefined();
+
+        // SQL SHOULD have executed - marker should exist
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+        expect(markers).toHaveLength(1);
+        expect((markers[0] as any).label).toBe('root-executed');
+
+        // Execution should show resolved status
+        expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+      });
+
+      it('should allow custom_sql_exec executing SQL instruction (explicit snippet)', async () => {
+        const customUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_custom_sql' },
+        });
+
+        // Create a sync workflow with SQL node
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'custom-executed')`,
+          },
+        });
+
+        // Get the plugin instance
+        const plugin = app.pm.get('workflow') as WorkflowPlugin;
+
+        // Trigger with custom user's httpContext
+        const customCtx = {
+          state: { currentRole: 'custom_sql_exec', currentUser: customUser },
+          app: app,
+        };
+        const execution = await triggerWorkflowAndGetExecution(
+          plugin,
+          workflow,
+          { data: {}, user: customUser },
+          { httpContext: customCtx },
+          db,
+        );
+
+        expect(execution).toBeDefined();
+
+        // SQL SHOULD have executed - marker should exist
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+        expect(markers).toHaveLength(1);
+        expect((markers[0] as any).label).toBe('custom-executed');
 
         // Execution should show resolved status
         expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);

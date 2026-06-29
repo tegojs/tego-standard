@@ -3,11 +3,64 @@ import { createMockServer, MockServer } from '@tachybase/test';
 import compose from 'koa-compose';
 import { vi } from 'vitest';
 
-import { applyTenantScope, cacheMiddleware, parseBuilder, parseFieldAndAssociations } from '../actions/query';
+import {
+  applyTenantScope,
+  cacheMiddleware,
+  checkPermission,
+  parseBuilder,
+  parseFieldAndAssociations,
+} from '../actions/query';
 
 const formatter = await import('../actions/formatter');
 
 describe('query', () => {
+  it('should check ACL on the configured external data source', async () => {
+    const mainAcl = {
+      can: vi.fn().mockReturnValue(null),
+    };
+    const externalAcl = {
+      can: vi.fn().mockReturnValue({}),
+    };
+    const next = vi.fn();
+    const ctx: any = {
+      state: {
+        currentRole: 'member',
+      },
+      tego: {
+        acl: mainAcl,
+        dataSourceManager: {
+          dataSources: new Map([
+            [
+              'reports',
+              {
+                acl: externalAcl,
+              },
+            ],
+          ]),
+        },
+      },
+      throw(status: number, message: string) {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      },
+      action: {
+        params: {
+          values: {
+            dataSource: 'reports',
+            collection: 'orders',
+          },
+        },
+      },
+    };
+
+    await checkPermission(ctx, next);
+
+    expect(mainAcl.can).not.toHaveBeenCalled();
+    expect(externalAcl.can).toHaveBeenCalledWith({ role: 'member', resource: 'orders', action: 'list' });
+    expect(next).toHaveBeenCalled();
+  });
+
   describe('parseBuilder', () => {
     const sequelize = {
       fn: vi.fn().mockImplementation((fn: string, field: string) => [fn, field]),

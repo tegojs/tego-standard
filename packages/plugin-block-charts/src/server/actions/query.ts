@@ -509,15 +509,22 @@ export const cacheMiddleware = async (ctx: Context, next: Next) => {
   }
 };
 
-const checkPermission = (ctx: Context, next: Next) => {
+export const checkPermission = (ctx: Context, next: Next) => {
   // fix params not in the body
   if (ctx.action.params.values === undefined) {
     ctx.action.params.values = ctx.action.params;
   }
-  const { collection } = ctx.action.params.values as QueryParams;
+  const { collection, dataSource } = ctx.action.params.values as QueryParams;
   const roleName = ctx.state.currentRole || 'anonymous';
-  const can = ctx.tego.acl.can({ role: roleName, resource: collection, action: 'list' });
-  if (!can && roleName !== 'root') {
+
+  if (roleName === 'root') {
+    return next();
+  }
+
+  const acl =
+    dataSource && dataSource !== 'main' ? ctx.tego?.dataSourceManager?.dataSources.get(dataSource)?.acl : ctx.tego?.acl;
+  const can = acl?.can({ role: roleName, resource: collection, action: 'list' });
+  if (!can) {
     ctx.throw(403, 'No permissions');
   }
   return next();

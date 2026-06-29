@@ -1,7 +1,7 @@
-import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { DataTypes, parseCollectionName } from '@tego/server';
 
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
+import { applyTenantFilterToContext } from '../../helpers/tenant-context';
 
 const aggregators = {
   count: 'count',

@@ -1,8 +1,8 @@
-import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, parseCollectionName, utils } from '@tego/server';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';

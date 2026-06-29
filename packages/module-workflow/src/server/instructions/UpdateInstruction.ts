@@ -1,4 +1,3 @@
-import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { Gateway, parseCollectionName, uid } from '@tego/server';
 
 import axios, { AxiosRequestConfig } from 'axios';
@@ -8,6 +7,7 @@ import mime from 'mime-types';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';

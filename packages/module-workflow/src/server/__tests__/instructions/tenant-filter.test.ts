@@ -105,6 +105,22 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.tenantId).toBe('tenant-a');
   });
 
+  it('select should only read records from the execution tenant', async () => {
+    const workflow = await createWorkflowWithNode('select', {
+      params: {
+        filter: {
+          title: 'same-title',
+        },
+      },
+    });
+    const { tenantAPost } = await createSameTitleTenantPosts();
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.result.id).toBe(tenantAPost.id);
+    expect(job.result.tenantId).toBe('tenant-a');
+  });
+
   it('update should only modify records from the execution tenant', async () => {
     const workflow = await createWorkflowWithNode('update', {
       params: {
@@ -121,6 +137,28 @@ describe('workflow > instructions > tenant filter', () => {
     const job = await triggerWorkflow(workflow);
 
     expect(job.result.length).toBe(1);
+    await tenantAPost.reload();
+    await tenantBPost.reload();
+    expect(tenantAPost.published).toBe(true);
+    expect(tenantBPost.published).toBe(false);
+  });
+
+  it('updateorcreate should only update records from the execution tenant', async () => {
+    const workflow = await createWorkflowWithNode('updateorcreate', {
+      params: {
+        filter: {
+          title: 'same-title',
+        },
+        values: {
+          published: true,
+        },
+      },
+    });
+    const { tenantAPost, tenantBPost } = await createSameTitleTenantPosts();
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.result).toBe(1);
     await tenantAPost.reload();
     await tenantBPost.reload();
     expect(tenantAPost.published).toBe(true);

@@ -7,6 +7,7 @@ import mime from 'mime-types';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
@@ -183,11 +184,13 @@ export class UpdateOrCreateInstruction extends Instruction {
     }
 
     const context = repositoryContext;
-    const instance = await (repository as Repository).findOne({ filter: options.filter, context, transaction });
+    const findOptions = applyTenantFilterToContext(repositoryContext, c, 'list', { filter: options.filter });
+    const instance = await (repository as Repository).findOne({ ...findOptions, context, transaction });
 
     if (instance) {
+      const updateOptions = applyTenantFilterToContext(repositoryContext, c, 'update', options);
       const result = await (repository as Repository).update({
-        ...options,
+        ...updateOptions,
         context,
         transaction,
       });

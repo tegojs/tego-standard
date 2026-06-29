@@ -4,14 +4,15 @@
 
 ## 变更清单
 
-## 2026-06-12 复核状态
+## 2026-06-29 复核状态
 
-当前代码已完成租户树基础模型、`tenantInherited` 读过滤、当前租户子孙 ID 注入、path 创建与移动、path 长度友好校验、循环检测、删除非叶子节点拒绝等主体能力。仍需注意以下未闭合或与计划不一致的点：
+当前代码已完成租户树基础模型、`tenantInherited` 读过滤、当前租户子孙 ID 注入、path 创建与移动、path 长度友好校验、循环检测、删除非叶子节点拒绝等主体能力。2026-06-29 继续复核了后台链路和 tenant 插件禁用边界，当前状态如下：
 
 - `tenant-tree.ts` 已实现 `getDescendantIds/getDescendantTenants/buildPath/canManageTenant/wouldCreateCycle`。
-- `available-tenants.ts` 当前扩展为“直接归属租户 + enabled 子孙租户”，不是本计划写的“包含用户归属租户的所有祖先”。需要结合产品决策更新代码或更新计划。
-- collection-manager 动态路径已覆盖 `tenantScoped` 与 `tenantInherited` 自动补 `tenantId`；程序化 `defineCollection` 的自动补字段仍只看到 `tenantScoped` 路径。
-- Phase 6 后台链路已有部分完成，但 workflow、异步导出、图表缓存和 legacy 旧数据读范围仍需按 `tenant-isolation-review-notes.md` 与实施规划继续处理。
+- `available-tenants.ts` 当前实现为“直接归属租户 + enabled 子孙租户”，不包含祖先租户；当前测试也按“父可切子、子不可切父”断言。若产品后续要求“子可切父”，需要单独改代码和测试。
+- collection-manager 动态路径已覆盖 `tenantScoped` 与 `tenantInherited` 自动补 `tenantId`；程序化 `defineCollection` 路径也已覆盖两者，并且仅在 tenant 插件启用时注入。
+- Phase 6 后台链路主体已完成：导入关联查询、workflow execution 上下文、workflow 指令直连 repository 过滤、general-action、date-field schedule descendants、审计、异步导出 worker 和图表 tenantScope 缓存均已适配。
+- 仍需跟踪的是测试闭环与上线项：`module-file` tenant 上传/路径测试、workflow date-field schedule 租户上下文测试仍有 skipped 用例；历史数据归类迁移工具、灰度开关、回滚工具和上线压测仍未完成。
 
 ### Phase 1：数据模型（tenants 集合）
 
@@ -47,7 +48,7 @@
 
 **文件：`packages/module-tenant/src/server/actions/`（修改现有 + 新增）**
 - `switch-tenant.ts` — 验证切换目标时考虑 path 关系
-- `available-tenants.ts` — 扩展：包含用户归属租户的所有祖先
+- `available-tenants.ts` — 当前实现为直接归属租户加 enabled 子孙租户，不向上包含祖先租户
 - 新增 `create-tenant.ts`（如有必要，或内联到 server.ts 的 collection hook）
 - 新增 `move-tenant.ts`（或在 update 中处理 parentId 变更）
 
@@ -86,6 +87,8 @@
 ### Phase 6：后台链路租户上下文传播
 
 > 详细执行计划：`docs/superpowers/plans/2026-05-25-tenant-isolation-next-work.md`
+>
+> 当前状态：主体代码已完成，以下列表保留为实现范围追溯；剩余工作集中在 skipped 测试恢复、上线验证和迁移/灰度/回滚工具。
 
 **文件：`packages/plugin-action-import/src/server/utils/transform.ts`**
 - 导入关联字段解析的 `find/findOne` 传递当前导入请求 `context`
@@ -111,9 +114,21 @@
 - 平台管理员显式 `X-Tenant-Id` 代入租户时保留 actor user，不覆盖 `currentUser`
 - 普通用户仍按 tenantUsers 与租户树访问关系校验
 
+**文件：`packages/plugin-action-export/src/server/actions/export-xlsx.ts`、`packages/plugin-action-export/src/server/index.ts`**
+- 同步和异步导出保留完整 tenant context
+- worker repository 查询重新应用 `tenantScoped/tenantInherited/legacyDataTenantIds` 过滤
+
+**文件：`packages/plugin-block-charts/src/server/actions/query.ts`**
+- 图表查询追加租户过滤
+- 缓存 key 纳入完整 `tenantScope`
+
+**文件：`packages/module-user/src/server/server.ts`**
+- 程序化 `tenantScoped/tenantInherited` 集合自动补 `tenantId`
+- tenant 插件未安装或禁用时不注入租户字段
+
 ## 执行顺序
 
 1. Phase 1 → Phase 2 → Phase 3 → Phase 4
 2. 每个 Phase 完成后运行测试确认无回归
 3. Phase 5 视需要后续进行
-4. Phase 6 按独立提交推进：文档计划 → 导入关联查询 → workflow execution 上下文 → workflow 执行恢复 → 日期字段定时任务 → audit → 平台管理员代入
+4. Phase 6 主体已完成；后续按测试闭环、上线验证、迁移/灰度/回滚工具继续推进

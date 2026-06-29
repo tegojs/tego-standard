@@ -1,8 +1,8 @@
-import { getDescendantIds } from '@tachybase/module-tenant';
 import { fn, literal, Op, parseCollectionName, Transactionable, where } from '@tego/server';
 
 import parser from 'cron-parser';
 
+import { getDescendantTenantIds } from '../../helpers/tenant-context';
 import type Plugin from '../../Plugin';
 import type { WorkflowModel } from '../../types';
 import { parseDateWithoutMs, SCHEDULE_MODE } from './utils';
@@ -103,7 +103,7 @@ async function buildTenantContext(db, collection, record, tenant?) {
 
   const descendantIds =
     tenancyMode === 'tenantInherited' && db.getRepository('tenants')
-      ? await getDescendantIds(db.getRepository('tenants'), `${tenantId}`)
+      ? await getDescendantTenantIds(db, `${tenantId}`)
       : [];
 
   return {

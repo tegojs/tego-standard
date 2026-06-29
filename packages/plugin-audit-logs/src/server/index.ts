@@ -2,7 +2,6 @@ import path from 'node:path';
 import { isMainThread } from 'node:worker_threads';
 import { Plugin, Transaction } from '@tego/server';
 
-import { createExportMonitor } from './export-monitor';
 import { afterCreate, afterDestroy, afterUpdate } from './hooks';
 import { registerSecurityEventListener } from './security-event-listener';
 
@@ -49,8 +48,6 @@ export default class PluginActionLogs extends Plugin {
 
     this.app.acl.allow('auditLogs', ['list', 'get'], 'loggedIn');
     this.app.acl.allow('auditChanges', ['get'], 'loggedIn');
-
-    this.app.use(createExportMonitor(this), { tag: 'auditExportMonitor', before: 'dataSource' });
   }
 
   async handleSyncMessage(message: Readonly<any>): Promise<void> {

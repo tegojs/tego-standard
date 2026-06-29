@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import xlsx from 'node-xlsx';
 
 import ExportPlugin from '..';
-import { EXPORT_LENGTH_MAX } from '../constants';
+import { BULK_EXPORT_THRESHOLD, EXPORT_LENGTH_MAX } from '../constants';
 import render from '../renders';
 import { buildExportDownloadName, columns2Appends, getExportTenantId } from '../utils';
 
@@ -46,6 +46,20 @@ export async function exportXlsx(ctx: Context, next: Next) {
     filter,
     context: ctx,
   });
+
+  // Emit tenant security alert when export count reaches threshold
+  if (count >= BULK_EXPORT_THRESHOLD && ctx.state.currentTenancyMode) {
+    ctx.app.emit('tenant.securityViolation', {
+      type: 'tenant_bulk_export_alert',
+      userId: ctx.state.currentUser?.id,
+      actorUserId: ctx.state.actorUserId,
+      tenantId: ctx.state.currentTenantId,
+      collectionName: resourceName,
+      action: 'export',
+      details: { rowCount: count, threshold: BULK_EXPORT_THRESHOLD },
+    });
+  }
+
   if (count > EXPORT_LENGTH_MAX) {
     // ctx.throw(400, `Too many records to export: ${count}`);
     const app = ctx.tego as Application;

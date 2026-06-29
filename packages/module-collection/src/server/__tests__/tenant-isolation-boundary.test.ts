@@ -10,7 +10,7 @@
 import { MockServer } from '@tachybase/test';
 import { Database, uid } from '@tego/server';
 
-import { createApp } from '../index';
+import { createApp } from './index';
 
 describe('SQL/View tenant isolation boundary', () => {
   let app: MockServer;
@@ -28,7 +28,9 @@ describe('SQL/View tenant isolation boundary', () => {
   });
 
   afterEach(async () => {
-    await app.destroy();
+    if (app) {
+      await app.destroy();
+    }
   });
 
   describe('dbViews:query does not inject tenantId', () => {
@@ -56,9 +58,9 @@ describe('SQL/View tenant isolation boundary', () => {
         expect(response.status).toBe(200);
         // The query returns ALL rows — no tenantId filtering is applied.
         // This is by design: view collections do not support tenancy.
-        expect(response.body.length).toBe(2);
-        expect(response.body[0]).toHaveProperty('id');
-        expect(response.body[0]).toHaveProperty('name');
+        expect(response.body.data.length).toBe(2);
+        expect(response.body.data[0]).toHaveProperty('id');
+        expect(response.body.data[0]).toHaveProperty('name');
       } finally {
         await db.sequelize.query(dropSQL);
       }
@@ -82,7 +84,7 @@ describe('SQL/View tenant isolation boundary', () => {
         expect(response.status).toBe(200);
         // The SQL is executed as-is — no tenantId filtering is injected.
         // This is by design: SQL collections do not support tenancy.
-        expect(response.body.data.length).toBe(2);
+        expect(response.body.data.data.length).toBe(2);
       } finally {
         await db.sequelize.query(`DROP TABLE IF EXISTS ${tableName}`);
       }
@@ -97,19 +99,5 @@ describe('SQL/View tenant isolation boundary', () => {
 
       expect(response.status).toBe(400);
     });
-  });
-
-  describe('template tenancy configuration', () => {
-    // NOTE: The client-side tests for template tenancy configuration are in
-    // packages/client/src/collection-manager/templates/__tests__/tenancy.test.ts
-    //
-    // Key assertions (already covered):
-    // - SqlCollectionTemplate.configurableProperties.tenancy === undefined
-    // - SqlCollectionTemplate.configurableProperties.legacyDataTenantIds === undefined
-    // - ViewCollectionTemplate.configurableProperties.tenancy === undefined
-    // - ViewCollectionTemplate.configurableProperties.legacyDataTenantIds === undefined
-    //
-    // This confirms that SQL and View collections cannot be configured with
-    // tenant isolation options through the UI.
   });
 });

@@ -106,6 +106,11 @@ describe('module-file helpers – tenant module NOT loaded', () => {
       const result = getTenantStoragePath('storage\\uploads', undefined);
       expect(result).not.toContain('\\');
     });
+
+    it('sanitizes tenantId before using it as a storage path segment', () => {
+      expect(getTenantStoragePath('storage/uploads', '../evil')).toBe('storage/uploads/tenants/.._evil');
+      expect(getTenantStoragePath('storage/uploads', '..')).toBe('storage/uploads/tenants/tenant');
+    });
   });
 });
 

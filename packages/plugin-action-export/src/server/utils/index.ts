@@ -1,7 +1,8 @@
-export * from './columns2Appends';
+import path from 'node:path';
 
 import dayjs from 'dayjs';
-import path from 'node:path';
+
+export * from './columns2Appends';
 
 export function sanitizeExportSegment(value: string) {
   const normalized = String(value || '')
@@ -9,6 +10,10 @@ export function sanitizeExportSegment(value: string) {
     .replace(/[^a-zA-Z0-9._-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '');
+
+  if (normalized === '.' || normalized === '..') {
+    return 'export';
+  }
 
   return normalized || 'export';
 }
@@ -18,7 +23,10 @@ export function getExportTenantId(source: any) {
 }
 
 export function buildExportDownloadName(title: string, tenantId?: string) {
-  const base = String(title || 'export').trim().replace(/[\\/:*?"<>|]/g, '_') || 'export';
+  const base =
+    String(title || 'export')
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, '_') || 'export';
   return tenantId ? `${base}_${sanitizeExportSegment(tenantId)}` : base;
 }
 
@@ -28,7 +36,11 @@ export function buildWorkerExportFileName(resourceName: string, title: string, t
   return `${base}${tenantSuffix}_${dayjs().format('YYYYMMDDHHmm')}.xlsx`;
 }
 
-export function buildWorkerExportRelativePath(fileName: string, tenantId?: string, basePath: string = 'storage/uploads') {
+export function buildWorkerExportRelativePath(
+  fileName: string,
+  tenantId?: string,
+  basePath: string = 'storage/uploads',
+) {
   return tenantId
     ? path.posix.join(basePath, 'tenants', sanitizeExportSegment(tenantId), fileName)
     : path.posix.join(basePath, fileName);

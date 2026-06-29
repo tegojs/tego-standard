@@ -69,6 +69,12 @@ describe('export helpers – tenant module NOT loaded', () => {
     expect(p).toBe('/tmp/exports');
     expect(p).not.toContain('tenants');
   });
+
+  it('sanitizes tenantId before using it in worker file paths', () => {
+    expect(buildWorkerExportRelativePath('export.xlsx', '../evil')).toBe('storage/uploads/tenants/.._evil/export.xlsx');
+    expect(buildWorkerExportRelativePath('export.xlsx', '..')).toBe('storage/uploads/tenants/export/export.xlsx');
+    expect(buildWorkerExportSavePath('/tmp/exports', '..')).toBe(path.join('/tmp/exports', 'tenants', 'export'));
+  });
 });
 
 // ---------------------------------------------------------------------------

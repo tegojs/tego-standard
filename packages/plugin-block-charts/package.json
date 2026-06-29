@@ -18,10 +18,9 @@
   "license": "Apache-2.0",
   "main": "dist/server/index.js",
   "scripts": {},
-  "dependencies": {},
   "devDependencies": {
     "@ant-design/icons": "^6.1.0",
-    "@ant-design/plots": "^2.6.3",
+    "@ant-design/plots": "catalog:",
     "@tachybase/client": "workspace:*",
     "@tachybase/module-tenant": "workspace:*",
     "@tachybase/schema": "catalog:",

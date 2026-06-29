@@ -311,7 +311,7 @@ describe('workflow > instructions > tenant filter', () => {
       await workflow.createNode({
         type: 'sql',
         config: {
-          sql: `SELECT * FROM ${db.queryInterface.quoteIdentifier(tableName)}`,
+          sql: `SELECT * FROM ${db.utils.quoteTable(tableName)}`,
         },
       });
 

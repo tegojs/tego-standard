@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import type { Plugin } from 'vite';
 import { defineTegoVitestConfig } from '@tachybase/test/vitest';
+
+import type { Plugin } from 'vite';
 
 const sourceMappingURLRE = /(?:\r?\n)?\/\/# sourceMappingURL=[^\r\n]*(?:\r?\n)?$/;
 const reactZoomPanPinchDistFile = 'react-zoom-pan-pinch/dist/index.esm.js';
@@ -36,12 +37,7 @@ function filePathFromId(id: string) {
  * 其余已知问题包继续在 transform 阶段剥离 sourcemap。
  */
 function stripBrokenSourcemaps(): Plugin {
-  const brokenPkgs = [
-    '@antv/scale/',
-    '@antv/coord/',
-    '@antv/g2-extension-plot/',
-    'react-zoom-pan-pinch/',
-  ];
+  const brokenPkgs = ['@antv/scale/', '@antv/coord/', '@antv/g2-extension-plot/', 'react-zoom-pan-pinch/'];
   return {
     name: 'strip-broken-sourcemaps',
     enforce: 'pre',

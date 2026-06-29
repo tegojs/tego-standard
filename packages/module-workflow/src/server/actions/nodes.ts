@@ -17,6 +17,9 @@ import { getRemoteCodeFetcher } from '../utils/get-remote-code-fetcher';
  * Check if the current user has permission to create/update SQL instruction nodes.
  * SQL nodes bypass the repository layer and execute raw SQL directly, so they
  * require the pm.workflow.sql snippet (covered by pm.* for root/admin).
+ *
+ * The canonical runtime check lives in utils/sql-permission.ts (checkSqlExecutionPermission).
+ * This API-level guard mirrors the same logic with HTTP-specific error handling.
  */
 function assertSqlNodePermission(ctx: Context, nodeType: string) {
   if (nodeType !== 'sql') {
@@ -24,6 +27,9 @@ function assertSqlNodePermission(ctx: Context, nodeType: string) {
   }
   const roleName = ctx.state.currentRole;
   if (!roleName) {
+    return;
+  }
+  if (roleName === 'root') {
     return;
   }
   // Access ACL via dataSourceManager (app.acl is a shortcut for mainDataSource.acl)

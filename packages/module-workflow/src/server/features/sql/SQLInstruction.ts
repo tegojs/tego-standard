@@ -1,4 +1,5 @@
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
+import { checkSqlExecutionPermission } from '../../utils/sql-permission';
 
 /**
  * SQL workflow instruction.
@@ -17,9 +18,18 @@ import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
  * - Workflow authors MUST manually include tenant conditions in their SQL
  *   (e.g. `WHERE tenantId = '{{$context.state.currentTenant.id}}'`) when
  *   accessing tenant-scoped data.
+ *
+ * Permission boundary:
+ * - Only users with the `pm.workflow.sql` snippet (or root/admin via `pm.*`)
+ *   may execute SQL instructions.
+ * - The check is fail-closed: missing httpContext or role information results
+ *   in denial. Internal system triggers without user context cannot execute SQL.
  */
 export default class extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
+    // Permission guard: only users with pm.workflow.sql may execute raw SQL
+    checkSqlExecutionPermission(processor);
+
     // @ts-ignore
     const { db } = this.workflow.app.dataSourceManager.dataSources.get(
       node.config.dataSource || 'main',

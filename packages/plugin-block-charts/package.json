@@ -23,6 +23,7 @@
     "@ant-design/icons": "^6.1.0",
     "@ant-design/plots": "^2.6.3",
     "@tachybase/client": "workspace:*",
+    "@tachybase/module-tenant": "workspace:*",
     "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",

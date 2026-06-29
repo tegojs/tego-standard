@@ -300,8 +300,6 @@ describe('workflow > instructions > tenant filter', () => {
       // This test documents that behavior as a deliberate design decision.
       // SQL statements are opaque to the framework and cannot be safely rewritten.
       // Workflow authors must manually include tenantId conditions in their SQL.
-      //
-      // See: 租户隔离实施规划方案.md SQL/View/Workflow SQL boundary.
       const workflow = await WorkflowModel.create({
         enabled: true,
         type: 'syncTrigger',

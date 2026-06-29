@@ -120,8 +120,7 @@ describe('action', () => {
 
   describe('create / upload', () => {
     describe('default storage', () => {
-      // TODO: requires tenant middleware to set ctx.state.currentTenantId
-      it.skip('upload file should be ok', async () => {
+      it('upload file should be ok', async () => {
         const { body } = await agent.resource('attachments').create({
           [FILE_FIELD_NAME]: textFilePath,
         });
@@ -130,7 +129,7 @@ describe('action', () => {
           title: 'text',
           extname: '.txt',
           path: 'tenants/tenant-a',
-          size: 13,
+          size: textFileExpectedSize,
           mimetype: 'text/plain',
           meta: {},
           storageId: 1,
@@ -233,8 +232,7 @@ describe('action', () => {
         expect(response.status).toBe(400);
       });
 
-      // TODO: requires tenant middleware to set ctx.state.currentTenantId
-      it.skip('upload to storage which is not default', async () => {
+      it('upload to storage which is not default', async () => {
         const BASE_URL = `http://localhost:${APP_PORT}/storage/uploads/another`;
         const urlPath = 'test/path';
 
@@ -282,8 +280,7 @@ describe('action', () => {
   });
 
   describe('destroy', () => {
-    // TODO: requires tenant middleware to set ctx.state.currentTenantId
-    it.skip('should isolate attachments by current tenant', async () => {
+    it('should isolate attachments by current tenant', async () => {
       const tenantAResponse = await agent.resource('attachments').create({
         [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
       });
@@ -317,8 +314,7 @@ describe('action', () => {
       expect(tenantBAttachment).toBeTruthy();
     });
 
-    // TODO: requires tenant middleware to set ctx.state.currentTenantId
-    it.skip('should store attachment files under tenant-specific paths', async () => {
+    it('should store attachment files under tenant-specific paths', async () => {
       const tenantAResponse = await agent.resource('attachments').create({
         [FILE_FIELD_NAME]: path.resolve(__dirname, './files/text.txt'),
       });

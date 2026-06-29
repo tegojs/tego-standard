@@ -13,10 +13,40 @@ import {
 import type { WorkflowModel } from '../types';
 import { getRemoteCodeFetcher } from '../utils/get-remote-code-fetcher';
 
+/**
+ * Check if the current user has permission to create/update SQL instruction nodes.
+ * SQL nodes bypass the repository layer and execute raw SQL directly, so they
+ * require the pm.workflow.sql snippet (covered by pm.* for root/admin).
+ */
+function assertSqlNodePermission(ctx: Context, nodeType: string) {
+  if (nodeType !== 'sql') {
+    return;
+  }
+  const roleName = ctx.state.currentRole;
+  if (!roleName) {
+    return;
+  }
+  // Access ACL via dataSourceManager (app.acl is a shortcut for mainDataSource.acl)
+  const acl = ctx.app?.acl || ctx.tego?.acl || ctx.app?.dataSourceManager?.dataSources?.get('main')?.acl;
+  if (!acl) {
+    return;
+  }
+  const aclRole = acl.getRole(roleName);
+  if (!aclRole) {
+    ctx.throw(403, 'SQL instruction nodes require the pm.workflow.sql permission');
+  }
+  const { allowed } = aclRole.effectiveSnippets();
+  if (!allowed.includes('pm.workflow.sql')) {
+    ctx.throw(403, 'SQL instruction nodes require the pm.workflow.sql permission');
+  }
+}
+
 export async function create(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx) as MultipleRelationRepository;
   const { whitelist, blacklist, updateAssociationValues, values, associatedIndex: workflowId } = ctx.action.params;
+
+  assertSqlNodePermission(ctx, values?.type);
 
   ctx.body = await db.sequelize.transaction(async (transaction) => {
     const workflow = (await repository.getSourceModel(transaction)) as WorkflowModel;
@@ -196,6 +226,17 @@ export async function update(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx);
   const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues } = ctx.action.params;
+
+  // Check SQL node permission: either type is being changed to sql, or existing node is sql
+  const nodeType = values?.type;
+  if (nodeType === 'sql') {
+    assertSqlNodePermission(ctx, 'sql');
+  } else if (filterByTk) {
+    const existingNode = await repository.findOne({ filterByTk, fields: ['type'] });
+    if (existingNode?.get('type') === 'sql') {
+      assertSqlNodePermission(ctx, 'sql');
+    }
+  }
   ctx.body = await db.sequelize.transaction(async (transaction) => {
     // TODO(optimize): duplicated instance query
     const { workflow } = await repository.findOne({

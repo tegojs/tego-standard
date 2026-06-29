@@ -543,7 +543,7 @@ export class PluginDataSourceManagerServer extends Plugin {
 
     this.app.acl.registerSnippet({
       name: 'pm.database-connections.collections',
-      actions: ['collections:*', 'collections.fields:*', 'collectionCategories:*', 'dbViews:*'],
+      actions: ['collections:*', 'collections.fields:*', 'collectionCategories:*', 'dbViews:*', 'sqlCollection:*'],
     });
 
     this.app.acl.allow('dataSources', 'listEnabled', 'loggedIn');

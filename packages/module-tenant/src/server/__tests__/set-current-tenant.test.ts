@@ -197,7 +197,6 @@ describe('setCurrentTenant middleware', () => {
     await app.db.getRepository('collections').create({
       values: {
         name: 'tenant_impersonation_audit_posts',
-        logging: true,
         tenancy: 'tenantScoped',
         fields: [
           {
@@ -208,6 +207,7 @@ describe('setCurrentTenant middleware', () => {
       },
       context: {},
     });
+    app.db.getCollection('tenant_impersonation_audit_posts').options.logging = true;
 
     const response = await app
       .agent()

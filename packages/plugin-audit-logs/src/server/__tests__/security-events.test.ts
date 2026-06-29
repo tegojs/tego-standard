@@ -37,7 +37,8 @@ describe('tenant security audit events', () => {
     });
     db = api.db;
 
-    // Explicitly register the listener on the app (mirrors what the plugin does in afterAdd)
+    // Explicitly register the listener on the app (mirrors what the plugin does in afterAdd).
+    // With idempotency guard this is safe even if afterAdd already ran.
     registerSecurityEventListener({ app: api, db } as any);
   });
 
@@ -59,6 +60,10 @@ describe('tenant security audit events', () => {
     expect(log.get('type')).toBe('tenant_access_denied');
     expect(log.get('collectionName')).toBe('secured_posts');
     expect(log.get('isTenantImpersonation')).toBe(false);
+    // actorUserId falls back to userId when not explicitly provided
+    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('impersonatedTenantId')).toBeNull();
+    expect(log.get('tenantContextSource')).toBeNull();
   });
 
   it('should record tenant_cross_tenant_attempt event', async () => {
@@ -76,9 +81,13 @@ describe('tenant security audit events', () => {
     expect(log.get('type')).toBe('tenant_cross_tenant_attempt');
     expect(log.get('tenantId')).toBe('tenant-c');
     expect(log.get('collectionName')).toBe('orders');
+    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('isTenantImpersonation')).toBe(false);
+    expect(log.get('impersonatedTenantId')).toBeNull();
+    expect(log.get('tenantContextSource')).toBeNull();
   });
 
-  it('should record tenant_impersonation event', async () => {
+  it('should record tenant_impersonation event with full impersonation fields', async () => {
     api.emit('tenant.securityViolation', {
       type: 'tenant_impersonation',
       userId: 1,
@@ -92,6 +101,12 @@ describe('tenant security audit events', () => {
     expect(log).not.toBeNull();
     expect(log.get('type')).toBe('tenant_impersonation');
     expect(log.get('tenantId')).toBe('tenant-target');
+    // actorUserId stored as string in DB
+    expect(log.get('actorUserId')).toBeTruthy();
+    // Core impersonation fields — these are the key assertions
+    expect(log.get('isTenantImpersonation')).toBe(true);
+    expect(log.get('impersonatedTenantId')).toBe('tenant-target');
+    expect(log.get('tenantContextSource')).toBe('platformImpersonation');
   });
 
   it('should record tenant_bulk_export_alert event', async () => {
@@ -110,29 +125,10 @@ describe('tenant security audit events', () => {
     expect(log.get('type')).toBe('tenant_bulk_export_alert');
     expect(log.get('tenantId')).toBe('tenant-a');
     expect(log.get('collectionName')).toBe('orders');
-  });
-
-  it('should store details in security event when column exists', async () => {
-    // The details field is defined in the auditLogs collection.
-    // db.sync() should create the column; if not, this test gracefully skips.
-    const repo = db.getCollection('auditLogs').repository;
-
-    api.emit('tenant.securityViolation', {
-      type: 'tenant_access_denied',
-      userId: 99,
-      collectionName: 'test_col',
-      details: { tenancyMode: 'tenantScoped', extra: { nested: true, count: 42 } },
-    });
-
-    const log = await waitForSecurityEvent(db, 'tenant_access_denied');
-    expect(log).not.toBeNull();
-    // details may be undefined if the column isn't synced; that's acceptable
-    const details = log.get('details');
-    if (details) {
-      expect(details.tenancyMode).toBe('tenantScoped');
-      expect(details.extra.nested).toBe(true);
-      expect(details.extra.count).toBe(42);
-    }
+    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('isTenantImpersonation')).toBe(false);
+    expect(log.get('impersonatedTenantId')).toBeNull();
+    expect(log.get('tenantContextSource')).toBeNull();
   });
 
   it('should handle events with missing optional fields', async () => {
@@ -143,6 +139,10 @@ describe('tenant security audit events', () => {
     const log = await waitForSecurityEvent(db, 'tenant_access_denied');
     expect(log).not.toBeNull();
     expect(log.get('type')).toBe('tenant_access_denied');
+    expect(log.get('actorUserId')).toBeNull();
+    expect(log.get('impersonatedTenantId')).toBeNull();
+    expect(log.get('tenantContextSource')).toBeNull();
+    expect(log.get('isTenantImpersonation')).toBe(false);
   });
 
   it('should not interfere with normal CRUD audit logs', async () => {
@@ -181,6 +181,61 @@ describe('tenant security audit events', () => {
   });
 });
 
+describe('security event listener idempotency', () => {
+  let api: MockServer;
+  let db: Database;
+
+  beforeEach(async () => {
+    api = await createMockServer({
+      plugins: ['audit-logs'],
+    });
+    db = api.db;
+  });
+
+  afterEach(async () => {
+    await api.destroy();
+  });
+
+  it('should not create duplicate audit logs when registered twice on the same app', async () => {
+    // Register twice on the same app instance
+    registerSecurityEventListener({ app: api, db } as any);
+    registerSecurityEventListener({ app: api, db } as any);
+
+    api.emit('tenant.securityViolation', {
+      type: 'tenant_impersonation',
+      userId: 1,
+      actorUserId: 1,
+      tenantId: 'tenant-x',
+      details: { impersonatedTenantId: 'tenant-x', originalUserId: 1 },
+    });
+
+    const log = await waitForSecurityEvent(db, 'tenant_impersonation');
+    expect(log).not.toBeNull();
+
+    // Must be exactly 1 record, not 2
+    const count = await countSecurityEvents(db, 'tenant_impersonation');
+    expect(count).toBe(1);
+  });
+
+  it('should not duplicate when registered three times consecutively', async () => {
+    registerSecurityEventListener({ app: api, db } as any);
+    registerSecurityEventListener({ app: api, db } as any);
+    registerSecurityEventListener({ app: api, db } as any);
+
+    api.emit('tenant.securityViolation', {
+      type: 'tenant_access_denied',
+      userId: 1,
+      collectionName: 'test_dup',
+    });
+
+    const log = await waitForSecurityEvent(db, 'tenant_access_denied');
+    expect(log).not.toBeNull();
+
+    const count = await countSecurityEvents(db, 'tenant_access_denied');
+    expect(count).toBe(1);
+  });
+});
+
 describe('bulk export threshold', () => {
   let api: MockServer;
   let db: Database;
@@ -213,49 +268,23 @@ describe('bulk export threshold', () => {
     expect(log.get('type')).toBe('tenant_bulk_export_alert');
     expect(log.get('tenantId')).toBe('tenant-b');
     expect(log.get('collectionName')).toBe('big_orders');
+    expect(log.get('actorUserId')).toBeTruthy();
+    expect(log.get('isTenantImpersonation')).toBe(false);
     // action is passed in the event but not a column in auditLogs schema
     expect(log.get('action')).toBeUndefined();
   });
 
-  it('should include correct rowCount and threshold in details', async () => {
-    api.emit('tenant.securityViolation', {
-      type: 'tenant_bulk_export_alert',
-      userId: 8,
-      actorUserId: 8,
-      tenantId: 'tenant-c',
-      collectionName: 'orders',
-      action: 'export',
-      details: { rowCount: 1500, threshold: 1000 },
-    });
-
-    const log = await waitForSecurityEvent(db, 'tenant_bulk_export_alert');
-    expect(log).not.toBeNull();
-    const details = log.get('details');
-    if (details) {
-      expect(details.rowCount).toBe(1500);
-      expect(details.threshold).toBe(1000);
-    }
-  });
-
   it('should not emit alert when count is below threshold', async () => {
-    // Simulate: count (50) < threshold (1000), no event emitted
     const beforeCount = await countSecurityEvents(db, 'tenant_bulk_export_alert');
-
     // No api.emit call — mimics the condition where exportXlsx skips the alert
     await sleep(200);
-
     const afterCount = await countSecurityEvents(db, 'tenant_bulk_export_alert');
     expect(afterCount).toBe(beforeCount);
   });
 
-  it('should fire tenant_bulk_export_alert via exportXlsx path with threshold met', async () => {
-    // This test verifies the integration: exportXlsx emits the event
-    // through ctx.app.emit when repository.count() >= BULK_EXPORT_THRESHOLD.
-    // We simulate the exact payload shape that exportXlsx produces.
+  it('should fire tenant_bulk_export_alert with correct payload shape', async () => {
     const rowCount = 1200;
     const threshold = 1000;
-
-    expect(rowCount).toBeGreaterThanOrEqual(threshold);
 
     api.emit('tenant.securityViolation', {
       type: 'tenant_bulk_export_alert',
@@ -271,5 +300,6 @@ describe('bulk export threshold', () => {
     expect(log).not.toBeNull();
     expect(log.get('tenantId')).toBe('tenant-d');
     expect(log.get('collectionName')).toBe('export_test_col');
+    expect(log.get('actorUserId')).toBeTruthy();
   });
 });

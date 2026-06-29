@@ -460,7 +460,6 @@ export async function trigger(ctx: Context, next: Next) {
       {
         data: {
           updateData,
-          httpContext: ctx,
           user: ctx?.auth?.user,
         },
       },

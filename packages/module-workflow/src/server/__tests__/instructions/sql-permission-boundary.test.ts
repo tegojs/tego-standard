@@ -382,7 +382,8 @@ describe('workflow > sql instruction permission boundary', () => {
       /**
        * workflows:trigger is the original risk entry point:
        * - Plugin.ts: acl.allow('workflows', ['trigger', 'list'], 'loggedIn')
-       * - actions/workflows.ts trigger(): passes full Koa ctx as httpContext
+       * - actions/workflows.ts trigger(): passes Koa ctx only via options.httpContext,
+       *   NOT inside the execution context data (to avoid serializing Koa ctx).
        * - plugin.trigger() is NOT awaited, so execution is asynchronous
        *
        * These tests use the real agent/resource path and poll for execution
@@ -437,10 +438,16 @@ describe('workflow > sql instruction permission boundary', () => {
         const executions = await db.getRepository('executions').find({
           filter: { 'workflow.id': workflow.id },
         });
-        expect(executions[0].get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+        const execution = executions[0];
+        expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+
+        // Execution context must NOT contain the full Koa ctx
+        const ctxData = execution.get('context')?.data;
+        expect(ctxData).toBeDefined();
+        expect(ctxData.httpContext).toBeUndefined();
 
         const jobs = await db.getRepository('jobs').find({
-          filter: { executionId: executions[0].id },
+          filter: { executionId: execution.id },
         });
         expect(jobs.length).toBeGreaterThan(0);
         expect(jobs[0].get('status')).toBe(JOB_STATUS.RESOLVED);
@@ -491,11 +498,17 @@ describe('workflow > sql instruction permission boundary', () => {
         const executions = await db.getRepository('executions').find({
           filter: { 'workflow.id': workflow.id },
         });
-        expect(executions[0].get('status')).toBe(EXECUTION_STATUS.ERROR);
+        const execution = executions[0];
+        expect(execution.get('status')).toBe(EXECUTION_STATUS.ERROR);
 
-        // Job should contain permission error
+        // Execution context must NOT contain the full Koa ctx
+        const ctxData = execution.get('context')?.data;
+        expect(ctxData).toBeDefined();
+        expect(ctxData.httpContext).toBeUndefined();
+
+        // Job should contain permission error (not a ctx serialization error)
         const jobs = await db.getRepository('jobs').find({
-          filter: { executionId: executions[0].id },
+          filter: { executionId: execution.id },
         });
         expect(jobs.length).toBeGreaterThan(0);
         const failedJob = jobs.find((j) => j.get('status') === JOB_STATUS.ERROR);

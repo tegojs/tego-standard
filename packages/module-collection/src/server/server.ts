@@ -302,7 +302,6 @@ export class CollectionManagerPlugin extends Plugin {
     // (via wildcard allow) and admin (via allowConfigure) can access these resources.
     // This is intentional — SQL collections and view collections do not support the
     // `tenancy` option and execute raw SQL without tenant filtering.
-    // See: 租户隔离实施规划方案.md (SQL/View isolation boundaries)
     this.app.resourcer.registerActions(collectionActions);
 
     const handleFieldSource = (fields) => {

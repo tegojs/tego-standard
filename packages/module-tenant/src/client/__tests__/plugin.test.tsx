@@ -8,6 +8,8 @@ import {
 } from '@tachybase/client';
 import { render, waitFor } from '@tachybase/test/client';
 
+import { vi } from 'vitest';
+
 import PluginTenantClient from '..';
 import zhCN from '../../locale/zh-CN.json';
 import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
@@ -103,6 +105,32 @@ describe('PluginTenantClient', () => {
         [TenantMenuProvider, undefined],
       ]),
     );
+  });
+
+  it('should keep current tenant provider hook order when currentUser prop changes', async () => {
+    const currentUser = { data: { data: {} } };
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      const { rerender } = render(
+        <CurrentTenantProvider currentUser={currentUser}>
+          <span>tenant-provider</span>
+        </CurrentTenantProvider>,
+      );
+
+      rerender(
+        <CurrentTenantProvider>
+          <span>tenant-provider</span>
+        </CurrentTenantProvider>,
+      );
+
+      const hookOrderWarnings = consoleError.mock.calls.filter(([message]) =>
+        String(message).includes('change in the order of Hooks'),
+      );
+      expect(hookOrderWarnings).toHaveLength(0);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('should build broad user search filter for tenant member picker', () => {

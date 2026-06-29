@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect } from 'react';
-
 import { useAPIClient, useCurrentUserContext, useRequest } from '@tachybase/client';
 
 type AvailableTenantItem = {
@@ -23,13 +22,15 @@ export const useCurrentTenantContext = () => {
 
 export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }) => {
   const api = useAPIClient();
-  const currentUser = currentUserProp || useCurrentUserContext();
+  const currentUserContext = useCurrentUserContext();
+  const currentUser = currentUserProp || currentUserContext;
   const currentUserId = currentUser?.data?.data?.id;
-  const result = useRequest<AvailableTenantsResult>(() =>
-    api
-      .resource('tenants')
-      .available()
-      .then((res) => res?.data),
+  const result = useRequest<AvailableTenantsResult>(
+    () =>
+      api
+        .resource('tenants')
+        .available()
+        .then((res) => res?.data),
     {
       ready: !!currentUserId,
     },

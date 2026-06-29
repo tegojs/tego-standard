@@ -3,6 +3,17 @@ import { PreviewFields } from './components/PreviewFields';
 import { PreviewTable } from './components/PreviewTable';
 import { getConfigurableProperties } from './properties';
 
+/**
+ * View collection template (connect to database view).
+ *
+ * Tenant isolation boundary:
+ * - View collections do NOT support the `tenancy` configuration option.
+ * - `dbViews:query` executes raw `SELECT * FROM <view>` with no tenant filtering.
+ * - The default ACL (deny-all) prevents non-root/non-admin roles from accessing
+ *   this resource. No explicit `acl.deny` is needed, but admins should be aware that
+ *   view collections bypass the tenant resource guard entirely.
+ * - The underlying database view itself is responsible for any row-level security.
+ */
 export class ViewCollectionTemplate extends CollectionTemplate {
   name = 'view';
   title = '{{t("Connect to database view")}}';
@@ -29,6 +40,7 @@ export class ViewCollectionTemplate extends CollectionTemplate {
       'x-component': 'Select',
       'x-reactions': ['{{useAsyncDataSource(loadDBViews)}}'],
       'x-disabled': '{{ !createOnly }}',
+      description: '{{t("VIEW_COLLECTION_TENANT_ISOLATION_WARNING")}}',
     },
     name: {
       type: 'string',

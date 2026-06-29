@@ -49,4 +49,18 @@ describe('collection template tenancy configuration', () => {
     expect(new ViewCollectionTemplate().configurableProperties.tenancy).toBeUndefined();
     expect(new ViewCollectionTemplate().configurableProperties.legacyDataTenantIds).toBeUndefined();
   });
+
+  it('should include tenant isolation warning description for SQL collection template', () => {
+    const template = new SqlCollectionTemplate();
+    const sqlField = template.configurableProperties.config.properties.sql;
+    expect(sqlField.description).toBeDefined();
+    expect(sqlField.description).toContain('TENANT_ISOLATION_WARNING');
+  });
+
+  it('should include tenant isolation warning description for view collection template', () => {
+    const template = new ViewCollectionTemplate();
+    const databaseViewField = template.configurableProperties.databaseView;
+    expect(databaseViewField.description).toBeDefined();
+    expect(databaseViewField.description).toContain('TENANT_ISOLATION_WARNING');
+  });
 });

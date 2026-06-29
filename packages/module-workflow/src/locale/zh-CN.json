@@ -352,6 +352,7 @@
   "Run multiple branch processes in parallel.": "并行运行多个分支流程。",
   "Running of some node was aborted by program flow.": "某个节点被程序流程终止。",
   "SQL action": "SQL 操作",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ 租户隔离警告：SQL 节点直接执行原始 SQL，不会自动注入 tenantId 过滤条件。与查询/更新/删除等节点不同，SQL 节点绕过仓库层和租户资源守卫。如需访问租户隔离数据，请手动在 SQL 中添加 tenantId 条件。",
   "Save draft": "保存草稿",
   "Save temporarily": "暂存",
   "Schedule event": "定时任务",

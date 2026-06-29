@@ -1,5 +1,23 @@
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
 
+/**
+ * SQL workflow instruction.
+ *
+ * Tenant isolation boundary:
+ * - This instruction executes raw SQL via `db.sequelize.query()` directly.
+ * - It does NOT call `applyTenantFilterToContext()` and bypasses the repository
+ *   layer entirely. No tenant filtering is applied to the SQL statement.
+ * - Unlike Query/Select/Update/Destroy/Aggregate instructions which use the
+ *   repository API and receive automatic tenant scoping, the SQL instruction
+ *   operates at the raw database driver level.
+ * - The tenant context (currentTenantId, descendant IDs, etc.) IS available on
+ *   the processor's execution record, but this instruction intentionally does
+ *   not use it — SQL statements are opaque to the framework and cannot be safely
+ *   rewritten to include tenant conditions.
+ * - Workflow authors MUST manually include tenant conditions in their SQL
+ *   (e.g. `WHERE tenantId = '{{$context.state.currentTenant.id}}'`) when
+ *   accessing tenant-scoped data.
+ */
 export default class extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
     // @ts-ignore

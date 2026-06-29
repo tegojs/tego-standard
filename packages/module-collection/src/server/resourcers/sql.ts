@@ -26,6 +26,21 @@ const updateCollection = async (ctx: Context, transaction: any) => {
   return { collection, upRes };
 };
 
+/**
+ * SQL collection resource.
+ *
+ * Tenant isolation boundary:
+ * - `execute` runs raw SQL with no tenant filtering. The SQL is only validated
+ *   to be a SELECT/CTE query (non-mutating for preview purposes), but there is
+ *   no framework-level tenant scoping.
+ * - `setFields` and `update` are configuration operations (not data access),
+ *   and are gated by the default ACL deny-all for non-admin roles.
+ * - No `tenantId` is injected into queries. The tenant resource guard does not
+ *   apply to this resource because SQL collections do not have a `tenancy` option.
+ * - If a tenant-scoped view of data is needed, users should construct their SQL
+ *   to include the appropriate `WHERE tenantId = ...` clause manually, or use
+ *   a general collection with proper tenancy configuration.
+ */
 export default {
   name: 'sqlCollection',
   actions: {

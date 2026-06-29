@@ -5,6 +5,18 @@ import { i18n } from '../../i18n';
 import { FieldsConfigure, PreviewTable, SQLInput, SQLRequestProvider } from './components/sql-collection';
 import { getConfigurableProperties } from './properties';
 
+/**
+ * SQL collection template.
+ *
+ * Tenant isolation boundary:
+ * - SQL collections do NOT support the `tenancy` configuration option.
+ * - `sqlCollection:execute` applies no tenant filtering — the raw SQL is executed as-is.
+ * - The default ACL (deny-all) already prevents non-root/non-admin roles from accessing
+ *   this resource. No explicit `acl.deny` is needed, but admins should be aware that
+ *   SQL collections bypass the tenant resource guard entirely.
+ * - Users who need tenant-scoped data access should use general collections with proper
+ *   tenancy configuration instead of raw SQL.
+ */
 export class SqlCollectionTemplate extends CollectionTemplate {
   name = 'sql';
   title = '{{t("SQL collection")}}';
@@ -42,6 +54,7 @@ export class SqlCollectionTemplate extends CollectionTemplate {
           'x-decorator': 'FormItem',
           'x-component': SQLInput,
           required: true,
+          description: '{{t("SQL_COLLECTION_TENANT_ISOLATION_WARNING")}}',
           'x-validator': (value: string, rules, { form }) => {
             const field = form.query('sql').take() as Field;
             if (!field.componentProps.disabled) {

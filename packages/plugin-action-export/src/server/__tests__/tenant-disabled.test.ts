@@ -5,9 +5,14 @@
  * Export helpers must degrade gracefully: no tenant filter, no tenant path segments,
  * no security alerts.
  */
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { exportXlsx } from '../actions/export-xlsx';
+import ExportPlugin from '../index';
 import {
   buildExportDownloadName,
   buildWorkerExportFileName,
@@ -158,5 +163,130 @@ describe('exportXlsx action – tenant module NOT loaded', () => {
     expect(disposition).toContain(encodeURI('Test Export'));
     // Should NOT contain tenant suffix (e.g. "_tenant-a")
     expect(disposition).not.toMatch(/_tenant/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// workerExportXlsx – tenant module NOT loaded
+// ---------------------------------------------------------------------------
+
+describe('workerExportXlsx – tenant module NOT loaded', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tempDir = mkdtempSync(path.join(tmpdir(), 'tego-export-worker-td-'));
+  });
+
+  afterEach(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('should not produce tenants/ path or tenant filter when tenantContext & currentTenantId are absent', async () => {
+    const find = vi.fn().mockResolvedValue([]);
+    const repository = {
+      collection: {
+        options: {
+          // No tenancy or shared – simulates module-tenant not loaded
+          tenancy: 'shared',
+        },
+        fields: new Map([
+          [
+            'title',
+            {
+              name: 'title',
+              options: { interface: 'input' },
+            },
+          ],
+        ]),
+        hasField: vi.fn().mockReturnValue(true),
+      },
+      find,
+    };
+    const plugin = {
+      db: {
+        getRepository: vi.fn().mockReturnValue(repository),
+      },
+      xlsxStorageDir: () => tempDir,
+    };
+
+    const result = await ExportPlugin.prototype.workerExportXlsx.call(plugin, {
+      title: 'Export',
+      filter: { status: 'published' },
+      columns: [
+        {
+          dataIndex: ['title'],
+          defaultTitle: 'Title',
+          title: 'Title',
+        },
+      ],
+      resourceName: 'orders',
+      // NO tenantContext, NO currentTenantId
+    });
+
+    // 1. Returned relative path must not contain tenants/
+    expect(result).not.toContain('tenants');
+
+    // 2. File should exist and NOT be under a tenants/<id> directory
+    const expectedFile = path.join(tempDir, result.replace('storage/uploads/', ''));
+    expect(existsSync(expectedFile)).toBe(true);
+    expect(expectedFile).not.toMatch(/tenants[/\\]/);
+
+    // 3. repository.find context must NOT contain currentTenantId
+    expect(find).toHaveBeenCalled();
+    const findArg = find.mock.calls[0][0];
+    expect(findArg.context).toBeUndefined();
+
+    // 4. filter must NOT be appended with a tenantId condition
+    expect(findArg.filter).toEqual({ status: 'published' });
+    expect(findArg.filter).not.toHaveProperty('tenantId');
+    const filterStr = JSON.stringify(findArg.filter);
+    expect(filterStr).not.toContain('tenantId');
+  });
+
+  it('should not produce tenants/ path when collection has no tenancy option at all', async () => {
+    const find = vi.fn().mockResolvedValue([]);
+    const repository = {
+      collection: {
+        options: {},
+        fields: new Map([
+          [
+            'title',
+            {
+              name: 'title',
+              options: { interface: 'input' },
+            },
+          ],
+        ]),
+        hasField: vi.fn().mockReturnValue(true),
+      },
+      find,
+    };
+    const plugin = {
+      db: {
+        getRepository: vi.fn().mockReturnValue(repository),
+      },
+      xlsxStorageDir: () => tempDir,
+    };
+
+    const result = await ExportPlugin.prototype.workerExportXlsx.call(plugin, {
+      title: 'Export',
+      filter: {},
+      columns: [
+        {
+          dataIndex: ['title'],
+          defaultTitle: 'Title',
+          title: 'Title',
+        },
+      ],
+      resourceName: 'orders',
+      // NO tenantContext, NO currentTenantId
+    });
+
+    expect(result).not.toContain('tenants');
+    const findArg = find.mock.calls[0][0];
+    expect(findArg.context).toBeUndefined();
+    const filterStr = JSON.stringify(findArg.filter);
+    expect(filterStr).not.toContain('tenantId');
   });
 });

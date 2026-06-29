@@ -210,8 +210,6 @@ describe('workflow > instructions > tenant filter', () => {
 
     const job = await triggerWorkflow(workflow);
 
-    console.log('[TEST DEBUG] job.status:', job.status, 'job.result:', JSON.stringify(job.result));
-
     expect(job.status).toBe(JOB_STATUS.RESOLVED);
     expect(job.result.title).toBe('new-post');
     expect(job.result.tenantId).toBe('tenant-a');

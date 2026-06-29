@@ -7,6 +7,7 @@ import mime from 'mime-types';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
@@ -176,8 +177,9 @@ export class CreateInstruction extends Instruction {
       }
     }
 
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
     const created = await repository.create({
-      ...options,
+      ...repositoryOptions,
       context: repositoryContext,
       transaction,
     });

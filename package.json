@@ -89,10 +89,5 @@
   "packageManager": "pnpm@10.13.1",
   "engines": {
     "node": ">=20.19.0"
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "@tachybase/database@1.6.13": "patches/@tachybase+database+1.6.13.patch"
-    }
   }
 }

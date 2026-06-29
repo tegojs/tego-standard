@@ -2,6 +2,8 @@ type OutputStream = 'stdout' | 'stderr' | string;
 
 const expectedNegativePathLogPatterns = [
   /SQL instruction nodes require the pm\.workflow\.sql permission/,
+  /SQL collection configuration requires the pm\.database-connections\.collections permission/,
+  /Only select query allowed/,
   /\[error\]\s+No permissions\b/,
   /execution \(\d+\) run instruction \[sql\] for node \(\d+\) failed:/,
   /execution \(\d+\) run instruction \[error\] for node \(\d+\) failed:/,

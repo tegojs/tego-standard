@@ -20,6 +20,13 @@ describe('shouldSuppressVitestConsoleOutput', () => {
       ),
     ).toBe(true);
     expect(
+      shouldSuppressVitestConsoleOutput(
+        '2026-06-30 [error] SQL collection configuration requires the pm.database-connections.collections permission',
+        'stdout',
+      ),
+    ).toBe(true);
+    expect(shouldSuppressVitestConsoleOutput('2026-06-30 [error] Only select query allowed', 'stdout')).toBe(true);
+    expect(
       shouldSuppressVitestConsoleOutput('Error: Tenant path exceeds maximum length of 500 characters', 'stderr'),
     ).toBe(true);
     expect(

@@ -15,6 +15,9 @@ describe('createdBy/updatedBy', () => {
 
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
+    const Users = db.getCollection('users');
+    Users.options.logging = false;
+    Users.model.options.logging = false;
   });
 
   afterAll(async () => {

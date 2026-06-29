@@ -200,8 +200,9 @@ export class UpdateOrCreateInstruction extends Instruction {
         status: JOB_STATUS.RESOLVED,
       };
     } else {
+      const createOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
       const created = await (repository as Repository).create({
-        ...options,
+        ...createOptions,
         context,
         transaction,
       });

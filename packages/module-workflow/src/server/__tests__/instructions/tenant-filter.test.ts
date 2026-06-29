@@ -165,6 +165,32 @@ describe('workflow > instructions > tenant filter', () => {
     expect(tenantBPost.published).toBe(false);
   });
 
+  it('updateorcreate should inject execution tenant when creating a missing record', async () => {
+    const workflow = await createWorkflowWithNode('updateorcreate', {
+      params: {
+        filter: {
+          title: 'upsert-created',
+        },
+        values: {
+          title: 'upsert-created',
+          tenantId: 'tenant-b',
+          published: true,
+        },
+      },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(job.result.title).toBe('upsert-created');
+    expect(job.result.tenantId).toBe('tenant-a');
+
+    const posts = await TenantPostRepo.find({ filter: { title: 'upsert-created' } });
+    expect(posts).toHaveLength(1);
+    expect(posts[0].tenantId).toBe('tenant-a');
+    expect(posts[0].published).toBe(true);
+  });
+
   it('destroy should only remove records from the execution tenant', async () => {
     const workflow = await createWorkflowWithNode('destroy', {
       params: {

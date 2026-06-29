@@ -22,8 +22,11 @@ import { checkSqlExecutionPermission } from '../../utils/sql-permission';
  * Permission boundary:
  * - Only users with the `pm.workflow.sql` snippet (or root/admin via `pm.*`)
  *   may execute SQL instructions.
- * - The check is fail-closed: missing httpContext or role information results
- *   in denial. Internal system triggers without user context cannot execute SQL.
+ * - For API-triggered workflows, the check is fail-closed: missing role
+ *   information results in denial.
+ * - Internal triggers (collection/schedule events) without httpContext are
+ *   allowed because the SQL node was already permission-gated at creation
+ *   time by the API-level check in nodes.ts.
  */
 export default class extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {

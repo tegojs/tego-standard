@@ -33,6 +33,25 @@ export function assertSqlSnippetPermission(acl: any, roleName: string, errorMess
 }
 
 /**
+ * Resolve ACL instance from a real or synthetic request context.
+ *
+ * Tries multiple access patterns used across the codebase:
+ * - `httpContext.app.acl` (direct app shortcut)
+ * - `httpContext.tego.acl` (TachyBase context wrapper, used in role-check.ts, query.ts, etc.)
+ * - `httpContext.app.dataSourceManager.dataSources.get('main').acl` (dataSource path)
+ * - `httpContext.tego.dataSourceManager.dataSources.get('main').acl` (tego + dataSource path)
+ */
+function resolveAcl(httpContext: any): any | null {
+  return (
+    httpContext.app?.acl ||
+    httpContext.tego?.acl ||
+    httpContext.app?.dataSourceManager?.dataSources?.get('main')?.acl ||
+    httpContext.tego?.dataSourceManager?.dataSources?.get('main')?.acl ||
+    null
+  );
+}
+
+/**
  * SQL execution permission check for the processor context.
  *
  * Used by SQLInstruction.ts to gate raw SQL execution at runtime.
@@ -59,6 +78,6 @@ export function checkSqlExecutionPermission(processor: Processor): void {
     throw new Error('SQL instruction execution requires a valid role');
   }
 
-  const acl = httpContext.app?.acl;
+  const acl = resolveAcl(httpContext);
   assertSqlSnippetPermission(acl, roleName, 'SQL instruction execution requires the pm.workflow.sql permission');
 }

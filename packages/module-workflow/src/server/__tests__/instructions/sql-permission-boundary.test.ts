@@ -281,139 +281,221 @@ describe('workflow > sql instruction permission boundary', () => {
       await db.sequelize.query(`DROP TABLE IF EXISTS ${MARKER_TABLE}`);
     });
 
-    it('should deny member executing SQL instruction (fail-closed)', async () => {
-      const memberUser = await db.getRepository('users').findOne({
-        filter: { username: 'wf_member' },
+    describe('via real API (workflows:test action)', () => {
+      it('admin should execute SQL instruction through real API', async () => {
+        const adminUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_admin' },
+        });
+        const agent = app.agent().login(adminUser);
+
+        // Create a sync workflow with SQL node
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'admin-api-executed')`,
+          },
+        });
+
+        // Trigger via real API action (passes full Koa context as httpContext)
+        const response = await agent.resource('workflows').test({
+          filterByTk: workflow.id,
+          values: { data: {} },
+        });
+
+        expect(response.status).toBe(200);
+
+        const execution = response.body?.data;
+        expect(execution).toBeDefined();
+        // EXECUTION_STATUS.RESOLVED = 1
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+
+        // Verify the SQL actually ran by checking the job result
+        const jobs = await db.getRepository('jobs').find({
+          filter: { executionId: execution.id },
+        });
+        expect(jobs.length).toBeGreaterThan(0);
+        const sqlJob = jobs[0];
+        // JOB_STATUS.RESOLVED = 1
+        expect(sqlJob.get('status')).toBe(JOB_STATUS.RESOLVED);
       });
 
-      // Create a sync workflow with SQL node
-      const workflow = await WorkflowModel.create({
-        enabled: false,
-        sync: true,
-        type: 'collection',
-        config: { collection: 'posts', mode: 1 },
+      it('member should be denied executing SQL instruction through real API (403)', async () => {
+        const memberUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_member' },
+        });
+        const agent = app.agent().login(memberUser);
+
+        // Create a sync workflow with SQL node
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'member-api-executed')`,
+          },
+        });
+
+        // Member tries to trigger via real API — ACL should deny
+        const response = await agent.resource('workflows').test({
+          filterByTk: workflow.id,
+          values: { data: {} },
+        });
+
+        // workflows:test requires pm.workflow.sql (via workflows:*), member has !pm.*
+        // ACL blocks at the action level
+        expect(response.status).toBe(403);
+
+        // SQL should NOT have executed
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE}`);
+        expect(markers).toHaveLength(0);
       });
-      await workflow.createNode({
-        type: 'sql',
-        config: {
-          sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'member-executed')`,
-        },
-      });
-
-      // Get the plugin instance
-      const plugin = app.pm.get('workflow') as WorkflowPlugin;
-
-      // Trigger with member's httpContext (simulating API trigger with member role)
-      const memberCtx = {
-        state: { currentRole: 'member', currentUser: memberUser },
-        app: app,
-      };
-      const execution = await triggerWorkflowAndGetExecution(
-        plugin,
-        workflow,
-        { data: {}, user: memberUser },
-        { httpContext: memberCtx },
-        db,
-      );
-
-      expect(execution).toBeDefined();
-
-      // SQL should NOT have executed - marker table should be empty
-      const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE}`);
-      expect(markers).toHaveLength(0);
-
-      // Execution should show error status (EXECUTION_STATUS.ERROR = -2)
-      expect(execution.get('status')).toBe(EXECUTION_STATUS.ERROR);
-
-      // The job should contain a permission error message
-      const jobs = await db.getRepository('jobs').find({
-        filter: { executionId: execution.id },
-      });
-      expect(jobs.length).toBeGreaterThan(0);
-      const failedJob = jobs.find((j) => j.get('status') === JOB_STATUS.ERROR);
-      expect(failedJob).toBeDefined();
-      const result = failedJob.get('result');
-      expect(result?.message).toMatch(/pm\.workflow\.sql/);
     });
 
-    it('should allow admin executing SQL instruction', async () => {
-      const adminUser = await db.getRepository('users').findOne({
-        filter: { username: 'wf_admin' },
+    describe('via direct trigger (processor-level check)', () => {
+      it('should deny member executing SQL instruction (fail-closed)', async () => {
+        const memberUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_member' },
+        });
+
+        // Create a sync workflow with SQL node
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'member-executed')`,
+          },
+        });
+
+        // Get the plugin instance
+        const plugin = app.pm.get('workflow') as WorkflowPlugin;
+
+        // Trigger with member's httpContext (simulating API trigger with member role)
+        const memberCtx = {
+          state: { currentRole: 'member', currentUser: memberUser },
+          app: app,
+        };
+        const execution = await triggerWorkflowAndGetExecution(
+          plugin,
+          workflow,
+          { data: {}, user: memberUser },
+          { httpContext: memberCtx },
+          db,
+        );
+
+        expect(execution).toBeDefined();
+
+        // SQL should NOT have executed - marker table should be empty
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE}`);
+        expect(markers).toHaveLength(0);
+
+        // Execution should show error status (EXECUTION_STATUS.ERROR = -2)
+        expect(execution.get('status')).toBe(EXECUTION_STATUS.ERROR);
+
+        // The job should contain a permission error message
+        const jobs = await db.getRepository('jobs').find({
+          filter: { executionId: execution.id },
+        });
+        expect(jobs.length).toBeGreaterThan(0);
+        const failedJob = jobs.find((j) => j.get('status') === JOB_STATUS.ERROR);
+        expect(failedJob).toBeDefined();
+        const result = failedJob.get('result');
+        expect(result?.message).toMatch(/pm\.workflow\.sql/);
       });
 
-      // Create a sync workflow with SQL node
-      const workflow = await WorkflowModel.create({
-        enabled: false,
-        sync: true,
-        type: 'collection',
-        config: { collection: 'posts', mode: 1 },
-      });
-      await workflow.createNode({
-        type: 'sql',
-        config: {
-          sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'admin-executed')`,
-        },
-      });
+      it('should allow admin executing SQL instruction', async () => {
+        const adminUser = await db.getRepository('users').findOne({
+          filter: { username: 'wf_admin' },
+        });
 
-      // Get the plugin instance
-      const plugin = app.pm.get('workflow') as WorkflowPlugin;
+        // Create a sync workflow with SQL node
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'admin-executed')`,
+          },
+        });
 
-      // Trigger with admin's httpContext
-      const adminCtx = {
-        state: { currentRole: 'admin', currentUser: adminUser },
-        app: app,
-      };
-      const execution = await triggerWorkflowAndGetExecution(
-        plugin,
-        workflow,
-        { data: {}, user: adminUser },
-        { httpContext: adminCtx },
-        db,
-      );
+        // Get the plugin instance
+        const plugin = app.pm.get('workflow') as WorkflowPlugin;
 
-      expect(execution).toBeDefined();
+        // Trigger with admin's httpContext
+        const adminCtx = {
+          state: { currentRole: 'admin', currentUser: adminUser },
+          app: app,
+        };
+        const execution = await triggerWorkflowAndGetExecution(
+          plugin,
+          workflow,
+          { data: {}, user: adminUser },
+          { httpContext: adminCtx },
+          db,
+        );
 
-      // SQL SHOULD have executed - marker should exist
-      const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
-      expect(markers).toHaveLength(1);
-      expect((markers[0] as any).label).toBe('admin-executed');
+        expect(execution).toBeDefined();
 
-      // Execution should show resolved status
-      expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
-    });
+        // SQL SHOULD have executed - marker should exist
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+        expect(markers).toHaveLength(1);
+        expect((markers[0] as any).label).toBe('admin-executed');
 
-    it('should allow SQL execution without httpContext (internal trigger)', async () => {
-      // Internal triggers (collection events, schedule, etc.) don't have httpContext
-      // They should be allowed since the SQL node was already permission-gated at creation
-
-      // Create a sync workflow with SQL node
-      const workflow = await WorkflowModel.create({
-        enabled: false,
-        sync: true,
-        type: 'collection',
-        config: { collection: 'posts', mode: 1 },
-      });
-      await workflow.createNode({
-        type: 'sql',
-        config: {
-          sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'internal-trigger')`,
-        },
+        // Execution should show resolved status
+        expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
       });
 
-      // Get the plugin instance
-      const plugin = app.pm.get('workflow') as WorkflowPlugin;
+      it('should allow SQL execution without httpContext (internal trigger)', async () => {
+        // Internal triggers (collection events, schedule, etc.) don't have httpContext.
+        // They are allowed because the SQL node was already permission-gated at creation.
 
-      // Trigger WITHOUT httpContext (simulating internal trigger like collection event)
-      const execution = await triggerWorkflowAndGetExecution(plugin, workflow, { data: {} }, {}, db);
+        // Create a sync workflow with SQL node
+        const workflow = await WorkflowModel.create({
+          enabled: false,
+          sync: true,
+          type: 'collection',
+          config: { collection: 'posts', mode: 1 },
+        });
+        await workflow.createNode({
+          type: 'sql',
+          config: {
+            sql: `INSERT INTO ${MARKER_TABLE} (id, label) VALUES (1, 'internal-trigger')`,
+          },
+        });
 
-      expect(execution).toBeDefined();
+        // Get the plugin instance
+        const plugin = app.pm.get('workflow') as WorkflowPlugin;
 
-      // SQL should have executed (internal triggers are trusted)
-      const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
-      expect(markers).toHaveLength(1);
-      expect((markers[0] as any).label).toBe('internal-trigger');
+        // Trigger WITHOUT httpContext (simulating internal trigger like collection event)
+        const execution = await triggerWorkflowAndGetExecution(plugin, workflow, { data: {} }, {}, db);
 
-      expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(execution).toBeDefined();
+
+        // SQL should have executed (internal triggers are trusted)
+        const [markers] = await db.sequelize.query(`SELECT * FROM ${MARKER_TABLE} WHERE id = 1`);
+        expect(markers).toHaveLength(1);
+        expect((markers[0] as any).label).toBe('internal-trigger');
+
+        expect(execution.get('status')).toBe(EXECUTION_STATUS.RESOLVED);
+      });
     });
   });
 });

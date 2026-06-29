@@ -21,12 +21,13 @@ import { getRemoteCodeFetcher } from '../utils/get-remote-code-fetcher';
  * The canonical runtime check lives in utils/sql-permission.ts (checkSqlExecutionPermission).
  * This API-level guard mirrors the same logic with HTTP-specific error handling.
  */
-function assertSqlNodePermission(ctx: Context, nodeType: string) {
+export function assertSqlNodePermission(ctx: Context, nodeType: string) {
   if (nodeType !== 'sql') {
     return;
   }
   const roleName = ctx.state.currentRole;
   if (!roleName) {
+    ctx.throw(403, 'SQL instruction nodes require a valid role');
     return;
   }
   if (roleName === 'root') {
@@ -35,6 +36,7 @@ function assertSqlNodePermission(ctx: Context, nodeType: string) {
   // Access ACL via dataSourceManager (app.acl is a shortcut for mainDataSource.acl)
   const acl = ctx.app?.acl || ctx.tego?.acl || ctx.app?.dataSourceManager?.dataSources?.get('main')?.acl;
   if (!acl) {
+    ctx.throw(403, 'SQL instruction nodes require the pm.workflow.sql permission');
     return;
   }
   const aclRole = acl.getRole(roleName);

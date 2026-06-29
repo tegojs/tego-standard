@@ -15,6 +15,7 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 import { Database, Plugin } from '@tego/server';
 
+import { assertSqlNodePermission } from '../../actions/nodes';
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
 import type WorkflowPlugin from '../../Plugin';
 import { triggerWorkflowAndGetExecution } from '../../utils';
@@ -221,6 +222,40 @@ describe('workflow > sql instruction permission boundary', () => {
   });
 
   describe('SQL node creation via API', () => {
+    describe('API guard fail-closed behavior', () => {
+      const createGuardContext = (overrides: any = {}) =>
+        ({
+          state: {},
+          app: {
+            acl: {
+              getRole: () => ({
+                effectiveSnippets: () => ({ allowed: ['pm.workflow.sql'] }),
+              }),
+            },
+          },
+          throw(status: number, message: string) {
+            throw Object.assign(new Error(message), { status });
+          },
+          ...overrides,
+        }) as any;
+
+      it('should deny SQL nodes when current role is missing', () => {
+        const ctx = createGuardContext();
+
+        expect(() => assertSqlNodePermission(ctx, 'sql')).toThrow(/valid role/);
+      });
+
+      it('should deny SQL nodes when ACL is unavailable', () => {
+        const ctx = createGuardContext({
+          state: { currentRole: 'admin' },
+          app: {},
+          tego: {},
+        });
+
+        expect(() => assertSqlNodePermission(ctx, 'sql')).toThrow(/pm\.workflow\.sql/);
+      });
+    });
+
     it('should deny member role creating SQL nodes (403)', async () => {
       const memberUser = await db.getRepository('users').findOne({
         filter: { username: 'wf_member' },

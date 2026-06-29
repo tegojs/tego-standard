@@ -85,6 +85,7 @@
   "Repeat limit": "Ограничение на повторы",
   "Repeat mode": "Режим повтора",
   "Retry": "Повторить",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Tenant isolation warning: SQL nodes execute raw SQL directly and do not automatically inject tenantId filters. Unlike query/update/delete nodes, SQL nodes bypass the repository layer and tenant resource guard. Manually include tenantId conditions in your SQL when accessing tenant-scoped data.",
   "Schedule event": "Событие по расписанию",
   "Seconds": "Секунды",
   "Show execution history": "Показать историю выполнения",

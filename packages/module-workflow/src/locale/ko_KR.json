@@ -194,6 +194,7 @@
   "Run multiple branch processes in parallel.": "여러 분기 프로세스를 병렬로 실행합니다.",
   "Running of some node was aborted by program flow.": "프로그램 플로우에 의해 일부 노드의 실행이 중단되었습니다.",
   "SQL action": "SQL 작업",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Tenant isolation warning: SQL nodes execute raw SQL directly and do not automatically inject tenantId filters. Unlike query/update/delete nodes, SQL nodes bypass the repository layer and tenant resource guard. Manually include tenantId conditions in your SQL when accessing tenant-scoped data.",
   "Save temporarily": "임시로 저장",
   "Schedule event": "일정 이벤트",
   "Scope variables": "범위 변수",

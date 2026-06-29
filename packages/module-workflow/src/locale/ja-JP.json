@@ -85,6 +85,7 @@
   "Repeat limit": "繰り返し回数",
   "Repeat mode": "繰り返しパターン",
   "Retry": "再試行",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Tenant isolation warning: SQL nodes execute raw SQL directly and do not automatically inject tenantId filters. Unlike query/update/delete nodes, SQL nodes bypass the repository layer and tenant resource guard. Manually include tenantId conditions in your SQL when accessing tenant-scoped data.",
   "Schedule event": "スケジュールイベント",
   "Seconds": "秒",
   "Show execution history": "実行履歴を表示",

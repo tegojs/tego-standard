@@ -166,16 +166,28 @@ function stableSerialize(value: any): string {
   return JSON.stringify(value);
 }
 
+const getDB = (ctx: Context, dataSource: string) => {
+  if (!dataSource) {
+    return;
+  }
+  const ds = ctx.tego?.dataSourceManager?.dataSources.get(dataSource);
+  return ds?.collectionManager.db;
+};
+
 function getChartCacheKey(ctx: Context, uid: string) {
   const tenantId = getCurrentTenantId(ctx);
   const currentUserId = ctx.state.currentUser?.id;
   const values = ctx.action.params.values as QueryParams;
-  const { dataSource, collection, measures, dimensions, orders, filter, limit, sql } = values;
-  const normalizedFilter = stripTenantFilter(filter);
+  const { dataSource, collection: collectionName, measures, dimensions, orders, filter, limit, sql } = values;
+  const db = getDB(ctx, dataSource) || ctx.db;
+  const collection = collectionName ? db?.getCollection?.(collectionName) : null;
+  const tenancyMode = collection?.options?.tenancy;
+  const isTenantCollection = tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited';
+  const normalizedFilter = isTenantCollection ? stripTenantFilter(filter) : filter;
   const timezone = ctx.get?.('x-timezone');
   const signature = stableSerialize({
     dataSource,
-    collection,
+    collection: collectionName,
     measures,
     dimensions,
     orders,
@@ -193,14 +205,6 @@ function getChartCacheKey(ctx: Context, uid: string) {
 
   return `${uid}:tenant:${tenantId}:query:${signature}`;
 }
-
-const getDB = (ctx: Context, dataSource: string) => {
-  if (!dataSource) {
-    return;
-  }
-  const ds = ctx.tego?.dataSourceManager?.dataSources.get(dataSource);
-  return ds?.collectionManager.db;
-};
 
 export const postProcess = async (ctx: Context, next: Next) => {
   const { data, fieldMap } = ctx.action.params.values as {

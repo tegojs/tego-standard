@@ -487,9 +487,15 @@ describe('query', () => {
       expect(query).toBeCalledTimes(1);
     });
 
-    it('should normalize tenantId in filter so malicious tenantId and clean filter share cache', async () => {
+    it('should normalize tenantId in filter for tenantScoped collection so malicious tenantId and clean filter share cache', async () => {
+      const tenantDb = {
+        getCollection: vi.fn().mockReturnValue({
+          options: { tenancy: 'tenantScoped' },
+        }),
+      };
       const cleanContext = {
         ...ctx,
+        db: tenantDb,
         state: {
           currentTenantId: 'tenant-a',
         },
@@ -501,7 +507,7 @@ describe('query', () => {
               },
               refresh: false,
               uid: key,
-              collection: 'orders',
+              collection: 'tenant_orders',
               dataSource: 'main',
               filter: {
                 status: 'published',
@@ -513,6 +519,7 @@ describe('query', () => {
       };
       const maliciousContext = {
         ...ctx,
+        db: tenantDb,
         state: {
           currentTenantId: 'tenant-a',
         },
@@ -524,7 +531,7 @@ describe('query', () => {
               },
               refresh: false,
               uid: key,
-              collection: 'orders',
+              collection: 'tenant_orders',
               dataSource: 'main',
               filter: {
                 status: 'published',
@@ -544,6 +551,66 @@ describe('query', () => {
       await compose([cacheMiddleware, query])(maliciousContext, async () => {});
       expect(query).not.toBeCalled();
       expect(maliciousContext.body).toEqual(value);
+    });
+
+    it('should NOT strip tenantId from cache key for shared/non-tenant collection', async () => {
+      const sharedDb = {
+        getCollection: vi.fn().mockReturnValue({
+          options: {},
+        }),
+      };
+      const firstContext = {
+        ...ctx,
+        db: sharedDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'shared_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-a',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        db: sharedDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'shared_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
     });
 
     it('should still isolate cache by different business filter', async () => {

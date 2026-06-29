@@ -5,6 +5,8 @@ import { defineTegoVitestConfig } from '@tachybase/test/vitest';
 
 import type { Plugin } from 'vite';
 
+import { shouldSuppressVitestConsoleOutput } from './vitest.console-filter';
+
 const sourceMappingURLRE = /(?:\r?\n)?\/\/# sourceMappingURL=[^\r\n]*(?:\r?\n)?$/;
 const reactZoomPanPinchDistFile = 'react-zoom-pan-pinch/dist/index.esm.js';
 
@@ -65,6 +67,17 @@ const config = defineTegoVitestConfig({
     setupFile: clientSetupFile,
   },
 });
+
+function withConsoleOutputFilter(existing?: (log: string, type: 'stdout' | 'stderr') => boolean | void) {
+  return (log: string, type: 'stdout' | 'stderr') => {
+    if (shouldSuppressVitestConsoleOutput(log, type)) {
+      return false;
+    }
+    return existing?.(log, type);
+  };
+}
+
+config.test.onConsoleLog = withConsoleOutputFilter(config.test.onConsoleLog);
 
 const workspaceServerAliases = [
   ['@tachybase/module-acl', 'module-acl'],
@@ -154,6 +167,7 @@ const projectAliases = [
 config.test.alias = [...projectAliases, ...(config.test.alias || [])];
 for (const project of config.test.projects || []) {
   project.test.alias = [...projectAliases, ...(project.test.alias || [])];
+  project.test.onConsoleLog = withConsoleOutputFilter(project.test.onConsoleLog);
   if (project.test.name === 'server') {
     // @tachybase/test ESM entry (es/index.mjs) uses createRequire which fails in vitest ESM context.
     // Force CJS entry for server tests.

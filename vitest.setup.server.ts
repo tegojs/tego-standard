@@ -2,6 +2,10 @@ import path from 'node:path';
 import { patchCjsResolverForTestRuntime, setupServerTestEnvironment } from '@tachybase/test/setup-server';
 import { initEnv } from '@tego/devkit';
 
+import { installVitestConsoleOutputFilter } from './vitest.console-filter';
+
+installVitestConsoleOutputFilter();
+
 // Patch CJS resolver to keep @tego/server and @tego/core on the same runtime
 // instance used by @tachybase/test (prevents dual-instance bugs in workspace
 // dist files that bypass Vitest aliases).

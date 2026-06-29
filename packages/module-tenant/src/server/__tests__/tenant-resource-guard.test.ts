@@ -431,4 +431,53 @@ describe('tenant resource guard', () => {
     expect(response.status).toBe(403);
     expect(response.body.errors?.[0]?.message || response.body.error?.message).toContain('Tenant context is required');
   });
+
+  it('should reject forged / unsigned Bearer tokens for tenant-scoped resources', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    const victim = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_guard_victim',
+        email: 'tenant-guard-victim@example.com',
+        phone: '10000000009',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_forged_token_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    // Forge a JWT: valid-looking header+payload but signed with the wrong key
+    const forgedHeader = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const forgedPayload = Buffer.from(JSON.stringify({ userId: victim.get('id') })).toString('base64url');
+    const forgedToken = `${forgedHeader}.${forgedPayload}.forgesig`;
+
+    const response = await app
+      .agent()
+      .set('Authorization', `Bearer ${forgedToken}`)
+      .set('X-Authenticator', 'basic')
+      .resource('tenant_forged_token_posts')
+      .list({});
+
+    // Auth middleware must reject the forged token – never reach tenant guard
+    expect(response.status).toBe(401);
+  });
 });

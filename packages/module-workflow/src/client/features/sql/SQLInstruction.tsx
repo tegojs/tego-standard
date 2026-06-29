@@ -13,6 +13,7 @@ import { Instruction } from '../../nodes/default-node/interface';
  *   bypasses the repository layer and tenant resource guard entirely.
  * - Workflow users must manually include tenant conditions (e.g. `WHERE tenantId = ...`)
  *   in their SQL when accessing tenant-scoped data.
+ * - When module-tenant is enabled, its client plugin injects the corresponding UI warning.
  */
 export default class extends Instruction {
   title = `{{t("SQL action", { ns: "${NAMESPACE}" })}}`;
@@ -41,7 +42,6 @@ export default class extends Instruction {
       type: 'string',
       required: true,
       title: 'SQL',
-      description: `{{t("SQL_NODE_TENANT_ISOLATION_WARNING", { ns: "${NAMESPACE}" })}}`,
       'x-decorator': 'FormItem',
       'x-component': 'WorkflowVariableRawTextArea',
       'x-component-props': {

@@ -13,6 +13,7 @@ import { getConfigurableProperties } from './properties';
  *   this resource. No explicit `acl.deny` is needed, but admins should be aware that
  *   view collections bypass the tenant resource guard entirely.
  * - The underlying database view itself is responsible for any row-level security.
+ * - When module-tenant is enabled, its client plugin injects the corresponding UI warning.
  */
 export class ViewCollectionTemplate extends CollectionTemplate {
   name = 'view';
@@ -40,7 +41,6 @@ export class ViewCollectionTemplate extends CollectionTemplate {
       'x-component': 'Select',
       'x-reactions': ['{{useAsyncDataSource(loadDBViews)}}'],
       'x-disabled': '{{ !createOnly }}',
-      description: '{{t("VIEW_COLLECTION_TENANT_ISOLATION_WARNING")}}',
     },
     name: {
       type: 'string',

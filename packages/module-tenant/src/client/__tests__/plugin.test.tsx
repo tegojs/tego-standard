@@ -4,6 +4,7 @@ import {
   CollectionTemplate,
   CurrentNavigationMenuProvider,
   i18n,
+  Plugin,
   useCurrentNavigationMenu,
 } from '@tachybase/client';
 import { render, waitFor } from '@tachybase/test/client';
@@ -38,11 +39,29 @@ class StubTreeTemplate extends CollectionTemplate {
 }
 class StubSqlTemplate extends CollectionTemplate {
   name = 'sql';
-  configurableProperties = {} as any;
+  configurableProperties = {
+    config: {
+      properties: {
+        sql: {},
+      },
+    },
+  } as any;
 }
 class StubViewTemplate extends CollectionTemplate {
   name = 'view';
-  configurableProperties = {} as any;
+  configurableProperties = {
+    databaseView: {},
+  } as any;
+}
+class StubWorkflowPlugin extends Plugin {
+  sqlInstruction = {
+    fieldset: {
+      sql: {},
+    },
+  };
+  instructions = {
+    get: (type: string) => (type === 'sql' ? this.sqlInstruction : undefined),
+  };
 }
 
 function createAppWithTemplates() {
@@ -251,6 +270,34 @@ describe('PluginTenantClient', () => {
       expect(tpl.configurableProperties.tenancy).toBeUndefined();
       expect(tpl.configurableProperties.legacyDataTenantIds).toBeUndefined();
     }
+  });
+
+  it('should inject tenant warnings into SQL and view templates on load', async () => {
+    const app = createAppWithTemplates();
+
+    await app.load();
+
+    const ctm = app.dataSourceManager.collectionTemplateManager;
+    expect(ctm.getCollectionTemplate('sql').configurableProperties.config.properties.sql.description).toContain(
+      'SQL_COLLECTION_TENANT_ISOLATION_WARNING',
+    );
+    expect(ctm.getCollectionTemplate('view').configurableProperties.databaseView.description).toContain(
+      'VIEW_COLLECTION_TENANT_ISOLATION_WARNING',
+    );
+  });
+
+  it('should inject tenant warning into workflow SQL instruction when workflow is enabled', async () => {
+    const app = new Application({
+      plugins: [
+        [StubWorkflowPlugin, { name: 'workflow' }],
+        [PluginTenantClient, { name: 'tenant' }],
+      ],
+    });
+
+    await app.load();
+
+    const workflow = app.pm.get('workflow') as StubWorkflowPlugin;
+    expect(workflow.sqlInstruction.fieldset.sql.description).toContain('SQL_NODE_TENANT_ISOLATION_WARNING');
   });
 
   it('should sync tenant editor values when initial record changes', async () => {

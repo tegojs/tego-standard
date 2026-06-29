@@ -16,6 +16,7 @@ import { getConfigurableProperties } from './properties';
  *   SQL collections bypass the tenant resource guard entirely.
  * - Users who need tenant-scoped data access should use general collections with proper
  *   tenancy configuration instead of raw SQL.
+ * - When module-tenant is enabled, its client plugin injects the corresponding UI warning.
  */
 export class SqlCollectionTemplate extends CollectionTemplate {
   name = 'sql';
@@ -54,7 +55,6 @@ export class SqlCollectionTemplate extends CollectionTemplate {
           'x-decorator': 'FormItem',
           'x-component': SQLInput,
           required: true,
-          description: '{{t("SQL_COLLECTION_TENANT_ISOLATION_WARNING")}}',
           'x-validator': (value: string, rules, { form }) => {
             const field = form.query('sql').take() as Field;
             if (!field.componentProps.disabled) {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useAPIClient, useCurrentUserContext, useRequest } from '@tachybase/client';
 
 type AvailableTenantItem = {
@@ -36,7 +36,11 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     },
   );
 
-  const value = currentUserId ? result : ({ data: { data: [] }, loading: false } as typeof result);
+  const noUserFallback: ReturnType<typeof useRequest<AvailableTenantsResult>> = useMemo(
+    () => ({ data: { data: [] }, loading: false }) as any,
+    [],
+  );
+  const value = currentUserId ? result : noUserFallback;
 
   useEffect(() => {
     // Guard: only act after the API response has actually arrived.
@@ -56,7 +60,7 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     if (currentTenant?.id) {
       api.storage?.setItem?.('current_tenant_id', currentTenant.id);
     }
-  }, [api.storage, currentUserId, value?.data?.data]);
+  }, [api.storage, currentUserId, value?.data, value?.data?.data]);
 
   return <CurrentTenantContext.Provider value={value}>{children}</CurrentTenantContext.Provider>;
 };

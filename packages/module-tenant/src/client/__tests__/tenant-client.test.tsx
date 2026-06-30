@@ -11,12 +11,16 @@ import React from 'react';
 import { APIClientProvider, Application, mockAPIClient } from '@tachybase/client';
 import { act, render, waitFor } from '@tachybase/test/client';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import PluginTenantClient from '..';
 import CurrentTenantProvider from '../CurrentTenantProvider';
 
 const { apiClient, mockRequest } = mockAPIClient();
+
+afterEach(() => {
+  mockRequest.reset();
+});
 
 const CURRENT_USER_ID = 1;
 

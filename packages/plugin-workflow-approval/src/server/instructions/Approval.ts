@@ -186,9 +186,7 @@ export default class ApprovalInstruction extends Instruction {
         },
         transaction: processor.transaction,
       });
-    } catch (error) {
-      console.log('%c Line:269 🥛 error', error);
-    }
+    } catch {}
     /** 以上为更新 snapshot 逻辑 */
     return job;
   }

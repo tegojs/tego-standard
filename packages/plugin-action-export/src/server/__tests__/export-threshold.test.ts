@@ -1,5 +1,9 @@
+import { createMockServer, waitSecond, type MockServer } from '@tachybase/test';
+import Database from '@tego/server';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createTenantApp } from '../../../../module-tenant/src/server/__tests__/utils';
 import { exportXlsx } from '../actions/export-xlsx';
 import { BULK_EXPORT_THRESHOLD, EXPORT_LENGTH_MAX } from '../constants';
 
@@ -256,5 +260,126 @@ describe('exportXlsx – bulk export alert via real action handler', () => {
 
     // Koa-like object must NOT have been called (it has no emit)
     expect((koaLike as any).emit).toBeUndefined();
+  });
+});
+
+// ── Integration: export action → audit-logs persistence ─────────────────
+describe('exportXlsx – tenant bulk export audit log persistence (integration)', () => {
+  let app: MockServer;
+
+  afterEach(async () => {
+    await app.destroy();
+  });
+
+  async function waitForAuditLog(db: any, filter: Record<string, any>, timeoutMs = 5000): Promise<any | null> {
+    const repo = db.getRepository('auditLogs');
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const log = await repo.findOne({ filter });
+      if (log) return log;
+      await waitSecond(100);
+    }
+    return null;
+  }
+
+  async function countAuditLogs(db: any, filter: Record<string, any>): Promise<number> {
+    const repo = db.getRepository('auditLogs');
+    const logs = await repo.find({ filter });
+    return logs.length;
+  }
+
+  it('should write exactly 1 tenant_bulk_export_alert to auditLogs when export exceeds threshold', async () => {
+    // 1. Create app with tenant + audit-logs capabilities
+    app = await createTenantApp({ extraPlugins: ['audit-logs'] });
+
+    // Register the export action handler (ExportPlugin is not in extraPlugins
+    // but we need its action handler for the agent request to work)
+    app.resourcer.registerActionHandler('export', exportXlsx);
+
+    // 2. Create tenant-a
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    // 3. Create a user bound to tenant-a with export permission
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'export_audit_user',
+        email: 'export-audit-user@example.com',
+        phone: '10000000090',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    // Grant 'export' action to admin role
+    await app.db.getRepository('roles').update({
+      filterByTk: 'admin',
+      values: {
+        strategy: {
+          actions: ['create', 'view', 'update', 'destroy', 'list', 'get', 'count', 'export'],
+        },
+      },
+    });
+
+    // 4. Create a tenantScoped collection with one field
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'export_audit_posts',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'title', interface: 'input' }],
+      },
+      context: {},
+    });
+
+    // Insert one row (we mock count to exceed threshold, so minimal data is fine)
+    await app.db.getRepository('export_audit_posts').create({
+      values: { title: 'test row', tenantId: 'tenant-a' },
+      context: {},
+    });
+
+    // 5. Mock repository.count to return a value above the threshold
+    //    so the security event fires without inserting 1000+ rows
+    const repo = app.db.getRepository('export_audit_posts');
+    vi.spyOn(repo, 'count').mockResolvedValue(BULK_EXPORT_THRESHOLD + 100);
+
+    // 6. Trigger the export action via agent (full Koa middleware chain)
+    const response = await app
+      .agent()
+      .login(user)
+      .set('X-Tenant-Id', 'tenant-a')
+      .resource('export_audit_posts')
+      .export({
+        columns: [{ dataIndex: ['title'], title: 'Title' }],
+        title: 'Audit Test Export',
+      });
+
+    // Export may succeed or fail (render can be flaky with mocks), but the
+    // security event fires before the render step, so the audit log must exist.
+    expect(response.status).toBeLessThanOrEqual(499);
+
+    // 7. Query auditLogs for tenant_bulk_export_alert
+    const auditLog = await waitForAuditLog(app.db, { type: 'tenant_bulk_export_alert' });
+    expect(auditLog).not.toBeNull();
+
+    const userId = user.get('id');
+    expect(auditLog.get('type')).toBe('tenant_bulk_export_alert');
+    expect(auditLog.get('tenantId')).toBe('tenant-a');
+    expect(auditLog.get('actorUserId')).toBe(String(userId));
+    expect(auditLog.get('collectionName')).toBe('export_audit_posts');
+    expect(auditLog.get('isTenantImpersonation')).toBe(false);
+    expect(auditLog.get('impersonatedTenantId')).toBeNull();
+
+    const details = auditLog.get('details');
+    expect(details).toBeDefined();
+    expect(details).not.toBeNull();
+    expect(details.rowCount).toBe(BULK_EXPORT_THRESHOLD + 100);
+    expect(details.threshold).toBe(BULK_EXPORT_THRESHOLD);
+
+    // Exactly 1 audit log — no duplicate writes
+    const count = await countAuditLogs(app.db, { type: 'tenant_bulk_export_alert' });
+    expect(count).toBe(1);
   });
 });

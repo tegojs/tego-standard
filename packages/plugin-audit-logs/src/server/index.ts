@@ -23,6 +23,25 @@ export default class PluginActionLogs extends Plugin {
     if (isMainThread) {
       this.addAuditListener();
     }
+
+    // Flush pending audit logs before the DB connection is destroyed.
+    // The debounce timer may fire after app.destroy() closes the DB,
+    // causing an unhandled rejection from Sequelize.
+    this.app.on('beforeDestroy', async () => {
+      if (this.logsTimer) {
+        clearTimeout(this.logsTimer);
+        this.logsTimer = null;
+      }
+      if (this.logsBuffer.length > 0) {
+        const pending = [...this.logsBuffer];
+        this.logsBuffer = [];
+        try {
+          await this.workerCreateAuditLog(pending);
+        } catch {
+          // Best-effort flush — must not block app shutdown
+        }
+      }
+    });
   }
 
   async addAuditListener() {

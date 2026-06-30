@@ -13,6 +13,12 @@ async function waitForAuditLog(db: any, filter: Record<string, any>, timeoutMs =
   return null;
 }
 
+async function countAuditLogs(db: any, filter: Record<string, any>): Promise<number> {
+  const repo = db.getRepository('auditLogs');
+  const logs = await repo.find({ filter });
+  return logs.length;
+}
+
 describe('setCurrentTenant middleware', () => {
   let app: MockServer;
 
@@ -478,5 +484,9 @@ describe('setCurrentTenant middleware', () => {
     expect(details).not.toBeNull();
     // The forged tenant ID must be in details for forensic investigation
     expect(details.requestedTenantId).toBe('tenant-forbidden');
+
+    // Exactly 1 audit log — no duplicate writes from multiple listeners
+    const count = await countAuditLogs(app.db, { type: 'tenant_cross_tenant_attempt' });
+    expect(count).toBe(1);
   });
 });

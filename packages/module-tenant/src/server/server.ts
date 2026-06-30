@@ -49,22 +49,13 @@ export class PluginTenantServer extends Plugin {
     this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
     this.app.i18n.addResources('en-US', NAMESPACE, enUS);
 
-    // Make the Application (EventEmitter) accessible from middleware context.
-    // ctx.app inside Koa middleware resolves to the internal Koa instance by
-    // default.  Security-violation events emitted via ctx.app.emit() therefore
-    // miss listeners registered on the Application.  By overriding the context
-    // property, ctx.app now points to the Application, which is the same
-    // EventEmitter used by plugin-audit-logs' security event listener.
-    //
-    // Koa's createContext does: ctx.app = this (Koa instance) as an OWN property,
-    // which shadows prototype properties.  So we must also bridge events on the
-    // Koa instance directly.
-    const koaInstance = this.app._koa;
-    if (koaInstance && typeof koaInstance.on === 'function') {
-      const forwardToApp = (event: any) => {
-        this.app.emit('tenant.securityViolation', event);
-      };
-      koaInstance.on('tenant.securityViolation', forwardToApp);
+    // Expose the Application instance to middleware via ctx.app.__application.
+    // ctx.app in Koa middleware resolves to the Koa instance (not the
+    // Application).  Security event listeners registered by plugin-audit-logs
+    // live on the Application's EventEmitter.  By storing a back-reference,
+    // setCurrentTenant can emit on both emitters without a global forwarder.
+    if (this.app._koa) {
+      this.app._koa.__application = this.app;
     }
 
     this.app.resourcer.registerActionHandler('tenants:available', availableTenants);
@@ -106,7 +97,9 @@ export class PluginTenantServer extends Plugin {
         }
 
         if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
-          ctx.app.emit('tenant.securityViolation', {
+          const app = (ctx.app as any).__application;
+          const emitter = app && typeof app.emit === 'function' ? app : ctx.app;
+          emitter.emit('tenant.securityViolation', {
             type: 'tenant_access_denied',
             userId: ctx.state.currentUser?.id,
             collectionName,
@@ -297,18 +290,6 @@ export class PluginTenantServer extends Plugin {
         throw new Error('Cannot delete tenant with children. Remove or reassign children first.');
       }
     });
-  }
-
-  async load() {
-    // Re-apply bridge after potential _koa recreation.
-    // See comment in beforeLoad() for rationale.
-    const koaInstance = this.app._koa;
-    if (koaInstance && typeof koaInstance.on === 'function') {
-      const forwardToApp = (event: any) => {
-        this.app.emit('tenant.securityViolation', event);
-      };
-      koaInstance.on('tenant.securityViolation', forwardToApp);
-    }
   }
 
   async install(options) {

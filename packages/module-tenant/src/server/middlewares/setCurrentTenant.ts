@@ -3,6 +3,23 @@ import type { Context, Next } from '@tego/server';
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 import { getDescendantIds } from '../helpers/tenant-tree';
 
+/**
+ * Emit a security violation event on the Application EventEmitter.
+ *
+ * ctx.app inside Koa middleware is the Koa instance, but plugin-audit-logs
+ * registers its security listener on the Application instance.  The tenant
+ * plugin stores a back-reference (ctx.app.__application) so we can reach it.
+ */
+function emitSecurityViolation(ctx: Context, event: Record<string, any>) {
+  const app = (ctx.app as any).__application;
+  if (app && typeof app.emit === 'function') {
+    app.emit('tenant.securityViolation', event);
+  } else {
+    // Fallback: emit on ctx.app (Koa) in case __application is not set
+    ctx.app.emit('tenant.securityViolation', event);
+  }
+}
+
 function shouldFallbackForTenantBootstrap(ctx: Context) {
   return ctx.action?.resourceName === 'tenants' && ['available', 'current', 'switch'].includes(ctx.action?.actionName);
 }
@@ -87,7 +104,7 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
     // Resolve the user's actual tenant so the audit log is queryable
     // by the user's current tenant context (not the forged value).
     const actualTenantId = await resolveDefaultTenantId(ctx, allowedTenantIds);
-    ctx.app.emit('tenant.securityViolation', {
+    emitSecurityViolation(ctx, {
       type: 'tenant_cross_tenant_attempt',
       userId: ctx.state.currentUser?.id,
       tenantId: actualTenantId ?? null,
@@ -117,7 +134,7 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
   ctx.state.isTenantImpersonation = isImpersonatingTenant;
 
   if (isImpersonatingTenant) {
-    ctx.app.emit('tenant.securityViolation', {
+    emitSecurityViolation(ctx, {
       type: 'tenant_impersonation',
       userId: ctx.state.currentUser?.id,
       actorUserId: ctx.state.currentUser?.id,

@@ -84,10 +84,13 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
     !!currentTenantId && !allowedTenantIds.includes(currentTenantId) && canImpersonateTenant;
 
   if (!isImpersonatingTenant && !allowedTenantIds.includes(currentTenantId)) {
+    // Resolve the user's actual tenant so the audit log is queryable
+    // by the user's current tenant context (not the forged value).
+    const actualTenantId = await resolveDefaultTenantId(ctx, allowedTenantIds);
     ctx.app.emit('tenant.securityViolation', {
       type: 'tenant_cross_tenant_attempt',
       userId: ctx.state.currentUser?.id,
-      tenantId: requestedTenantId,
+      tenantId: actualTenantId ?? null,
       action: ctx.action?.actionName,
       collectionName: ctx.action?.resourceName,
       details: { allowedTenantIds, requestedTenantId },

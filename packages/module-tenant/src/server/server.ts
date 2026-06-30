@@ -49,6 +49,24 @@ export class PluginTenantServer extends Plugin {
     this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
     this.app.i18n.addResources('en-US', NAMESPACE, enUS);
 
+    // Make the Application (EventEmitter) accessible from middleware context.
+    // ctx.app inside Koa middleware resolves to the internal Koa instance by
+    // default.  Security-violation events emitted via ctx.app.emit() therefore
+    // miss listeners registered on the Application.  By overriding the context
+    // property, ctx.app now points to the Application, which is the same
+    // EventEmitter used by plugin-audit-logs' security event listener.
+    //
+    // Koa's createContext does: ctx.app = this (Koa instance) as an OWN property,
+    // which shadows prototype properties.  So we must also bridge events on the
+    // Koa instance directly.
+    const koaInstance = this.app._koa;
+    if (koaInstance && typeof koaInstance.on === 'function') {
+      const forwardToApp = (event: any) => {
+        this.app.emit('tenant.securityViolation', event);
+      };
+      koaInstance.on('tenant.securityViolation', forwardToApp);
+    }
+
     this.app.resourcer.registerActionHandler('tenants:available', availableTenants);
     this.app.resourcer.registerActionHandler('tenants:current', currentTenant);
     this.app.resourcer.registerActionHandler('tenants:switch', switchTenant);
@@ -279,6 +297,18 @@ export class PluginTenantServer extends Plugin {
         throw new Error('Cannot delete tenant with children. Remove or reassign children first.');
       }
     });
+  }
+
+  async load() {
+    // Re-apply bridge after potential _koa recreation.
+    // See comment in beforeLoad() for rationale.
+    const koaInstance = this.app._koa;
+    if (koaInstance && typeof koaInstance.on === 'function') {
+      const forwardToApp = (event: any) => {
+        this.app.emit('tenant.securityViolation', event);
+      };
+      koaInstance.on('tenant.securityViolation', forwardToApp);
+    }
   }
 
   async install(options) {

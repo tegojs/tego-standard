@@ -2,6 +2,17 @@ import { waitSecond, type MockServer } from '@tachybase/test';
 
 import { createTenantApp } from './utils';
 
+async function waitForAuditLog(db: any, filter: Record<string, any>, timeoutMs = 5000): Promise<any | null> {
+  const repo = db.getRepository('auditLogs');
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const log = await repo.findOne({ filter });
+    if (log) return log;
+    await waitSecond(100);
+  }
+  return null;
+}
+
 describe('setCurrentTenant middleware', () => {
   let app: MockServer;
 
@@ -395,5 +406,77 @@ describe('setCurrentTenant middleware', () => {
       enabled: true,
       current: true,
     });
+  });
+
+  it('should emit tenant_cross_tenant_attempt audit log when forging x-tenant-id on tenant-scoped resource', async () => {
+    app = await createTenantApp({ extraPlugins: ['audit-logs'] });
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'audit_cross_tenant_user',
+        email: 'audit-cross-tenant-user@example.com',
+        phone: '10000000020',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('roles').update({
+      filterByTk: 'admin',
+      values: {
+        strategy: {
+          actions: ['create', 'view', 'update', 'destroy', 'list', 'get', 'count'],
+        },
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'audit_cross_tenant_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .set('X-Tenant-Id', 'tenant-forbidden')
+      .resource('audit_cross_tenant_posts')
+      .list({});
+
+    expect(response.status).toBe(403);
+
+    const auditLog = await waitForAuditLog(app.db, {
+      type: 'tenant_cross_tenant_attempt',
+    });
+
+    expect(auditLog).not.toBeNull();
+    expect(auditLog.get('type')).toBe('tenant_cross_tenant_attempt');
+    // tenantId must be the user's actual tenant (queryable), not the forged one
+    expect(auditLog.get('tenantId')).toBe('tenant-a');
+    expect(auditLog.get('actorUserId')).toBe(`${user.get('id')}`);
+    expect(auditLog.get('userId')).toBe(user.get('id'));
+
+    const details = auditLog.get('details');
+    expect(details).toBeDefined();
+    expect(details).not.toBeNull();
+    // The forged tenant ID must be in details for forensic investigation
+    expect(details.requestedTenantId).toBe('tenant-forbidden');
   });
 });

@@ -209,6 +209,92 @@ describe('tenant tree structure', () => {
     expect(deep.get('path')).toBe('/sub/deep/');
   });
 
+  describe('create response path correctness', () => {
+    it('should return correct path when creating root tenant without explicit id', async () => {
+      app = await createTenantApp();
+
+      const tenant = await app.db.getRepository('tenants').create({
+        values: {
+          name: 'auto-id-root',
+          title: 'Auto ID Root',
+        },
+      });
+
+      const id = tenant.get('id') as string;
+      const path = tenant.get('path') as string;
+
+      expect(id).toBeTruthy();
+      expect(path).toBeTruthy();
+      expect(path).not.toContain('null');
+      expect(path).not.toContain('undefined');
+      expect(path).toBe(`/${id}/`);
+    });
+
+    it('should return correct path when creating child tenant without explicit id', async () => {
+      app = await createTenantApp();
+
+      const parent = await app.db.getRepository('tenants').create({
+        values: {
+          id: 'parent-1',
+          name: 'parent-1',
+          title: 'Parent 1',
+        },
+      });
+
+      const child = await app.db.getRepository('tenants').create({
+        values: {
+          name: 'auto-id-child',
+          title: 'Auto ID Child',
+          parentId: 'parent-1',
+        },
+      });
+
+      const childId = child.get('id') as string;
+      const childPath = child.get('path') as string;
+
+      expect(childId).toBeTruthy();
+      expect(childPath).toBeTruthy();
+      expect(childPath).not.toContain('null');
+      expect(childPath).not.toContain('undefined');
+      expect(childPath).toBe(`/parent-1/${childId}/`);
+      expect(parent.get('path')).toBe('/parent-1/');
+    });
+
+    it('should return correct path for both parent and child when neither has explicit id', async () => {
+      app = await createTenantApp();
+
+      const parent = await app.db.getRepository('tenants').create({
+        values: {
+          name: 'auto-parent',
+          title: 'Auto Parent',
+        },
+      });
+
+      const parentId = parent.get('id') as string;
+      const parentPath = parent.get('path') as string;
+
+      expect(parentId).toBeTruthy();
+      expect(parentPath).toBe(`/${parentId}/`);
+      expect(parentPath).not.toContain('null');
+
+      const child = await app.db.getRepository('tenants').create({
+        values: {
+          name: 'auto-child',
+          title: 'Auto Child',
+          parentId,
+        },
+      });
+
+      const childId = child.get('id') as string;
+      const childPath = child.get('path') as string;
+
+      expect(childId).toBeTruthy();
+      expect(childPath).toBe(`/${parentId}/${childId}/`);
+      expect(childPath).not.toContain('null');
+      expect(childPath).not.toContain('undefined');
+    });
+  });
+
   describe('data isolation with tenantInherited mode', () => {
     async function setupInheritedApp() {
       const application = await createTenantApp();

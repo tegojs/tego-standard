@@ -1,4 +1,4 @@
-import { Plugin } from '@tego/server';
+import { Plugin, uid } from '@tego/server';
 
 import { NAMESPACE } from '../constants';
 import availableTenants from './actions/available-tenants';
@@ -187,7 +187,14 @@ export class PluginTenantServer extends Plugin {
         parentPath = parent.get('path') as string;
       }
 
-      const id = model.get('id');
+      // Ensure id is available for path computation.
+      // The UidField beforeCreate listener may not have fired yet depending
+      // on hook registration order, so eagerly generate the id when missing.
+      let id = model.get('id');
+      if (!id) {
+        id = uid();
+        model.set('id', id);
+      }
       model.set('path', buildPath(parentPath, id));
     });
 

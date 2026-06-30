@@ -6,16 +6,23 @@
  * downloadXlsxTemplate must succeed, and the X-Tenant-Id header must be ignored
  * (no tenant middleware to parse it into ctx.state).
  */
+import { unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { createMockServer, MockServer } from '@tachybase/test';
 
+import xlsx from 'node-xlsx';
 import { describe, expect, it, vi } from 'vitest';
+
+import ImportPlugin from '..';
 
 describe('plugin-action-import – tenant module NOT loaded', () => {
   let app: MockServer;
 
   beforeAll(async () => {
     app = await createMockServer({
-      plugins: ['error-handler', 'data-source-manager', 'collection-manager'],
+      registerActions: true,
+      plugins: ['acl', 'error-handler', 'users', 'auth', 'data-source-manager', 'collection-manager', ImportPlugin],
+      acl: false,
     });
   });
 
@@ -53,6 +60,54 @@ describe('plugin-action-import – tenant module NOT loaded', () => {
     expect(ctx.state.currentTenantId).toBeUndefined();
     expect(ctx.state.currentTenant).toBeUndefined();
     expect(ctx.state.currentTenancyMode).toBeUndefined();
+  });
+
+  it('should import xlsx without trusting bare X-Tenant-Id as tenant context', async () => {
+    app.db.collection({
+      name: 'import_without_tenant_posts',
+      fields: [
+        { type: 'string', name: 'title' },
+        { type: 'string', name: 'tenantId' },
+      ],
+    });
+    await app.db.sync();
+
+    const workbook = xlsx.build([
+      {
+        name: 'Sheet 1',
+        data: [['Title'], ['Imported without tenant module']],
+      },
+    ]);
+    const filePath = path.join(process.env.TEGO_RUNTIME_HOME || process.cwd(), 'import-without-tenant.xlsx');
+    await writeFile(filePath, workbook);
+
+    let response;
+    try {
+      response = await app
+        .agent()
+        .set('X-Tenant-Id', 'rogue-tenant')
+        .post('/import_without_tenant_posts:importXlsx')
+        .attach('file', filePath)
+        .field(
+          'columns',
+          JSON.stringify([
+            {
+              dataIndex: ['title'],
+              defaultTitle: 'Title',
+            },
+          ]),
+        );
+    } finally {
+      await unlink(filePath).catch(() => undefined);
+    }
+
+    expect(response.status).toBe(200);
+    expect(response.body.meta.successCount).toBe(1);
+    expect(response.body.meta.failureCount).toBe(0);
+
+    const record = await app.db.getRepository('import_without_tenant_posts').findOne();
+    expect(record.get('title')).toBe('Imported without tenant module');
+    expect(record.get('tenantId') == null).toBe(true);
   });
 });
 

@@ -94,6 +94,20 @@ describe('tenant import', () => {
     const record = await app.db.getRepository('tenant_import_posts').findOne();
     expect(record.get('title')).toBe('Imported A1');
     expect(record.get('tenantId')).toBe('tenant-a');
+
+    const tenantAList = await app.agent().login(user).resource('tenant_import_posts').list({});
+    expect(tenantAList.status).toBe(200);
+    expect(tenantAList.body.data).toHaveLength(1);
+    expect(tenantAList.body.data[0].id).toBe(record.get('id'));
+
+    const tenantBList = await app
+      .agent()
+      .login(user)
+      .set('X-Tenant-Id', 'tenant-b')
+      .resource('tenant_import_posts')
+      .list({});
+    expect(tenantBList.status).toBe(200);
+    expect(tenantBList.body.data).toHaveLength(0);
   });
 
   it('should resolve imported relation values within the current tenant context', async () => {

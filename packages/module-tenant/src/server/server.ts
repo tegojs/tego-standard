@@ -54,8 +54,8 @@ export class PluginTenantServer extends Plugin {
     // Application).  Security event listeners registered by plugin-audit-logs
     // live on the Application's EventEmitter.  By storing a back-reference,
     // setCurrentTenant can emit on both emitters without a global forwarder.
-    if (this.app._koa) {
-      this.app._koa.__application = this.app;
+    if ((this.app as any)._koa) {
+      (this.app as any)._koa.__application = this.app;
     }
 
     this.app.resourcer.registerActionHandler('tenants:available', availableTenants);

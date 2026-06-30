@@ -38,7 +38,7 @@ class PluginTenantClient extends Plugin {
     }
 
     const sqlTemplate = ctm.getCollectionTemplate('sql');
-    const sqlField = sqlTemplate?.configurableProperties?.config?.properties?.sql;
+    const sqlField = (sqlTemplate?.configurableProperties as any)?.config?.properties?.sql;
     if (sqlField) {
       sqlField.description = SQL_COLLECTION_TENANT_WARNING;
     }

@@ -30,6 +30,27 @@ export function buildExportDownloadName(title: string, tenantId?: string) {
   return tenantId ? `${base}_${sanitizeExportSegment(tenantId)}` : base;
 }
 
+/**
+ * Resolve the Application EventEmitter from a Koa context.
+ *
+ * Inside Koa middleware ctx.app is the Koa instance, not the Application.
+ * module-tenant stores a back-reference (ctx.app.__application) so we can
+ * reach the Application's EventEmitter where plugin-audit-logs registers
+ * its security listener.
+ */
+function resolveApplicationEmitter(ctx: any): { emit: (event: string, payload: any) => void } {
+  const backRef = ctx.app?.__application;
+  if (backRef && typeof backRef.emit === 'function') {
+    return backRef;
+  }
+  return ctx.app;
+}
+
+export function emitSecurityViolation(ctx: any, event: Record<string, any>) {
+  const emitter = resolveApplicationEmitter(ctx);
+  emitter.emit('tenant.securityViolation', event);
+}
+
 export function buildWorkerExportFileName(resourceName: string, title: string, tenantId?: string) {
   const base = sanitizeExportSegment(title || resourceName || 'export');
   const tenantSuffix = tenantId ? `_${sanitizeExportSegment(tenantId)}` : '';

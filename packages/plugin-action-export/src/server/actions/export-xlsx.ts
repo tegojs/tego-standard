@@ -6,7 +6,7 @@ import xlsx from 'node-xlsx';
 import ExportPlugin from '..';
 import { BULK_EXPORT_THRESHOLD, EXPORT_LENGTH_MAX } from '../constants';
 import render from '../renders';
-import { buildExportDownloadName, columns2Appends, getExportTenantId } from '../utils';
+import { buildExportDownloadName, columns2Appends, emitSecurityViolation, getExportTenantId } from '../utils';
 
 function uniqueTenantIds(ids?: Array<string | number>) {
   return Array.from(new Set(ids || []));
@@ -49,7 +49,7 @@ export async function exportXlsx(ctx: Context, next: Next) {
 
   // Emit tenant security alert when export count reaches threshold
   if (count >= BULK_EXPORT_THRESHOLD && ctx.state.currentTenancyMode) {
-    ctx.app.emit('tenant.securityViolation', {
+    emitSecurityViolation(ctx, {
       type: 'tenant_bulk_export_alert',
       userId: ctx.state.currentUser?.id,
       actorUserId: ctx.state.actorUserId,

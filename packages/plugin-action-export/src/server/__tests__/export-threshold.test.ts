@@ -180,4 +180,81 @@ describe('exportXlsx – bulk export alert via real action handler', () => {
       context: ctx,
     });
   });
+
+  it('should emit on ctx.app.__application (Application) instead of ctx.app (Koa)', async () => {
+    // Simulate real Koa environment: ctx.app is a plain Koa-like object
+    // without EventEmitter.  The Application instance is stored as a
+    // back-reference by module-tenant.
+    const koaLike: any = { context: {}, response: {} };
+    const applicationLike: any = { emit: vi.fn() };
+    koaLike.__application = applicationLike;
+
+    const count = BULK_EXPORT_THRESHOLD + 500; // 1500
+    const userId = 42;
+    const actorUserId = 42;
+    const tenantId = 'tenant-emit-target';
+    const resourceName = 'bulk_orders';
+
+    const mockCollection = {
+      hasField: vi.fn().mockReturnValue(true),
+      getField: vi.fn().mockReturnValue(null),
+      fields: {
+        get: vi.fn().mockReturnValue({
+          name: 'id',
+          type: 'integer',
+          options: { interface: 'input' },
+        }),
+      },
+    };
+
+    const mockRepository = {
+      collection: mockCollection,
+      count: vi.fn().mockResolvedValue(count),
+      find: vi.fn().mockResolvedValue([]),
+    };
+
+    const ctx: any = {
+      action: {
+        params: {
+          filter: {},
+          title: 'Bulk Export',
+          columns: [{ dataIndex: ['id'], title: 'ID' }],
+        },
+        resourceName,
+        resourceOf: undefined,
+      },
+      state: {
+        currentUser: { id: userId },
+        actorUserId,
+        currentTenantId: tenantId,
+        currentTenancyMode: 'tenantScoped',
+      },
+      db: {
+        getRepository: vi.fn().mockReturnValue(mockRepository),
+        getCollection: vi.fn().mockReturnValue(mockCollection),
+      },
+      app: koaLike, // Koa-like: NO emit method
+      get: vi.fn().mockReturnValue(undefined),
+      set: vi.fn(),
+      tego: {},
+    };
+
+    await exportXlsx(ctx, next);
+
+    // The event MUST be emitted on the Application instance (__application),
+    // NOT on the Koa-like ctx.app (which has no emit).
+    expect(applicationLike.emit).toHaveBeenCalledTimes(1);
+    expect(applicationLike.emit).toHaveBeenCalledWith('tenant.securityViolation', {
+      type: 'tenant_bulk_export_alert',
+      userId,
+      actorUserId,
+      tenantId,
+      collectionName: resourceName,
+      action: 'export',
+      details: { rowCount: count, threshold: BULK_EXPORT_THRESHOLD },
+    });
+
+    // Koa-like object must NOT have been called (it has no emit)
+    expect((koaLike as any).emit).toBeUndefined();
+  });
 });

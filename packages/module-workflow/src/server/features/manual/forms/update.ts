@@ -24,7 +24,7 @@ export default async function (
   const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'update', {
     filter: processor.getParsedValue(filter, instance.nodeId),
     values: {
-      ...((values as { [key: string]: any }) ?? {}),
+      ...(values as { [key: string]: any }),
       updatedBy: instance.userId,
     },
   });

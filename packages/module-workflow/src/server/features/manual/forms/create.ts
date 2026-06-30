@@ -23,7 +23,7 @@ export default async function (
   };
   const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'create', {
     values: {
-      ...((values as { [key: string]: any }) ?? {}),
+      ...(values as { [key: string]: any }),
       createdBy: instance.userId,
       updatedBy: instance.userId,
     },

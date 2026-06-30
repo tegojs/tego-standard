@@ -39,6 +39,13 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
   const value = currentUserId ? result : ({ data: { data: [] }, loading: false } as typeof result);
 
   useEffect(() => {
+    // Guard: only act after the API response has actually arrived.
+    // During loading, value?.data is undefined – skip to avoid
+    // prematurely clearing a previously-persisted tenant id.
+    if (currentUserId && value?.data === undefined) {
+      return;
+    }
+
     const tenants = value?.data?.data || [];
     if (!tenants.length) {
       api.storage?.removeItem?.('current_tenant_id');
@@ -49,7 +56,7 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     if (currentTenant?.id) {
       api.storage?.setItem?.('current_tenant_id', currentTenant.id);
     }
-  }, [api.storage, value?.data?.data]);
+  }, [api.storage, currentUserId, value?.data?.data]);
 
   return <CurrentTenantContext.Provider value={value}>{children}</CurrentTenantContext.Provider>;
 };

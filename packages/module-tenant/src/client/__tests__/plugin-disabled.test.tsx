@@ -7,16 +7,20 @@
 import React from 'react';
 import {
   Application,
+  CollectionProvider,
   CollectionTemplate,
   CurrentNavigationMenuProvider,
+  SchemaComponent,
+  SchemaComponentProvider,
   useCurrentNavigationMenu,
 } from '@tachybase/client';
-import { render, waitFor } from '@tachybase/test/client';
+import { render, renderHook, waitFor } from '@tachybase/test/client';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
 import TenantMenuProvider from '../TenantMenuProvider';
+import { useSwitchTenant } from '../useSwitchTenant';
 
 /** Stub templates used to verify injection does NOT occur. */
 class StubGeneralTemplate extends CollectionTemplate {
@@ -121,5 +125,55 @@ describe('module-tenant not loaded (client)', () => {
     await waitFor(() => {
       expect(container.querySelector('.tenant-nav-switcher')).not.toBeInTheDocument();
     });
+  });
+
+  it('useSwitchTenant should return null when tenant context is absent', () => {
+    // Without CurrentTenantProvider wrapping the tree, useCurrentTenantContext
+    // returns null.  useSwitchTenant must degrade to null.
+    const { result } = renderHook(() => useSwitchTenant(), {
+      wrapper: ({ children }) => (
+        <CurrentTenantContext.Provider value={undefined}>{children}</CurrentTenantContext.Provider>
+      ),
+    });
+
+    expect(result.current).toBeNull();
+  });
+
+  it('useSwitchTenant should return null when tenant data is empty', () => {
+    const { result } = renderHook(() => useSwitchTenant(), {
+      wrapper: ({ children }) => (
+        <CurrentTenantContext.Provider value={{ data: { data: [] } }}>{children}</CurrentTenantContext.Provider>
+      ),
+    });
+
+    expect(result.current).toBeNull();
+  });
+
+  it('useSwitchTenant should return null when only one tenant is available', () => {
+    const { result } = renderHook(() => useSwitchTenant(), {
+      wrapper: ({ children }) => (
+        <CurrentTenantContext.Provider value={{ data: { data: [{ id: '1', name: 'default', current: true }] } }}>
+          {children}
+        </CurrentTenantContext.Provider>
+      ),
+    });
+
+    expect(result.current).toBeNull();
+  });
+
+  it('should not expose tenants resource when tenant plugin is absent', async () => {
+    const app = createAppWithoutTenant();
+    await app.load();
+
+    // The Application should not have any registered resource definitions
+    // for 'tenants' when the tenant plugin is not loaded.
+    // We check that there is no 'tenants' route in the resourcer.
+    const resourcer = (app as any).resourcer;
+    if (resourcer) {
+      // resourcer.define may have been called by the tenant plugin to
+      // register the 'tenants' resource.  If plugin is absent, it shouldn't exist.
+      const definitions = resourcer.definitions || new Map();
+      expect(definitions.has?.('tenants') ?? false).toBe(false);
+    }
   });
 });

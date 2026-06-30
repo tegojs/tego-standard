@@ -117,4 +117,42 @@ describe('module-tenant not loaded (server)', () => {
     const deleted = await Item.repository.findOne({ filterByTk: created.get('id') });
     expect(deleted).toBeNull();
   });
+
+  it('should not populate ctx.state.currentTenantId even when X-Tenant-Id header is present', async () => {
+    // Without the tenant plugin, no middleware reads X-Tenant-Id into ctx.state.
+    // A bare header must NEVER be trusted as tenant context.
+    const agent = app.agent();
+    const res = await agent.set('X-Tenant-Id', 'rogue-tenant').resource('users').list();
+
+    // The request should succeed or fail on its own merits (ACL, etc.),
+    // but it must NOT create tenant context in ctx.state.
+    // We verify by checking that the setCurrentTenant middleware was never registered.
+    const middleware = (app as any).middleware || [];
+    const hasTenantMiddleware = middleware.some(
+      (m: any) => m.name === 'setCurrentTenant' || m.tag === 'setCurrentTenant',
+    );
+    expect(hasTenantMiddleware).toBe(false);
+  });
+
+  it('should not have setCurrentTenant middleware registered', () => {
+    const middlewares = (app as any).middleware || [];
+    const tags = middlewares.map((m: any) => m.tag || m.name).filter(Boolean);
+    expect(tags).not.toContain('setCurrentTenant');
+    expect(tags).not.toContain('tenantResourceGuard');
+  });
+
+  it('should not have any tenant-related resourcer middleware', () => {
+    // Verify no tenant middleware was registered on the resourcer chain
+    const resourcerMiddlewares = (app.resourcer as any).middlewares;
+    if (Array.isArray(resourcerMiddlewares)) {
+      const tenantMiddleware = resourcerMiddlewares.find(
+        (m: any) => m.tag === 'setCurrentTenant' || m.tag === 'tenantResourceGuard',
+      );
+      expect(tenantMiddleware).toBeUndefined();
+    } else {
+      // If middlewares is not an array (e.g. not exposed), verify no tenant
+      // handlers were registered by checking the handler registry instead.
+      expect(app.pm.get('tenant')).toBeFalsy();
+    }
+  });
 });

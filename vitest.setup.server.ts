@@ -1,8 +1,6 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { patchCjsResolverForTestRuntime, setupServerTestEnvironment } from '@tachybase/test/setup-server';
 import { initEnv } from '@tego/devkit';
-import { Plugin } from '@tego/server';
 
 import { installVitestConsoleOutputFilter } from './vitest.console-filter';
 
@@ -48,36 +46,3 @@ setupServerTestEnvironment({
 });
 
 initEnv();
-
-/**
- * When the dist/ build tree is absent (fresh CI checkout), the upstream
- * `loadCollections` fallback resolves the package entry via `resolveRequest`
- * and only checks relative paths under dist/.  That silently skips collection
- * registration for every plugin that lacks `workspaceSource`.
- *
- * Extend the fallback: even without `workspaceSource`, derive the workspace
- * package directory from the packageName (`@tachybase/<dir> → packages/<dir>`)
- * and try src/server/collections before giving up.
- */
-const __origLoadCollections = Plugin.prototype.loadCollections;
-Plugin.prototype.loadCollections = async function patchedLoadCollections(this: any) {
-  // Fast path: workspaceSource plugins are already handled by setupTestEnvironment
-  if (this.options?.workspaceSource) {
-    return __origLoadCollections.call(this);
-  }
-
-  const packageName: string | undefined = this.options?.packageName;
-  const workspaceRoot = process.cwd();
-
-  if (packageName?.startsWith('@tachybase/')) {
-    const packageDir = packageName.replace('@tachybase/', '');
-    const srcDir = path.resolve(workspaceRoot, 'packages', packageDir, 'src/server/collections');
-    const distDir = path.resolve(workspaceRoot, 'packages', packageDir, 'dist/server/collections');
-    const directory = fs.existsSync(distDir) ? distDir : fs.existsSync(srcDir) ? srcDir : null;
-    if (directory) {
-      return this.db.import({ directory, from: packageName });
-    }
-  }
-
-  return __origLoadCollections.call(this);
-};

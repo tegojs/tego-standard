@@ -19,6 +19,26 @@ export interface TenantPluginConfig {
 }
 
 export class PluginTenantServer extends Plugin {
+  async ensureTenantAclScope(options: any = {}) {
+    const repo = this.db.getRepository('dataSourcesRolesResourcesScopes');
+    if (!repo) {
+      return;
+    }
+
+    await repo.firstOrCreate({
+      filterKeys: ['dataSourceKey', 'key'],
+      values: {
+        dataSourceKey: 'main',
+        key: 'tenant',
+        name: '{{t("Current tenant records")}}',
+        scope: {
+          tenantId: '{{ ctx.state.currentTenant.id }}',
+        },
+      },
+      transaction: options.transaction,
+    });
+  }
+
   async loadCollections() {
     this.db.collection(tenantsCollection);
     this.db.collection(tenantUsersCollection);
@@ -124,6 +144,22 @@ export class PluginTenantServer extends Plugin {
     this.app.acl.registerSnippet({
       name: 'pm.tenant.manage',
       actions: ['tenants:*', 'tenantUsers:*', 'users:list', 'users:update'],
+    });
+
+    this.app.acl.addFixedParams('rolesResourcesScopes', 'destroy', () => {
+      return {
+        filter: {
+          'key.$ne': 'tenant',
+        },
+      };
+    });
+
+    this.app.acl.addFixedParams('rolesResourcesScopes', 'update', () => {
+      return {
+        filter: {
+          'key.$ne': 'tenant',
+        },
+      };
     });
 
     this.app.acl.allow('tenants', ['available', 'current', 'switch'], 'loggedIn');
@@ -236,6 +272,14 @@ export class PluginTenantServer extends Plugin {
         throw new Error('Cannot delete tenant with children. Remove or reassign children first.');
       }
     });
+  }
+
+  async install(options) {
+    await this.ensureTenantAclScope(options);
+  }
+
+  async afterEnable() {
+    await this.ensureTenantAclScope();
   }
 }
 

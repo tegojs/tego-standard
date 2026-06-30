@@ -464,13 +464,6 @@ export class PluginACL extends Plugin {
               createdById: '{{ ctx.state.currentUser.id }}',
             },
           },
-          {
-            key: 'tenant',
-            name: '{{t("Current tenant records")}}',
-            scope: {
-              tenantId: '{{ ctx.state.currentTenant.id }}',
-            },
-          },
         ],
       });
     });
@@ -498,7 +491,7 @@ export class PluginACL extends Plugin {
     this.app.acl.addFixedParams('rolesResourcesScopes', 'destroy', () => {
       return {
         filter: {
-          $and: [{ 'key.$ne': 'all' }, { 'key.$ne': 'own' }, { 'key.$ne': 'tenant' }],
+          $and: [{ 'key.$ne': 'all' }, { 'key.$ne': 'own' }],
         },
       };
     });
@@ -506,7 +499,7 @@ export class PluginACL extends Plugin {
     this.app.acl.addFixedParams('rolesResourcesScopes', 'update', () => {
       return {
         filter: {
-          $and: [{ 'key.$ne': 'all' }, { 'key.$ne': 'own' }, { 'key.$ne': 'tenant' }],
+          $and: [{ 'key.$ne': 'all' }, { 'key.$ne': 'own' }],
         },
       };
     });

@@ -65,6 +65,16 @@ describe('module-tenant not loaded (server)', () => {
     expect(snippet).toBeFalsy();
   });
 
+  it('should not create built-in tenant ACL scope', async () => {
+    const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').findOne({
+      filter: {
+        key: 'tenant',
+      },
+    });
+
+    expect(scope).toBeFalsy();
+  });
+
   it('should not add tenantId context field to a tenantScoped collection', async () => {
     const Post = app.db.collection({
       name: 'no_tenant_posts',

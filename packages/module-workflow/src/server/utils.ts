@@ -33,7 +33,7 @@ export async function triggerWorkflowAndGetExecution(
   plugin: PluginWorkflowServer,
   workflow: WorkflowModel,
   context: object,
-  options: { httpContext?: any; transaction?: any } & Transactionable = {},
+  options: { httpContext?: any; transaction?: any; context?: any } & Transactionable = {},
   db: Database,
 ): Promise<any | null> {
   // 记录触发前的时间，用于队列模式下查找新创建的执行记录

@@ -1,10 +1,10 @@
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
 import { Instruction, JOB_STATUS } from '@tachybase/module-workflow';
-
 import { parseCollectionName } from '@tego/server';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';
+import { getTenantValuesFromExecution } from '../helpers/tenant-filter';
 import { parsePerson } from '../tools';
 
 /** 工作流节点: 审批抄送节点 */
@@ -38,6 +38,7 @@ export default class ApprovalCarbonCopyInstruction extends Instruction {
           nodeId: node.id,
           executionId: job.executionId,
           workflowId: node.workflowId,
+          ...getTenantValuesFromExecution(processor.execution),
           index,
           createdById: approval.createdBy?.id,
           approvalId: approval.id,

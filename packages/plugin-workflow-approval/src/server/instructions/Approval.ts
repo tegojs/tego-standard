@@ -1,9 +1,9 @@
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
 import { Instruction, JOB_STATUS, toJSON } from '@tachybase/module-workflow';
-
 import { parseCollectionName, uid } from '@tego/server';
 
 import { APPROVAL_ACTION_STATUS, APPROVAL_STATUS } from '../constants/status';
+import { getTenantValuesFromExecution } from '../helpers/tenant-filter';
 import ApprovalTrigger from '../triggers/Approval';
 import { ApprovalJobStatusMap, getNegotiationMode, parseAssignees } from './tools';
 
@@ -43,6 +43,7 @@ export default class ApprovalInstruction extends Instruction {
         nodeId: node.id,
         executionId: job.executionId,
         workflowId: node.workflowId,
+        ...getTenantValuesFromExecution(processor.execution),
         index,
         status: node.config.order && index ? APPROVAL_ACTION_STATUS.ASSIGNED : APPROVAL_ACTION_STATUS.PENDING,
         snapshot: approvalExecution.snapshot,

@@ -2,6 +2,7 @@ import { COLLECTION_WORKFLOWS_NAME } from '@tachybase/module-workflow';
 import { actions, Op } from '@tego/server';
 
 import { APPROVAL_STATUS } from '../constants/status';
+import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 import { findUniqueObjects } from '../utils';
 
 export const approvalCarbonCopy = {
@@ -14,14 +15,14 @@ export const approvalCarbonCopy = {
       fields: ['id'],
     });
     ctx.action.mergeParams({
-      filter: {
+      filter: withCurrentTenantFilter(ctx, {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
         approval: {
           status: {
             [Op.ne]: APPROVAL_STATUS.DRAFT,
           },
         },
-      },
+      }),
     });
 
     await actions.list(ctx, next);

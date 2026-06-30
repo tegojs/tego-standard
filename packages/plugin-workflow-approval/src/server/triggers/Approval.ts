@@ -6,6 +6,7 @@ import { get } from 'lodash';
 import { BelongsTo, HasOne, Op } from 'sequelize';
 
 import { APPROVAL_STATUS } from '../constants/status';
+import { getTenantValuesFromExecution, getTenantWorkflowOptionsFromApproval } from '../helpers/tenant-filter';
 import { getSummary } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
 
@@ -82,7 +83,7 @@ export default class ApprovalTrigger extends Trigger {
         }),
         collectionName: approval.collectionName,
       },
-      { transaction },
+      { transaction, ...getTenantWorkflowOptionsFromApproval(approval) },
     );
   };
   onExecutionCreate = async (execution, { transaction }) => {
@@ -104,6 +105,7 @@ export default class ApprovalTrigger extends Trigger {
         approvalId,
         executionId: execution.id,
         status: execution.status,
+        ...getTenantValuesFromExecution(execution),
         snapshot: data,
         summary,
         collectionName,
@@ -261,6 +263,7 @@ export default class ApprovalTrigger extends Trigger {
           data: toJSON(data),
           dataKey: data.get(collecton.filterTargetKey),
           status: APPROVAL_STATUS.SUBMITTED,
+          ...(ctx.state.currentTenantId ? { tenantId: ctx.state.currentTenantId } : {}),
           // createdBy: currentUser.id,
           // updatedById: currentUser.id,
           workflowId: workflow.id,
@@ -333,6 +336,7 @@ export default class ApprovalTrigger extends Trigger {
             data: toJSON(payload),
             dataKey: payload.get(collection.filterTargetKey),
             status: APPROVAL_STATUS.SUBMITTED,
+            ...(ctx.state.currentTenantId ? { tenantId: ctx.state.currentTenantId } : {}),
             // createdBy: currentUser.id,
             // updatedBy: currentUser.id,
             workflowId: workflow.id,

@@ -95,4 +95,62 @@ describe('workerExportXlsx', () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('should normalize string-array columns and keep tenant-aware worker path', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'tego-export-worker-'));
+    const repository = {
+      collection: {
+        options: {
+          tenancy: 'tenantScoped',
+        },
+        fields: new Map([
+          [
+            'title',
+            {
+              name: 'title',
+              options: {
+                interface: 'input',
+              },
+            },
+          ],
+        ]),
+        hasField: vi.fn().mockReturnValue(true),
+      },
+      find: vi.fn().mockResolvedValue([]),
+    };
+    const plugin = {
+      db: {
+        getRepository: vi.fn().mockReturnValue(repository),
+      },
+      xlsxStorageDir: () => tempDir,
+    };
+
+    try {
+      const result = await ExportPlugin.prototype.workerExportXlsx.call(plugin, {
+        title: 'tenant-export-posts',
+        filter: {},
+        columns: ['title'],
+        resourceName: 'tenant_export_worker_posts',
+        currentTenantId: 'tenant-a',
+        tenantContext: {
+          currentTenantId: 'tenant-a',
+          currentTenancyMode: 'tenantScoped',
+        },
+      });
+
+      expect(result).toContain('storage/uploads/tenants/tenant-a/');
+      expect(result).toContain('tenant-a');
+      expect(repository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: {
+            state: expect.objectContaining({
+              currentTenantId: 'tenant-a',
+            }),
+          },
+        }),
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });

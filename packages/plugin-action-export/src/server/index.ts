@@ -12,7 +12,9 @@ import {
   buildWorkerExportFileName,
   buildWorkerExportRelativePath,
   buildWorkerExportSavePath,
+  filterExportColumnsByCollection,
   getExportTenantId,
+  normalizeExportColumns,
 } from './utils';
 
 type ExportTenantContext = {
@@ -175,10 +177,7 @@ export class ExportPlugin extends Plugin {
       currentTenantId,
       tenantContext: rawTenantContext,
     } = params;
-    let columns = params?.columns;
-    if (typeof columns === 'string') {
-      columns = JSON.parse(columns);
-    }
+    let columns = normalizeExportColumns(params?.columns);
     const repository = this.db.getRepository<any>(resourceName, resourceOf) as Repository;
     const collection = repository.collection;
     const tenantState = buildWorkerTenantState(currentTenantId, rawTenantContext);
@@ -199,7 +198,7 @@ export class ExportPlugin extends Plugin {
       collection,
       tenantState,
     );
-    columns = columns?.filter((col) => collection.hasField(col.dataIndex[0]) && col?.dataIndex?.length > 0);
+    columns = filterExportColumnsByCollection(columns, collection);
     // 分页处理
     let page = 1;
     const pageSize = EXPORT_WORKER_PAGESIZE;

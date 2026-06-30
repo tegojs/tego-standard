@@ -4,6 +4,68 @@ import dayjs from 'dayjs';
 
 export * from './columns2Appends';
 
+export class ExportColumnsError extends Error {
+  constructor(message: string) {
+    super(`Invalid export columns: ${message}`);
+    this.name = 'ExportColumnsError';
+  }
+}
+
+function parseColumns(columns: any) {
+  if (columns == null || columns === '') {
+    return [];
+  }
+
+  if (typeof columns !== 'string') {
+    return columns;
+  }
+
+  try {
+    return JSON.parse(columns);
+  } catch {
+    throw new ExportColumnsError('columns must be valid JSON');
+  }
+}
+
+function normalizeColumn(column: any, index: number) {
+  if (typeof column === 'string') {
+    if (!column.trim()) {
+      throw new ExportColumnsError(`columns[${index}] must be a non-empty string`);
+    }
+    return { dataIndex: [column] };
+  }
+
+  if (!column || typeof column !== 'object' || Array.isArray(column)) {
+    throw new ExportColumnsError(`columns[${index}] must be a string or object with dataIndex`);
+  }
+
+  if (!Array.isArray(column.dataIndex) || column.dataIndex.length === 0) {
+    throw new ExportColumnsError(`columns[${index}].dataIndex must be a non-empty array`);
+  }
+
+  for (const [dataIndexPosition, segment] of column.dataIndex.entries()) {
+    if (typeof segment !== 'string' || !segment.trim()) {
+      throw new ExportColumnsError(`columns[${index}].dataIndex[${dataIndexPosition}] must be a non-empty string`);
+    }
+  }
+
+  return column;
+}
+
+export function normalizeExportColumns(columns: any) {
+  const parsedColumns = parseColumns(columns);
+
+  if (!Array.isArray(parsedColumns)) {
+    throw new ExportColumnsError('columns must be an array');
+  }
+
+  return parsedColumns.map(normalizeColumn);
+}
+
+export function filterExportColumnsByCollection(columns: any[], collection: any) {
+  return columns.filter((col) => col?.dataIndex?.length > 0 && collection.hasField(col.dataIndex[0]));
+}
+
 export function sanitizeExportSegment(value: string) {
   const normalized = String(value || '')
     .trim()

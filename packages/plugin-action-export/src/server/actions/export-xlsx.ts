@@ -6,7 +6,15 @@ import xlsx from 'node-xlsx';
 import ExportPlugin from '..';
 import { BULK_EXPORT_THRESHOLD, EXPORT_LENGTH_MAX } from '../constants';
 import render from '../renders';
-import { buildExportDownloadName, columns2Appends, emitSecurityViolation, getExportTenantId } from '../utils';
+import {
+  buildExportDownloadName,
+  columns2Appends,
+  emitSecurityViolation,
+  ExportColumnsError,
+  filterExportColumnsByCollection,
+  getExportTenantId,
+  normalizeExportColumns,
+} from '../utils';
 
 function uniqueTenantIds(ids?: Array<string | number>) {
   return Array.from(new Set(ids || []));
@@ -34,13 +42,19 @@ export async function exportXlsx(ctx: Context, next: Next) {
   const { resourceName, resourceOf } = ctx.action;
   const currentTenantId = getExportTenantId(ctx);
   const tenantContext = getExportTenantContext(ctx);
-  let columns = ctx.action.params.values?.columns || ctx.action.params?.columns;
-  if (typeof columns === 'string') {
-    columns = JSON.parse(columns);
+  let columns;
+  try {
+    columns = normalizeExportColumns(ctx.action.params.values?.columns ?? ctx.action.params?.columns);
+  } catch (error) {
+    if (error instanceof ExportColumnsError) {
+      ctx.throw(400, error.message);
+      return;
+    }
+    throw error;
   }
   const repository = ctx.db.getRepository<any>(resourceName, resourceOf) as Repository;
   const collection = repository.collection;
-  columns = columns?.filter((col) => collection.hasField(col.dataIndex[0]) && col?.dataIndex?.length > 0);
+  columns = filterExportColumnsByCollection(columns, collection);
   const appends = columns2Appends(columns, ctx);
   const count = await repository.count({
     filter,

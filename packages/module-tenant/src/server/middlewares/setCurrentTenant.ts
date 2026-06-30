@@ -75,6 +75,13 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
     return next();
   }
 
+  // Idempotency guard: setCurrentTenant is registered on both the app-level
+  // and resourcer middleware chains.  Without this guard, a single request
+  // would resolve the tenant twice and emit duplicate security events.
+  if (ctx.state.currentTenantId) {
+    return next();
+  }
+
   const requestedTenantId = ctx.get('X-Tenant-Id');
   const allowedTenantIds = await resolveAllowedTenantIds(ctx);
   const canImpersonateTenant = !!requestedTenantId && isPlatformTenantImpersonator(ctx);

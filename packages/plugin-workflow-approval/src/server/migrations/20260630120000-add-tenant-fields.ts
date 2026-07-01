@@ -13,7 +13,10 @@ async function hasTable(queryInterface: any, tableName: string) {
 
 async function addIndexIfMissing(queryInterface: any, tableName: string, columnName: string, indexName: string) {
   const indexes = await queryInterface.showIndex(tableName);
-  const exists = indexes.some((index) => index.name === indexName);
+  const exists = indexes.some((index) => {
+    const fields = (index.fields || []).map((field: any) => field.attribute || field.name).filter(Boolean);
+    return index.name === indexName || (fields.length === 1 && fields[0] === columnName);
+  });
 
   if (!exists) {
     await queryInterface.addIndex(tableName, [columnName], { name: indexName });

@@ -16,10 +16,18 @@ async function addIndexIfMissing(
   indexName: string,
 ) {
   const indexes = await queryInterface.showIndex(tableName);
-  const exists = indexes.some((index) => index.name === indexName);
+  const targetColumns = Array.isArray(columnNames) ? columnNames : [columnNames];
+  const exists = indexes.some((index) => {
+    const fields = (index.fields || []).map((field: any) => field.attribute || field.name).filter(Boolean);
+    return (
+      index.name === indexName ||
+      (fields.length === targetColumns.length &&
+        fields.every((field: string, index: number) => field === targetColumns[index]))
+    );
+  });
 
   if (!exists) {
-    await queryInterface.addIndex(tableName, Array.isArray(columnNames) ? columnNames : [columnNames], {
+    await queryInterface.addIndex(tableName, targetColumns, {
       name: indexName,
     });
   }

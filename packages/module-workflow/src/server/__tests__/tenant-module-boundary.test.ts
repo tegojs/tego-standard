@@ -45,4 +45,40 @@ describe('workflow > tenant module boundary', () => {
       ),
     ).toBe(options);
   });
+
+  it('should treat numeric zero as a valid tenant context value', () => {
+    const options = {
+      filter: {
+        title: 'same-title',
+      },
+    };
+
+    expect(
+      applyTenantFilterToContext(
+        {
+          state: {
+            currentTenantId: 0,
+          },
+        },
+        {
+          options: {
+            tenancy: 'tenantScoped',
+          },
+        },
+        'list',
+        options,
+      ),
+    ).toEqual({
+      filter: {
+        $and: [
+          {
+            title: 'same-title',
+          },
+          {
+            tenantId: 0,
+          },
+        ],
+      },
+    });
+  });
 });

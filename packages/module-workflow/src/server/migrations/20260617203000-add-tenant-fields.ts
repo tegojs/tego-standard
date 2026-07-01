@@ -47,6 +47,13 @@ export default class AddTenantFieldsToExecutionsMigration extends Migration {
       });
     }
 
+    if (!table.authContext) {
+      await queryInterface.addColumn(tableName, 'authContext', {
+        type: DataTypes.JSON,
+        allowNull: true,
+      });
+    }
+
     await addIndexIfMissing(queryInterface, tableName, 'tenantId', 'executions_tenant_id');
   }
 }

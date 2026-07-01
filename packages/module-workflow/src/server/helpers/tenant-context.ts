@@ -21,20 +21,22 @@ function stripTenantFilter(filter: any): any {
   }
 
   if (Array.isArray(filter)) {
-    return filter
-      .map(stripTenantFilter)
-      .filter((item) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+    return filter.map(stripTenantFilter);
   }
 
-  const next = Object.fromEntries(
-    Object.entries(filter)
-      .filter(([key]) => key !== 'tenantId' && !key.startsWith('tenantId.'))
-      .map(([key, value]) => [key, stripTenantFilter(value)]),
-  );
+  const next: Record<PropertyKey, any> = {};
+  for (const key of Reflect.ownKeys(filter)) {
+    if (typeof key === 'string' && (key === 'tenantId' || key.startsWith('tenantId.'))) {
+      continue;
+    }
+    next[key] = stripTenantFilter(filter[key]);
+  }
 
   for (const key of ['$and', '$or']) {
     if (Array.isArray(next[key])) {
-      next[key] = next[key].filter((item: any) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+      next[key] = next[key].filter(
+        (item: any) => item && (typeof item !== 'object' || Reflect.ownKeys(item).length > 0),
+      );
       if (next[key].length === 0) {
         delete next[key];
       }
@@ -74,7 +76,7 @@ function appendFilter(original: any, tenantId: string | number, includeLegacyDat
   const tenantFilter = buildTenantFilter(tenantId, includeLegacyData);
   const sanitizedOriginal = stripTenantFilter(original);
 
-  if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
+  if (!sanitizedOriginal || Reflect.ownKeys(sanitizedOriginal).length === 0) {
     return tenantFilter;
   }
 
@@ -87,7 +89,7 @@ function appendInheritedFilter(original: any, tenantIds: Array<string | number>,
   const tenantFilter = buildInheritedTenantFilter(tenantIds, includeLegacyData);
   const sanitizedOriginal = stripTenantFilter(original);
 
-  if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
+  if (!sanitizedOriginal || Reflect.ownKeys(sanitizedOriginal).length === 0) {
     return tenantFilter;
   }
 
@@ -129,7 +131,7 @@ export function getCurrentTenantIdFromState(state: TenantFilterContext['state'])
 
 function buildTenantParams(actionName: string, params: any, state: TenantFilterContext['state'], tenancyMode?: string) {
   const tenantId = getCurrentTenantIdFromState(state);
-  if (!tenantId) {
+  if (tenantId === null || tenantId === undefined) {
     return null;
   }
 
@@ -223,7 +225,10 @@ export async function getDescendantTenantIds(db: any, tenantId: string): Promise
 
   const descendants = await repo.find({
     filter: {
-      path: { $like: `${path}%` },
+      path: {
+        $gte: path,
+        $lt: `${path}\uffff`,
+      },
       'id.$ne': tenantId,
     },
     fields: ['id'],

@@ -212,6 +212,8 @@ describe('workflow > triggers > collection', () => {
             currentTenant: { id: 'tenant-a', name: 'tenant-a' },
             currentTenantId: 'tenant-a',
             currentTenantDescendantIds: ['tenant-a', 'tenant-a-child'],
+            currentRole: 'admin',
+            currentUser: { id: 1, password: 'secret' },
           },
         },
       });
@@ -226,6 +228,8 @@ describe('workflow > triggers > collection', () => {
         currentTenantId: 'tenant-a',
         currentTenantDescendantIds: ['tenant-a', 'tenant-a-child'],
       });
+      expect(executions[0].context.state.currentRole).toBeUndefined();
+      expect(executions[0].context.state.currentUser).toBeUndefined();
     });
 
     it('with association', async () => {

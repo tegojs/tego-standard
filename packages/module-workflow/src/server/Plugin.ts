@@ -58,8 +58,10 @@ type Pending = [ExecutionModel, JobModel?, Transactionable?];
 type CachedEvent = [WorkflowModel, any, { context?: any } & Transactionable];
 
 function extractTenantContext(context: any, options: any = {}) {
-  const state = options.context?.state || options.httpContext?.state || context?.state || context?.context?.state;
-  if (!state?.currentTenantId) {
+  const state = [options.context?.state, options.httpContext?.state, context?.state, context?.context?.state].find(
+    (item) => item?.currentTenantId !== null && item?.currentTenantId !== undefined,
+  );
+  if (state?.currentTenantId === null || state?.currentTenantId === undefined) {
     return null;
   }
 
@@ -69,6 +71,20 @@ function extractTenantContext(context: any, options: any = {}) {
     currentTenantDescendantIds: state.currentTenantDescendantIds || [],
     currentTenancyMode: state.currentTenancyMode,
     currentLegacyDataTenantIds: state.currentLegacyDataTenantIds || [],
+  };
+}
+
+function extractAuthContext(context: any, options: any = {}) {
+  const state = [options.httpContext?.state, options.context?.state, context?.state, context?.context?.state].find(
+    (item) => item?.currentRole,
+  );
+  if (!state?.currentRole) {
+    return null;
+  }
+
+  return {
+    currentRole: state.currentRole,
+    currentUserId: state.currentUser?.id,
   };
 }
 
@@ -440,6 +456,7 @@ export default class PluginWorkflowServer extends Plugin {
     let execution;
     try {
       const tenantContext = extractTenantContext(context, options);
+      const authContext = extractAuthContext(context, options);
       execution = await workflow.createExecution(
         {
           context,
@@ -447,6 +464,7 @@ export default class PluginWorkflowServer extends Plugin {
           status: EXECUTION_STATUS.QUEUEING,
           tenantId: tenantContext?.currentTenantId,
           tenantContext,
+          authContext,
           parentNode: options.parentNode || null,
           parentId: options.parent ? options.parent.id : null,
         },

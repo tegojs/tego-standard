@@ -225,6 +225,33 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result).toBe(1);
   });
 
+  it('should preserve non-object array values while stripping tenant filters', async () => {
+    const workflow = await createWorkflowWithNode('query', {
+      multiple: true,
+      params: {
+        filter: {
+          $and: [
+            {
+              title: {
+                $in: ['same-title', '', false, 0],
+              },
+            },
+            {
+              tenantId: 'tenant-b',
+            },
+          ],
+        },
+      },
+    });
+    await createSameTitleTenantPosts();
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(job.result).toHaveLength(1);
+    expect(job.result[0].tenantId).toBe('tenant-a');
+  });
+
   it('create should inject tenantId from execution context', async () => {
     const workflow = await createWorkflowWithNode('create', {
       params: {

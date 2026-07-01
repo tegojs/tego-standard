@@ -35,6 +35,10 @@ export default {
       name: 'tenantContext',
     },
     {
+      type: 'json',
+      name: 'authContext',
+    },
+    {
       type: 'integer',
       name: 'status',
     },

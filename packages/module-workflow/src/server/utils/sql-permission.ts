@@ -65,7 +65,19 @@ function resolveAcl(httpContext: any): any | null {
  *   was already gated at creation time by the API-level check in nodes.ts.
  */
 export function checkSqlExecutionPermission(processor: Processor): void {
-  const httpContext = processor.options?.httpContext;
+  const authContext = processor.execution.get?.('authContext') || (processor.execution as any).authContext;
+  const httpContext =
+    processor.options?.httpContext ||
+    (authContext?.currentRole
+      ? {
+          state: {
+            currentRole: authContext.currentRole,
+            currentUser: authContext.currentUserId ? { id: authContext.currentUserId } : undefined,
+          },
+          app: processor.options?.plugin?.app,
+          tego: processor.options?.plugin?.app,
+        }
+      : null);
 
   // No httpContext means an internal trigger (collection event, schedule, etc.)
   // These are trusted — the SQL node was already permission-gated at creation time.

@@ -605,5 +605,57 @@ describe('workflow > Plugin', () => {
         currentLegacyDataTenantIds: ['tenant-a'],
       });
     });
+
+    it('should extract tenant context from later state sources when an earlier state is empty', async () => {
+      const w1 = await WorkflowModel.create({
+        enabled: true,
+        type: 'syncTrigger',
+      });
+
+      await plugin.trigger(
+        w1,
+        {
+          state: {
+            currentTenant: { id: 'tenant-from-context' },
+            currentTenantId: 'tenant-from-context',
+            currentTenantDescendantIds: [],
+            currentTenancyMode: 'tenantScoped',
+          },
+        },
+        {
+          context: {
+            state: {},
+          },
+        },
+      );
+
+      const [execution] = await w1.getExecutions();
+      expect(execution.tenantId).toBe('tenant-from-context');
+      expect(execution.tenantContext).toMatchObject({
+        currentTenantId: 'tenant-from-context',
+      });
+    });
+
+    it('should preserve numeric zero tenant id in execution tenant context', async () => {
+      const w1 = await WorkflowModel.create({
+        enabled: true,
+        type: 'syncTrigger',
+      });
+
+      await plugin.trigger(w1, {
+        state: {
+          currentTenant: { id: 0 },
+          currentTenantId: 0,
+          currentTenantDescendantIds: [],
+          currentTenancyMode: 'tenantScoped',
+        },
+      });
+
+      const [execution] = await w1.getExecutions();
+      expect(execution.tenantId).toBe('0');
+      expect(execution.tenantContext).toMatchObject({
+        currentTenantId: 0,
+      });
+    });
   });
 });

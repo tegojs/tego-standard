@@ -34,6 +34,20 @@ function getFieldRawName(collection: ICollection, name: string) {
   return name;
 }
 
+function pickTenantState(state: Record<string, any> = {}) {
+  if (state.currentTenantId === null || state.currentTenantId === undefined) {
+    return undefined;
+  }
+
+  return {
+    currentTenant: state.currentTenant,
+    currentTenantId: state.currentTenantId,
+    currentTenantDescendantIds: state.currentTenantDescendantIds || [],
+    currentTenancyMode: state.currentTenancyMode,
+    currentLegacyDataTenantIds: state.currentLegacyDataTenantIds || [],
+  };
+}
+
 // async function, should return promise
 async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: Model, options) {
   const { condition, changed, mode, appends, blacklist } = workflow.config;
@@ -110,18 +124,16 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
 
   // TODO: `result.toJSON()` throws error
   const json = toJSON(result);
+  const state = pickTenantState(context?.state);
+  const triggerContext = state ? { data: json, stack: context?.stack, state } : { data: json, stack: context?.stack };
 
   if (workflow.sync) {
-    await this.workflow.trigger(
-      workflow,
-      { data: json, stack: context?.stack, state: context?.state },
-      {
-        context,
-        transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
-      },
-    );
+    await this.workflow.trigger(workflow, triggerContext, {
+      context,
+      transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
+    });
   } else {
-    this.workflow.trigger(workflow, { data: json, stack: context?.stack, state: context?.state }, { context });
+    this.workflow.trigger(workflow, triggerContext, { context });
   }
 }
 

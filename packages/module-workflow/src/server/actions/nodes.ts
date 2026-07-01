@@ -244,6 +244,11 @@ export async function update(ctx: Context, next) {
     if (existingNode?.get('type') === 'sql') {
       assertSqlNodePermission(ctx, 'sql');
     }
+  } else if (filter) {
+    const existingNodes = await repository.find({ filter, fields: ['type'] });
+    if (existingNodes.some((node) => node?.get('type') === 'sql')) {
+      assertSqlNodePermission(ctx, 'sql');
+    }
   }
   ctx.body = await db.sequelize.transaction(async (transaction) => {
     // TODO(optimize): duplicated instance query

@@ -18,6 +18,9 @@ export default class extends Instruction {
     const [dataSourceName, collectionName] = parseCollectionName(collection);
     const { collectionManager } = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
     const targetCollection = collectionManager.getCollection(collectionName);
+    const aggregateCollection = associated
+      ? collectionManager.getCollection(association?.associatedCollection)
+      : targetCollection;
     const repo = associated
       ? collectionManager.getRepository(
           `${association?.associatedCollection}.${association.name}`,
@@ -30,7 +33,7 @@ export default class extends Instruction {
     }
 
     const repositoryContext = processor.getRepositoryContext();
-    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'aggregate', options);
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, aggregateCollection, 'aggregate', options);
     const result = await repo.aggregate({
       ...repositoryOptions,
       method: aggregators[aggregator],

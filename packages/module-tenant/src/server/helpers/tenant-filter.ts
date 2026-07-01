@@ -132,7 +132,7 @@ function getTenantId(state: TenantFilterContext['state']) {
 
 function buildTenantParams(actionName: string, params: any, state: TenantFilterContext['state'], tenancyMode?: string) {
   const tenantId = getTenantId(state);
-  if (!tenantId) {
+  if (tenantId == null) {
     return null;
   }
 
@@ -213,7 +213,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
 
 export function applyTenantFilter(ctx: TenantFilterContext) {
   const tenantId = getTenantId(ctx.state);
-  if (!tenantId) {
+  if (tenantId == null) {
     return;
   }
 

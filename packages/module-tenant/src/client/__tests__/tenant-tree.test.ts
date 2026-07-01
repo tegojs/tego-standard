@@ -55,4 +55,20 @@ describe('tenant tree helpers', () => {
       { label: 'other', value: 'other' },
     ]);
   });
+
+  it('should not treat sibling tenant paths with a common prefix as descendants', () => {
+    const options = getTenantParentOptions(
+      [
+        { id: 'root', name: 'root', path: '/root/' },
+        { id: 'child', name: 'child', path: '/root/child/' },
+        { id: 'child-2', name: 'child-2', path: '/root/child-2/' },
+      ],
+      { id: 'child', name: 'child', path: '/root/child/' },
+    );
+
+    expect(options).toEqual([
+      { label: 'root', value: 'root' },
+      { label: 'child-2', value: 'child-2' },
+    ]);
+  });
 });

@@ -33,6 +33,7 @@ export function buildTenantTree(tenants: TenantRecord[]) {
 
 export function getTenantParentOptions(tenants: TenantRecord[], editingTenant?: TenantRecord | null) {
   const editingPath = editingTenant?.path;
+  const descendantPathPrefix = editingPath?.endsWith('/') ? editingPath : editingPath ? `${editingPath}/` : undefined;
 
   return tenants
     .filter((tenant) => {
@@ -44,7 +45,7 @@ export function getTenantParentOptions(tenants: TenantRecord[], editingTenant?: 
         return false;
       }
 
-      return !editingPath || !tenant.path?.startsWith(editingPath);
+      return !descendantPathPrefix || !tenant.path?.startsWith(descendantPathPrefix);
     })
     .map((tenant) => ({
       label: tenant.title || tenant.name || tenant.id,

@@ -27,6 +27,32 @@ describe('applyTenantFilter', () => {
     });
   });
 
+  it('should apply tenant filter when current tenant id is numeric zero', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 0,
+      },
+      action: {
+        actionName: 'list',
+        params: {
+          filter: {
+            status: 'published',
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [{ status: 'published' }, { tenantId: 0 }],
+      },
+    });
+  });
+
   it('should include legacy records for read actions when the current tenant is allowed', () => {
     const mergeParams = vi.fn();
     const ctx = {

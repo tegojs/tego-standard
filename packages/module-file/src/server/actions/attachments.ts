@@ -107,6 +107,9 @@ export async function createMiddleware(ctx: Context, next: Next) {
 
   const plugin = ctx.tego.pm.get(PluginFileManager) as PluginFileManager;
   const parsedStorage = plugin.parseStorage(storage);
+  if (!parsedStorage) {
+    return multipart(ctx, next);
+  }
   ctx.storage = {
     ...parsedStorage,
     path: getTenantStoragePath(parsedStorage?.path, getCurrentTenantId(ctx)),

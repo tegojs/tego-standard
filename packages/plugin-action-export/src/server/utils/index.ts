@@ -105,6 +105,14 @@ function resolveApplicationEmitter(ctx: any): { emit: (event: string, payload: a
   if (backRef && typeof backRef.emit === 'function') {
     return backRef;
   }
+  const logger = ctx.tego?.logger || ctx.app?.logger;
+  logger?.warn?.(
+    'Application emitter back-reference is missing; tenant security events may not reach audit listeners',
+    {
+      resourceName: ctx.action?.resourceName,
+      actionName: ctx.action?.actionName,
+    },
+  );
   return ctx.app;
 }
 

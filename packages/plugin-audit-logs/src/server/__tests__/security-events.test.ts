@@ -259,6 +259,54 @@ describe('security event listener idempotency', () => {
   });
 });
 
+describe('security event listener persistence failures', () => {
+  it('should log persistence failures without throwing', async () => {
+    const error = new Error('create failed');
+    const logger = {
+      error: vi.fn(),
+    };
+    const app = {
+      logger,
+      on: vi.fn((_event, handler) => {
+        app.handler = handler;
+      }),
+      handler: null as any,
+    };
+    const db = {
+      getRepository: vi.fn(() => ({
+        model: {
+          create: vi.fn().mockRejectedValue(error),
+        },
+      })),
+    };
+
+    registerSecurityEventListener({ app, db } as any);
+
+    await expect(
+      app.handler({
+        type: 'tenant_access_denied',
+        userId: 1,
+        tenantId: 'tenant-a',
+        collectionName: 'posts',
+        action: 'list',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to persist tenant security audit event',
+      expect.objectContaining({
+        error,
+        event: expect.objectContaining({
+          type: 'tenant_access_denied',
+          tenantId: 'tenant-a',
+          collectionName: 'posts',
+          action: 'list',
+        }),
+      }),
+    );
+  });
+});
+
 describe('bulk export threshold', () => {
   let api: MockServer;
   let db: Database;

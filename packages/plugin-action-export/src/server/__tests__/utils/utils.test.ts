@@ -1,5 +1,4 @@
 import { mockServer, MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
 
 import {
@@ -7,6 +6,7 @@ import {
   buildWorkerExportFileName,
   buildWorkerExportRelativePath,
   buildWorkerExportSavePath,
+  emitSecurityViolation,
 } from '../../utils';
 
 describe('utils', () => {
@@ -67,7 +67,39 @@ describe('utils', () => {
     expect(fileName).toContain('tenant-a');
     expect(fileName).toMatch(/\.xlsx$/);
     expect(buildWorkerExportRelativePath(fileName, 'tenant-a')).toContain('storage/uploads/tenants/tenant-a');
-    expect(buildWorkerExportRelativePath(fileName, 'tenant-a', 'custom/exports')).toContain('custom/exports/tenants/tenant-a');
+    expect(buildWorkerExportRelativePath(fileName, 'tenant-a', 'custom/exports')).toContain(
+      'custom/exports/tenants/tenant-a',
+    );
     expect(buildWorkerExportSavePath('D:/runtime/storage/uploads', 'tenant-a')).toContain('tenant-a');
+  });
+
+  it('should warn when application emitter back-reference is missing', () => {
+    const emit = vi.fn();
+    const warn = vi.fn();
+    const ctx = {
+      app: { emit },
+      tego: { logger: { warn } },
+      action: {
+        resourceName: 'posts',
+        actionName: 'export',
+      },
+    };
+
+    emitSecurityViolation(ctx, {
+      type: 'tenant_bulk_export_alert',
+      tenantId: 'tenant-a',
+    });
+
+    expect(emit).toHaveBeenCalledWith(
+      'tenant.securityViolation',
+      expect.objectContaining({ type: 'tenant_bulk_export_alert' }),
+    );
+    expect(warn).toHaveBeenCalledWith(
+      'Application emitter back-reference is missing; tenant security events may not reach audit listeners',
+      expect.objectContaining({
+        resourceName: 'posts',
+        actionName: 'export',
+      }),
+    );
   });
 });

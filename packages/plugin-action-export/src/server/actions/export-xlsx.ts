@@ -67,7 +67,7 @@ export async function exportXlsx(ctx: Context, next: Next) {
       type: 'tenant_bulk_export_alert',
       userId: ctx.state.currentUser?.id,
       actorUserId: ctx.state.actorUserId,
-      tenantId: ctx.state.currentTenantId,
+      tenantId: currentTenantId,
       collectionName: resourceName,
       action: 'export',
       details: { rowCount: count, threshold: BULK_EXPORT_THRESHOLD },

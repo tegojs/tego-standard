@@ -58,7 +58,21 @@ export function registerSecurityEventListener(plugin: { app: any; db: any }) {
         isTenantImpersonation: isImpersonation ? true : (event.isTenantImpersonation ?? false),
         details: event.details || null,
       });
-    } catch {
+    } catch (error) {
+      plugin.app?.logger?.error?.('Failed to persist tenant security audit event', {
+        error,
+        event: {
+          type: event.type,
+          userId: event.userId,
+          actorUserId: event.actorUserId,
+          tenantId: event.tenantId,
+          collectionName: event.collectionName,
+          action: event.action,
+          impersonatedTenantId: event.impersonatedTenantId,
+          tenantContextSource: event.tenantContextSource,
+          isTenantImpersonation: event.isTenantImpersonation,
+        },
+      });
       // Security event logging must never break the request path
     }
   };

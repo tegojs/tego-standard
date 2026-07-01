@@ -197,4 +197,54 @@ describe('workerExportXlsx', () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('should not apply tenant scope to shared collections from tenant context alone', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'tego-export-worker-'));
+    const repository = {
+      collection: {
+        options: {},
+        fields: new Map([
+          [
+            'title',
+            {
+              name: 'title',
+              options: {
+                interface: 'input',
+              },
+            },
+          ],
+        ]),
+        hasField: vi.fn().mockReturnValue(true),
+      },
+      find: vi.fn().mockResolvedValue([]),
+    };
+    const plugin = {
+      db: {
+        getRepository: vi.fn().mockReturnValue(repository),
+      },
+      xlsxStorageDir: () => tempDir,
+    };
+
+    try {
+      await ExportPlugin.prototype.workerExportXlsx.call(plugin, {
+        title: 'shared-export-posts',
+        filter: { status: 'published' },
+        columns: ['title'],
+        resourceName: 'shared_export_worker_posts',
+        currentTenantId: 'tenant-a',
+        tenantContext: {
+          currentTenantId: 'tenant-a',
+          currentTenancyMode: 'tenantScoped',
+        },
+      });
+
+      expect(repository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: { status: 'published' },
+        }),
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });

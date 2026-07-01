@@ -106,7 +106,7 @@ function buildWorkerTenantState(currentTenantId?: string | number, tenantContext
     currentTenantId,
   });
 
-  if (!tenantId) {
+  if (tenantId === null || tenantId === undefined) {
     return;
   }
 
@@ -120,7 +120,7 @@ function buildWorkerTenantState(currentTenantId?: string | number, tenantContext
 }
 
 function applyTenantScopeToWorkerFindOptions(options: any, collection: any, tenantContext?: ExportTenantContext) {
-  const tenancyMode = collection?.options?.tenancy || tenantContext?.currentTenancyMode;
+  const tenancyMode = collection?.options?.tenancy;
 
   if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
     return options;

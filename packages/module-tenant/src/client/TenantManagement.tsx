@@ -167,11 +167,9 @@ const TenantMembers = ({
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
 
   useEffect(() => {
-    if (!open) {
-      setMemberKeyword('');
-      setCandidateKeyword('');
-      setSelectedUserIds([]);
-    }
+    setMemberKeyword('');
+    setCandidateKeyword('');
+    setSelectedUserIds([]);
   }, [open, tenant?.id]);
 
   const membersRequest = useRequest<{ data: UserRecord[] }>(
@@ -223,7 +221,7 @@ const TenantMembers = ({
     nextTenantIds: string[],
     nextDefaultTenantId?: string | null,
     options: { silent?: boolean; refresh?: boolean } = {},
-  ) => {
+  ): Promise<boolean> => {
     setSavingUserId(user.id);
     try {
       await api.resource('users').update({
@@ -239,6 +237,12 @@ const TenantMembers = ({
       if (options.refresh !== false) {
         await Promise.all([membersRequest.refresh(), candidatesRequest.refresh()]);
       }
+      return true;
+    } catch {
+      if (!options.silent) {
+        message.error(t('Save failed'));
+      }
+      return false;
     } finally {
       setSavingUserId(null);
     }
@@ -256,6 +260,9 @@ const TenantMembers = ({
 
     setAddingMembers(true);
     try {
+      let successCount = 0;
+      let failureCount = 0;
+
       for (const userId of userIds) {
         const user = (candidatesRequest.data?.data || []).find((item) => item.id === userId);
         if (!user) {
@@ -263,13 +270,22 @@ const TenantMembers = ({
         }
 
         const nextTenantIds = Array.from(new Set([...(user.tenants || []).map((item) => item.id), tenant.id]));
-        await saveMembership(user, nextTenantIds, user.defaultTenantId || tenant.id, {
+        const saved = await saveMembership(user, nextTenantIds, user.defaultTenantId || tenant.id, {
           silent: true,
           refresh: false,
         });
+        if (saved) {
+          successCount += 1;
+        } else {
+          failureCount += 1;
+        }
       }
 
-      message.success(t('Saved successfully'));
+      if (failureCount > 0) {
+        message.warning(successCount > 0 ? t('Some members were not saved') : t('Save failed'));
+      } else if (successCount > 0) {
+        message.success(t('Saved successfully'));
+      }
       await Promise.all([membersRequest.refresh(), candidatesRequest.refresh()]);
       setSelectedUserIds([]);
     } finally {

@@ -33,6 +33,7 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
         .then((res) => res?.data),
     {
       ready: !!currentUserId,
+      refreshDeps: [currentUserId],
     },
   );
 

@@ -266,4 +266,40 @@ describe('CurrentTenantProvider – localStorage restore', () => {
       expect(apiClient.storage.getItem('current_tenant_id')).toBe('tenant-a');
     });
   });
+
+  it('should refetch available tenants when active user changes', async () => {
+    const requests: any[] = [];
+    mockRequest.onPost('/tenants:available').reply((config) => {
+      requests.push(config);
+      const tenantId = requests.length === 1 ? 'tenant-user-1' : 'tenant-user-2';
+      return [200, { data: [{ id: tenantId, current: true }] }];
+    });
+
+    apiClient.storage.removeItem('current_tenant_id');
+
+    const { rerender } = render(
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantProvider currentUser={{ data: { data: { id: 1 } } }}>
+          <span>child</span>
+        </CurrentTenantProvider>
+      </APIClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(apiClient.storage.getItem('current_tenant_id')).toBe('tenant-user-1');
+    });
+
+    rerender(
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantProvider currentUser={{ data: { data: { id: 2 } } }}>
+          <span>child</span>
+        </CurrentTenantProvider>
+      </APIClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(apiClient.storage.getItem('current_tenant_id')).toBe('tenant-user-2');
+    });
+    expect(requests).toHaveLength(2);
+  });
 });

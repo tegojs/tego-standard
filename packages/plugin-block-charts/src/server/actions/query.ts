@@ -187,7 +187,7 @@ function getChartCacheKey(ctx: Context, uid: string) {
   const collection = collectionName ? db?.getCollection?.(collectionName) : null;
   const tenancyMode = getCollectionTenancyMode(ctx, collection);
   const isTenantCollection = tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited';
-  const normalizedFilter = isTenantCollection ? stripTenantFilter(filter) : filter;
+  const normalizedFilter = isTenantCollection && tenantId ? stripTenantFilter(filter) : filter;
   const timezone = ctx.get?.('x-timezone');
   const signature = stableSerialize({
     dataSource,

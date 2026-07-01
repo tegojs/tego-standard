@@ -606,6 +606,66 @@ describe('query', () => {
       expect(maliciousContext.body).toEqual(value);
     });
 
+    it('should preserve tenantId in cache key for tenant collections when no current tenant context exists', async () => {
+      const tenantDb = {
+        getCollection: vi.fn().mockReturnValue({
+          options: { tenancy: 'tenantScoped' },
+        }),
+      };
+      const firstContext = {
+        ...ctx,
+        db: tenantDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-a',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        db: tenantDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
     it('should NOT strip tenantId from cache key for shared/non-tenant collection', async () => {
       const sharedDb = {
         getCollection: vi.fn().mockReturnValue({

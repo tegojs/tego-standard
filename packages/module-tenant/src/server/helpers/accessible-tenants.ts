@@ -1,5 +1,7 @@
 import type { Database } from '@tego/server';
 
+import { buildPathPrefixFilter } from './tenant-tree';
+
 export async function getAccessibleTenantIds(db: Database, tenantIds: string[]) {
   if (!tenantIds.length) {
     return [];
@@ -16,6 +18,7 @@ export async function getAccessibleTenantIds(db: Database, tenantIds: string[]) 
   });
 
   const accessibleIds = new Set<string>();
+  const descendantFilters: any[] = [];
 
   for (const tenant of directTenants) {
     const id = tenant.get('id') as string;
@@ -27,11 +30,13 @@ export async function getAccessibleTenantIds(db: Database, tenantIds: string[]) 
       continue;
     }
 
+    descendantFilters.push(buildPathPrefixFilter(path));
+  }
+
+  if (descendantFilters.length) {
     const descendants = await db.getRepository('tenants').find({
       filter: {
-        path: {
-          $like: `${path}%`,
-        },
+        $or: descendantFilters,
         enabled: true,
       },
       fields: ['id'],

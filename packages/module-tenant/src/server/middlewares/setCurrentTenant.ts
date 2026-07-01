@@ -50,20 +50,17 @@ async function resolveDefaultTenantId(ctx: Context, tenantIds: Array<string | nu
     return null;
   }
 
-  if (tenantIds.length === 1) {
-    return tenantIds[0];
-  }
-
   const currentUser = await ctx.db.getRepository('users').findOne({
     filterByTk: ctx.state.currentUser.id,
   });
 
   const defaultTenantId = currentUser?.get('defaultTenantId');
-  if (defaultTenantId && tenantIds.includes(defaultTenantId)) {
+  if (defaultTenantId != null && tenantIds.includes(defaultTenantId)) {
     return defaultTenantId;
   }
 
-  return tenantIds[0];
+  const sortedTenantIds = [...tenantIds].sort((a, b) => String(a).localeCompare(String(b)));
+  return sortedTenantIds[0];
 }
 
 export async function setCurrentTenant(ctx: Context, next: Next) {

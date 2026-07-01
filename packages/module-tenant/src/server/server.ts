@@ -286,6 +286,15 @@ export class PluginTenantServer extends Plugin {
       if (children.length > 0) {
         throw new Error('Cannot delete tenant with children. Remove or reassign children first.');
       }
+
+      const defaultTenantUsers = await this.db.getRepository('users').count({
+        filter: { defaultTenantId: tenantId },
+        transaction,
+      });
+
+      if (defaultTenantUsers > 0) {
+        throw new Error('Cannot delete tenant used as a user default tenant. Clear or reassign user defaults first.');
+      }
     });
   }
 

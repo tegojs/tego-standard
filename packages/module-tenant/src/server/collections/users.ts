@@ -18,6 +18,7 @@ export default extendCollection({
     {
       type: 'string',
       name: 'defaultTenantId',
+      allowNull: true,
     },
     {
       type: 'belongsTo',
@@ -25,6 +26,7 @@ export default extendCollection({
       target: 'tenants',
       foreignKey: 'defaultTenantId',
       targetKey: 'id',
+      onDelete: 'RESTRICT',
     },
   ],
 });

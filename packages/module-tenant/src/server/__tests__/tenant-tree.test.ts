@@ -86,6 +86,23 @@ describe('tenant tree structure', () => {
     expect(titles).not.toContain('Other');
   });
 
+  it('should exclude disabled descendants from descendant ids', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'hq', name: 'hq-disabled-descendant', title: 'HQ' },
+        { id: 'enabled-branch', name: 'enabled-branch', title: 'Enabled Branch', parentId: 'hq' },
+        { id: 'disabled-branch', name: 'disabled-branch', title: 'Disabled Branch', parentId: 'hq', enabled: false },
+      ],
+    });
+
+    const ids = await getDescendantIds(app.db.getRepository('tenants'), 'hq');
+
+    expect(ids).toContain('enabled-branch');
+    expect(ids).not.toContain('disabled-branch');
+  });
+
   it('should not treat underscore in tenant id as a descendant path wildcard', async () => {
     app = await createTenantApp();
 
@@ -122,6 +139,30 @@ describe('tenant tree structure', () => {
     ).rejects.toThrow(/Cannot delete tenant with children/);
   });
 
+  it('should reject deleting a tenant used as a user default tenant', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: { id: 'default-tenant', name: 'default-tenant', title: 'Default Tenant' },
+    });
+
+    await app.db.getRepository('users').create({
+      values: {
+        username: 'default_tenant_user',
+        email: 'default-tenant-user@example.com',
+        phone: '3000000001',
+        password: '123456',
+        defaultTenantId: 'default-tenant',
+      },
+    });
+
+    await expect(
+      app.db.getRepository('tenants').destroy({
+        filterByTk: 'default-tenant',
+      }),
+    ).rejects.toThrow(/default tenant/);
+  });
+
   it('should allow deleting a leaf tenant', async () => {
     app = await createTenantApp();
 
@@ -136,6 +177,18 @@ describe('tenant tree structure', () => {
 
     const found = await app.db.getRepository('tenants').findOne({ filter: { id: 'leaf' } });
     expect(found).toBeNull();
+  });
+
+  it('should reject creating a tenant without a name', async () => {
+    app = await createTenantApp();
+
+    await expect(
+      app.db.getRepository('tenants').create({
+        values: {
+          title: 'Missing name tenant',
+        },
+      }),
+    ).rejects.toThrow();
   });
 
   it('should reject creating a cycle (self-parent)', async () => {

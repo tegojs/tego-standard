@@ -13,6 +13,8 @@ export default defineCollection({
       type: 'string',
       name: 'name',
       unique: true,
+      allowNull: false,
+      required: true,
     },
     {
       type: 'string',

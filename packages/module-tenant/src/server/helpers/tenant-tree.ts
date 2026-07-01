@@ -15,7 +15,7 @@ export function buildPath(parentPath: string | null | undefined, id: string): st
   return path;
 }
 
-function buildPathPrefixFilter(path: string) {
+export function buildPathPrefixFilter(path: string) {
   return {
     path: {
       $gte: path,
@@ -39,6 +39,7 @@ async function getDescendantFilter(repo: Repository, tenantId: string, options: 
   return {
     ...buildPathPrefixFilter(path),
     'id.$ne': tenantId,
+    enabled: true,
   };
 }
 

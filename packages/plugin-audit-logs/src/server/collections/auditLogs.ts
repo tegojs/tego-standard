@@ -33,7 +33,7 @@ export default defineCollection({
       index: true,
     },
     {
-      type: 'string',
+      type: 'bigInt',
       name: 'actorUserId',
       index: true,
     },

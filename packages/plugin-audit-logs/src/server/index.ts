@@ -37,7 +37,11 @@ export default class PluginActionLogs extends Plugin {
         this.logsBuffer = [];
         try {
           await this.workerCreateAuditLog(pending);
-        } catch {
+        } catch (error) {
+          this.app?.logger?.warn?.('Failed to flush pending audit logs before destroy', {
+            error,
+            pendingCount: pending.length,
+          });
           // Best-effort flush — must not block app shutdown
         }
       }

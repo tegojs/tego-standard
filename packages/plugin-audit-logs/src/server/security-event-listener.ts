@@ -1,6 +1,6 @@
 import type { Plugin } from '@tego/server';
 
-import { EVENT_TENANT_SECURITY } from './constants';
+import { AUDIT_TYPE_TENANT_IMPERSONATION, EVENT_TENANT_SECURITY } from './constants';
 
 export interface TenantSecurityEvent {
   type: string;
@@ -39,7 +39,7 @@ export function registerSecurityEventListener(plugin: { app: any; db: any }) {
 
   const handler = async (event: TenantSecurityEvent) => {
     try {
-      const isImpersonation = event.type === 'tenant_impersonation';
+      const isImpersonation = event.type === AUDIT_TYPE_TENANT_IMPERSONATION;
       const details = event.action ? { ...event.details, action: event.action } : event.details || null;
 
       const auditLogRepo = plugin.db.getRepository('auditLogs');

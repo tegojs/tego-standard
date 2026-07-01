@@ -216,10 +216,12 @@ export default class Processor {
 
   public getRepositoryContext() {
     const tenantContext = this.execution.get?.('tenantContext') || (this.execution as any).tenantContext || {};
+    const authContext = this.execution.get?.('authContext') || (this.execution as any).authContext || {};
     const state = {
       ...this.options?.httpContext?.state,
       ...this.options?.context?.state,
       ...tenantContext,
+      ...authContext,
     };
 
     return {

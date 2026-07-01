@@ -17,7 +17,16 @@ export class DestroyInstruction extends Instruction {
       .collectionManager.getCollection(collectionName);
     const { repository } = targetCollection;
     const options = processor.getParsedValue(params, node.id);
-    const repositoryContext = processor.getRepositoryContext();
+    const baseRepositoryContext = processor.getRepositoryContext();
+    const repositoryContext = {
+      ...baseRepositoryContext,
+      ...options.context,
+      state: {
+        ...baseRepositoryContext.state,
+        ...options.context?.state,
+      },
+      stack: Array.from(new Set([...(baseRepositoryContext.stack || []), ...(options.context?.stack || [])])),
+    };
     const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'destroy', options);
     const result = await repository.destroy({
       ...repositoryOptions,

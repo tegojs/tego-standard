@@ -235,22 +235,23 @@ export async function update(ctx: Context, next) {
   const repository = utils.getRepositoryFromParams(ctx);
   const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues } = ctx.action.params;
 
-  // Check SQL node permission: either type is being changed to sql, or existing node is sql
-  const nodeType = values?.type;
-  if (nodeType === 'sql') {
-    assertSqlNodePermission(ctx, 'sql');
-  } else if (filterByTk) {
-    const existingNode = await repository.findOne({ filterByTk, fields: ['type'] });
-    if (existingNode?.get('type') === 'sql') {
-      assertSqlNodePermission(ctx, 'sql');
-    }
-  } else if (filter) {
-    const existingNodes = await repository.find({ filter, fields: ['type'] });
-    if (existingNodes.some((node) => node?.get('type') === 'sql')) {
-      assertSqlNodePermission(ctx, 'sql');
-    }
-  }
   ctx.body = await db.sequelize.transaction(async (transaction) => {
+    // Check SQL node permission inside the same transaction used for the update.
+    const nodeType = values?.type;
+    if (nodeType === 'sql') {
+      assertSqlNodePermission(ctx, 'sql');
+    } else if (filterByTk) {
+      const existingNode = await repository.findOne({ filterByTk, fields: ['type'], context: ctx, transaction });
+      if (existingNode?.get('type') === 'sql') {
+        assertSqlNodePermission(ctx, 'sql');
+      }
+    } else if (filter) {
+      const existingNodes = await repository.find({ filter, fields: ['type'], context: ctx, transaction });
+      if (existingNodes.some((node) => node?.get('type') === 'sql')) {
+        assertSqlNodePermission(ctx, 'sql');
+      }
+    }
+
     // TODO(optimize): duplicated instance query
     const { workflow } = await repository.findOne({
       filterByTk,

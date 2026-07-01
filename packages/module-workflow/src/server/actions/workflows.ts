@@ -384,6 +384,13 @@ export async function retry(ctx: Context, next: Next) {
     context: ctx,
   });
 
+  if (!workflow) {
+    ctx.state.messages.push({
+      message: ctx.t('No execution records found for this workflow.', { ns: 'workflow' }),
+    });
+    return ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
+  }
+
   const tenantId = getCurrentTenantIdFromState(ctx.state);
   const execution = await ExecutionRepo.findOne({
     filter: {

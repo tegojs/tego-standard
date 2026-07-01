@@ -184,7 +184,7 @@ export class UpdateOrCreateInstruction extends Instruction {
     }
 
     const context = repositoryContext;
-    const findOptions = applyTenantFilterToContext(repositoryContext, c, 'list', { filter: options.filter });
+    const findOptions = applyTenantFilterToContext(repositoryContext, c, 'list', options);
     const instance = await (repository as Repository).findOne({ ...findOptions, context, transaction });
 
     if (instance) {

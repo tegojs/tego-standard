@@ -8,7 +8,7 @@
  * - Metadata actions (dbViews:list, dbViews:get) follow the standard strategy
  * - Admin role can access these resources via the pm.database-connections.collections snippet
  * - Root role has unrestricted access to all resources
- * - Custom role with explicit snippet can access the resources
+ * - Custom role needs explicit snippets for collection config and raw SQL execution
  * - When tenant module is not enabled, original permission behavior is preserved
  *
  * Note: `dbViews:list` and `dbViews:get` are metadata-only actions (list view names,
@@ -86,7 +86,7 @@ describe('SQL/View ACL permission boundary', () => {
         values: {
           name: 'custom_sql_viewer',
           strategy: { actions: ['view'] },
-          snippets: ['pm.database-connections.collections'],
+          snippets: ['pm.database-connections.collections', 'pm.database-connections.sql.execute'],
         },
       });
     }
@@ -511,19 +511,29 @@ describe('SQL/View ACL permission boundary', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should verify custom_sql_viewer role has the pm.database-connections.collections snippet', () => {
+    it('should verify custom_sql_viewer role has collection and SQL execute snippets', () => {
       const customRole = app.acl.getRole('custom_sql_viewer');
       expect(customRole).toBeDefined();
       const { allowed } = customRole.effectiveSnippets();
       expect(allowed).toContain('pm.database-connections.collections');
+      expect(allowed).toContain('pm.database-connections.sql.execute');
     });
   });
 
   describe('sqlCollection snippet registration', () => {
-    it('should include sqlCollection:* in pm.database-connections.collections snippet', () => {
+    it('should keep sqlCollection execute out of the collection configuration snippet', () => {
       const snippet = app.acl.snippetManager.snippets.get('pm.database-connections.collections');
       expect(snippet).toBeDefined();
-      expect(snippet.actions).toContain('sqlCollection:*');
+      expect(snippet.actions).toContain('sqlCollection:update');
+      expect(snippet.actions).toContain('sqlCollection:setFields');
+      expect(snippet.actions).not.toContain('sqlCollection:*');
+      expect(snippet.actions).not.toContain('sqlCollection:execute');
+    });
+
+    it('should register sqlCollection execute as a separate snippet', () => {
+      const snippet = app.acl.snippetManager.snippets.get('pm.database-connections.sql.execute');
+      expect(snippet).toBeDefined();
+      expect(snippet.actions).toContain('sqlCollection:execute');
     });
 
     it('should include dbViews:* in pm.database-connections.collections snippet', () => {

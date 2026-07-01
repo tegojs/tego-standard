@@ -128,6 +128,10 @@ function getLegacyDataTenantIds(ctx: Context, collection: any) {
   return collection?.options?.legacyDataTenantIds || [];
 }
 
+function getCollectionTenancyMode(ctx: Context, collection: any) {
+  return collection?.options?.tenancy ?? ctx.state.currentTenancyMode;
+}
+
 function getTenantCacheScope(ctx: Context, params: QueryParams) {
   const tenantId = getCurrentTenantId(ctx);
 
@@ -137,7 +141,7 @@ function getTenantCacheScope(ctx: Context, params: QueryParams) {
 
   const db = getDB(ctx, params.dataSource) || ctx.db;
   const collection = params.collection ? db?.getCollection?.(params.collection) : null;
-  const tenancyMode = collection?.options?.tenancy ?? ctx.state.currentTenancyMode;
+  const tenancyMode = getCollectionTenancyMode(ctx, collection);
 
   if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
     return null;
@@ -181,7 +185,7 @@ function getChartCacheKey(ctx: Context, uid: string) {
   const { dataSource, collection: collectionName, measures, dimensions, orders, filter, limit, sql } = values;
   const db = getDB(ctx, dataSource) || ctx.db;
   const collection = collectionName ? db?.getCollection?.(collectionName) : null;
-  const tenancyMode = collection?.options?.tenancy;
+  const tenancyMode = getCollectionTenancyMode(ctx, collection);
   const isTenantCollection = tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited';
   const normalizedFilter = isTenantCollection ? stripTenantFilter(filter) : filter;
   const timezone = ctx.get?.('x-timezone');
@@ -472,7 +476,7 @@ export const applyTenantScope = async (ctx: Context, next: Next) => {
   const { dataSource, collection: collectionName, filter } = ctx.action.params.values as QueryParams;
   const db = getDB(ctx, dataSource) || ctx.db;
   const collection = db.getCollection(collectionName);
-  const tenancyMode = collection?.options?.tenancy;
+  const tenancyMode = getCollectionTenancyMode(ctx, collection);
 
   if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
     const tenantId = getCurrentTenantId(ctx);

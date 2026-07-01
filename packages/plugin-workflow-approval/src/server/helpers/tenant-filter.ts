@@ -4,20 +4,22 @@ function stripTenantFilter(filter: any): any {
   }
 
   if (Array.isArray(filter)) {
-    return filter
-      .map(stripTenantFilter)
-      .filter((item) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+    return filter.map(stripTenantFilter);
   }
 
-  const next = Object.fromEntries(
-    Object.entries(filter)
-      .filter(([key]) => key !== 'tenantId' && !key.startsWith('tenantId.'))
-      .map(([key, value]) => [key, stripTenantFilter(value)]),
-  );
+  const next: Record<PropertyKey, any> = {};
+  for (const key of Reflect.ownKeys(filter)) {
+    if (typeof key === 'string' && (key === 'tenantId' || key.startsWith('tenantId.'))) {
+      continue;
+    }
+    next[key] = stripTenantFilter(filter[key]);
+  }
 
   for (const key of ['$and', '$or']) {
     if (Array.isArray(next[key])) {
-      next[key] = next[key].filter((item: any) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+      next[key] = next[key].filter(
+        (item: any) => item && (typeof item !== 'object' || Reflect.ownKeys(item).length > 0),
+      );
       if (next[key].length === 0) {
         delete next[key];
       }
@@ -40,7 +42,7 @@ export function withCurrentTenantFilter(ctx: any, filter: any = {}) {
   const sanitizedFilter = stripTenantFilter(filter);
   const tenantFilter = { tenantId };
 
-  if (!sanitizedFilter || Object.keys(sanitizedFilter).length === 0) {
+  if (!sanitizedFilter || Reflect.ownKeys(sanitizedFilter).length === 0) {
     return tenantFilter;
   }
 

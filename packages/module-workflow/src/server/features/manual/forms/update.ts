@@ -9,7 +9,13 @@ export default async function (
   processor: Processor,
 ) {
   const ds = this.workflow.app.dataSourceManager.dataSources.get(dataSource);
+  if (!ds) {
+    throw new Error(`collection ${collection} for update data on manual node not found`);
+  }
   const c = ds.collectionManager.getCollection(collection);
+  if (!c) {
+    throw new Error(`collection ${collection} for update data on manual node not found`);
+  }
   const repo = c.repository;
   if (!repo) {
     throw new Error(`collection ${collection} for update data on manual node not found`);

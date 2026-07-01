@@ -387,6 +387,7 @@ describe('CurrentTenantProvider – localStorage restore', () => {
       await expect(selectProps.onChange('tenant-b')).resolves.toBeUndefined();
     });
 
-    expect(selectProps.value).toBe('tenant-a');
+    const currentSelectProps = result.current?.props.children.props;
+    expect(currentSelectProps.value).toBe('tenant-a');
   });
 });

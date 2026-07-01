@@ -589,15 +589,21 @@ describe('workflow > Plugin', () => {
         type: 'syncTrigger',
       });
 
-      await plugin.trigger(w1, {
-        state: {
-          currentTenant: { id: 'tenant-a', name: 'tenant-a' },
-          currentTenantId: 'tenant-a',
-          currentTenantDescendantIds: [],
-          currentTenancyMode: 'tenantScoped',
-          currentLegacyDataTenantIds: ['tenant-a'],
+      await plugin.trigger(
+        w1,
+        {},
+        {
+          context: {
+            state: {
+              currentTenant: { id: 'tenant-a', name: 'tenant-a' },
+              currentTenantId: 'tenant-a',
+              currentTenantDescendantIds: [],
+              currentTenancyMode: 'tenantScoped',
+              currentLegacyDataTenantIds: ['tenant-a'],
+            },
+          },
         },
-      });
+      );
 
       const [execution] = await w1.getExecutions();
       expect(execution.tenantContext).toMatchObject({
@@ -616,15 +622,21 @@ describe('workflow > Plugin', () => {
         w1,
         {
           state: {
-            currentTenant: { id: 'tenant-from-context' },
-            currentTenantId: 'tenant-from-context',
-            currentTenantDescendantIds: [],
-            currentTenancyMode: 'tenantScoped',
+            currentTenant: { id: 'payload-tenant' },
+            currentTenantId: 'payload-tenant',
           },
         },
         {
           context: {
             state: {},
+          },
+          httpContext: {
+            state: {
+              currentTenant: { id: 'tenant-from-context' },
+              currentTenantId: 'tenant-from-context',
+              currentTenantDescendantIds: [],
+              currentTenancyMode: 'tenantScoped',
+            },
           },
         },
       );
@@ -642,20 +654,44 @@ describe('workflow > Plugin', () => {
         type: 'syncTrigger',
       });
 
-      await plugin.trigger(w1, {
-        state: {
-          currentTenant: { id: 0 },
-          currentTenantId: 0,
-          currentTenantDescendantIds: [],
-          currentTenancyMode: 'tenantScoped',
+      await plugin.trigger(
+        w1,
+        {},
+        {
+          context: {
+            state: {
+              currentTenant: { id: 0 },
+              currentTenantId: 0,
+              currentTenantDescendantIds: [],
+              currentTenancyMode: 'tenantScoped',
+            },
+          },
         },
-      });
+      );
 
       const [execution] = await w1.getExecutions();
       expect(execution.tenantId).toBe('0');
       expect(execution.tenantContext).toMatchObject({
         currentTenantId: 0,
       });
+    });
+
+    it('should not persist tenant context from event payload state', async () => {
+      const w1 = await WorkflowModel.create({
+        enabled: true,
+        type: 'syncTrigger',
+      });
+
+      await plugin.trigger(w1, {
+        state: {
+          currentTenant: { id: 'payload-tenant' },
+          currentTenantId: 'payload-tenant',
+        },
+      });
+
+      const [execution] = await w1.getExecutions();
+      expect(execution.tenantId).toBeNull();
+      expect(execution.tenantContext).toBeNull();
     });
   });
 });

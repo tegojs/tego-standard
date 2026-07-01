@@ -9,9 +9,39 @@ function getModelValue(model: any, key: string) {
   return model?.get?.(key) ?? model?.[key];
 }
 
+function canReadLegacyExecutions(state: Record<string, any> = {}, tenantId: string | number) {
+  return (state.currentLegacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
+}
+
+function buildExecutionTenantFilter(ctx: Context) {
+  const tenantId = getCurrentTenantIdFromState(ctx.state);
+  if (tenantId === null || tenantId === undefined) {
+    return null;
+  }
+
+  if (canReadLegacyExecutions(ctx.state, tenantId)) {
+    return {
+      $or: [{ tenantId }, { tenantId: null }],
+    };
+  }
+
+  return { tenantId };
+}
+
+function appendExecutionTenantFilter(filter: any, ctx: Context) {
+  const tenantFilter = buildExecutionTenantFilter(ctx);
+  if (!tenantFilter) {
+    return filter;
+  }
+
+  return {
+    $and: [filter, tenantFilter],
+  };
+}
+
 function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
   const tenantId = getCurrentTenantIdFromState(ctx.state);
-  if (!tenantId || !execution) {
+  if (tenantId === null || tenantId === undefined || !execution) {
     return;
   }
 
@@ -23,11 +53,14 @@ function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
 
 export async function destroy(ctx: Context, next) {
   ctx.action.mergeParams({
-    filter: {
-      status: {
-        [Op.ne]: EXECUTION_STATUS.STARTED,
+    filter: appendExecutionTenantFilter(
+      {
+        status: {
+          [Op.ne]: EXECUTION_STATUS.STARTED,
+        },
       },
-    },
+      ctx,
+    ),
   });
 
   await actions.destroy(ctx, next);
@@ -39,6 +72,7 @@ export async function cancel(ctx: Context, next) {
   const JobRepo = ctx.db.getRepository('jobs');
   const execution = await ExecutionRepo.findOne({
     filterByTk,
+    filter: buildExecutionTenantFilter(ctx),
     appends: ['jobs'],
   });
   if (!execution) {
@@ -94,6 +128,7 @@ export async function retry(ctx: Context, next: Next) {
   }
   const execution = await repository.findOne({
     filterByTk,
+    filter: buildExecutionTenantFilter(ctx),
   });
   if (!execution) {
     ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));

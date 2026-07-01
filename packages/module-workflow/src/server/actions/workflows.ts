@@ -14,6 +14,25 @@ import {
   setLatestExecutedTime,
 } from './workflows.helpers';
 
+function canReadLegacyExecutions(state: Record<string, any> = {}, tenantId: string | number) {
+  return (state.currentLegacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
+}
+
+function buildExecutionTenantFilter(state: Record<string, any> = {}) {
+  const tenantId = getCurrentTenantIdFromState(state);
+  if (tenantId === null || tenantId === undefined) {
+    return {};
+  }
+
+  if (canReadLegacyExecutions(state, tenantId)) {
+    return {
+      $or: [{ tenantId }, { tenantId: null }],
+    };
+  }
+
+  return { tenantId };
+}
+
 /**
  * 扩展的 list action，在返回工作流列表时附加额外字段
  * - latestExecutedTime: 最新执行时间（UTC ISO 格式）
@@ -386,16 +405,15 @@ export async function retry(ctx: Context, next: Next) {
 
   if (!workflow) {
     ctx.state.messages.push({
-      message: ctx.t('No execution records found for this workflow.', { ns: 'workflow' }),
+      message: ctx.t('Workflow not found', { ns: 'workflow' }),
     });
-    return ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
+    return ctx.throw(404, ctx.t('Workflow not found', { ns: 'workflow' }));
   }
 
-  const tenantId = getCurrentTenantIdFromState(ctx.state);
   const execution = await ExecutionRepo.findOne({
     filter: {
       key: workflow.key,
-      ...(tenantId ? { tenantId } : {}),
+      ...buildExecutionTenantFilter(ctx.state),
     },
     sort: ['-createdAt'],
   });

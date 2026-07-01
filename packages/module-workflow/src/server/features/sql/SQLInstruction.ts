@@ -11,13 +11,14 @@ import { checkSqlExecutionPermission } from '../../utils/sql-permission';
  * - Unlike Query/Select/Update/Destroy/Aggregate instructions which use the
  *   repository API and receive automatic tenant scoping, the SQL instruction
  *   operates at the raw database driver level.
- * - The tenant context (currentTenantId, descendant IDs, etc.) IS available on
- *   the processor's execution record, but this instruction intentionally does
- *   not use it — SQL statements are opaque to the framework and cannot be safely
- *   rewritten to include tenant conditions.
+ * - The restored repository context (currentTenantId, descendant IDs, role, etc.)
+ *   is exposed to SQL templates as `$repositoryContext` and `$tenantContext`,
+ *   but this instruction intentionally does not rewrite SQL — statements are
+ *   opaque to the framework and cannot be safely patched to include tenant
+ *   conditions.
  * - Workflow authors MUST manually include tenant conditions in their SQL
- *   (e.g. `WHERE tenantId = '{{$context.state.currentTenantId}}'` or
- *   `{{execution.context.state.currentTenantId}}`) when accessing tenant-scoped data.
+ *   (e.g. `WHERE tenantId = '{{$tenantContext.currentTenantId}}'`) when
+ *   accessing tenant-scoped data.
  *
  * Permission boundary:
  * - Only users with the `pm.workflow.sql` snippet (or root/admin via `pm.*`)
@@ -40,7 +41,13 @@ export default class extends Instruction {
     if (!db) {
       throw new Error(`type of data source "${node.config.dataSource}" is not database`);
     }
-    const sql = processor.getParsedValue(node.config.sql || '', node.id).trim();
+    const repositoryContext = processor.getRepositoryContext();
+    const sql = processor
+      .getParsedValue(node.config.sql || '', node.id, {
+        $repositoryContext: repositoryContext,
+        $tenantContext: repositoryContext.state,
+      })
+      .trim();
     if (!sql) {
       return {
         status: JOB_STATUS.RESOLVED,

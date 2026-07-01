@@ -90,21 +90,25 @@ function isTenantCollection(collection) {
   return collection?.options?.tenancy === 'tenantScoped' || collection?.options?.tenancy === 'tenantInherited';
 }
 
-async function buildTenantContext(db, collection, record, tenant?) {
+async function buildTenantContext(db, collection, record, tenant?, descendantIdsCache = new Map<string, string[]>()) {
   const tenancyMode = collection?.options?.tenancy;
   if (!isTenantCollection(collection)) {
     return null;
   }
 
   const tenantId = tenant?.get?.('id') ?? record.get?.('tenantId') ?? record.tenantId;
-  if (!tenantId) {
+  if (tenantId === null || tenantId === undefined) {
     return null;
   }
 
-  const descendantIds =
-    tenancyMode === 'tenantInherited' && db.getRepository('tenants')
-      ? await getDescendantTenantIds(db, `${tenantId}`)
-      : [];
+  let descendantIds: string[] = [];
+  if (tenancyMode === 'tenantInherited' && db.getRepository('tenants')) {
+    const cacheKey = `${tenantId}`;
+    if (!descendantIdsCache.has(cacheKey)) {
+      descendantIdsCache.set(cacheKey, await getDescendantTenantIds(db, cacheKey));
+    }
+    descendantIds = descendantIdsCache.get(cacheKey) || [];
+  }
 
   return {
     state: {
@@ -311,18 +315,25 @@ export default class ScheduleTrigger {
         enabled: true,
       },
     });
-    const tenantsById = new Map(tenants.map((tenant) => [tenant.get('id'), tenant]));
+    const tenantsById = new Map(tenants.map((tenant) => [`${tenant.get('id')}`, tenant]));
+    const descendantIdsCache = new Map<string, string[]>();
 
     const recordsWithTenantContext = await Promise.all(
-      records.map(async (record) =>
-        bindTenantContext(
+      records.map(async (record) => {
+        const tenantId = record.get('tenantId');
+        const tenant = tenantId === null || tenantId === undefined ? null : tenantsById.get(`${tenantId}`);
+        if (!tenant) {
+          return null;
+        }
+
+        return bindTenantContext(
           record,
-          await buildTenantContext(db, targetCollection, record, tenantsById.get(record.get('tenantId'))),
-        ),
-      ),
+          await buildTenantContext(db, targetCollection, record, tenant, descendantIdsCache),
+        );
+      }),
     );
 
-    return recordsWithTenantContext.filter(getBoundTenantContext);
+    return recordsWithTenantContext.filter((record) => record && getBoundTenantContext(record));
   }
 
   getRecordNextTime(workflow: WorkflowModel, record, nextSecond = false) {
@@ -411,8 +422,27 @@ export default class ScheduleTrigger {
       .collectionManager.getCollection(collectionName);
     const { repository, filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
-    const context =
-      getBoundTenantContext(record) || (await buildTenantContext(this.workflow.app.db, collection, record));
+    let context = getBoundTenantContext(record);
+    if (isTenantCollection(collection)) {
+      const tenantId = context?.state?.currentTenantId ?? record.get?.('tenantId') ?? record.tenantId;
+      if (tenantId === null || tenantId === undefined) {
+        return;
+      }
+
+      const tenant = await this.workflow.app.db.getRepository('tenants').findOne({
+        filter: {
+          id: tenantId,
+          enabled: true,
+        },
+      });
+      if (!tenant) {
+        return;
+      }
+
+      context = await buildTenantContext(this.workflow.app.db, collection, record, tenant);
+    } else {
+      context = context || (await buildTenantContext(this.workflow.app.db, collection, record));
+    }
     const data = await repository.findOne({
       filterByTk: recordPk,
       appends: workflow.config.appends,

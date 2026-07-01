@@ -22,8 +22,8 @@ export class DestroyInstruction extends Instruction {
       ...baseRepositoryContext,
       ...options.context,
       state: {
-        ...baseRepositoryContext.state,
         ...options.context?.state,
+        ...baseRepositoryContext.state,
       },
       stack: Array.from(new Set([...(baseRepositoryContext.stack || []), ...(options.context?.stack || [])])),
     };

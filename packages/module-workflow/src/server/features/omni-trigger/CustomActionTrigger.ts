@@ -259,6 +259,9 @@ export class OmniTrigger extends Trigger {
                 ...findOptions,
                 context: ctx,
               });
+              if (!payload) {
+                continue;
+              }
             }
           }
           // this.workflow.trigger(workflow, { data: toJSON(payload), ...userInfo });
@@ -280,6 +283,9 @@ export class OmniTrigger extends Trigger {
             ...findOptions,
             context: ctx,
           });
+          if (!data) {
+            continue;
+          }
         }
         // this.workflow.trigger(workflow, {
         //   data,

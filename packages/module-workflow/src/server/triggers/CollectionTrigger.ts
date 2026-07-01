@@ -35,13 +35,15 @@ function getFieldRawName(collection: ICollection, name: string) {
 }
 
 function pickTenantState(state: Record<string, any> = {}) {
-  if (state.currentTenantId === null || state.currentTenantId === undefined) {
+  const currentTenantId = state.currentTenantId ?? state.currentTenant?.id;
+
+  if (currentTenantId === null || currentTenantId === undefined) {
     return undefined;
   }
 
   return {
     currentTenant: state.currentTenant,
-    currentTenantId: state.currentTenantId,
+    currentTenantId,
     currentTenantDescendantIds: state.currentTenantDescendantIds || [],
     currentTenancyMode: state.currentTenancyMode,
     currentLegacyDataTenantIds: state.currentLegacyDataTenantIds || [],

@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { applyTenantFilterToContext } from '../helpers/tenant-context';
+import { applyTenantFilterToContext, getDescendantTenantIds } from '../helpers/tenant-context';
 
 const tenantAwareFiles = [
   'instructions/QueryInstruction.ts',
@@ -79,6 +79,24 @@ describe('workflow > tenant module boundary', () => {
           },
         ],
       },
+    });
+  });
+
+  it('should resolve descendants without treating underscore as a path wildcard', async () => {
+    const findOne = vi.fn(async () => ({
+      get: (key: string) => (key === 'path' ? '/root_1/' : undefined),
+    }));
+    const find = vi.fn(async () => [
+      { get: (key: string) => (key === 'id' ? 'root_1_child' : key === 'path' ? '/root_1/root_1_child/' : undefined) },
+      { get: (key: string) => (key === 'id' ? 'root-a-child' : key === 'path' ? '/root-a/root-a-child/' : undefined) },
+    ]);
+    const db = {
+      getRepository: vi.fn(() => ({ findOne, find })),
+    };
+
+    await expect(getDescendantTenantIds(db, 'root_1')).resolves.toEqual(['root_1_child']);
+    expect(find).toHaveBeenCalledWith({
+      fields: ['id', 'path'],
     });
   });
 });

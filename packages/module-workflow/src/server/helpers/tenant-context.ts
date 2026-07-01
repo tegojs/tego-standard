@@ -224,15 +224,10 @@ export async function getDescendantTenantIds(db: any, tenantId: string): Promise
   }
 
   const descendants = await repo.find({
-    filter: {
-      path: {
-        $gte: path,
-        $lt: `${path}\uffff`,
-      },
-      'id.$ne': tenantId,
-    },
-    fields: ['id'],
+    fields: ['id', 'path'],
   });
 
-  return descendants.map((tenant: any) => tenant.get('id'));
+  return descendants
+    .filter((tenant: any) => tenant.get('id') !== tenantId && tenant.get('path')?.startsWith(path))
+    .map((tenant: any) => tenant.get('id'));
 }

@@ -432,6 +432,71 @@ describe('tenant resource guard', () => {
     expect(response.body.errors?.[0]?.message || response.body.error?.message).toContain('Tenant context is required');
   });
 
+  it('should not bypass main data source tenant guard with an unresolved data source key', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_guard_fake_ds_user',
+        email: 'tenant-guard-fake-ds-user@example.com',
+        phone: '10000000010',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_fake_ds_posts',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+
+    await app.db.getRepository('tenant_fake_ds_posts').create({
+      values: {
+        title: 'A1',
+      },
+      context: {
+        state: {
+          currentTenant: { id: 'tenant-a' },
+          currentTenantId: 'tenant-a',
+        },
+      },
+    });
+    await app.db.getRepository('tenant_fake_ds_posts').create({
+      values: {
+        title: 'B1',
+      },
+      context: {
+        state: {
+          currentTenant: { id: 'tenant-b' },
+          currentTenantId: 'tenant-b',
+        },
+      },
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .set('X-data-source', 'missing-ds')
+      .resource('tenant_fake_ds_posts')
+      .list({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map((item: any) => item.title)).toEqual(['A1']);
+  });
+
   it('should reject forged / unsigned Bearer tokens for tenant-scoped resources', async () => {
     app = await createTenantApp();
 

@@ -34,6 +34,23 @@ export function buildTenantTree(tenants: TenantRecord[]) {
 export function getTenantParentOptions(tenants: TenantRecord[], editingTenant?: TenantRecord | null) {
   const editingPath = editingTenant?.path;
   const descendantPathPrefix = editingPath?.endsWith('/') ? editingPath : editingPath ? `${editingPath}/` : undefined;
+  const excludedIds = new Set<string>();
+
+  if (editingTenant?.id) {
+    excludedIds.add(editingTenant.id);
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+
+      tenants.forEach((tenant) => {
+        if (tenant.parentId && excludedIds.has(tenant.parentId) && !excludedIds.has(tenant.id)) {
+          excludedIds.add(tenant.id);
+          changed = true;
+        }
+      });
+    }
+  }
 
   return tenants
     .filter((tenant) => {
@@ -41,7 +58,7 @@ export function getTenantParentOptions(tenants: TenantRecord[], editingTenant?: 
         return true;
       }
 
-      if (tenant.id === editingTenant.id) {
+      if (excludedIds.has(tenant.id)) {
         return false;
       }
 

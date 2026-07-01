@@ -72,11 +72,46 @@ export class PluginTenantServer extends Plugin {
       before: 'acl',
     });
 
-    this.app.use(setCurrentTenant, {
-      tag: 'setCurrentTenantForDataSource',
-      after: 'auth',
-      before: 'dataSource',
-    });
+    const getRequestedDataSourceKey = (ctx) =>
+      ctx.get('X-data-source') || ctx.get('x-data-source') || ctx.action?.params?.dataSource || 'main';
+
+    const getUsableDataSource = (ctx, dataSourceKey: string) => {
+      if (!dataSourceKey || dataSourceKey === 'main') {
+        return null;
+      }
+
+      return this.app.dataSourceManager.dataSources.get(dataSourceKey);
+    };
+
+    const clearInvalidDataSourceKey = (ctx) => {
+      for (const headers of [ctx.request?.headers, ctx.request?.header, ctx.headers, ctx.req?.headers]) {
+        if (headers) {
+          delete headers['x-data-source'];
+          delete headers['X-data-source'];
+        }
+      }
+
+      if (ctx.action?.params) {
+        delete ctx.action.params.dataSource;
+      }
+    };
+
+    this.app.use(
+      async (ctx, next) => {
+        const dataSourceKey = getRequestedDataSourceKey(ctx);
+        const dataSource = getUsableDataSource(ctx, dataSourceKey);
+        if (dataSourceKey && dataSourceKey !== 'main' && !dataSource?.collectionManager) {
+          clearInvalidDataSourceKey(ctx);
+        }
+
+        await setCurrentTenant(ctx, next);
+      },
+      {
+        tag: 'setCurrentTenantForDataSource',
+        after: 'auth',
+        before: 'dataSource',
+      },
+    );
 
     const applyTenantResourceGuard = async (ctx, next) => {
       const dataSourceKey =
@@ -119,11 +154,15 @@ export class PluginTenantServer extends Plugin {
 
     this.app.resourcer.use(
       async (ctx, next) => {
-        const dataSourceKey =
-          ctx.get('X-data-source') || ctx.get('x-data-source') || ctx.action.params?.dataSource || 'main';
+        const dataSourceKey = getRequestedDataSourceKey(ctx);
         if (dataSourceKey && dataSourceKey !== 'main') {
-          await next();
-          return;
+          const dataSource = getUsableDataSource(ctx, dataSourceKey);
+          if (dataSource?.collectionManager) {
+            await next();
+            return;
+          }
+
+          clearInvalidDataSourceKey(ctx);
         }
 
         await applyTenantResourceGuard(ctx, next);
@@ -220,9 +259,17 @@ export class PluginTenantServer extends Plugin {
       const newParentId = rawParentId || null;
       const tenantId = model.get('id') as string;
       const repo = this.db.getRepository('tenants');
+      const tenant = await repo.findOne({
+        filter: { id: tenantId },
+        transaction,
+      });
       let parentPath: string | null = null;
 
       model.set('parentId', newParentId);
+
+      if (tenant && (tenant.get('parentId') || null) === newParentId) {
+        return;
+      }
 
       if (newParentId) {
         if (await wouldCreateCycle(repo, tenantId, newParentId, { transaction })) {
@@ -245,14 +292,14 @@ export class PluginTenantServer extends Plugin {
         parentPath = newParent.get('path') as string;
       }
 
-      const tenant = await repo.findOne({
-        filter: { id: tenantId },
-        transaction,
-      });
-
       if (tenant) {
         const oldPath = tenant.get('path') as string;
         const newPath = buildPath(parentPath, tenantId);
+
+        if (!oldPath) {
+          model.set('path', newPath);
+          return;
+        }
 
         const descendants = await repo.find({
           filter: getDescendantPathFilter(oldPath, tenantId),

@@ -6,11 +6,19 @@ function isTenantEnabledMode(mode?: string | null) {
   return TENANT_ENABLED_MODES.includes(mode || '');
 }
 
-export async function ensureTenantIdField(model: any, options: Transactionable = {}) {
-  if (!isTenantEnabledMode(model.get('tenancy'))) {
-    return;
+function isManagedTenantIdField(field: any) {
+  if (!field) {
+    return false;
   }
 
+  return (
+    field.get('type') === 'context' &&
+    field.get('dataIndex') === 'state.currentTenant.id' &&
+    field.get('createOnly') === true
+  );
+}
+
+export async function ensureTenantIdField(model: any, options: Transactionable = {}) {
   const collectionName = model.get('name');
   const fieldsRepository = model.db.getRepository('fields');
   const exists = await fieldsRepository.findOne({
@@ -20,6 +28,19 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
     },
     transaction: options.transaction,
   });
+
+  if (!isTenantEnabledMode(model.get('tenancy'))) {
+    if (isManagedTenantIdField(exists)) {
+      await fieldsRepository.destroy({
+        filter: {
+          collectionName,
+          name: 'tenantId',
+        },
+        transaction: options.transaction,
+      });
+    }
+    return;
+  }
 
   const tenantField = {
     collectionName,

@@ -71,4 +71,21 @@ describe('tenant tree helpers', () => {
       { label: 'child-2', value: 'child-2' },
     ]);
   });
+
+  it('should exclude descendants by parent hierarchy when paths are missing', () => {
+    const options = getTenantParentOptions(
+      [
+        { id: 'root', name: 'root' },
+        { id: 'child', name: 'child', parentId: 'root' },
+        { id: 'grandchild', name: 'grandchild', parentId: 'child' },
+        { id: 'other', name: 'other' },
+      ],
+      { id: 'child', name: 'child', parentId: 'root' },
+    );
+
+    expect(options).toEqual([
+      { label: 'root', value: 'root' },
+      { label: 'other', value: 'other' },
+    ]);
+  });
 });

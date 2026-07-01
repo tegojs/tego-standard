@@ -27,7 +27,7 @@ export function buildPathPrefixFilter(path: string) {
 async function getDescendantFilter(repo: Repository, tenantId: string, options: any = {}) {
   const tenant = await repo.findOne({
     filter: { id: tenantId },
-    fields: ['path'],
+    fields: ['id', 'path', 'parentId'],
     transaction: options.transaction,
   });
 
@@ -105,9 +105,9 @@ export async function wouldCreateCycle(
   }
 
   const currentPath = tenant.get('path') as string;
-  const newParent = await repo.findOne({
+  let newParent = await repo.findOne({
     filter: { id: newParentId },
-    fields: ['path'],
+    fields: ['id', 'path', 'parentId'],
     transaction: options.transaction,
   });
 
@@ -116,7 +116,35 @@ export async function wouldCreateCycle(
   }
 
   const parentPath = newParent.get('path') as string;
-  return parentPath.startsWith(currentPath);
+  if (currentPath && parentPath && parentPath.startsWith(currentPath)) {
+    return true;
+  }
+
+  const visitedTenantIds = new Set<string>();
+  while (newParent) {
+    const currentParentId = newParent.get('id') as string;
+    if (currentParentId === tenantId) {
+      return true;
+    }
+
+    if (visitedTenantIds.has(currentParentId)) {
+      return true;
+    }
+    visitedTenantIds.add(currentParentId);
+
+    const parentId = newParent.get('parentId') as string | null;
+    if (!parentId) {
+      return false;
+    }
+
+    newParent = await repo.findOne({
+      filter: { id: parentId },
+      fields: ['id', 'parentId'],
+      transaction: options.transaction,
+    });
+  }
+
+  return false;
 }
 
 /**

@@ -2,7 +2,33 @@ import type { Context, Next } from '@tego/server';
 
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 
+function isPlatformTenantImpersonator(ctx: Context) {
+  const roles = ctx.state.currentUser?.roles || [];
+  return roles.some((role: any) => (typeof role === 'string' ? role : role?.name) === 'root');
+}
+
+function setAvailableTenantsBody(ctx: Context, tenants: any[]) {
+  const currentTenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
+  ctx.body = tenants.map((tenant: any) => ({
+    ...tenant.toJSON(),
+    current: tenant.get('id') === currentTenantId,
+  }));
+}
+
 export async function availableTenants(ctx: Context, next: Next) {
+  if (isPlatformTenantImpersonator(ctx)) {
+    const tenants = await ctx.db.getRepository('tenants').find({
+      filter: {
+        enabled: true,
+      },
+      sort: ['path', 'id'],
+    });
+
+    setAvailableTenantsBody(ctx, tenants);
+    await next();
+    return;
+  }
+
   const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
     filter: {
       userId: ctx.state.currentUser?.id,
@@ -33,11 +59,7 @@ export async function availableTenants(ctx: Context, next: Next) {
     sort: ['path', 'id'],
   });
 
-  const currentTenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
-  ctx.body = tenants.map((tenant: any) => ({
-    ...tenant.toJSON(),
-    current: tenant.get('id') === currentTenantId,
-  }));
+  setAvailableTenantsBody(ctx, tenants);
 
   await next();
 }

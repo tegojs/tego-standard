@@ -74,4 +74,40 @@ describe('tenant plugin collections', () => {
     expect(field.get('dataIndex')).toBe('state.currentTenant.id');
     expect(field.get('createOnly')).toBe(true);
   });
+
+  it('should remove managed tenantId field metadata when collection tenancy is disabled', async () => {
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_meta_disable_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    expect(app.db.getCollection('tenant_meta_disable_posts').getField('tenantId')).toBeTruthy();
+
+    await app.db.getRepository('collections').update({
+      filterByTk: 'tenant_meta_disable_posts',
+      values: {
+        tenancy: 'shared',
+      },
+      context: {},
+    });
+
+    const field = await app.db.getRepository('fields').findOne({
+      filter: {
+        collectionName: 'tenant_meta_disable_posts',
+        name: 'tenantId',
+      },
+    });
+
+    expect(field).toBeNull();
+    expect(app.db.getCollection('tenant_meta_disable_posts').getField('tenantId')).toBeFalsy();
+  });
 });

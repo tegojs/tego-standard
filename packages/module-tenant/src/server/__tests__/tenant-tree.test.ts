@@ -226,6 +226,29 @@ describe('tenant tree structure', () => {
     ).rejects.toThrow(/disabled/);
   });
 
+  it('should reject moving a tenant under its descendant when paths are missing', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'root-cycle', name: 'root-cycle', title: 'Root Cycle' },
+        { id: 'child-cycle', name: 'child-cycle', title: 'Child Cycle', parentId: 'root-cycle' },
+        { id: 'leaf-cycle', name: 'leaf-cycle', title: 'Leaf Cycle', parentId: 'child-cycle' },
+      ],
+    });
+
+    await app.db.sequelize.query(
+      "UPDATE tenants SET path = NULL WHERE id IN ('root-cycle', 'child-cycle', 'leaf-cycle')",
+    );
+
+    await expect(
+      app.db.getRepository('tenants').update({
+        filterByTk: 'root-cycle',
+        values: { parentId: 'leaf-cycle' },
+      }),
+    ).rejects.toThrow(/cycle/i);
+  });
+
   it('should update child paths when parent path changes (move subtree)', async () => {
     app = await createTenantApp();
 
@@ -563,6 +586,35 @@ describe('tenant tree structure', () => {
       expect(hqIds).toContain('hq');
       expect(hqIds).toContain('branch');
       expect(hqIds).toContain('dept');
+    });
+
+    it('should return enabled tenants for root users without tenant memberships', async () => {
+      app = await createTenantApp();
+
+      await app.db.getRepository('tenants').create({
+        values: [
+          { id: 'root-visible-a', name: 'root-visible-a', title: 'Root Visible A' },
+          { id: 'root-visible-b', name: 'root-visible-b', title: 'Root Visible B' },
+          { id: 'root-hidden-disabled', name: 'root-hidden-disabled', title: 'Hidden', enabled: false },
+        ],
+      });
+
+      const user = await app.db.getRepository('users').create({
+        values: {
+          username: 'root_without_tenant_membership',
+          email: 'root-without-tenant-membership@example.com',
+          phone: '2000000010',
+          password: '123456',
+          roles: ['root'],
+        },
+      });
+
+      const response = await app.agent().login(user).resource('tenants').available({});
+
+      expect(response.status).toBe(200);
+      const ids = response.body.data.map((tenant: any) => tenant.id);
+      expect(ids).toEqual(expect.arrayContaining(['root-visible-a', 'root-visible-b']));
+      expect(ids).not.toContain('root-hidden-disabled');
     });
 
     it('should allow switching to descendants and reject switching to ancestors', async () => {

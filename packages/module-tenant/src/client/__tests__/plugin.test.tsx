@@ -14,8 +14,11 @@ import { vi } from 'vitest';
 import PluginTenantClient from '..';
 import zhCN from '../../locale/zh-CN.json';
 import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
+import { loadLegacyDataTenantOptions } from '../LegacyDataTenantSelect';
 import { NAMESPACE, useTenantTranslation } from '../locale';
 import {
+  buildTenantCandidateFilter,
+  buildTenantMemberFilter,
   buildUserSearchFilter,
   getTenantCandidateOptions,
   getTenantMembers,
@@ -221,6 +224,66 @@ describe('PluginTenantClient', () => {
         { id: 42 },
       ],
     });
+  });
+
+  it('should build server-side tenant member and candidate filters', () => {
+    expect(buildTenantMemberFilter('tenant-a', 'tom')).toEqual({
+      $and: [
+        { 'tenants.id': 'tenant-a' },
+        {
+          $or: [
+            { 'username.$includes': 'tom' },
+            { 'nickname.$includes': 'tom' },
+            { 'email.$includes': 'tom' },
+            { 'phone.$includes': 'tom' },
+          ],
+        },
+      ],
+    });
+
+    expect(buildTenantCandidateFilter([1, 2], '42')).toEqual({
+      $and: [
+        { 'id.$notIn': [1, 2] },
+        {
+          $or: [
+            { 'username.$includes': '42' },
+            { 'nickname.$includes': '42' },
+            { 'email.$includes': '42' },
+            { 'phone.$includes': '42' },
+            { id: 42 },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('should load all tenant option pages for legacy data tenant selector', async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          data: Array.from({ length: 2 }, (_, index) => ({ id: `tenant-${index + 1}` })),
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: [{ id: 'tenant-3', title: 'Tenant 3' }],
+        },
+      });
+    const api = {
+      resource: vi.fn(() => ({ list })),
+    };
+
+    const options = await loadLegacyDataTenantOptions(api, () => false, 2);
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenNthCalledWith(1, { page: 1, pageSize: 2 });
+    expect(list).toHaveBeenNthCalledWith(2, { page: 2, pageSize: 2 });
+    expect(options).toEqual([
+      { label: 'tenant-1', value: 'tenant-1' },
+      { label: 'tenant-2', value: 'tenant-2' },
+      { label: 'Tenant 3', value: 'tenant-3' },
+    ]);
   });
 
   it('should separate current tenant members from add-member candidates', () => {

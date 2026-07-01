@@ -42,6 +42,31 @@ export const buildUserSearchFilter = (keyword: string) => {
   return { $or: filters };
 };
 
+function mergeFilters(filters: any[]) {
+  const nextFilters = filters.filter(Boolean);
+  if (!nextFilters.length) {
+    return undefined;
+  }
+
+  if (nextFilters.length === 1) {
+    return nextFilters[0];
+  }
+
+  return { $and: nextFilters };
+}
+
+export const buildTenantMemberFilter = (tenantId?: string | null, keyword = '') => {
+  if (!tenantId) {
+    return undefined;
+  }
+
+  return mergeFilters([{ 'tenants.id': tenantId }, buildUserSearchFilter(keyword)]);
+};
+
+export const buildTenantCandidateFilter = (memberIds: number[] = [], keyword = '') => {
+  return mergeFilters([memberIds.length ? { 'id.$notIn': memberIds } : undefined, buildUserSearchFilter(keyword)]);
+};
+
 export const getTenantMembers = (users: UserRecord[], tenantId?: string | null) => {
   if (!tenantId) {
     return [];
@@ -179,15 +204,18 @@ const TenantMembers = ({
         .list({
           pageSize: 200,
           appends: ['tenants', 'defaultTenant'],
-          filter: buildUserSearchFilter(memberKeyword),
+          filter: buildTenantMemberFilter(tenant?.id, memberKeyword),
         })
         .then((res) => res?.data),
     {
       ready: open,
-      refreshDeps: [open, memberKeyword],
+      refreshDeps: [open, tenant?.id, memberKeyword],
       debounceWait: 300,
     },
   );
+
+  const members = useMemo(() => membersRequest.data?.data || [], [membersRequest.data?.data]);
+  const memberIds = useMemo(() => members.map((user) => user.id), [members]);
 
   const candidatesRequest = useRequest<{ data: UserRecord[] }>(
     () =>
@@ -196,19 +224,14 @@ const TenantMembers = ({
         .list({
           pageSize: 50,
           appends: ['tenants', 'defaultTenant'],
-          filter: buildUserSearchFilter(candidateKeyword),
+          filter: buildTenantCandidateFilter(memberIds, candidateKeyword),
         })
         .then((res) => res?.data),
     {
       ready: open,
-      refreshDeps: [open, candidateKeyword],
+      refreshDeps: [open, tenant?.id, candidateKeyword, memberIds.join(',')],
       debounceWait: 300,
     },
-  );
-
-  const members = useMemo(
-    () => getTenantMembers(membersRequest.data?.data || [], tenant?.id),
-    [tenant?.id, membersRequest.data?.data],
   );
 
   const candidateOptions = useMemo(
@@ -224,10 +247,31 @@ const TenantMembers = ({
   ): Promise<boolean> => {
     setSavingUserId(user.id);
     try {
+      const currentTenantIds = (user.tenants || []).map((item) => item.id);
+      const tenantIdsToAdd = nextTenantIds.filter((tenantId) => !currentTenantIds.includes(tenantId));
+      const tenantIdsToRemove = currentTenantIds.filter((tenantId) => !nextTenantIds.includes(tenantId));
+
+      for (const tenantId of tenantIdsToAdd) {
+        await api.resource('tenantUsers').create({
+          values: {
+            tenantId,
+            userId: user.id,
+          },
+        });
+      }
+
+      for (const tenantId of tenantIdsToRemove) {
+        await api.resource('tenantUsers').destroy({
+          filter: {
+            tenantId,
+            userId: user.id,
+          },
+        });
+      }
+
       await api.resource('users').update({
         filterByTk: user.id,
         values: {
-          tenants: nextTenantIds,
           defaultTenantId: nextDefaultTenantId ?? null,
         },
       });

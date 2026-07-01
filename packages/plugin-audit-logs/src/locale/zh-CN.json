@@ -40,7 +40,7 @@
   "Security event details": "安全事件详情",
   "Submit": "提交",
   "Tenant ID": "租户 ID",
-  "Tenant access denied": "无租户上下文访问",
+  "Tenant access denied": "租户访问被拒绝",
   "Tenant impersonation": "租户代入操作",
   "Update": "编辑",
   "Update record": "编辑数据",

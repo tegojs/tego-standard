@@ -446,13 +446,12 @@ export default class ScheduleTrigger {
   }
 
   on(workflow: WorkflowModel) {
-    this.inspect([workflow]);
-
     const { collection } = workflow.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
     const name = getHookId(workflow, event);
     if (this.events.has(name)) {
+      this.inspect([workflow]);
       return;
     }
 
@@ -472,6 +471,7 @@ export default class ScheduleTrigger {
     this.events.set(name, listener);
     // @ts-ignore
     this.workflow.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager.db.on(event, listener);
+    this.inspect([workflow]);
   }
 
   off(workflow: WorkflowModel) {

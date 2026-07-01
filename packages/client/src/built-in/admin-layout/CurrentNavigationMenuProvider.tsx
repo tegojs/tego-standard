@@ -18,6 +18,12 @@ export const useCurrentNavigationMenu = () => {
 
   const addItem = useCallback(
     (item: NavigationItem) => {
+      if (item.key === null || item.key === undefined) {
+        items.current.push(item);
+        update();
+        return;
+      }
+
       const index = items.current.findIndex((current) => current.key === item.key);
       if (index !== -1) {
         items.current[index] = item;
@@ -31,6 +37,10 @@ export const useCurrentNavigationMenu = () => {
 
   const removeItem = useCallback(
     (key: React.Key) => {
+      if (key === null || key === undefined) {
+        return;
+      }
+
       const nextItems = items.current.filter((current) => current.key !== key);
       if (nextItems.length === items.current.length) {
         return;

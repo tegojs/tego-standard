@@ -153,4 +153,48 @@ describe('workerExportXlsx', () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('should fail closed when worker tenant context is missing for tenant-scoped collections', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'tego-export-worker-'));
+    const repository = {
+      collection: {
+        options: {
+          tenancy: 'tenantScoped',
+        },
+        fields: new Map([
+          [
+            'title',
+            {
+              name: 'title',
+              options: {
+                interface: 'input',
+              },
+            },
+          ],
+        ]),
+        hasField: vi.fn().mockReturnValue(true),
+      },
+      find: vi.fn().mockResolvedValue([]),
+    };
+    const plugin = {
+      db: {
+        getRepository: vi.fn().mockReturnValue(repository),
+      },
+      xlsxStorageDir: () => tempDir,
+    };
+
+    try {
+      await expect(
+        ExportPlugin.prototype.workerExportXlsx.call(plugin, {
+          title: 'tenant-export-posts',
+          filter: {},
+          columns: ['title'],
+          resourceName: 'tenant_export_worker_posts',
+        }),
+      ).rejects.toThrow(/Tenant context is required/);
+      expect(repository.find).not.toHaveBeenCalled();
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });

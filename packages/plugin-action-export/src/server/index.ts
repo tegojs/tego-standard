@@ -120,16 +120,16 @@ function buildWorkerTenantState(currentTenantId?: string | number, tenantContext
 }
 
 function applyTenantScopeToWorkerFindOptions(options: any, collection: any, tenantContext?: ExportTenantContext) {
-  const tenantId = tenantContext?.currentTenant?.id ?? tenantContext?.currentTenantId;
-
-  if (!tenantId) {
-    return options;
-  }
-
-  const tenancyMode = collection?.options?.tenancy || tenantContext.currentTenancyMode;
+  const tenancyMode = collection?.options?.tenancy || tenantContext?.currentTenancyMode;
 
   if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
     return options;
+  }
+
+  const tenantId = tenantContext?.currentTenant?.id ?? tenantContext?.currentTenantId;
+
+  if (tenantId === null || tenantId === undefined) {
+    throw new Error('Tenant context is required for tenant-scoped export worker');
   }
 
   const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(tenantContext, collection));

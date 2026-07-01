@@ -60,7 +60,10 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     const currentTenant = tenants.find((item) => item.current) || tenants.find((item) => item.enabled !== false);
     if (currentTenant?.id) {
       api.storage?.setItem?.('current_tenant_id', currentTenant.id);
+      return;
     }
+
+    api.storage?.removeItem?.('current_tenant_id');
   }, [api.storage, currentUserId, value?.data, value?.data?.data]);
 
   return <CurrentTenantContext.Provider value={value}>{children}</CurrentTenantContext.Provider>;

@@ -28,7 +28,7 @@ export const useSwitchTenant = () => {
             ...item,
             title: item.title || item.name || item.id,
           }))}
-          defaultValue={currentTenant?.id}
+          value={currentTenant?.id}
           popupMatchSelectWidth={false}
           variant="borderless"
           style={{ minWidth: 'auto', width: 'auto' }}

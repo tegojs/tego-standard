@@ -114,6 +114,31 @@ describe('CurrentTenantProvider – localStorage restore', () => {
     });
   });
 
+  it('should clear stale storage when all returned tenants are disabled', async () => {
+    mockRequest.onPost('/tenants:available').reply(() => {
+      return [
+        200,
+        {
+          data: [{ id: 'tenant-disabled', name: 'Tenant Disabled', enabled: false }],
+        },
+      ];
+    });
+
+    apiClient.storage.setItem('current_tenant_id', 'stale-tenant');
+
+    render(
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantProvider currentUser={fakeCurrentUser}>
+          <span>child</span>
+        </CurrentTenantProvider>
+      </APIClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(apiClient.storage.getItem('current_tenant_id')).toBeNull();
+    });
+  });
+
   it('should not call tenants:available when no current user', async () => {
     let requestMade = false;
     mockRequest.onPost('/tenants:available').reply(() => {
@@ -332,5 +357,36 @@ describe('CurrentTenantProvider – localStorage restore', () => {
     });
 
     expect(apiClient.storage.getItem('current_tenant_id')).toBeNull();
+  });
+
+  it('should keep tenant switch select controlled by the current tenant after failed switch', async () => {
+    mockRequest.onPost('/tenants:switch').reply(500, { errors: [{ message: 'switch failed' }] });
+
+    const wrapper = ({ children }) => (
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantContext.Provider
+          value={{
+            data: {
+              data: [
+                { id: 'tenant-a', title: 'Tenant A', current: true },
+                { id: 'tenant-b', title: 'Tenant B' },
+              ],
+            },
+          }}
+        >
+          {children}
+        </CurrentTenantContext.Provider>
+      </APIClientProvider>
+    );
+    const { result } = renderHook(() => useSwitchTenant(), { wrapper });
+    const selectProps = result.current?.props.children.props;
+
+    expect(selectProps.value).toBe('tenant-a');
+
+    await act(async () => {
+      await expect(selectProps.onChange('tenant-b')).resolves.toBeUndefined();
+    });
+
+    expect(selectProps.value).toBe('tenant-a');
   });
 });

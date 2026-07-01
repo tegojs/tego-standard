@@ -73,6 +73,15 @@ describe('utils', () => {
     expect(buildWorkerExportSavePath('D:/runtime/storage/uploads', 'tenant-a')).toContain('tenant-a');
   });
 
+  it('should generate unique worker export file names for repeated exports in the same minute', () => {
+    const first = buildWorkerExportFileName('posts', '租户导出清单', 'tenant-a');
+    const second = buildWorkerExportFileName('posts', '租户导出清单', 'tenant-a');
+
+    expect(first).not.toBe(second);
+    expect(first).toMatch(/export_tenant-a_\d{12}_[a-f0-9]{8}\.xlsx$/);
+    expect(second).toMatch(/export_tenant-a_\d{12}_[a-f0-9]{8}\.xlsx$/);
+  });
+
   it('should warn when application emitter back-reference is missing', () => {
     const emit = vi.fn();
     const warn = vi.fn();

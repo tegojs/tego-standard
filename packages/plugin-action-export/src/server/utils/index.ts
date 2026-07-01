@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import dayjs from 'dayjs';
@@ -124,7 +125,8 @@ export function emitSecurityViolation(ctx: any, event: Record<string, any>) {
 export function buildWorkerExportFileName(resourceName: string, title: string, tenantId?: string) {
   const base = sanitizeExportSegment(title || resourceName || 'export');
   const tenantSuffix = tenantId ? `_${sanitizeExportSegment(tenantId)}` : '';
-  return `${base}${tenantSuffix}_${dayjs().format('YYYYMMDDHHmm')}.xlsx`;
+  const uniqueSuffix = randomUUID().slice(0, 8);
+  return `${base}${tenantSuffix}_${dayjs().format('YYYYMMDDHHmm')}_${uniqueSuffix}.xlsx`;
 }
 
 export function buildWorkerExportRelativePath(

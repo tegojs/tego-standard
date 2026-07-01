@@ -1,6 +1,8 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
+import { auditLogsTestPlugin } from './helpers';
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -30,7 +32,7 @@ describe('hook', () => {
 
   beforeEach(async () => {
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
     db.collection({

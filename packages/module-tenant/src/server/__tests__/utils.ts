@@ -2,6 +2,7 @@ import { createMockServer, MockServer } from '@tachybase/test';
 import { AppSupervisor, Plugin } from '@tego/server';
 
 import PluginTenantServer from '..';
+import PluginAuditLogs from '../../../../plugin-audit-logs/src/server';
 
 async function cleanupPreviousApp(): Promise<void> {
   try {
@@ -84,6 +85,20 @@ async function ensureExtraActionPluginsLoaded(app: MockServer, extraPlugins: any
 
 export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
   const { extraPlugins = [] } = options;
+  const normalizedExtraPlugins = extraPlugins.map((plugin) => {
+    if (plugin !== 'audit-logs') {
+      return plugin;
+    }
+
+    return [
+      PluginAuditLogs,
+      {
+        name: 'audit-logs',
+        packageName: '@tachybase/plugin-audit-logs',
+        workspaceSource: true,
+      },
+    ];
+  });
 
   await cleanupPreviousApp();
 
@@ -135,7 +150,7 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
         'auth',
         'data-source-manager',
         [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant', workspaceSource: true }],
-        ...extraPlugins,
+        ...normalizedExtraPlugins,
         TestAuthStatusPlugin,
       ],
     });
@@ -172,6 +187,6 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
       }
     }
   }
-  await ensureExtraActionPluginsLoaded(app, extraPlugins);
+  await ensureExtraActionPluginsLoaded(app, normalizedExtraPlugins);
   return app;
 }

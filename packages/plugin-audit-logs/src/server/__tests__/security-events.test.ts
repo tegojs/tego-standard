@@ -2,6 +2,7 @@ import { createMockServer, MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
 import { registerSecurityEventListener } from '../security-event-listener';
+import { auditLogsTestPlugin } from './helpers';
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,7 +34,7 @@ describe('tenant security audit events', () => {
 
   beforeEach(async () => {
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
 
@@ -209,7 +210,7 @@ describe('security event listener idempotency', () => {
 
   beforeEach(async () => {
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
   });
@@ -264,7 +265,7 @@ describe('bulk export threshold', () => {
 
   beforeEach(async () => {
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
     registerSecurityEventListener({ app: api, db } as any);

@@ -8,6 +8,8 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
+import { auditLogsTestPlugin } from './helpers';
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -34,7 +36,7 @@ describe('plugin-audit-logs – tenant module NOT loaded', () => {
   beforeEach(async () => {
     // Create server WITHOUT tenant plugin — only audit-logs and minimal deps
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
 

@@ -16,6 +16,8 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
+import { auditLogsTestPlugin } from './helpers';
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -53,7 +55,7 @@ describe('tenant impersonation – CRUD audit fields', () => {
 
   beforeEach(async () => {
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
 
@@ -301,7 +303,7 @@ describe('tenant impersonation – security event audit trail', () => {
 
   beforeEach(async () => {
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
 

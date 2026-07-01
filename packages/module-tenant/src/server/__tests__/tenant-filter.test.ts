@@ -210,6 +210,9 @@ describe('applyTenantFilter', () => {
         title: 'Post',
       },
     });
+    expect(ctx.action.params.values).toEqual({
+      title: 'Post',
+    });
   });
 
   describe('tenantInherited mode', () => {

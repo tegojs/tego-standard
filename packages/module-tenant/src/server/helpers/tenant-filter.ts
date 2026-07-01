@@ -230,6 +230,9 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
     if ('filter' in tenantParams) {
       ctx.action.params.filter = tenantParams.filter;
     }
+    if ('values' in tenantParams) {
+      ctx.action.params.values = tenantParams.values;
+    }
   }
 }
 

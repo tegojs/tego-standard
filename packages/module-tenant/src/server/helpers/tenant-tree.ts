@@ -15,10 +15,20 @@ export function buildPath(parentPath: string | null | undefined, id: string): st
   return path;
 }
 
-async function getDescendantFilter(repo: Repository, tenantId: string) {
+function buildPathPrefixFilter(path: string) {
+  return {
+    path: {
+      $gte: path,
+      $lt: `${path}\uffff`,
+    },
+  };
+}
+
+async function getDescendantFilter(repo: Repository, tenantId: string, options: any = {}) {
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['path'],
+    transaction: options.transaction,
   });
 
   const path = tenant?.get('path') as string;
@@ -27,7 +37,7 @@ async function getDescendantFilter(repo: Repository, tenantId: string) {
   }
 
   return {
-    path: { $like: `${path}%` },
+    ...buildPathPrefixFilter(path),
     'id.$ne': tenantId,
   };
 }
@@ -62,11 +72,23 @@ export async function getDescendantTenants(repo: Repository, tenantId: string): 
   });
 }
 
+export function getDescendantPathFilter(path: string, tenantId: string) {
+  return {
+    ...buildPathPrefixFilter(path),
+    'id.$ne': tenantId,
+  };
+}
+
 /**
  * Check whether assigning `newParentId` as the parent of `tenantId` would create a cycle.
  * A cycle occurs if the new parent's path is a descendant of the tenant's current path.
  */
-export async function wouldCreateCycle(repo: Repository, tenantId: string, newParentId: string): Promise<boolean> {
+export async function wouldCreateCycle(
+  repo: Repository,
+  tenantId: string,
+  newParentId: string,
+  options: any = {},
+): Promise<boolean> {
   if (tenantId === newParentId) {
     return true;
   }
@@ -74,6 +96,7 @@ export async function wouldCreateCycle(repo: Repository, tenantId: string, newPa
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['path'],
+    transaction: options.transaction,
   });
 
   if (!tenant) {
@@ -84,6 +107,7 @@ export async function wouldCreateCycle(repo: Repository, tenantId: string, newPa
   const newParent = await repo.findOne({
     filter: { id: newParentId },
     fields: ['path'],
+    transaction: options.transaction,
   });
 
   if (!newParent) {

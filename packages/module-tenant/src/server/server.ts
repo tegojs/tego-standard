@@ -10,7 +10,7 @@ import usersCollection from './collections/users';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
 import applyTenantFilter from './helpers/tenant-filter';
-import { buildPath, getDescendantIds, wouldCreateCycle } from './helpers/tenant-tree';
+import { buildPath, getDescendantIds, getDescendantPathFilter, wouldCreateCycle } from './helpers/tenant-tree';
 import { enUS, zhCN } from './locale';
 import setCurrentTenant from './middlewares/setCurrentTenant';
 
@@ -225,7 +225,7 @@ export class PluginTenantServer extends Plugin {
       model.set('parentId', newParentId);
 
       if (newParentId) {
-        if (await wouldCreateCycle(repo, tenantId, newParentId)) {
+        if (await wouldCreateCycle(repo, tenantId, newParentId, { transaction })) {
           throw new Error('Cannot move tenant: would create a cycle');
         }
 
@@ -255,10 +255,7 @@ export class PluginTenantServer extends Plugin {
         const newPath = buildPath(parentPath, tenantId);
 
         const descendants = await repo.find({
-          filter: {
-            path: { $like: `${oldPath}%` },
-            'id.$ne': tenantId,
-          },
+          filter: getDescendantPathFilter(oldPath, tenantId),
           transaction,
         });
 

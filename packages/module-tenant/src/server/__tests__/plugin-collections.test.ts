@@ -34,4 +34,44 @@ describe('tenant plugin collections', () => {
   it('should register locale resources with tenant namespace', async () => {
     expect(app.i18n.t('Tenant management', { lng: 'zh-CN', ns: NAMESPACE })).toBe('租户管理');
   });
+
+  it('should repair stale tenantId field metadata when collection tenancy is enabled', async () => {
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_meta_posts',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+          {
+            type: 'string',
+            name: 'tenantId',
+            dataIndex: 'wrong.path',
+            createOnly: false,
+          },
+        ],
+      },
+      context: {},
+    });
+
+    await app.db.getRepository('collections').update({
+      filterByTk: 'tenant_meta_posts',
+      values: {
+        tenancy: 'tenantScoped',
+      },
+      context: {},
+    });
+
+    const field = await app.db.getRepository('fields').findOne({
+      filter: {
+        collectionName: 'tenant_meta_posts',
+        name: 'tenantId',
+      },
+    });
+
+    expect(field.get('type')).toBe('context');
+    expect(field.get('dataIndex')).toBe('state.currentTenant.id');
+    expect(field.get('createOnly')).toBe(true);
+  });
 });

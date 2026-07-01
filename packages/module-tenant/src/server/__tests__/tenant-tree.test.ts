@@ -86,6 +86,25 @@ describe('tenant tree structure', () => {
     expect(titles).not.toContain('Other');
   });
 
+  it('should not treat underscore in tenant id as a descendant path wildcard', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'root_1', name: 'root_1', title: 'Root underscore' },
+        { id: 'root_1_child', name: 'root_1_child', title: 'Child', parentId: 'root_1' },
+        { id: 'rootx1', name: 'rootx1', title: 'Root x' },
+        { id: 'rootx1_child', name: 'rootx1_child', title: 'Other Child', parentId: 'rootx1' },
+      ],
+    });
+
+    const ids = await getDescendantIds(app.db.getRepository('tenants'), 'root_1');
+
+    expect(ids).toContain('root_1_child');
+    expect(ids).not.toContain('rootx1');
+    expect(ids).not.toContain('rootx1_child');
+  });
+
   it('should reject deleting a tenant that has children', async () => {
     app = await createTenantApp();
 

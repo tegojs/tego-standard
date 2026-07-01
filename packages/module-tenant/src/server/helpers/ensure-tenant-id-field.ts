@@ -40,6 +40,10 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
       values: tenantField,
       transaction: options.transaction,
     });
+  } else {
+    await exists.update(tenantField, {
+      transaction: options.transaction,
+    });
   }
 
   model.db.getCollection(collectionName).setField('tenantId', tenantField as any);

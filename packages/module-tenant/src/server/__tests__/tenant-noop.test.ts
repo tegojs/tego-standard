@@ -142,7 +142,7 @@ describe('export > utility functions no-op when no tenant context', () => {
 
   it('buildWorkerExportFileName should generate name without tenant suffix', () => {
     const name = buildWorkerExportFileName('orders', 'Orders Export', undefined);
-    expect(name).toMatch(/^Orders_Export_\d{12}\.xlsx$/);
+    expect(name).toMatch(/^Orders_Export_\d{12}_[a-f0-9]{8}\.xlsx$/);
     expect(name).not.toContain('tenants');
   });
 

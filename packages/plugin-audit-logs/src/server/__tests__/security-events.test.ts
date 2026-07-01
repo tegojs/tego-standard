@@ -92,6 +92,7 @@ describe('tenant security audit events', () => {
     const details = log.get('details');
     expect(details).toBeDefined();
     expect(details).not.toBeNull();
+    expect(details.action).toBe('list');
     expect(details.requestedTenantId).toBe('tenant-c');
     expect(details.allowedTenantIds).toEqual(['tenant-a']);
   });

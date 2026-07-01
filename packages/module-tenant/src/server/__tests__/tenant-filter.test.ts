@@ -145,6 +145,7 @@ describe('applyTenantFilter', () => {
         tenantId: 'tenant-b',
       },
     });
+    expect('filter' in ctx.action.params).toBe(false);
   });
 
   it('should inject tenantId into every record for array create values', () => {

@@ -11,8 +11,8 @@ export function getCurrentTenantId(ctx) {
   return ctx?.state?.currentTenant?.id ?? ctx?.state?.currentTenantId;
 }
 
-function sanitizeTenantStorageSegment(value: string) {
-  const normalized = String(value || '')
+function sanitizeTenantStorageSegment(value: string | number) {
+  const normalized = String(value)
     .trim()
     .replace(/[^a-zA-Z0-9._-]+/g, '_')
     .replace(/_+/g, '_')
@@ -21,12 +21,12 @@ function sanitizeTenantStorageSegment(value: string) {
   return normalized === '.' || normalized === '..' ? 'tenant' : normalized || 'tenant';
 }
 
-export function getTenantStoragePath(storagePath: string = '', tenantId?: string) {
+export function getTenantStoragePath(storagePath: string = '', tenantId?: string | number) {
   const normalizedStoragePath = String(storagePath || '')
     .replace(/\\/g, '/')
     .replace(/^\/+|\/+$/g, '');
 
-  if (!tenantId) {
+  if (tenantId === null || tenantId === undefined || tenantId === '') {
     return normalizedStoragePath;
   }
 

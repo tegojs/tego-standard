@@ -29,12 +29,24 @@ export const useCurrentNavigationMenu = () => {
     [items, update],
   );
 
+  const removeItem = useCallback(
+    (key: React.Key) => {
+      const nextItems = items.current.filter((current) => current.key !== key);
+      if (nextItems.length === items.current.length) {
+        return;
+      }
+      items.current = nextItems;
+      update();
+    },
+    [items, update],
+  );
+
   if (!items) {
     error('AdminLayout: You should use `CurrentNavigationMenuProvider` in the root of your app.');
     throw new Error('AdminLayout: You should use `CurrentNavigationMenuProvider` in the root of your app.');
   }
 
-  return { getItems, addItem };
+  return { getItems, addItem, removeItem };
 };
 
 export const CurrentNavigationMenuProvider = ({ children }) => {

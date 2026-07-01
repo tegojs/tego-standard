@@ -111,6 +111,56 @@ describe('PluginTenantClient', () => {
     });
   });
 
+  it('should remove tenant switcher when available tenants shrink to one', async () => {
+    const NavigationItems = () => {
+      const { getItems } = useCurrentNavigationMenu();
+      return <>{getItems().map((item) => React.cloneElement(item, { key: item.key }))}</>;
+    };
+
+    const { container, rerender } = render(
+      <CurrentTenantContext.Provider
+        value={{
+          data: {
+            data: [
+              { id: 'tenant_a', title: 'Tenant A', current: true },
+              { id: 'tenant_b', title: 'Tenant B' },
+            ],
+          },
+        }}
+      >
+        <CurrentNavigationMenuProvider>
+          <TenantMenuProvider>
+            <NavigationItems />
+          </TenantMenuProvider>
+        </CurrentNavigationMenuProvider>
+      </CurrentTenantContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('.tenant-nav-switcher')).toBeInTheDocument();
+    });
+
+    rerender(
+      <CurrentTenantContext.Provider
+        value={{
+          data: {
+            data: [{ id: 'tenant_a', title: 'Tenant A', current: true }],
+          },
+        }}
+      >
+        <CurrentNavigationMenuProvider>
+          <TenantMenuProvider>
+            <NavigationItems />
+          </TenantMenuProvider>
+        </CurrentNavigationMenuProvider>
+      </CurrentTenantContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('.tenant-nav-switcher')).not.toBeInTheDocument();
+    });
+  });
+
   it('should not register tenant switcher in the user settings menu', async () => {
     const app = new Application({
       plugins: [[PluginTenantClient, { name: 'tenant' }]],

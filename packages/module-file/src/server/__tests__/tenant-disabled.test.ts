@@ -111,6 +111,10 @@ describe('module-file helpers – tenant module NOT loaded', () => {
       expect(getTenantStoragePath('storage/uploads', '../evil')).toBe('storage/uploads/tenants/.._evil');
       expect(getTenantStoragePath('storage/uploads', '..')).toBe('storage/uploads/tenants/tenant');
     });
+
+    it('treats numeric zero as a valid tenant id', () => {
+      expect(getTenantStoragePath('storage/uploads', 0 as any)).toBe('storage/uploads/tenants/0');
+    });
   });
 });
 

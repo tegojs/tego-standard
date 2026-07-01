@@ -227,9 +227,8 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
 
   if (tenantParams) {
     ctx.action.mergeParams(tenantParams);
-    ctx.action.params.filter = tenantParams.filter;
-    if (actionName === 'update') {
-      ctx.action.params.values = tenantParams.values;
+    if ('filter' in tenantParams) {
+      ctx.action.params.filter = tenantParams.filter;
     }
   }
 }

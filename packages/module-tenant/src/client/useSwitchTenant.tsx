@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useAPIClient } from '@tachybase/client';
 
-import { Select } from 'antd';
+import { message, Select } from 'antd';
 
 import { useCurrentTenantContext } from './CurrentTenantProvider';
 
@@ -33,9 +33,15 @@ export const useSwitchTenant = () => {
           variant="borderless"
           style={{ minWidth: 'auto', width: 'auto' }}
           onChange={async (tenantId) => {
-            await api.resource('tenants').switch({ values: { tenantId } });
-            api.storage?.setItem?.('current_tenant_id', tenantId as string);
-            window.location.reload();
+            try {
+              await api.resource('tenants').switch({ values: { tenantId } });
+              api.storage?.setItem?.('current_tenant_id', tenantId as string);
+              window.location.reload();
+            } catch (error: any) {
+              const errorMessage =
+                error?.response?.data?.errors?.[0]?.message || error?.message || 'Failed to switch tenant';
+              message.error(errorMessage);
+            }
           }}
         />
       </div>

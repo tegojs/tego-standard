@@ -9,12 +9,13 @@
  */
 import React from 'react';
 import { APIClientProvider, Application, mockAPIClient } from '@tachybase/client';
-import { act, render, waitFor } from '@tachybase/test/client';
+import { act, render, renderHook, waitFor } from '@tachybase/test/client';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import PluginTenantClient from '..';
-import CurrentTenantProvider from '../CurrentTenantProvider';
+import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
+import { useSwitchTenant } from '../useSwitchTenant';
 
 const { apiClient, mockRequest } = mockAPIClient();
 
@@ -301,5 +302,35 @@ describe('CurrentTenantProvider – localStorage restore', () => {
       expect(apiClient.storage.getItem('current_tenant_id')).toBe('tenant-user-2');
     });
     expect(requests).toHaveLength(2);
+  });
+
+  it('should not persist tenant id or reload when tenant switch fails', async () => {
+    mockRequest.onPost('/tenants:switch').reply(500, { errors: [{ message: 'switch failed' }] });
+    apiClient.storage.removeItem('current_tenant_id');
+
+    const wrapper = ({ children }) => (
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantContext.Provider
+          value={{
+            data: {
+              data: [
+                { id: 'tenant-a', title: 'Tenant A', current: true },
+                { id: 'tenant-b', title: 'Tenant B' },
+              ],
+            },
+          }}
+        >
+          {children}
+        </CurrentTenantContext.Provider>
+      </APIClientProvider>
+    );
+    const { result } = renderHook(() => useSwitchTenant(), { wrapper });
+    const onChange = result.current?.props.children.props.onChange;
+
+    await act(async () => {
+      await expect(onChange('tenant-b')).resolves.toBeUndefined();
+    });
+
+    expect(apiClient.storage.getItem('current_tenant_id')).toBeNull();
   });
 });

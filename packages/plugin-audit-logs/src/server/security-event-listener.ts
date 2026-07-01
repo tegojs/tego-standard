@@ -40,6 +40,7 @@ export function registerSecurityEventListener(plugin: { app: any; db: any }) {
   const handler = async (event: TenantSecurityEvent) => {
     try {
       const isImpersonation = event.type === 'tenant_impersonation';
+      const details = event.action ? { ...event.details, action: event.action } : event.details || null;
 
       const auditLogRepo = plugin.db.getRepository('auditLogs');
       await auditLogRepo.model.create({
@@ -56,7 +57,7 @@ export function registerSecurityEventListener(plugin: { app: any; db: any }) {
           ? (event.tenantContextSource ?? 'platformImpersonation')
           : (event.tenantContextSource ?? null),
         isTenantImpersonation: isImpersonation ? true : (event.isTenantImpersonation ?? false),
-        details: event.details || null,
+        details,
       });
     } catch (error) {
       plugin.app?.logger?.error?.('Failed to persist tenant security audit event', {

@@ -29,6 +29,9 @@ describe('workflow tenant fields migration', () => {
       updatedAt: {
         type: DataTypes.DATE,
       },
+      key: {
+        type: DataTypes.STRING,
+      },
     });
 
     const migration = new TenantFieldsMigration({ db: app.db } as MigrationContext);
@@ -40,5 +43,8 @@ describe('workflow tenant fields migration', () => {
     const table = await queryInterface.describeTable('executions');
     expect(table.tenantId).toBeDefined();
     expect(table.tenantContext).toBeDefined();
+
+    const indexes = await queryInterface.showIndex('executions');
+    expect(indexes.some((index) => index.name === 'executions_tenant_key_created_at')).toBe(true);
   });
 });

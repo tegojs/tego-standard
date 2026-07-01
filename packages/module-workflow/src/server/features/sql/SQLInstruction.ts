@@ -16,8 +16,8 @@ import { checkSqlExecutionPermission } from '../../utils/sql-permission';
  *   not use it — SQL statements are opaque to the framework and cannot be safely
  *   rewritten to include tenant conditions.
  * - Workflow authors MUST manually include tenant conditions in their SQL
- *   (e.g. `WHERE tenantId = '{{$context.state.currentTenant.id}}'`) when
- *   accessing tenant-scoped data.
+ *   (e.g. `WHERE tenantId = '{{$context.state.currentTenantId}}'` or
+ *   `{{execution.context.state.currentTenantId}}`) when accessing tenant-scoped data.
  *
  * Permission boundary:
  * - Only users with the `pm.workflow.sql` snippet (or root/admin via `pm.*`)

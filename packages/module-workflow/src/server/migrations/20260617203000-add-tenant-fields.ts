@@ -9,12 +9,19 @@ async function hasTable(queryInterface: any, tableName: string) {
   return tables.map(normalizeTableName).includes(tableName);
 }
 
-async function addIndexIfMissing(queryInterface: any, tableName: string, columnName: string, indexName: string) {
+async function addIndexIfMissing(
+  queryInterface: any,
+  tableName: string,
+  columnNames: string | string[],
+  indexName: string,
+) {
   const indexes = await queryInterface.showIndex(tableName);
   const exists = indexes.some((index) => index.name === indexName);
 
   if (!exists) {
-    await queryInterface.addIndex(tableName, [columnName], { name: indexName });
+    await queryInterface.addIndex(tableName, Array.isArray(columnNames) ? columnNames : [columnNames], {
+      name: indexName,
+    });
   }
 }
 
@@ -55,5 +62,11 @@ export default class AddTenantFieldsToExecutionsMigration extends Migration {
     }
 
     await addIndexIfMissing(queryInterface, tableName, 'tenantId', 'executions_tenant_id');
+    await addIndexIfMissing(
+      queryInterface,
+      tableName,
+      ['tenantId', 'key', 'createdAt'],
+      'executions_tenant_key_created_at',
+    );
   }
 }

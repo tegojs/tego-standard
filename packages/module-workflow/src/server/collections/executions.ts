@@ -7,6 +7,12 @@ export default {
   name: 'executions',
   shared: true,
   tenancy: 'tenantScoped',
+  indexes: [
+    {
+      name: 'executions_tenant_key_created_at',
+      fields: ['tenantId', 'key', 'createdAt'],
+    },
+  ],
   fields: [
     {
       type: 'belongsTo',

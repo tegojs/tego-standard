@@ -58,7 +58,7 @@ type Pending = [ExecutionModel, JobModel?, Transactionable?];
 type CachedEvent = [WorkflowModel, any, { context?: any } & Transactionable];
 
 function extractTenantContext(context: any, options: any = {}) {
-  const state = [options.context?.state, options.httpContext?.state].find(
+  const state = [options.context?.state, options.httpContext?.state, context?.state, context?.context?.state].find(
     (item) => item?.currentTenantId !== null && item?.currentTenantId !== undefined,
   );
   if (state?.currentTenantId === null || state?.currentTenantId === undefined) {
@@ -75,7 +75,9 @@ function extractTenantContext(context: any, options: any = {}) {
 }
 
 function extractAuthContext(context: any, options: any = {}) {
-  const state = [options.httpContext?.state, options.context?.state].find((item) => item?.currentRole);
+  const state = [options.httpContext?.state, options.context?.state, context?.state, context?.context?.state].find(
+    (item) => item?.currentRole,
+  );
   if (!state?.currentRole) {
     return null;
   }

@@ -116,7 +116,7 @@
   "Repeat limit": "Limite de répétition",
   "Repeat mode": "Mode de répétition",
   "Retry": "Réessayer",
-  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Tenant isolation warning: SQL nodes execute raw SQL directly and do not automatically inject tenantId filters. Unlike query/update/delete nodes, SQL nodes bypass the repository layer and tenant resource guard. Manually include tenantId conditions in your SQL when accessing tenant-scoped data.",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Avertissement d'isolation des tenants : les nœuds SQL exécutent directement du SQL brut et n'injectent pas automatiquement de filtres tenantId. Contrairement aux nœuds de requête/mise à jour/suppression, les nœuds SQL contournent la couche repository et le garde des ressources de tenant. Ajoutez manuellement des conditions tenantId dans votre SQL lorsque vous accédez à des données isolées par tenant.",
   "Schedule event": "Événement planifié",
   "Seconds": "Secondes",
   "Select status": "Sélectionner un statut",

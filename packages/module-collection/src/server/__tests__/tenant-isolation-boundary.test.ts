@@ -97,5 +97,22 @@ describe('SQL/View tenant isolation boundary', () => {
 
       expect(response.status).toBe(400);
     });
+
+    it('should reject writable CTE statements in preview queries', async () => {
+      const tableName = `test_tenant_${uid(6)}`;
+      await db.sequelize.query(`CREATE TABLE ${tableName} (id INTEGER, name TEXT)`);
+
+      try {
+        const response = await agent.resource('sqlCollection').execute({
+          values: {
+            sql: `WITH inserted AS (INSERT INTO ${tableName} VALUES (1, 'tenant_a') RETURNING *) SELECT * FROM inserted`,
+          },
+        });
+
+        expect(response.status).toBe(400);
+      } finally {
+        await db.sequelize.query(`DROP TABLE IF EXISTS ${tableName}`);
+      }
+    });
   });
 });

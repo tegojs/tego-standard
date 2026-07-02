@@ -61,6 +61,24 @@ const updateCollection = async (ctx: Context, transaction: any) => {
   return { collection, upRes };
 };
 
+function stripSqlCommentsAndLiterals(sql: string) {
+  return sql
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--[^\r\n]*/g, ' ')
+    .replace(/'(?:''|[^'])*'/g, "''")
+    .replace(/"(?:""|[^"])*"/g, '""');
+}
+
+function isReadOnlyPreviewSql(sql: string) {
+  const normalized = stripSqlCommentsAndLiterals(sql);
+  const startsWithRead = /^select\b/i.test(normalized) || /^with\b[\s\S]+\bselect\b/i.test(normalized);
+  if (!startsWithRead) {
+    return false;
+  }
+
+  return !/\b(insert|update|delete|merge|replace|create|alter|drop|truncate)\b/i.test(normalized);
+}
+
 /**
  * SQL collection resource.
  *
@@ -87,7 +105,7 @@ export default {
       if (!sql) {
         ctx.throw(400, ctx.t('SQL is empty'));
       }
-      if (!/^select/i.test(sql) && !/^with([\s\S]+)select([\s\S]+)/i.test(sql)) {
+      if (!isReadOnlyPreviewSql(sql)) {
         ctx.throw(400, ctx.t('Only select query allowed'));
       }
       const tmpCollection = new SqlCollection({ name: 'tmp', sql }, { database: ctx.db });

@@ -3,6 +3,7 @@ import { useAPIClient } from '@tachybase/client';
 
 import { message, Select } from 'antd';
 
+import { CURRENT_TENANT_ID_STORAGE_KEY, TENANT_MENU_KEY } from './constants';
 import { useCurrentTenantContext } from './CurrentTenantProvider';
 import { lang } from './locale';
 
@@ -20,7 +21,7 @@ export const useSwitchTenant = () => {
     const currentTenant = tenants.find((item) => item.current);
 
     return (
-      <div key="tenant" className="tenant-nav-switcher">
+      <div key={TENANT_MENU_KEY} className="tenant-nav-switcher">
         <Select
           fieldNames={{
             label: 'title',
@@ -44,7 +45,7 @@ export const useSwitchTenant = () => {
             setSwitching(true);
             try {
               await api.resource('tenants').switch({ values: { tenantId } });
-              api.storage?.setItem?.('current_tenant_id', tenantId as string);
+              api.storage?.setItem?.(CURRENT_TENANT_ID_STORAGE_KEY, tenantId as string);
               window.location.reload();
             } catch (error: any) {
               const errorMessage =

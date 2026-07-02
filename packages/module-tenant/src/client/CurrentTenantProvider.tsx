@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useAPIClient, useCurrentUserContext, useRequest } from '@tachybase/client';
 
+import { CURRENT_TENANT_ID_STORAGE_KEY } from './constants';
+
 type AvailableTenantItem = {
   id: string;
   current?: boolean;
@@ -37,10 +39,8 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     },
   );
 
-  const noUserFallback: ReturnType<typeof useRequest<AvailableTenantsResult>> = useMemo(
-    () => ({ data: { data: [] }, loading: false }) as any,
-    [],
-  );
+  type AvailableTenantsRequestState = Pick<ReturnType<typeof useRequest<AvailableTenantsResult>>, 'data' | 'loading'>;
+  const noUserFallback = useMemo<AvailableTenantsRequestState>(() => ({ data: { data: [] }, loading: false }), []);
   const value = currentUserId ? result : noUserFallback;
 
   useEffect(() => {
@@ -53,17 +53,17 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
 
     const tenants = value?.data?.data || [];
     if (!tenants.length) {
-      api.storage?.removeItem?.('current_tenant_id');
+      api.storage?.removeItem?.(CURRENT_TENANT_ID_STORAGE_KEY);
       return;
     }
 
     const currentTenant = tenants.find((item) => item.current) || tenants.find((item) => item.enabled !== false);
     if (currentTenant?.id) {
-      api.storage?.setItem?.('current_tenant_id', currentTenant.id);
+      api.storage?.setItem?.(CURRENT_TENANT_ID_STORAGE_KEY, currentTenant.id);
       return;
     }
 
-    api.storage?.removeItem?.('current_tenant_id');
+    api.storage?.removeItem?.(CURRENT_TENANT_ID_STORAGE_KEY);
   }, [api.storage, currentUserId, value?.data, value?.data?.data]);
 
   return <CurrentTenantContext.Provider value={value}>{children}</CurrentTenantContext.Provider>;

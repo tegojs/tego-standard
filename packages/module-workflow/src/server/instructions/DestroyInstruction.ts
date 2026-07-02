@@ -18,14 +18,14 @@ export class DestroyInstruction extends Instruction {
     const { repository } = targetCollection;
     const options = processor.getParsedValue(params, node.id);
     const baseRepositoryContext = processor.getRepositoryContext();
+    const optionContext = options.context || {};
     const repositoryContext = {
       ...baseRepositoryContext,
-      ...options.context,
       state: {
-        ...options.context?.state,
+        ...optionContext.state,
         ...baseRepositoryContext.state,
       },
-      stack: Array.from(new Set([...(baseRepositoryContext.stack || []), ...(options.context?.stack || [])])),
+      stack: Array.from(new Set([...(baseRepositoryContext.stack || []), ...(optionContext.stack || [])])),
     };
     const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'destroy', options);
     const result = await repository.destroy({

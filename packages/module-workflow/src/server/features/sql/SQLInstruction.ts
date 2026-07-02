@@ -1,6 +1,39 @@
 import { FlowNodeModel, Instruction, JOB_STATUS, Processor } from '../..';
 import { checkSqlExecutionPermission } from '../../utils/sql-permission';
 
+function pickTenantTemplateState(state: Record<string, any> = {}) {
+  const {
+    currentTenant,
+    currentTenantId,
+    currentTenantDescendantIds,
+    currentTenancyMode,
+    currentLegacyDataTenantIds,
+    tenantContextSource,
+    actorUserId,
+    impersonatedTenantId,
+    isTenantImpersonation,
+  } = state;
+
+  return {
+    ...(currentTenant !== undefined ? { currentTenant } : {}),
+    ...(currentTenantId !== undefined ? { currentTenantId } : {}),
+    ...(currentTenantDescendantIds !== undefined ? { currentTenantDescendantIds } : {}),
+    ...(currentTenancyMode !== undefined ? { currentTenancyMode } : {}),
+    ...(currentLegacyDataTenantIds !== undefined ? { currentLegacyDataTenantIds } : {}),
+    ...(tenantContextSource !== undefined ? { tenantContextSource } : {}),
+    ...(actorUserId !== undefined ? { actorUserId } : {}),
+    ...(impersonatedTenantId !== undefined ? { impersonatedTenantId } : {}),
+    ...(isTenantImpersonation !== undefined ? { isTenantImpersonation } : {}),
+  };
+}
+
+function buildSqlTemplateRepositoryContext(repositoryContext: Record<string, any> = {}) {
+  return {
+    state: pickTenantTemplateState(repositoryContext.state),
+    ...(Array.isArray(repositoryContext.stack) ? { stack: repositoryContext.stack } : {}),
+  };
+}
+
 /**
  * SQL workflow instruction.
  *
@@ -11,11 +44,10 @@ import { checkSqlExecutionPermission } from '../../utils/sql-permission';
  * - Unlike Query/Select/Update/Destroy/Aggregate instructions which use the
  *   repository API and receive automatic tenant scoping, the SQL instruction
  *   operates at the raw database driver level.
- * - The restored repository context (currentTenantId, descendant IDs, role, etc.)
- *   is exposed to SQL templates as `$repositoryContext` and `$tenantContext`,
- *   but this instruction intentionally does not rewrite SQL — statements are
- *   opaque to the framework and cannot be safely patched to include tenant
- *   conditions.
+ * - A tenant-safe subset of the restored repository context is exposed to SQL
+ *   templates as `$repositoryContext` and `$tenantContext`, but this instruction
+ *   intentionally does not rewrite SQL — statements are opaque to the framework
+ *   and cannot be safely patched to include tenant conditions.
  * - Workflow authors MUST manually include tenant conditions in their SQL
  *   (e.g. `WHERE tenantId = '{{$tenantContext.currentTenantId}}'`) when
  *   accessing tenant-scoped data.
@@ -42,10 +74,11 @@ export default class extends Instruction {
       throw new Error(`type of data source "${node.config.dataSource}" is not database`);
     }
     const repositoryContext = processor.getRepositoryContext();
+    const templateRepositoryContext = buildSqlTemplateRepositoryContext(repositoryContext);
     const sql = processor
       .getParsedValue(node.config.sql || '', node.id, {
-        $repositoryContext: repositoryContext,
-        $tenantContext: repositoryContext.state,
+        $repositoryContext: templateRepositoryContext,
+        $tenantContext: templateRepositoryContext.state,
       })
       .trim();
     if (!sql) {

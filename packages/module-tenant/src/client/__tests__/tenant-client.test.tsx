@@ -11,7 +11,7 @@ import React from 'react';
 import { APIClientProvider, Application, mockAPIClient } from '@tachybase/client';
 import { act, render, renderHook, waitFor } from '@tachybase/test/client';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import PluginTenantClient from '..';
 import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
@@ -389,5 +389,51 @@ describe('CurrentTenantProvider – localStorage restore', () => {
 
     const currentSelectProps = result.current?.props.children.props;
     expect(currentSelectProps.value).toBe('tenant-a');
+  });
+
+  it('should disable tenant switch select while switch request is pending', async () => {
+    let rejectSwitch: (reason?: any) => void;
+    const switchPromise = new Promise((_, reject) => {
+      rejectSwitch = reject;
+    });
+    const storage = new Map<string, string>();
+    const api: any = {
+      resource: vi.fn(() => ({
+        switch: vi.fn(() => switchPromise),
+      })),
+      storage: {
+        setItem: (key: string, value: string) => storage.set(key, value),
+      },
+    };
+
+    const wrapper = ({ children }) => (
+      <APIClientProvider apiClient={api}>
+        <CurrentTenantContext.Provider
+          value={{
+            data: {
+              data: [
+                { id: 'tenant-a', title: 'Tenant A', current: true },
+                { id: 'tenant-b', title: 'Tenant B' },
+              ],
+            },
+          }}
+        >
+          {children}
+        </CurrentTenantContext.Provider>
+      </APIClientProvider>
+    );
+    const { result } = renderHook(() => useSwitchTenant(), { wrapper });
+
+    let switchTask: Promise<void>;
+    act(() => {
+      switchTask = result.current?.props.children.props.onChange('tenant-b');
+    });
+
+    expect(result.current?.props.children.props.disabled).toBe(true);
+
+    await act(async () => {
+      rejectSwitch!(new Error('switch stopped'));
+      await switchTask!;
+    });
   });
 });

@@ -4,8 +4,13 @@ import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 
 export async function switchTenant(ctx: Context, next: Next) {
   const tenantId = ctx.action.params?.values?.tenantId;
-  if (!tenantId) {
+  if (tenantId == null) {
     ctx.throw(400, 'tenantId is required');
+  }
+
+  const currentUserId = ctx.state.currentUser?.id;
+  if (currentUserId == null) {
+    ctx.throw(401, 'Authentication required');
   }
 
   const tenant = await ctx.db.getRepository('tenants').findOne({
@@ -21,7 +26,7 @@ export async function switchTenant(ctx: Context, next: Next) {
 
   const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
     filter: {
-      userId: ctx.state.currentUser?.id,
+      userId: currentUserId,
     },
   });
   const accessibleTenantIds = await getAccessibleTenantIds(
@@ -34,7 +39,7 @@ export async function switchTenant(ctx: Context, next: Next) {
   }
 
   await ctx.db.getRepository('users').update({
-    filterByTk: ctx.state.currentUser.id,
+    filterByTk: currentUserId,
     values: {
       defaultTenantId: tenantId,
     },

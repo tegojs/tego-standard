@@ -15,7 +15,15 @@ function emitSecurityViolation(ctx: Context, event: Record<string, any>) {
   if (app && typeof app.emit === 'function') {
     app.emit('tenant.securityViolation', event);
   } else {
-    // Fallback: emit on ctx.app (Koa) in case __application is not set
+    const logger = (ctx as any).log || (ctx as any).logger || (ctx as any).tego?.logger || (ctx.app as any).logger;
+    logger?.warn?.(
+      'Application emitter back-reference is missing; tenant.securityViolation is emitted on Koa app fallback',
+      {
+        eventType: event?.type,
+        action: event?.action,
+        collectionName: event?.collectionName,
+      },
+    );
     ctx.app.emit('tenant.securityViolation', event);
   }
 }
@@ -59,7 +67,9 @@ async function resolveDefaultTenantId(ctx: Context, tenantIds: Array<string | nu
     return defaultTenantId;
   }
 
-  const sortedTenantIds = [...tenantIds].sort((a, b) => String(a).localeCompare(String(b)));
+  const sortedTenantIds = [...tenantIds].sort((a, b) =>
+    String(a).localeCompare(String(b), undefined, { numeric: true }),
+  );
   return sortedTenantIds[0];
 }
 

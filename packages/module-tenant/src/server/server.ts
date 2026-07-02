@@ -114,10 +114,8 @@ export class PluginTenantServer extends Plugin {
     );
 
     const applyTenantResourceGuard = async (ctx, next) => {
-      const dataSourceKey =
-        ctx.get('X-data-source') || ctx.get('x-data-source') || ctx.action.params?.dataSource || 'main';
-      const dataSource =
-        dataSourceKey && dataSourceKey !== 'main' ? ctx.tego.dataSourceManager.dataSources.get(dataSourceKey) : null;
+      const dataSourceKey = getRequestedDataSourceKey(ctx);
+      const dataSource = getUsableDataSource(ctx, dataSourceKey);
       const db = dataSource?.collectionManager?.db || ctx.db;
       const collectionName = ctx.action.resourceName?.replace(/^api\//, '');
       const collection =

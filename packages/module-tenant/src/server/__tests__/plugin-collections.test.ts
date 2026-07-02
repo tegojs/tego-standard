@@ -35,7 +35,7 @@ describe('tenant plugin collections', () => {
     expect(app.i18n.t('Tenant management', { lng: 'zh-CN', ns: NAMESPACE })).toBe('租户管理');
   });
 
-  it('should repair stale tenantId field metadata when collection tenancy is enabled', async () => {
+  it('should not overwrite custom tenantId field metadata when collection tenancy is enabled', async () => {
     await app.db.getRepository('collections').create({
       values: {
         name: 'tenant_meta_posts',
@@ -70,9 +70,9 @@ describe('tenant plugin collections', () => {
       },
     });
 
-    expect(field.get('type')).toBe('context');
-    expect(field.get('dataIndex')).toBe('state.currentTenant.id');
-    expect(field.get('createOnly')).toBe(true);
+    expect(field.get('type')).toBe('string');
+    expect(field.get('dataIndex')).toBe('wrong.path');
+    expect(field.get('createOnly')).toBe(false);
   });
 
   it('should remove managed tenantId field metadata when collection tenancy is disabled', async () => {

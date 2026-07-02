@@ -13,6 +13,8 @@
   "Edit": "Edit",
   "Edit tenant": "Edit tenant",
   "Enabled": "Enabled",
+  "Failed to load tenants": "Failed to load tenants",
+  "Failed to switch tenant": "Failed to switch tenant",
   "Members": "Members",
   "No parent (root)": "No parent (root)",
   "No users available": "No users available",

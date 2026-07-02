@@ -13,6 +13,8 @@
   "Edit": "编辑",
   "Edit tenant": "编辑租户",
   "Enabled": "启用",
+  "Failed to load tenants": "加载租户失败",
+  "Failed to switch tenant": "切换租户失败",
   "Members": "成员",
   "No parent (root)": "无上级（根节点）",
   "No users available": "暂无可选用户",

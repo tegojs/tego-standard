@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useAPIClient } from '@tachybase/client';
 import { Field, observer, useField } from '@tachybase/schema';
 
-import { Select } from 'antd';
+import { message, Select } from 'antd';
+
+import { lang } from './locale';
 
 type LegacyDataTenantOption = {
   label: string;
@@ -58,6 +60,7 @@ export const LegacyDataTenantSelect = observer(
         .catch(() => {
           if (!canceled) {
             setOptions([]);
+            message.error(lang('Failed to load tenants'));
           }
         });
 

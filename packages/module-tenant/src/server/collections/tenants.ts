@@ -28,6 +28,7 @@ export default defineCollection({
     {
       type: 'string',
       name: 'parentId',
+      index: true,
     },
     {
       type: 'belongsTo',
@@ -45,6 +46,7 @@ export default defineCollection({
       type: 'string',
       name: 'path',
       maxLength: 500,
+      index: true,
     },
   ],
 });

@@ -16,6 +16,15 @@ type UserRecord = {
   defaultTenantId?: string | null;
 };
 
+type UserListResponse = {
+  data?: UserRecord[];
+  meta?: {
+    count?: number;
+    page?: number;
+    pageSize?: number;
+  };
+};
+
 const formatUserLabel = (user: UserRecord) => {
   const name = user.nickname || user.username || String(user.id);
   const detail = user.email || user.phone || user.username;
@@ -190,26 +199,29 @@ const TenantMembers = ({
   const [savingUserId, setSavingUserId] = useState<number | null>(null);
   const [addingMembers, setAddingMembers] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [memberPagination, setMemberPagination] = useState({ current: 1, pageSize: 20 });
 
   useEffect(() => {
     setMemberKeyword('');
     setCandidateKeyword('');
     setSelectedUserIds([]);
+    setMemberPagination((pagination) => ({ ...pagination, current: 1 }));
   }, [open, tenant?.id]);
 
-  const membersRequest = useRequest<{ data: UserRecord[] }>(
+  const membersRequest = useRequest<UserListResponse>(
     () =>
       api
         .resource('users')
         .list({
-          pageSize: 200,
+          page: memberPagination.current,
+          pageSize: memberPagination.pageSize,
           appends: ['tenants', 'defaultTenant'],
           filter: buildTenantMemberFilter(tenant?.id, memberKeyword),
         })
         .then((res) => res?.data),
     {
       ready: open,
-      refreshDeps: [open, tenant?.id, memberKeyword],
+      refreshDeps: [open, tenant?.id, memberKeyword, memberPagination.current, memberPagination.pageSize],
       debounceWait: 300,
     },
   );
@@ -375,13 +387,24 @@ const TenantMembers = ({
             placeholder={t('Search users')}
             style={{ width: 280 }}
             value={memberKeyword}
-            onChange={(event) => setMemberKeyword(event.target.value)}
+            onChange={(event) => {
+              setMemberKeyword(event.target.value);
+              setMemberPagination((pagination) => ({ ...pagination, current: 1 }));
+            }}
           />
         </Space>
         <Table<UserRecord>
           loading={membersRequest.loading}
           dataSource={members}
-          pagination={false}
+          pagination={{
+            current: membersRequest.data?.meta?.page || memberPagination.current,
+            pageSize: membersRequest.data?.meta?.pageSize || memberPagination.pageSize,
+            total: membersRequest.data?.meta?.count || 0,
+            showSizeChanger: true,
+            onChange: (current, pageSize) => {
+              setMemberPagination({ current, pageSize });
+            },
+          }}
           rowKey="id"
           columns={[
             {
@@ -491,6 +514,8 @@ export const TenantManagement = () => {
       setDrawerOpen(false);
       setEditingTenant(null);
       await tenantsRequest.refresh();
+    } catch {
+      message.error(t('Save failed'));
     } finally {
       setSaving(false);
     }
@@ -568,12 +593,16 @@ export const TenantManagement = () => {
                     checked={record.enabled !== false}
                     size="small"
                     onChange={async (checked) => {
-                      await api.resource('tenants').update({
-                        filterByTk: record.id,
-                        values: { enabled: checked },
-                      });
-                      message.success(t('Saved successfully'));
-                      await tenantsRequest.refresh();
+                      try {
+                        await api.resource('tenants').update({
+                          filterByTk: record.id,
+                          values: { enabled: checked },
+                        });
+                        message.success(t('Saved successfully'));
+                        await tenantsRequest.refresh();
+                      } catch {
+                        message.error(t('Save failed'));
+                      }
                     }}
                   />
                 </Space>

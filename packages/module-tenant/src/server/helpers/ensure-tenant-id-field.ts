@@ -61,10 +61,12 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
       values: tenantField,
       transaction: options.transaction,
     });
-  } else {
+  } else if (isManagedTenantIdField(exists)) {
     await exists.update(tenantField, {
       transaction: options.transaction,
     });
+  } else {
+    return;
   }
 
   model.db.getCollection(collectionName).setField('tenantId', tenantField as any);

@@ -72,8 +72,8 @@ export const buildTenantMemberFilter = (tenantId?: string | null, keyword = '') 
   return mergeFilters([{ 'tenants.id': tenantId }, buildUserSearchFilter(keyword)]);
 };
 
-export const buildTenantCandidateFilter = (memberIds: number[] = [], keyword = '') => {
-  return mergeFilters([memberIds.length ? { 'id.$notIn': memberIds } : undefined, buildUserSearchFilter(keyword)]);
+export const buildTenantCandidateFilter = (tenantId?: string | null, keyword = '') => {
+  return mergeFilters([tenantId ? { 'tenants.id.$notIn': [tenantId] } : undefined, buildUserSearchFilter(keyword)]);
 };
 
 export const getTenantMembers = (users: UserRecord[], tenantId?: string | null) => {
@@ -103,6 +103,25 @@ type TenantFormValues = {
   enabled?: boolean;
   parentId?: string | null;
 };
+
+export async function loadTenantRecords(api: any, isCanceled: () => boolean, pageSize = 200): Promise<TenantRecord[]> {
+  const records: TenantRecord[] = [];
+  let page = 1;
+
+  while (!isCanceled()) {
+    const res = await api.resource('tenants').list({ page, pageSize });
+    const tenants = res?.data?.data || [];
+    records.push(...tenants);
+
+    if (tenants.length < pageSize) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return records;
+}
 
 export const TenantEditor = ({
   initialValues,
@@ -227,7 +246,6 @@ const TenantMembers = ({
   );
 
   const members = useMemo(() => membersRequest.data?.data || [], [membersRequest.data?.data]);
-  const memberIds = useMemo(() => members.map((user) => user.id), [members]);
 
   const candidatesRequest = useRequest<{ data: UserRecord[] }>(
     () =>
@@ -236,12 +254,12 @@ const TenantMembers = ({
         .list({
           pageSize: 50,
           appends: ['tenants', 'defaultTenant'],
-          filter: buildTenantCandidateFilter(memberIds, candidateKeyword),
+          filter: buildTenantCandidateFilter(tenant?.id, candidateKeyword),
         })
         .then((res) => res?.data),
     {
       ready: open,
-      refreshDeps: [open, tenant?.id, candidateKeyword, memberIds.join(',')],
+      refreshDeps: [open, tenant?.id, candidateKeyword],
       debounceWait: 300,
     },
   );
@@ -258,6 +276,7 @@ const TenantMembers = ({
     options: { silent?: boolean; refresh?: boolean } = {},
   ): Promise<boolean> => {
     setSavingUserId(user.id);
+    let membershipMutationCompleted = false;
     try {
       const currentTenantIds = (user.tenants || []).map((item) => item.id);
       const tenantIdsToAdd = nextTenantIds.filter((tenantId) => !currentTenantIds.includes(tenantId));
@@ -270,6 +289,7 @@ const TenantMembers = ({
             userId: user.id,
           },
         });
+        membershipMutationCompleted = true;
       }
 
       for (const tenantId of tenantIdsToRemove) {
@@ -279,6 +299,7 @@ const TenantMembers = ({
             userId: user.id,
           },
         });
+        membershipMutationCompleted = true;
       }
 
       await api.resource('users').update({
@@ -296,7 +317,11 @@ const TenantMembers = ({
       return true;
     } catch {
       if (!options.silent) {
-        message.error(t('Save failed'));
+        if (membershipMutationCompleted) {
+          message.warning(t('Some members were not saved'));
+        } else {
+          message.error(t('Save failed'));
+        }
       }
       return false;
     } finally {
@@ -480,12 +505,7 @@ export const TenantManagement = () => {
   const [saving, setSaving] = useState(false);
 
   const tenantsRequest = useRequest<{ data: TenantRecord[] }>(() =>
-    api
-      .resource('tenants')
-      .list({
-        pageSize: 200,
-      })
-      .then((res) => res?.data),
+    loadTenantRecords(api, () => false).then((data) => ({ data })),
   );
 
   const tenants = useMemo(() => tenantsRequest.data?.data || [], [tenantsRequest.data?.data]);

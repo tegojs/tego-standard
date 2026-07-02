@@ -22,6 +22,7 @@ import {
   buildUserSearchFilter,
   getTenantCandidateOptions,
   getTenantMembers,
+  loadTenantRecords,
   TenantEditor,
   TenantManagement,
 } from '../TenantManagement';
@@ -241,9 +242,9 @@ describe('PluginTenantClient', () => {
       ],
     });
 
-    expect(buildTenantCandidateFilter([1, 2], '42')).toEqual({
+    expect(buildTenantCandidateFilter('tenant-a', '42')).toEqual({
       $and: [
-        { 'id.$notIn': [1, 2] },
+        { 'tenants.id.$notIn': ['tenant-a'] },
         {
           $or: [
             { 'username.$includes': '42' },
@@ -284,6 +285,31 @@ describe('PluginTenantClient', () => {
       { label: 'tenant-2', value: 'tenant-2' },
       { label: 'Tenant 3', value: 'tenant-3' },
     ]);
+  });
+
+  it('should load all tenant pages for tenant management', async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          data: Array.from({ length: 2 }, (_, index) => ({ id: `tenant-${index + 1}` })),
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: [{ id: 'tenant-3' }],
+        },
+      });
+    const api = {
+      resource: vi.fn(() => ({ list })),
+    };
+
+    const tenants = await loadTenantRecords(api, () => false, 2);
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenNthCalledWith(1, { page: 1, pageSize: 2 });
+    expect(list).toHaveBeenNthCalledWith(2, { page: 2, pageSize: 2 });
+    expect(tenants).toEqual([{ id: 'tenant-1' }, { id: 'tenant-2' }, { id: 'tenant-3' }]);
   });
 
   it('should separate current tenant members from add-member candidates', () => {

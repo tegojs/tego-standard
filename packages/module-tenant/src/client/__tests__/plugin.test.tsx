@@ -23,6 +23,8 @@ import {
   getTenantCandidateOptions,
   getTenantMembers,
   loadTenantRecords,
+  mergeSelectedUserRecords,
+  resolveSelectedUserRecords,
   TenantEditor,
   TenantManagement,
 } from '../TenantManagement';
@@ -335,6 +337,24 @@ describe('PluginTenantClient', () => {
         value: 2,
       },
     ]);
+  });
+
+  it('should preserve selected candidate records across user searches', () => {
+    const alice = {
+      id: 1,
+      username: 'alice',
+      tenants: [],
+    };
+    const bob = {
+      id: 2,
+      username: 'bob',
+      tenants: [],
+    };
+
+    const afterAliceSearch = mergeSelectedUserRecords({}, [alice], [alice.id]);
+    const afterBobSearch = mergeSelectedUserRecords(afterAliceSearch, [bob], [alice.id, bob.id]);
+
+    expect(resolveSelectedUserRecords([alice.id, bob.id], afterBobSearch)).toEqual([alice, bob]);
   });
 
   it('should register tenant management entry in system settings', async () => {

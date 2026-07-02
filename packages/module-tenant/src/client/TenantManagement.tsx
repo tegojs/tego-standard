@@ -97,6 +97,35 @@ export const getTenantCandidateOptions = (users: UserRecord[], tenantId?: string
     }));
 };
 
+type SelectedUserRecords = Record<number, UserRecord>;
+
+export const mergeSelectedUserRecords = (
+  records: SelectedUserRecords,
+  candidates: UserRecord[],
+  selectedUserIds: number[],
+) => {
+  const selectedIdSet = new Set(selectedUserIds);
+  const nextRecords: SelectedUserRecords = {};
+
+  for (const userId of selectedUserIds) {
+    if (records[userId]) {
+      nextRecords[userId] = records[userId];
+    }
+  }
+
+  for (const user of candidates) {
+    if (selectedIdSet.has(user.id)) {
+      nextRecords[user.id] = user;
+    }
+  }
+
+  return nextRecords;
+};
+
+export const resolveSelectedUserRecords = (selectedUserIds: number[], records: SelectedUserRecords) => {
+  return selectedUserIds.map((userId) => records[userId]).filter(Boolean);
+};
+
 type TenantFormValues = {
   name: string;
   title?: string;
@@ -218,12 +247,14 @@ const TenantMembers = ({
   const [savingUserId, setSavingUserId] = useState<number | null>(null);
   const [addingMembers, setAddingMembers] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [selectedUserRecords, setSelectedUserRecords] = useState<SelectedUserRecords>({});
   const [memberPagination, setMemberPagination] = useState({ current: 1, pageSize: 20 });
 
   useEffect(() => {
     setMemberKeyword('');
     setCandidateKeyword('');
     setSelectedUserIds([]);
+    setSelectedUserRecords({});
     setMemberPagination((pagination) => ({ ...pagination, current: 1 }));
   }, [open, tenant?.id]);
 
@@ -264,10 +295,19 @@ const TenantMembers = ({
     },
   );
 
+  const candidateUsers = useMemo(() => candidatesRequest.data?.data || [], [candidatesRequest.data?.data]);
   const candidateOptions = useMemo(
-    () => getTenantCandidateOptions(candidatesRequest.data?.data || [], tenant?.id),
-    [tenant?.id, candidatesRequest.data?.data],
+    () => getTenantCandidateOptions(candidateUsers, tenant?.id),
+    [candidateUsers, tenant?.id],
   );
+  const selectedUserOptions = useMemo(
+    () => getTenantCandidateOptions(resolveSelectedUserRecords(selectedUserIds, selectedUserRecords), tenant?.id),
+    [selectedUserIds, selectedUserRecords, tenant?.id],
+  );
+  const addMemberOptions = useMemo(() => {
+    const candidateOptionIds = new Set(candidateOptions.map((option) => option.value));
+    return [...selectedUserOptions.filter((option) => !candidateOptionIds.has(option.value)), ...candidateOptions];
+  }, [candidateOptions, selectedUserOptions]);
 
   const saveMembership = async (
     user: UserRecord,
@@ -343,10 +383,12 @@ const TenantMembers = ({
     try {
       let successCount = 0;
       let failureCount = 0;
+      const records = mergeSelectedUserRecords(selectedUserRecords, candidateUsers, userIds);
 
       for (const userId of userIds) {
-        const user = (candidatesRequest.data?.data || []).find((item) => item.id === userId);
+        const user = records[userId];
         if (!user) {
+          failureCount += 1;
           continue;
         }
 
@@ -368,7 +410,12 @@ const TenantMembers = ({
         message.success(t('Saved successfully'));
       }
       await Promise.all([membersRequest.refresh(), candidatesRequest.refresh()]);
-      setSelectedUserIds([]);
+      if (failureCount === 0 && successCount === userIds.length) {
+        setSelectedUserIds([]);
+        setSelectedUserRecords({});
+      } else {
+        setSelectedUserRecords(records);
+      }
     } finally {
       setAddingMembers(false);
     }
@@ -392,12 +439,18 @@ const TenantMembers = ({
               maxTagCount="responsive"
               mode="multiple"
               notFoundContent={t('No users available')}
-              options={candidateOptions}
+              options={addMemberOptions}
               placeholder={t('Search users')}
               showSearch
               style={{ width: '100%' }}
               value={selectedUserIds}
-              onChange={(values) => setSelectedUserIds(values as number[])}
+              onChange={(values) => {
+                const nextSelectedUserIds = values as number[];
+                setSelectedUserIds(nextSelectedUserIds);
+                setSelectedUserRecords((records) =>
+                  mergeSelectedUserRecords(records, candidateUsers, nextSelectedUserIds),
+                );
+              }}
               onSearch={setCandidateKeyword}
             />
             <Button loading={addingMembers} type="primary" onClick={() => void addMember(selectedUserIds)}>

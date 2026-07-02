@@ -236,13 +236,24 @@ export async function update(ctx: Context, next) {
   const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues } = ctx.action.params;
 
   ctx.body = await db.sequelize.transaction(async (transaction) => {
+    let nodeWithWorkflow: any;
+
     // Check SQL node permission inside the same transaction used for the update.
     const nodeType = values?.type;
     if (nodeType === 'sql') {
       assertSqlNodePermission(ctx, 'sql');
-    } else if (filterByTk) {
-      const existingNode = await repository.findOne({ filterByTk, fields: ['type'], context: ctx, transaction });
-      if (existingNode?.get('type') === 'sql') {
+    }
+
+    if (filterByTk) {
+      nodeWithWorkflow = await repository.findOne({
+        filterByTk,
+        fields: ['type'],
+        appends: ['workflow.executed'],
+        context: ctx,
+        transaction,
+      });
+
+      if (nodeType !== 'sql' && nodeWithWorkflow?.get('type') === 'sql') {
         assertSqlNodePermission(ctx, 'sql');
       }
     } else if (filter) {
@@ -252,12 +263,14 @@ export async function update(ctx: Context, next) {
       }
     }
 
-    // TODO(optimize): duplicated instance query
-    const { workflow } = await repository.findOne({
-      filterByTk,
-      appends: ['workflow.executed'],
-      transaction,
-    });
+    nodeWithWorkflow =
+      nodeWithWorkflow ||
+      (await repository.findOne({
+        filterByTk,
+        appends: ['workflow.executed'],
+        transaction,
+      }));
+    const { workflow } = nodeWithWorkflow;
     if (workflow.executed) {
       ctx.throw(400, 'Nodes in executed workflow could not be reconfigured');
     }

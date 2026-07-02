@@ -14,12 +14,12 @@ function getModelValue(model: any, key: string) {
   return model?.get?.(key) ?? model?.[key];
 }
 
-function buildExecutionTenantFilter(ctx: Context) {
-  return buildWorkflowExecutionTenantFilter(ctx.state, NEVER_MATCH_TENANT_FILTER);
+function buildExecutionTenantFilter(ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
+  return buildWorkflowExecutionTenantFilter(ctx.state, fallback);
 }
 
-function appendExecutionTenantFilter(filter: any, ctx: Context) {
-  const tenantFilter = buildExecutionTenantFilter(ctx);
+function appendExecutionTenantFilter(filter: any, ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
+  const tenantFilter = buildExecutionTenantFilter(ctx, fallback);
   if (!tenantFilter) {
     return filter;
   }
@@ -54,6 +54,7 @@ export async function destroy(ctx: Context, next) {
         },
       },
       ctx,
+      null,
     ),
   });
 

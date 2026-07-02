@@ -9,15 +9,16 @@
  * X-Tenant-Id, the server must NOT route files into a tenant path or stamp
  * tenantId on the attachment record when module-tenant is not loaded.
  */
+import crypto from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createMockServer, MockServer } from '@tachybase/test';
 
 import send from 'koa-send';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FILE_FIELD_NAME, STORAGE_TYPE_LOCAL } from '../constants';
-import { getCurrentTenantId, getTenantStoragePath } from '../utils';
+import { getCurrentTenantId, getFilename, getTenantStoragePath } from '../utils';
 
 const { LOCAL_STORAGE_BASE_URL, LOCAL_STORAGE_DEST = 'storage/uploads', APP_PORT = '3000' } = process.env;
 const DEFAULT_LOCAL_BASE_URL = LOCAL_STORAGE_BASE_URL || `/storage/uploads`;
@@ -107,6 +108,12 @@ describe('module-file helpers – tenant module NOT loaded', () => {
       expect(result).not.toContain('\\');
     });
 
+    it('sanitizes storagePath traversal before appending tenant boundary', () => {
+      const result = getTenantStoragePath('../outside/./uploads', 'tenant-a');
+      expect(result).toBe('tenant/outside/uploads/tenants/tenant-a');
+      expect(result).not.toContain('..');
+    });
+
     it('sanitizes tenantId before using it as a storage path segment', () => {
       expect(getTenantStoragePath('storage/uploads', '../evil')).toBe('storage/uploads/tenants/.._evil');
       expect(getTenantStoragePath('storage/uploads', '..')).toBe('storage/uploads/tenants/tenant');
@@ -114,6 +121,32 @@ describe('module-file helpers – tenant module NOT loaded', () => {
 
     it('treats numeric zero as a valid tenant id', () => {
       expect(getTenantStoragePath('storage/uploads', 0 as any)).toBe('storage/uploads/tenants/0');
+    });
+  });
+
+  describe('getFilename', () => {
+    it('uses crypto.randomBytes to generate the 16-byte hex filename', async () => {
+      const randomBytes = vi.spyOn(crypto, 'randomBytes').mockImplementation((size: any, callback: any) => {
+        callback(null, Buffer.alloc(size, 1));
+        return undefined as any;
+      });
+
+      try {
+        const filename = await new Promise<string>((resolve, reject) => {
+          getFilename(null, { originalname: 'avatar.png' }, (error, value) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+            resolve(value);
+          });
+        });
+
+        expect(randomBytes).toHaveBeenCalledWith(16, expect.any(Function));
+        expect(filename).toBe('01010101010101010101010101010101.png');
+      } finally {
+        randomBytes.mockRestore();
+      }
     });
   });
 });

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 
 export function getFilename(req, file, cb) {
-  crypto.pseudoRandomBytes(16, function (err, raw) {
+  crypto.randomBytes(16, function (err, raw) {
     cb(err, err ? undefined : `${raw.toString('hex')}${path.extname(file.originalname)}`);
   });
 }
@@ -21,17 +21,28 @@ function sanitizeTenantStorageSegment(value: string | number) {
   return normalized === '.' || normalized === '..' ? 'tenant' : normalized || 'tenant';
 }
 
+function sanitizeTenantStoragePath(storagePath: string) {
+  return storagePath
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment && segment !== '.')
+    .map(sanitizeTenantStorageSegment)
+    .filter(Boolean)
+    .join('/');
+}
+
 export function getTenantStoragePath(storagePath: string = '', tenantId?: string | number) {
   const normalizedStoragePath = String(storagePath || '')
     .replace(/\\/g, '/')
     .replace(/^\/+|\/+$/g, '');
+  const safeStoragePath = sanitizeTenantStoragePath(normalizedStoragePath);
 
   if (tenantId === null || tenantId === undefined || tenantId === '') {
-    return normalizedStoragePath;
+    return safeStoragePath;
   }
 
   const safeTenantId = sanitizeTenantStorageSegment(tenantId);
-  const segments = normalizedStoragePath ? [normalizedStoragePath, 'tenants', safeTenantId] : ['tenants', safeTenantId];
+  const segments = safeStoragePath ? [safeStoragePath, 'tenants', safeTenantId] : ['tenants', safeTenantId];
   return path.posix.join(...segments);
 }
 

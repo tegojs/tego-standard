@@ -215,6 +215,64 @@ describe('workflow > omni trigger > custom action tenant context', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('triggerAction should merge form data into each record from filterByTk array lookup', async () => {
+    const { repository, trigger, workflow, workflowRecord } = createTrigger();
+    repository.find.mockResolvedValue([
+      { id: 1, title: 'stored-1' },
+      { id: 2, title: 'stored-2' },
+    ]);
+    const ctx = createContext(repository, {
+      actionName: 'trigger',
+      resourceName: 'posts',
+      filterByTk: [1, 2],
+      values: { status: 'submitted' },
+      triggerWorkflows: workflowRecord.key,
+    });
+    const next = vi.fn();
+
+    await trigger.triggerAction(ctx as any, next);
+
+    expect(workflow.trigger).toHaveBeenCalledWith(
+      workflowRecord,
+      expect.objectContaining({
+        data: [
+          { id: 1, title: 'stored-1', status: 'submitted' },
+          { id: 2, title: 'stored-2', status: 'submitted' },
+        ],
+      }),
+      { httpContext: ctx },
+    );
+  });
+
+  it('triggerAction should merge form data into each record from filter lookup', async () => {
+    const { repository, trigger, workflow, workflowRecord } = createTrigger();
+    repository.find.mockResolvedValue([
+      { id: 1, title: 'stored-1' },
+      { id: 2, title: 'stored-2' },
+    ]);
+    const ctx = createContext(repository, {
+      actionName: 'trigger',
+      resourceName: 'posts',
+      filter: { status: 'draft' },
+      values: { status: 'submitted' },
+      triggerWorkflows: workflowRecord.key,
+    });
+    const next = vi.fn();
+
+    await trigger.triggerAction(ctx as any, next);
+
+    expect(workflow.trigger).toHaveBeenCalledWith(
+      workflowRecord,
+      expect.objectContaining({
+        data: [
+          { id: 1, title: 'stored-1', status: 'submitted' },
+          { id: 2, title: 'stored-2', status: 'submitted' },
+        ],
+      }),
+      { httpContext: ctx },
+    );
+  });
+
   it('trigger should apply tenant filter to workflow resource payload lookup', async () => {
     const workflowRecord = {
       key: 'wf-key',

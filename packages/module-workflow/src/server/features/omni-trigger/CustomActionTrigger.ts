@@ -21,6 +21,16 @@ function isEmptyLookupResult(data: any) {
   return !data || (Array.isArray(data) && data.length === 0);
 }
 
+function mergeFormData(data: any, formData: any) {
+  if (Array.isArray(data)) {
+    data.forEach((item) => Object.assign(item, formData));
+    return data;
+  }
+
+  Object.assign(data, formData);
+  return data;
+}
+
 export class OmniTrigger extends Trigger {
   static TYPE = 'general-action';
   constructor(workflow) {
@@ -113,7 +123,7 @@ export class OmniTrigger extends Trigger {
         if (isEmptyLookupResult(data)) {
           continue;
         }
-        Object.assign(data, formData);
+        data = mergeFormData(data, formData);
       } else if (filter != null) {
         const findOptions = applyTenantFilterToContext(ctx, targetCollection, 'list', {
           filter,
@@ -123,7 +133,7 @@ export class OmniTrigger extends Trigger {
         if (isEmptyLookupResult(data)) {
           continue;
         }
-        Object.assign(data, formData);
+        data = mergeFormData(data, formData);
       }
       // @ts-ignore
       event.push({ data: toJSON(data), ...userInfo });

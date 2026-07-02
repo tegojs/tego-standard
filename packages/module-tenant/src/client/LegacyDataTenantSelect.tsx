@@ -5,6 +5,7 @@ import { Field, observer, useField } from '@tachybase/schema';
 import { message, Select } from 'antd';
 
 import { lang } from './locale';
+import { loadTenantRecords } from './tenant-tree';
 
 type LegacyDataTenantOption = {
   label: string;
@@ -16,28 +17,12 @@ export async function loadLegacyDataTenantOptions(
   isCanceled: () => boolean,
   pageSize = 200,
 ): Promise<LegacyDataTenantOption[]> {
-  const options: LegacyDataTenantOption[] = [];
-  let page = 1;
+  const tenants = await loadTenantRecords(api, isCanceled, pageSize);
 
-  while (!isCanceled()) {
-    const res = await api.resource('tenants').list({ page, pageSize });
-    const tenants = res?.data?.data || [];
-
-    options.push(
-      ...tenants.map((tenant: any) => ({
-        label: tenant.title || tenant.name || tenant.id,
-        value: tenant.id,
-      })),
-    );
-
-    if (tenants.length < pageSize) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  return options;
+  return tenants.map((tenant: any) => ({
+    label: tenant.title || tenant.name || tenant.id,
+    value: tenant.id,
+  }));
 }
 
 export const LegacyDataTenantSelect = observer(

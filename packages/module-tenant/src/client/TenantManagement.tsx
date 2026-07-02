@@ -4,7 +4,7 @@ import { useAPIClient, useRequest } from '@tachybase/client';
 import { App, Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd';
 
 import { useTenantTranslation } from './locale';
-import { buildTenantTree, getTenantParentOptions, type TenantRecord } from './tenant-tree';
+import { buildTenantTree, getTenantParentOptions, loadTenantRecords, type TenantRecord } from './tenant-tree';
 
 type UserRecord = {
   id: number;
@@ -132,25 +132,6 @@ type TenantFormValues = {
   enabled?: boolean;
   parentId?: string | null;
 };
-
-export async function loadTenantRecords(api: any, isCanceled: () => boolean, pageSize = 200): Promise<TenantRecord[]> {
-  const records: TenantRecord[] = [];
-  let page = 1;
-
-  while (!isCanceled()) {
-    const res = await api.resource('tenants').list({ page, pageSize });
-    const tenants = res?.data?.data || [];
-    records.push(...tenants);
-
-    if (tenants.length < pageSize) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  return records;
-}
 
 export const TenantEditor = ({
   initialValues,

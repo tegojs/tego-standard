@@ -8,6 +8,25 @@ export type TenantRecord = {
   children?: TenantRecord[];
 };
 
+export async function loadTenantRecords(api: any, isCanceled: () => boolean, pageSize = 200): Promise<TenantRecord[]> {
+  const records: TenantRecord[] = [];
+  let page = 1;
+
+  while (!isCanceled()) {
+    const res = await api.resource('tenants').list({ page, pageSize });
+    const tenants = res?.data?.data || [];
+    records.push(...tenants);
+
+    if (tenants.length < pageSize) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return records;
+}
+
 export function buildTenantTree(tenants: TenantRecord[]) {
   const records = new Map<string, TenantRecord>();
   const roots: TenantRecord[] = [];

@@ -1,11 +1,7 @@
 import type { Context, Next } from '@tego/server';
 
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
-
-function isPlatformTenantImpersonator(ctx: Context) {
-  const roles = ctx.state.currentUser?.roles || [];
-  return roles.some((role: any) => (typeof role === 'string' ? role : role?.name) === 'root');
-}
+import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant';
 
 function setAvailableTenantsBody(ctx: Context, tenants: any[]) {
   const currentTenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
@@ -16,7 +12,7 @@ function setAvailableTenantsBody(ctx: Context, tenants: any[]) {
 }
 
 export async function availableTenants(ctx: Context, next: Next) {
-  if (isPlatformTenantImpersonator(ctx)) {
+  if (isPlatformTenantImpersonatorContext(ctx)) {
     const tenants = await ctx.db.getRepository('tenants').find({
       filter: {
         enabled: true,

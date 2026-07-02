@@ -38,6 +38,16 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
         },
         transaction: options.transaction,
       });
+      const collection = model.db.getCollection(collectionName);
+      collection.removeField?.('tenantId');
+      await model.load({ transaction: options.transaction, resetFields: true });
+      await collection.sync({
+        force: false,
+        alter: {
+          drop: false,
+        },
+        transaction: options.transaction,
+      } as any);
     }
     return;
   }

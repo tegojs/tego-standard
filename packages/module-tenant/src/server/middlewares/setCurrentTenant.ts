@@ -1,6 +1,7 @@
 import type { Context, Next } from '@tego/server';
 
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
+import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant';
 import { getDescendantIds } from '../helpers/tenant-tree';
 
 /**
@@ -30,11 +31,6 @@ function emitSecurityViolation(ctx: Context, event: Record<string, any>) {
 
 function shouldFallbackForTenantBootstrap(ctx: Context) {
   return ctx.action?.resourceName === 'tenants' && ['available', 'current', 'switch'].includes(ctx.action?.actionName);
-}
-
-function isPlatformTenantImpersonator(ctx: Context) {
-  const roles = ctx.state.currentUser?.roles || [];
-  return roles.some((role: any) => (typeof role === 'string' ? role : role?.name) === 'root');
 }
 
 async function resolveAllowedTenantIds(ctx: Context) {
@@ -91,7 +87,7 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
 
   const requestedTenantId = ctx.get('X-Tenant-Id');
   const allowedTenantIds = await resolveAllowedTenantIds(ctx);
-  const canImpersonateTenant = !!requestedTenantId && isPlatformTenantImpersonator(ctx);
+  const canImpersonateTenant = !!requestedTenantId && isPlatformTenantImpersonatorContext(ctx);
 
   let currentTenantId = requestedTenantId;
   if (

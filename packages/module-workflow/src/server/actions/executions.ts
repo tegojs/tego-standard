@@ -14,8 +14,33 @@ function getModelValue(model: any, key: string) {
   return model?.get?.(key) ?? model?.[key];
 }
 
+function isTenantPluginEnabled(ctx: Context) {
+  const pluginManagers = [ctx.tego?.pm, ctx.app?.pm];
+
+  for (const pluginManager of pluginManagers) {
+    try {
+      const tenantPlugin = pluginManager?.get?.('tenant');
+      if (tenantPlugin?.enabled === true || tenantPlugin?.name === 'tenant') {
+        return true;
+      }
+    } catch {
+      // Ignore plugin-manager lookup failures and fall back to state checks.
+    }
+  }
+
+  return false;
+}
+
+function shouldApplyExecutionTenantBoundary(ctx: Context) {
+  const state = ctx.state || {};
+  const tenantId = getCurrentTenantIdFromState(state);
+  return (
+    (tenantId !== null && tenantId !== undefined) || Boolean(state.currentTenancyMode) || isTenantPluginEnabled(ctx)
+  );
+}
+
 function buildExecutionTenantFilter(ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
-  return buildWorkflowExecutionTenantFilter(ctx.state, fallback);
+  return buildWorkflowExecutionTenantFilter(ctx.state, shouldApplyExecutionTenantBoundary(ctx) ? fallback : null);
 }
 
 function appendExecutionTenantFilter(filter: any, ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
@@ -54,7 +79,6 @@ export async function destroy(ctx: Context, next) {
         },
       },
       ctx,
-      null,
     ),
   });
 

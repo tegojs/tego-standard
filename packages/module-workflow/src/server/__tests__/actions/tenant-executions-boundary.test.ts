@@ -194,6 +194,36 @@ describe('workflow > actions > tenant executions boundary', () => {
     });
   });
 
+  it('executions.destroy should fail closed when tenant mode exists but tenant context is missing', async () => {
+    const workflow = await createWorkflow();
+    await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.RESOLVED,
+      context: { marker: 'tenant-b' },
+      tenantId: 'tenant-b',
+      tenantContext: tenantState('tenant-b'),
+    });
+
+    const ctx = createContext(
+      'executions',
+      'destroy',
+      {
+        filter: {
+          key: workflow.key,
+        },
+      },
+      'tenant-a',
+    );
+    ctx.state = {
+      currentTenancyMode: 'tenantScoped',
+    };
+
+    await executionActions.destroy(ctx, async () => {});
+
+    const executions = await workflow.getExecutions();
+    expect(executions).toHaveLength(1);
+  });
+
   it('executions.cancel should reject executions from another tenant', async () => {
     const workflow = await createWorkflow();
     const execution = await workflow.createExecution({

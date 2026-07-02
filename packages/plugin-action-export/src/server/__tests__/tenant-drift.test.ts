@@ -2,7 +2,8 @@
  * Tenant helper drift-prevention tests for plugin-action-export.
  *
  * Compares the local worker tenant-scope helper output against the
- * authoritative applyTenantFilterToContext from @tachybase/module-tenant.
+ * authoritative applyTenantFilterToContext from @tachybase/module-tenant,
+ * except for export-specific caller tenantId intersections.
  * Also verifies the runtime source does NOT import from module-tenant.
  */
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -80,7 +81,7 @@ const SCENARIOS = [
     },
   },
   {
-    name: 'tenantScoped export strips user tenantId and enforces current tenant',
+    name: 'tenantScoped export intersects user tenantId with current tenant',
     tenancy: 'tenantScoped' as const,
     tenantContext: {
       currentTenant: { id: 'tenant-a' },
@@ -90,7 +91,8 @@ const SCENARIOS = [
       currentLegacyDataTenantIds: [],
     },
     inputFilter: { status: 'published', tenantId: 'tenant-b' },
-    expectedFilter: { $and: [{ status: 'published' }, { tenantId: 'tenant-a' }] },
+    expectedFilter: { $and: [{ status: 'published', tenantId: 'tenant-b' }, { tenantId: 'tenant-a' }] },
+    authoritativeExpectedFilter: { $and: [{ status: 'published' }, { tenantId: 'tenant-a' }] },
   },
   {
     name: 'tenantScoped list with empty filter produces tenant filter only',
@@ -155,12 +157,14 @@ describe('export > tenant helper drift', () => {
         );
         const authFilter = (authOptions as any).filter;
 
-        // Both should match expected
-        expect(localFilter).toEqual(scenario.expectedFilter);
-        expect(authFilter).toEqual(scenario.expectedFilter);
+        const authoritativeExpectedFilter = (scenario as any).authoritativeExpectedFilter || scenario.expectedFilter;
 
-        // Critical: local and authoritative must produce identical results
-        expect(localFilter).toEqual(authFilter);
+        expect(localFilter).toEqual(scenario.expectedFilter);
+        expect(authFilter).toEqual(authoritativeExpectedFilter);
+
+        if (!(scenario as any).authoritativeExpectedFilter) {
+          expect(localFilter).toEqual(authFilter);
+        }
       } finally {
         rmSync(tempDir, { recursive: true, force: true });
       }

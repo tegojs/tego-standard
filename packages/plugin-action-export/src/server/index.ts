@@ -25,26 +25,28 @@ type ExportTenantContext = {
   currentLegacyDataTenantIds?: Array<string | number>;
 };
 
-function stripTenantFilter(filter: any): any {
+function isEmptyObject(value: any) {
+  return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0;
+}
+
+function cleanFilter(filter: any, stripTenant: boolean): any {
   if (!filter || typeof filter !== 'object') {
     return filter;
   }
 
   if (Array.isArray(filter)) {
-    return filter
-      .map(stripTenantFilter)
-      .filter((item) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+    return filter.map((item) => cleanFilter(item, stripTenant)).filter((item) => !isEmptyObject(item));
   }
 
   const next = Object.fromEntries(
     Object.entries(filter)
-      .filter(([key]) => key !== 'tenantId' && !key.startsWith('tenantId.'))
-      .map(([key, value]) => [key, stripTenantFilter(value)]),
+      .filter(([key]) => !stripTenant || (key !== 'tenantId' && !key.startsWith('tenantId.')))
+      .map(([key, value]) => [key, cleanFilter(value, stripTenant)]),
   );
 
   for (const key of ['$and', '$or']) {
     if (Array.isArray(next[key])) {
-      next[key] = next[key].filter((item: any) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+      next[key] = next[key].filter((item: any) => !isEmptyObject(item));
       if (next[key].length === 0) {
         delete next[key];
       }
@@ -52,6 +54,10 @@ function stripTenantFilter(filter: any): any {
   }
 
   return next;
+}
+
+function stripTenantFilter(filter: any): any {
+  return cleanFilter(filter, true);
 }
 
 function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
@@ -67,7 +73,7 @@ function getLegacyDataTenantIds(tenantContext: ExportTenantContext, collection: 
 }
 
 function appendTenantFilter(original: any, tenantFilter: any) {
-  const sanitizedOriginal = stripTenantFilter(original);
+  const sanitizedOriginal = cleanFilter(original, false);
 
   if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
     return tenantFilter;

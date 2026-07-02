@@ -1,6 +1,6 @@
 import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 
-import { getCurrentTenantIdFromState } from '../helpers/tenant-context';
+import { buildWorkflowExecutionTenantFilter } from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
 import { triggerWorkflowAndGetExecution } from '../utils';
@@ -13,25 +13,6 @@ import {
   setEventSourceName,
   setLatestExecutedTime,
 } from './workflows.helpers';
-
-function canReadLegacyExecutions(state: Record<string, any> = {}, tenantId: string | number) {
-  return (state.currentLegacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
-}
-
-function buildExecutionTenantFilter(state: Record<string, any> = {}) {
-  const tenantId = getCurrentTenantIdFromState(state);
-  if (tenantId === null || tenantId === undefined) {
-    return {};
-  }
-
-  if (canReadLegacyExecutions(state, tenantId)) {
-    return {
-      $or: [{ tenantId }, { tenantId: null }],
-    };
-  }
-
-  return { tenantId };
-}
 
 /**
  * 扩展的 list action，在返回工作流列表时附加额外字段
@@ -413,7 +394,7 @@ export async function retry(ctx: Context, next: Next) {
   const execution = await ExecutionRepo.findOne({
     filter: {
       key: workflow.key,
-      ...buildExecutionTenantFilter(ctx.state),
+      ...buildWorkflowExecutionTenantFilter(ctx.state, {}),
     },
     sort: ['-createdAt'],
   });

@@ -430,6 +430,14 @@ describe('workflow > triggers > schedule > date field mode', () => {
             parentId: 'branch-a',
             path: '/branch-a/dept-a/',
           },
+          {
+            id: 'dept-disabled',
+            name: 'dept-disabled',
+            title: 'Disabled Dept',
+            parentId: 'branch-a',
+            path: '/branch-a/dept-disabled/',
+            enabled: false,
+          },
         ],
       });
 

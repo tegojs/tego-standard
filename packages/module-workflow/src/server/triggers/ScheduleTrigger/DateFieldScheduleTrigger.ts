@@ -105,7 +105,7 @@ async function buildTenantContext(db, collection, record, tenant?, descendantIds
   if (tenancyMode === 'tenantInherited' && db.getRepository('tenants')) {
     const cacheKey = `${tenantId}`;
     if (!descendantIdsCache.has(cacheKey)) {
-      descendantIdsCache.set(cacheKey, await getDescendantTenantIds(db, cacheKey));
+      descendantIdsCache.set(cacheKey, await getDescendantTenantIds(db, cacheKey, { enabledOnly: true }));
     }
     descendantIds = descendantIdsCache.get(cacheKey) || [];
   }
@@ -126,7 +126,7 @@ async function buildEnabledTenantContext(db, collection, record) {
   }
 
   const tenantId = record.get?.('tenantId') ?? record.tenantId;
-  if (!tenantId || !db.getRepository('tenants')) {
+  if (tenantId === null || tenantId === undefined || !db.getRepository('tenants')) {
     return null;
   }
 
@@ -462,7 +462,7 @@ export default class ScheduleTrigger {
         date: new Date(nextTime),
         state: context?.state,
       },
-      { context },
+      { context, transaction },
     );
 
     if (!workflow.config.repeat || (workflow.config.limit && workflow.allExecuted >= workflow.config.limit - 1)) {

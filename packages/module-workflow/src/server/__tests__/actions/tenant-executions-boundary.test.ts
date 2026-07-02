@@ -38,16 +38,23 @@ describe('workflow > actions > tenant executions boundary', () => {
 
   afterAll(() => app.destroy());
 
-  function tenantState(tenantId: string) {
+  function tenantState(tenantId: string, legacyDataTenantIds: string[] = []) {
     return {
       currentTenant: { id: tenantId, name: tenantId },
       currentTenantId: tenantId,
       currentTenantDescendantIds: [],
       currentTenancyMode: 'tenantScoped',
+      currentLegacyDataTenantIds: legacyDataTenantIds,
     };
   }
 
-  function createContext(resourceName: string, actionName: string, params: any, tenantId: string) {
+  function createContext(
+    resourceName: string,
+    actionName: string,
+    params: any,
+    tenantId: string,
+    legacyDataTenantIds: string[] = [],
+  ) {
     return {
       app,
       db,
@@ -58,7 +65,7 @@ describe('workflow > actions > tenant executions boundary', () => {
           get: () => plugin,
         },
       },
-      state: tenantState(tenantId),
+      state: tenantState(tenantId, legacyDataTenantIds),
       transaction: undefined,
       t: (message: string) => message,
       action: {
@@ -158,6 +165,24 @@ describe('workflow > actions > tenant executions boundary', () => {
     await expect(executionActions.cancel(ctx, async () => {})).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it('executions.cancel should allow legacy executions when current tenant can read legacy data', async () => {
+    const workflow = await createWorkflow();
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.STARTED,
+      context: { marker: 'legacy' },
+      tenantId: null,
+      tenantContext: null,
+    });
+
+    const ctx = createContext('executions', 'cancel', { filterByTk: execution.id }, 'tenant-a', ['tenant-a']);
+
+    await executionActions.cancel(ctx, async () => {});
+    await execution.reload();
+
+    expect(execution.status).toBe(EXECUTION_STATUS.CANCELED);
   });
 
   it('triggerWorkflowAndGetExecution should poll queued executions in the current tenant only', async () => {

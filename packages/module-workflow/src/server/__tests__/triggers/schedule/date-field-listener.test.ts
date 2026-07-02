@@ -88,4 +88,57 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
 
     expect(calls).toEqual(['on', 'inspect']);
   });
+
+  it('should pass the active transaction to immediate workflow trigger calls', async () => {
+    const transaction = { id: 'tx-1' };
+    const record = {
+      get: vi.fn((key: string) => (key === 'id' ? 7 : undefined)),
+    };
+    const data = {
+      get: vi.fn((key: string) => (key === 'id' ? 7 : undefined)),
+      toJSON: vi.fn(() => ({ id: 7 })),
+    };
+    const repository = {
+      findOne: vi.fn().mockResolvedValue(data),
+    };
+    const collectionManager = {
+      getCollection: vi.fn().mockReturnValue({
+        options: {},
+        repository,
+        filterTargetKey: 'id',
+      }),
+    };
+    const workflowPlugin = {
+      app: {
+        on: vi.fn(),
+        dataSourceManager: {
+          dataSources: new Map([
+            [
+              'main',
+              {
+                collectionManager,
+              },
+            ],
+          ]),
+        },
+      },
+      trigger: vi.fn(),
+    } as any;
+    const trigger = new DateFieldScheduleTrigger(workflowPlugin);
+    const workflow = {
+      id: 42,
+      config: {
+        collection: 'posts',
+      },
+    } as any;
+
+    await trigger.trigger(workflow, record, Date.now(), { transaction } as any);
+
+    expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({ transaction }));
+    expect(workflowPlugin.trigger).toHaveBeenCalledWith(
+      workflow,
+      expect.any(Object),
+      expect.objectContaining({ transaction }),
+    );
+  });
 });

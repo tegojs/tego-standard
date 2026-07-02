@@ -1,7 +1,11 @@
 import { actions, Context, Next, Op, utils } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
-import { getCurrentTenantIdFromState } from '../helpers/tenant-context';
+import {
+  buildWorkflowExecutionTenantFilter,
+  canReadLegacyExecutions,
+  getCurrentTenantIdFromState,
+} from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { triggerWorkflowAndGetExecution } from '../utils';
 
@@ -9,23 +13,8 @@ function getModelValue(model: any, key: string) {
   return model?.get?.(key) ?? model?.[key];
 }
 
-function canReadLegacyExecutions(state: Record<string, any> = {}, tenantId: string | number) {
-  return (state.currentLegacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
-}
-
 function buildExecutionTenantFilter(ctx: Context) {
-  const tenantId = getCurrentTenantIdFromState(ctx.state);
-  if (tenantId === null || tenantId === undefined) {
-    return null;
-  }
-
-  if (canReadLegacyExecutions(ctx.state, tenantId)) {
-    return {
-      $or: [{ tenantId }, { tenantId: null }],
-    };
-  }
-
-  return { tenantId };
+  return buildWorkflowExecutionTenantFilter(ctx.state, null);
 }
 
 function appendExecutionTenantFilter(filter: any, ctx: Context) {
@@ -46,6 +35,10 @@ function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
   }
 
   const executionTenantId = getModelValue(execution, 'tenantId');
+  if ((executionTenantId === null || executionTenantId === undefined) && canReadLegacyExecutions(ctx.state, tenantId)) {
+    return;
+  }
+
   if (`${executionTenantId}` !== `${tenantId}`) {
     ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
   }

@@ -34,7 +34,6 @@ export default {
     {
       type: 'string',
       name: 'tenantId',
-      index: true,
     },
     {
       type: 'json',

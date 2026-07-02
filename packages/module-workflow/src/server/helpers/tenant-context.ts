@@ -50,6 +50,25 @@ function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Arra
   return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
 }
 
+export function canReadLegacyExecutions(state: Record<string, any> = {}, tenantId: string | number) {
+  return canReadLegacyData(tenantId, state.currentLegacyDataTenantIds);
+}
+
+export function buildWorkflowExecutionTenantFilter(state: Record<string, any> = {}, fallback: any = null) {
+  const tenantId = getCurrentTenantIdFromState(state);
+  if (tenantId === null || tenantId === undefined) {
+    return fallback;
+  }
+
+  if (canReadLegacyExecutions(state, tenantId)) {
+    return {
+      $or: [{ tenantId }, { tenantId: null }],
+    };
+  }
+
+  return { tenantId };
+}
+
 function buildTenantFilter(tenantId: string | number, includeLegacyData = false) {
   if (!includeLegacyData) {
     return { tenantId };
@@ -208,7 +227,11 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
   };
 }
 
-export async function getDescendantTenantIds(db: any, tenantId: string): Promise<string[]> {
+export async function getDescendantTenantIds(
+  db: any,
+  tenantId: string,
+  options: { enabledOnly?: boolean } = {},
+): Promise<string[]> {
   const repo = db?.getRepository?.('tenants');
   if (!repo) {
     return [];
@@ -224,6 +247,7 @@ export async function getDescendantTenantIds(db: any, tenantId: string): Promise
   }
 
   const descendants = await repo.find({
+    filter: options.enabledOnly ? { enabled: true } : undefined,
     fields: ['id', 'path'],
   });
 

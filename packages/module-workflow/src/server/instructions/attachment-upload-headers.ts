@@ -4,6 +4,6 @@ export function buildAttachmentUploadHeaders(formHeaders: Record<string, any>, t
   return {
     ...formHeaders,
     Authorization: 'Bearer ' + token,
-    ...(tenantId ? { 'X-Tenant-Id': tenantId } : {}),
+    ...(tenantId !== null && tenantId !== undefined ? { 'X-Tenant-Id': tenantId } : {}),
   };
 }

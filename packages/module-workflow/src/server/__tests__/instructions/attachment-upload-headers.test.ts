@@ -43,4 +43,14 @@ describe('workflow attachment upload headers', () => {
       Authorization: 'Bearer workflow-token',
     });
   });
+
+  it('should preserve numeric zero tenant id', () => {
+    const headers = buildAttachmentUploadHeaders({}, 'workflow-token', {
+      state: {
+        currentTenantId: 0,
+      },
+    });
+
+    expect(headers['X-Tenant-Id']).toBe(0);
+  });
 });

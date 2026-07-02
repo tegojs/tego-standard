@@ -61,16 +61,132 @@ const updateCollection = async (ctx: Context, transaction: any) => {
   return { collection, upRes };
 };
 
-function stripSqlCommentsAndLiterals(sql: string) {
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/--[^\r\n]*/g, ' ')
-    .replace(/'(?:''|[^'])*'/g, "''")
-    .replace(/"(?:""|[^"])*"/g, '""');
+function readDollarQuoteTag(sql: string, index: number) {
+  const match = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(index));
+  return match?.[0];
 }
 
-function isReadOnlyPreviewSql(sql: string) {
-  const normalized = stripSqlCommentsAndLiterals(sql);
+export function stripSqlCommentsAndLiterals(sql: string) {
+  let normalized = '';
+  let index = 0;
+
+  while (index < sql.length) {
+    const char = sql[index];
+    const next = sql[index + 1];
+
+    if (char === "'") {
+      normalized += ' ';
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === "'" && sql[index + 1] === "'") {
+          index += 2;
+          continue;
+        }
+        if (sql[index] === "'") {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      normalized += ' ';
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === '"' && sql[index + 1] === '"') {
+          index += 2;
+          continue;
+        }
+        if (sql[index] === '"') {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === '`') {
+      normalized += ' ';
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === '`' && sql[index + 1] === '`') {
+          index += 2;
+          continue;
+        }
+        if (sql[index] === '`') {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === '[') {
+      normalized += ' ';
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === ']') {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    const dollarQuoteTag = char === '$' ? readDollarQuoteTag(sql, index) : undefined;
+    if (dollarQuoteTag) {
+      normalized += ' ';
+      index += dollarQuoteTag.length;
+      const closingIndex = sql.indexOf(dollarQuoteTag, index);
+      index = closingIndex === -1 ? sql.length : closingIndex + dollarQuoteTag.length;
+      continue;
+    }
+
+    if (char === '-' && next === '-') {
+      normalized += ' ';
+      index += 2;
+      while (index < sql.length && sql[index] !== '\n' && sql[index] !== '\r') {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === '#') {
+      normalized += ' ';
+      index += 1;
+      while (index < sql.length && sql[index] !== '\n' && sql[index] !== '\r') {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      normalized += ' ';
+      index += 2;
+      while (index < sql.length) {
+        if (sql[index] === '*' && sql[index + 1] === '/') {
+          index += 2;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    normalized += char;
+    index += 1;
+  }
+
+  return normalized;
+}
+
+export function isReadOnlyPreviewSql(sql: string) {
+  const normalized = stripSqlCommentsAndLiterals(sql).trim();
   const startsWithRead = /^select\b/i.test(normalized) || /^with\b[\s\S]+\bselect\b/i.test(normalized);
   if (!startsWithRead) {
     return false;

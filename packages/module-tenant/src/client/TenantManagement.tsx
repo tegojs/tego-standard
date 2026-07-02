@@ -6,6 +6,8 @@ import { App, Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, T
 import { useTenantTranslation } from './locale';
 import { buildTenantTree, getTenantParentOptions, loadTenantRecords, type TenantRecord } from './tenant-tree';
 
+export { loadTenantRecords } from './tenant-tree';
+
 type UserRecord = {
   id: number;
   username?: string;

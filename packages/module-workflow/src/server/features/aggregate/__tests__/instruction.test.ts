@@ -6,7 +6,6 @@ import { vi } from 'vitest';
 
 import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
 import AggregateInstruction from '../AggregateInstruction';
-import { PluginAggregate } from '../Plugin';
 
 describe('workflow > instructions > aggregate', () => {
   let app: Application;
@@ -19,7 +18,6 @@ describe('workflow > instructions > aggregate', () => {
 
   async function setupApp(options: { withAnotherDataSource?: boolean } = {}) {
     app = await getApp({
-      plugins: [PluginAggregate],
       withAnotherDataSource: options.withAnotherDataSource,
     });
 

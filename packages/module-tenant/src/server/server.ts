@@ -49,18 +49,20 @@ export class PluginTenantServer extends Plugin {
     this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
     this.app.i18n.addResources('en-US', NAMESPACE, enUS);
 
-    // Expose the Application instance to middleware via ctx.app.__application.
-    // ctx.app in Koa middleware resolves to the Koa instance (not the
-    // Application).  Security event listeners registered by plugin-audit-logs
-    // live on the Application's EventEmitter.  By storing a back-reference,
-    // setCurrentTenant can emit on both emitters without a global forwarder.
-    if ((this.app as any)._koa) {
-      (this.app as any)._koa.__application = this.app;
-    }
-
     this.app.resourcer.registerActionHandler('tenants:available', availableTenants);
     this.app.resourcer.registerActionHandler('tenants:current', currentTenant);
     this.app.resourcer.registerActionHandler('tenants:switch', switchTenant);
+
+    this.app.use(
+      async (ctx, next) => {
+        (ctx.app as any).__application = this.app;
+        await next();
+      },
+      {
+        tag: 'tenantApplicationHandoff',
+        before: 'auth',
+      },
+    );
 
     this.db.on('collections.afterCreateWithAssociations', ensureTenantIdField);
     this.db.on('collections.afterUpdateWithAssociations', ensureTenantIdField);
@@ -130,7 +132,7 @@ export class PluginTenantServer extends Plugin {
         }
 
         if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
-          const app = (ctx.app as any).__application;
+          const app = (ctx as any).tego || (ctx.app as any).__application;
           const emitter = app && typeof app.emit === 'function' ? app : ctx.app;
           emitter.emit('tenant.securityViolation', {
             type: 'tenant_access_denied',
@@ -339,6 +341,15 @@ export class PluginTenantServer extends Plugin {
 
       if (defaultTenantUsers > 0) {
         throw new Error('Cannot delete tenant used as a user default tenant. Clear or reassign user defaults first.');
+      }
+
+      const tenantMemberCount = await this.db.getRepository('tenantUsers').count({
+        filter: { tenantId },
+        transaction,
+      });
+
+      if (tenantMemberCount > 0) {
+        throw new Error('Cannot delete tenant with tenant members. Remove tenant memberships first.');
       }
     });
   }

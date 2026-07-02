@@ -139,6 +139,45 @@ describe('tenant tree structure', () => {
     ).rejects.toThrow(/Cannot delete tenant with children/);
   });
 
+  it('should declare tenant parent/children relations with tree delete semantics', async () => {
+    app = await createTenantApp();
+
+    const collection = app.db.getCollection('tenants');
+    const parent = collection.getField('parent') as any;
+    const children = collection.getField('children') as any;
+
+    expect(parent.options.treeParent).toBe(true);
+    expect(parent.options.onDelete).toBe('RESTRICT');
+    expect(children.options.treeChildren).toBe(true);
+    expect(children.options.onDelete).toBe('RESTRICT');
+  });
+
+  it('should reject deleting a tenant with user membership records', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: { id: 'member-tenant', name: 'member-tenant', title: 'Member Tenant' },
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_member_user',
+        email: 'tenant-member-user@example.com',
+        phone: '3000000002',
+        password: '123456',
+        tenants: ['member-tenant'],
+      },
+    });
+
+    await expect(
+      app.db.getRepository('tenants').destroy({
+        filterByTk: 'member-tenant',
+      }),
+    ).rejects.toThrow(/tenant members/);
+
+    expect(user).toBeTruthy();
+  });
+
   it('should reject deleting a tenant used as a user default tenant', async () => {
     app = await createTenantApp();
 

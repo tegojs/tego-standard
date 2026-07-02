@@ -8,11 +8,11 @@ import { getDescendantIds } from '../helpers/tenant-tree';
  * Emit a security violation event on the Application EventEmitter.
  *
  * ctx.app inside Koa middleware is the Koa instance, but plugin-audit-logs
- * registers its security listener on the Application instance.  The tenant
- * plugin stores a back-reference (ctx.app.__application) so we can reach it.
+ * registers its security listener on the Application instance. Prefer the
+ * public TachyBase Application handoff exposed as ctx.tego.
  */
 function emitSecurityViolation(ctx: Context, event: Record<string, any>) {
-  const app = (ctx.app as any).__application;
+  const app = (ctx as any).tego || (ctx.app as any).__application;
   if (app && typeof app.emit === 'function') {
     app.emit('tenant.securityViolation', event);
   } else {

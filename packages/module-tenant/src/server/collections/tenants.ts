@@ -35,12 +35,16 @@ export default defineCollection({
       name: 'parent',
       target: 'tenants',
       foreignKey: 'parentId',
+      treeParent: true,
+      onDelete: 'RESTRICT',
     },
     {
       type: 'hasMany',
       name: 'children',
       target: 'tenants',
       foreignKey: 'parentId',
+      treeChildren: true,
+      onDelete: 'RESTRICT',
     },
     {
       type: 'string',

@@ -19,6 +19,7 @@ const expectedNegativePathLogPatterns = [
   /File too large/,
   /file validation failed/,
   /ENOENT: no such file or directory, unlink .*test-sqlite.*storage.*uploads/i,
+  /Sourcemap for ".*node_modules.*@antv(?:[+/\\])(?:scale|coord|g2-extension-plot).*" points to missing source files/,
 ];
 
 const outputFilterInstalled = Symbol.for('tego.vitest.console-output-filter-installed');

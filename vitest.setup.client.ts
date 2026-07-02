@@ -1,5 +1,9 @@
 import { afterEach } from 'vitest';
 
+import { installVitestConsoleOutputFilter } from './vitest.console-filter';
+
+installVitestConsoleOutputFilter();
+
 process.env.I18NEXT_NO_SUPPORT_NOTICE = 'true';
 
 const ignoredConsoleLogMessages = new Set(['Warning: Please use the `legacy` build in Node.js environments.']);

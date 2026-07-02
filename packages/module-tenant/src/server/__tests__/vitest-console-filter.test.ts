@@ -53,8 +53,29 @@ describe('shouldSuppressVitestConsoleOutput', () => {
     ).toBe(true);
   });
 
+  it('suppresses known third-party sourcemap warnings from Vite', () => {
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        'Sourcemap for "/home/runner/work/tego-standard/tego-standard/node_modules/.pnpm/@antv+scale@0.4.16/node_modules/@antv/scale/esm/index.js" points to missing source files',
+        'stderr',
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        'Sourcemap for "D:/Dev/TegoJS/tego-standard/node_modules/.pnpm/@antv+g2-extension-plot@0.2.2/node_modules/@antv/g2-extension-plot/esm/index.js" points to missing source files',
+        'stderr',
+      ),
+    ).toBe(true);
+  });
+
   it('keeps unexpected logs visible', () => {
     expect(shouldSuppressVitestConsoleOutput('[error] database connection lost', 'stderr')).toBe(false);
     expect(shouldSuppressVitestConsoleOutput('unexpected warning', 'stdout')).toBe(false);
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        'Sourcemap for "/home/runner/work/tego-standard/tego-standard/packages/client/src/index.ts" points to missing source files',
+        'stderr',
+      ),
+    ).toBe(false);
   });
 });

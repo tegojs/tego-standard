@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldSuppressVitestConsoleOutput } from '../../../../../vitest.console-filter';
+import { shouldSuppressVitestConsoleOutput, shouldSuppressViteWarning } from '../../../../../vitest.console-filter';
 
 describe('shouldSuppressVitestConsoleOutput', () => {
   it('suppresses expected server error logs emitted by negative-path tests', () => {
@@ -66,6 +66,24 @@ describe('shouldSuppressVitestConsoleOutput', () => {
         'stderr',
       ),
     ).toBe(true);
+  });
+
+  it('matches known third-party sourcemap warnings at Vite logger level', () => {
+    expect(
+      shouldSuppressViteWarning(
+        'Sourcemap for "/home/runner/work/tego-standard/tego-standard/node_modules/.pnpm/@antv+coord@0.4.7/node_modules/@antv/coord/esm/index.js" points to missing source files',
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressViteWarning(
+        'Sourcemap for "/home/runner/work/tego-standard/tego-standard/node_modules/@antv/scale/esm/index.js" points to missing source files',
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressViteWarning(
+        'Sourcemap for "/home/runner/work/tego-standard/tego-standard/packages/client/src/index.ts" points to missing source files',
+      ),
+    ).toBe(false);
   });
 
   it('keeps unexpected logs visible', () => {

@@ -5,10 +5,28 @@ import { defineTegoVitestConfig } from '@tachybase/test/vitest';
 
 import type { Plugin } from 'vite';
 
-import { shouldSuppressVitestConsoleOutput } from './vitest.console-filter';
+import { shouldSuppressViteWarning, shouldSuppressVitestConsoleOutput } from './vitest.console-filter';
 
 const sourceMappingURLRE = /(?:\r?\n)?\/\/# sourceMappingURL=[^\r\n]*(?:\r?\n)?$/;
 const reactZoomPanPinchDistFile = 'react-zoom-pan-pinch/dist/index.esm.js';
+
+interface ViteLogOptions {
+  error?: Error | null;
+}
+
+interface ViteLogger {
+  info(message: string, options?: ViteLogOptions): void;
+  warn(message: string, options?: ViteLogOptions): void;
+  warnOnce(message: string, options?: ViteLogOptions): void;
+  error(message: string, options?: ViteLogOptions): void;
+  clearScreen(type: 'error' | 'warn' | 'info'): void;
+  hasErrorLogged(error: Error): boolean;
+  hasWarned: boolean;
+}
+
+interface ViteConfigWithCustomLogger {
+  customLogger?: ViteLogger;
+}
 
 function cleanModuleId(id: string) {
   return id.replace(/[?#].*$/, '');
@@ -78,6 +96,64 @@ function withConsoleOutputFilter(existing?: (log: string, type: 'stdout' | 'stde
 }
 
 config.test.onConsoleLog = withConsoleOutputFilter(config.test.onConsoleLog);
+
+function createConsoleViteLogger(): ViteLogger {
+  const warnedMessages = new Set<string>();
+  const loggedErrors = new WeakSet<Error>();
+  const logger: ViteLogger = {
+    hasWarned: false,
+    info(message) {
+      console.info(message);
+    },
+    warn(message) {
+      logger.hasWarned = true;
+      console.warn(message);
+    },
+    warnOnce(message, options) {
+      if (warnedMessages.has(message)) {
+        return;
+      }
+      warnedMessages.add(message);
+      logger.warn(message, options);
+    },
+    error(message, options) {
+      if (options?.error) {
+        loggedErrors.add(options.error);
+      }
+      console.error(message);
+    },
+    clearScreen() {},
+    hasErrorLogged(error) {
+      return loggedErrors.has(error);
+    },
+  };
+  return logger;
+}
+
+function withViteWarningFilter(logger: ViteLogger = createConsoleViteLogger()): ViteLogger {
+  const originalWarn = logger.warn.bind(logger);
+  const originalWarnOnce = logger.warnOnce.bind(logger);
+
+  logger.warn = (message: string, options?: ViteLogOptions) => {
+    if (shouldSuppressViteWarning(message)) {
+      return;
+    }
+    return originalWarn(message, options);
+  };
+  logger.warnOnce = (message: string, options?: ViteLogOptions) => {
+    if (shouldSuppressViteWarning(message)) {
+      return;
+    }
+    return originalWarnOnce(message, options);
+  };
+  return logger;
+}
+
+function installViteWarningFilter(project: ViteConfigWithCustomLogger) {
+  project.customLogger = withViteWarningFilter(project.customLogger);
+}
+
+installViteWarningFilter(config);
 
 const workspaceServerAliases = [
   ['@tachybase/module-acl', 'module-acl'],
@@ -166,6 +242,7 @@ const projectAliases = [
 
 config.test.alias = [...projectAliases, ...(config.test.alias || [])];
 for (const project of config.test.projects || []) {
+  installViteWarningFilter(project);
   project.test.alias = [...projectAliases, ...(project.test.alias || [])];
   project.test.onConsoleLog = withConsoleOutputFilter(project.test.onConsoleLog);
   if (project.test.name === 'server') {

@@ -1,5 +1,8 @@
 type OutputStream = 'stdout' | 'stderr' | string;
 
+const knownThirdPartySourcemapWarningPattern =
+  /Sourcemap for ".*node_modules.*@antv(?:[+/\\])(?:scale|coord|g2-extension-plot).*" points to missing source files/;
+
 const expectedNegativePathLogPatterns = [
   /SQL instruction nodes require the pm\.workflow\.sql permission/,
   /SQL collection configuration requires the pm\.database-connections\.collections permission/,
@@ -19,7 +22,7 @@ const expectedNegativePathLogPatterns = [
   /File too large/,
   /file validation failed/,
   /ENOENT: no such file or directory, unlink .*test-sqlite.*storage.*uploads/i,
-  /Sourcemap for ".*node_modules.*@antv(?:[+/\\])(?:scale|coord|g2-extension-plot).*" points to missing source files/,
+  knownThirdPartySourcemapWarningPattern,
 ];
 
 const outputFilterInstalled = Symbol.for('tego.vitest.console-output-filter-installed');
@@ -27,6 +30,11 @@ const outputFilterInstalled = Symbol.for('tego.vitest.console-output-filter-inst
 export function shouldSuppressVitestConsoleOutput(log: unknown, _type?: OutputStream) {
   const text = typeof log === 'string' ? log : Buffer.isBuffer(log) ? log.toString('utf8') : String(log ?? '');
   return expectedNegativePathLogPatterns.some((pattern) => pattern.test(text));
+}
+
+export function shouldSuppressViteWarning(log: unknown) {
+  const text = typeof log === 'string' ? log : Buffer.isBuffer(log) ? log.toString('utf8') : String(log ?? '');
+  return knownThirdPartySourcemapWarningPattern.test(text);
 }
 
 function wrapWrite(stream: NodeJS.WriteStream, type: OutputStream) {

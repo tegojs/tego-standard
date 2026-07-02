@@ -192,7 +192,7 @@ export function isReadOnlyPreviewSql(sql: string) {
     return false;
   }
 
-  return !/\b(insert|update|delete|merge|replace|create|alter|drop|truncate)\b/i.test(normalized);
+  return !/\b(insert|update|delete|merge|replace\b(?!\s*\()|create|alter|drop|truncate)\b/i.test(normalized);
 }
 
 /**

@@ -30,4 +30,13 @@ describe('sqlCollection preview SQL safety', () => {
 
     expect(isReadOnlyPreviewSql(sql)).toBe(true);
   });
+
+  it('allows replace as a read-only function call', () => {
+    const sql = `
+      SELECT replace(name, 'old', 'new') AS normalized_name
+      FROM accounts
+    `;
+
+    expect(isReadOnlyPreviewSql(sql)).toBe(true);
+  });
 });

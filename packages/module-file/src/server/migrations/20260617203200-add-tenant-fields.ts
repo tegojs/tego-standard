@@ -21,6 +21,82 @@ async function addIndexIfMissing(queryInterface: any, tableName: string, columnN
   }
 }
 
+async function hasColumn(queryInterface: any, tableName: string, columnName: string) {
+  if (!(await hasTable(queryInterface, tableName))) {
+    return false;
+  }
+
+  const table = await queryInterface.describeTable(tableName);
+  return !!table[columnName];
+}
+
+function quoteTable(queryInterface: any, tableName: string) {
+  return queryInterface.quoteTable ? queryInterface.quoteTable(tableName) : `"${tableName}"`;
+}
+
+function quoteIdentifier(queryInterface: any, columnName: string) {
+  return queryInterface.quoteIdentifier ? queryInterface.quoteIdentifier(columnName) : `"${columnName}"`;
+}
+
+async function backfillAttachmentTenantIds(db: any, queryInterface: any) {
+  const tableName = 'attachments';
+  const hasCreatedBy = await hasColumn(queryInterface, tableName, 'createdById');
+  if (!hasCreatedBy) {
+    return;
+  }
+
+  const attachments = quoteTable(queryInterface, tableName);
+  const users = quoteTable(queryInterface, 'users');
+  const tenantUsers = quoteTable(queryInterface, 'tenantUsers');
+  const id = quoteIdentifier(queryInterface, 'id');
+  const tenantId = quoteIdentifier(queryInterface, 'tenantId');
+  const createdById = quoteIdentifier(queryInterface, 'createdById');
+  const defaultTenantId = quoteIdentifier(queryInterface, 'defaultTenantId');
+  const userId = quoteIdentifier(queryInterface, 'userId');
+
+  if (await hasColumn(queryInterface, 'users', 'defaultTenantId')) {
+    await db.sequelize.query(`
+      UPDATE ${attachments}
+      SET ${tenantId} = (
+        SELECT ${users}.${defaultTenantId}
+        FROM ${users}
+        WHERE ${users}.${id} = ${attachments}.${createdById}
+          AND ${users}.${defaultTenantId} IS NOT NULL
+      )
+      WHERE ${tenantId} IS NULL
+        AND ${createdById} IS NOT NULL
+        AND EXISTS (
+          SELECT 1
+          FROM ${users}
+          WHERE ${users}.${id} = ${attachments}.${createdById}
+            AND ${users}.${defaultTenantId} IS NOT NULL
+        )
+    `);
+  }
+
+  if (await hasColumn(queryInterface, 'tenantUsers', 'tenantId')) {
+    await db.sequelize.query(`
+      UPDATE ${attachments}
+      SET ${tenantId} = (
+        SELECT ${tenantUsers}.${tenantId}
+        FROM ${tenantUsers}
+        WHERE ${tenantUsers}.${userId} = ${attachments}.${createdById}
+          AND ${tenantUsers}.${tenantId} IS NOT NULL
+        ORDER BY ${tenantUsers}.${tenantId}
+        LIMIT 1
+      )
+      WHERE ${tenantId} IS NULL
+        AND ${createdById} IS NOT NULL
+        AND EXISTS (
+          SELECT 1
+          FROM ${tenantUsers}
+          WHERE ${tenantUsers}.${userId} = ${attachments}.${createdById}
+            AND ${tenantUsers}.${tenantId} IS NOT NULL
+        )
+    `);
+  }
+}
+
 export default class AddTenantFieldsToAttachmentsMigration extends Migration {
   on = 'afterLoad';
   appVersion = '<1.6.23';
@@ -43,6 +119,7 @@ export default class AddTenantFieldsToAttachmentsMigration extends Migration {
       });
     }
 
+    await backfillAttachmentTenantIds(this.db, queryInterface);
     await addIndexIfMissing(queryInterface, tableName, 'tenantId', 'attachments_tenant_id');
   }
 }

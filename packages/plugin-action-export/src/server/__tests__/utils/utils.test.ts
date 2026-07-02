@@ -73,6 +73,15 @@ describe('utils', () => {
     expect(buildWorkerExportSavePath('D:/runtime/storage/uploads', 'tenant-a')).toContain('tenant-a');
   });
 
+  it('should keep numeric zero tenant id in export names and worker paths', () => {
+    expect(buildExportDownloadName('Report', 0 as any)).toBe('Report_0');
+    const fileName = buildWorkerExportFileName('posts', 'Export', 0 as any);
+
+    expect(fileName).toContain('_0_');
+    expect(buildWorkerExportRelativePath(fileName, 0 as any)).toContain('storage/uploads/tenants/0');
+    expect(buildWorkerExportSavePath('D:/runtime/storage/uploads', 0 as any)).toContain('0');
+  });
+
   it('should generate unique worker export file names for repeated exports in the same minute', () => {
     const first = buildWorkerExportFileName('posts', '租户导出清单', 'tenant-a');
     const second = buildWorkerExportFileName('posts', '租户导出清单', 'tenant-a');
@@ -108,6 +117,39 @@ describe('utils', () => {
       expect.objectContaining({
         resourceName: 'posts',
         actionName: 'export',
+      }),
+    );
+  });
+
+  it('should not throw when tenant security event listeners fail', () => {
+    const warn = vi.fn();
+    const ctx = {
+      app: {
+        __application: {
+          emit: vi.fn(() => {
+            throw new Error('listener failed');
+          }),
+        },
+      },
+      tego: { logger: { warn } },
+      action: {
+        resourceName: 'posts',
+        actionName: 'export',
+      },
+    };
+
+    expect(() =>
+      emitSecurityViolation(ctx, {
+        type: 'tenant_bulk_export_alert',
+        tenantId: 'tenant-a',
+      }),
+    ).not.toThrow();
+    expect(warn).toHaveBeenCalledWith(
+      'Failed to emit tenant security event; export flow will continue',
+      expect.objectContaining({
+        resourceName: 'posts',
+        actionName: 'export',
+        eventType: 'tenant_bulk_export_alert',
       }),
     );
   });

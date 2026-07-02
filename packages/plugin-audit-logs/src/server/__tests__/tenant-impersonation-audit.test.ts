@@ -464,6 +464,23 @@ describe('tenant impersonation – audit context unit tests', () => {
     expect(ctx.impersonatedTenantId).toBeUndefined();
   });
 
+  it('should preserve explicit zero actorUserId', async () => {
+    const { getAuditContext } = await import('../hooks/audit-context');
+
+    const ctx = getAuditContext({
+      context: {
+        state: {
+          currentUser: { id: 99 },
+          currentTenantId: 'tenant-zero-actor',
+          actorUserId: 0,
+        },
+      },
+    });
+
+    expect(ctx.actorUserId).toBe(0);
+    expect(ctx.userId).toBe(99);
+  });
+
   it('should handle completely empty state without throwing', async () => {
     const { getAuditContext } = await import('../hooks/audit-context');
 

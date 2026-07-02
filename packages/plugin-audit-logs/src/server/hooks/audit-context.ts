@@ -5,7 +5,7 @@ export function getAuditContext(options) {
   return {
     userId: currentUserId,
     tenantId: state?.currentTenantId,
-    actorUserId: state?.actorUserId || currentUserId,
+    actorUserId: state?.actorUserId ?? currentUserId,
     impersonatedTenantId: state?.impersonatedTenantId,
     tenantContextSource: state?.tenantContextSource,
     isTenantImpersonation: !!state?.isTenantImpersonation,

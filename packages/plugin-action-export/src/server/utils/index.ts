@@ -67,8 +67,14 @@ export function filterExportColumnsByCollection(columns: any[], collection: any)
   return columns.filter((col) => col?.dataIndex?.length > 0 && collection.hasField(col.dataIndex[0]));
 }
 
-export function sanitizeExportSegment(value: string) {
-  const normalized = String(value || '')
+type TenantId = string | number | undefined | null;
+
+function hasTenantId(tenantId: TenantId) {
+  return tenantId !== null && tenantId !== undefined;
+}
+
+export function sanitizeExportSegment(value: string | number) {
+  const normalized = String(value ?? '')
     .trim()
     .replace(/[^a-zA-Z0-9._-]+/g, '_')
     .replace(/_+/g, '_')
@@ -85,12 +91,12 @@ export function getExportTenantId(source: any) {
   return source?.state?.currentTenant?.id ?? source?.state?.currentTenantId ?? source?.currentTenantId;
 }
 
-export function buildExportDownloadName(title: string, tenantId?: string) {
+export function buildExportDownloadName(title: string, tenantId?: TenantId) {
   const base =
     String(title || 'export')
       .trim()
       .replace(/[\\/:*?"<>|]/g, '_') || 'export';
-  return tenantId ? `${base}_${sanitizeExportSegment(tenantId)}` : base;
+  return hasTenantId(tenantId) ? `${base}_${sanitizeExportSegment(tenantId)}` : base;
 }
 
 /**
@@ -118,27 +124,37 @@ function resolveApplicationEmitter(ctx: any): { emit: (event: string, payload: a
 }
 
 export function emitSecurityViolation(ctx: any, event: Record<string, any>) {
-  const emitter = resolveApplicationEmitter(ctx);
-  emitter.emit('tenant.securityViolation', event);
+  try {
+    const emitter = resolveApplicationEmitter(ctx);
+    emitter.emit('tenant.securityViolation', event);
+  } catch (error) {
+    const logger = ctx.tego?.logger || ctx.app?.logger;
+    logger?.warn?.('Failed to emit tenant security event; export flow will continue', {
+      resourceName: ctx.action?.resourceName,
+      actionName: ctx.action?.actionName,
+      eventType: event?.type,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
-export function buildWorkerExportFileName(resourceName: string, title: string, tenantId?: string) {
+export function buildWorkerExportFileName(resourceName: string, title: string, tenantId?: TenantId) {
   const base = sanitizeExportSegment(title || resourceName || 'export');
-  const tenantSuffix = tenantId ? `_${sanitizeExportSegment(tenantId)}` : '';
+  const tenantSuffix = hasTenantId(tenantId) ? `_${sanitizeExportSegment(tenantId)}` : '';
   const uniqueSuffix = randomUUID().slice(0, 8);
   return `${base}${tenantSuffix}_${dayjs().format('YYYYMMDDHHmm')}_${uniqueSuffix}.xlsx`;
 }
 
 export function buildWorkerExportRelativePath(
   fileName: string,
-  tenantId?: string,
+  tenantId?: TenantId,
   basePath: string = 'storage/uploads',
 ) {
-  return tenantId
+  return hasTenantId(tenantId)
     ? path.posix.join(basePath, 'tenants', sanitizeExportSegment(tenantId), fileName)
     : path.posix.join(basePath, fileName);
 }
 
-export function buildWorkerExportSavePath(rootPath: string, tenantId?: string) {
-  return tenantId ? path.join(rootPath, 'tenants', sanitizeExportSegment(tenantId)) : rootPath;
+export function buildWorkerExportSavePath(rootPath: string, tenantId?: TenantId) {
+  return hasTenantId(tenantId) ? path.join(rootPath, 'tenants', sanitizeExportSegment(tenantId)) : rootPath;
 }

@@ -23,7 +23,7 @@ function uniqueTenantIds(ids?: Array<string | number>) {
 function getExportTenantContext(ctx: Context) {
   const currentTenantId = getExportTenantId(ctx);
 
-  if (!currentTenantId) {
+  if (currentTenantId === null || currentTenantId === undefined) {
     return;
   }
 

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { ISchema, observer, RecursionField, Schema, uid, useField, useFieldSchema } from '@tachybase/schema';
 
 import { TinyColor } from '@ctrl/tinycolor';
-import { DndContext, useDndContext, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core';
+import { useDndContext, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core';
 import cls from 'classnames';
 import _ from 'lodash';
 
@@ -10,6 +10,7 @@ import { useToken } from '../__builtins__';
 import { useSchemaInitializerRender } from '../../../application/schema-initializer/hooks';
 import { useFormBlockContext } from '../../../block-provider/FormBlockContext';
 import { useFormBlockType } from '../../../block-provider/FormBlockProvider';
+import { DndContext } from '../../common/dnd-context';
 import { SchemaComponent } from '../../core/SchemaComponent';
 import { useDesignable } from '../../hooks/useDesignable';
 import useStyles from './Grid.style';

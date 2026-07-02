@@ -42,6 +42,7 @@ export function authCheckMiddleware({ app }: { app: Application }) {
     return res;
   };
   const errHandler = (error) => {
+    const status = error?.status ?? error?.response?.status;
     const newToken = error?.response?.headers?.['x-new-token'];
     const errors = error?.response?.data?.errors;
     const firstError = Array.isArray(errors) ? errors[0] : null;
@@ -54,11 +55,12 @@ export function authCheckMiddleware({ app }: { app: Application }) {
       app.apiClient.auth.setToken(newToken);
     }
 
-    if (error.status === 401 && firstError?.code && AuthErrorCode[firstError.code]) {
+    const isAuthError = status === 401 && firstError?.code && AuthErrorCode[firstError.code];
+
+    if (isAuthError) {
+      error.config = error.config || {};
       app.apiClient.auth.setToken('');
-      if (pathname === app.getHref('signin') && firstError?.code !== AuthErrorCode.EMPTY_TOKEN && error.config) {
-        error.config.skipNotify = false;
-      }
+      error.config.skipNotify = !(pathname === app.getHref('signin') && firstError?.code !== AuthErrorCode.EMPTY_TOKEN);
 
       if (firstError?.code === 'USER_HAS_NO_ROLES_ERR') {
         // use app error to show error message
@@ -67,8 +69,8 @@ export function authCheckMiddleware({ app }: { app: Application }) {
       }
     }
 
-    if (error.status === 401 && !error.config?.skipAuth && firstError?.code && AuthErrorCode[firstError.code]) {
-      if (!firstError || firstError?.code === AuthErrorCode.SKIP_TOKEN_RENEW) {
+    if (isAuthError && (!error.config?.skipAuth || firstError?.code !== AuthErrorCode.EMPTY_TOKEN)) {
+      if (firstError?.code === AuthErrorCode.SKIP_TOKEN_RENEW) {
         throw error;
       }
 

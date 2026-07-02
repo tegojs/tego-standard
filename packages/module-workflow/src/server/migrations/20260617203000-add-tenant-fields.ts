@@ -33,6 +33,13 @@ async function addIndexIfMissing(
   }
 }
 
+async function removeIndexIfExists(queryInterface: any, tableName: string, indexName: string) {
+  const indexes = await queryInterface.showIndex(tableName);
+  if (indexes.some((index) => index.name === indexName)) {
+    await queryInterface.removeIndex(tableName, indexName);
+  }
+}
+
 export default class AddTenantFieldsToExecutionsMigration extends Migration {
   on = 'afterLoad';
   appVersion = '<1.6.23';
@@ -76,5 +83,25 @@ export default class AddTenantFieldsToExecutionsMigration extends Migration {
       ['tenantId', 'key', 'createdAt'],
       'executions_tenant_key_created_at',
     );
+  }
+
+  async down() {
+    const queryInterface = this.db.sequelize.getQueryInterface();
+    const tableName = 'executions';
+
+    if (!(await hasTable(queryInterface, tableName))) {
+      this.app?.logger?.info?.(`[migration skipped] table ${tableName} does not exist`);
+      return;
+    }
+
+    await removeIndexIfExists(queryInterface, tableName, 'executions_tenant_key_created_at');
+    await removeIndexIfExists(queryInterface, tableName, 'executions_tenant_id');
+
+    const table = await queryInterface.describeTable(tableName);
+    for (const columnName of ['authContext', 'tenantContext', 'tenantId']) {
+      if (table[columnName]) {
+        await queryInterface.removeColumn(tableName, columnName);
+      }
+    }
   }
 }

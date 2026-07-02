@@ -133,6 +133,32 @@ describe('workflow > actions > tenant executions boundary', () => {
     expect(ctx.body.tenantId).toBe('tenant-a');
   });
 
+  it('workflows.retry should fail closed when tenant context is missing', async () => {
+    const workflow = await createWorkflow();
+    await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.RESOLVED,
+      context: { marker: 'tenant-b' },
+      tenantId: 'tenant-b',
+      tenantContext: tenantState('tenant-b'),
+    });
+
+    const ctx = createContext(
+      'workflows',
+      'retry',
+      {
+        filterByTk: workflow.id,
+        filter: { key: workflow.key },
+      },
+      'tenant-a',
+    );
+    ctx.state = {};
+
+    await expect(workflowActions.retry(ctx, async () => {})).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
   it('executions.retry should reject executions from another tenant', async () => {
     const workflow = await createWorkflow();
     const execution = await workflow.createExecution({
@@ -144,6 +170,24 @@ describe('workflow > actions > tenant executions boundary', () => {
     });
 
     const ctx = createContext('executions', 'retry', { filterByTk: execution.id }, 'tenant-a');
+
+    await expect(executionActions.retry(ctx, async () => {})).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it('executions.retry should fail closed when tenant context is missing', async () => {
+    const workflow = await createWorkflow();
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.ERROR,
+      context: { marker: 'tenant-b' },
+      tenantId: 'tenant-b',
+      tenantContext: tenantState('tenant-b'),
+    });
+
+    const ctx = createContext('executions', 'retry', { filterByTk: execution.id }, 'tenant-a');
+    ctx.state = {};
 
     await expect(executionActions.retry(ctx, async () => {})).rejects.toMatchObject({
       status: 404,

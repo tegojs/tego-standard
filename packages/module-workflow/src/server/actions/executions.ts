@@ -5,6 +5,7 @@ import {
   buildWorkflowExecutionTenantFilter,
   canReadLegacyExecutions,
   getCurrentTenantIdFromState,
+  NEVER_MATCH_TENANT_FILTER,
 } from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { triggerWorkflowAndGetExecution } from '../utils';
@@ -14,7 +15,7 @@ function getModelValue(model: any, key: string) {
 }
 
 function buildExecutionTenantFilter(ctx: Context) {
-  return buildWorkflowExecutionTenantFilter(ctx.state, null);
+  return buildWorkflowExecutionTenantFilter(ctx.state, NEVER_MATCH_TENANT_FILTER);
 }
 
 function appendExecutionTenantFilter(filter: any, ctx: Context) {

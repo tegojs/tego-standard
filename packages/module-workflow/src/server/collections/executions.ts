@@ -36,6 +36,14 @@ export default {
       name: 'tenantId',
     },
     {
+      type: 'belongsTo',
+      name: 'tenant',
+      target: 'tenants',
+      foreignKey: 'tenantId',
+      targetKey: 'id',
+      onDelete: 'CASCADE',
+    },
+    {
       type: 'json',
       name: 'tenantContext',
     },

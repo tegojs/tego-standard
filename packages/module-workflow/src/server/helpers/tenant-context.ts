@@ -14,6 +14,7 @@ type TenantFilterCollection = {
 const READ_ACTIONS = ['list', 'get', 'count', 'export', 'aggregate'];
 const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
 const TENANT_ENABLED_MODES = ['tenantScoped', 'tenantInherited'];
+export const NEVER_MATCH_TENANT_FILTER = { id: -1 };
 
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {

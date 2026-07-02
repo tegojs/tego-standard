@@ -26,7 +26,16 @@ type ExportTenantContext = {
 };
 
 function isEmptyObject(value: any) {
-  return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0;
+  return isPlainObject(value) && Object.keys(value).length === 0;
+}
+
+function isPlainObject(value: any) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function cleanFilter(filter: any, stripTenant: boolean): any {
@@ -36,6 +45,10 @@ function cleanFilter(filter: any, stripTenant: boolean): any {
 
   if (Array.isArray(filter)) {
     return filter.map((item) => cleanFilter(item, stripTenant)).filter((item) => !isEmptyObject(item));
+  }
+
+  if (!isPlainObject(filter)) {
+    return filter;
   }
 
   const next = Object.fromEntries(

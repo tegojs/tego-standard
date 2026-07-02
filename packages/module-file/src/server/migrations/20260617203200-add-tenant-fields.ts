@@ -78,21 +78,21 @@ async function backfillAttachmentTenantIds(db: any, queryInterface: any) {
     await db.sequelize.query(`
       UPDATE ${attachments}
       SET ${tenantId} = (
-        SELECT ${tenantUsers}.${tenantId}
+        SELECT MIN(${tenantUsers}.${tenantId})
         FROM ${tenantUsers}
         WHERE ${tenantUsers}.${userId} = ${attachments}.${createdById}
           AND ${tenantUsers}.${tenantId} IS NOT NULL
-        ORDER BY ${tenantUsers}.${tenantId}
-        LIMIT 1
+        GROUP BY ${tenantUsers}.${userId}
+        HAVING COUNT(DISTINCT ${tenantUsers}.${tenantId}) = 1
       )
       WHERE ${tenantId} IS NULL
         AND ${createdById} IS NOT NULL
-        AND EXISTS (
-          SELECT 1
+        AND (
+          SELECT COUNT(DISTINCT ${tenantUsers}.${tenantId})
           FROM ${tenantUsers}
           WHERE ${tenantUsers}.${userId} = ${attachments}.${createdById}
             AND ${tenantUsers}.${tenantId} IS NOT NULL
-        )
+        ) = 1
     `);
   }
 }

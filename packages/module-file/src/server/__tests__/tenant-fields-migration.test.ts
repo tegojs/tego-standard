@@ -108,4 +108,64 @@ describe('file tenant fields migration', () => {
       { id: 3, tenantId: 'tenant-existing' },
     ]);
   });
+
+  it('should leave tenantId empty when uploader has multiple tenant memberships', async () => {
+    const queryInterface = app.db.sequelize.getQueryInterface();
+
+    await queryInterface.createTable('users', {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+      },
+      defaultTenantId: {
+        type: DataTypes.STRING,
+      },
+    });
+    await queryInterface.createTable('tenantUsers', {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+      userId: {
+        type: DataTypes.INTEGER,
+      },
+      tenantId: {
+        type: DataTypes.STRING,
+      },
+    });
+    await queryInterface.createTable('attachments', {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+      },
+      createdById: {
+        type: DataTypes.INTEGER,
+      },
+      tenantId: {
+        type: DataTypes.STRING,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+      },
+    });
+
+    await queryInterface.bulkInsert('users', [{ id: 1, defaultTenantId: null }]);
+    await queryInterface.bulkInsert('tenantUsers', [
+      { userId: 1, tenantId: 'tenant-a' },
+      { userId: 1, tenantId: 'tenant-b' },
+    ]);
+    await queryInterface.bulkInsert('attachments', [{ id: 1, createdById: 1, tenantId: null }]);
+
+    const migration = new TenantFieldsMigration({ db: app.db } as MigrationContext);
+    migration.context.app = app;
+
+    await migration.up();
+
+    const [rows] = (await app.db.sequelize.query('select id, tenantId from attachments order by id')) as any;
+    expect(rows).toEqual([{ id: 1, tenantId: null }]);
+  });
 });

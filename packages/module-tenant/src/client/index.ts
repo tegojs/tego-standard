@@ -14,6 +14,30 @@ const SQL_COLLECTION_TENANT_WARNING = '{{t("SQL_COLLECTION_TENANT_ISOLATION_WARN
 const VIEW_COLLECTION_TENANT_WARNING = '{{t("VIEW_COLLECTION_TENANT_ISOLATION_WARNING")}}';
 const WORKFLOW_SQL_TENANT_WARNING = '{{t("SQL_NODE_TENANT_ISOLATION_WARNING", { ns: "workflow" })}}';
 
+function ensureConfigurableProperties(template: any) {
+  if (!template) {
+    return null;
+  }
+
+  if (!template.configurableProperties || typeof template.configurableProperties !== 'object') {
+    template.configurableProperties = {};
+  }
+
+  return template.configurableProperties;
+}
+
+function getSqlTemplateField(template: any, logger?: { warn?: (message: string) => void }) {
+  const configurableProperties = template?.configurableProperties;
+  const sqlField = configurableProperties?.config?.properties?.sql;
+
+  if (sqlField && typeof sqlField === 'object') {
+    return sqlField;
+  }
+
+  logger?.warn?.('Tenant plugin could not patch SQL collection template warning: expected config.properties.sql.');
+  return null;
+}
+
 class PluginTenantClient extends Plugin {
   async load() {
     this.app.use(CurrentTenantProvider);
@@ -33,13 +57,14 @@ class PluginTenantClient extends Plugin {
     const ctm = this.app.dataSourceManager.collectionTemplateManager;
     for (const name of TENANT_CAPABLE_TEMPLATES) {
       const tpl = ctm.getCollectionTemplate(name);
-      if (tpl) {
-        Object.assign(tpl.configurableProperties, tenantConfigurableProperties);
+      const configurableProperties = ensureConfigurableProperties(tpl);
+      if (configurableProperties) {
+        Object.assign(configurableProperties, tenantConfigurableProperties);
       }
     }
 
     const sqlTemplate = ctm.getCollectionTemplate('sql');
-    const sqlField = (sqlTemplate?.configurableProperties as any)?.config?.properties?.sql;
+    const sqlField = getSqlTemplateField(sqlTemplate, (this.app as any).logger);
     if (sqlField) {
       sqlField.description = SQL_COLLECTION_TENANT_WARNING;
     }

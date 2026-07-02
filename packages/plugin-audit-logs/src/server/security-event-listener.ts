@@ -1,6 +1,7 @@
 import type { Plugin } from '@tego/server';
 
 import { AUDIT_TYPE_TENANT_IMPERSONATION, EVENT_TENANT_SECURITY } from './constants';
+import { normalizeActorUserId } from './normalize-audit-log-values';
 
 export interface TenantSecurityEvent {
   type: string;
@@ -49,7 +50,7 @@ export function registerSecurityEventListener(plugin: { app: any; db: any }) {
         recordId: null,
         userId: event.userId ?? null,
         tenantId: event.tenantId ?? null,
-        actorUserId: event.actorUserId ?? event.userId ?? null,
+        actorUserId: normalizeActorUserId(event.actorUserId ?? event.userId),
         impersonatedTenantId: isImpersonation
           ? (event.impersonatedTenantId ?? event.details?.impersonatedTenantId ?? event.tenantId ?? null)
           : (event.impersonatedTenantId ?? null),

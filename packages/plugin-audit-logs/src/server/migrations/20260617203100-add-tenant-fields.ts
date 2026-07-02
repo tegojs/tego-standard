@@ -37,7 +37,7 @@ export default class AddTenantFieldsToAuditLogsMigration extends Migration {
     const table = await queryInterface.describeTable(tableName);
     const columns = {
       tenantId: DataTypes.STRING,
-      actorUserId: DataTypes.BIGINT,
+      actorUserId: DataTypes.STRING,
       impersonatedTenantId: DataTypes.STRING,
       tenantContextSource: DataTypes.STRING,
       isTenantImpersonation: DataTypes.BOOLEAN,

@@ -3,6 +3,7 @@ import { isMainThread } from 'node:worker_threads';
 import { Plugin, Transaction } from '@tego/server';
 
 import { afterCreate, afterDestroy, afterUpdate } from './hooks';
+import { normalizeAuditLogValues } from './normalize-audit-log-values';
 import { registerSecurityEventListener } from './security-event-listener';
 
 export default class PluginActionLogs extends Plugin {
@@ -114,9 +115,14 @@ export default class PluginActionLogs extends Plugin {
     const auditChangeRepo = this.db.getRepository('auditChanges');
 
     const now = new Date();
-    values.forEach((value) => (value.createdAt = now));
+    const auditLogValues = values.map((value) =>
+      normalizeAuditLogValues({
+        ...value,
+        createdAt: now,
+      }),
+    );
     // 批量插入 auditLogs，只返回 id
-    const insertedLogs = await auditLogRepo.model.bulkCreate(values, {
+    const insertedLogs = await auditLogRepo.model.bulkCreate(auditLogValues, {
       individualHooks: false, // 禁用逐条钩子调用
       transaction, // 使用事务
       returning: ['id'], // 仅返回 id 字段
@@ -125,7 +131,7 @@ export default class PluginActionLogs extends Plugin {
     // 构造 changes 数据
     const changes = [];
     insertedLogs.forEach((log, index) => {
-      const value = values[index];
+      const value = auditLogValues[index];
       if (!value.changes) {
         return;
       }

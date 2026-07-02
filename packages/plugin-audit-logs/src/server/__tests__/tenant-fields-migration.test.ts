@@ -40,6 +40,7 @@ describe('audit log tenant fields migration', () => {
     const table = await queryInterface.describeTable('auditLogs');
     expect(table.tenantId).toBeDefined();
     expect(table.actorUserId).toBeDefined();
+    expect(table.actorUserId.type).toContain('VARCHAR');
     expect(table.impersonatedTenantId).toBeDefined();
     expect(table.tenantContextSource).toBeDefined();
     expect(table.isTenantImpersonation).toBeDefined();

@@ -29,4 +29,33 @@ describe('import transform relation helpers', () => {
 
     expect(findOne).not.toHaveBeenCalled();
   });
+
+  it('should trim m2o values before querying non-enum relation fields', async () => {
+    const relatedRecord = { id: 1 };
+    const findOne = vi.fn().mockResolvedValue(relatedRecord);
+    const ctx = {
+      db: {
+        getRepository: vi.fn(() => ({ findOne })),
+      },
+    };
+
+    const result = await m2o({
+      value: '  Category A  ',
+      column: {
+        dataIndex: ['category', 'name'],
+      },
+      field: {
+        options: {
+          target: 'categories',
+        },
+      },
+      ctx,
+    });
+
+    expect(result).toBe(relatedRecord);
+    expect(findOne).toHaveBeenCalledWith({
+      filter: { name: 'Category A' },
+      context: ctx,
+    });
+  });
 });

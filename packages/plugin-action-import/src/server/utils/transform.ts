@@ -64,14 +64,15 @@ export async function m2o({ value, column, field, ctx }) {
   let results = null;
   const { dataIndex, enum: enumData } = column;
   const repository = ctx.db.getRepository(field.options.target);
+  const normalizedValue = typeof value === 'string' ? value.trim() : value;
   if (enumData?.length > 0) {
-    const enumItem = enumData.find((e) => e.label === value?.trim());
+    const enumItem = enumData.find((e) => e.label === normalizedValue);
     if (enumItem === undefined) {
       throw new Error(`not found enum value ${value}`);
     }
     results = await repository.findOne({ filter: { [dataIndex[1]]: enumItem.value }, context: ctx });
   } else {
-    results = await repository.findOne({ filter: { [dataIndex[1]]: value }, context: ctx });
+    results = await repository.findOne({ filter: { [dataIndex[1]]: normalizedValue }, context: ctx });
   }
   return results;
 }

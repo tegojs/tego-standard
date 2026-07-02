@@ -1,9 +1,9 @@
 import type { Transactionable } from '@tego/server';
 
-const TENANT_ENABLED_MODES = ['tenantScoped', 'tenantInherited'];
+import { TENANT_ENABLED_MODES } from '../constants';
 
 function isTenantEnabledMode(mode?: string | null) {
-  return TENANT_ENABLED_MODES.includes(mode || '');
+  return TENANT_ENABLED_MODES.includes(mode as any);
 }
 
 function isManagedTenantIdField(field: any) {

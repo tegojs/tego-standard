@@ -1,5 +1,7 @@
 import type { Context } from '@tego/server';
 
+import { TENANT_ENABLED_MODES, TENANT_INHERITED_MODE } from '../constants';
+
 type TenantFilterContext = {
   state?: Context['state'];
   action?: Pick<Context['action'], 'actionName' | 'params' | 'mergeParams'>;
@@ -16,7 +18,6 @@ type TenantFilterCollection = {
 
 const READ_ACTIONS = ['list', 'get', 'count', 'export', 'aggregate'];
 const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
-const TENANT_ENABLED_MODES = ['tenantScoped', 'tenantInherited'];
 
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {
@@ -140,7 +141,7 @@ function buildTenantParams(actionName: string, params: any, state: TenantFilterC
   let tenantParams: Record<string, any> | null = null;
 
   if (READ_ACTIONS.includes(actionName)) {
-    if (tenancyMode === 'tenantInherited') {
+    if (tenancyMode === TENANT_INHERITED_MODE) {
       const descendantIds: Array<string | number> = state?.currentTenantDescendantIds || [];
       const allIds = [tenantId, ...descendantIds];
       tenantParams = {
@@ -154,7 +155,7 @@ function buildTenantParams(actionName: string, params: any, state: TenantFilterC
   }
 
   if (WRITE_FILTER_ACTIONS.includes(actionName)) {
-    if (tenancyMode === 'tenantInherited') {
+    if (tenancyMode === TENANT_INHERITED_MODE) {
       const descendantIds: Array<string | number> = state?.currentTenantDescendantIds || [];
       const allIds = [tenantId, ...descendantIds];
       tenantParams = {
@@ -190,7 +191,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
   options: TOptions,
 ) {
   const tenancyMode = collection?.options?.tenancy || context?.state?.currentTenancyMode;
-  if (!TENANT_ENABLED_MODES.includes(tenancyMode)) {
+  if (!TENANT_ENABLED_MODES.includes(tenancyMode as any)) {
     return options;
   }
 

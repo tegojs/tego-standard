@@ -7,6 +7,7 @@ import switchTenant from './actions/switch-tenant';
 import tenantsCollection from './collections/tenants';
 import tenantUsersCollection from './collections/tenantUsers';
 import usersCollection from './collections/users';
+import { TENANT_ENABLED_MODES } from './constants';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
 import applyTenantFilter from './helpers/tenant-filter';
@@ -126,7 +127,7 @@ export class PluginTenantServer extends Plugin {
         db.getCollection(collectionName);
       const tenancyMode = getCollectionTenancyMode(collection);
 
-      if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
+      if (TENANT_ENABLED_MODES.includes(tenancyMode as any)) {
         if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
           await setCurrentTenant(ctx, async () => undefined);
         }

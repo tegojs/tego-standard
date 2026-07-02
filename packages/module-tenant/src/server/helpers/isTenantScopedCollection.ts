@@ -1,11 +1,13 @@
 import { Collection } from '@tego/server';
 
+import { TENANT_INHERITED_MODE, TENANT_SCOPED_MODE } from '../constants';
+
 export function isTenantScopedCollection(collection?: Collection | null) {
   if (!collection) {
     return false;
   }
 
-  return collection.options?.tenancy === 'tenantScoped';
+  return collection.options?.tenancy === TENANT_SCOPED_MODE;
 }
 
 export function isTenantInheritedCollection(collection?: Collection | null) {
@@ -13,7 +15,7 @@ export function isTenantInheritedCollection(collection?: Collection | null) {
     return false;
   }
 
-  return collection.options?.tenancy === 'tenantInherited';
+  return collection.options?.tenancy === TENANT_INHERITED_MODE;
 }
 
 export function getCollectionTenancyMode(collection?: Collection | null): string | null {

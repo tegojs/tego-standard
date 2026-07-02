@@ -104,7 +104,7 @@ export class PluginTenantServer extends Plugin {
           clearInvalidDataSourceKey(ctx);
         }
 
-        await setCurrentTenant(ctx, next);
+        await setCurrentTenant(ctx as Parameters<typeof setCurrentTenant>[0], next);
       },
       {
         tag: 'setCurrentTenantForDataSource',

@@ -46,8 +46,8 @@ async function getDescendantFilter(repo: Repository, tenantId: string, options: 
 /**
  * Get all descendant tenant IDs for a given tenant using the materialized path.
  */
-export async function getDescendantIds(repo: Repository, tenantId: string): Promise<string[]> {
-  const filter = await getDescendantFilter(repo, tenantId);
+export async function getDescendantIds(repo: Repository, tenantId: string, options: any = {}): Promise<string[]> {
+  const filter = await getDescendantFilter(repo, tenantId, options);
   if (!filter) {
     return [];
   }
@@ -55,6 +55,7 @@ export async function getDescendantIds(repo: Repository, tenantId: string): Prom
   const descendants = await repo.find({
     filter,
     fields: ['id'],
+    transaction: options.transaction,
   });
   return descendants.map((t: any) => t.get('id'));
 }
@@ -62,14 +63,15 @@ export async function getDescendantIds(repo: Repository, tenantId: string): Prom
 /**
  * Get all descendant tenant records for a given tenant using the materialized path.
  */
-export async function getDescendantTenants(repo: Repository, tenantId: string): Promise<any[]> {
-  const filter = await getDescendantFilter(repo, tenantId);
+export async function getDescendantTenants(repo: Repository, tenantId: string, options: any = {}): Promise<any[]> {
+  const filter = await getDescendantFilter(repo, tenantId, options);
   if (!filter) {
     return [];
   }
 
   return repo.find({
     filter,
+    transaction: options.transaction,
   });
 }
 

@@ -3,9 +3,24 @@ import { setValidateLanguage } from '@tachybase/schema';
 import { App, ConfigProvider } from 'antd';
 import dayjs from 'dayjs';
 
+import type { Application } from '../../application/Application';
 import { Plugin } from '../../application/Plugin';
 import { dayjsLocale } from '../../locale';
 import { loadConstrueLocale } from './loadConstrueLocale';
+
+export function handleUnauthorizedLocaleLoad(app: Application) {
+  const auth = app.apiClient.auth;
+  auth.setToken(null);
+  auth.setRole?.(null);
+  auth.setAuthenticator?.(null);
+
+  const signInPath = app.getHref('signin');
+  if (window.location.pathname.toLowerCase() === signInPath.toLowerCase()) {
+    return signInPath;
+  }
+
+  return `${signInPath}?redirect=${window.location.pathname}${window.location.search}`;
+}
 
 export class LocalePlugin extends Plugin {
   locales: any = {};
@@ -18,6 +33,7 @@ export class LocalePlugin extends Plugin {
         params: {
           locale,
         },
+        skipNotify: true,
         headers: {
           'X-Role': 'anonymous',
         },
@@ -46,11 +62,8 @@ export class LocalePlugin extends Plugin {
       window['cronLocale'] = data?.data?.cron;
     } catch (error) {
       (() => {})();
-      // 如果错误码是401,跳转到signIn
       if (error?.response?.status === 401) {
-        setTimeout(() => {
-          window.location.href = '/signIn';
-        }, 1_000);
+        window.location.href = handleUnauthorizedLocaleLoad(this.app);
       }
       throw error;
     }

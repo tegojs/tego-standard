@@ -88,4 +88,34 @@ describe('tenant tree helpers', () => {
       { label: 'other', value: 'other' },
     ]);
   });
+
+  it('should handle dirty parentId self-references without returning the edited tenant', () => {
+    const options = getTenantParentOptions(
+      [
+        { id: 'root', name: 'root' },
+        { id: 'dirty', name: 'dirty', parentId: 'dirty' },
+        { id: 'other', name: 'other' },
+      ],
+      { id: 'dirty', name: 'dirty', parentId: 'dirty' },
+    );
+
+    expect(options).toEqual([
+      { label: 'root', value: 'root' },
+      { label: 'other', value: 'other' },
+    ]);
+  });
+
+  it('should handle parentId cycles while excluding discovered descendants', () => {
+    const options = getTenantParentOptions(
+      [
+        { id: 'a', name: 'a', parentId: 'c' },
+        { id: 'b', name: 'b', parentId: 'a' },
+        { id: 'c', name: 'c', parentId: 'b' },
+        { id: 'outside', name: 'outside' },
+      ],
+      { id: 'a', name: 'a', parentId: 'c' },
+    );
+
+    expect(options).toEqual([{ label: 'outside', value: 'outside' }]);
+  });
 });

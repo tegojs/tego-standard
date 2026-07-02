@@ -21,6 +21,7 @@ export default extendCollection({
       allowNull: true,
     },
     {
+      interface: 'm2o',
       type: 'belongsTo',
       name: 'defaultTenant',
       target: 'tenants',

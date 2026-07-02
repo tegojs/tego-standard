@@ -70,7 +70,7 @@ export function filterExportColumnsByCollection(columns: any[], collection: any)
 type TenantId = string | number | undefined | null;
 
 function hasTenantId(tenantId: TenantId) {
-  return tenantId !== null && tenantId !== undefined;
+  return tenantId !== null && tenantId !== undefined && tenantId !== '';
 }
 
 export function sanitizeExportSegment(value: string | number) {

@@ -96,6 +96,124 @@ describe('workerExportXlsx', () => {
     }
   });
 
+  it('should fall back to collection legacy tenant ids when worker context omits them', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'tego-export-worker-'));
+    const find = vi.fn().mockResolvedValue([]);
+    const repository = {
+      collection: {
+        options: {
+          tenancy: 'tenantScoped',
+          legacyDataTenantIds: ['tenant-a'],
+        },
+        fields: new Map([
+          [
+            'title',
+            {
+              name: 'title',
+              options: {
+                interface: 'input',
+              },
+            },
+          ],
+        ]),
+        hasField: vi.fn().mockReturnValue(true),
+      },
+      find,
+    };
+    const plugin = {
+      db: {
+        getRepository: vi.fn().mockReturnValue(repository),
+      },
+      xlsxStorageDir: () => tempDir,
+    };
+
+    try {
+      await ExportPlugin.prototype.workerExportXlsx.call(plugin, {
+        title: 'tenant-export-posts',
+        filter: {},
+        columns: ['title'],
+        resourceName: 'tenant_export_worker_posts',
+        currentTenantId: 'tenant-a',
+        tenantContext: {
+          currentTenantId: 'tenant-a',
+          currentTenancyMode: 'tenantScoped',
+        },
+      });
+
+      expect(find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: {
+            $or: [{ tenantId: 'tenant-a' }, { tenantId: null }],
+          },
+          context: {
+            state: expect.objectContaining({
+              currentTenantId: 'tenant-a',
+            }),
+          },
+        }),
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should honor an explicit empty worker legacy tenant list', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'tego-export-worker-'));
+    const find = vi.fn().mockResolvedValue([]);
+    const repository = {
+      collection: {
+        options: {
+          tenancy: 'tenantScoped',
+          legacyDataTenantIds: ['tenant-a'],
+        },
+        fields: new Map([
+          [
+            'title',
+            {
+              name: 'title',
+              options: {
+                interface: 'input',
+              },
+            },
+          ],
+        ]),
+        hasField: vi.fn().mockReturnValue(true),
+      },
+      find,
+    };
+    const plugin = {
+      db: {
+        getRepository: vi.fn().mockReturnValue(repository),
+      },
+      xlsxStorageDir: () => tempDir,
+    };
+
+    try {
+      await ExportPlugin.prototype.workerExportXlsx.call(plugin, {
+        title: 'tenant-export-posts',
+        filter: {},
+        columns: ['title'],
+        resourceName: 'tenant_export_worker_posts',
+        currentTenantId: 'tenant-a',
+        tenantContext: {
+          currentTenantId: 'tenant-a',
+          currentTenancyMode: 'tenantScoped',
+          currentLegacyDataTenantIds: [],
+        },
+      });
+
+      expect(find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: {
+            tenantId: 'tenant-a',
+          },
+        }),
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('should intersect caller tenant constraints with inherited tenant scope', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'tego-export-worker-'));
     const find = vi.fn().mockResolvedValue([]);

@@ -78,7 +78,11 @@ function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Arra
 }
 
 function getLegacyDataTenantIds(tenantContext: ExportTenantContext, collection: any) {
-  if (Array.isArray(tenantContext.currentLegacyDataTenantIds)) {
+  if (
+    tenantContext &&
+    Object.prototype.hasOwnProperty.call(tenantContext, 'currentLegacyDataTenantIds') &&
+    Array.isArray(tenantContext.currentLegacyDataTenantIds)
+  ) {
     return Array.from(new Set(tenantContext.currentLegacyDataTenantIds));
   }
 
@@ -129,12 +133,19 @@ function buildWorkerTenantState(currentTenantId?: string | number, tenantContext
     return;
   }
 
+  const hasLegacyDataTenantIds =
+    tenantContext && Object.prototype.hasOwnProperty.call(tenantContext, 'currentLegacyDataTenantIds');
+
   return {
     ...tenantContext,
     currentTenant: tenantContext?.currentTenant || { id: tenantId },
     currentTenantId: tenantId,
     currentTenantDescendantIds: Array.from(new Set(tenantContext?.currentTenantDescendantIds || [])),
-    currentLegacyDataTenantIds: Array.from(new Set(tenantContext?.currentLegacyDataTenantIds || [])),
+    ...(hasLegacyDataTenantIds
+      ? {
+          currentLegacyDataTenantIds: Array.from(new Set(tenantContext?.currentLegacyDataTenantIds || [])),
+        }
+      : {}),
   };
 }
 

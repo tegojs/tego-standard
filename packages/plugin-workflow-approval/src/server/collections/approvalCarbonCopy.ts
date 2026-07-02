@@ -8,6 +8,7 @@ export default defineCollection({
   dumpRules: 'required',
   name: COLLECTION_NAME_APPROVAL_CARBON_COPY,
   origin: '@tachybase/plugin-workflow-approval',
+  tenancy: 'tenantScoped',
   createdBy: true,
   updatedBy: true,
   fields: [

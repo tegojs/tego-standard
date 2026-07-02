@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import React, { useRef } from 'react';
 
 import { Layout } from 'antd';
 import { useParams } from 'react-router-dom';
@@ -6,8 +6,25 @@ import { useParams } from 'react-router-dom';
 import { CurrentUser, PinnedPluginList, useApp, useSystemSettings } from '../..';
 import { AdminContent } from './AdminContent';
 import { AdminTabs } from './AdminTabs';
+import { useCurrentNavigationMenu } from './CurrentNavigationMenuProvider';
 import { MenuEditor } from './MenuEditor';
 import { useStyles } from './style';
+
+const NavigationMenuItems = () => {
+  const { getItems } = useCurrentNavigationMenu();
+  const { styles } = useStyles();
+
+  return (
+    <>
+      {getItems().map((item, index) =>
+        React.cloneElement(item, {
+          key: item.key ?? `navigation-item-${index}`,
+          className: [item.props.className, styles.navigationItem].filter(Boolean).join(' '),
+        }),
+      )}
+    </>
+  );
+};
 
 export const InternalAdminLayout = (props: any) => {
   const sideMenuRef = useRef<HTMLDivElement>();
@@ -30,6 +47,7 @@ export const InternalAdminLayout = (props: any) => {
               <h1 className={styles.title}>{result?.data?.data?.title}</h1>
             </div>
             <MenuEditor sideMenuRef={sideMenuRef} />
+            <NavigationMenuItems />
             <div className={styles.headerTabs}>
               <AdminTabs />
             </div>

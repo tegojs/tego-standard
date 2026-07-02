@@ -116,6 +116,7 @@
   "Repeat limit": "Limite de répétition",
   "Repeat mode": "Mode de répétition",
   "Retry": "Réessayer",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Avertissement d'isolation des tenants : les nœuds SQL exécutent directement du SQL brut et n'injectent pas automatiquement de filtres tenantId. Contrairement aux nœuds de requête/mise à jour/suppression, les nœuds SQL contournent la couche repository et le garde des ressources de tenant. Ajoutez manuellement des conditions tenantId dans votre SQL lorsque vous accédez à des données isolées par tenant.",
   "Schedule event": "Événement planifié",
   "Seconds": "Secondes",
   "Select status": "Sélectionner un statut",

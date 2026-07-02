@@ -25,6 +25,7 @@ import { CurrentUserProvider, CurrentUserSettingsMenuProvider } from '../user';
 import { ACLPlugin } from './acl/ACLPlugin';
 import { AdminLayoutPlugin } from './admin-layout/AdminLayoutPlugin';
 import { WelcomeCard } from './admin-layout/components/WelcomeCard';
+import { CurrentNavigationMenuProvider } from './admin-layout/CurrentNavigationMenuProvider';
 import { AttachmentPreviewPlugin } from './attachment-preview';
 import { PluginBlockSchemaComponent } from './block-schema-component';
 import { PluginContextMenu } from './context-menu';
@@ -40,7 +41,7 @@ import { SystemSettingsPlugin } from './system-settings';
 import { PluginSystemVersion } from './system-version';
 import { UserSettingsPlugin } from './user-settings';
 
-export { AdminProvider, NoticeArea, AdminLayout, MenuEditor, AdminTabs } from './admin-layout';
+export { AdminProvider, NoticeArea, AdminLayout, MenuEditor, AdminTabs, CurrentNavigationMenuProvider, useCurrentNavigationMenu } from './admin-layout';
 export * from './pinned-list';
 export * from './context-menu/useContextMenu';
 
@@ -314,6 +315,7 @@ export class BuiltInPlugin extends Plugin {
 
     this.app.use(CurrentUserProvider);
     this.app.use(CurrentUserSettingsMenuProvider);
+    this.app.use(CurrentNavigationMenuProvider);
     this.addSystemSettingGroups();
   }
 

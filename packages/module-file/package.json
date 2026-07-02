@@ -24,6 +24,7 @@
     "@ant-design/icons": "^6.1.0",
     "@aws-sdk/client-s3": "^3.850.0",
     "@tachybase/client": "workspace:*",
+    "@tachybase/module-tenant": "workspace:*",
     "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",

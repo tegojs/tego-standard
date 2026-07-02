@@ -45,6 +45,131 @@ type QueryParams = Partial<{
   refresh: boolean;
 }>;
 
+function stripTenantFilter(filter: any): any {
+  if (!filter || typeof filter !== 'object') {
+    return filter;
+  }
+
+  if (Array.isArray(filter)) {
+    return filter
+      .map(stripTenantFilter)
+      .filter((item) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+  }
+
+  const next = Object.fromEntries(
+    Object.entries(filter)
+      .filter(([key]) => key !== 'tenantId' && !key.startsWith('tenantId.'))
+      .map(([key, value]) => [key, stripTenantFilter(value)]),
+  );
+
+  for (const key of ['$and', '$or']) {
+    if (Array.isArray(next[key])) {
+      next[key] = next[key].filter((item: any) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+      if (next[key].length === 0) {
+        delete next[key];
+      }
+    }
+  }
+
+  return next;
+}
+
+function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
+  return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
+}
+
+function buildTenantFilter(tenantId: string | number, includeLegacyData = false) {
+  if (!includeLegacyData) {
+    return { tenantId };
+  }
+
+  return {
+    $or: [{ tenantId }, { tenantId: null }],
+  };
+}
+
+function buildInheritedTenantFilter(tenantIds: Array<string | number>, includeLegacyData = false) {
+  const tenantFilter = { tenantId: { $in: tenantIds } };
+
+  if (!includeLegacyData) {
+    return tenantFilter;
+  }
+
+  return {
+    $or: [tenantFilter, { tenantId: null }],
+  };
+}
+
+function appendTenantFilter(original: any, tenantFilter: any) {
+  const sanitizedOriginal = stripTenantFilter(original);
+
+  if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
+    return tenantFilter;
+  }
+
+  return {
+    $and: [sanitizedOriginal, tenantFilter],
+  };
+}
+
+function getCurrentTenantId(ctx: Context) {
+  return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
+}
+
+function normalizeTenantIds(ids?: Array<string | number>) {
+  return (ids || []).map((item) => `${item}`).sort();
+}
+
+function getLegacyDataTenantIds(ctx: Context, collection: any) {
+  if (Array.isArray(ctx.state.currentLegacyDataTenantIds)) {
+    return ctx.state.currentLegacyDataTenantIds;
+  }
+
+  return collection?.options?.legacyDataTenantIds || [];
+}
+
+function getCollectionTenancyMode(ctx: Context, collection: any) {
+  return collection?.options?.tenancy ?? ctx.state.currentTenancyMode;
+}
+
+function getTenantCacheScope(ctx: Context, params: QueryParams) {
+  const tenantId = getCurrentTenantId(ctx);
+
+  if (!tenantId) {
+    return null;
+  }
+
+  const db = getDB(ctx, params.dataSource) || ctx.db;
+  const collection = params.collection ? db?.getCollection?.(params.collection) : null;
+  const tenancyMode = getCollectionTenancyMode(ctx, collection);
+
+  if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
+    return null;
+  }
+
+  return {
+    tenancyMode,
+    tenantDescendantIds:
+      tenancyMode === 'tenantInherited' ? normalizeTenantIds(ctx.state.currentTenantDescendantIds) : [],
+    legacyDataTenantIds: normalizeTenantIds(getLegacyDataTenantIds(ctx, collection)),
+  };
+}
+
+function stableSerialize(value: any): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
+  }
+
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`)
+      .join(',')}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
 const getDB = (ctx: Context, dataSource: string) => {
   if (!dataSource) {
     return;
@@ -52,6 +177,38 @@ const getDB = (ctx: Context, dataSource: string) => {
   const ds = ctx.tego?.dataSourceManager?.dataSources.get(dataSource);
   return ds?.collectionManager.db;
 };
+
+function getChartCacheKey(ctx: Context, uid: string) {
+  const tenantId = getCurrentTenantId(ctx);
+  const currentUserId = ctx.state.currentUser?.id;
+  const values = ctx.action.params.values as QueryParams;
+  const { dataSource, collection: collectionName, measures, dimensions, orders, filter, limit, sql } = values;
+  const db = getDB(ctx, dataSource) || ctx.db;
+  const collection = collectionName ? db?.getCollection?.(collectionName) : null;
+  const tenancyMode = getCollectionTenancyMode(ctx, collection);
+  const isTenantCollection = tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited';
+  const normalizedFilter = isTenantCollection && tenantId ? stripTenantFilter(filter) : filter;
+  const timezone = ctx.get?.('x-timezone');
+  const signature = stableSerialize({
+    dataSource,
+    collection: collectionName,
+    measures,
+    dimensions,
+    orders,
+    filter: normalizedFilter,
+    limit,
+    sql,
+    timezone,
+    currentUserId,
+    tenantScope: getTenantCacheScope(ctx, values),
+  });
+
+  if (!tenantId) {
+    return `${uid}:query:${signature}`;
+  }
+
+  return `${uid}:tenant:${tenantId}:query:${signature}`;
+}
 
 export const postProcess = async (ctx: Context, next: Next) => {
   const { data, fieldMap } = ctx.action.params.values as {
@@ -315,13 +472,36 @@ export const parseVariables = async (ctx: Context, next: Next) => {
   await next();
 };
 
+export const applyTenantScope = async (ctx: Context, next: Next) => {
+  const { dataSource, collection: collectionName, filter } = ctx.action.params.values as QueryParams;
+  const db = getDB(ctx, dataSource) || ctx.db;
+  const collection = db.getCollection(collectionName);
+  const tenancyMode = getCollectionTenancyMode(ctx, collection);
+
+  if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
+    const tenantId = getCurrentTenantId(ctx);
+
+    if (tenantId) {
+      const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(ctx, collection));
+      const tenantFilter =
+        tenancyMode === 'tenantInherited'
+          ? buildInheritedTenantFilter([tenantId, ...(ctx.state.currentTenantDescendantIds || [])], includeLegacyData)
+          : buildTenantFilter(tenantId, includeLegacyData);
+      ctx.action.params.values.filter = appendTenantFilter(filter, tenantFilter);
+    }
+  }
+
+  await next();
+};
+
 export const cacheMiddleware = async (ctx: Context, next: Next) => {
   const { uid, cache: cacheConfig, refresh } = ctx.action.params.values as QueryParams;
   const cache = ctx.tego.cacheManager.getCache('data-visualization') as Cache;
   const useCache = cacheConfig?.enabled && uid;
+  const cacheKey = useCache ? getChartCacheKey(ctx, uid) : null;
 
   if (useCache && !refresh) {
-    const data = await cache.get(uid);
+    const data = await cache.get(cacheKey);
     if (data) {
       ctx.body = data;
       return;
@@ -329,19 +509,26 @@ export const cacheMiddleware = async (ctx: Context, next: Next) => {
   }
   await next();
   if (useCache) {
-    await cache.set(uid, ctx.body, cacheConfig?.ttl * 1000);
+    await cache.set(cacheKey, ctx.body, cacheConfig?.ttl * 1000);
   }
 };
 
-const checkPermission = (ctx: Context, next: Next) => {
+export const checkPermission = (ctx: Context, next: Next) => {
   // fix params not in the body
   if (ctx.action.params.values === undefined) {
     ctx.action.params.values = ctx.action.params;
   }
-  const { collection } = ctx.action.params.values as QueryParams;
+  const { collection, dataSource } = ctx.action.params.values as QueryParams;
   const roleName = ctx.state.currentRole || 'anonymous';
-  const can = ctx.tego.acl.can({ role: roleName, resource: collection, action: 'list' });
-  if (!can && roleName !== 'root') {
+
+  if (roleName === 'root') {
+    return next();
+  }
+
+  const acl =
+    dataSource && dataSource !== 'main' ? ctx.tego?.dataSourceManager?.dataSources.get(dataSource)?.acl : ctx.tego?.acl;
+  const can = acl?.can({ role: roleName, resource: collection, action: 'list' });
+  if (!can) {
     ctx.throw(403, 'No permissions');
   }
   return next();
@@ -352,6 +539,7 @@ export const query = async (ctx: Context, next: Next) => {
     await compose([
       checkPermission,
       cacheMiddleware,
+      applyTenantScope,
       parseVariables,
       parseFieldAndAssociations,
       parseBuilder,

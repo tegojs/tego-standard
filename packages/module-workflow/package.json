@@ -29,6 +29,7 @@
     "@tachybase/client": "workspace:*",
     "@tachybase/module-collection": "workspace:*",
     "@tachybase/module-error-handler": "workspace:*",
+    "@tachybase/module-tenant": "workspace:*",
     "@tachybase/module-ui-schema": "workspace:*",
     "@tachybase/module-user": "workspace:*",
     "@tachybase/plugin-workflow-test": "workspace:*",

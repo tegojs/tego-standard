@@ -18,7 +18,7 @@
   "main": "dist/server/index.js",
   "devDependencies": {
     "@ant-design/icons": "^6.1.0",
-    "@antv/g2": "^5.3.5",
+    "@antv/g2": "catalog:",
     "@tachybase/client": "workspace:*",
     "@tachybase/schema": "catalog:",
     "@tachybase/test": "catalog:",

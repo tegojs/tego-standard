@@ -3,11 +3,64 @@ import { createMockServer, MockServer } from '@tachybase/test';
 import compose from 'koa-compose';
 import { vi } from 'vitest';
 
-import { cacheMiddleware, parseBuilder, parseFieldAndAssociations } from '../actions/query';
+import {
+  applyTenantScope,
+  cacheMiddleware,
+  checkPermission,
+  parseBuilder,
+  parseFieldAndAssociations,
+} from '../actions/query';
 
 const formatter = await import('../actions/formatter');
 
 describe('query', () => {
+  it('should check ACL on the configured external data source', async () => {
+    const mainAcl = {
+      can: vi.fn().mockReturnValue(null),
+    };
+    const externalAcl = {
+      can: vi.fn().mockReturnValue({}),
+    };
+    const next = vi.fn();
+    const ctx: any = {
+      state: {
+        currentRole: 'member',
+      },
+      tego: {
+        acl: mainAcl,
+        dataSourceManager: {
+          dataSources: new Map([
+            [
+              'reports',
+              {
+                acl: externalAcl,
+              },
+            ],
+          ]),
+        },
+      },
+      throw(status: number, message: string) {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      },
+      action: {
+        params: {
+          values: {
+            dataSource: 'reports',
+            collection: 'orders',
+          },
+        },
+      },
+    };
+
+    await checkPermission(ctx, next);
+
+    expect(mainAcl.can).not.toHaveBeenCalled();
+    expect(externalAcl.can).toHaveBeenCalledWith({ role: 'member', resource: 'orders', action: 'list' });
+    expect(next).toHaveBeenCalled();
+  });
+
   describe('parseBuilder', () => {
     const sequelize = {
       fn: vi.fn().mockImplementation((fn: string, field: string) => [fn, field]),
@@ -70,6 +123,9 @@ describe('query', () => {
           },
         },
       };
+    });
+    afterAll(async () => {
+      await app.destroy();
     });
     it('should parse field and associations', async () => {
       const context = {
@@ -248,8 +304,10 @@ describe('query', () => {
     }
     let ctx: any;
     beforeEach(() => {
+      vi.clearAllMocks();
       const cache = new MockCache();
       ctx = {
+        state: {},
         tego: {
           cacheManager: {
             getCache: () => cache,
@@ -272,12 +330,9 @@ describe('query', () => {
           },
         },
       };
-      const cache = context.tego.cacheManager.getCache();
-      expect(cache.get(key)).toBeUndefined();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
-      expect(cache.get(key)).toEqual(value);
       vi.clearAllMocks();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(context.body).toEqual(value);
@@ -316,15 +371,723 @@ describe('query', () => {
           },
         },
       };
-      const cache = context.tego.cacheManager.getCache();
-      expect(cache.get(key)).toBeUndefined();
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
-      expect(cache.get(key)).toEqual(value);
       await compose([cacheMiddleware, query])(context, async () => {});
       expect(query).toBeCalled();
       expect(context.body).toEqual(value);
+    });
+
+    it('should isolate cache by tenant', async () => {
+      const tenantAContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+            },
+          },
+        },
+      };
+      const tenantBContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-b',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+            },
+          },
+        },
+      };
+
+      await compose([cacheMiddleware, query])(tenantAContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(tenantBContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should isolate cache by query payload within the same tenant', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'draft',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should isolate cache by current user when query uses runtime user variables', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentUser: {
+            id: 1,
+          },
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              filter: {
+                createdById: '{{ $user.id }}',
+              },
+            },
+          },
+        },
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentUser: {
+            id: 2,
+          },
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              filter: {
+                createdById: '{{ $user.id }}',
+              },
+            },
+          },
+        },
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should normalize tenantId in filter for tenantScoped collection so malicious tenantId and clean filter share cache', async () => {
+      const tenantDb = {
+        getCollection: vi.fn().mockReturnValue({
+          options: { tenancy: 'tenantScoped' },
+        }),
+      };
+      const cleanContext = {
+        ...ctx,
+        db: tenantDb,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const maliciousContext = {
+        ...ctx,
+        db: tenantDb,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(cleanContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(maliciousContext, async () => {});
+      expect(query).not.toBeCalled();
+      expect(maliciousContext.body).toEqual(value);
+    });
+
+    it('should preserve tenantId in cache key for tenant collections when no current tenant context exists', async () => {
+      const tenantDb = {
+        getCollection: vi.fn().mockReturnValue({
+          options: { tenancy: 'tenantScoped' },
+        }),
+      };
+      const firstContext = {
+        ...ctx,
+        db: tenantDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-a',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        db: tenantDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should NOT strip tenantId from cache key for shared/non-tenant collection', async () => {
+      const sharedDb = {
+        getCollection: vi.fn().mockReturnValue({
+          options: {},
+        }),
+      };
+      const firstContext = {
+        ...ctx,
+        db: sharedDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'shared_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-a',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        db: sharedDb,
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'shared_orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should still isolate cache by different business filter', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'draft',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'orders',
+              dataSource: 'main',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+        get: vi.fn().mockReturnValue('Asia/Singapore'),
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should isolate cache by inherited tenant descendants', async () => {
+      const firstContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentTenantDescendantIds: ['tenant-a-child'],
+        },
+        db: {
+          getCollection: vi.fn().mockReturnValue({
+            options: {
+              tenancy: 'tenantInherited',
+            },
+          }),
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_inherited_orders',
+            },
+          },
+        },
+      };
+      const secondContext = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentTenantDescendantIds: ['tenant-a-child', 'tenant-a-new-child'],
+        },
+        db: firstContext.db,
+        action: firstContext.action,
+      };
+
+      await compose([cacheMiddleware, query])(firstContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(secondContext, async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+
+    it('should isolate cache by legacy data tenant visibility', async () => {
+      const createContext = (legacyDataTenantIds: string[]) => ({
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        db: {
+          getCollection: vi.fn().mockReturnValue({
+            options: {
+              tenancy: 'tenantScoped',
+              legacyDataTenantIds,
+            },
+          }),
+        },
+        action: {
+          params: {
+            values: {
+              cache: {
+                enabled: true,
+              },
+              refresh: false,
+              uid: key,
+              collection: 'tenant_legacy_orders',
+            },
+          },
+        },
+      });
+
+      await compose([cacheMiddleware, query])(createContext([]), async () => {});
+      expect(query).toBeCalledTimes(1);
+
+      vi.clearAllMocks();
+
+      await compose([cacheMiddleware, query])(createContext(['tenant-a']), async () => {});
+      expect(query).toBeCalledTimes(1);
+    });
+  });
+
+  describe('applyTenantScope', () => {
+    let ctx: any;
+    let app: MockServer;
+
+    beforeAll(async () => {
+      app = await createMockServer({
+        plugins: ['data-source-manager'],
+      });
+      app.db.collection({
+        name: 'tenant_orders',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            name: 'id',
+            type: 'bigInt',
+          },
+          {
+            name: 'tenantId',
+            type: 'string',
+          },
+        ],
+      });
+      app.db.collection({
+        name: 'tenant_legacy_orders',
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a'],
+        fields: [
+          {
+            name: 'id',
+            type: 'bigInt',
+          },
+          {
+            name: 'tenantId',
+            type: 'string',
+          },
+        ],
+      });
+      app.db.collection({
+        name: 'tenant_inherited_orders',
+        tenancy: 'tenantInherited',
+        fields: [
+          {
+            name: 'id',
+            type: 'bigInt',
+          },
+          {
+            name: 'tenantId',
+            type: 'string',
+          },
+        ],
+      });
+      ctx = {
+        app,
+        tego: app,
+        db: app.db,
+      };
+    });
+
+    it('should append current tenant filter for tenant scoped collections', async () => {
+      const context = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              collection: 'tenant_orders',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(context.action.params.values.filter).toEqual({
+        $and: [{ status: 'published' }, { tenantId: 'tenant-a' }],
+      });
+    });
+
+    it('should strip user tenant filters before applying the current tenant scope', async () => {
+      const context = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              collection: 'tenant_orders',
+              filter: {
+                status: 'published',
+                tenantId: 'tenant-b',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(context.action.params.values.filter).toEqual({
+        $and: [{ status: 'published' }, { tenantId: 'tenant-a' }],
+      });
+    });
+
+    it('should include legacy records for tenants allowed by collection options', async () => {
+      const context = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+        },
+        action: {
+          params: {
+            values: {
+              collection: 'tenant_legacy_orders',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(context.action.params.values.filter).toEqual({
+        $and: [
+          { status: 'published' },
+          {
+            $or: [{ tenantId: 'tenant-a' }, { tenantId: null }],
+          },
+        ],
+      });
+    });
+
+    it('should include descendant tenants for inherited tenant collections', async () => {
+      const context = {
+        ...ctx,
+        state: {
+          currentTenantId: 'tenant-a',
+          currentTenantDescendantIds: ['tenant-a-child', 'tenant-a-grandchild'],
+        },
+        action: {
+          params: {
+            values: {
+              collection: 'tenant_inherited_orders',
+              filter: {
+                status: 'published',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(context.action.params.values.filter).toEqual({
+        $and: [
+          { status: 'published' },
+          {
+            tenantId: {
+              $in: ['tenant-a', 'tenant-a-child', 'tenant-a-grandchild'],
+            },
+          },
+        ],
+      });
+    });
+
+    it('should resolve tenant scoped collection from the configured data source', async () => {
+      const dataSourceDb = {
+        getCollection: vi.fn().mockReturnValue({
+          options: {
+            tenancy: 'tenantScoped',
+          },
+        }),
+      };
+      const context = {
+        ...ctx,
+        tego: {
+          dataSourceManager: {
+            dataSources: new Map([
+              [
+                'tenant-ds',
+                {
+                  collectionManager: {
+                    db: dataSourceDb,
+                  },
+                },
+              ],
+            ]),
+          },
+        },
+        db: {
+          getCollection: vi.fn().mockReturnValue(undefined),
+        },
+        state: {
+          currentTenantId: 'tenant-b',
+        },
+        action: {
+          params: {
+            values: {
+              dataSource: 'tenant-ds',
+              collection: 'tenant_orders',
+              filter: {
+                status: 'draft',
+              },
+            },
+          },
+        },
+      };
+
+      await applyTenantScope(context, async () => {});
+
+      expect(dataSourceDb.getCollection).toBeCalledWith('tenant_orders');
+      expect(context.action.params.values.filter).toEqual({
+        $and: [{ status: 'draft' }, { tenantId: 'tenant-b' }],
+      });
     });
   });
 });

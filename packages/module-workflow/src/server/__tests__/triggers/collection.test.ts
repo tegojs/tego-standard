@@ -1,13 +1,15 @@
 import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
-import { EXECUTION_STATUS } from '../../constants';
+import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
 import {
   createWorkflowTestAppCache,
   FAST_POLL_INTERVAL_MS,
   waitForFastAssertion as waitForAssertion,
   waitForWorkflowIdle,
 } from '../utils';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('workflow > triggers > collection', () => {
   let app: MockServer;
@@ -20,6 +22,9 @@ describe('workflow > triggers > collection', () => {
   let withAnotherDataSource = false;
   let testPlugins = [];
 
+  const tenantScopedCollectionName = 'tenant_trigger_workflow_posts';
+  const tenantWorkflowTriggerCollectionName = 'tenant_workflow_trigger_events';
+  const tenantInheritedCollectionName = 'tenant_inherited_trigger_workflow_posts';
   const appCache = createWorkflowTestAppCache<MockServer>((currentApp) => {
     app = currentApp;
     bindRepositories();
@@ -44,6 +49,15 @@ describe('workflow > triggers > collection', () => {
     await PostRepo.destroy({ filter: {} });
     await CategoryRepo.destroy({ filter: {} });
     await TagRepo.destroy({ filter: {} });
+    if (db.hasCollection(tenantScopedCollectionName)) {
+      await db.getRepository(tenantScopedCollectionName).destroy({ filter: {} });
+    }
+    if (db.hasCollection(tenantWorkflowTriggerCollectionName)) {
+      await db.getRepository(tenantWorkflowTriggerCollectionName).destroy({ filter: {} });
+    }
+    if (db.hasCollection(tenantInheritedCollectionName)) {
+      await db.getRepository(tenantInheritedCollectionName).destroy({ filter: {} });
+    }
 
     if (withAnotherDataSource) {
       // @ts-ignore
@@ -64,6 +78,36 @@ describe('workflow > triggers > collection', () => {
   afterAll(async () => {
     await appCache.destroy();
   });
+
+  async function ensureTenantWorkflowCollection(name: string, tenancy: 'tenantScoped' | 'tenantInherited') {
+    if (!db.hasCollection(name)) {
+      db.collection({
+        name,
+        tenancy,
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'string', name: 'tenantId' },
+          { type: 'boolean', name: 'published', defaultValue: false },
+        ],
+      });
+      await db.sync();
+    }
+
+    return db.getRepository(name);
+  }
+
+  function tenantState(
+    tenantId: string,
+    currentTenancyMode: 'tenantScoped' | 'tenantInherited' = 'tenantScoped',
+    currentTenantDescendantIds: string[] = [],
+  ) {
+    return {
+      currentTenant: { id: tenantId, name: tenantId, title: tenantId },
+      currentTenantId: tenantId,
+      currentTenantDescendantIds,
+      currentTenancyMode,
+    };
+  }
 
   describe('toggle', () => {
     it('create without config should ok', async () => {
@@ -151,6 +195,43 @@ describe('workflow > triggers > collection', () => {
   });
 
   describe('model context', () => {
+    it('should persist tenant context from repository options', async () => {
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: 'posts',
+        },
+      });
+
+      await PostRepo.create({
+        values: { title: 't1' },
+        context: {
+          state: {
+            currentTenant: { id: 'tenant-a', name: 'tenant-a' },
+            currentTenantId: 'tenant-a',
+            currentTenantDescendantIds: ['tenant-a', 'tenant-a-child'],
+            currentRole: 'admin',
+            currentUser: { id: 1, password: 'secret' },
+          },
+        },
+      });
+
+      await sleep(500);
+
+      const executions = await workflow.getExecutions();
+      expect(executions.length).toBe(1);
+      expect(executions[0].tenantId).toBe('tenant-a');
+      expect(executions[0].tenantContext).toMatchObject({
+        currentTenant: { id: 'tenant-a', name: 'tenant-a' },
+        currentTenantId: 'tenant-a',
+        currentTenantDescendantIds: ['tenant-a', 'tenant-a-child'],
+      });
+      expect(executions[0].context.state.currentRole).toBeUndefined();
+      expect(executions[0].context.state.currentUser).toBeUndefined();
+    });
+
     it('with association', async () => {
       const workflow = await WorkflowModel.create({
         enabled: true,
@@ -168,6 +249,272 @@ describe('workflow > triggers > collection', () => {
         expect(executions.length).toBe(1);
         expect(executions[0].context.data.title).toBe('t1');
         expect(executions[0].context.data.category.title).toBe('c1');
+      });
+    });
+  });
+
+  describe('tenant context integration', () => {
+    it('collection trigger should run query, update, and create nodes in the current tenant', async () => {
+      const TenantTriggerRepo = await ensureTenantWorkflowCollection(
+        tenantWorkflowTriggerCollectionName,
+        'tenantScoped',
+      );
+      const TenantPostRepo = await ensureTenantWorkflowCollection(tenantScopedCollectionName, 'tenantScoped');
+      const rootPost = await TenantPostRepo.create({
+        values: { title: 'shared-target', tenantId: 'root', published: false },
+        hooks: false,
+      });
+      const adminPost = await TenantPostRepo.create({
+        values: { title: 'shared-target', tenantId: 'admin1', published: false },
+        hooks: false,
+      });
+
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: tenantWorkflowTriggerCollectionName,
+        },
+      });
+      const queryNode = await workflow.createNode({
+        type: 'query',
+        config: {
+          collection: tenantScopedCollectionName,
+          params: {
+            filter: {
+              title: 'shared-target',
+            },
+          },
+        },
+      });
+      const updateNode = await workflow.createNode({
+        type: 'update',
+        config: {
+          collection: tenantScopedCollectionName,
+          params: {
+            filter: {
+              title: 'shared-target',
+            },
+            values: {
+              published: true,
+              tenantId: 'root',
+            },
+          },
+        },
+        upstreamId: queryNode.id,
+      });
+      const createNode = await workflow.createNode({
+        type: 'create',
+        config: {
+          collection: tenantScopedCollectionName,
+          params: {
+            values: {
+              title: 'created-by-workflow',
+              tenantId: 'root',
+              published: true,
+            },
+          },
+        },
+        upstreamId: updateNode.id,
+      });
+      await queryNode.setDownstream(updateNode);
+      await updateNode.setDownstream(createNode);
+
+      const workflowPlugin = app.pm.get('workflow') as any;
+      const originalDispatch = workflowPlugin.dispatch.bind(workflowPlugin);
+      workflowPlugin.dispatch = () => {};
+
+      try {
+        await TenantTriggerRepo.create({
+          values: { title: 'trigger-admin1', tenantId: 'admin1' },
+          context: {
+            state: tenantState('admin1'),
+          },
+        });
+
+        let queuedExecution;
+        await waitForAssertion(async () => {
+          const executions = await workflow.getExecutions();
+          expect(executions.length).toBe(1);
+          expect(executions[0].status).toBe(EXECUTION_STATUS.QUEUEING);
+          expect(executions[0].tenantId).toBe('admin1');
+          expect(executions[0].tenantContext).toMatchObject({
+            currentTenant: { id: 'admin1', name: 'admin1', title: 'admin1' },
+            currentTenantId: 'admin1',
+            currentTenantDescendantIds: [],
+            currentTenancyMode: 'tenantScoped',
+          });
+          queuedExecution = executions[0];
+        });
+
+        workflowPlugin.pending = [];
+        await workflowPlugin.process(queuedExecution);
+
+        await waitForAssertion(async () => {
+          const executions = await workflow.getExecutions();
+          expect(executions.length).toBe(1);
+          expect(executions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+          expect(executions[0].tenantId).toBe('admin1');
+          expect(executions[0].tenantContext).toMatchObject({
+            currentTenant: { id: 'admin1', name: 'admin1', title: 'admin1' },
+            currentTenantId: 'admin1',
+            currentTenantDescendantIds: [],
+            currentTenancyMode: 'tenantScoped',
+          });
+          expect(executions[0].context.state).toMatchObject({
+            currentTenantId: 'admin1',
+            currentTenancyMode: 'tenantScoped',
+          });
+
+          const jobs = await executions[0].getJobs({ order: [['id', 'ASC']] });
+          expect(jobs.length).toBe(3);
+          expect(jobs.map((job) => job.status)).toEqual([
+            JOB_STATUS.RESOLVED,
+            JOB_STATUS.RESOLVED,
+            JOB_STATUS.RESOLVED,
+          ]);
+          expect(jobs[0].result.id).toBe(adminPost.id);
+          expect(jobs[0].result.tenantId).toBe('admin1');
+          expect(jobs[1].result.length).toBe(1);
+          expect(jobs[2].result.title).toBe('created-by-workflow');
+          expect(jobs[2].result.tenantId).toBe('admin1');
+        });
+
+        await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
+      } finally {
+        workflowPlugin.pending = [];
+        workflowPlugin.events = [];
+        workflowPlugin.dispatch = originalDispatch;
+      }
+
+      await rootPost.reload();
+      await adminPost.reload();
+      expect(rootPost.published).toBe(false);
+      expect(adminPost.published).toBe(true);
+
+      const createdPosts = await TenantPostRepo.find({
+        filter: {
+          title: 'created-by-workflow',
+        },
+      });
+      expect(createdPosts.length).toBe(1);
+      expect(createdPosts[0].tenantId).toBe('admin1');
+    });
+
+    it('tenantInherited query nodes should let parents see children but not children see parents', async () => {
+      const TenantPostRepo = await ensureTenantWorkflowCollection(tenantInheritedCollectionName, 'tenantInherited');
+      await TenantPostRepo.create({
+        values: { title: 'inherited-target', tenantId: 'root' },
+        hooks: false,
+      });
+      await TenantPostRepo.create({
+        values: { title: 'inherited-target', tenantId: 'admin1' },
+        hooks: false,
+      });
+
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: tenantInheritedCollectionName,
+        },
+      });
+      await workflow.createNode({
+        type: 'query',
+        config: {
+          collection: tenantInheritedCollectionName,
+          multiple: true,
+          params: {
+            filter: {
+              title: 'inherited-target',
+            },
+          },
+        },
+      });
+
+      await TenantPostRepo.create({
+        values: { title: 'trigger-root', tenantId: 'root' },
+        context: {
+          state: tenantState('root', 'tenantInherited', ['admin1']),
+        },
+      });
+
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(execution.tenantId).toBe('root');
+        expect(execution.tenantContext).toMatchObject({
+          currentTenantId: 'root',
+          currentTenantDescendantIds: ['admin1'],
+          currentTenancyMode: 'tenantInherited',
+        });
+
+        const [job] = await execution.getJobs();
+        const tenantIds = job.result.map((item) => item.tenantId).sort();
+        expect(tenantIds).toEqual(['admin1', 'root']);
+      });
+
+      await TenantPostRepo.create({
+        values: { title: 'trigger-admin1', tenantId: 'admin1' },
+        context: {
+          state: tenantState('admin1', 'tenantInherited'),
+        },
+      });
+
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
+        expect(executions.length).toBe(2);
+        expect(executions[1].status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(executions[1].tenantId).toBe('admin1');
+        expect(executions[1].tenantContext).toMatchObject({
+          currentTenantId: 'admin1',
+          currentTenantDescendantIds: [],
+          currentTenancyMode: 'tenantInherited',
+        });
+
+        const [job] = await executions[1].getJobs();
+        const tenantIds = job.result.map((item) => item.tenantId).sort();
+        expect(tenantIds).toEqual(['admin1']);
+      });
+    });
+
+    it('tenant-scoped collection workflow should not crash without tenant context', async () => {
+      const TenantPostRepo = await ensureTenantWorkflowCollection(tenantScopedCollectionName, 'tenantScoped');
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: tenantScopedCollectionName,
+        },
+      });
+      await workflow.createNode({
+        type: 'query',
+        config: {
+          collection: tenantScopedCollectionName,
+          params: {
+            filter: {
+              title: 'no-tenant-context',
+            },
+          },
+        },
+      });
+
+      await TenantPostRepo.create({
+        values: { title: 'no-tenant-context' },
+      });
+
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(execution.tenantId).toBeFalsy();
+        expect(execution.tenantContext).toBeFalsy();
+
+        const [job] = await execution.getJobs();
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+        expect(job.result.title).toBe('no-tenant-context');
       });
     });
   });

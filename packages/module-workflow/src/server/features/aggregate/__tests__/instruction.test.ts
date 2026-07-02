@@ -2,8 +2,11 @@ import { EXECUTION_STATUS } from '@tachybase/plugin-workflow';
 import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
+import { vi } from 'vitest';
+
 import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
-import Plugin from '../Plugin';
+import AggregateInstruction from '../AggregateInstruction';
+import { PluginAggregate } from '../Plugin';
 
 describe('workflow > instructions > aggregate', () => {
   let app: Application;
@@ -16,7 +19,7 @@ describe('workflow > instructions > aggregate', () => {
 
   async function setupApp(options: { withAnotherDataSource?: boolean } = {}) {
     app = await getApp({
-      plugins: [Plugin],
+      plugins: [PluginAggregate],
       withAnotherDataSource: options.withAnotherDataSource,
     });
 
@@ -183,6 +186,76 @@ describe('workflow > instructions > aggregate', () => {
   });
 
   describe('based on data associated collection', () => {
+    it('applies tenant scope to the associated target collection', async () => {
+      const targetCollection = {
+        name: 'posts',
+        options: {
+          tenancy: 'tenantScoped',
+        },
+      };
+      const associatedCollection = {
+        name: 'tags',
+        options: {},
+      };
+      const repo = {
+        collection: targetCollection,
+        aggregate: vi.fn().mockResolvedValue(1),
+      };
+      const collectionManager = {
+        getCollection: vi.fn((name: string) => (name === 'posts' ? targetCollection : associatedCollection)),
+        getRepository: vi.fn().mockReturnValue(repo),
+      };
+      const instruction = Object.create(AggregateInstruction.prototype);
+      instruction.workflow = {
+        app: {
+          dataSourceManager: {
+            dataSources: {
+              get: vi.fn().mockReturnValue({ collectionManager }),
+            },
+          },
+        },
+        useDataSourceTransaction: vi.fn(),
+      };
+      const processor = {
+        transaction: undefined,
+        getParsedValue: vi.fn((value) => value),
+        getRepositoryContext: () => ({
+          state: {
+            currentTenantId: 'tenant-a',
+          },
+        }),
+      };
+
+      await instruction.run(
+        {
+          id: 1,
+          config: {
+            aggregator: 'count',
+            associated: true,
+            collection: 'posts',
+            association: {
+              associatedCollection: 'tags',
+              associatedKey: 'tag-a',
+              name: 'posts',
+            },
+            params: {
+              field: 'id',
+            },
+          },
+        } as any,
+        {},
+        processor as any,
+      );
+
+      expect(repo.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: {
+            tenantId: 'tenant-a',
+          },
+        }),
+      );
+    });
+
     it('count', async () => {
       const n1 = await workflow.createNode({
         type: 'aggregate',

@@ -2,6 +2,7 @@ import { parseCollectionName } from '@tego/server';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 
@@ -11,16 +12,25 @@ export class DestroyInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
+    const targetCollection = this.workflow.app.dataSourceManager.dataSources
       .get(dataSourceName)
       .collectionManager.getCollection(collectionName);
+    const { repository } = targetCollection;
     const options = processor.getParsedValue(params, node.id);
-    const result = await repository.destroy({
-      ...options,
-      context: {
-        stack: Array.from(new Set((processor.execution.context.stack ?? []).concat(processor.execution.id))),
-        state: processor.options?.httpContext?.state,
+    const baseRepositoryContext = processor.getRepositoryContext();
+    const optionContext = options.context || {};
+    const repositoryContext = {
+      ...baseRepositoryContext,
+      state: {
+        ...optionContext.state,
+        ...baseRepositoryContext.state,
       },
+      stack: Array.from(new Set([...(baseRepositoryContext.stack || []), ...(optionContext.stack || [])])),
+    };
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'destroy', options);
+    const result = await repository.destroy({
+      ...repositoryOptions,
+      context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

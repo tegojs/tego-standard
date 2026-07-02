@@ -214,6 +214,24 @@ export default class Processor {
     return null;
   }
 
+  public getRepositoryContext() {
+    const tenantContext = this.execution.get?.('tenantContext') || (this.execution as any).tenantContext || {};
+    const authContext = this.execution.get?.('authContext') || (this.execution as any).authContext || {};
+    const state = {
+      ...this.options?.httpContext?.state,
+      ...this.options?.context?.state,
+      ...tenantContext,
+      ...authContext,
+    };
+
+    return {
+      ...this.options?.httpContext,
+      ...this.options?.context,
+      stack: Array.from(new Set((this.execution.context?.stack ?? []).concat(this.execution.id))),
+      state,
+    };
+  }
+
   // TODO(optimize)
   async saveJob(payload) {
     const { database } = <typeof ExecutionModel>this.execution.constructor;

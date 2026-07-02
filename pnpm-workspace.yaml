@@ -7,14 +7,16 @@ allowedDeprecatedVersions:
   react-beautiful-dnd: 13.1.1
 
 catalog:
-  '@tachybase/globals': 1.6.13
-  '@tachybase/loader': 1.6.13
-  '@tachybase/schema': 1.6.13
-  '@tachybase/test': 1.6.13
-  '@tachybase/utils': 1.6.13
-  '@tego/client': 1.6.13
-  '@tego/devkit': 1.6.13
-  '@tego/server': 1.6.13
+  '@ant-design/plots': ^2.6.8
+  '@antv/g2': ^5.4.8
+  '@tachybase/globals': 1.6.15
+  '@tachybase/loader': 1.6.15
+  '@tachybase/schema': 1.6.15
+  '@tachybase/test': 1.6.15
+  '@tachybase/utils': 1.6.15
+  '@tego/client': 1.6.15
+  '@tego/devkit': 1.6.15
+  '@tego/server': 1.6.15
   '@types/express': 5.0.2
   '@types/node': 20.17.10
   '@types/react': 18.3.23
@@ -29,7 +31,7 @@ catalog:
   sequelize: 6.37.5
   string-width: 4.2.3
   strip-ansi: 6.0.1
-  tego: 1.6.13
+  tego: 1.6.15
   wrap-ansi: 7.0.0
 
 catalogMode: strict
@@ -64,3 +66,9 @@ overrides:
   strip-ansi: 'catalog:'
   tego: 'catalog:'
   wrap-ansi: 'catalog:'
+
+patchedDependencies:
+  '@antv/coord@0.4.7': patches/@antv__coord@0.4.7.patch
+  '@antv/g2-extension-plot@0.2.2': patches/@antv__g2-extension-plot@0.2.2.patch
+  '@antv/layout@1.2.14-beta.9': patches/@antv__layout@1.2.14-beta.9.patch
+  '@antv/scale@0.4.16': patches/@antv__scale@0.4.16.patch

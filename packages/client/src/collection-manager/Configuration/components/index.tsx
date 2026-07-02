@@ -3,6 +3,7 @@ import { Field, observer, useField, useForm } from '@tachybase/schema';
 
 import { AutoComplete, Select } from 'antd';
 
+import { useAPIClient } from '../../../api-client';
 import { useRecord } from '../../../record-provider';
 import { useCompile } from '../../../schema-component';
 import { useCollectionManager_deprecated } from '../../hooks';
@@ -147,6 +148,7 @@ export const SourceKey = observer(
   },
   { displayName: 'SourceKey' },
 );
+
 export const TargetKey = observer(
   (props: any) => {
     const { value, disabled } = props;

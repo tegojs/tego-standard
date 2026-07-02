@@ -13,10 +13,48 @@ import {
 import type { WorkflowModel } from '../types';
 import { getRemoteCodeFetcher } from '../utils/get-remote-code-fetcher';
 
+/**
+ * Check if the current user has permission to create/update SQL instruction nodes.
+ * SQL nodes bypass the repository layer and execute raw SQL directly, so they
+ * require the pm.workflow.sql snippet (covered by pm.* for root/admin).
+ *
+ * The canonical runtime check lives in utils/sql-permission.ts (checkSqlExecutionPermission).
+ * This API-level guard mirrors the same logic with HTTP-specific error handling.
+ */
+export function assertSqlNodePermission(ctx: Context, nodeType: string) {
+  if (nodeType !== 'sql') {
+    return;
+  }
+  const roleName = ctx.state.currentRole;
+  if (!roleName) {
+    ctx.throw(403, 'SQL instruction nodes require a valid role');
+    return;
+  }
+  if (roleName === 'root') {
+    return;
+  }
+  // Access ACL via dataSourceManager (app.acl is a shortcut for mainDataSource.acl)
+  const acl = ctx.app?.acl || ctx.tego?.acl || ctx.app?.dataSourceManager?.dataSources?.get('main')?.acl;
+  if (!acl) {
+    ctx.throw(403, 'SQL instruction nodes require the pm.workflow.sql permission');
+    return;
+  }
+  const aclRole = acl.getRole(roleName);
+  if (!aclRole) {
+    ctx.throw(403, 'SQL instruction nodes require the pm.workflow.sql permission');
+  }
+  const { allowed } = aclRole.effectiveSnippets();
+  if (!allowed.includes('pm.workflow.sql')) {
+    ctx.throw(403, 'SQL instruction nodes require the pm.workflow.sql permission');
+  }
+}
+
 export async function create(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx) as MultipleRelationRepository;
   const { whitelist, blacklist, updateAssociationValues, values, associatedIndex: workflowId } = ctx.action.params;
+
+  assertSqlNodePermission(ctx, values?.type);
 
   ctx.body = await db.sequelize.transaction(async (transaction) => {
     const workflow = (await repository.getSourceModel(transaction)) as WorkflowModel;
@@ -196,13 +234,43 @@ export async function update(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx);
   const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues } = ctx.action.params;
+
   ctx.body = await db.sequelize.transaction(async (transaction) => {
-    // TODO(optimize): duplicated instance query
-    const { workflow } = await repository.findOne({
-      filterByTk,
-      appends: ['workflow.executed'],
-      transaction,
-    });
+    let nodeWithWorkflow: any;
+
+    // Check SQL node permission inside the same transaction used for the update.
+    const nodeType = values?.type;
+    if (nodeType === 'sql') {
+      assertSqlNodePermission(ctx, 'sql');
+    }
+
+    if (filterByTk) {
+      nodeWithWorkflow = await repository.findOne({
+        filterByTk,
+        fields: ['type'],
+        appends: ['workflow.executed'],
+        context: ctx,
+        transaction,
+      });
+
+      if (nodeType !== 'sql' && nodeWithWorkflow?.get('type') === 'sql') {
+        assertSqlNodePermission(ctx, 'sql');
+      }
+    } else if (filter) {
+      const existingNodes = await repository.find({ filter, fields: ['type'], context: ctx, transaction });
+      if (existingNodes.some((node) => node?.get('type') === 'sql')) {
+        assertSqlNodePermission(ctx, 'sql');
+      }
+    }
+
+    nodeWithWorkflow =
+      nodeWithWorkflow ||
+      (await repository.findOne({
+        filterByTk,
+        appends: ['workflow.executed'],
+        transaction,
+      }));
+    const { workflow } = nodeWithWorkflow;
     if (workflow.executed) {
       ctx.throw(400, 'Nodes in executed workflow could not be reconfigured');
     }

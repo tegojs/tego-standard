@@ -66,4 +66,30 @@ describe('APIClient', () => {
     expect(apiClient.auth.role).toBeFalsy();
     expect(reloadLocation).toHaveBeenCalledTimes(1);
   });
+
+  test('should include X-Tenant-Id header when current tenant id is set', () => {
+    const apiClient = new APIClient();
+    apiClient.app = { getName: () => 'main' } as any;
+    apiClient.storage.setItem('current_tenant_id', 'tenant-a');
+
+    const headers = apiClient.getHeaders();
+
+    expect(headers['X-Tenant-Id']).toBe('tenant-a');
+    expect(headers['X-Tenant']).toBeUndefined();
+    expect(headers['X-App']).toBe('main');
+  });
+
+  test('should not override an explicitly empty X-Tenant-Id header', () => {
+    const apiClient = new APIClient();
+    apiClient.storage.setItem('current_tenant_id', 'tenant-a');
+
+    const requestInterceptor = apiClient.axios.interceptors.request['handlers'].at(-1).fulfilled;
+    const config = requestInterceptor({
+      headers: {
+        'X-Tenant-Id': '',
+      },
+    });
+
+    expect(config.headers['X-Tenant-Id']).toBe('');
+  });
 });

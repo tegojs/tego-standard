@@ -3,6 +3,8 @@ import { isMainThread } from 'node:worker_threads';
 import { Plugin, Transaction } from '@tego/server';
 
 import { afterCreate, afterDestroy, afterUpdate } from './hooks';
+import { normalizeAuditLogValues } from './normalize-audit-log-values';
+import { registerSecurityEventListener } from './security-event-listener';
 
 export default class PluginActionLogs extends Plugin {
   private logsBuffer: any[] = []; // 用于存储消息的缓冲区
@@ -14,12 +16,37 @@ export default class PluginActionLogs extends Plugin {
       // 给工作线程也加监听钩子
       this.addAuditListener();
     }
+    // Register security event listener in both main and worker threads
+    registerSecurityEventListener(this);
   }
 
   async beforeLoad() {
     if (isMainThread) {
       this.addAuditListener();
     }
+
+    // Flush pending audit logs before the DB connection is destroyed.
+    // The debounce timer may fire after app.destroy() closes the DB,
+    // causing an unhandled rejection from Sequelize.
+    this.app.on('beforeDestroy', async () => {
+      if (this.logsTimer) {
+        clearTimeout(this.logsTimer);
+        this.logsTimer = null;
+      }
+      if (this.logsBuffer.length > 0) {
+        const pending = [...this.logsBuffer];
+        this.logsBuffer = [];
+        try {
+          await this.workerCreateAuditLog(pending);
+        } catch (error) {
+          this.app?.logger?.warn?.('Failed to flush pending audit logs before destroy', {
+            error,
+            pendingCount: pending.length,
+          });
+          // Best-effort flush — must not block app shutdown
+        }
+      }
+    });
   }
 
   async addAuditListener() {
@@ -88,9 +115,14 @@ export default class PluginActionLogs extends Plugin {
     const auditChangeRepo = this.db.getRepository('auditChanges');
 
     const now = new Date();
-    values.forEach((value) => (value.createdAt = now));
+    const auditLogValues = values.map((value) =>
+      normalizeAuditLogValues({
+        ...value,
+        createdAt: now,
+      }),
+    );
     // 批量插入 auditLogs，只返回 id
-    const insertedLogs = await auditLogRepo.model.bulkCreate(values, {
+    const insertedLogs = await auditLogRepo.model.bulkCreate(auditLogValues, {
       individualHooks: false, // 禁用逐条钩子调用
       transaction, // 使用事务
       returning: ['id'], // 仅返回 id 字段
@@ -99,7 +131,7 @@ export default class PluginActionLogs extends Plugin {
     // 构造 changes 数据
     const changes = [];
     insertedLogs.forEach((log, index) => {
-      const value = values[index];
+      const value = auditLogValues[index];
       if (!value.changes) {
         return;
       }

@@ -304,7 +304,9 @@ export default class ScheduleTrigger {
       return records;
     }
 
-    const tenantIds = Array.from(new Set(records.map((record) => record.get('tenantId')).filter(Boolean)));
+    const tenantIds = Array.from(
+      new Set(records.map((record) => record.get('tenantId')).filter((tenantId) => tenantId != null)),
+    );
     if (!tenantIds.length) {
       return [];
     }

@@ -197,6 +197,24 @@ describe('workflow > omni trigger > custom action tenant context', () => {
     });
   });
 
+  it('triggerAction should skip workflow execution when array lookup returns no records', async () => {
+    const { repository, trigger, workflow, workflowRecord } = createTrigger();
+    repository.find.mockResolvedValue([]);
+    const ctx = createContext(repository, {
+      actionName: 'trigger',
+      resourceName: 'posts',
+      filterByTk: [1, 2],
+      values: { title: 'form' },
+      triggerWorkflows: workflowRecord.key,
+    });
+    const next = vi.fn();
+
+    await trigger.triggerAction(ctx as any, next);
+
+    expect(workflow.trigger).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+  });
+
   it('trigger should apply tenant filter to workflow resource payload lookup', async () => {
     const workflowRecord = {
       key: 'wf-key',

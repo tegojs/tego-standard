@@ -141,4 +141,61 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       expect.objectContaining({ transaction }),
     );
   });
+
+  it('should preserve numeric zero tenant ids when loading records to schedule', async () => {
+    const record = {
+      get: vi.fn((key: string) => {
+        if (key === 'tenantId') {
+          return 0;
+        }
+        return undefined;
+      }),
+      tenantId: 0,
+    };
+    const tenant = {
+      get: vi.fn((key: string) => (key === 'id' ? 0 : undefined)),
+      toJSON: vi.fn(() => ({ id: 0 })),
+    };
+    const tenantRepo = {
+      find: vi.fn().mockResolvedValue([tenant]),
+    };
+    const db = {
+      getCollection: vi.fn().mockReturnValue({
+        options: { tenancy: 'tenantScoped' },
+        model: {
+          findAll: vi.fn().mockResolvedValue([record]),
+        },
+      }),
+      getRepository: vi.fn((name: string) => (name === 'tenants' ? tenantRepo : undefined)),
+      options: {
+        dialect: 'sqlite',
+      },
+    };
+    const workflowPlugin = {
+      app: {
+        on: vi.fn(),
+        db,
+      },
+    } as any;
+    const trigger = new DateFieldScheduleTrigger(workflowPlugin);
+
+    const records = await trigger.loadRecordsToSchedule(
+      {
+        allExecuted: 0,
+        config: {
+          collection: 'posts',
+          startsOn: { field: 'startsAt' },
+        },
+      } as any,
+      new Date(),
+    );
+
+    expect(tenantRepo.find).toHaveBeenCalledWith({
+      filter: {
+        id: [0],
+        enabled: true,
+      },
+    });
+    expect(records).toHaveLength(1);
+  });
 });

@@ -16,6 +16,11 @@ class CustomActionInterceptionError extends Error {
     this.name = 'CustomActionInterceptionError';
   }
 }
+
+function isEmptyLookupResult(data: any) {
+  return !data || (Array.isArray(data) && data.length === 0);
+}
+
 export class OmniTrigger extends Trigger {
   static TYPE = 'general-action';
   constructor(workflow) {
@@ -105,7 +110,7 @@ export class OmniTrigger extends Trigger {
         } else {
           data = await repository.findOne({ ...findOptions, context: ctx });
         }
-        if (!data) {
+        if (isEmptyLookupResult(data)) {
           continue;
         }
         Object.assign(data, formData);
@@ -115,7 +120,7 @@ export class OmniTrigger extends Trigger {
           appends,
         });
         data = await repository.find({ ...findOptions, context: ctx });
-        if (!data) {
+        if (isEmptyLookupResult(data)) {
           continue;
         }
         Object.assign(data, formData);

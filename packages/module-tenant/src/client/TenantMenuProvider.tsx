@@ -5,7 +5,7 @@ import { useSwitchTenant } from './useSwitchTenant';
 
 const TENANT_MENU_KEY = 'tenant';
 
-export const TenantMenuProvider = ({ children }) => {
+export const TenantMenuProvider = ({ children }: { children?: React.ReactNode }) => {
   const { addItem, removeItem } = useCurrentNavigationMenu();
   const switchTenant = useSwitchTenant();
 

@@ -16,8 +16,9 @@ const NavigationMenuItems = () => {
 
   return (
     <>
-      {getItems().map((item) =>
+      {getItems().map((item, index) =>
         React.cloneElement(item, {
+          key: item.key ?? `navigation-item-${index}`,
           className: [item.props.className, styles.navigationItem].filter(Boolean).join(' '),
         }),
       )}

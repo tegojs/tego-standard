@@ -1,6 +1,7 @@
 import { ICollection, Model, parseCollectionName, Transactionable } from '@tego/server';
 
 import Trigger from '.';
+import { getCurrentTenantIdFromState } from '../helpers/tenant-context';
 import type { WorkflowModel } from '../types';
 import { toJSON } from '../utils';
 
@@ -35,7 +36,7 @@ function getFieldRawName(collection: ICollection, name: string) {
 }
 
 function pickTenantState(state: Record<string, any> = {}) {
-  const currentTenantId = state.currentTenantId ?? state.currentTenant?.id;
+  const currentTenantId = getCurrentTenantIdFromState(state);
 
   if (currentTenantId === null || currentTenantId === undefined) {
     return undefined;

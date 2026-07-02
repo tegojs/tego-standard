@@ -41,7 +41,7 @@
   "Submit": "提交",
   "Tenant ID": "租户 ID",
   "Tenant access denied": "租户访问被拒绝",
-  "Tenant impersonation": "租户代入操作",
+  "Tenant impersonation": "租户冒用代入",
   "Update": "编辑",
   "Update record": "编辑数据",
   "User": "用户",

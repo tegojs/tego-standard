@@ -57,7 +57,13 @@ function filePathFromId(id: string) {
  * 其余已知问题包继续在 transform 阶段剥离 sourcemap。
  */
 function stripBrokenSourcemaps(): Plugin {
-  const brokenPkgs = ['@antv/scale/', '@antv/coord/', '@antv/g2-extension-plot/', 'react-zoom-pan-pinch/'];
+  const brokenPkgs = [
+    '@antv/scale/',
+    '@antv/coord/',
+    '@antv/g2-extension-plot/',
+    '@antv/layout/',
+    'react-zoom-pan-pinch/',
+  ];
   return {
     name: 'strip-broken-sourcemaps',
     enforce: 'pre',

@@ -43,6 +43,20 @@ overrides:
   tego: 1.6.15
   wrap-ansi: 7.0.0
 
+patchedDependencies:
+  '@antv/coord@0.4.7':
+    hash: fc3a89a711147ef9dd139b8da1eafcb023dcc0fb2bf13e8bba9ce88cfb3d4cad
+    path: patches/@antv__coord@0.4.7.patch
+  '@antv/g2-extension-plot@0.2.2':
+    hash: 6de2d09eae903f2ed392f663fbde7126708d1577f98fd7e142d0d02921fc2a88
+    path: patches/@antv__g2-extension-plot@0.2.2.patch
+  '@antv/layout@1.2.14-beta.9':
+    hash: 4c6890d555faf3f791ae45769861e44bbdf318bb3c9d8109605f19d7555a1d61
+    path: patches/@antv__layout@1.2.14-beta.9.patch
+  '@antv/scale@0.4.16':
+    hash: d557671b9fdf801b4f75e56ac09dce69300095db47dab47a50a5d36f43f941a6
+    path: patches/@antv__scale@0.4.16.patch
+
 importers:
 
   .:
@@ -17357,7 +17371,7 @@ snapshots:
       '@antv/event-emitter': 0.1.3
       '@antv/g': 6.1.28
       '@antv/g2': 5.4.8
-      '@antv/g2-extension-plot': 0.2.2
+      '@antv/g2-extension-plot': 0.2.2(patch_hash=6de2d09eae903f2ed392f663fbde7126708d1577f98fd7e142d0d02921fc2a88)
       lodash: 4.17.21
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -17640,20 +17654,20 @@ snapshots:
   '@antv/component@2.1.11':
     dependencies:
       '@antv/g': 6.1.28
-      '@antv/scale': 0.4.16
+      '@antv/scale': 0.4.16(patch_hash=d557671b9fdf801b4f75e56ac09dce69300095db47dab47a50a5d36f43f941a6)
       '@antv/util': 3.3.11
       svg-path-parser: 1.1.0
 
   '@antv/component@2.1.5':
     dependencies:
       '@antv/g': 6.1.27
-      '@antv/scale': 0.4.16
+      '@antv/scale': 0.4.16(patch_hash=d557671b9fdf801b4f75e56ac09dce69300095db47dab47a50a5d36f43f941a6)
       '@antv/util': 3.3.11
       svg-path-parser: 1.1.0
 
-  '@antv/coord@0.4.7':
+  '@antv/coord@0.4.7(patch_hash=fc3a89a711147ef9dd139b8da1eafcb023dcc0fb2bf13e8bba9ce88cfb3d4cad)':
     dependencies:
-      '@antv/scale': 0.4.16
+      '@antv/scale': 0.4.16(patch_hash=d557671b9fdf801b4f75e56ac09dce69300095db47dab47a50a5d36f43f941a6)
       '@antv/util': 2.0.17
       gl-matrix: 3.4.3
 
@@ -17874,7 +17888,7 @@ snapshots:
       '@babel/runtime': 7.29.7
       tslib: 2.8.1
 
-  '@antv/g2-extension-plot@0.2.2':
+  '@antv/g2-extension-plot@0.2.2(patch_hash=6de2d09eae903f2ed392f663fbde7126708d1577f98fd7e142d0d02921fc2a88)':
     dependencies:
       '@antv/g2': 5.4.8
       '@antv/util': 3.3.11
@@ -17883,7 +17897,7 @@ snapshots:
   '@antv/g2@5.4.8':
     dependencies:
       '@antv/component': 2.1.11
-      '@antv/coord': 0.4.7
+      '@antv/coord': 0.4.7(patch_hash=fc3a89a711147ef9dd139b8da1eafcb023dcc0fb2bf13e8bba9ce88cfb3d4cad)
       '@antv/event-emitter': 0.1.3
       '@antv/expr': 1.0.2
       '@antv/g': 6.1.28
@@ -17905,7 +17919,7 @@ snapshots:
       '@antv/g-plugin-dragndrop': 2.0.37
       '@antv/graphlib': 2.0.4
       '@antv/hierarchy': 0.6.14
-      '@antv/layout': 1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)(lightningcss@1.26.0)(postcss@8.5.6)))
+      '@antv/layout': 1.2.14-beta.9(patch_hash=4c6890d555faf3f791ae45769861e44bbdf318bb3c9d8109605f19d7555a1d61)(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)(lightningcss@1.26.0)(postcss@8.5.6)))
       '@antv/util': 3.3.11
       bubblesets-js: 2.3.4
     transitivePeerDependencies:
@@ -17933,7 +17947,7 @@ snapshots:
 
   '@antv/hierarchy@0.6.14': {}
 
-  '@antv/layout@1.2.14-beta.9(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)(lightningcss@1.26.0)(postcss@8.5.6)))':
+  '@antv/layout@1.2.14-beta.9(patch_hash=4c6890d555faf3f791ae45769861e44bbdf318bb3c9d8109605f19d7555a1d61)(workerize-loader@2.0.2(webpack@5.99.6(esbuild@0.25.6)(lightningcss@1.26.0)(postcss@8.5.6)))':
     dependencies:
       '@antv/event-emitter': 0.1.3
       '@antv/graphlib': 2.0.4
@@ -17950,7 +17964,7 @@ snapshots:
     transitivePeerDependencies:
       - workerize-loader
 
-  '@antv/scale@0.4.16':
+  '@antv/scale@0.4.16(patch_hash=d557671b9fdf801b4f75e56ac09dce69300095db47dab47a50a5d36f43f941a6)':
     dependencies:
       '@antv/util': 3.3.11
       color-string: 1.9.1

@@ -1,7 +1,7 @@
 type OutputStream = 'stdout' | 'stderr' | string;
 
 const knownThirdPartySourcemapWarningPattern =
-  /Sourcemap for ".*node_modules.*@antv(?:[+/\\])(?:scale|coord|g2-extension-plot).*" points to missing source files/;
+  /Sourcemap for ".*node_modules.*@antv(?:[+/\\])(?:scale|coord|g2-extension-plot|layout).*" points to missing source files/;
 
 const expectedNegativePathLogPatterns = [
   /SQL instruction nodes require the pm\.workflow\.sql permission/,

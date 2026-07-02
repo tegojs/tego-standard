@@ -66,6 +66,12 @@ describe('shouldSuppressVitestConsoleOutput', () => {
         'stderr',
       ),
     ).toBe(true);
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        'Sourcemap for "/home/runner/work/tego-standard/tego-standard/node_modules/.pnpm/@antv+layout@1.2.14-beta.9__30feb94bfd9426a51f2c6e8f356b0b47/node_modules/@antv/layout/esm/index.js" points to missing source files',
+        'stderr',
+      ),
+    ).toBe(true);
   });
 
   it('matches known third-party sourcemap warnings at Vite logger level', () => {

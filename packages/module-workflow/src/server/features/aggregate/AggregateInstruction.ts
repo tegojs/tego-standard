@@ -18,15 +18,13 @@ export default class extends Instruction {
     const [dataSourceName, collectionName] = parseCollectionName(collection);
     const { collectionManager } = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
     const targetCollection = collectionManager.getCollection(collectionName);
-    const aggregateCollection = associated
-      ? collectionManager.getCollection(association?.associatedCollection)
-      : targetCollection;
     const repo = associated
       ? collectionManager.getRepository(
           `${association?.associatedCollection}.${association.name}`,
           processor.getParsedValue(association?.associatedKey, node.id),
         )
       : collectionManager.getRepository(collectionName);
+    const aggregateCollection = repo.collection || targetCollection;
 
     if (!options.dataType && aggregator === 'avg') {
       options.dataType = DataTypes.DOUBLE;

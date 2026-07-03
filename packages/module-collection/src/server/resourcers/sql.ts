@@ -1,5 +1,7 @@
 import { Context, Next, SqlCollection, SQLModel } from '@tego/server';
 
+import { AST, Parser } from 'node-sql-parser';
+
 import { CollectionModel } from '../models';
 
 /**
@@ -61,138 +63,81 @@ const updateCollection = async (ctx: Context, transaction: any) => {
   return { collection, upRes };
 };
 
-function readDollarQuoteTag(sql: string, index: number) {
-  const match = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(index));
-  return match?.[0];
-}
+const sqlParser = new Parser();
+const SQL_PARSE_DIALECTS = ['postgresql', 'mysql', 'sqlite'];
 
 export function stripSqlCommentsAndLiterals(sql: string) {
-  let normalized = '';
-  let index = 0;
-
-  while (index < sql.length) {
-    const char = sql[index];
-    const next = sql[index + 1];
-
-    if (char === "'") {
-      normalized += ' ';
-      index += 1;
-      while (index < sql.length) {
-        if (sql[index] === "'" && sql[index + 1] === "'") {
-          index += 2;
-          continue;
-        }
-        if (sql[index] === "'") {
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      normalized += ' ';
-      index += 1;
-      while (index < sql.length) {
-        if (sql[index] === '"' && sql[index + 1] === '"') {
-          index += 2;
-          continue;
-        }
-        if (sql[index] === '"') {
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
-      continue;
-    }
-
-    if (char === '`') {
-      normalized += ' ';
-      index += 1;
-      while (index < sql.length) {
-        if (sql[index] === '`' && sql[index + 1] === '`') {
-          index += 2;
-          continue;
-        }
-        if (sql[index] === '`') {
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
-      continue;
-    }
-
-    if (char === '[') {
-      normalized += ' ';
-      index += 1;
-      while (index < sql.length) {
-        if (sql[index] === ']') {
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
-      continue;
-    }
-
-    const dollarQuoteTag = char === '$' ? readDollarQuoteTag(sql, index) : undefined;
-    if (dollarQuoteTag) {
-      normalized += ' ';
-      index += dollarQuoteTag.length;
-      const closingIndex = sql.indexOf(dollarQuoteTag, index);
-      index = closingIndex === -1 ? sql.length : closingIndex + dollarQuoteTag.length;
-      continue;
-    }
-
-    if (char === '-' && next === '-') {
-      normalized += ' ';
-      index += 2;
-      while (index < sql.length && sql[index] !== '\n' && sql[index] !== '\r') {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (char === '#') {
-      normalized += ' ';
-      index += 1;
-      while (index < sql.length && sql[index] !== '\n' && sql[index] !== '\r') {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (char === '/' && next === '*') {
-      normalized += ' ';
-      index += 2;
-      while (index < sql.length) {
-        if (sql[index] === '*' && sql[index + 1] === '/') {
-          index += 2;
-          break;
-        }
-        index += 1;
-      }
-      continue;
-    }
-
-    normalized += char;
-    index += 1;
+  const ast = parseSql(sql);
+  if (!ast) {
+    return '';
   }
 
-  return normalized;
+  return sqlParser.sqlify(ast);
 }
 
-export function isReadOnlyPreviewSql(sql: string) {
-  const normalized = stripSqlCommentsAndLiterals(sql).trim();
-  const startsWithRead = /^select\b/i.test(normalized) || /^with\b[\s\S]+\bselect\b/i.test(normalized);
-  if (!startsWithRead) {
+function parseSql(sql: string) {
+  for (const database of SQL_PARSE_DIALECTS) {
+    try {
+      return sqlParser.astify(sql, { database });
+    } catch {
+      // Try the next supported SQL dialect.
+    }
+  }
+
+  return null;
+}
+
+type ReadOnlyAst = AST & {
+  _next?: AST;
+  into?: { position?: string | null } | null;
+  with?: Array<{
+    stmt?: AST | { ast?: AST };
+  }> | null;
+};
+
+function getWithStatement(stmt: ReadOnlyAst['with'][number]['stmt']) {
+  if (!stmt) {
+    return null;
+  }
+
+  return 'ast' in stmt && stmt.ast ? stmt.ast : (stmt as AST);
+}
+
+function isReadOnlyStatement(ast: AST): boolean {
+  const statement = ast as ReadOnlyAst;
+  if (statement.type !== 'select') {
     return false;
   }
 
-  return !/\b(insert|update|delete|merge|replace\b(?!\s*\()|create|alter|drop|truncate)\b/i.test(normalized);
+  if (statement.into?.position) {
+    return false;
+  }
+
+  if (
+    statement.with?.some((item) => !getWithStatement(item.stmt) || !isReadOnlyStatement(getWithStatement(item.stmt)))
+  ) {
+    return false;
+  }
+
+  if (statement._next && !isReadOnlyStatement(statement._next)) {
+    return false;
+  }
+
+  return true;
+}
+
+export function isReadOnlyPreviewSql(sql: string) {
+  const ast = parseSql(sql);
+  if (!ast) {
+    return false;
+  }
+
+  const statements = Array.isArray(ast) ? ast : [ast];
+  if (statements.length !== 1) {
+    return false;
+  }
+
+  return isReadOnlyStatement(statements[0]);
 }
 
 /**

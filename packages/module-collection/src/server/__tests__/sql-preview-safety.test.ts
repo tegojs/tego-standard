@@ -39,4 +39,12 @@ describe('sqlCollection preview SQL safety', () => {
 
     expect(isReadOnlyPreviewSql(sql)).toBe(true);
   });
+
+  it('rejects additional statements after a read-only query', () => {
+    expect(isReadOnlyPreviewSql('SELECT 1; DELETE FROM accounts')).toBe(false);
+  });
+
+  it('rejects select into because it creates data', () => {
+    expect(isReadOnlyPreviewSql('SELECT * INTO copied_accounts FROM accounts')).toBe(false);
+  });
 });

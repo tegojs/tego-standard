@@ -18,6 +18,9 @@ catalogs:
     i18next:
       specifier: 25.10.10
       version: 25.10.10
+    node-sql-parser:
+      specifier: 5.3.10
+      version: 5.3.10
 
 overrides:
   '@tachybase/globals': 1.6.15
@@ -742,6 +745,10 @@ importers:
         version: 2.15.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   packages/module-collection:
+    dependencies:
+      node-sql-parser:
+        specifier: 'catalog:'
+        version: 5.3.10
     devDependencies:
       '@hapi/topo':
         specifier: ^6.0.2

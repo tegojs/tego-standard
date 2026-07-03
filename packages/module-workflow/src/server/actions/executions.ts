@@ -20,7 +20,7 @@ function isTenantPluginEnabled(ctx: Context) {
   for (const pluginManager of pluginManagers) {
     try {
       const tenantPlugin = pluginManager?.get?.('tenant');
-      if (tenantPlugin?.enabled === true || tenantPlugin?.name === 'tenant') {
+      if (tenantPlugin?.enabled === true) {
         return true;
       }
     } catch {

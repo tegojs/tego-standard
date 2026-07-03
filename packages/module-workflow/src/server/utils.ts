@@ -54,12 +54,13 @@ export async function triggerWorkflowAndGetExecution(
     const retryDelay = 200;
     const tenantState = options.context?.state || options.httpContext?.state || (context as any)?.state;
     const tenantId = getCurrentTenantIdFromState(tenantState);
+    const tenantFilter = tenantId === null || tenantId === undefined ? {} : { tenantId };
     for (let i = 0; i < maxRetries; i++) {
       await new Promise((resolve) => setTimeout(resolve, retryDelay));
       execution = await ExecutionRepo.findOne({
         filter: {
           key: workflow.key,
-          ...(tenantId ? { tenantId } : {}),
+          ...tenantFilter,
           createdAt: {
             [Op.gte]: beforeTriggerTime,
           },

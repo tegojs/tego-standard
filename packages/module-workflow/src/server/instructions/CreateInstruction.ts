@@ -31,6 +31,12 @@ export class CreateInstruction extends Instruction {
     const fieldNames = Object.keys(params.values);
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
     const repositoryContext = processor.getRepositoryContext();
+    if (!repositoryContext.state?.currentUser && repositoryContext.state?.currentUserId != null) {
+      repositoryContext.state = {
+        ...repositoryContext.state,
+        currentUser: { id: repositoryContext.state.currentUserId },
+      };
+    }
 
     const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
     const token = this.workflow.app.authManager.jwt.sign({ userId });

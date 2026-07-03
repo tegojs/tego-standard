@@ -38,7 +38,7 @@ describe('workflow > actions > tenant executions boundary', () => {
 
   afterAll(() => app.destroy());
 
-  function tenantState(tenantId: string, legacyDataTenantIds: string[] = []) {
+  function tenantState(tenantId: string | number, legacyDataTenantIds: string[] = []) {
     return {
       currentTenant: { id: tenantId, name: tenantId },
       currentTenantId: tenantId,
@@ -287,6 +287,37 @@ describe('workflow > actions > tenant executions boundary', () => {
     expect(capturedFilter).toMatchObject({
       key: 'workflow-key',
       tenantId: 'tenant-a',
+    });
+  });
+
+  it('triggerWorkflowAndGetExecution should preserve numeric zero tenant id when polling queued executions', async () => {
+    let capturedFilter: any;
+    const execution = { id: 1 };
+    const dbMock = {
+      getRepository: () => ({
+        async findOne(options: any) {
+          capturedFilter = options.filter;
+          return execution;
+        },
+      }),
+    };
+    const pluginMock = {
+      isWorkflowSync: () => false,
+      trigger: async () => undefined,
+    };
+
+    const result = await triggerWorkflowAndGetExecution(
+      pluginMock as any,
+      { key: 'workflow-key' } as any,
+      { state: tenantState(0) },
+      {},
+      dbMock as any,
+    );
+
+    expect(result).toBe(execution);
+    expect(capturedFilter).toMatchObject({
+      key: 'workflow-key',
+      tenantId: 0,
     });
   });
 });

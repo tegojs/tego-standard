@@ -274,7 +274,7 @@ export class OmniTrigger extends Trigger {
                 ...findOptions,
                 context: ctx,
               });
-              if (!payload) {
+              if (isEmptyLookupResult(payload)) {
                 continue;
               }
             }
@@ -298,7 +298,7 @@ export class OmniTrigger extends Trigger {
             ...findOptions,
             context: ctx,
           });
-          if (!data) {
+          if (isEmptyLookupResult(data)) {
             continue;
           }
         }

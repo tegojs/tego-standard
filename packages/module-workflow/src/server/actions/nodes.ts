@@ -266,10 +266,14 @@ export async function update(ctx: Context, next) {
     nodeWithWorkflow =
       nodeWithWorkflow ||
       (await repository.findOne({
-        filterByTk,
+        ...(filterByTk ? { filterByTk } : { filter }),
         appends: ['workflow.executed'],
+        context: ctx,
         transaction,
       }));
+    if (!nodeWithWorkflow) {
+      ctx.throw(404, 'Node not found');
+    }
     const { workflow } = nodeWithWorkflow;
     if (workflow.executed) {
       ctx.throw(400, 'Nodes in executed workflow could not be reconfigured');

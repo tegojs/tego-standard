@@ -19,9 +19,16 @@ export class QueryInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const targetCollection = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    if (!dataSource) {
+      throw new Error(`collection ${collectionName} for query data on query node not found`);
+    }
+
+    const targetCollection = dataSource.collectionManager.getCollection(collectionName);
+    if (!targetCollection?.repository) {
+      throw new Error(`collection ${collectionName} for query data on query node not found`);
+    }
+
     const { repository } = targetCollection;
     const { page, pageSize, sort = [], paginate = true, ...options } = processor.getParsedValue(params, node.id);
 

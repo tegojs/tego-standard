@@ -16,6 +16,15 @@ const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
 const TENANT_ENABLED_MODES = ['tenantScoped', 'tenantInherited'];
 export const NEVER_MATCH_TENANT_FILTER = { id: -1 };
 
+function buildPathPrefixFilter(path: string) {
+  return {
+    path: {
+      $gte: path,
+      $lt: `${path}\uffff`,
+    },
+  };
+}
+
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {
     return filter;
@@ -248,7 +257,10 @@ export async function getDescendantTenantIds(
   }
 
   const descendants = await repo.find({
-    filter: options.enabledOnly ? { enabled: true } : undefined,
+    filter: {
+      ...(options.enabledOnly ? { enabled: true } : {}),
+      ...buildPathPrefixFilter(path),
+    },
     fields: ['id', 'path'],
   });
 

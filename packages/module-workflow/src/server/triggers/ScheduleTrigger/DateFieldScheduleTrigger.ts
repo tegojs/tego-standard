@@ -90,6 +90,10 @@ function isTenantCollection(collection) {
   return collection?.options?.tenancy === 'tenantScoped' || collection?.options?.tenancy === 'tenantInherited';
 }
 
+function getLegacyDataTenantIds(collection): Array<string | number> {
+  return Array.isArray(collection?.options?.legacyDataTenantIds) ? collection.options.legacyDataTenantIds : [];
+}
+
 async function buildTenantContext(db, collection, record, tenant?, descendantIdsCache = new Map<string, string[]>()) {
   const tenancyMode = collection?.options?.tenancy;
   if (!isTenantCollection(collection)) {
@@ -115,6 +119,7 @@ async function buildTenantContext(db, collection, record, tenant?, descendantIds
       currentTenant: tenant?.toJSON?.() ?? { id: tenantId },
       currentTenantId: tenantId,
       currentTenantDescendantIds: descendantIds,
+      currentLegacyDataTenantIds: getLegacyDataTenantIds(collection),
       currentTenancyMode: tenancyMode,
     },
   };
@@ -304,9 +309,16 @@ export default class ScheduleTrigger {
       return records;
     }
 
-    const tenantIds = Array.from(
-      new Set(records.map((record) => record.get('tenantId')).filter((tenantId) => tenantId != null)),
-    );
+    const legacyDataTenantIds = getLegacyDataTenantIds(targetCollection);
+    const hasLegacyRecords = records.some((record) => {
+      const tenantId = record.get('tenantId');
+      return tenantId === null || tenantId === undefined;
+    });
+    const tenantIdSet = new Set(records.map((record) => record.get('tenantId')).filter((tenantId) => tenantId != null));
+    if (hasLegacyRecords) {
+      legacyDataTenantIds.forEach((tenantId) => tenantIdSet.add(tenantId));
+    }
+    const tenantIds = Array.from(tenantIdSet);
     if (!tenantIds.length) {
       return [];
     }
@@ -323,7 +335,10 @@ export default class ScheduleTrigger {
     const recordsWithTenantContext = await Promise.all(
       records.map(async (record) => {
         const tenantId = record.get('tenantId');
-        const tenant = tenantId === null || tenantId === undefined ? null : tenantsById.get(`${tenantId}`);
+        const tenant =
+          tenantId === null || tenantId === undefined
+            ? legacyDataTenantIds.map((id) => tenantsById.get(`${id}`)).find(Boolean)
+            : tenantsById.get(`${tenantId}`);
         if (!tenant) {
           return null;
         }

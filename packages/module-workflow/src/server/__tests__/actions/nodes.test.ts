@@ -2,6 +2,7 @@ import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
+import { update as updateNodeAction } from '../../actions/nodes';
 import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../utils';
 
 describe('workflow > actions > workflows', () => {
@@ -97,5 +98,85 @@ describe('workflow > actions > workflows', () => {
       const nodes = await workflow.getNodes();
       expect(nodes.length).toBe(0);
     });
+  });
+});
+
+describe('workflow > actions > nodes update guard', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should throw 404 when filter-based node lookup finds no node', async () => {
+    const repository = {
+      find: vi.fn().mockResolvedValue([]),
+      findOne: vi.fn().mockResolvedValue(null),
+    };
+    const ctx: any = {
+      db: {
+        getRepository: vi.fn(() => repository),
+        sequelize: {
+          transaction: async (callback) => callback('tx-1'),
+        },
+      },
+      action: {
+        resourceName: 'flow_nodes',
+        actionName: 'update',
+        params: {
+          filter: { id: 404 },
+          values: { title: 'missing' },
+        },
+      },
+      throw: vi.fn((status: number, message: string) => {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      }),
+    };
+
+    await expect(updateNodeAction(ctx, vi.fn())).rejects.toMatchObject({
+      status: 404,
+      message: 'Node not found',
+    });
+  });
+
+  it('should reuse filter and context when loading workflow state for filter-based updates', async () => {
+    const nodeWithWorkflow = {
+      workflow: {
+        executed: false,
+      },
+    };
+    const repository = {
+      find: vi.fn().mockResolvedValue([]),
+      findOne: vi.fn().mockResolvedValue(nodeWithWorkflow),
+      update: vi.fn().mockResolvedValue([nodeWithWorkflow]),
+    };
+    const ctx: any = {
+      db: {
+        getRepository: vi.fn(() => repository),
+        sequelize: {
+          transaction: async (callback) => callback('tx-1'),
+        },
+      },
+      action: {
+        resourceName: 'flow_nodes',
+        actionName: 'update',
+        params: {
+          filter: { workflowId: 1 },
+          values: { title: 'updated' },
+        },
+      },
+      throw: vi.fn(),
+    };
+    const next = vi.fn();
+
+    await updateNodeAction(ctx, next);
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      filter: { workflowId: 1 },
+      appends: ['workflow.executed'],
+      context: ctx,
+      transaction: 'tx-1',
+    });
+    expect(next).toHaveBeenCalled();
   });
 });

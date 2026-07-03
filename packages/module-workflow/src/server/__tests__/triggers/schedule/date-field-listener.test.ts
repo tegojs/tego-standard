@@ -198,4 +198,64 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     });
     expect(records).toHaveLength(1);
   });
+
+  it('should keep legacy tenant records when the collection allows legacy reads', async () => {
+    const record = {
+      get: vi.fn((key: string) => {
+        if (key === 'tenantId') {
+          return null;
+        }
+        return undefined;
+      }),
+      tenantId: null,
+    };
+    const tenant = {
+      get: vi.fn((key: string) => (key === 'id' ? 'tenant-a' : undefined)),
+      toJSON: vi.fn(() => ({ id: 'tenant-a' })),
+    };
+    const tenantRepo = {
+      find: vi.fn().mockResolvedValue([tenant]),
+    };
+    const db = {
+      getCollection: vi.fn().mockReturnValue({
+        options: {
+          tenancy: 'tenantScoped',
+          legacyDataTenantIds: ['tenant-a'],
+        },
+        model: {
+          findAll: vi.fn().mockResolvedValue([record]),
+        },
+      }),
+      getRepository: vi.fn((name: string) => (name === 'tenants' ? tenantRepo : undefined)),
+      options: {
+        dialect: 'sqlite',
+      },
+    };
+    const workflowPlugin = {
+      app: {
+        on: vi.fn(),
+        db,
+      },
+    } as any;
+    const trigger = new DateFieldScheduleTrigger(workflowPlugin);
+
+    const records = await trigger.loadRecordsToSchedule(
+      {
+        allExecuted: 0,
+        config: {
+          collection: 'posts',
+          startsOn: { field: 'startsAt' },
+        },
+      } as any,
+      new Date(),
+    );
+
+    expect(tenantRepo.find).toHaveBeenCalledWith({
+      filter: {
+        id: ['tenant-a'],
+        enabled: true,
+      },
+    });
+    expect(records).toHaveLength(1);
+  });
 });

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { isReadOnlyPreviewSql } from '../resourcers/sql';
+import { isReadOnlyPreviewSql, runReadOnlyPreviewQuery } from '../resourcers/sql';
 
 describe('sqlCollection preview SQL safety', () => {
   it('does not let string literal comment markers hide writable CTE keywords', () => {
@@ -46,5 +46,46 @@ describe('sqlCollection preview SQL safety', () => {
 
   it('rejects select into because it creates data', () => {
     expect(isReadOnlyPreviewSql('SELECT * INTO copied_accounts FROM accounts')).toBe(false);
+  });
+
+  it('runs preview query in a database read-only transaction', async () => {
+    const transaction = { id: 'preview-readonly-tx' };
+    const calls: string[] = [];
+    const query = vi.fn(async () => {
+      calls.push('set-readonly');
+    });
+    const transactionFn = vi.fn(async (options, callback) => {
+      calls.push('transaction');
+      expect(options).toMatchObject({ readOnly: true });
+      return callback(transaction);
+    });
+    const findAll = vi.fn(async (options) => {
+      calls.push('find');
+      expect(options).toMatchObject({
+        attributes: ['*'],
+        limit: 5,
+        raw: true,
+        transaction,
+      });
+      return [{ id: 1 }];
+    });
+
+    const result = await runReadOnlyPreviewQuery(
+      {
+        db: {
+          options: { dialect: 'postgres' },
+          sequelize: {
+            getDialect: () => 'postgres',
+            query,
+            transaction: transactionFn,
+          },
+        },
+      } as any,
+      { findAll } as any,
+    );
+
+    expect(result).toEqual([{ id: 1 }]);
+    expect(query).toHaveBeenCalledWith('SET TRANSACTION READ ONLY', { transaction });
+    expect(calls).toEqual(['transaction', 'set-readonly', 'find']);
   });
 });

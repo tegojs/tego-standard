@@ -1,6 +1,7 @@
 import { Context, Next, SqlCollection, SQLModel } from '@tego/server';
 
 import { AST, Parser } from 'node-sql-parser';
+import type { Transaction } from 'sequelize';
 
 import { CollectionModel } from '../models';
 
@@ -140,6 +141,25 @@ export function isReadOnlyPreviewSql(sql: string) {
   return isReadOnlyStatement(statements[0]);
 }
 
+function getDialect(ctx: Context) {
+  return ctx.db.sequelize.getDialect?.() || ctx.db.options?.dialect;
+}
+
+async function applyReadOnlyTransactionGuard(ctx: Context, transaction: Transaction) {
+  if (getDialect(ctx) === 'postgres') {
+    await ctx.db.sequelize.query('SET TRANSACTION READ ONLY', { transaction });
+  }
+}
+
+export async function runReadOnlyPreviewQuery(ctx: Context, model: typeof SQLModel) {
+  return ctx.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
+    await applyReadOnlyTransactionGuard(ctx, transaction);
+
+    // The result is for preview only, add limit clause to avoid too many results.
+    return model.findAll({ attributes: ['*'], limit: 5, raw: true, transaction });
+  });
+}
+
 /**
  * SQL collection resource.
  *
@@ -171,8 +191,7 @@ export default {
       }
       const tmpCollection = new SqlCollection({ name: 'tmp', sql }, { database: ctx.db });
       const model = tmpCollection.model as typeof SQLModel;
-      // The result is for preview only, add limit clause to avoid too many results
-      const data = await model.findAll({ attributes: ['*'], limit: 5, raw: true });
+      const data = await runReadOnlyPreviewQuery(ctx, model);
       let fields: {
         [field: string]: {
           type: string;

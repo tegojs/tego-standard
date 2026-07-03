@@ -1,6 +1,12 @@
 import type { Context, Next } from '@tego/server';
 
-function toPublicTenant(tenant: any) {
+type PublicTenantSource = {
+  id: string;
+  name?: string;
+  title?: string;
+};
+
+function toPublicTenant(tenant: PublicTenantSource | null | undefined) {
   if (!tenant) {
     return null;
   }

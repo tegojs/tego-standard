@@ -7,6 +7,11 @@
 
 ## [未发布]
 
+### 🐛 修复
+
+- **client**: 恢复网格模式拖动上下文 ([#396](https://github.com/tegojs/tego-standard/pull/396)) [2603533](https://github.com/tegojs/tego-standard/commit/26035333c96c6d38225fbb3fbe894530a4371e36) (@TomyJan)
+- **auth**: 处理过期的令牌响应状态 ([#395](https://github.com/tegojs/tego-standard/pull/395)) [7a430b9](https://github.com/tegojs/tego-standard/commit/7a430b9fc8d4ce75d7f719b2358404acbc8033fd) (@TomyJan)
+
 
 
 ## [1.6.22] - 2026-06-16

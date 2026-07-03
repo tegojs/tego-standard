@@ -90,6 +90,26 @@ pnpm test --coverage
 open coverage/index.html
 ```
 
+## Focused Validation / 聚焦验证
+
+- Prefer the smallest targeted command that proves the touched behavior before running the full suite.
+- 优先运行能证明当前改动的最小聚焦命令，不要一开始就跑全量测试。
+- Use direct Vitest file runs for narrow server/client changes:
+- 对窄范围服务端或客户端改动，优先直接运行对应 Vitest 文件：
+
+```bash
+pnpm exec vitest run packages/<package>/src/**/__tests__/<test-file>.test.ts --reporter=default
+```
+
+- Run `pnpm exec oxlint <changed-files>` after TypeScript/JavaScript changes when a narrower lint check is enough.
+- 修改 TypeScript/JavaScript 后，如无需全量 lint，可先运行 `pnpm exec oxlint <changed-files>`。
+- Run the relevant package build when adding runtime dependencies, changing exported types, modifying build-sensitive code, or fixing a CI build failure.
+- 添加运行时依赖、修改导出类型、触碰构建敏感代码或修复 CI 构建失败时，必须跑相关包构建。
+- After build commands, check `git status --short` and keep generated artifacts out of the commit unless they are intentional deliverables.
+- 构建命令后检查 `git status --short`，不要把非预期生成产物带进提交。
+- When changing package dependencies or catalog entries, use `pnpm` and commit the updated lockfile together with the package change.
+- 修改 package 依赖或 catalog 条目时，使用 `pnpm`，并把 lockfile 与 package 变更一起提交。
+
 ## Common Test Patterns / 常见测试模式
 
 ### Testing Async Operations / 测试异步操作

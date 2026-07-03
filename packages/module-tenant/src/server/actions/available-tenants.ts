@@ -25,9 +25,14 @@ export async function availableTenants(ctx: Context, next: Next) {
     return;
   }
 
+  const currentUserId = ctx.state.currentUser?.id;
+  if (currentUserId == null) {
+    ctx.throw(401, 'Authentication required');
+  }
+
   const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
     filter: {
-      userId: ctx.state.currentUser?.id,
+      userId: currentUserId,
     },
   });
 

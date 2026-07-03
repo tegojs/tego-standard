@@ -13,6 +13,7 @@ export default defineCollection({
       type: 'bigInt',
       name: 'userId',
       primaryKey: true,
+      index: true,
     },
     {
       type: 'boolean',

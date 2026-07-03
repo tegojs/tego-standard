@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { availableTenants } from '../actions/available-tenants';
 import { switchTenant } from '../actions/switch-tenant';
 
 describe('switchTenant action', () => {
@@ -95,5 +96,30 @@ describe('switchTenant action', () => {
     expect(ctx.state.currentTenantId).toBe('tenant-b');
     expect(ctx.body).toEqual({ id: 'tenant-b', title: 'Tenant B' });
     expect(next).toHaveBeenCalled();
+  });
+});
+
+describe('availableTenants action', () => {
+  it('should reject unauthenticated requests before tenantUsers repository access', async () => {
+    const next = vi.fn();
+    const tenantUsersFind = vi.fn();
+    const ctx: any = {
+      db: {
+        getRepository: vi.fn(() => ({ find: tenantUsersFind })),
+      },
+      state: {},
+      throw: vi.fn((status: number, message: string) => {
+        const error: any = new Error(message);
+        error.status = status;
+        throw error;
+      }),
+    };
+
+    await expect(availableTenants(ctx, next)).rejects.toMatchObject({
+      status: 401,
+      message: 'Authentication required',
+    });
+    expect(ctx.db.getRepository).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
   });
 });

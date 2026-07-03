@@ -18,7 +18,8 @@ export function buildPath(parentPath: string | null | undefined, id: string): st
 export function buildPathPrefixFilter(path: string) {
   return {
     path: {
-      $includes: path,
+      $gte: path,
+      $lt: `${path}\uffff`,
     },
   };
 }
@@ -42,7 +43,7 @@ async function getDescendantSource(repo: Repository, tenantId: string, options: 
   return {
     path,
     filter: {
-      'id.$ne': tenantId,
+      ...getDescendantPathFilter(path, tenantId),
       enabled: true,
     },
   };

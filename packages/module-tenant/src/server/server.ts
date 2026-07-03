@@ -86,7 +86,24 @@ export class PluginTenantServer extends Plugin {
       return this.app.dataSourceManager.dataSources.get(dataSourceKey);
     };
 
-    const clearInvalidDataSourceKey = (ctx) => {
+    const emitTenantSecurityViolation = (ctx, event: Record<string, any>) => {
+      const app = (ctx as any).tego || (ctx.app as any).__application;
+      const emitter = app && typeof app.emit === 'function' ? app : ctx.app;
+      emitter?.emit?.('tenant.securityViolation', event);
+    };
+
+    const clearInvalidDataSourceKey = (ctx, dataSourceKey: string) => {
+      const event = {
+        type: 'tenant_invalid_data_source_attempt',
+        action: ctx.action?.actionName,
+        collectionName: ctx.action?.resourceName,
+        details: {
+          dataSourceKey,
+          headerDataSource: ctx.get?.('x-data-source') || ctx.get?.('X-data-source') || null,
+          paramDataSource: ctx.action?.params?.dataSource ?? null,
+        },
+      };
+
       for (const headers of [ctx.request?.headers, ctx.request?.header, ctx.headers, ctx.req?.headers]) {
         if (headers) {
           delete headers['x-data-source'];
@@ -97,6 +114,10 @@ export class PluginTenantServer extends Plugin {
       if (ctx.action?.params) {
         delete ctx.action.params.dataSource;
       }
+
+      ctx.state = ctx.state || {};
+      ctx.state.tenantInvalidDataSourceEvent = event;
+      return event;
     };
 
     this.app.use(
@@ -104,7 +125,7 @@ export class PluginTenantServer extends Plugin {
         const dataSourceKey = getRequestedDataSourceKey(ctx);
         const dataSource = getUsableDataSource(ctx, dataSourceKey);
         if (dataSourceKey && dataSourceKey !== 'main' && !dataSource?.collectionManager) {
-          clearInvalidDataSourceKey(ctx);
+          clearInvalidDataSourceKey(ctx, dataSourceKey);
         }
 
         await setCurrentTenant(ctx as Parameters<typeof setCurrentTenant>[0], next);
@@ -155,6 +176,16 @@ export class PluginTenantServer extends Plugin {
 
     this.app.resourcer.use(
       async (ctx, next) => {
+        const invalidDataSourceEvent = ctx.state?.tenantInvalidDataSourceEvent;
+        if (invalidDataSourceEvent) {
+          delete ctx.state.tenantInvalidDataSourceEvent;
+          emitTenantSecurityViolation(ctx, {
+            ...invalidDataSourceEvent,
+            userId: ctx.state?.currentUser?.id ?? ctx.auth?.user?.id,
+            tenantId: ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId ?? null,
+          });
+        }
+
         const dataSourceKey = getRequestedDataSourceKey(ctx);
         if (dataSourceKey && dataSourceKey !== 'main') {
           const dataSource = getUsableDataSource(ctx, dataSourceKey);
@@ -163,7 +194,7 @@ export class PluginTenantServer extends Plugin {
             return;
           }
 
-          clearInvalidDataSourceKey(ctx);
+          clearInvalidDataSourceKey(ctx, dataSourceKey);
         }
 
         await applyTenantResourceGuard(ctx, next);

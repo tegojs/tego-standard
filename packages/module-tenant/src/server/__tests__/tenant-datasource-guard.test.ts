@@ -22,6 +22,18 @@ async function waitForDataSourceStatus(
   throw new Error(`waitForDataSourceStatus: "${key}" did not reach "${expectedStatus}" within ${timeoutMs}ms`);
 }
 
+async function waitForAuditLog(db: any, filter: Record<string, any>, timeoutMs = TEST_ASSERTION_TIMEOUT) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const log = await db.getRepository('auditLogs').findOne({ filter });
+    if (log) {
+      return log;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return null;
+}
+
 /**
  * Shared mock infrastructure: a DataSource whose repository captures the
  * last filter so we can assert tenant filter injection.
@@ -435,5 +447,25 @@ describe('tenant guard on external data sources', () => {
 
     expect(createRes.status).toBe(200);
     expect(mocks.lastCreateValues?.tenantId).toBeUndefined();
+  });
+
+  it('invalid external data source key cleanup emits a tenant security event', async () => {
+    app = await createTenantApp({ extraPlugins: ['audit-logs'] });
+    const user = await setupTenantData(app);
+
+    const response = await app.agent().login(user).set('X-data-source', 'forgedDs').resource('tenants').available({});
+
+    expect(response.status).toBe(200);
+
+    const auditLog = await waitForAuditLog(app.db, {
+      type: 'tenant_invalid_data_source_attempt',
+    });
+
+    expect(auditLog).not.toBeNull();
+    expect(auditLog.get('userId')).toBe(user.get('id'));
+    expect(auditLog.get('details')).toMatchObject({
+      dataSourceKey: 'forgedDs',
+      headerDataSource: 'forgedDs',
+    });
   });
 });

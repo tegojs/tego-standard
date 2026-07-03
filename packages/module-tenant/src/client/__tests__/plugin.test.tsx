@@ -167,6 +167,44 @@ describe('PluginTenantClient', () => {
     });
   });
 
+  it('should keep tenant switcher when tenant data refreshes with multiple tenants', async () => {
+    const NavigationItems = () => {
+      const { getItems } = useCurrentNavigationMenu();
+      return <>{getItems().map((item) => React.cloneElement(item, { key: item.key }))}</>;
+    };
+
+    const renderTree = (title: string) => (
+      <CurrentTenantContext.Provider
+        value={{
+          data: {
+            data: [
+              { id: 'tenant_a', title, current: true },
+              { id: 'tenant_b', title: 'Tenant B' },
+            ],
+          },
+        }}
+      >
+        <CurrentNavigationMenuProvider>
+          <TenantMenuProvider>
+            <NavigationItems />
+          </TenantMenuProvider>
+        </CurrentNavigationMenuProvider>
+      </CurrentTenantContext.Provider>
+    );
+
+    const { container, rerender } = render(renderTree('Tenant A'));
+
+    await waitFor(() => {
+      expect(container.querySelector('.tenant-nav-switcher')).toBeInTheDocument();
+    });
+
+    rerender(renderTree('Tenant A refreshed'));
+
+    await waitFor(() => {
+      expect(container.querySelector('.tenant-nav-switcher')).toBeInTheDocument();
+    });
+  });
+
   it('should not register tenant switcher in the user settings menu', async () => {
     const app = new Application({
       plugins: [[PluginTenantClient, { name: 'tenant' }]],

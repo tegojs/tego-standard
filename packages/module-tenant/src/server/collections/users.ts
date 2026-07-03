@@ -19,6 +19,7 @@ export default extendCollection({
       type: 'string',
       name: 'defaultTenantId',
       allowNull: true,
+      index: true,
     },
     {
       interface: 'm2o',

@@ -76,6 +76,10 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
       transaction: options.transaction,
     });
   } else {
+    const logger = model.db?.app?.logger || model.db?.logger || model.logger;
+    logger?.warn?.(
+      `Tenant isolation skipped for collection "${collectionName}": existing non-managed tenantId field prevents automatic tenantId setup.`,
+    );
     return;
   }
 

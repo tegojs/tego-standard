@@ -1,6 +1,7 @@
 import type { Context, Next } from '@tego/server';
 
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
+import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant';
 
 export async function switchTenant(ctx: Context, next: Next) {
   const tenantId = ctx.action.params?.values?.tenantId;
@@ -24,18 +25,20 @@ export async function switchTenant(ctx: Context, next: Next) {
     ctx.throw(403, 'Invalid tenant access');
   }
 
-  const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
-    filter: {
-      userId: currentUserId,
-    },
-  });
-  const accessibleTenantIds = await getAccessibleTenantIds(
-    ctx.db,
-    tenantUsers.map((item: any) => item.get('tenantId')),
-  );
+  if (!isPlatformTenantImpersonatorContext(ctx)) {
+    const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
+      filter: {
+        userId: currentUserId,
+      },
+    });
+    const accessibleTenantIds = await getAccessibleTenantIds(
+      ctx.db,
+      tenantUsers.map((item: any) => item.get('tenantId')),
+    );
 
-  if (!accessibleTenantIds.includes(tenantId)) {
-    ctx.throw(403, 'Invalid tenant access');
+    if (!accessibleTenantIds.includes(tenantId)) {
+      ctx.throw(403, 'Invalid tenant access');
+    }
   }
 
   await ctx.db.getRepository('users').update({

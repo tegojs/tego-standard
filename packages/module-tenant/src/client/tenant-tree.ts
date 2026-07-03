@@ -36,8 +36,23 @@ export function buildTenantTree(tenants: TenantRecord[]) {
     records.set(tenant.id, { ...rest });
   });
 
+  const hasCycle = (tenant: TenantRecord) => {
+    const visited = new Set<string>();
+    let current: TenantRecord | undefined = tenant;
+
+    while (current?.parentId && records.has(current.parentId)) {
+      if (visited.has(current.id)) {
+        return true;
+      }
+      visited.add(current.id);
+      current = records.get(current.parentId);
+    }
+
+    return false;
+  };
+
   records.forEach((tenant) => {
-    if (tenant.parentId && records.has(tenant.parentId)) {
+    if (tenant.parentId && records.has(tenant.parentId) && !hasCycle(tenant)) {
       const parent = records.get(tenant.parentId)!;
       parent.children = parent.children || [];
       parent.children.push(tenant);

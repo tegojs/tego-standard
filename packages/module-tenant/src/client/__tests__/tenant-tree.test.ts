@@ -105,6 +105,17 @@ describe('tenant tree helpers', () => {
     ]);
   });
 
+  it('should expose tenants in a cycle as roots instead of dropping them', () => {
+    const tree = buildTenantTree([
+      { id: 'a', name: 'a', parentId: 'c' },
+      { id: 'b', name: 'b', parentId: 'a' },
+      { id: 'c', name: 'c', parentId: 'b' },
+      { id: 'outside', name: 'outside' },
+    ]);
+
+    expect(tree.map((tenant) => tenant.id).sort()).toEqual(['a', 'b', 'c', 'outside']);
+  });
+
   it('should handle parentId cycles while excluding discovered descendants', () => {
     const options = getTenantParentOptions(
       [

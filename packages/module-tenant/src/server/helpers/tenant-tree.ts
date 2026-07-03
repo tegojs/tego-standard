@@ -18,13 +18,16 @@ export function buildPath(parentPath: string | null | undefined, id: string): st
 export function buildPathPrefixFilter(path: string) {
   return {
     path: {
-      $gte: path,
-      $lt: `${path}\uffff`,
+      $includes: path,
     },
   };
 }
 
-async function getDescendantFilter(repo: Repository, tenantId: string, options: any = {}) {
+export function isTenantPathInSubtree(path: string | null | undefined, prefix: string) {
+  return typeof path === 'string' && path.startsWith(prefix);
+}
+
+async function getDescendantSource(repo: Repository, tenantId: string, options: any = {}) {
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['id', 'path', 'parentId'],
@@ -37,9 +40,11 @@ async function getDescendantFilter(repo: Repository, tenantId: string, options: 
   }
 
   return {
-    ...buildPathPrefixFilter(path),
-    'id.$ne': tenantId,
-    enabled: true,
+    path,
+    filter: {
+      'id.$ne': tenantId,
+      enabled: true,
+    },
   };
 }
 
@@ -47,32 +52,35 @@ async function getDescendantFilter(repo: Repository, tenantId: string, options: 
  * Get all descendant tenant IDs for a given tenant using the materialized path.
  */
 export async function getDescendantIds(repo: Repository, tenantId: string, options: any = {}): Promise<string[]> {
-  const filter = await getDescendantFilter(repo, tenantId, options);
-  if (!filter) {
+  const source = await getDescendantSource(repo, tenantId, options);
+  if (!source) {
     return [];
   }
 
   const descendants = await repo.find({
-    filter,
-    fields: ['id'],
+    filter: source.filter,
+    fields: ['id', 'path'],
     transaction: options.transaction,
   });
-  return descendants.map((t: any) => t.get('id'));
+  return descendants
+    .filter((tenant: any) => isTenantPathInSubtree(tenant.get('path') as string, source.path))
+    .map((t: any) => t.get('id'));
 }
 
 /**
  * Get all descendant tenant records for a given tenant using the materialized path.
  */
 export async function getDescendantTenants(repo: Repository, tenantId: string, options: any = {}): Promise<any[]> {
-  const filter = await getDescendantFilter(repo, tenantId, options);
-  if (!filter) {
+  const source = await getDescendantSource(repo, tenantId, options);
+  if (!source) {
     return [];
   }
 
-  return repo.find({
-    filter,
+  const descendants = await repo.find({
+    filter: source.filter,
     transaction: options.transaction,
   });
+  return descendants.filter((tenant: any) => isTenantPathInSubtree(tenant.get('path') as string, source.path));
 }
 
 export function getDescendantPathFilter(path: string, tenantId: string) {

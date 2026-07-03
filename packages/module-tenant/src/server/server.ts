@@ -11,7 +11,7 @@ import { TENANT_ENABLED_MODES } from './constants';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
 import applyTenantFilter from './helpers/tenant-filter';
-import { buildPath, getDescendantIds, getDescendantPathFilter, wouldCreateCycle } from './helpers/tenant-tree';
+import { buildPath, getDescendantIds, getDescendantTenants, wouldCreateCycle } from './helpers/tenant-tree';
 import { enUS, zhCN } from './locale';
 import setCurrentTenant from './middlewares/setCurrentTenant';
 
@@ -298,10 +298,7 @@ export class PluginTenantServer extends Plugin {
           return;
         }
 
-        const descendants = await repo.find({
-          filter: getDescendantPathFilter(oldPath, tenantId),
-          transaction,
-        });
+        const descendants = await getDescendantTenants(repo, tenantId, { transaction });
 
         model.set('path', newPath);
         for (const desc of descendants) {

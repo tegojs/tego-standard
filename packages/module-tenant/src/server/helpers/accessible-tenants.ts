@@ -1,6 +1,6 @@
 import type { Database } from '@tego/server';
 
-import { buildPathPrefixFilter } from './tenant-tree';
+import { isTenantPathInSubtree } from './tenant-tree';
 
 export async function getAccessibleTenantIds(db: Database, tenantIds: string[], options: { transaction?: any } = {}) {
   if (!tenantIds.length) {
@@ -19,7 +19,7 @@ export async function getAccessibleTenantIds(db: Database, tenantIds: string[], 
   });
 
   const accessibleIds = new Set<string>();
-  const descendantFilters: any[] = [];
+  const accessiblePaths: string[] = [];
 
   for (const tenant of directTenants) {
     const id = tenant.get('id') as string;
@@ -31,20 +31,24 @@ export async function getAccessibleTenantIds(db: Database, tenantIds: string[], 
       continue;
     }
 
-    descendantFilters.push(buildPathPrefixFilter(path));
+    accessiblePaths.push(path);
   }
 
-  if (descendantFilters.length) {
+  if (accessiblePaths.length) {
     const descendants = await db.getRepository('tenants').find({
       filter: {
-        $or: descendantFilters,
         enabled: true,
       },
-      fields: ['id'],
+      fields: ['id', 'path'],
       transaction: options.transaction,
     });
 
-    descendants.forEach((descendant: any) => accessibleIds.add(descendant.get('id')));
+    descendants.forEach((descendant: any) => {
+      const path = descendant.get('path') as string;
+      if (accessiblePaths.some((prefix) => isTenantPathInSubtree(path, prefix))) {
+        accessibleIds.add(descendant.get('id'));
+      }
+    });
   }
 
   return [...accessibleIds];

@@ -4,6 +4,11 @@ import { getCurrentTenantIdFromState } from './helpers/tenant-context';
 import PluginWorkflowServer from './Plugin';
 import { WorkflowModel } from './types';
 
+type WorkflowTriggerContext = {
+  state?: Record<string, any>;
+  [key: string]: any;
+};
+
 export function toJSON(data: any): any {
   if (Array.isArray(data)) {
     return data.map(toJSON);
@@ -33,7 +38,7 @@ export async function triggerWorkflowAndGetExecution(
   plugin: PluginWorkflowServer,
   workflow: WorkflowModel,
   context: object,
-  options: { httpContext?: any; transaction?: any; context?: any } & Transactionable = {},
+  options: { httpContext?: any; transaction?: any; context?: WorkflowTriggerContext } & Transactionable = {},
   db: Database,
 ): Promise<any | null> {
   // 记录触发前的时间，用于队列模式下查找新创建的执行记录

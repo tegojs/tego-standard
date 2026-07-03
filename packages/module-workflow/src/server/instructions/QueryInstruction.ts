@@ -21,12 +21,12 @@ export class QueryInstruction extends Instruction {
 
     const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
     if (!dataSource) {
-      throw new Error(`collection ${collectionName} for query data on query node not found`);
+      throw new Error(`data source ${dataSourceName} for query data on query node not found`);
     }
 
     const targetCollection = dataSource.collectionManager.getCollection(collectionName);
     if (!targetCollection?.repository) {
-      throw new Error(`collection ${collectionName} for query data on query node not found`);
+      throw new Error(`collection ${collectionName} repository for query data on query node not found`);
     }
 
     const { repository } = targetCollection;

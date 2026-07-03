@@ -3,6 +3,22 @@ import type { MockServer } from '@tachybase/test';
 import { NAMESPACE } from '../../constants';
 import { createTenantApp } from './utils';
 
+function filterContainsTenantScopeGuard(filter: any): boolean {
+  if (!filter || typeof filter !== 'object') {
+    return false;
+  }
+
+  if (filter['key.$ne'] === 'tenant') {
+    return true;
+  }
+
+  return Object.values(filter).some((value: any) =>
+    Array.isArray(value)
+      ? value.some((item) => filterContainsTenantScopeGuard(item))
+      : filterContainsTenantScopeGuard(value),
+  );
+}
+
 describe('tenant plugin collections', () => {
   let app: MockServer;
 
@@ -29,6 +45,27 @@ describe('tenant plugin collections', () => {
     expect(snippet.actions).toEqual(
       expect.arrayContaining(['tenants:*', 'tenantUsers:*', 'users:list', 'users:update']),
     );
+  });
+
+  it('should protect tenant acl scope records on create/update/destroy', async () => {
+    app.acl.define({
+      role: 'tenant-acl-scope-test',
+      actions: {
+        'rolesResourcesScopes:create': {},
+        'rolesResourcesScopes:update': {},
+        'rolesResourcesScopes:destroy': {},
+      },
+    });
+
+    for (const action of ['create', 'update', 'destroy']) {
+      const canResult = app.acl.can({
+        role: 'tenant-acl-scope-test',
+        resource: 'rolesResourcesScopes',
+        action,
+      });
+
+      expect(filterContainsTenantScopeGuard(canResult?.params?.filter)).toBe(true);
+    }
   });
 
   it('should register locale resources with tenant namespace', async () => {

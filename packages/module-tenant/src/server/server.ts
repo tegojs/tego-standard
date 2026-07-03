@@ -197,21 +197,17 @@ export class PluginTenantServer extends Plugin {
       actions: ['tenants:*', 'tenantUsers:*', 'users:list', 'users:update'],
     });
 
-    this.app.acl.addFixedParams('rolesResourcesScopes', 'destroy', () => {
+    const protectTenantAclScope = () => {
       return {
         filter: {
           'key.$ne': 'tenant',
         },
       };
-    });
+    };
 
-    this.app.acl.addFixedParams('rolesResourcesScopes', 'update', () => {
-      return {
-        filter: {
-          'key.$ne': 'tenant',
-        },
-      };
-    });
+    this.app.acl.addFixedParams('rolesResourcesScopes', 'create', protectTenantAclScope);
+    this.app.acl.addFixedParams('rolesResourcesScopes', 'destroy', protectTenantAclScope);
+    this.app.acl.addFixedParams('rolesResourcesScopes', 'update', protectTenantAclScope);
 
     this.app.acl.allow('tenants', ['available', 'current', 'switch'], 'loggedIn');
 

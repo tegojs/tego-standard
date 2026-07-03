@@ -19,26 +19,30 @@ type TenantFilterCollection = {
 const READ_ACTIONS = ['list', 'get', 'count', 'export', 'aggregate'];
 const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
 
+function isEmptyPlainObject(value: any) {
+  return value && typeof value === 'object' && !Array.isArray(value) && Reflect.ownKeys(value).length === 0;
+}
+
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {
     return filter;
   }
 
   if (Array.isArray(filter)) {
-    return filter
-      .map(stripTenantFilter)
-      .filter((item) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+    return filter.map(stripTenantFilter);
   }
 
-  const next = Object.fromEntries(
-    Object.entries(filter)
-      .filter(([key]) => key !== 'tenantId' && !key.startsWith('tenantId.'))
-      .map(([key, value]) => [key, stripTenantFilter(value)]),
-  );
+  const next: Record<PropertyKey, any> = {};
+  for (const key of Reflect.ownKeys(filter)) {
+    if (typeof key === 'string' && (key === 'tenantId' || key.startsWith('tenantId.'))) {
+      continue;
+    }
+    next[key] = stripTenantFilter(filter[key]);
+  }
 
   for (const key of ['$and', '$or']) {
     if (Array.isArray(next[key])) {
-      next[key] = next[key].filter((item: any) => item && (typeof item !== 'object' || Object.keys(item).length > 0));
+      next[key] = next[key].filter((item: any) => !isEmptyPlainObject(item));
       if (next[key].length === 0) {
         delete next[key];
       }
@@ -78,7 +82,7 @@ function appendFilter(original: any, tenantId: string | number, includeLegacyDat
   const tenantFilter = buildTenantFilter(tenantId, includeLegacyData);
   const sanitizedOriginal = stripTenantFilter(original);
 
-  if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
+  if (!sanitizedOriginal || isEmptyPlainObject(sanitizedOriginal)) {
     return tenantFilter;
   }
 
@@ -91,7 +95,7 @@ function appendInheritedFilter(original: any, tenantIds: Array<string | number>,
   const tenantFilter = buildInheritedTenantFilter(tenantIds, includeLegacyData);
   const sanitizedOriginal = stripTenantFilter(original);
 
-  if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
+  if (!sanitizedOriginal || isEmptyPlainObject(sanitizedOriginal)) {
     return tenantFilter;
   }
 

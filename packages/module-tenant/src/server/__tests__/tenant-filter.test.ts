@@ -27,6 +27,78 @@ describe('applyTenantFilter', () => {
     });
   });
 
+  it('should preserve falsy values in non-logical filter arrays', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-a',
+      },
+      action: {
+        actionName: 'list',
+        params: {
+          filter: {
+            status: {
+              $in: [0, false, '', null, 'published'],
+            },
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [
+          {
+            status: {
+              $in: [0, false, '', null, 'published'],
+            },
+          },
+          { tenantId: 'tenant-a' },
+        ],
+      },
+    });
+  });
+
+  it('should only remove empty objects from logical filter arrays', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-a',
+      },
+      action: {
+        actionName: 'list',
+        params: {
+          filter: {
+            $or: [{ tenantId: 'tenant-b' }, { status: false }],
+            status: {
+              $in: [false, 0],
+            },
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyTenantFilter(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [
+          {
+            $or: [{ status: false }],
+            status: {
+              $in: [false, 0],
+            },
+          },
+          { tenantId: 'tenant-a' },
+        ],
+      },
+    });
+  });
+
   it('should apply tenant filter when current tenant id is numeric zero', () => {
     const mergeParams = vi.fn();
     const ctx = {

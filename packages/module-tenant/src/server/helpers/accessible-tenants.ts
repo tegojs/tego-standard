@@ -2,7 +2,7 @@ import type { Database } from '@tego/server';
 
 import { buildPathPrefixFilter } from './tenant-tree';
 
-export async function getAccessibleTenantIds(db: Database, tenantIds: string[]) {
+export async function getAccessibleTenantIds(db: Database, tenantIds: string[], options: { transaction?: any } = {}) {
   if (!tenantIds.length) {
     return [];
   }
@@ -15,6 +15,7 @@ export async function getAccessibleTenantIds(db: Database, tenantIds: string[]) 
       enabled: true,
     },
     fields: ['id', 'path'],
+    transaction: options.transaction,
   });
 
   const accessibleIds = new Set<string>();
@@ -40,6 +41,7 @@ export async function getAccessibleTenantIds(db: Database, tenantIds: string[]) 
         enabled: true,
       },
       fields: ['id'],
+      transaction: options.transaction,
     });
 
     descendants.forEach((descendant: any) => accessibleIds.add(descendant.get('id')));

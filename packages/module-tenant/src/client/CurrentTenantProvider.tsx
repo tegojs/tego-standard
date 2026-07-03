@@ -15,7 +15,12 @@ type AvailableTenantsResult = {
   data: AvailableTenantItem[];
 };
 
-export const CurrentTenantContext = createContext<any>(null);
+export type AvailableTenantsRequestState = Pick<
+  ReturnType<typeof useRequest<AvailableTenantsResult>>,
+  'data' | 'loading'
+>;
+
+export const CurrentTenantContext = createContext<AvailableTenantsRequestState | null | undefined>(null);
 CurrentTenantContext.displayName = 'CurrentTenantContext';
 
 export const useCurrentTenantContext = () => {
@@ -39,7 +44,6 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     },
   );
 
-  type AvailableTenantsRequestState = Pick<ReturnType<typeof useRequest<AvailableTenantsResult>>, 'data' | 'loading'>;
   const noUserFallback = useMemo<AvailableTenantsRequestState>(() => ({ data: { data: [] }, loading: false }), []);
   const value = currentUserId ? result : noUserFallback;
 

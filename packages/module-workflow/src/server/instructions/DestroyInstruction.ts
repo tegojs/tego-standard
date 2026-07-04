@@ -16,7 +16,7 @@ export class DestroyInstruction extends Instruction {
       .get(dataSourceName)
       .collectionManager.getCollection(collectionName);
     const { repository } = targetCollection;
-    const options = processor.getParsedValue(params, node.id);
+    const options = processor.getParsedValue(params, node.id) || {};
     const baseRepositoryContext = processor.getRepositoryContext();
     const optionContext = options.context || {};
     const repositoryContext = {

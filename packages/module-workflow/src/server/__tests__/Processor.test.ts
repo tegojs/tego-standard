@@ -3,6 +3,7 @@ import { MockServer } from '@tachybase/test';
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
+import Processor from '../Processor';
 import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from './utils';
 
 describe('workflow > Processor', () => {
@@ -48,6 +49,39 @@ describe('workflow > Processor', () => {
   afterAll(() => app.destroy());
 
   describe('base', () => {
+    it('normalizes currentUser from persisted auth context for repository context', async () => {
+      const execution = {
+        id: 123,
+        context: { stack: [] },
+        get: (key: string) =>
+          ({
+            tenantContext: { currentTenantId: 'tenant-a' },
+            authContext: { currentRole: 'admin', currentUserId: 456 },
+          })[key],
+      };
+      const processor = new Processor(
+        execution as any,
+        {
+          plugin: {
+            getLogger: () => ({
+              info: vi.fn(),
+              debug: vi.fn(),
+              error: vi.fn(),
+            }),
+          },
+        } as any,
+      );
+
+      const repositoryContext = processor.getRepositoryContext();
+
+      expect(repositoryContext.state).toMatchObject({
+        currentTenantId: 'tenant-a',
+        currentRole: 'admin',
+        currentUserId: 456,
+        currentUser: { id: 456 },
+      });
+    });
+
     it('empty workflow without any nodes', async () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
 

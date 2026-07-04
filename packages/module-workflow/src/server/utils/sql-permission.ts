@@ -1,4 +1,5 @@
 import type Processor from '../Processor';
+import { getExecutionField } from '../Processor';
 
 /**
  * Core SQL snippet permission check.
@@ -65,14 +66,16 @@ function resolveAcl(httpContext: any): any | null {
  *   was already gated at creation time by the API-level check in nodes.ts.
  */
 export function checkSqlExecutionPermission(processor: Processor): void {
-  const authContext = processor.execution.get?.('authContext') || (processor.execution as any).authContext;
+  const authContext = getExecutionField(processor.execution, 'authContext', {});
   const httpContext =
     processor.options?.httpContext ||
     (authContext?.currentRole
       ? {
           state: {
             currentRole: authContext.currentRole,
-            currentUser: authContext.currentUserId ? { id: authContext.currentUserId } : undefined,
+            currentUser:
+              authContext.currentUser ||
+              (authContext.currentUserId != null ? { id: authContext.currentUserId } : undefined),
           },
           app: processor.options?.plugin?.app,
           tego: processor.options?.plugin?.app,

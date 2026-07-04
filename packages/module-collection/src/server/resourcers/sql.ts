@@ -156,7 +156,7 @@ export async function runReadOnlyPreviewQuery(ctx: Context, model: typeof SQLMod
     await applyReadOnlyTransactionGuard(ctx, transaction);
 
     // The result is for preview only, add limit clause to avoid too many results.
-    return model.findAll({ attributes: ['*'], limit: 5, raw: true, transaction });
+    return model.findAll({ limit: 5, raw: true, transaction });
   });
 }
 

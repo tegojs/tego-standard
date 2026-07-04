@@ -62,11 +62,11 @@ describe('sqlCollection preview SQL safety', () => {
     const findAll = vi.fn(async (options) => {
       calls.push('find');
       expect(options).toMatchObject({
-        attributes: ['*'],
         limit: 5,
         raw: true,
         transaction,
       });
+      expect(options).not.toHaveProperty('attributes');
       return [{ id: 1 }];
     });
 

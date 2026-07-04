@@ -69,22 +69,24 @@ export default class ApprovalTrigger extends Trigger {
       appends: workflow.config.appends,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
     });
-    this.workflow.trigger(
-      workflow,
-      {
-        data: toJSON(data),
-        approvalId: approval.id,
-        applicantRoleName: approval.applicantRoleName,
-        summary: getSummary({
-          summaryConfig: workflow.config.summary,
-          data,
-          collection: collection as any, // Fix: type assertion to bypass typing error
-          app: this.workflow.app,
-        }),
-        collectionName: approval.collectionName,
-      },
-      { transaction, ...getTenantWorkflowOptionsFromApproval(approval) },
-    );
+    const context = {
+      data: toJSON(data),
+      approvalId: approval.id,
+      applicantRoleName: approval.applicantRoleName,
+      summary: getSummary({
+        summaryConfig: workflow.config.summary,
+        data,
+        collection: collection as any, // Fix: type assertion to bypass typing error
+        app: this.workflow.app,
+      }),
+      collectionName: approval.collectionName,
+    };
+    const triggerWorkflow = () => this.workflow.trigger(workflow, context);
+    if (transaction?.afterCommit) {
+      transaction.afterCommit(triggerWorkflow);
+    } else {
+      triggerWorkflow();
+    }
   };
   onExecutionCreate = async (execution, { transaction }) => {
     const workflow = await execution.getWorkflow({ transaction });

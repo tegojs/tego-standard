@@ -329,7 +329,7 @@ export class PluginTenantServer extends Plugin {
           return;
         }
 
-        const descendants = await getDescendantTenants(repo, tenantId, { transaction });
+        const descendants = await getDescendantTenants(repo, tenantId, { includeDisabled: true, transaction });
 
         model.set('path', newPath);
         for (const desc of descendants) {

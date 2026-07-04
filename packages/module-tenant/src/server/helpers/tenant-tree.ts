@@ -2,6 +2,11 @@ import type { Repository } from '@tego/server';
 
 export const TENANT_PATH_MAX_LENGTH = 500;
 
+interface DescendantOptions {
+  includeDisabled?: boolean;
+  transaction?: any;
+}
+
 /**
  * Build the materialized path for a tenant node.
  */
@@ -28,7 +33,7 @@ export function isTenantPathInSubtree(path: string | null | undefined, prefix: s
   return typeof path === 'string' && path.startsWith(prefix);
 }
 
-async function getDescendantSource(repo: Repository, tenantId: string, options: any = {}) {
+async function getDescendantSource(repo: Repository, tenantId: string, options: DescendantOptions = {}) {
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['id', 'path', 'parentId'],
@@ -44,7 +49,7 @@ async function getDescendantSource(repo: Repository, tenantId: string, options: 
     path,
     filter: {
       ...getDescendantPathFilter(path, tenantId),
-      enabled: true,
+      ...(options.includeDisabled ? {} : { enabled: true }),
     },
   };
 }
@@ -52,7 +57,11 @@ async function getDescendantSource(repo: Repository, tenantId: string, options: 
 /**
  * Get all descendant tenant IDs for a given tenant using the materialized path.
  */
-export async function getDescendantIds(repo: Repository, tenantId: string, options: any = {}): Promise<string[]> {
+export async function getDescendantIds(
+  repo: Repository,
+  tenantId: string,
+  options: DescendantOptions = {},
+): Promise<string[]> {
   const source = await getDescendantSource(repo, tenantId, options);
   if (!source) {
     return [];
@@ -71,7 +80,11 @@ export async function getDescendantIds(repo: Repository, tenantId: string, optio
 /**
  * Get all descendant tenant records for a given tenant using the materialized path.
  */
-export async function getDescendantTenants(repo: Repository, tenantId: string, options: any = {}): Promise<any[]> {
+export async function getDescendantTenants(
+  repo: Repository,
+  tenantId: string,
+  options: DescendantOptions = {},
+): Promise<any[]> {
   const source = await getDescendantSource(repo, tenantId, options);
   if (!source) {
     return [];

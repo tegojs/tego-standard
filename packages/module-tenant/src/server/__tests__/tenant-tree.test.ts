@@ -317,6 +317,38 @@ describe('tenant tree structure', () => {
     expect(deep.get('path')).toBe('/root-b/sub/deep/');
   });
 
+  it('should update disabled descendant paths when moving a subtree', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'root-a', name: 'root-a-disabled-move', title: 'Root A' },
+        { id: 'root-b', name: 'root-b-disabled-move', title: 'Root B' },
+      ],
+    });
+    await app.db.getRepository('tenants').create({
+      values: { id: 'sub', name: 'sub-disabled-move', title: 'Sub', parentId: 'root-a' },
+    });
+    await app.db.getRepository('tenants').create({
+      values: {
+        id: 'disabled-deep',
+        name: 'disabled-deep',
+        title: 'Disabled Deep',
+        parentId: 'sub',
+        enabled: false,
+      },
+    });
+
+    await app.db.getRepository('tenants').update({
+      filterByTk: 'sub',
+      values: { parentId: 'root-b' },
+    });
+
+    const disabledDeep = await app.db.getRepository('tenants').findOne({ filter: { id: 'disabled-deep' } });
+
+    expect(disabledDeep.get('path')).toBe('/root-b/sub/disabled-deep/');
+  });
+
   it('should update child paths when moving a subtree to root', async () => {
     app = await createTenantApp();
 

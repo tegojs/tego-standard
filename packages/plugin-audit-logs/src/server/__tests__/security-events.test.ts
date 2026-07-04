@@ -266,12 +266,12 @@ describe('security event listener persistence failures', () => {
     const logger = {
       error: vi.fn(),
     };
+    const handlers: Record<string, any> = {};
     const app = {
       logger,
-      on: vi.fn((_event, handler) => {
-        app.handler = handler;
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
       }),
-      handler: null as any,
     };
     const db = {
       getRepository: vi.fn(() => ({
@@ -284,7 +284,7 @@ describe('security event listener persistence failures', () => {
     registerSecurityEventListener({ app, db } as any);
 
     await expect(
-      app.handler({
+      handlers['tenant.securityViolation']({
         type: 'tenant_access_denied',
         userId: 1,
         tenantId: 'tenant-a',
@@ -305,6 +305,89 @@ describe('security event listener persistence failures', () => {
         }),
       }),
     );
+  });
+
+  it('should retry sqlite busy errors before logging failure', async () => {
+    const logger = {
+      error: vi.fn(),
+    };
+    const handlers: Record<string, any> = {};
+    const create = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('SQLITE_BUSY: database is locked'), { name: 'SequelizeTimeoutError' }),
+      )
+      .mockResolvedValueOnce({});
+    const app = {
+      logger,
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+    const db = {
+      getRepository: vi.fn(() => ({
+        model: { create },
+      })),
+    };
+
+    registerSecurityEventListener({ app, db } as any);
+
+    await handlers['tenant.securityViolation']({
+      type: 'tenant_access_denied',
+      userId: 1,
+      tenantId: 'tenant-a',
+    });
+
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('should wait for queued security event writes before destroy', async () => {
+    const handlers: Record<string, any> = {};
+    let releaseCreate: () => void;
+    const create = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          releaseCreate = () => resolve({});
+        }),
+    );
+    const app = {
+      logger: { error: vi.fn() },
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+    const db = {
+      getRepository: vi.fn(() => ({
+        model: { create },
+      })),
+    };
+
+    registerSecurityEventListener({ app, db } as any);
+
+    handlers['tenant.securityViolation']({
+      type: 'tenant_access_denied',
+      userId: 1,
+      tenantId: 'tenant-a',
+    });
+    while (create.mock.calls.length === 0) {
+      await Promise.resolve();
+    }
+
+    const beforeDestroy = handlers.beforeDestroy();
+    let settled = false;
+    beforeDestroy.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+
+    expect(settled).toBe(false);
+
+    releaseCreate();
+    await beforeDestroy;
+
+    expect(settled).toBe(true);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 });
 

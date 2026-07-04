@@ -66,7 +66,9 @@ describe('sqlCollection preview SQL safety', () => {
         raw: true,
         transaction,
       });
-      expect(options).not.toHaveProperty('attributes');
+      expect(options.attributes).toHaveLength(1);
+      expect(options.attributes[0]).not.toBe('*');
+      expect(options.attributes[0].val).toBe('*');
       return [{ id: 1 }];
     });
 

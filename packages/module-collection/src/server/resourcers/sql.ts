@@ -1,4 +1,4 @@
-import { Context, Next, SqlCollection, SQLModel } from '@tego/server';
+import { Context, literal, Next, SqlCollection, SQLModel } from '@tego/server';
 
 import { AST, Parser } from 'node-sql-parser';
 import type { Transaction } from 'sequelize';
@@ -156,7 +156,12 @@ export async function runReadOnlyPreviewQuery(ctx: Context, model: typeof SQLMod
     await applyReadOnlyTransactionGuard(ctx, transaction);
 
     // The result is for preview only, add limit clause to avoid too many results.
-    return model.findAll({ limit: 5, raw: true, transaction });
+    return model.findAll({
+      attributes: [literal('*') as unknown as string],
+      limit: 5,
+      raw: true,
+      transaction,
+    });
   });
 }
 

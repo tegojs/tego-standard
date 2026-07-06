@@ -31,7 +31,7 @@ function isTenantPluginEnabled(ctx: Context) {
   return false;
 }
 
-function shouldApplyExecutionTenantBoundary(ctx: Context) {
+export function shouldApplyExecutionTenantBoundary(ctx: Context) {
   const state = ctx.state || {};
   const tenantId = getCurrentTenantIdFromState(state);
   return (
@@ -39,7 +39,7 @@ function shouldApplyExecutionTenantBoundary(ctx: Context) {
   );
 }
 
-function buildExecutionTenantFilter(ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
+export function buildExecutionTenantFilter(ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
   return buildWorkflowExecutionTenantFilter(ctx.state, shouldApplyExecutionTenantBoundary(ctx) ? fallback : null);
 }
 

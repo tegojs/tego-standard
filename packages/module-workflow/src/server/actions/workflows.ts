@@ -1,9 +1,9 @@
 import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 
-import { buildWorkflowExecutionTenantFilter, NEVER_MATCH_TENANT_FILTER } from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
 import { triggerWorkflowAndGetExecution } from '../utils';
+import { buildExecutionTenantFilter } from './executions';
 import {
   getCategoriesForWorkflow,
   getEventSourceNameForWorkflow,
@@ -394,7 +394,7 @@ export async function retry(ctx: Context, next: Next) {
   const execution = await ExecutionRepo.findOne({
     filter: {
       key: workflow.key,
-      ...buildWorkflowExecutionTenantFilter(ctx.state, NEVER_MATCH_TENANT_FILTER),
+      ...buildExecutionTenantFilter(ctx),
     },
     sort: ['-createdAt'],
   });

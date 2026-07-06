@@ -159,6 +159,34 @@ describe('workflow > actions > tenant executions boundary', () => {
     });
   });
 
+  it('workflows.retry should not add tenant filter when tenant boundary is unavailable', async () => {
+    const workflow = await createWorkflow();
+    await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.RESOLVED,
+      context: { marker: 'non-tenant' },
+      tenantId: null,
+      tenantContext: null,
+    });
+
+    const ctx = createContext(
+      'workflows',
+      'retry',
+      {
+        filterByTk: workflow.id,
+        filter: { key: workflow.key },
+      },
+      'tenant-a',
+    );
+    ctx.state = {};
+    ctx.tego.pm.get = (name: any) => (name === 'tenant' ? undefined : plugin);
+    ctx.app.pm.get = (name: any) => (name === 'tenant' ? undefined : plugin);
+
+    await workflowActions.retry(ctx, async () => {});
+
+    expect(ctx.body.context.marker).toBe('non-tenant');
+  });
+
   it('executions.retry should reject executions from another tenant', async () => {
     const workflow = await createWorkflow();
     const execution = await workflow.createExecution({

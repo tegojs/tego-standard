@@ -121,6 +121,68 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.tenantId).toBe('tenant-a');
   });
 
+  it('select should read current tenant and descendants in tenantInherited mode', async () => {
+    const inheritedCollectionName = 'tenant_workflow_inherited_posts';
+    db.collection({
+      name: inheritedCollectionName,
+      tenancy: 'tenantInherited',
+      fields: [
+        { type: 'string', name: 'title' },
+        { type: 'string', name: 'tenantId' },
+      ],
+    });
+    await db.sync();
+    const repo = db.getRepository(inheritedCollectionName);
+    await repo.create({
+      values: [
+        { title: 'visible-parent', tenantId: 'tenant-a' },
+        { title: 'visible-child', tenantId: 'tenant-child' },
+        { title: 'hidden-sibling', tenantId: 'tenant-b' },
+      ],
+      hooks: false,
+    });
+    const workflow = await WorkflowModel.create({
+      enabled: true,
+      type: 'syncTrigger',
+    });
+    await workflow.createNode({
+      type: 'select',
+      config: {
+        collection: inheritedCollectionName,
+        multiple: true,
+        params: {
+          sort: [{ field: 'title' }],
+        },
+      },
+    });
+    const inheritedTenantContext = {
+      currentTenant: { id: 'tenant-a', name: 'tenant-a' },
+      currentTenantId: 'tenant-a',
+      currentTenantDescendantIds: ['tenant-child'],
+      currentTenancyMode: 'tenantInherited',
+    };
+
+    await plugin.trigger(
+      workflow,
+      {
+        data: {},
+        state: inheritedTenantContext,
+      },
+      {
+        context: {
+          state: inheritedTenantContext,
+        },
+      },
+    );
+
+    const [execution] = await workflow.getExecutions();
+    const [job] = await execution.getJobs();
+
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(job.result.map((item: any) => item.title)).toEqual(['visible-child', 'visible-parent']);
+    expect(job.result.map((item: any) => item.tenantId).sort()).toEqual(['tenant-a', 'tenant-child']);
+  });
+
   it('update should only modify records from the execution tenant', async () => {
     const workflow = await createWorkflowWithNode('update', {
       params: {

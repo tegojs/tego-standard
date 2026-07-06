@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  APIClientProvider,
   Application,
   CollectionTemplate,
   CurrentNavigationMenuProvider,
@@ -21,7 +22,9 @@ import {
   buildTenantMemberFilter,
   buildUserSearchFilter,
   getTenantCandidateOptions,
+  getTenantConfigurableCollections,
   getTenantMembers,
+  loadTenantCollectionRecords,
   loadTenantRecords,
   mergeSelectedUserRecords,
   resolveSelectedUserRecords,
@@ -350,6 +353,88 @@ describe('PluginTenantClient', () => {
     expect(list).toHaveBeenNthCalledWith(1, { page: 1, pageSize: 2 });
     expect(list).toHaveBeenNthCalledWith(2, { page: 2, pageSize: 2 });
     expect(tenants).toEqual([{ id: 'tenant-1' }, { id: 'tenant-2' }, { id: 'tenant-3' }]);
+  });
+
+  it('should include code-defined tenant collections such as approvals in tenant configuration', async () => {
+    const collections = getTenantConfigurableCollections([
+      { name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped', from: 'db2cm' },
+      { name: 'approvalRecords', tenancy: 'tenantScoped', from: 'db2cm' },
+      { name: 'posts', template: 'general' },
+      { name: 'sqlReports', template: 'sql' },
+      { name: 'viewReports', template: 'view' },
+    ]);
+
+    expect(collections.map((item) => item.name)).toEqual(['approvalRecords', 'approvals', 'posts']);
+    expect(collections.find((item) => item.name === 'approvals')).toMatchObject({
+      title: 'Approvals',
+      tenancy: 'tenantScoped',
+    });
+    expect(collections.find((item) => item.name === 'posts')).toMatchObject({
+      tenancy: 'shared',
+    });
+  });
+
+  it('should load all tenant-configurable collection pages', async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          data: [
+            { name: 'approvals', tenancy: 'tenantScoped' },
+            { name: 'approvalRecords', tenancy: 'tenantScoped' },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: [{ name: 'posts', template: 'general' }],
+        },
+      });
+    const api = {
+      resource: vi.fn(() => ({ list })),
+    };
+
+    const collections = await loadTenantCollectionRecords(api, () => false, 2);
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(collections.map((item) => item.name)).toEqual(['approvalRecords', 'approvals', 'posts']);
+  });
+
+  it('should render tenant collection isolation configuration in tenant management', async () => {
+    const listTenants = vi.fn().mockResolvedValue({
+      data: {
+        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+      },
+    });
+    const listCollections = vi.fn().mockResolvedValue({
+      data: {
+        data: [{ name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped', from: 'db2cm' }],
+      },
+    });
+    const api = {
+      resource: vi.fn((name: string) => {
+        if (name === 'tenants') {
+          return { list: listTenants };
+        }
+
+        if (name === 'collections') {
+          return { list: listCollections, update: vi.fn() };
+        }
+
+        return { list: vi.fn() };
+      }),
+    };
+
+    const { getByText } = render(
+      <APIClientProvider apiClient={api as any}>
+        <TenantManagement />
+      </APIClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(getByText('Collection tenant isolation')).toBeInTheDocument();
+      expect(getByText('Approvals')).toBeInTheDocument();
+    });
   });
 
   it('should separate current tenant members from add-member candidates', () => {

@@ -43,7 +43,14 @@ describe('tenant plugin collections', () => {
 
     expect(snippet).toBeTruthy();
     expect(snippet.actions).toEqual(
-      expect.arrayContaining(['tenants:*', 'tenantUsers:*', 'users:list', 'users:update']),
+      expect.arrayContaining([
+        'tenants:*',
+        'tenantUsers:*',
+        'users:list',
+        'users:update',
+        'collections:list',
+        'collections:update',
+      ]),
     );
   });
 

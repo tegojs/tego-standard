@@ -265,7 +265,7 @@ export class PluginTenantServer extends Plugin {
 
     this.app.acl.registerSnippet({
       name: 'pm.tenant.manage',
-      actions: ['tenants:*', 'tenantUsers:*', 'users:list', 'users:update'],
+      actions: ['tenants:*', 'tenantUsers:*', 'users:list', 'users:update', 'collections:list', 'collections:update'],
     });
 
     const protectTenantAclScope = () => {

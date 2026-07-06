@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAPIClient, useRequest } from '@tachybase/client';
 
-import { App, Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd';
+import { App, Button, Card, Divider, Drawer, Form, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd';
 
 import { useTenantTranslation } from './locale';
 import { buildTenantTree, getTenantParentOptions, loadTenantRecords, type TenantRecord } from './tenant-tree';
@@ -26,6 +26,89 @@ type UserListResponse = {
     pageSize?: number;
   };
 };
+
+type TenancyMode = 'shared' | 'tenantScoped' | 'tenantInherited';
+
+type TenantCollectionRecord = {
+  name: string;
+  title?: string;
+  template?: string;
+  from?: string;
+  tenancy?: TenancyMode;
+  legacyDataTenantIds?: string[];
+  options?: {
+    tenancy?: TenancyMode;
+    legacyDataTenantIds?: string[];
+  };
+};
+
+type TenantCollectionListResponse = {
+  data?: TenantCollectionRecord[];
+};
+
+const TENANCY_MODES: TenancyMode[] = ['shared', 'tenantScoped', 'tenantInherited'];
+const TENANT_CAPABLE_COLLECTION_TEMPLATES = ['general', 'expression', 'tree'];
+const MAX_COLLECTION_RECORD_PAGES = 1000;
+
+const tenancyOptions = [
+  { label: 'Shared collection', value: 'shared' },
+  { label: 'Tenant scoped', value: 'tenantScoped' },
+  { label: 'Tenant inherited', value: 'tenantInherited' },
+];
+
+const getCollectionTenancy = (collection: TenantCollectionRecord): TenancyMode | undefined => {
+  const tenancy = collection.tenancy ?? collection.options?.tenancy;
+  if (TENANCY_MODES.includes(tenancy as TenancyMode)) {
+    return tenancy;
+  }
+
+  if (TENANT_CAPABLE_COLLECTION_TEMPLATES.includes(collection.template || '')) {
+    return 'shared';
+  }
+
+  return undefined;
+};
+
+export const getTenantConfigurableCollections = (collections: TenantCollectionRecord[]) => {
+  return collections
+    .map((collection) => {
+      const tenancy = getCollectionTenancy(collection);
+      if (!tenancy) {
+        return null;
+      }
+
+      return {
+        ...collection,
+        tenancy,
+        legacyDataTenantIds: collection.legacyDataTenantIds ?? collection.options?.legacyDataTenantIds ?? [],
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name)) as Array<TenantCollectionRecord & { tenancy: TenancyMode }>;
+};
+
+export async function loadTenantCollectionRecords(
+  api: any,
+  isCanceled: () => boolean,
+  pageSize = 200,
+): Promise<Array<TenantCollectionRecord & { tenancy: TenancyMode }>> {
+  const records: TenantCollectionRecord[] = [];
+  let page = 1;
+
+  while (!isCanceled() && page <= MAX_COLLECTION_RECORD_PAGES) {
+    const res = await api.resource('collections').list({ page, pageSize });
+    const collections = res?.data?.data || [];
+    records.push(...collections);
+
+    if (collections.length < pageSize) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return getTenantConfigurableCollections(records);
+}
 
 const formatUserLabel = (user: UserRecord) => {
   const name = user.nickname || user.username || String(user.id);
@@ -531,6 +614,129 @@ const TenantMembers = ({
   );
 };
 
+const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => {
+  const api = useAPIClient();
+  const { message } = App.useApp();
+  const { t } = useTenantTranslation();
+  const [savingCollectionName, setSavingCollectionName] = useState<string | null>(null);
+  const requestCanceledRef = useRef(false);
+
+  useEffect(() => {
+    requestCanceledRef.current = false;
+    return () => {
+      requestCanceledRef.current = true;
+    };
+  }, []);
+
+  const collectionsRequest = useRequest<{ data: Array<TenantCollectionRecord & { tenancy: TenancyMode }> }>(() => {
+    requestCanceledRef.current = false;
+    return loadTenantCollectionRecords(api, () => requestCanceledRef.current).then((data) => ({ data }));
+  });
+
+  const collections = useMemo(() => collectionsRequest.data?.data || [], [collectionsRequest.data?.data]);
+  const tenantOptions = useMemo(
+    () =>
+      tenants.map((tenant) => ({
+        label: tenant.title || tenant.name || tenant.id,
+        value: tenant.id,
+      })),
+    [tenants],
+  );
+
+  const saveCollection = async (
+    record: TenantCollectionRecord & { tenancy: TenancyMode },
+    values: Partial<Pick<TenantCollectionRecord, 'tenancy' | 'legacyDataTenantIds'>>,
+  ) => {
+    const nextTenancy = values.tenancy || record.tenancy;
+    const nextValues = {
+      tenancy: nextTenancy,
+      legacyDataTenantIds:
+        nextTenancy === 'shared' ? [] : (values.legacyDataTenantIds ?? record.legacyDataTenantIds ?? []),
+    };
+
+    setSavingCollectionName(record.name);
+    try {
+      await api.resource('collections').update({
+        filterByTk: record.name,
+        values: nextValues,
+      });
+      message.success(t('Saved successfully'));
+      await collectionsRequest.refresh();
+    } catch {
+      message.error(t('Save failed'));
+    } finally {
+      setSavingCollectionName(null);
+    }
+  };
+
+  return (
+    <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+      <div>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          {t('Collection tenant isolation')}
+        </Typography.Title>
+        <Typography.Text type="secondary">
+          {t('Configure tenant isolation for built-in and custom tenant-aware collections here.')}
+        </Typography.Text>
+      </div>
+      <Table<TenantCollectionRecord & { tenancy: TenancyMode }>
+        loading={collectionsRequest.loading}
+        dataSource={collections}
+        pagination={false}
+        rowKey="name"
+        columns={[
+          {
+            title: t('Collection'),
+            key: 'collection',
+            render: (_, record) => (
+              <Space direction="vertical" size={0}>
+                <Typography.Text strong>{record.title || record.name}</Typography.Text>
+                {record.title ? <Typography.Text type="secondary">{record.name}</Typography.Text> : null}
+              </Space>
+            ),
+          },
+          {
+            title: t('Tenancy mode'),
+            dataIndex: 'tenancy',
+            key: 'tenancy',
+            width: 220,
+            render: (_, record) => (
+              <Select
+                options={tenancyOptions.map((option) => ({ ...option, label: t(option.label) }))}
+                style={{ width: '100%' }}
+                value={record.tenancy}
+                onChange={(value) => {
+                  void saveCollection(record, { tenancy: value as TenancyMode });
+                }}
+              />
+            ),
+          },
+          {
+            title: t('Legacy data visible to tenants'),
+            dataIndex: 'legacyDataTenantIds',
+            key: 'legacyDataTenantIds',
+            render: (_, record) => (
+              <Select
+                allowClear
+                disabled={record.tenancy === 'shared'}
+                loading={collectionsRequest.loading || savingCollectionName === record.name}
+                mode="multiple"
+                options={tenantOptions}
+                showSearch
+                style={{ width: '100%' }}
+                value={record.tenancy === 'shared' ? [] : record.legacyDataTenantIds || []}
+                onChange={(value) => {
+                  void saveCollection(record, { legacyDataTenantIds: value as string[] });
+                }}
+              />
+            ),
+          },
+        ]}
+      />
+    </Space>
+  );
+};
+
 export const TenantManagement = () => {
   const api = useAPIClient();
   const { message } = App.useApp();
@@ -675,6 +881,8 @@ export const TenantManagement = () => {
             },
           ]}
         />
+        <Divider style={{ margin: '8px 0' }} />
+        <TenantCollectionIsolation tenants={tenants} />
       </Space>
       <TenantEditor
         initialValues={editingTenant || undefined}

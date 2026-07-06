@@ -10,8 +10,12 @@ import TenantMenuProvider from './TenantMenuProvider';
 /** Template names that support tenant-level data isolation. */
 const TENANT_CAPABLE_TEMPLATES = ['general', 'expression', 'tree'];
 
-const SQL_COLLECTION_TENANT_WARNING = '{{t("SQL_COLLECTION_TENANT_ISOLATION_WARNING")}}';
-const VIEW_COLLECTION_TENANT_WARNING = '{{t("VIEW_COLLECTION_TENANT_ISOLATION_WARNING")}}';
+const SQL_COLLECTION_TENANT_WARNING_KEY =
+  '⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.';
+const VIEW_COLLECTION_TENANT_WARNING_KEY =
+  '⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.';
+const SQL_COLLECTION_TENANT_WARNING = `{{t("${SQL_COLLECTION_TENANT_WARNING_KEY}")}}`;
+const VIEW_COLLECTION_TENANT_WARNING = `{{t("${VIEW_COLLECTION_TENANT_WARNING_KEY}")}}`;
 const WORKFLOW_SQL_TENANT_WARNING = '{{t("SQL_NODE_TENANT_ISOLATION_WARNING", { ns: "workflow" })}}';
 
 function ensureConfigurableProperties(template: any) {

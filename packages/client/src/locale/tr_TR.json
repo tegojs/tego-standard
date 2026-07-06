@@ -430,7 +430,6 @@
   "Role name": "Rol adı",
   "Roles": "Roller",
   "Roles & Permissions": "Roller & Yetkilendirmeler",
-  "SQL_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Tenant izolasyonu uyarısı: SQL koleksiyonları tenant izolasyonunu desteklemez. SQL ifadesi olduğu gibi çalıştırılır ve tenantId filtresi otomatik olarak eklenmez. Tenant kapsamındaki verilere erişmeniz gerekiyorsa SQL içinde tenantId koşullarını elle ekleyin veya uygun tenancy yapılandırmasına sahip genel bir koleksiyon kullanın.",
   "Save": "Kaydet",
   "Save action": "Kaydet işlemi",
   "Save as block template": "Blok şablonu olarak kaydet",
@@ -531,7 +530,6 @@
   "User Status Histories": "Kullanıcı Durum Geçmişleri",
   "User Statuses": "Kullanıcı Durumları",
   "Users": "Kullanıcılar",
-  "VIEW_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Tenant izolasyonu uyarısı: Görünüm koleksiyonları tenant izolasyonunu desteklemez. Sorgular ham SQL olarak çalıştırılır ve tenantId filtresi otomatik olarak eklenmez. Tenant düzeyinde veri izolasyonu gerekiyorsa alttaki veritabanı görünümünde satır düzeyi güvenlik ilkeleri (ör. PostgreSQL RLS) uygulayın.",
   "Version": "Sürüm",
   "Version range": "Sürüm aralığı",
   "View": "Görüntüle",
@@ -575,6 +573,8 @@
   "≠": "≠",
   "≤": "≤",
   "≥": "≥",
+  "⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.": "⚠ Tenant izolasyonu uyarısı: SQL koleksiyonları tenant izolasyonunu desteklemez. SQL ifadesi olduğu gibi çalıştırılır ve tenantId filtresi otomatik olarak eklenmez. Tenant kapsamındaki verilere erişmeniz gerekiyorsa SQL içinde tenantId koşullarını elle ekleyin veya uygun tenancy yapılandırmasına sahip genel bir koleksiyon kullanın.",
+  "⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.": "⚠ Tenant izolasyonu uyarısı: Görünüm koleksiyonları tenant izolasyonunu desteklemez. Sorgular ham SQL olarak çalıştırılır ve tenantId filtresi otomatik olarak eklenmez. Tenant düzeyinde veri izolasyonu gerekiyorsa alttaki veritabanı görünümünde satır düzeyi güvenlik ilkeleri (ör. PostgreSQL RLS) uygulayın.",
   "12 hour": "12 saat",
   "24 hour": "24 saat"
 }

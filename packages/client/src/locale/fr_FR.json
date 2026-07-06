@@ -592,7 +592,6 @@
   "Role name": "Nom du rôle",
   "Roles": "Rôles",
   "Roles & Permissions": "Rôles & permissions",
-  "SQL_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Avertissement d'isolation des tenants : les collections SQL ne prennent pas en charge l'isolation des tenants. L'instruction SQL est exécutée telle quelle, sans filtrage automatique par tenantId. Si vous devez accéder à des données isolées par tenant, ajoutez manuellement des conditions tenantId dans votre SQL ou utilisez une collection standard avec une configuration de tenancy appropriée.",
   "Save": "Enregistrer",
   "Save action": "Enregistrer l'action",
   "Save as block template": "Enregistrer en tant que modèle de bloc",
@@ -733,7 +732,6 @@
   "User Status Histories": "Historiques des statuts utilisateur",
   "User Statuses": "Statuts utilisateur",
   "Users": "Utilisateurs",
-  "VIEW_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Avertissement d'isolation des tenants : les collections de vues ne prennent pas en charge l'isolation des tenants. Les requêtes sont exécutées comme du SQL brut, sans filtrage automatique par tenantId. Si une isolation des données par tenant est nécessaire, implémentez des politiques de sécurité au niveau des lignes (par exemple PostgreSQL RLS) sur la vue de base de données sous-jacente.",
   "Validation rule": "Règle de validation",
   "Value": "Valeur",
   "Verification code": "Code de vérification",
@@ -784,6 +782,8 @@
   "≠": "≠",
   "≤": "≤",
   "≥": "≥",
+  "⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.": "⚠ Avertissement d'isolation des tenants : les collections SQL ne prennent pas en charge l'isolation des tenants. L'instruction SQL est exécutée telle quelle, sans filtrage automatique par tenantId. Si vous devez accéder à des données isolées par tenant, ajoutez manuellement des conditions tenantId dans votre SQL ou utilisez une collection standard avec une configuration de tenancy appropriée.",
+  "⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.": "⚠ Avertissement d'isolation des tenants : les collections de vues ne prennent pas en charge l'isolation des tenants. Les requêtes sont exécutées comme du SQL brut, sans filtrage automatique par tenantId. Si une isolation des données par tenant est nécessaire, implémentez des politiques de sécurité au niveau des lignes (par exemple PostgreSQL RLS) sur la vue de base de données sous-jacente.",
   "12 hour": "12 heures",
   "24 hour": "24 heures"
 }

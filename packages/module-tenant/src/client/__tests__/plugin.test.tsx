@@ -476,10 +476,10 @@ describe('PluginTenantClient', () => {
 
     const ctm = app.dataSourceManager.collectionTemplateManager;
     expect(ctm.getCollectionTemplate('sql').configurableProperties.config.properties.sql.description).toContain(
-      'SQL_COLLECTION_TENANT_ISOLATION_WARNING',
+      'SQL collections do not support tenant isolation',
     );
     expect(ctm.getCollectionTemplate('view').configurableProperties.databaseView.description).toContain(
-      'VIEW_COLLECTION_TENANT_ISOLATION_WARNING',
+      'View collections do not support tenant isolation',
     );
   });
 

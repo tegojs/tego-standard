@@ -807,7 +807,6 @@
   "Roles & Permissions": "角色和权限",
   "Row": "行",
   "SQL collection": "SQL数据表",
-  "SQL_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ 租户隔离警告：SQL 数据表不支持租户隔离。该 SQL 语句将以原始形式直接执行，框架不会自动注入 tenantId 过滤条件。如果需要按租户隔离数据，请手动在 SQL 中添加 tenantId 条件，或改用普通数据表并配置租户隔离选项。",
   "Save": "保存",
   "Save Picture": "保存图片",
   "Save action": "保存操作",
@@ -1030,7 +1029,6 @@
   "Username": "用户名",
   "Users": "用户",
   "Users & permissions": "用户和权限",
-  "VIEW_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ 租户隔离警告：视图数据表不支持租户隔离。查询将以原始 SQL 直接执行，框架不会自动注入 tenantId 过滤条件。如需租户级数据隔离，请在底层数据库视图中实现行级安全策略（如 PostgreSQL RLS）。",
   "Validation rule": "验证规则",
   "Value": "字段值",
   "Values": "值",
@@ -1095,6 +1093,8 @@
   "≠": "≠",
   "≤": "≤",
   "≥": "≥",
+  "⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.": "⚠ 租户隔离警告：SQL 数据表不支持租户隔离。该 SQL 语句将以原始形式直接执行，框架不会自动注入 tenantId 过滤条件。如果需要按租户隔离数据，请手动在 SQL 中添加 tenantId 条件，或改用普通数据表并配置租户隔离选项。",
+  "⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.": "⚠ 租户隔离警告：视图数据表不支持租户隔离。查询将以原始 SQL 直接执行，框架不会自动注入 tenantId 过滤条件。如需租户级数据隔离，请在底层数据库视图中实现行级安全策略（如 PostgreSQL RLS）。",
   "12 hour": "12 小时制",
   "24 hour": "24 小时制"
 }

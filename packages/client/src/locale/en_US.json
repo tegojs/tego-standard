@@ -684,7 +684,6 @@
   "Role name": "Role name",
   "Roles": "Roles",
   "Roles & Permissions": "Roles & Permissions",
-  "SQL_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.",
   "Save": "Save",
   "Save action": "Save action",
   "Save as block template": "Save as block template",
@@ -859,7 +858,6 @@
   "User Status Histories": "User Status Histories",
   "User Statuses": "User Statuses",
   "Users": "Users",
-  "VIEW_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.",
   "Validation rule": "Validation rule",
   "Value": "Value",
   "Verification code": "Verification code",
@@ -920,6 +918,8 @@
   "≠": "≠",
   "≤": "≤",
   "≥": "≥",
+  "⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.": "⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.",
+  "⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.": "⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.",
   "12 hour": "12 hour",
   "24 hour": "24 hour"
 }

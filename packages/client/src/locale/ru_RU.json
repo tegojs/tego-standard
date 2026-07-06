@@ -433,7 +433,6 @@
   "Role name": "Имя роли",
   "Roles": "Роли",
   "Roles & Permissions": "Роли & Разрешения",
-  "SQL_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Предупреждение об изоляции тенантов: SQL-коллекции не поддерживают изоляцию тенантов. SQL-запрос выполняется как есть, без автоматического добавления фильтра tenantId. Если нужен доступ к данным в рамках тенанта, вручную добавьте условия tenantId в SQL или используйте обычную коллекцию с корректной настройкой tenancy.",
   "Save": "Сохранить",
   "Save action": "Сохранить действие",
   "Save as block template": "Сохранить как шаблон Блока",
@@ -535,7 +534,6 @@
   "User Status Histories": "История статусов пользователей",
   "User Statuses": "Статусы пользователей",
   "Users": "Пользователи",
-  "VIEW_COLLECTION_TENANT_ISOLATION_WARNING": "⚠ Предупреждение об изоляции тенантов: коллекции представлений не поддерживают изоляцию тенантов. Запросы выполняются как сырой SQL, без автоматического фильтра tenantId. Если требуется изоляция данных на уровне тенанта, реализуйте политики безопасности на уровне строк (например, PostgreSQL RLS) в базовом представлении базы данных.",
   "Version": "Версия",
   "Version range": "Диапазон версий",
   "View": "Вид",
@@ -578,6 +576,8 @@
   "≠": "≠",
   "≤": "≤",
   "≥": "≥",
+  "⚠ Tenant isolation warning: SQL collections do not support tenant isolation. The SQL statement is executed as-is with no automatic tenantId filtering. If tenant-scoped data access is needed, manually include tenantId conditions in your SQL, or use a general collection with proper tenancy configuration.": "⚠ Предупреждение об изоляции тенантов: SQL-коллекции не поддерживают изоляцию тенантов. SQL-запрос выполняется как есть, без автоматического добавления фильтра tenantId. Если нужен доступ к данным в рамках тенанта, вручную добавьте условия tenantId в SQL или используйте обычную коллекцию с корректной настройкой tenancy.",
+  "⚠ Tenant isolation warning: View collections do not support tenant isolation. Queries are executed as raw SQL with no automatic tenantId filtering. If tenant-level data isolation is required, implement row-level security policies (e.g. PostgreSQL RLS) on the underlying database view.": "⚠ Предупреждение об изоляции тенантов: коллекции представлений не поддерживают изоляцию тенантов. Запросы выполняются как сырой SQL, без автоматического фильтра tenantId. Если требуется изоляция данных на уровне тенанта, реализуйте политики безопасности на уровне строк (например, PostgreSQL RLS) в базовом представлении базы данных.",
   "12 hour": "12 час",
   "24 hour": "24 час"
 }

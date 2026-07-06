@@ -43,7 +43,7 @@ export default class ApprovalInstruction extends Instruction {
         nodeId: node.id,
         executionId: job.executionId,
         workflowId: node.workflowId,
-        ...getTenantValuesFromExecution(processor.execution),
+        ...getTenantValuesFromExecution(processor.execution, 'approvalRecords'),
         index,
         status: node.config.order && index ? APPROVAL_ACTION_STATUS.ASSIGNED : APPROVAL_ACTION_STATUS.PENDING,
         snapshot: approvalExecution.snapshot,

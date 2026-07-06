@@ -147,4 +147,43 @@ describe('tenant plugin collections', () => {
     expect(field).toBeNull();
     expect(app.db.getCollection('tenant_meta_disable_posts').getField('tenantId')).toBeFalsy();
   });
+
+  it('should expose code-defined tenant collections through collection-manager without overwriting configured tenancy', async () => {
+    const name = 'tenant_builtin_configurable_posts';
+
+    app.db.collection({
+      name,
+      tenancy: 'tenantScoped',
+      fields: [
+        {
+          type: 'string',
+          name: 'title',
+        },
+      ],
+    });
+
+    await (app.pm.get('tenant') as any).ensureTenantConfigurableCollectionRecords();
+
+    let collectionModel = await app.db.getRepository('collections').findOne({
+      filter: { name },
+    });
+    expect(collectionModel).toBeTruthy();
+    expect(collectionModel.get('tenancy')).toBe('tenantScoped');
+
+    await app.db.getRepository('collections').update({
+      filterByTk: name,
+      values: {
+        tenancy: 'tenantInherited',
+      },
+      context: {},
+    });
+
+    await (app.pm.get('tenant') as any).ensureTenantConfigurableCollectionRecords();
+
+    collectionModel = await app.db.getRepository('collections').findOne({
+      filter: { name },
+    });
+    expect(collectionModel.get('tenancy')).toBe('tenantInherited');
+    expect(app.db.getCollection(name).options.tenancy).toBe('tenantInherited');
+  });
 });

@@ -38,7 +38,7 @@ export default class ApprovalCarbonCopyInstruction extends Instruction {
           nodeId: node.id,
           executionId: job.executionId,
           workflowId: node.workflowId,
-          ...getTenantValuesFromExecution(processor.execution),
+          ...getTenantValuesFromExecution(processor.execution, COLLECTION_NAME_APPROVAL_CARBON_COPY),
           index,
           createdById: approval.createdBy?.id,
           approvalId: approval.id,

@@ -46,6 +46,26 @@ export class PluginTenantServer extends Plugin {
     this.db.extendCollection(usersCollection.collectionOptions, usersCollection.mergeOptions);
   }
 
+  async ensureTenantConfigurableCollectionRecords(options: any = {}) {
+    if (!this.db.hasCollection('collections')) {
+      return;
+    }
+
+    const collectionsRepository = this.db.getRepository('collections') as any;
+    if (typeof collectionsRepository?.db2cm !== 'function') {
+      return;
+    }
+
+    for (const collection of this.db.collections.values()) {
+      const tenancyMode = getCollectionTenancyMode(collection);
+      if (!TENANT_ENABLED_MODES.includes(tenancyMode as any)) {
+        continue;
+      }
+
+      await collectionsRepository.db2cm(collection.name, options);
+    }
+  }
+
   async beforeLoad() {
     this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
     this.app.i18n.addResources('en-US', NAMESPACE, enUS);
@@ -68,6 +88,10 @@ export class PluginTenantServer extends Plugin {
     this.db.on('collections.afterCreateWithAssociations', ensureTenantIdField);
     this.db.on('collections.afterUpdateWithAssociations', ensureTenantIdField);
     this.db.on('collections.afterUpdate', ensureTenantIdField);
+
+    this.app.on('beforeStart', async () => {
+      await this.ensureTenantConfigurableCollectionRecords();
+    });
 
     this.app.resourcer.use(setCurrentTenant, {
       tag: 'setCurrentTenant',

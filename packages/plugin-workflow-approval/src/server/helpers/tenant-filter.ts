@@ -1,3 +1,5 @@
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
+
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {
     return filter;
@@ -33,10 +35,33 @@ export function getCurrentTenantId(ctx: any) {
   return ctx?.state?.currentTenant?.id ?? ctx?.state?.currentTenantId;
 }
 
+function getCurrentCollection(ctx: any) {
+  const collectionName = ctx?.action?.resourceName;
+  return getCollection(ctx, collectionName);
+}
+
+function getCollection(ctx: any, collectionName?: string) {
+  if (!collectionName) {
+    return null;
+  }
+
+  return ctx?.db?.getCollection?.(collectionName) || null;
+}
+
 export function withCurrentTenantFilter(ctx: any, filter: any = {}) {
   const tenantId = getCurrentTenantId(ctx);
-  if (!tenantId) {
+  if (tenantId === null || tenantId === undefined) {
     return filter;
+  }
+
+  const collection = getCurrentCollection(ctx);
+  if (collection || ctx?.state?.currentTenancyMode) {
+    return applyTenantFilterToContext(
+      { state: ctx?.state },
+      collection || { options: { tenancy: ctx.state.currentTenancyMode } },
+      'list',
+      { filter },
+    ).filter;
   }
 
   const sanitizedFilter = stripTenantFilter(filter);
@@ -51,25 +76,66 @@ export function withCurrentTenantFilter(ctx: any, filter: any = {}) {
   };
 }
 
-export function getTenantValuesFromExecution(execution: any) {
+export function getTenantValuesFromContext(ctx: any, collectionName?: string) {
+  const tenantId = getCurrentTenantId(ctx);
+  if (tenantId === null || tenantId === undefined) {
+    return {};
+  }
+
+  const collection = getCollection(ctx, collectionName);
+  if (collection || ctx?.state?.currentTenancyMode) {
+    return (
+      applyTenantFilterToContext(
+        { state: ctx?.state },
+        collection || { options: { tenancy: ctx.state.currentTenancyMode } },
+        'create',
+        { values: {} },
+      ).values || {}
+    );
+  }
+
+  return { tenantId };
+}
+
+export function getTenantValuesFromExecution(execution: any, collectionName?: string) {
   const tenantId = execution?.get?.('tenantId') ?? execution?.tenantId;
-  return tenantId ? { tenantId } : {};
+  if (tenantId === null || tenantId === undefined) {
+    return {};
+  }
+
+  const tenantContext = execution?.get?.('tenantContext') ?? execution?.tenantContext ?? {};
+  const db = execution?.constructor?.database;
+
+  return getTenantValuesFromContext(
+    {
+      db,
+      state: {
+        ...tenantContext,
+        currentTenant: tenantContext.currentTenant || { id: tenantId },
+        currentTenantId: tenantContext.currentTenantId ?? tenantId,
+      },
+    },
+    collectionName,
+  );
 }
 
 export function getTenantWorkflowOptionsFromApproval(approval: any) {
   const tenantId = approval?.get?.('tenantId') ?? approval?.tenantId;
-  if (!tenantId) {
+  if (tenantId === null || tenantId === undefined) {
     return {};
   }
+  const tenantContext = approval?.get?.('tenantContext') ?? approval?.tenantContext ?? {};
+  const collection = approval?.constructor?.database?.getCollection?.('approvals');
 
   return {
     context: {
       state: {
         currentTenant: { id: tenantId },
         currentTenantId: tenantId,
-        currentTenantDescendantIds: [],
-        currentTenancyMode: 'tenantScoped',
-        currentLegacyDataTenantIds: [],
+        currentTenantDescendantIds: tenantContext.currentTenantDescendantIds || [],
+        currentTenancyMode: collection?.options?.tenancy || tenantContext.currentTenancyMode || 'tenantScoped',
+        currentLegacyDataTenantIds:
+          collection?.options?.legacyDataTenantIds || tenantContext.currentLegacyDataTenantIds || [],
       },
     },
   };

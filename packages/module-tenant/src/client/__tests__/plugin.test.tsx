@@ -8,7 +8,7 @@ import {
   Plugin,
   useCurrentNavigationMenu,
 } from '@tachybase/client';
-import { render, waitFor } from '@tachybase/test/client';
+import { fireEvent, render, waitFor } from '@tachybase/test/client';
 
 import { vi } from 'vitest';
 
@@ -434,6 +434,58 @@ describe('PluginTenantClient', () => {
     await waitFor(() => {
       expect(getByText('Collection tenant isolation')).toBeInTheDocument();
       expect(getByText('Approvals')).toBeInTheDocument();
+    });
+  });
+
+  it('should paginate and search tenant collection isolation configuration', async () => {
+    const listTenants = vi.fn().mockResolvedValue({
+      data: {
+        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+      },
+    });
+    const collectionRecords = [
+      { name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped', from: 'db2cm' },
+      ...Array.from({ length: 11 }, (_, index) => ({
+        name: `custom_${String(index + 1).padStart(2, '0')}`,
+        title: `Collection ${index + 1}`,
+        template: 'general',
+      })),
+    ];
+    const listCollections = vi.fn().mockResolvedValue({
+      data: {
+        data: collectionRecords,
+      },
+    });
+    const api = {
+      resource: vi.fn((name: string) => {
+        if (name === 'tenants') {
+          return { list: listTenants };
+        }
+
+        if (name === 'collections') {
+          return { list: listCollections, update: vi.fn() };
+        }
+
+        return { list: vi.fn() };
+      }),
+    };
+
+    const { getByPlaceholderText, getByText, queryByText } = render(
+      <APIClientProvider apiClient={api as any}>
+        <TenantManagement />
+      </APIClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(getByText('Collection 1')).toBeInTheDocument();
+      expect(queryByText('Collection 10')).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(getByPlaceholderText('Search collections'), { target: { value: 'approval' } });
+
+    await waitFor(() => {
+      expect(getByText('Approvals')).toBeInTheDocument();
+      expect(queryByText('Collection 1')).not.toBeInTheDocument();
     });
   });
 

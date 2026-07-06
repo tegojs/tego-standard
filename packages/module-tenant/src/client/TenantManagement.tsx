@@ -619,6 +619,8 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
   const { message } = App.useApp();
   const { t } = useTenantTranslation();
   const [savingCollectionName, setSavingCollectionName] = useState<string | null>(null);
+  const [collectionKeyword, setCollectionKeyword] = useState('');
+  const [collectionPagination, setCollectionPagination] = useState({ current: 1, pageSize: 10 });
   const requestCanceledRef = useRef(false);
 
   useEffect(() => {
@@ -634,6 +636,20 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
   });
 
   const collections = useMemo(() => collectionsRequest.data?.data || [], [collectionsRequest.data?.data]);
+  const filteredCollections = useMemo(() => {
+    const keyword = collectionKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return collections;
+    }
+
+    return collections.filter((collection) =>
+      [collection.name, collection.title].some((value) =>
+        String(value || '')
+          .toLowerCase()
+          .includes(keyword),
+      ),
+    );
+  }, [collectionKeyword, collections]);
   const tenantOptions = useMemo(
     () =>
       tenants.map((tenant) => ({
@@ -679,10 +695,28 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
           {t('Configure tenant isolation for built-in and custom tenant-aware collections here.')}
         </Typography.Text>
       </div>
+      <Input.Search
+        allowClear
+        placeholder={t('Search collections')}
+        style={{ maxWidth: 320 }}
+        value={collectionKeyword}
+        onChange={(event) => {
+          setCollectionKeyword(event.target.value);
+          setCollectionPagination((pagination) => ({ ...pagination, current: 1 }));
+        }}
+      />
       <Table<TenantCollectionRecord & { tenancy: TenancyMode }>
         loading={collectionsRequest.loading}
-        dataSource={collections}
-        pagination={false}
+        dataSource={filteredCollections}
+        pagination={{
+          current: collectionPagination.current,
+          pageSize: collectionPagination.pageSize,
+          total: filteredCollections.length,
+          showSizeChanger: true,
+          onChange: (current, pageSize) => {
+            setCollectionPagination({ current, pageSize });
+          },
+        }}
         rowKey="name"
         columns={[
           {

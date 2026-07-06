@@ -78,6 +78,11 @@ export class CollectionRepository extends Repository {
           return true;
         }
 
+        const collectionSource = nameMap[instanceName].get('from') ?? nameMap[instanceName].get('options')?.from;
+        if (collectionSource === 'db2cm' && this.database.hasCollection(instanceName)) {
+          return true;
+        }
+
         const fields = nameMap[instanceName].get('fields');
 
         return fields

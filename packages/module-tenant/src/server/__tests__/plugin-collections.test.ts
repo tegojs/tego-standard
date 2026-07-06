@@ -186,4 +186,40 @@ describe('tenant plugin collections', () => {
     expect(collectionModel.get('tenancy')).toBe('tenantInherited');
     expect(app.db.getCollection(name).options.tenancy).toBe('tenantInherited');
   });
+
+  it('should not persist code-defined association fields that would be loaded twice', async () => {
+    const name = 'tenant_builtin_assoc_posts';
+
+    app.db.collection({
+      name,
+      tenancy: 'tenantScoped',
+      fields: [
+        {
+          type: 'belongsToMany',
+          name: 'executions',
+          through: 'approvalExecutions',
+          targetKey: 'id',
+          sourceKey: 'id',
+          foreignKey: 'approvalId',
+          otherKey: 'executionId',
+        },
+        {
+          type: 'hasMany',
+          name: 'approvalExecutions',
+          target: 'approvalExecutions',
+        },
+      ],
+    });
+
+    await (app.pm.get('tenant') as any).ensureTenantConfigurableCollectionRecords();
+
+    const associationField = await app.db.getRepository('fields').findOne({
+      filter: {
+        collectionName: name,
+        name: 'approvalExecutions',
+      },
+    });
+    expect(associationField).toBeFalsy();
+    await expect(app.db.getRepository('collections').load({ filter: { name } })).resolves.toBeTruthy();
+  });
 });

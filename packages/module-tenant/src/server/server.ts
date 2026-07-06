@@ -52,7 +52,7 @@ export class PluginTenantServer extends Plugin {
     }
 
     const collectionsRepository = this.db.getRepository('collections') as any;
-    if (typeof collectionsRepository?.db2cm !== 'function') {
+    if (!collectionsRepository) {
       return;
     }
 
@@ -62,7 +62,23 @@ export class PluginTenantServer extends Plugin {
         continue;
       }
 
-      await collectionsRepository.db2cm(collection.name, options);
+      const exists = await collectionsRepository.findOne({
+        filter: { name: collection.name },
+        transaction: options.transaction,
+      });
+
+      if (exists) {
+        continue;
+      }
+
+      const { fields, ...values } = collection.options as any;
+      await collectionsRepository.create({
+        values: {
+          ...values,
+          from: 'db2cm',
+        },
+        transaction: options.transaction,
+      });
     }
   }
 

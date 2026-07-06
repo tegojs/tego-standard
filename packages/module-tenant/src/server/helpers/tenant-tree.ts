@@ -140,8 +140,8 @@ export async function wouldCreateCycle(
   }
 
   const parentPath = newParent.get('path') as string;
-  if (currentPath && parentPath && parentPath.startsWith(currentPath)) {
-    return true;
+  if (currentPath && parentPath) {
+    return parentPath.startsWith(currentPath);
   }
 
   const visitedTenantIds = new Set<string>();

@@ -218,7 +218,7 @@ export class PluginTenantServer extends Plugin {
         await applyTenantResourceGuard(ctx, next);
       },
       {
-        tag: 'tenantResourceGuard',
+        tag: 'tenantDataSourceResourceGuard',
         after: 'acl',
       },
     );

@@ -31,10 +31,14 @@ export const SettingsCenterDropdown = () => {
     // compile title
     function traverse(settings: Partial<PluginSettingsPageType>[]) {
       return settings
-        .filter((item) => !item.path.includes(':'))
+        .filter((item) => !item.hideInMenu && !item.path.includes(':'))
         .map((item) => {
           item.title = compile(item.title);
-          item.label = <Link to={item.path}>{compile(item.title)}</Link>;
+          item.label = (
+            <Link key={item.key ?? item.path} to={item.path}>
+              {compile(item.title)}
+            </Link>
+          );
           if (item.children?.length) {
             item.children = traverse(item.children) as any;
             // No link should be set if there are children.

@@ -1,5 +1,6 @@
 import { Plugin } from '@tachybase/client';
 
+import { TENANT_IMPERSONATION_SNIPPET } from '../constants';
 import CurrentTenantProvider from './CurrentTenantProvider';
 import { LegacyDataTenantSelect } from './LegacyDataTenantSelect';
 import { tval } from './locale';
@@ -52,6 +53,13 @@ class PluginTenantClient extends Plugin {
       Component: TenantManagement,
       aclSnippet: 'pm.tenant.manage',
       sort: 6,
+    });
+    this.app.systemSettingsManager.add('id-auth.tenants.impersonate', {
+      title: tval('Tenant impersonation'),
+      aclSnippet: TENANT_IMPERSONATION_SNIPPET,
+      aclMode: 'explicit',
+      hideInMenu: true,
+      sort: 7,
     });
 
     // Register tenant-specific schema components

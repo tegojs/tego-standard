@@ -54,6 +54,13 @@ describe('tenant plugin collections', () => {
     );
   });
 
+  it('should register tenant impersonation acl snippet separately from tenant management', async () => {
+    const snippet = app.acl.snippetManager.snippets.get('pm.tenant.impersonate');
+
+    expect(snippet).toBeTruthy();
+    expect(snippet.actions).toEqual(expect.arrayContaining(['tenants:available', 'tenants:current', 'tenants:switch']));
+  });
+
   it('should protect tenant acl scope records on create/update/destroy', async () => {
     app.acl.define({
       role: 'tenant-acl-scope-test',

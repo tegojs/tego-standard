@@ -545,6 +545,20 @@ describe('PluginTenantClient', () => {
     });
   });
 
+  it('should register tenant impersonation as a separate permission entry', async () => {
+    const app = new Application({
+      plugins: [[PluginTenantClient, { name: 'tenant' }]],
+    });
+
+    await app.load();
+
+    expect(app.systemSettingsManager.get('id-auth.tenants.impersonate', false)).toMatchObject({
+      aclSnippet: 'pm.tenant.impersonate',
+      aclMode: 'explicit',
+      hideInMenu: true,
+    });
+  });
+
   it('should expose tenant translation hook with t function', async () => {
     i18n.addResources('zh-CN', NAMESPACE, zhCN);
     await i18n.changeLanguage('zh-CN');

@@ -1,6 +1,6 @@
 import { Plugin, uid } from '@tego/server';
 
-import { NAMESPACE } from '../constants';
+import { NAMESPACE, TENANT_IMPERSONATION_SNIPPET } from '../constants';
 import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
 import switchTenant from './actions/switch-tenant';
@@ -266,6 +266,11 @@ export class PluginTenantServer extends Plugin {
     this.app.acl.registerSnippet({
       name: 'pm.tenant.manage',
       actions: ['tenants:*', 'tenantUsers:*', 'users:list', 'users:update', 'collections:list', 'collections:update'],
+    });
+
+    this.app.acl.registerSnippet({
+      name: TENANT_IMPERSONATION_SNIPPET,
+      actions: ['tenants:available', 'tenants:current', 'tenants:switch'],
     });
 
     const protectTenantAclScope = () => {

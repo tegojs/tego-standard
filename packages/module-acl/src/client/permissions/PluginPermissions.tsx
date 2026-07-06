@@ -29,6 +29,8 @@ const getChildrenKeys = (data = [], arr = []) => {
   return arr;
 };
 
+const isExplicitAclSnippet = (record) => record?.aclMode === 'explicit';
+
 export const PluginPermissions: React.FC<{
   active: boolean;
 }> = ({ active }) => {
@@ -81,6 +83,21 @@ export const PluginPermissions: React.FC<{
   }
   const resource = api.resource('roles.snippets', role?.name);
   const handleChange = async (checked, record) => {
+    if (isExplicitAclSnippet(record)) {
+      if (checked) {
+        await resource.remove({
+          values: [record.aclSnippet],
+        });
+      } else {
+        await resource.add({
+          values: [record.aclSnippet],
+        });
+      }
+      refresh();
+      message.success(t('Saved successfully'));
+      return;
+    }
+
     const childrenKeys = getChildrenKeys(record?.children, []);
     const totalKeys = childrenKeys.concat(record.aclSnippet);
     if (!checked) {
@@ -97,7 +114,7 @@ export const PluginPermissions: React.FC<{
     message.success(t('Saved successfully'));
   };
   return (
-    <Table
+    <Table<any>
       className={styles}
       loading={loading}
       rowKey={'key'}
@@ -138,7 +155,9 @@ export const PluginPermissions: React.FC<{
             </>
           ),
           render: (_, record) => {
-            const checked = !snippets.includes('!' + record.aclSnippet);
+            const checked = isExplicitAclSnippet(record)
+              ? snippets.includes(record.aclSnippet)
+              : !snippets.includes('!' + record.aclSnippet);
             return <Checkbox checked={checked} onChange={() => handleChange(checked, record)} />;
           },
         },

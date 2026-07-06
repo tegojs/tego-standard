@@ -18,7 +18,7 @@ export const useSwitchTenant = () => {
       return null;
     }
 
-    const currentTenant = tenants.find((item) => item.current);
+    const currentTenant = tenants.find((item) => item.current) || tenants[0];
 
     return (
       <div key={TENANT_MENU_KEY} className="tenant-nav-switcher">

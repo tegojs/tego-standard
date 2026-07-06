@@ -20,11 +20,15 @@ export function buildPath(parentPath: string | null | undefined, id: string): st
   return path;
 }
 
+function getSafeLikePrefix(path: string) {
+  const wildcardIndex = path.search(/[_%]/);
+  return wildcardIndex === -1 ? path : path.slice(0, wildcardIndex);
+}
+
 export function buildPathPrefixFilter(path: string) {
   return {
     path: {
-      $gte: path,
-      $lt: `${path}\uffff`,
+      $startsWith: getSafeLikePrefix(path),
     },
   };
 }

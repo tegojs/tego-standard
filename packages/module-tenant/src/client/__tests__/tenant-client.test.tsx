@@ -443,6 +443,28 @@ describe('CurrentTenantProvider – localStorage restore', () => {
     expect(currentSelectProps.value).toBe('tenant-a');
   });
 
+  it('should select the first enabled tenant when no tenant is marked current', () => {
+    const wrapper = ({ children }) => (
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantContext.Provider
+          value={{
+            data: {
+              data: [
+                { id: 'tenant-a', title: 'Tenant A', enabled: true, current: false },
+                { id: 'tenant-b', title: 'Tenant B', enabled: true, current: false },
+              ],
+            },
+          }}
+        >
+          {children}
+        </CurrentTenantContext.Provider>
+      </APIClientProvider>
+    );
+    const { result } = renderHook(() => useSwitchTenant(), { wrapper });
+
+    expect(result.current?.props.children.props.value).toBe('tenant-a');
+  });
+
   it('should disable tenant switch select while switch request is pending', async () => {
     let rejectSwitch: (reason?: any) => void;
     const switchPromise = new Promise((_, reject) => {

@@ -28,8 +28,7 @@ describe('getAccessibleTenantIds', () => {
         $or: [
           {
             path: {
-              $gte: '/hq/',
-              $lt: `/hq/\uffff`,
+              $startsWith: '/hq/',
             },
             'id.$ne': 'hq',
           },

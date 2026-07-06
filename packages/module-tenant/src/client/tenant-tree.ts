@@ -8,11 +8,13 @@ export type TenantRecord = {
   children?: TenantRecord[];
 };
 
+const MAX_TENANT_RECORD_PAGES = 1000;
+
 export async function loadTenantRecords(api: any, isCanceled: () => boolean, pageSize = 200): Promise<TenantRecord[]> {
   const records: TenantRecord[] = [];
   let page = 1;
 
-  while (!isCanceled()) {
+  while (!isCanceled() && page <= MAX_TENANT_RECORD_PAGES) {
     const res = await api.resource('tenants').list({ page, pageSize });
     const tenants = res?.data?.data || [];
     records.push(...tenants);

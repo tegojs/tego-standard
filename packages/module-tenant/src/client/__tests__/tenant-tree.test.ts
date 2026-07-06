@@ -1,4 +1,4 @@
-import { buildTenantTree, getTenantParentOptions } from '../tenant-tree';
+import { buildTenantTree, getTenantParentOptions, loadTenantRecords } from '../tenant-tree';
 
 describe('tenant tree helpers', () => {
   it('should build nested tenant tree from flat tenant records', () => {
@@ -128,5 +128,26 @@ describe('tenant tree helpers', () => {
     );
 
     expect(options).toEqual([{ label: 'outside', value: 'outside' }]);
+  });
+
+  it('should stop loading tenant records after the safety page limit', async () => {
+    const list = vi.fn(({ page, pageSize }) =>
+      Promise.resolve({
+        data: {
+          data: Array.from({ length: pageSize }, (_, index) => ({
+            id: `tenant-${page}-${index}`,
+            name: `tenant-${page}-${index}`,
+          })),
+        },
+      }),
+    );
+    const api = {
+      resource: () => ({ list }),
+    };
+
+    const records = await loadTenantRecords(api, () => false, 2);
+
+    expect(list).toHaveBeenCalledTimes(1000);
+    expect(records).toHaveLength(2000);
   });
 });

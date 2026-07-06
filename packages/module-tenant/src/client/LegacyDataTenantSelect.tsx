@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAPIClient } from '@tachybase/client';
 import { Field, observer, useField } from '@tachybase/schema';
 
-import { message, Select } from 'antd';
+import { App, Select } from 'antd';
 
 import { lang } from './locale';
 import { loadTenantRecords } from './tenant-tree';
@@ -29,6 +29,7 @@ export const LegacyDataTenantSelect = observer(
   (props: any) => {
     const api = useAPIClient();
     const field = useField<Field>();
+    const { message } = App.useApp();
     const [options, setOptions] = useState([]);
 
     useEffect(() => {
@@ -52,7 +53,7 @@ export const LegacyDataTenantSelect = observer(
       return () => {
         canceled = true;
       };
-    }, [api]);
+    }, [api, message]);
 
     return (
       <Select

@@ -329,6 +329,58 @@ describe('CurrentTenantProvider – localStorage restore', () => {
     expect(requests).toHaveLength(2);
   });
 
+  it('should not persist stale tenant id while loading tenants for a new active user', async () => {
+    let resolveSecondRequest: (value: any) => void;
+    const secondRequest = new Promise((resolve) => {
+      resolveSecondRequest = resolve;
+    });
+    let requestCount = 0;
+
+    mockRequest.onPost('/tenants:available').reply(async () => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        return [200, { data: [{ id: 'tenant-user-1', current: true }] }];
+      }
+
+      await secondRequest;
+      return [200, { data: [{ id: 'tenant-user-2', current: true }] }];
+    });
+
+    apiClient.storage.removeItem('current_tenant_id');
+
+    const { rerender } = render(
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantProvider currentUser={{ data: { data: { id: 1 } } }}>
+          <span>child</span>
+        </CurrentTenantProvider>
+      </APIClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(apiClient.storage.getItem('current_tenant_id')).toBe('tenant-user-1');
+    });
+
+    apiClient.storage.removeItem('current_tenant_id');
+    rerender(
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantProvider currentUser={{ data: { data: { id: 2 } } }}>
+          <span>child</span>
+        </CurrentTenantProvider>
+      </APIClientProvider>,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(apiClient.storage.getItem('current_tenant_id')).toBeNull();
+
+    act(() => {
+      resolveSecondRequest!(null);
+    });
+
+    await waitFor(() => {
+      expect(apiClient.storage.getItem('current_tenant_id')).toBe('tenant-user-2');
+    });
+  });
+
   it('should not persist tenant id or reload when tenant switch fails', async () => {
     mockRequest.onPost('/tenants:switch').reply(500, { errors: [{ message: 'switch failed' }] });
     apiClient.storage.removeItem('current_tenant_id');

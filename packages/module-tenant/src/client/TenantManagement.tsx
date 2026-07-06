@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAPIClient, useRequest } from '@tachybase/client';
 
 import { App, Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd';
@@ -539,10 +539,19 @@ export const TenantManagement = () => {
   const [editingTenant, setEditingTenant] = useState<TenantRecord | null>(null);
   const [membersTenant, setMembersTenant] = useState<TenantRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const tenantsRequestCanceledRef = useRef(false);
 
-  const tenantsRequest = useRequest<{ data: TenantRecord[] }>(() =>
-    loadTenantRecords(api, () => false).then((data) => ({ data })),
-  );
+  useEffect(() => {
+    tenantsRequestCanceledRef.current = false;
+    return () => {
+      tenantsRequestCanceledRef.current = true;
+    };
+  }, []);
+
+  const tenantsRequest = useRequest<{ data: TenantRecord[] }>(() => {
+    tenantsRequestCanceledRef.current = false;
+    return loadTenantRecords(api, () => tenantsRequestCanceledRef.current).then((data) => ({ data }));
+  });
 
   const tenants = useMemo(() => tenantsRequest.data?.data || [], [tenantsRequest.data?.data]);
   const tenantTree = useMemo(() => buildTenantTree(tenants), [tenants]);

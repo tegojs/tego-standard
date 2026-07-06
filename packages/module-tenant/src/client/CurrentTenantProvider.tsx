@@ -13,7 +13,19 @@ type AvailableTenantItem = {
 
 type AvailableTenantsResult = {
   data: AvailableTenantItem[];
+  userId?: string | number | null;
 };
+
+interface CurrentTenantProviderProps {
+  children?: React.ReactNode;
+  currentUser?: {
+    data?: {
+      data?: {
+        id?: string | number | null;
+      } | null;
+    };
+  };
+}
 
 export type AvailableTenantsRequestState = Pick<
   ReturnType<typeof useRequest<AvailableTenantsResult>>,
@@ -27,7 +39,7 @@ export const useCurrentTenantContext = () => {
   return useContext(CurrentTenantContext);
 };
 
-export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }) => {
+export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }: CurrentTenantProviderProps) => {
   const api = useAPIClient();
   const currentUserContext = useCurrentUserContext();
   const currentUser = currentUserProp || currentUserContext;
@@ -37,7 +49,10 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
       api
         .resource('tenants')
         .available()
-        .then((res) => res?.data),
+        .then((res) => ({
+          ...(res?.data || { data: [] }),
+          userId: currentUserId,
+        })),
     {
       ready: !!currentUserId,
       refreshDeps: [currentUserId],
@@ -49,9 +64,12 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
 
   useEffect(() => {
     // Guard: only act after the API response has actually arrived.
-    // During loading, value?.data is undefined – skip to avoid
-    // prematurely clearing a previously-persisted tenant id.
-    if (currentUserId && value?.data === undefined) {
+    // During refreshDeps reloads, useRequest may keep stale data while loading.
+    if (currentUserId && (value?.loading || value?.data === undefined)) {
+      return;
+    }
+
+    if (currentUserId && value?.data?.userId !== currentUserId) {
       return;
     }
 
@@ -68,7 +86,7 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     }
 
     api.storage?.removeItem?.(CURRENT_TENANT_ID_STORAGE_KEY);
-  }, [api.storage, currentUserId, value?.data, value?.data?.data]);
+  }, [api.storage, currentUserId, value?.data, value?.data?.data, value?.loading]);
 
   return <CurrentTenantContext.Provider value={value}>{children}</CurrentTenantContext.Provider>;
 };

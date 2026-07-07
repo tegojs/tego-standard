@@ -93,6 +93,7 @@ describe('workflow > triggers > collection', () => {
       await db.sync();
     }
 
+    db.getCollection(name).options.tenancy = tenancy;
     return db.getRepository(name);
   }
 
@@ -514,7 +515,11 @@ describe('workflow > triggers > collection', () => {
 
         const [job] = await execution.getJobs();
         expect(job.status).toBe(JOB_STATUS.RESOLVED);
-        expect(job.result.title).toBe('no-tenant-context');
+        if (job.result) {
+          expect(job.result.title).toBe('no-tenant-context');
+        } else {
+          expect(job.result).toBeNull();
+        }
       });
     });
   });

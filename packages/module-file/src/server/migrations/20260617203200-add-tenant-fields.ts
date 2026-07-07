@@ -21,6 +21,13 @@ async function addIndexIfMissing(queryInterface: any, tableName: string, columnN
   }
 }
 
+async function removeIndexIfExists(queryInterface: any, tableName: string, indexName: string) {
+  const indexes = await queryInterface.showIndex(tableName);
+  if (indexes.some((index) => index.name === indexName)) {
+    await queryInterface.removeIndex(tableName, indexName);
+  }
+}
+
 async function hasColumn(queryInterface: any, tableName: string, columnName: string) {
   if (!(await hasTable(queryInterface, tableName))) {
     return false;
@@ -121,5 +128,21 @@ export default class AddTenantFieldsToAttachmentsMigration extends Migration {
 
     await backfillAttachmentTenantIds(this.db, queryInterface);
     await addIndexIfMissing(queryInterface, tableName, 'tenantId', 'attachments_tenant_id');
+  }
+
+  async down() {
+    const queryInterface = this.db.sequelize.getQueryInterface();
+    const tableName = 'attachments';
+
+    if (!(await hasTable(queryInterface, tableName))) {
+      this.app?.logger?.info?.(`[migration skipped] table ${tableName} does not exist`);
+      return;
+    }
+
+    await removeIndexIfExists(queryInterface, tableName, 'attachments_tenant_id');
+
+    if (await hasColumn(queryInterface, tableName, 'tenantId')) {
+      await queryInterface.removeColumn(tableName, 'tenantId');
+    }
   }
 }

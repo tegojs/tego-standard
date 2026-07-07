@@ -66,9 +66,7 @@ describe('sqlCollection preview SQL safety', () => {
         raw: true,
         transaction,
       });
-      expect(options.attributes).toHaveLength(1);
-      expect(options.attributes[0]).not.toBe('*');
-      expect(options.attributes[0].val).toBe('*');
+      expect(options.attributes).toBeUndefined();
       return [{ id: 1 }];
     });
 
@@ -89,5 +87,29 @@ describe('sqlCollection preview SQL safety', () => {
     expect(result).toEqual([{ id: 1 }]);
     expect(query).toHaveBeenCalledWith('SET TRANSACTION READ ONLY', { transaction });
     expect(calls).toEqual(['transaction', 'set-readonly', 'find']);
+  });
+
+  it('enables and clears sqlite query_only guard for preview queries', async () => {
+    const transaction = { id: 'preview-readonly-tx' };
+    const query = vi.fn();
+    const transactionFn = vi.fn(async (options, callback) => callback(transaction));
+    const findAll = vi.fn(async () => [{ id: 1 }]);
+
+    await runReadOnlyPreviewQuery(
+      {
+        db: {
+          options: { dialect: 'sqlite' },
+          sequelize: {
+            getDialect: () => 'sqlite',
+            query,
+            transaction: transactionFn,
+          },
+        },
+      } as any,
+      { findAll } as any,
+    );
+
+    expect(query).toHaveBeenNthCalledWith(1, 'PRAGMA query_only = ON', { transaction });
+    expect(query).toHaveBeenNthCalledWith(2, 'PRAGMA query_only = OFF', { transaction });
   });
 });

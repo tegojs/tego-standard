@@ -32,6 +32,7 @@ export class CollectionRepository extends Repository {
     } = {};
 
     const viewCollections = [];
+    const db2cmCollections = [];
 
     const customCollections = [];
 
@@ -83,6 +84,7 @@ export class CollectionRepository extends Repository {
 
         const collectionSource = nameMap[instanceName].get('from') ?? nameMap[instanceName].get('options')?.from;
         if (collectionSource === 'db2cm' && this.database.hasCollection(instanceName)) {
+          db2cmCollections.push(instanceName);
           return true;
         }
 
@@ -108,8 +110,8 @@ export class CollectionRepository extends Repository {
       await nameMap[instanceName].load({ skipField });
     }
 
-    // load view fields
-    for (const viewCollectionName of viewCollections) {
+    // load fields that were skipped during the collection load pass
+    for (const viewCollectionName of new Set([...viewCollections, ...db2cmCollections])) {
       process.env.DEBUG_LOAD_COLLECTION_FIELDS &&
         this.database.logger.debug(`load collection fields`, {
           submodule: 'CollectionRepository',

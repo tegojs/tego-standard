@@ -1,4 +1,4 @@
-import { Context, literal, Next, SqlCollection, SQLModel } from '@tego/server';
+import { Context, Next, SqlCollection, SQLModel } from '@tego/server';
 
 import { AST, Parser } from 'node-sql-parser';
 import type { Transaction } from 'sequelize';
@@ -71,18 +71,21 @@ const SQL_PARSE_DIALECTS = ['postgresql', 'mysql', 'sqlite'];
  * Normalizes SQL by parsing and re-serializing it, removing comments and literal formatting noise.
  */
 export function stripSqlCommentsAndLiterals(sql: string) {
-  const ast = parseSql(sql);
-  if (!ast) {
+  const parsed = parseSql(sql);
+  if (!parsed) {
     return '';
   }
 
-  return sqlParser.sqlify(ast);
+  return sqlParser.sqlify(parsed.ast, { database: parsed.database });
 }
 
 function parseSql(sql: string) {
   for (const database of SQL_PARSE_DIALECTS) {
     try {
-      return sqlParser.astify(sql, { database });
+      return {
+        ast: sqlParser.astify(sql, { database }),
+        database,
+      };
     } catch {
       // Try the next supported SQL dialect.
     }
@@ -134,12 +137,12 @@ function isReadOnlyStatement(ast: AST): boolean {
  * Validates that preview SQL contains exactly one read-only SELECT/CTE statement.
  */
 export function isReadOnlyPreviewSql(sql: string) {
-  const ast = parseSql(sql);
-  if (!ast) {
+  const parsed = parseSql(sql);
+  if (!parsed) {
     return false;
   }
 
-  const statements = Array.isArray(ast) ? ast : [ast];
+  const statements = Array.isArray(parsed.ast) ? parsed.ast : [parsed.ast];
   if (statements.length !== 1) {
     return false;
   }
@@ -152,8 +155,18 @@ function getDialect(ctx: Context) {
 }
 
 async function applyReadOnlyTransactionGuard(ctx: Context, transaction: Transaction) {
-  if (getDialect(ctx) === 'postgres') {
+  const dialect = getDialect(ctx);
+  if (dialect === 'postgres') {
     await ctx.db.sequelize.query('SET TRANSACTION READ ONLY', { transaction });
+  }
+  if (dialect === 'sqlite') {
+    await ctx.db.sequelize.query('PRAGMA query_only = ON', { transaction });
+  }
+}
+
+async function clearReadOnlyTransactionGuard(ctx: Context, transaction: Transaction) {
+  if (getDialect(ctx) === 'sqlite') {
+    await ctx.db.sequelize.query('PRAGMA query_only = OFF', { transaction });
   }
 }
 
@@ -163,14 +176,16 @@ async function applyReadOnlyTransactionGuard(ctx: Context, transaction: Transact
 export async function runReadOnlyPreviewQuery(ctx: Context, model: typeof SQLModel) {
   return ctx.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
     await applyReadOnlyTransactionGuard(ctx, transaction);
-
-    // The result is for preview only, add limit clause to avoid too many results.
-    return model.findAll({
-      attributes: [literal('*') as unknown as string],
-      limit: 5,
-      raw: true,
-      transaction,
-    });
+    try {
+      // The result is for preview only, add limit clause to avoid too many results.
+      return await model.findAll({
+        limit: 5,
+        raw: true,
+        transaction,
+      });
+    } finally {
+      await clearReadOnlyTransactionGuard(ctx, transaction);
+    }
   });
 }
 

@@ -188,6 +188,9 @@ export async function wouldCreateCycle(
  * Check if a manager tenant can manage a target tenant.
  * True when the target's path starts with the manager's path (i.e. target is self or descendant).
  */
-export function canManageTenant(managerTenantPath: string, targetTenantPath: string): boolean {
-  return targetTenantPath.startsWith(managerTenantPath);
+export function canManageTenant(
+  managerTenantPath: string | null | undefined,
+  targetTenantPath: string | null | undefined,
+): boolean {
+  return typeof managerTenantPath === 'string' && isTenantPathInSubtree(targetTenantPath, managerTenantPath);
 }

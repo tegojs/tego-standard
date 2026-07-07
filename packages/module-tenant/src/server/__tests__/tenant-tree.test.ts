@@ -1,6 +1,6 @@
 import type { MockServer } from '@tachybase/test';
 
-import { getDescendantIds, getDescendantTenants, wouldCreateCycle } from '../helpers/tenant-tree';
+import { canManageTenant, getDescendantIds, getDescendantTenants, wouldCreateCycle } from '../helpers/tenant-tree';
 import { createTenantApp } from './utils';
 
 describe('tenant tree structure', () => {
@@ -304,6 +304,11 @@ describe('tenant tree structure', () => {
     await expect(wouldCreateCycle({ findOne } as any, 'sub', 'other')).resolves.toBe(false);
 
     expect(findOne).toHaveBeenCalledTimes(2);
+  });
+
+  it('should return false when checking manage permission with missing tenant paths', () => {
+    expect(canManageTenant(null as any, '/root/child/')).toBe(false);
+    expect(canManageTenant('/root/', undefined as any)).toBe(false);
   });
 
   it('should update child paths when parent path changes (move subtree)', async () => {

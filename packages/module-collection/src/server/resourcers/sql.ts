@@ -159,15 +159,6 @@ async function applyReadOnlyTransactionGuard(ctx: Context, transaction: Transact
   if (dialect === 'postgres') {
     await ctx.db.sequelize.query('SET TRANSACTION READ ONLY', { transaction });
   }
-  if (dialect === 'sqlite') {
-    await ctx.db.sequelize.query('PRAGMA query_only = ON', { transaction });
-  }
-}
-
-async function clearReadOnlyTransactionGuard(ctx: Context, transaction: Transaction) {
-  if (getDialect(ctx) === 'sqlite') {
-    await ctx.db.sequelize.query('PRAGMA query_only = OFF', { transaction });
-  }
 }
 
 /**
@@ -176,16 +167,12 @@ async function clearReadOnlyTransactionGuard(ctx: Context, transaction: Transact
 export async function runReadOnlyPreviewQuery(ctx: Context, model: typeof SQLModel) {
   return ctx.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
     await applyReadOnlyTransactionGuard(ctx, transaction);
-    try {
-      // The result is for preview only, add limit clause to avoid too many results.
-      return await model.findAll({
-        limit: 5,
-        raw: true,
-        transaction,
-      });
-    } finally {
-      await clearReadOnlyTransactionGuard(ctx, transaction);
-    }
+    // The result is for preview only, add limit clause to avoid too many results.
+    return await model.findAll({
+      limit: 5,
+      raw: true,
+      transaction,
+    });
   });
 }
 

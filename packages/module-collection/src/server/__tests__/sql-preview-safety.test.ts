@@ -89,7 +89,7 @@ describe('sqlCollection preview SQL safety', () => {
     expect(calls).toEqual(['transaction', 'set-readonly', 'find']);
   });
 
-  it('enables and clears sqlite query_only guard for preview queries', async () => {
+  it('does not apply connection-level sqlite query_only guard inside preview queries', async () => {
     const transaction = { id: 'preview-readonly-tx' };
     const query = vi.fn();
     const transactionFn = vi.fn(async (options, callback) => callback(transaction));
@@ -109,7 +109,6 @@ describe('sqlCollection preview SQL safety', () => {
       { findAll } as any,
     );
 
-    expect(query).toHaveBeenNthCalledWith(1, 'PRAGMA query_only = ON', { transaction });
-    expect(query).toHaveBeenNthCalledWith(2, 'PRAGMA query_only = OFF', { transaction });
+    expect(query).not.toHaveBeenCalled();
   });
 });

@@ -205,18 +205,19 @@ describe('file > storage paths no-op when no tenant context', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Workflow — applyTenantFilterToContext no-op
+// Workflow — applyTenantFilterToContext fail-closed / no-op boundaries
 // ═══════════════════════════════════════════════════════════════════
-describe('workflow > applyTenantFilterToContext no-op when no tenant context', () => {
-  it('should return options unchanged for tenantScoped collection without tenantId', () => {
+describe('workflow > applyTenantFilterToContext without tenant context', () => {
+  it('should fail closed for tenantScoped collection reads without tenantId', () => {
     const options = { filter: { title: 'test' } };
     const result = applyTenantFilterToContext({ state: {} }, { options: { tenancy: 'tenantScoped' } }, 'list', options);
 
-    expect(result).toBe(options);
-    expect(result.filter).toEqual({ title: 'test' });
+    expect(result).toEqual({
+      filter: { id: -1 },
+    });
   });
 
-  it('should return options unchanged for tenantInherited collection without tenantId', () => {
+  it('should fail closed for tenantInherited collection reads without tenantId', () => {
     const options = { filter: { active: true } };
     const result = applyTenantFilterToContext(
       { state: {} },
@@ -225,24 +226,20 @@ describe('workflow > applyTenantFilterToContext no-op when no tenant context', (
       options,
     );
 
-    expect(result).toBe(options);
+    expect(result).toEqual({
+      filter: { id: -1 },
+    });
   });
 
-  it('should return options unchanged for create action without tenantId', () => {
+  it('should reject tenantScoped collection creates without tenantId', () => {
     const options = { values: { title: 'New Record' } };
-    const result = applyTenantFilterToContext(
-      { state: {} },
-      { options: { tenancy: 'tenantScoped' } },
-      'create',
-      options,
-    );
 
-    expect(result).toBe(options);
-    expect(result.values).toEqual({ title: 'New Record' });
-    expect(result.values.tenantId).toBeUndefined();
+    expect(() =>
+      applyTenantFilterToContext({ state: {} }, { options: { tenancy: 'tenantScoped' } }, 'create', options),
+    ).toThrow('Tenant context is required');
   });
 
-  it('should return options unchanged for update action without tenantId', () => {
+  it('should fail closed and strip tenantId for update action without tenantId', () => {
     const options = { filter: { id: 1 }, values: { title: 'Updated' } };
     const result = applyTenantFilterToContext(
       { state: {} },
@@ -251,9 +248,10 @@ describe('workflow > applyTenantFilterToContext no-op when no tenant context', (
       options,
     );
 
-    expect(result).toBe(options);
-    expect(result.filter).toEqual({ id: 1 });
-    expect(result.values).toEqual({ title: 'Updated' });
+    expect(result).toEqual({
+      filter: { id: -1 },
+      values: { title: 'Updated' },
+    });
   });
 
   it('should return options unchanged for shared collection regardless of state', () => {
@@ -283,7 +281,7 @@ describe('workflow > applyTenantFilterToContext no-op when no tenant context', (
     expect(result).toBe(options);
   });
 
-  it('should return options unchanged for destroy action without tenantId', () => {
+  it('should fail closed for destroy action without tenantId', () => {
     const options = { filter: { id: 1 } };
     const result = applyTenantFilterToContext(
       { state: {} },
@@ -292,10 +290,12 @@ describe('workflow > applyTenantFilterToContext no-op when no tenant context', (
       options,
     );
 
-    expect(result).toBe(options);
+    expect(result).toEqual({
+      filter: { id: -1 },
+    });
   });
 
-  it('should return options unchanged for aggregate action without tenantId', () => {
+  it('should fail closed for aggregate action without tenantId', () => {
     const options = { filter: {} };
     const result = applyTenantFilterToContext(
       { state: {} },
@@ -304,7 +304,9 @@ describe('workflow > applyTenantFilterToContext no-op when no tenant context', (
       options,
     );
 
-    expect(result).toBe(options);
+    expect(result).toEqual({
+      filter: { id: -1 },
+    });
   });
 });
 

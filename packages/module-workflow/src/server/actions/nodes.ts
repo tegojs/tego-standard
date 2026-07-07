@@ -266,9 +266,21 @@ export async function update(ctx: Context, next) {
         assertSqlNodePermission(ctx, 'sql');
       }
     } else if (filter) {
-      const existingNodes = await repository.find({ filter, fields: ['type'], context: ctx, transaction });
+      const existingNodes = await repository.find({
+        filter,
+        fields: ['type', 'workflowId'],
+        context: ctx,
+        transaction,
+      });
       if (existingNodes.some((node) => node?.get('type') === 'sql')) {
         assertSqlNodePermission(ctx, 'sql');
+      }
+
+      const workflowIds = new Set(
+        existingNodes.map((node) => node?.get('workflowId')).filter((workflowId) => workflowId != null),
+      );
+      if (workflowIds.size > 1) {
+        ctx.throw(400, 'flow node update filter must not span multiple workflows');
       }
     }
 

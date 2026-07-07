@@ -25,7 +25,7 @@ describe('workflow > tenant module boundary', () => {
     }
   });
 
-  it('should not apply tenant filters without a tenant context', () => {
+  it('should fail closed without a tenant context for tenant-aware collections', () => {
     const options = {
       filter: {
         title: 'same-title',
@@ -43,7 +43,11 @@ describe('workflow > tenant module boundary', () => {
         'list',
         options,
       ),
-    ).toBe(options);
+    ).toEqual({
+      filter: {
+        id: -1,
+      },
+    });
   });
 
   it('should treat numeric zero as a valid tenant context value', () => {

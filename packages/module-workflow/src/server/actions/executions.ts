@@ -2,7 +2,7 @@ import { actions, Context, Next, Op, utils } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
 import {
-  buildWorkflowExecutionTenantFilter,
+  buildExecutionTenantFilter,
   canReadLegacyExecutions,
   getCurrentTenantIdFromState,
   NEVER_MATCH_TENANT_FILTER,
@@ -12,41 +12,6 @@ import { triggerWorkflowAndGetExecution } from '../utils';
 
 function getModelValue(model: any, key: string) {
   return model?.get?.(key) ?? model?.[key];
-}
-
-function isTenantPluginEnabled(ctx: Context) {
-  const pluginManagers = [ctx.tego?.pm, ctx.app?.pm];
-
-  for (const pluginManager of pluginManagers) {
-    try {
-      const tenantPlugin = pluginManager?.get?.('tenant');
-      if (tenantPlugin?.enabled === true) {
-        return true;
-      }
-    } catch {
-      // Ignore plugin-manager lookup failures and fall back to state checks.
-    }
-  }
-
-  return false;
-}
-
-/**
- * Handles the should apply execution tenant boundary resource action.
- */
-export function shouldApplyExecutionTenantBoundary(ctx: Context) {
-  const state = ctx.state || {};
-  const tenantId = getCurrentTenantIdFromState(state);
-  return (
-    (tenantId !== null && tenantId !== undefined) || Boolean(state.currentTenancyMode) || isTenantPluginEnabled(ctx)
-  );
-}
-
-/**
- * Handles the build execution tenant filter resource action.
- */
-export function buildExecutionTenantFilter(ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
-  return buildWorkflowExecutionTenantFilter(ctx.state, shouldApplyExecutionTenantBoundary(ctx) ? fallback : null);
 }
 
 function appendExecutionTenantFilter(filter: any, ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {

@@ -254,15 +254,15 @@ describe('workflow > tenant helper drift', () => {
     });
   });
 
-  it('both implementations are no-op without tenant context', () => {
+  it('both implementations fail closed without tenant context', () => {
     const options = { filter: { title: 'same' } };
     const collection = { options: { tenancy: 'tenantScoped' } };
 
     const localResult = localApply({ state: {} }, collection, 'list', options);
     const authResult = authoritativeApply({ state: {} }, collection, 'list', options);
 
-    expect(localResult).toBe(options);
-    expect(authResult).toBe(options);
+    expect(localResult).toEqual({ filter: { id: -1 } });
+    expect(authResult).toEqual(localResult);
   });
 
   it('both implementations are no-op for non-tenant collections', () => {

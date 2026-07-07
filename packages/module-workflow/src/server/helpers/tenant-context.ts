@@ -1,3 +1,5 @@
+import type { Context } from '@tego/server';
+
 type TenantFilterContext = {
   state?: Record<string, any>;
 };
@@ -88,6 +90,41 @@ export function buildWorkflowExecutionTenantFilter(state: Record<string, any> = 
   return { tenantId };
 }
 
+function isTenantPluginEnabled(ctx: Context) {
+  const pluginManagers = [ctx.tego?.pm, ctx.app?.pm];
+
+  for (const pluginManager of pluginManagers) {
+    try {
+      const tenantPlugin = pluginManager?.get?.('tenant');
+      if (tenantPlugin?.enabled === true) {
+        return true;
+      }
+    } catch {
+      // Ignore plugin-manager lookup failures and fall back to state checks.
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Checks whether execution resources should be isolated by tenant context.
+ */
+export function shouldApplyExecutionTenantBoundary(ctx: Context) {
+  const state = ctx.state || {};
+  const tenantId = getCurrentTenantIdFromState(state);
+  return (
+    (tenantId !== null && tenantId !== undefined) || Boolean(state.currentTenancyMode) || isTenantPluginEnabled(ctx)
+  );
+}
+
+/**
+ * Builds the tenant filter for execution resources.
+ */
+export function buildExecutionTenantFilter(ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
+  return buildWorkflowExecutionTenantFilter(ctx.state, shouldApplyExecutionTenantBoundary(ctx) ? fallback : null);
+}
+
 function buildTenantFilter(tenantId: string | number, includeLegacyData = false) {
   if (!includeLegacyData) {
     return { tenantId };
@@ -173,7 +210,22 @@ export function getCurrentTenantIdFromState(state: TenantFilterContext['state'])
 function buildTenantParams(actionName: string, params: any, state: TenantFilterContext['state'], tenancyMode?: string) {
   const tenantId = getCurrentTenantIdFromState(state);
   if (tenantId === null || tenantId === undefined) {
-    return null;
+    if (READ_ACTIONS.includes(actionName) || WRITE_FILTER_ACTIONS.includes(actionName)) {
+      return actionName === 'update'
+        ? {
+            filter: NEVER_MATCH_TENANT_FILTER,
+            values: omitTenantValue(params?.values),
+          }
+        : {
+            filter: NEVER_MATCH_TENANT_FILTER,
+          };
+    }
+
+    if (actionName === 'create') {
+      throw new Error('Tenant context is required for tenant isolated workflow create operations');
+    }
+
+    return {};
   }
 
   const includeLegacyData = canReadLegacyData(tenantId, state?.currentLegacyDataTenantIds);

@@ -179,4 +179,44 @@ describe('workflow > actions > nodes update guard', () => {
     });
     expect(next).toHaveBeenCalled();
   });
+
+  it('should reject filter-based updates that span multiple workflows', async () => {
+    const repository = {
+      find: vi
+        .fn()
+        .mockResolvedValue([
+          { get: (key: string) => (key === 'workflowId' ? 1 : 'manual') },
+          { get: (key: string) => (key === 'workflowId' ? 2 : 'manual') },
+        ]),
+      findOne: vi.fn(),
+      update: vi.fn(),
+    };
+    const ctx: any = {
+      db: {
+        getRepository: vi.fn(() => repository),
+        sequelize: {
+          transaction: async (callback) => callback('tx-1'),
+        },
+      },
+      action: {
+        resourceName: 'flow_nodes',
+        actionName: 'update',
+        params: {
+          filter: { type: 'manual' },
+          values: { title: 'updated' },
+        },
+      },
+      throw: vi.fn((status: number, message: string) => {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      }),
+    };
+
+    await expect(updateNodeAction(ctx, vi.fn())).rejects.toMatchObject({
+      status: 400,
+      message: 'flow node update filter must not span multiple workflows',
+    });
+    expect(repository.update).not.toHaveBeenCalled();
+  });
 });

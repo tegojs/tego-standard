@@ -24,9 +24,16 @@ export class SelectInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const targetCollection = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    if (!dataSource) {
+      throw new Error(`data source ${dataSourceName} for select data on select node not found`);
+    }
+
+    const targetCollection = dataSource.collectionManager.getCollection(collectionName);
+    if (!targetCollection?.repository) {
+      throw new Error(`collection ${collectionName} repository for select data on select node not found`);
+    }
+
     const { repository, fields } = targetCollection;
     const { page, pageSize, sort = [], paginate = true, ...options } = processor.getParsedValue(params, node.id);
 

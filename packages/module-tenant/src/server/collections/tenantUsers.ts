@@ -15,10 +15,5 @@ export default defineCollection({
       primaryKey: true,
       index: true,
     },
-    {
-      type: 'boolean',
-      name: 'default',
-      defaultValue: false,
-    },
   ],
 });

@@ -23,6 +23,7 @@ function isManagedTenantIdField(field: any) {
  */
 export async function ensureTenantIdField(model: any, options: Transactionable = {}) {
   const collectionName = model.get('name');
+  const tenancyMode = model.get('tenancy') ?? model.get('options')?.tenancy;
   const fieldsRepository = model.db.getRepository('fields');
   const exists = await fieldsRepository.findOne({
     filter: {
@@ -32,8 +33,11 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
     transaction: options.transaction,
   });
 
-  if (!isTenantEnabledMode(model.get('tenancy'))) {
+  if (!isTenantEnabledMode(tenancyMode)) {
     if (isManagedTenantIdField(exists)) {
+      await exists.remove({
+        transaction: options.transaction,
+      });
       await fieldsRepository.destroy({
         filter: {
           collectionName,
@@ -44,13 +48,6 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
       const collection = model.db.getCollection(collectionName);
       collection.removeField?.('tenantId');
       await model.load({ transaction: options.transaction, resetFields: true });
-      await collection.sync({
-        force: false,
-        alter: {
-          drop: false,
-        },
-        transaction: options.transaction,
-      } as any);
     }
     return;
   }

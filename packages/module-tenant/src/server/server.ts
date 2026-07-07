@@ -85,6 +85,54 @@ export class PluginTenantServer extends Plugin {
     }
   }
 
+  ensureTenantRuntimeFields() {
+    for (const collection of this.db.collections.values()) {
+      const tenancyMode = getCollectionTenancyMode(collection);
+      if (!TENANT_ENABLED_MODES.includes(tenancyMode as any)) {
+        continue;
+      }
+
+      if (collection.hasField?.('tenantId')) {
+        continue;
+      }
+
+      collection.setField('tenantId', {
+        type: 'context',
+        dataIndex: 'state.currentTenant.id',
+        dataType: 'string',
+        createOnly: true,
+        visible: true,
+        index: true,
+      });
+    }
+  }
+
+  async ensureTenantIdFields(options: any = {}) {
+    this.ensureTenantRuntimeFields();
+
+    if (!this.db.hasCollection('collections')) {
+      return;
+    }
+
+    const collectionsRepository = this.db.getRepository('collections') as any;
+    if (!collectionsRepository) {
+      return;
+    }
+
+    const collections = await collectionsRepository.find({
+      transaction: options.transaction,
+    });
+
+    for (const collection of collections) {
+      const tenancyMode = collection.get('tenancy') ?? collection.get('options')?.tenancy;
+      if (!TENANT_ENABLED_MODES.includes(tenancyMode as any)) {
+        continue;
+      }
+
+      await ensureTenantIdField(collection, options);
+    }
+  }
+
   async beforeLoad() {
     this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
     this.app.i18n.addResources('en-US', NAMESPACE, enUS);
@@ -429,10 +477,13 @@ export class PluginTenantServer extends Plugin {
 
   async install(options) {
     await this.ensureTenantAclScope(options);
+    await this.ensureTenantIdFields(options);
   }
 
   async afterEnable() {
     await this.ensureTenantAclScope();
+    await this.ensureTenantConfigurableCollectionRecords();
+    await this.ensureTenantIdFields();
   }
 }
 

@@ -18,6 +18,7 @@ type TenantFilterCollection = {
 
 const READ_ACTIONS = ['list', 'get', 'count', 'export', 'aggregate'];
 const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
+const NEVER_MATCH_TENANT_FILTER = { id: -1 };
 
 function isEmptyPlainObject(value: any) {
   return value && typeof value === 'object' && !Array.isArray(value) && Reflect.ownKeys(value).length === 0;
@@ -138,7 +139,22 @@ function getTenantId(state: TenantFilterContext['state']) {
 function buildTenantParams(actionName: string, params: any, state: TenantFilterContext['state'], tenancyMode?: string) {
   const tenantId = getTenantId(state);
   if (tenantId == null) {
-    return null;
+    if (READ_ACTIONS.includes(actionName) || WRITE_FILTER_ACTIONS.includes(actionName)) {
+      return actionName === 'update'
+        ? {
+            filter: NEVER_MATCH_TENANT_FILTER,
+            values: omitTenantValue(params?.values),
+          }
+        : {
+            filter: NEVER_MATCH_TENANT_FILTER,
+          };
+    }
+
+    if (actionName === 'create') {
+      throw new Error('Tenant context is required for tenant isolated create operations');
+    }
+
+    return {};
   }
 
   const includeLegacyData = canReadLegacyData(tenantId, state?.currentLegacyDataTenantIds);
@@ -224,7 +240,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
  */
 export function applyTenantFilter(ctx: TenantFilterContext) {
   const tenantId = getTenantId(ctx.state);
-  if (tenantId == null) {
+  if (tenantId == null && !TENANT_ENABLED_MODES.includes(ctx.state?.currentTenancyMode as any)) {
     return;
   }
 

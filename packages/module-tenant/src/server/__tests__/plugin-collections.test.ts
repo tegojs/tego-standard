@@ -160,6 +160,8 @@ describe('tenant plugin collections', () => {
 
     expect(field).toBeNull();
     expect(app.db.getCollection('tenant_meta_disable_posts').getField('tenantId')).toBeFalsy();
+    const table = await app.db.sequelize.getQueryInterface().describeTable('tenant_meta_disable_posts');
+    expect(table.tenantId).toBeUndefined();
   });
 
   it('should expose code-defined tenant collections through collection-manager without overwriting configured tenancy', async () => {

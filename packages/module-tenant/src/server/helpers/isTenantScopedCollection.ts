@@ -1,6 +1,8 @@
 import { Collection } from '@tego/server';
 
-import { TENANT_INHERITED_MODE, TENANT_SCOPED_MODE } from '../constants';
+import { TENANT_ENABLED_MODES, TENANT_INHERITED_MODE, TENANT_SCOPED_MODE } from '../constants';
+
+export type TenantEnabledMode = (typeof TENANT_ENABLED_MODES)[number];
 
 /**
  * Provides the is tenant scoped collection helper for this module.
@@ -19,12 +21,11 @@ export function isTenantInheritedCollection(collection?: Collection | null) {
 /**
  * Provides the get collection tenancy mode helper for this module.
  */
-export function getCollectionTenancyMode(collection?: Collection | null): string | null {
+export function getCollectionTenancyMode(collection?: Collection | null): TenantEnabledMode | null {
   if (!collection) {
     return null;
   }
 
-  return collection.options?.tenancy || null;
+  const tenancyMode = collection.options?.tenancy;
+  return TENANT_ENABLED_MODES.includes(tenancyMode as TenantEnabledMode) ? (tenancyMode as TenantEnabledMode) : null;
 }
-
-export default isTenantScopedCollection;

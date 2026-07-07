@@ -45,16 +45,7 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
         },
         transaction: options.transaction,
       });
-      const collection = model.db.getCollection(collectionName);
-      collection.removeField?.('tenantId');
       await model.load({ transaction: options.transaction, resetFields: true });
-      await model.db.getCollection(collectionName).sync({
-        force: false,
-        alter: {
-          drop: true,
-        },
-        transaction: options.transaction,
-      } as any);
     }
     return;
   }

@@ -1,7 +1,7 @@
 import { Context, literal, Next, SqlCollection, SQLModel } from '@tego/server';
 
 import { AST, Parser } from 'node-sql-parser';
-import type { Transaction } from 'sequelize';
+import type { FindOptions, Transaction } from 'sequelize';
 
 import { CollectionModel } from '../models';
 
@@ -161,10 +161,10 @@ async function applyReadOnlyTransactionGuard(ctx: Context, transaction: Transact
   }
 }
 
-function getPreviewQueryOptions(transaction?: Transaction) {
+function getPreviewQueryOptions(transaction?: Transaction): FindOptions<any> {
   return {
     // The result is for preview only, add limit clause to avoid too many results.
-    attributes: [literal('*')],
+    attributes: [literal('*') as unknown as string],
     limit: 5,
     raw: true,
     ...(transaction ? { transaction } : {}),

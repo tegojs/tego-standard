@@ -10,7 +10,7 @@ export default async function (
 ) {
   const ds = this.workflow.app.dataSourceManager.dataSources.get(dataSource);
   if (!ds) {
-    throw new Error(`collection ${collection} for create data on manual node not found`);
+    throw new Error(`data source ${dataSource} for create data on manual node not found`);
   }
   const c = ds.collectionManager.getCollection(collection);
   if (!c) {
@@ -18,7 +18,7 @@ export default async function (
   }
   const repo = c.repository;
   if (!repo) {
-    throw new Error(`collection ${collection} for create data on manual node not found`);
+    throw new Error(`repository for collection ${collection} on manual node not found`);
   }
 
   const { _, ...form } = instance.result;

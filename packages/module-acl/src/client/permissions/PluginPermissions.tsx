@@ -1,5 +1,13 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { useAPIClient, useApp, useCollectionRecord, useCompile, useRequest } from '@tachybase/client';
+import {
+  getAclSnippetChecked,
+  updateAclSnippetSelection,
+  useAPIClient,
+  useApp,
+  useCollectionRecord,
+  useCompile,
+  useRequest,
+} from '@tachybase/client';
 
 import { Checkbox, message, Table } from 'antd';
 import lodash, { flatMap } from 'lodash';
@@ -21,16 +29,6 @@ const getParentKeys = (tree, func, path = []) => {
   }
   return [];
 };
-const getChildrenKeys = (data = [], arr = []) => {
-  for (const item of data) {
-    arr.push(item.aclSnippet);
-    if (item.children && item.children.length) getChildrenKeys(item.children, arr);
-  }
-  return arr;
-};
-
-const isExplicitAclSnippet = (record) => record?.aclMode === 'explicit';
-
 export const PluginPermissions: React.FC<{
   active: boolean;
 }> = ({ active }) => {
@@ -83,34 +81,8 @@ export const PluginPermissions: React.FC<{
   }
   const resource = api.resource('roles.snippets', role?.name);
   const handleChange = async (checked, record) => {
-    if (isExplicitAclSnippet(record)) {
-      if (checked) {
-        await resource.remove({
-          values: [record.aclSnippet],
-        });
-      } else {
-        await resource.add({
-          values: [record.aclSnippet],
-        });
-      }
-      refresh();
-      message.success(t('Saved successfully'));
-      return;
-    }
-
-    const childrenKeys = getChildrenKeys(record?.children, []);
-    const totalKeys = childrenKeys.concat(record.aclSnippet);
-    if (!checked) {
-      await resource.remove({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    } else {
-      await resource.add({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    }
+    await updateAclSnippetSelection(resource, checked, record);
+    refresh();
     message.success(t('Saved successfully'));
   };
   return (
@@ -155,9 +127,7 @@ export const PluginPermissions: React.FC<{
             </>
           ),
           render: (_, record) => {
-            const checked = isExplicitAclSnippet(record)
-              ? snippets.includes(record.aclSnippet)
-              : !snippets.includes('!' + record.aclSnippet);
+            const checked = getAclSnippetChecked(record, snippets);
             return <Checkbox checked={checked} onChange={() => handleChange(checked, record)} />;
           },
         },

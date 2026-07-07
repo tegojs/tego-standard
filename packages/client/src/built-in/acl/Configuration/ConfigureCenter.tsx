@@ -9,6 +9,7 @@ import { useApp } from '../../../application';
 import { useRecord } from '../../../record-provider';
 import { useCompile } from '../../../schema-component';
 import { SettingsCenterContext } from '../../pm';
+import { getAclSnippetChecked, updateAclSnippetSelection } from '../acl-snippet';
 import { useStyles } from '../style';
 
 const getParentKeys = (tree, func, path = []) => {
@@ -24,16 +25,6 @@ const getParentKeys = (tree, func, path = []) => {
   }
   return [];
 };
-const getChildrenKeys = (data = [], arr = []) => {
-  for (const item of data) {
-    arr.push(item.aclSnippet);
-    if (item.children && item.children.length) getChildrenKeys(item.children, arr);
-  }
-  return arr;
-};
-
-const isExplicitAclSnippet = (record) => record?.aclMode === 'explicit';
-
 const SettingMenuContext = createContext(null);
 SettingMenuContext.displayName = 'SettingMenuContext';
 
@@ -81,34 +72,8 @@ export const SettingsCenterConfigure = () => {
   );
   const resource = api.resource('roles.snippets', record.name);
   const handleChange = async (checked, record) => {
-    if (isExplicitAclSnippet(record)) {
-      if (checked) {
-        await resource.remove({
-          values: [record.aclSnippet],
-        });
-      } else {
-        await resource.add({
-          values: [record.aclSnippet],
-        });
-      }
-      refresh();
-      message.success(t('Saved successfully'));
-      return;
-    }
-
-    const childrenKeys = getChildrenKeys(record?.children, []);
-    const totalKeys = childrenKeys.concat(record.aclSnippet);
-    if (!checked) {
-      await resource.remove({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    } else {
-      await resource.add({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    }
+    await updateAclSnippetSelection(resource, checked, record);
+    refresh();
     message.success(t('Saved successfully'));
   };
   return (
@@ -153,9 +118,7 @@ export const SettingsCenterConfigure = () => {
             </>
           ),
           render: (_, record) => {
-            const checked = isExplicitAclSnippet(record)
-              ? snippets.includes(record.aclSnippet)
-              : !snippets.includes('!' + record.aclSnippet);
+            const checked = getAclSnippetChecked(record, snippets);
             return <Checkbox checked={checked} onChange={() => handleChange(checked, record)} />;
           },
         },

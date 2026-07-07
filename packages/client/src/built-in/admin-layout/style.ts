@@ -89,7 +89,7 @@ export const useStyles = createStyles(({ css, token }) => {
         color: ${token.colorTextHeaderMenu} !important;
       }
       &:hover {
-        background: rgba(255, 255, 255, 0.1) !important;
+        background: ${token.colorBgHeaderMenuHover} !important;
       }
     `,
     right: css`

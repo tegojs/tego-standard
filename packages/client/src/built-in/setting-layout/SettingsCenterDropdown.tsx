@@ -36,23 +36,23 @@ export const SettingsCenterDropdown = () => {
       return settings
         .filter((item) => !item.hideInMenu && !item.path.includes(':'))
         .map((item) => {
-          item.title = compile(item.title);
+          const title = compile(item.title);
           item.label = (
             <Link key={item.key ?? item.path} to={item.path}>
-              {compile(item.title)}
+              {title}
             </Link>
           );
           if (item.children?.length) {
             item.children = traverse(item.children) as any;
             // No link should be set if there are children.
-            item.label = compile(item.title);
+            item.label = title;
           }
           return {
             key: item.key,
             label: item.label,
             path: item.path,
             children: item.children,
-            name: item.title as string,
+            name: title as string,
           };
         });
     }

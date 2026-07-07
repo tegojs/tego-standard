@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.23] - 2026-07-07
+
+### ✨ Added
+
+- **core**: configurable request body limit ([#399](https://github.com/tegojs/tego-standard/pull/399)) (@TomyJan)
+
 ### 🐛 Fixed
 
-- **client**: restore grid schema drag context ([#396](https://github.com/tegojs/tego-standard/pull/396)) [2603533](https://github.com/tegojs/tego-standard/commit/26035333c96c6d38225fbb3fbe894530a4371e36) (@TomyJan)
-- **auth**: handle expired token response status ([#395](https://github.com/tegojs/tego-standard/pull/395)) [7a430b9](https://github.com/tegojs/tego-standard/commit/7a430b9fc8d4ce75d7f719b2358404acbc8033fd) (@TomyJan)
-
-
+- **workflow-approval**: delay approval workflow trigger until commit (@bai.zixv)
+- **client**: restore grid schema drag context ([#396](https://github.com/tegojs/tego-standard/pull/396)) (@TomyJan)
+- **auth**: handle expired token response status ([#395](https://github.com/tegojs/tego-standard/pull/395)) (@TomyJan)
 
 ## [1.6.22] - 2026-06-16
 
@@ -3048,7 +3055,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.22...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.23...HEAD
+[1.6.23]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.23
 [1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22
 [1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
 [1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20

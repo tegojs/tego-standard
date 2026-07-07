@@ -7,12 +7,19 @@
 
 ## [未发布]
 
+
+
+## [1.6.23] - 2026-07-07
+
+### ✨ 新增
+
+- **core**: 可配置的请求正文限制 ([#399](https://github.com/tegojs/tego-standard/pull/399)) (@TomyJan)
+
 ### 🐛 修复
 
-- **client**: 恢复网格模式拖动上下文 ([#396](https://github.com/tegojs/tego-standard/pull/396)) [2603533](https://github.com/tegojs/tego-standard/commit/26035333c96c6d38225fbb3fbe894530a4371e36) (@TomyJan)
-- **auth**: 处理过期的令牌响应状态 ([#395](https://github.com/tegojs/tego-standard/pull/395)) [7a430b9](https://github.com/tegojs/tego-standard/commit/7a430b9fc8d4ce75d7f719b2358404acbc8033fd) (@TomyJan)
-
-
+- **workflow-approval**: 延迟批准工作流触发直至提交 (@bai.zixv)
+- **client**: 恢复网格模式拖动上下文 ([#396](https://github.com/tegojs/tego-standard/pull/396)) (@TomyJan)
+- **auth**: 处理过期的令牌响应状态 ([#395](https://github.com/tegojs/tego-standard/pull/395)) (@TomyJan)
 
 ## [1.6.22] - 2026-06-16
 
@@ -3048,7 +3055,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.22...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.23...HEAD
+[1.6.23]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.23
 [1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22
 [1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21
 [1.6.20]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.20

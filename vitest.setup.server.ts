@@ -100,6 +100,11 @@ function workspacePackageDirByPackageName(packageName: string, map: Record<strin
 }
 
 function workspaceServerEntry(packageDir: string) {
+  const sourceEntry = path.resolve(workspaceRoot, 'packages', packageDir, 'src/server/index.ts');
+  if (fs.existsSync(sourceEntry)) {
+    return sourceEntry;
+  }
+
   const libEntry = path.resolve(workspaceRoot, 'packages', packageDir, 'lib/server/index.js');
   if (fs.existsSync(libEntry)) {
     return libEntry;
@@ -108,11 +113,6 @@ function workspaceServerEntry(packageDir: string) {
   const distEntry = path.resolve(workspaceRoot, 'packages', packageDir, 'dist/server/index.js');
   if (fs.existsSync(distEntry)) {
     return distEntry;
-  }
-
-  const sourceEntry = path.resolve(workspaceRoot, 'packages', packageDir, 'src/server/index.ts');
-  if (fs.existsSync(sourceEntry)) {
-    return sourceEntry;
   }
 
   return null;

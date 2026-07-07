@@ -66,7 +66,8 @@ describe('sqlCollection preview SQL safety', () => {
         raw: true,
         transaction,
       });
-      expect(options.attributes).toBeUndefined();
+      expect(options.attributes).toHaveLength(1);
+      expect(options.attributes).not.toContain('*');
       return [{ id: 1 }];
     });
 
@@ -98,6 +99,8 @@ describe('sqlCollection preview SQL safety', () => {
         limit: 5,
         raw: true,
       });
+      expect(options.attributes).toHaveLength(1);
+      expect(options.attributes).not.toContain('*');
       expect(options.transaction).toBeUndefined();
       return [{ id: 1 }];
     });

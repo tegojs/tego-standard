@@ -79,8 +79,7 @@ function buildInheritedTenantFilter(tenantIds: Array<string | number>, includeLe
   };
 }
 
-function appendFilter(original: any, tenantId: string | number, includeLegacyData = false) {
-  const tenantFilter = buildTenantFilter(tenantId, includeLegacyData);
+function appendTenantFilter(original: any, tenantFilter: any) {
   const sanitizedOriginal = stripTenantFilter(original);
 
   if (!sanitizedOriginal || isEmptyPlainObject(sanitizedOriginal)) {
@@ -92,17 +91,12 @@ function appendFilter(original: any, tenantId: string | number, includeLegacyDat
   };
 }
 
+function appendFilter(original: any, tenantId: string | number, includeLegacyData = false) {
+  return appendTenantFilter(original, buildTenantFilter(tenantId, includeLegacyData));
+}
+
 function appendInheritedFilter(original: any, tenantIds: Array<string | number>, includeLegacyData = false) {
-  const tenantFilter = buildInheritedTenantFilter(tenantIds, includeLegacyData);
-  const sanitizedOriginal = stripTenantFilter(original);
-
-  if (!sanitizedOriginal || isEmptyPlainObject(sanitizedOriginal)) {
-    return tenantFilter;
-  }
-
-  return {
-    $and: [sanitizedOriginal, tenantFilter],
-  };
+  return appendTenantFilter(original, buildInheritedTenantFilter(tenantIds, includeLegacyData));
 }
 
 function appendTenantValue(values: any, tenantId: string | number) {

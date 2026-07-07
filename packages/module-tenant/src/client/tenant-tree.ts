@@ -32,12 +32,30 @@ export async function loadTenantRecords(api: any, isCanceled: () => boolean, pag
   return records;
 }
 
+function buildChildrenByParent(tenants: Iterable<TenantRecord>) {
+  const childrenByParent = new Map<string, TenantRecord[]>();
+
+  for (const tenant of tenants) {
+    if (!tenant.parentId) {
+      continue;
+    }
+
+    const children = childrenByParent.get(tenant.parentId) || [];
+    children.push(tenant);
+    childrenByParent.set(tenant.parentId, children);
+  }
+
+  return childrenByParent;
+}
+
 /**
  * Converts a flat tenant list into a tree while ignoring cyclic parent relationships.
  */
 export function buildTenantTree(tenants: TenantRecord[]) {
   const records = new Map<string, TenantRecord>();
   const roots: TenantRecord[] = [];
+  const cycleRecords = new Set<string>();
+  const safeRecords = new Set<string>();
 
   tenants.forEach((tenant) => {
     const { children: _children, ...rest } = tenant;
@@ -45,17 +63,36 @@ export function buildTenantTree(tenants: TenantRecord[]) {
   });
 
   const hasCycle = (tenant: TenantRecord) => {
-    const visited = new Set<string>();
+    if (safeRecords.has(tenant.id)) {
+      return false;
+    }
+    if (cycleRecords.has(tenant.id)) {
+      return true;
+    }
+
+    const visited = new Map<string, number>();
+    const chain: string[] = [];
     let current: TenantRecord | undefined = tenant;
 
     while (current?.parentId && records.has(current.parentId)) {
-      if (visited.has(current.id)) {
+      if (safeRecords.has(current.id)) {
+        chain.forEach((id) => safeRecords.add(id));
+        return false;
+      }
+      if (cycleRecords.has(current.id)) {
+        chain.forEach((id) => cycleRecords.add(id));
         return true;
       }
-      visited.add(current.id);
+      if (visited.has(current.id)) {
+        chain.forEach((id) => cycleRecords.add(id));
+        return true;
+      }
+      visited.set(current.id, chain.length);
+      chain.push(current.id);
       current = records.get(current.parentId);
     }
 
+    chain.forEach((id) => safeRecords.add(id));
     return false;
   };
 
@@ -80,20 +117,22 @@ export function getTenantParentOptions(tenants: TenantRecord[], editingTenant?: 
   const editingPath = editingTenant?.path;
   const descendantPathPrefix = editingPath?.endsWith('/') ? editingPath : editingPath ? `${editingPath}/` : undefined;
   const excludedIds = new Set<string>();
+  const childrenByParent = buildChildrenByParent(tenants);
 
   if (editingTenant?.id) {
     excludedIds.add(editingTenant.id);
+    const queue = [editingTenant.id];
 
-    let changed = true;
-    while (changed) {
-      changed = false;
-
-      tenants.forEach((tenant) => {
-        if (tenant.parentId && excludedIds.has(tenant.parentId) && !excludedIds.has(tenant.id)) {
-          excludedIds.add(tenant.id);
-          changed = true;
+    while (queue.length) {
+      const parentId = queue.shift()!;
+      for (const child of childrenByParent.get(parentId) || []) {
+        if (excludedIds.has(child.id)) {
+          continue;
         }
-      });
+
+        excludedIds.add(child.id);
+        queue.push(child.id);
+      }
     }
   }
 

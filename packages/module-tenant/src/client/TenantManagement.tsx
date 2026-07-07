@@ -484,18 +484,22 @@ const TenantMembers = ({
       let failureCount = 0;
       const records = mergeSelectedUserRecords(selectedUserRecords, candidateUsers, userIds);
 
-      for (const userId of userIds) {
-        const user = records[userId];
-        if (!user) {
-          failureCount += 1;
-          continue;
-        }
+      const results = await Promise.all(
+        userIds.map(async (userId) => {
+          const user = records[userId];
+          if (!user) {
+            return false;
+          }
 
-        const nextTenantIds = Array.from(new Set([...(user.tenants || []).map((item) => item.id), tenant.id]));
-        const saved = await saveMembership(user, nextTenantIds, user.defaultTenantId || tenant.id, {
-          silent: true,
-          refresh: false,
-        });
+          const nextTenantIds = Array.from(new Set([...(user.tenants || []).map((item) => item.id), tenant.id]));
+          return saveMembership(user, nextTenantIds, user.defaultTenantId || tenant.id, {
+            silent: true,
+            refresh: false,
+          });
+        }),
+      );
+
+      for (const saved of results) {
         if (saved) {
           successCount += 1;
         } else {

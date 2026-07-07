@@ -17,39 +17,52 @@ export async function switchTenant(ctx: Context, next: Next) {
     ctx.throw(401, 'Authentication required');
   }
 
-  const tenant = await ctx.db.getRepository('tenants').findOne({
-    filter: {
-      id: tenantId,
-      enabled: true,
-    },
-  });
-
-  if (!tenant) {
-    ctx.throw(403, 'Invalid tenant access');
-  }
-
-  if (!isPlatformTenantImpersonatorContext(ctx)) {
-    const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
+  const switchCurrentTenant = async (transaction?: any) => {
+    const transactionOptions = transaction ? { transaction } : {};
+    const tenant = await ctx.db.getRepository('tenants').findOne({
       filter: {
-        userId: currentUserId,
+        id: tenantId,
+        enabled: true,
       },
+      ...transactionOptions,
     });
-    const accessibleTenantIds = await getAccessibleTenantIds(
-      ctx.db,
-      tenantUsers.map((item: any) => item.get('tenantId')),
-    );
 
-    if (!accessibleTenantIds.includes(tenantId)) {
+    if (!tenant) {
       ctx.throw(403, 'Invalid tenant access');
     }
-  }
 
-  await ctx.db.getRepository('users').update({
-    filterByTk: currentUserId,
-    values: {
-      defaultTenantId: tenantId,
-    },
-  });
+    if (!isPlatformTenantImpersonatorContext(ctx)) {
+      const tenantUsers = await ctx.db.getRepository('tenantUsers').find({
+        filter: {
+          userId: currentUserId,
+        },
+        ...transactionOptions,
+      });
+      const accessibleTenantIds = await getAccessibleTenantIds(
+        ctx.db,
+        tenantUsers.map((item: any) => item.get('tenantId')),
+        transactionOptions,
+      );
+
+      if (!accessibleTenantIds.includes(tenantId)) {
+        ctx.throw(403, 'Invalid tenant access');
+      }
+    }
+
+    await ctx.db.getRepository('users').update({
+      filterByTk: currentUserId,
+      values: {
+        defaultTenantId: tenantId,
+      },
+      ...transactionOptions,
+    });
+
+    return tenant;
+  };
+
+  const tenant = ctx.db.sequelize?.transaction
+    ? await ctx.db.sequelize.transaction((transaction: any) => switchCurrentTenant(transaction))
+    : await switchCurrentTenant();
 
   ctx.state.currentTenant = tenant?.toJSON();
   ctx.state.currentTenantId = tenant?.get('id');

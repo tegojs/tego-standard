@@ -245,9 +245,7 @@ export class PluginTenantServer extends Plugin {
         }
 
         if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
-          const app = (ctx as any).tego || (ctx.app as any).__application;
-          const emitter = app && typeof app.emit === 'function' ? app : ctx.app;
-          emitter.emit('tenant.securityViolation', {
+          emitTenantSecurityViolation(ctx, {
             type: 'tenant_access_denied',
             userId: ctx.state.currentUser?.id,
             collectionName,

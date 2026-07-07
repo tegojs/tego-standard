@@ -36,7 +36,7 @@ export const LegacyDataTenantSelect = observer(
     const api = useAPIClient();
     const field = useField<Field>();
     const { message } = App.useApp();
-    const [options, setOptions] = useState([]);
+    const [options, setOptions] = useState<LegacyDataTenantOption[]>([]);
 
     useEffect(() => {
       let canceled = false;

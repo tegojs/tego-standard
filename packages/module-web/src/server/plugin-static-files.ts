@@ -1,8 +1,50 @@
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Gateway, Plugin } from '@tego/server';
 
 import express from 'express';
+
+const packageDirectoryCandidatesCache = new Map<string, string[]>();
+
+function getPackageName(pluginName: string): string {
+  return pluginName.startsWith('@') ? pluginName : `@tachybase/${pluginName.replace(/^@tachybase\//, '')}`;
+}
+
+export function getPluginDirectoryNameCandidates(pluginName: string, packagesPath?: string): string[] {
+  const cleanPluginName = pluginName.replace(/^@tachybase\//, '');
+  const candidates = [cleanPluginName];
+
+  if (!packagesPath || !existsSync(packagesPath)) {
+    return candidates;
+  }
+
+  const packageName = getPackageName(pluginName);
+  const cacheKey = `${packagesPath}:${packageName}`;
+  const cached = packageDirectoryCandidatesCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    for (const entry of readdirSync(packagesPath)) {
+      const packageJsonPath = join(packagesPath, entry, 'package.json');
+      if (!existsSync(packageJsonPath) || !statSync(packageJsonPath).isFile()) {
+        continue;
+      }
+
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+      if (packageJson?.name === packageName) {
+        candidates.push(entry);
+      }
+    }
+  } catch (error) {
+    // ignore invalid package directories
+  }
+
+  const result = Array.from(new Set(candidates));
+  packageDirectoryCandidatesCache.set(cacheKey, result);
+  return result;
+}
 
 /**
  * 注册插件静态文件服务
@@ -91,14 +133,22 @@ export function registerPluginStaticFiles(plugin: Plugin): void {
     // 移除 @tachybase/ 前缀（如果有）
     const cleanPluginName = pluginName.replace(/^@tachybase\//, '');
 
+    const packagesPaths = [
+      join(process.cwd(), 'packages'),
+      join(__dirname, '../../../../packages'),
+      join(__dirname, '../../../packages'),
+    ];
+
     // 可能的插件位置
     const possibleBasePaths = [
       join(process.cwd(), 'node_modules', '@tachybase', cleanPluginName),
-      join(process.cwd(), 'packages', cleanPluginName),
       join(__dirname, '../../../../node_modules/@tachybase', cleanPluginName),
-      join(__dirname, '../../../../packages', cleanPluginName),
       join(__dirname, '../../../node_modules/@tachybase', cleanPluginName),
-      join(__dirname, '../../../packages', cleanPluginName),
+      ...packagesPaths.flatMap((packagesPath) =>
+        getPluginDirectoryNameCandidates(pluginName, packagesPath).map((pluginDirectoryName) =>
+          join(packagesPath, pluginDirectoryName),
+        ),
+      ),
     ];
 
     // 如果设置了 TEGO_RUNTIME_HOME，也检查那里
@@ -140,8 +190,11 @@ export function registerPluginStaticFiles(plugin: Plugin): void {
 
       if (isPackagesPath) {
         // 从 packages 目录查找
-        filePath = join(pluginBasePath, pluginName, relativePath);
-        if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+        for (const pluginDirectoryName of getPluginDirectoryNameCandidates(pluginName, pluginBasePath)) {
+          filePath = join(pluginBasePath, pluginDirectoryName, relativePath);
+          if (existsSync(filePath) && statSync(filePath).isFile()) {
+            break;
+          }
           filePath = null;
         }
       } else {

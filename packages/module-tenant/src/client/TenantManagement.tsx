@@ -4,6 +4,7 @@ import { useAPIClient, useRequest } from '@tachybase/client';
 import { App, Button, Card, Divider, Drawer, Form, Input, Select, Space, Switch, Table, Tag, Typography } from 'antd';
 
 import { useTenantTranslation } from './locale';
+import { TENANCY_MODE_OPTIONS, type TenancyMode } from './tenant-configurable-properties';
 import { buildTenantTree, getTenantParentOptions, loadTenantRecords, type TenantRecord } from './tenant-tree';
 
 export { loadTenantRecords } from './tenant-tree';
@@ -27,8 +28,6 @@ type UserListResponse = {
   };
 };
 
-type TenancyMode = 'shared' | 'tenantScoped' | 'tenantInherited';
-
 type TenantCollectionRecord = {
   name: string;
   title?: string;
@@ -46,15 +45,9 @@ type TenantCollectionListResponse = {
   data?: TenantCollectionRecord[];
 };
 
-const TENANCY_MODES: TenancyMode[] = ['shared', 'tenantScoped', 'tenantInherited'];
+const TENANCY_MODES = TENANCY_MODE_OPTIONS.map((option) => option.value);
 const TENANT_CAPABLE_COLLECTION_TEMPLATES = ['general', 'expression', 'tree'];
 const MAX_COLLECTION_RECORD_PAGES = 1000;
-
-const tenancyOptions = [
-  { label: 'Shared collection', value: 'shared' },
-  { label: 'Tenant scoped', value: 'tenantScoped' },
-  { label: 'Tenant inherited', value: 'tenantInherited' },
-];
 
 const getCollectionTenancy = (collection: TenantCollectionRecord): TenancyMode | undefined => {
   const tenancy = collection.tenancy ?? collection.options?.tenancy;
@@ -102,7 +95,17 @@ export async function loadTenantCollectionRecords(
   let page = 1;
 
   while (!isCanceled() && page <= MAX_COLLECTION_RECORD_PAGES) {
-    const res = await api.resource('collections').list({ page, pageSize });
+    const res = await api.resource('collections').list({
+      page,
+      pageSize,
+      filter: {
+        $or: [
+          { template: { $in: TENANT_CAPABLE_COLLECTION_TEMPLATES } },
+          { tenancy: { $in: TENANCY_MODES } },
+          { 'options.tenancy': { $in: TENANCY_MODES } },
+        ],
+      },
+    });
     const collections = res?.data?.data || [];
     records.push(...collections);
 
@@ -766,7 +769,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
             width: 220,
             render: (_, record) => (
               <Select
-                options={tenancyOptions.map((option) => ({ ...option, label: t(option.label) }))}
+                options={TENANCY_MODE_OPTIONS.map((option) => ({ ...option, label: t(option.label) }))}
                 style={{ width: '100%' }}
                 value={record.tenancy}
                 onChange={(value) => {

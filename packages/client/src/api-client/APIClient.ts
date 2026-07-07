@@ -6,6 +6,7 @@ import { notification } from 'antd';
 
 import type { Application } from '../application';
 import { i18n } from '../i18n';
+import { CURRENT_TENANT_ID_STORAGE_KEY } from './constants';
 
 const TECH_PATTERNS: RegExp[] = [
   /\bat\s+\S+\s+\(.+\)/i,
@@ -96,7 +97,7 @@ export class APIClient extends APIClientSDK {
   getHeaders() {
     const headers = super.getHeaders();
     const appName = this.app?.getName();
-    const currentTenantId = this.storage?.getItem?.('current_tenant_id');
+    const currentTenantId = this.storage?.getItem?.(CURRENT_TENANT_ID_STORAGE_KEY);
     if (appName) {
       headers['X-App'] = appName;
     }

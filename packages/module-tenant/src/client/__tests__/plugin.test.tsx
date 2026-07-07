@@ -397,6 +397,13 @@ describe('PluginTenantClient', () => {
     const collections = await loadTenantCollectionRecords(api, () => false, 2);
 
     expect(list).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        pageSize: 2,
+        filter: expect.objectContaining({ $or: expect.any(Array) }),
+      }),
+    );
     expect(collections.map((item) => item.name)).toEqual(['approvalRecords', 'approvals', 'posts']);
   });
 

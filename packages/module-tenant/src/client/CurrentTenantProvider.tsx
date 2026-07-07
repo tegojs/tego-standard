@@ -69,12 +69,25 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
   );
 
   const noUserFallback = useMemo<AvailableTenantsRequestState>(() => ({ data: { data: [] }, loading: false }), []);
-  const value = currentUserId ? result : noUserFallback;
+  const value = useMemo<AvailableTenantsRequestState>(() => {
+    if (!currentUserId) {
+      return noUserFallback;
+    }
+
+    if (result.loading || result.data === undefined || result.data.userId !== currentUserId) {
+      return {
+        data: { data: [], userId: currentUserId },
+        loading: result.loading,
+      };
+    }
+
+    return result;
+  }, [currentUserId, noUserFallback, result]);
 
   useEffect(() => {
     // Guard: only act after the API response has actually arrived.
     // During refreshDeps reloads, useRequest may keep stale data while loading.
-    if (currentUserId && (value?.loading || value?.data === undefined)) {
+    if (currentUserId && value?.loading) {
       return;
     }
 

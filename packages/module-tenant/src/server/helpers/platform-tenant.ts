@@ -35,6 +35,9 @@ function canRoleImpersonateTenant(role: any) {
   return hasSnippet(role?.snippets, TENANT_IMPERSONATION_SNIPPET);
 }
 
+/**
+ * Provides the is platform tenant impersonator state helper for this module.
+ */
 export function isPlatformTenantImpersonatorState(state: Record<string, any> = {}) {
   const roles = state.currentUser?.roles || [];
   if (state.currentRole) {
@@ -48,6 +51,9 @@ export function isPlatformTenantImpersonatorState(state: Record<string, any> = {
   return roles.some(canRoleImpersonateTenant);
 }
 
+/**
+ * Provides the is platform tenant impersonator context helper for this module.
+ */
 export function isPlatformTenantImpersonatorContext(ctx: { state?: Record<string, any> }) {
   return isPlatformTenantImpersonatorState(ctx.state);
 }

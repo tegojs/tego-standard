@@ -19,6 +19,9 @@ export interface TenantPluginConfig {
   name: string;
 }
 
+/**
+ * Registers the plugin tenant server plugin integration.
+ */
 export class PluginTenantServer extends Plugin {
   async ensureTenantAclScope(options: any = {}) {
     const repo = this.db.getRepository('dataSourcesRolesResourcesScopes');

@@ -9,6 +9,9 @@ type WorkflowTriggerContext = {
   [key: string]: any;
 };
 
+/**
+ * Provides the to json helper for this module.
+ */
 export function toJSON(data: any): any {
   if (Array.isArray(data)) {
     return data.map(toJSON);

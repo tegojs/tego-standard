@@ -60,6 +60,9 @@ const getCurrentTimezone = () => {
 };
 
 const errorCache = new Map();
+/**
+ * Renders or configures the apiclient client entry point.
+ */
 export class APIClient extends APIClientSDK {
   services: Record<string, Result<any, any>> = {};
   silence = false;

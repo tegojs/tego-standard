@@ -6,6 +6,9 @@ import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 
+/**
+ * Runs the destroy instruction workflow instruction.
+ */
 export class DestroyInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, params = {} } = node.config;

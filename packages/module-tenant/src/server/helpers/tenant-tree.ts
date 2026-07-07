@@ -25,6 +25,9 @@ function getSafeLikePrefix(path: string) {
   return wildcardIndex === -1 ? path : path.slice(0, wildcardIndex);
 }
 
+/**
+ * Builds the database-side prefix filter used before exact materialized-path checks.
+ */
 export function buildPathPrefixFilter(path: string) {
   return {
     path: {
@@ -33,6 +36,9 @@ export function buildPathPrefixFilter(path: string) {
   };
 }
 
+/**
+ * Verifies whether a tenant materialized path belongs to the requested subtree.
+ */
 export function isTenantPathInSubtree(path: string | null | undefined, prefix: string) {
   return typeof path === 'string' && path.startsWith(prefix);
 }
@@ -101,6 +107,9 @@ export async function getDescendantTenants(
   return descendants.filter((tenant: any) => isTenantPathInSubtree(tenant.get('path') as string, source.path));
 }
 
+/**
+ * Builds the repository filter used to load descendants while excluding the source tenant itself.
+ */
 export function getDescendantPathFilter(path: string, tenantId: string) {
   return {
     ...buildPathPrefixFilter(path),

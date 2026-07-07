@@ -7,6 +7,9 @@ import { CURRENT_TENANT_ID_STORAGE_KEY, TENANT_MENU_KEY } from './constants';
 import { useCurrentTenantContext } from './CurrentTenantProvider';
 import { lang } from './locale';
 
+/**
+ * Returns the use switch tenant hook state.
+ */
 export const useSwitchTenant = () => {
   const api = useAPIClient();
   const { data } = useCurrentTenantContext() || {};

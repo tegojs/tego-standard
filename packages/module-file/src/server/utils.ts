@@ -1,12 +1,18 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
 
+/**
+ * Generates a random upload filename while preserving the original extension.
+ */
 export function getFilename(req, file, cb) {
   crypto.randomBytes(16, function (err, raw) {
     cb(err, err ? undefined : `${raw.toString('hex')}${path.extname(file.originalname)}`);
   });
 }
 
+/**
+ * Reads the effective tenant ID from the request state used by file storage.
+ */
 export function getCurrentTenantId(ctx) {
   return ctx?.state?.currentTenant?.id ?? ctx?.state?.currentTenantId;
 }
@@ -31,6 +37,9 @@ function sanitizeTenantStoragePath(storagePath: string) {
     .join('/');
 }
 
+/**
+ * Builds the tenant-scoped storage path under a sanitized upload root.
+ */
 export function getTenantStoragePath(storagePath: string = '', tenantId?: string | number) {
   const normalizedStoragePath = String(storagePath || '')
     .replace(/\\/g, '/')
@@ -46,6 +55,9 @@ export function getTenantStoragePath(storagePath: string = '', tenantId?: string
   return path.posix.join(...segments);
 }
 
+/**
+ * Creates a multer-compatible filename callback for cloud storage uploads.
+ */
 export const cloudFilenameGetter = (storage) => (req, file, cb) => {
   getFilename(req, file, (err, filename) => {
     if (err) {

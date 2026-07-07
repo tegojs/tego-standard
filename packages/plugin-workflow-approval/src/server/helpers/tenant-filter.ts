@@ -31,6 +31,9 @@ function stripTenantFilter(filter: any): any {
   return next;
 }
 
+/**
+ * Provides the get current tenant id helper for this module.
+ */
 export function getCurrentTenantId(ctx: any) {
   return ctx?.state?.currentTenant?.id ?? ctx?.state?.currentTenantId;
 }
@@ -48,6 +51,9 @@ function getCollection(ctx: any, collectionName?: string) {
   return ctx?.db?.getCollection?.(collectionName) || null;
 }
 
+/**
+ * Provides the with current tenant filter helper for this module.
+ */
 export function withCurrentTenantFilter(ctx: any, filter: any = {}) {
   const tenantId = getCurrentTenantId(ctx);
   if (tenantId === null || tenantId === undefined) {
@@ -76,6 +82,9 @@ export function withCurrentTenantFilter(ctx: any, filter: any = {}) {
   };
 }
 
+/**
+ * Provides the get tenant values from context helper for this module.
+ */
 export function getTenantValuesFromContext(ctx: any, collectionName?: string) {
   const tenantId = getCurrentTenantId(ctx);
   if (tenantId === null || tenantId === undefined) {
@@ -97,6 +106,9 @@ export function getTenantValuesFromContext(ctx: any, collectionName?: string) {
   return { tenantId };
 }
 
+/**
+ * Provides the get tenant values from execution helper for this module.
+ */
 export function getTenantValuesFromExecution(execution: any, collectionName?: string) {
   const tenantId = execution?.get?.('tenantId') ?? execution?.tenantId;
   if (tenantId === null || tenantId === undefined) {
@@ -119,6 +131,9 @@ export function getTenantValuesFromExecution(execution: any, collectionName?: st
   );
 }
 
+/**
+ * Provides the get tenant workflow options from approval helper for this module.
+ */
 export function getTenantWorkflowOptionsFromApproval(approval: any) {
   const tenantId = approval?.get?.('tenantId') ?? approval?.tenantId;
   if (tenantId === null || tenantId === undefined) {

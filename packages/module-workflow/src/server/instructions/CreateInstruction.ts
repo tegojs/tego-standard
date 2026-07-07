@@ -13,6 +13,9 @@ import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
 
+/**
+ * Runs the create instruction workflow instruction.
+ */
 export class CreateInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, params: { appends = [], ...params } = {} } = node.config;

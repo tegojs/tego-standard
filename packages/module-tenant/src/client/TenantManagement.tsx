@@ -69,6 +69,9 @@ const getCollectionTenancy = (collection: TenantCollectionRecord): TenancyMode |
   return undefined;
 };
 
+/**
+ * Normalizes collection records into the list that can be configured for tenant isolation.
+ */
 export const getTenantConfigurableCollections = (collections: TenantCollectionRecord[]) => {
   return collections
     .map((collection) => {
@@ -87,6 +90,9 @@ export const getTenantConfigurableCollections = (collections: TenantCollectionRe
     .sort((a, b) => a.name.localeCompare(b.name)) as Array<TenantCollectionRecord & { tenancy: TenancyMode }>;
 };
 
+/**
+ * Loads all collection-manager records that expose tenant isolation settings.
+ */
 export async function loadTenantCollectionRecords(
   api: any,
   isCanceled: () => boolean,
@@ -116,6 +122,9 @@ const formatUserLabel = (user: UserRecord) => {
   return detail && detail !== name ? `${name} · ${detail}` : name;
 };
 
+/**
+ * Builds the keyword filter used by member and candidate user searches.
+ */
 export const buildUserSearchFilter = (keyword: string) => {
   const value = keyword.trim();
   if (!value) {
@@ -149,6 +158,9 @@ function mergeFilters(filters: any[]) {
   return { $and: nextFilters };
 }
 
+/**
+ * Builds a user filter for members already linked to a tenant.
+ */
 export const buildTenantMemberFilter = (tenantId?: string | null, keyword = '') => {
   if (!tenantId) {
     return undefined;
@@ -157,10 +169,16 @@ export const buildTenantMemberFilter = (tenantId?: string | null, keyword = '') 
   return mergeFilters([{ 'tenants.id': tenantId }, buildUserSearchFilter(keyword)]);
 };
 
+/**
+ * Builds a user filter for candidate members not yet linked to a tenant.
+ */
 export const buildTenantCandidateFilter = (tenantId?: string | null, keyword = '') => {
   return mergeFilters([tenantId ? { 'tenants.id.$notIn': [tenantId] } : undefined, buildUserSearchFilter(keyword)]);
 };
 
+/**
+ * Filters loaded users down to the members of a tenant.
+ */
 export const getTenantMembers = (users: UserRecord[], tenantId?: string | null) => {
   if (!tenantId) {
     return [];
@@ -169,6 +187,9 @@ export const getTenantMembers = (users: UserRecord[], tenantId?: string | null) 
   return users.filter((user) => (user.tenants || []).some((item) => item.id === tenantId));
 };
 
+/**
+ * Converts candidate users into select options for the add-member control.
+ */
 export const getTenantCandidateOptions = (users: UserRecord[], tenantId?: string | null) => {
   if (!tenantId) {
     return [];
@@ -184,6 +205,9 @@ export const getTenantCandidateOptions = (users: UserRecord[], tenantId?: string
 
 type SelectedUserRecords = Record<number, UserRecord>;
 
+/**
+ * Keeps selected users available across candidate searches and pagination changes.
+ */
 export const mergeSelectedUserRecords = (
   records: SelectedUserRecords,
   candidates: UserRecord[],
@@ -207,6 +231,9 @@ export const mergeSelectedUserRecords = (
   return nextRecords;
 };
 
+/**
+ * Resolves selected user IDs to the persisted records collected from candidate searches.
+ */
 export const resolveSelectedUserRecords = (selectedUserIds: number[], records: SelectedUserRecords) => {
   return selectedUserIds.map((userId) => records[userId]).filter(Boolean);
 };
@@ -218,6 +245,9 @@ type TenantFormValues = {
   parentId?: string | null;
 };
 
+/**
+ * Drawer form used to create or update a tenant node.
+ */
 export const TenantEditor = ({
   initialValues,
   loading,
@@ -771,6 +801,9 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
   );
 };
 
+/**
+ * Renders tenant administration, membership management, and collection isolation settings.
+ */
 export const TenantManagement = () => {
   const api = useAPIClient();
   const { message } = App.useApp();

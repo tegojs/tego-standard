@@ -49,6 +49,9 @@ export function assertSqlNodePermission(ctx: Context, nodeType: string) {
   }
 }
 
+/**
+ * Handles the create resource action.
+ */
 export async function create(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx) as MultipleRelationRepository;
@@ -156,6 +159,9 @@ function searchBranchDownstreams(nodes, from) {
   return result;
 }
 
+/**
+ * Handles the destroy resource action.
+ */
 export async function destroy(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx) as Repository;
@@ -230,6 +236,9 @@ export async function destroy(ctx: Context, next) {
   await next();
 }
 
+/**
+ * Handles the update resource action.
+ */
 export async function update(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx);
@@ -294,6 +303,9 @@ export async function update(ctx: Context, next) {
   await next();
 }
 
+/**
+ * Handles the move up resource action.
+ */
 export async function moveUp(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx) as Repository;
@@ -364,6 +376,9 @@ export async function moveUp(ctx: Context, next) {
   await next();
 }
 
+/**
+ * Handles the move down resource action.
+ */
 export async function moveDown(ctx: Context, next) {
   const { db } = ctx;
   const repository = utils.getRepositoryFromParams(ctx) as Repository;

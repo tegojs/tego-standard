@@ -5,6 +5,9 @@ import dayjs from 'dayjs';
 
 export * from './columns2Appends';
 
+/**
+ * Error thrown when an export columns payload cannot be normalized safely.
+ */
 export class ExportColumnsError extends Error {
   constructor(message: string) {
     super(`Invalid export columns: ${message}`);
@@ -53,6 +56,9 @@ function normalizeColumn(column: any, index: number) {
   return column;
 }
 
+/**
+ * Parses and validates the client-provided columns option for xlsx export.
+ */
 export function normalizeExportColumns(columns: any) {
   const parsedColumns = parseColumns(columns);
 
@@ -63,6 +69,9 @@ export function normalizeExportColumns(columns: any) {
   return parsedColumns.map(normalizeColumn);
 }
 
+/**
+ * Keeps only export columns whose root field exists on the target collection.
+ */
 export function filterExportColumnsByCollection(columns: any[], collection: any) {
   return columns.filter((col) => col?.dataIndex?.length > 0 && collection.hasField(col.dataIndex[0]));
 }
@@ -73,6 +82,9 @@ function hasTenantId(tenantId: TenantId) {
   return tenantId !== null && tenantId !== undefined && tenantId !== '';
 }
 
+/**
+ * Sanitizes a value for use as one segment of an export filename or path.
+ */
 export function sanitizeExportSegment(value: string | number) {
   const normalized = String(value ?? '')
     .trim()
@@ -87,10 +99,16 @@ export function sanitizeExportSegment(value: string | number) {
   return normalized || 'export';
 }
 
+/**
+ * Resolves the effective tenant ID from request state or worker context.
+ */
 export function getExportTenantId(source: any) {
   return source?.state?.currentTenant?.id ?? source?.state?.currentTenantId ?? source?.currentTenantId;
 }
 
+/**
+ * Builds the user-facing export download name with an optional tenant suffix.
+ */
 export function buildExportDownloadName(title: string, tenantId?: TenantId) {
   const base =
     String(title || 'export')
@@ -123,6 +141,9 @@ function resolveApplicationEmitter(ctx: any): { emit: (event: string, payload: a
   return ctx.app;
 }
 
+/**
+ * Emits a tenant security event without blocking the export request path.
+ */
 export function emitSecurityViolation(ctx: any, event: Record<string, any>) {
   try {
     const emitter = resolveApplicationEmitter(ctx);
@@ -138,6 +159,9 @@ export function emitSecurityViolation(ctx: any, event: Record<string, any>) {
   }
 }
 
+/**
+ * Builds a collision-resistant worker export filename for the target tenant.
+ */
 export function buildWorkerExportFileName(resourceName: string, title: string, tenantId?: TenantId) {
   const base = sanitizeExportSegment(title || resourceName || 'export');
   const tenantSuffix = hasTenantId(tenantId) ? `_${sanitizeExportSegment(tenantId)}` : '';
@@ -145,6 +169,9 @@ export function buildWorkerExportFileName(resourceName: string, title: string, t
   return `${base}${tenantSuffix}_${dayjs().format('YYYYMMDDHHmm')}_${uniqueSuffix}.xlsx`;
 }
 
+/**
+ * Builds the persisted relative path for an exported worker file.
+ */
 export function buildWorkerExportRelativePath(
   fileName: string,
   tenantId?: TenantId,
@@ -155,6 +182,9 @@ export function buildWorkerExportRelativePath(
     : path.posix.join(basePath, fileName);
 }
 
+/**
+ * Builds the local directory used by worker exports for a tenant.
+ */
 export function buildWorkerExportSavePath(rootPath: string, tenantId?: TenantId) {
   return hasTenantId(tenantId) ? path.join(rootPath, 'tenants', sanitizeExportSegment(tenantId)) : rootPath;
 }

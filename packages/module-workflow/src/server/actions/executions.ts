@@ -31,6 +31,9 @@ function isTenantPluginEnabled(ctx: Context) {
   return false;
 }
 
+/**
+ * Handles the should apply execution tenant boundary resource action.
+ */
 export function shouldApplyExecutionTenantBoundary(ctx: Context) {
   const state = ctx.state || {};
   const tenantId = getCurrentTenantIdFromState(state);
@@ -39,6 +42,9 @@ export function shouldApplyExecutionTenantBoundary(ctx: Context) {
   );
 }
 
+/**
+ * Handles the build execution tenant filter resource action.
+ */
 export function buildExecutionTenantFilter(ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
   return buildWorkflowExecutionTenantFilter(ctx.state, shouldApplyExecutionTenantBoundary(ctx) ? fallback : null);
 }
@@ -70,6 +76,9 @@ function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
   }
 }
 
+/**
+ * Handles the destroy resource action.
+ */
 export async function destroy(ctx: Context, next) {
   ctx.action.mergeParams({
     filter: appendExecutionTenantFilter(
@@ -85,6 +94,9 @@ export async function destroy(ctx: Context, next) {
   await actions.destroy(ctx, next);
 }
 
+/**
+ * Handles the cancel resource action.
+ */
 export async function cancel(ctx: Context, next) {
   const { filterByTk } = ctx.action.params;
   const ExecutionRepo = ctx.db.getRepository('executions');
@@ -130,6 +142,9 @@ export async function cancel(ctx: Context, next) {
   await next();
 }
 
+/**
+ * Handles the retry resource action.
+ */
 export async function retry(ctx: Context, next: Next) {
   const plugin = ctx.tego.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(ctx);

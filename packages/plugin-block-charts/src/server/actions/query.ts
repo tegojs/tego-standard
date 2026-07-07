@@ -210,6 +210,9 @@ function getChartCacheKey(ctx: Context, uid: string) {
   return `${uid}:tenant:${tenantId}:query:${signature}`;
 }
 
+/**
+ * Converts numeric chart fields from database values into JavaScript numbers.
+ */
 export const postProcess = async (ctx: Context, next: Next) => {
   const { data, fieldMap } = ctx.action.params.values as {
     data: any[];
@@ -235,6 +238,9 @@ export const postProcess = async (ctx: Context, next: Next) => {
   await next();
 };
 
+/**
+ * Executes the chart query against the resolved collection model.
+ */
 export const queryData = async (ctx: Context, next: Next) => {
   const { dataSource, collection, queryParams, fieldMap } = ctx.action.params.values;
   const db = getDB(ctx, dataSource) || ctx.db;
@@ -254,6 +260,9 @@ export const queryData = async (ctx: Context, next: Next) => {
   // return data;
 };
 
+/**
+ * Translates chart measures, dimensions, ordering, and grouping into Sequelize query options.
+ */
 export const parseBuilder = async (ctx: Context, next: Next) => {
   const { dataSource, measures, dimensions, orders, include, where, limit } = ctx.action.params.values;
   const db = getDB(ctx, dataSource) || ctx.db;
@@ -323,6 +332,9 @@ export const parseBuilder = async (ctx: Context, next: Next) => {
   await next();
 };
 
+/**
+ * Resolves chart field paths and association includes before building the Sequelize query.
+ */
 export const parseFieldAndAssociations = async (ctx: Context, next: Next) => {
   const {
     dataSource,
@@ -422,6 +434,9 @@ function addBelongsToManyThrough(include, collectionName, db) {
   }
 }
 
+/**
+ * Expands filter variables such as date and current-user values for chart queries.
+ */
 export const parseVariables = async (ctx: Context, next: Next) => {
   const { filter } = ctx.action.params.values;
   if (!filter) {
@@ -472,6 +487,9 @@ export const parseVariables = async (ctx: Context, next: Next) => {
   await next();
 };
 
+/**
+ * Adds tenant predicates to chart filters when the queried collection is tenant-aware.
+ */
 export const applyTenantScope = async (ctx: Context, next: Next) => {
   const { dataSource, collection: collectionName, filter } = ctx.action.params.values as QueryParams;
   const db = getDB(ctx, dataSource) || ctx.db;
@@ -494,6 +512,9 @@ export const applyTenantScope = async (ctx: Context, next: Next) => {
   await next();
 };
 
+/**
+ * Reads and writes tenant-aware chart query cache entries.
+ */
 export const cacheMiddleware = async (ctx: Context, next: Next) => {
   const { uid, cache: cacheConfig, refresh } = ctx.action.params.values as QueryParams;
   const cache = ctx.tego.cacheManager.getCache('data-visualization') as Cache;
@@ -513,6 +534,9 @@ export const cacheMiddleware = async (ctx: Context, next: Next) => {
   }
 };
 
+/**
+ * Enforces collection list permission before a chart can query that collection.
+ */
 export const checkPermission = (ctx: Context, next: Next) => {
   // fix params not in the body
   if (ctx.action.params.values === undefined) {
@@ -534,6 +558,9 @@ export const checkPermission = (ctx: Context, next: Next) => {
   return next();
 };
 
+/**
+ * Runs the complete chart query middleware pipeline.
+ */
 export const query = async (ctx: Context, next: Next) => {
   try {
     await compose([

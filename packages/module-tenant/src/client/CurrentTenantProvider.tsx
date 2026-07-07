@@ -32,13 +32,22 @@ export type AvailableTenantsRequestState = Pick<
   'data' | 'loading'
 >;
 
+/**
+ * Provides the available-tenant request state to tenant-aware navigation components.
+ */
 export const CurrentTenantContext = createContext<AvailableTenantsRequestState | null | undefined>(null);
 CurrentTenantContext.displayName = 'CurrentTenantContext';
 
+/**
+ * Reads the current available-tenant request state from React context.
+ */
 export const useCurrentTenantContext = () => {
   return useContext(CurrentTenantContext);
 };
 
+/**
+ * Loads available tenants for the active user and keeps local storage aligned with the server state.
+ */
 export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }: CurrentTenantProviderProps) => {
   const api = useAPIClient();
   const currentUserContext = useCurrentUserContext();

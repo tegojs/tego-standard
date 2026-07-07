@@ -14,6 +14,9 @@ type TenantFilterCollection = {
 const READ_ACTIONS = ['list', 'get', 'count', 'export', 'aggregate'];
 const WRITE_FILTER_ACTIONS = ['update', 'destroy'];
 const TENANT_ENABLED_MODES = ['tenantScoped', 'tenantInherited'];
+/**
+ * Sentinel filter used when missing tenant context must match no records.
+ */
 export const NEVER_MATCH_TENANT_FILTER = { id: -1 };
 
 function buildPathPrefixFilter(path: string) {
@@ -60,10 +63,16 @@ function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Arra
   return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
 }
 
+/**
+ * Checks whether the workflow execution query may include legacy records without tenant markers.
+ */
 export function canReadLegacyExecutions(state: Record<string, any> = {}, tenantId: string | number) {
   return canReadLegacyData(tenantId, state.currentLegacyDataTenantIds);
 }
 
+/**
+ * Builds the tenant filter used by workflow execution list and lookup actions.
+ */
 export function buildWorkflowExecutionTenantFilter(state: Record<string, any> = {}, fallback: any = null) {
   const tenantId = getCurrentTenantIdFromState(state);
   if (tenantId === null || tenantId === undefined) {
@@ -154,6 +163,9 @@ function omitTenantValue(values: any) {
   return rest;
 }
 
+/**
+ * Reads the effective tenant ID from a workflow repository context state.
+ */
 export function getCurrentTenantIdFromState(state: TenantFilterContext['state']) {
   return state?.currentTenant?.id ?? state?.currentTenantId;
 }
@@ -209,6 +221,9 @@ function buildTenantParams(actionName: string, params: any, state: TenantFilterC
   return tenantParams;
 }
 
+/**
+ * Returns workflow repository options with tenant filters or values merged in.
+ */
 export function applyTenantFilterToContext<TOptions extends Record<string, any>>(
   context: TenantFilterContext,
   collection: TenantFilterCollection,
@@ -237,6 +252,9 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
   };
 }
 
+/**
+ * Loads descendant tenant IDs for inherited workflow execution visibility.
+ */
 export async function getDescendantTenantIds(
   db: any,
   tenantId: string,

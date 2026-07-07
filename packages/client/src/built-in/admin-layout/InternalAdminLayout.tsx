@@ -26,6 +26,9 @@ const NavigationMenuItems = () => {
   );
 };
 
+/**
+ * Renders or configures the internal admin layout client entry point.
+ */
 export const InternalAdminLayout = (props: any) => {
   const sideMenuRef = useRef<HTMLDivElement>();
   const result = useSystemSettings();

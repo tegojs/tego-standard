@@ -24,6 +24,9 @@ import collectionActions from './resourcers/collections';
 import sqlResourcer from './resourcers/sql';
 import viewResourcer from './resourcers/views';
 
+/**
+ * Registers the collection manager plugin plugin integration.
+ */
 export class CollectionManagerPlugin extends Plugin {
   public schema: string;
 

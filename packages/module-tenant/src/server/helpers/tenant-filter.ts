@@ -188,6 +188,9 @@ function buildTenantParams(actionName: string, params: any, state: TenantFilterC
   return tenantParams;
 }
 
+/**
+ * Returns repository options with the tenant predicate/value merged for a tenant-aware collection.
+ */
 export function applyTenantFilterToContext<TOptions extends Record<string, any>>(
   context: Pick<TenantFilterContext, 'state'>,
   collection: TenantFilterCollection,
@@ -216,6 +219,9 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
   };
 }
 
+/**
+ * Applies the current request tenant context to resource action params in-place.
+ */
 export function applyTenantFilter(ctx: TenantFilterContext) {
   const tenantId = getTenantId(ctx.state);
   if (tenantId == null) {

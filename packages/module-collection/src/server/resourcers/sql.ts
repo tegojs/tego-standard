@@ -67,6 +67,9 @@ const updateCollection = async (ctx: Context, transaction: any) => {
 const sqlParser = new Parser();
 const SQL_PARSE_DIALECTS = ['postgresql', 'mysql', 'sqlite'];
 
+/**
+ * Normalizes SQL by parsing and re-serializing it, removing comments and literal formatting noise.
+ */
 export function stripSqlCommentsAndLiterals(sql: string) {
   const ast = parseSql(sql);
   if (!ast) {
@@ -127,6 +130,9 @@ function isReadOnlyStatement(ast: AST): boolean {
   return true;
 }
 
+/**
+ * Validates that preview SQL contains exactly one read-only SELECT/CTE statement.
+ */
 export function isReadOnlyPreviewSql(sql: string) {
   const ast = parseSql(sql);
   if (!ast) {
@@ -151,6 +157,9 @@ async function applyReadOnlyTransactionGuard(ctx: Context, transaction: Transact
   }
 }
 
+/**
+ * Executes SQL preview reads inside a read-only transaction where the dialect supports it.
+ */
 export async function runReadOnlyPreviewQuery(ctx: Context, model: typeof SQLModel) {
   return ctx.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
     await applyReadOnlyTransactionGuard(ctx, transaction);

@@ -18,6 +18,9 @@ function isManagedTenantIdField(field: any) {
   );
 }
 
+/**
+ * Synchronizes the managed tenantId context field with a collection's tenant isolation mode.
+ */
 export async function ensureTenantIdField(model: any, options: Transactionable = {}) {
   const collectionName = model.get('name');
   const fieldsRepository = model.db.getRepository('fields');

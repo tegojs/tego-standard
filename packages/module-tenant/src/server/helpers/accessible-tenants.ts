@@ -2,6 +2,9 @@ import type { Database } from '@tego/server';
 
 import { getDescendantPathFilter, isTenantPathInSubtree } from './tenant-tree';
 
+/**
+ * Expands direct tenant memberships to the enabled tenants visible through descendant access.
+ */
 export async function getAccessibleTenantIds(db: Database, tenantIds: string[], options: { transaction?: any } = {}) {
   if (!tenantIds.length) {
     return [];

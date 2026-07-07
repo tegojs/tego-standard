@@ -6,6 +6,9 @@ import { APPROVAL_STATUS } from '../constants/status';
 import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 import { getSummary } from '../tools';
 
+/**
+ * Handles the approvals resource action.
+ */
 export const approvals = {
   async create(ctx, next) {
     const { status, collectionName, data, workflowId, workflowKey } = ctx.action.params.values ?? {};

@@ -41,7 +41,15 @@ import { SystemSettingsPlugin } from './system-settings';
 import { PluginSystemVersion } from './system-version';
 import { UserSettingsPlugin } from './user-settings';
 
-export { AdminProvider, NoticeArea, AdminLayout, MenuEditor, AdminTabs, CurrentNavigationMenuProvider, useCurrentNavigationMenu } from './admin-layout';
+export {
+  AdminProvider,
+  NoticeArea,
+  AdminLayout,
+  MenuEditor,
+  AdminTabs,
+  CurrentNavigationMenuProvider,
+  useCurrentNavigationMenu,
+} from './admin-layout';
 export * from './pinned-list';
 export * from './context-menu/useContextMenu';
 
@@ -280,6 +288,9 @@ const AppMaintainingDialog = observer(
   { displayName: 'AppMaintainingDialog' },
 );
 
+/**
+ * Renders or configures the app not found client entry point.
+ */
 export const AppNotFound = () => {
   const { t } = useTranslation();
   const app = useApp();
@@ -297,6 +308,9 @@ export const AppNotFound = () => {
   );
 };
 
+/**
+ * Renders or configures the built in plugin client entry point.
+ */
 export class BuiltInPlugin extends Plugin {
   async afterAdd() {
     this.app.addComponents({

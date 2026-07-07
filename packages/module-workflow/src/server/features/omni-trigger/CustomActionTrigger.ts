@@ -31,6 +31,9 @@ function mergeFormData(data: any, formData: any) {
   return data;
 }
 
+/**
+ * Provides the omni trigger helper for this module.
+ */
 export class OmniTrigger extends Trigger {
   static TYPE = 'general-action';
   constructor(workflow) {

@@ -5,6 +5,9 @@ import { ERROR_CODE_MAP } from '../constants/error-code';
 import { APPROVAL_ACTION_STATUS } from '../constants/status';
 import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 
+/**
+ * Handles the approval records resource action.
+ */
 export const approvalRecords = {
   async listCentralized(ctx, next) {
     const centralizedApprovalFlow = await ctx.db.getRepository('workflows').find({

@@ -4,6 +4,9 @@ import { useCurrentNavigationMenu } from '@tachybase/client';
 import { TENANT_MENU_KEY } from './constants';
 import { useSwitchTenant } from './useSwitchTenant';
 
+/**
+ * Renders or configures the tenant menu provider client entry point.
+ */
 export const TenantMenuProvider = ({ children }: { children?: React.ReactNode }) => {
   const { addItem, removeItem } = useCurrentNavigationMenu();
   const switchTenant = useSwitchTenant();

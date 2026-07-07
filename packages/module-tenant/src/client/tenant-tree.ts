@@ -10,6 +10,9 @@ export type TenantRecord = {
 
 const MAX_TENANT_RECORD_PAGES = 1000;
 
+/**
+ * Loads tenant records page by page for management screens that need the whole tree.
+ */
 export async function loadTenantRecords(api: any, isCanceled: () => boolean, pageSize = 200): Promise<TenantRecord[]> {
   const records: TenantRecord[] = [];
   let page = 1;
@@ -29,6 +32,9 @@ export async function loadTenantRecords(api: any, isCanceled: () => boolean, pag
   return records;
 }
 
+/**
+ * Converts a flat tenant list into a tree while ignoring cyclic parent relationships.
+ */
 export function buildTenantTree(tenants: TenantRecord[]) {
   const records = new Map<string, TenantRecord>();
   const roots: TenantRecord[] = [];
@@ -67,6 +73,9 @@ export function buildTenantTree(tenants: TenantRecord[]) {
   return roots;
 }
 
+/**
+ * Builds valid parent options and excludes the edited tenant and its descendants.
+ */
 export function getTenantParentOptions(tenants: TenantRecord[], editingTenant?: TenantRecord | null) {
   const editingPath = editingTenant?.path;
   const descendantPathPrefix = editingPath?.endsWith('/') ? editingPath : editingPath ? `${editingPath}/` : undefined;

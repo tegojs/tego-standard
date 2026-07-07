@@ -92,6 +92,9 @@ async function multipart(ctx: Context, next: Next) {
   await next();
 }
 
+/**
+ * Handles the create middleware resource action.
+ */
 export async function createMiddleware(ctx: Context, next: Next) {
   const { resourceName, actionName } = ctx.action;
   const { attachmentField } = ctx.action.params;
@@ -118,6 +121,9 @@ export async function createMiddleware(ctx: Context, next: Next) {
   await multipart(ctx, next);
 }
 
+/**
+ * Handles the destroy middleware resource action.
+ */
 export async function destroyMiddleware(ctx: Context, next: Next) {
   const { resourceName, actionName } = ctx.action;
   const collection = ctx.db.getCollection(resourceName);

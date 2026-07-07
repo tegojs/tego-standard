@@ -12,6 +12,9 @@ type LegacyDataTenantOption = {
   value: string;
 };
 
+/**
+ * Renders or configures the load legacy data tenant options client entry point.
+ */
 export async function loadLegacyDataTenantOptions(
   api: any,
   isCanceled: () => boolean,
@@ -25,6 +28,9 @@ export async function loadLegacyDataTenantOptions(
   }));
 }
 
+/**
+ * Renders the legacy data tenant select client component.
+ */
 export const LegacyDataTenantSelect = observer(
   (props: any) => {
     const api = useAPIClient();

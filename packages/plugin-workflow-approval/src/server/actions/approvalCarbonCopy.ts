@@ -5,6 +5,9 @@ import { APPROVAL_STATUS } from '../constants/status';
 import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 import { findUniqueObjects } from '../utils';
 
+/**
+ * Handles the approval carbon copy resource action.
+ */
 export const approvalCarbonCopy = {
   async listCentralized(ctx, next) {
     const centralizedApprovalFlow = await ctx.db.getRepository(COLLECTION_WORKFLOWS_NAME).find({

@@ -174,6 +174,9 @@ function applyTenantScopeToWorkerFindOptions(options: any, collection: any, tena
   };
 }
 
+/**
+ * Provides the export plugin helper for this module.
+ */
 export class ExportPlugin extends Plugin {
   beforeLoad() {}
 

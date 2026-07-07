@@ -9,6 +9,9 @@ const CurrentNavigationMenuContext = createContext<{
 }>(null);
 CurrentNavigationMenuContext.displayName = 'CurrentNavigationMenuContext';
 
+/**
+ * Returns the use current navigation menu hook state.
+ */
 export const useCurrentNavigationMenu = () => {
   const { items, update } = useContext(CurrentNavigationMenuContext) || {};
 
@@ -59,6 +62,9 @@ export const useCurrentNavigationMenu = () => {
   return { getItems, addItem, removeItem };
 };
 
+/**
+ * Renders or configures the current navigation menu provider client entry point.
+ */
 export const CurrentNavigationMenuProvider = ({ children }) => {
   const items = useRef<NavigationItem[]>([]);
   const [, setVersion] = useState(0);

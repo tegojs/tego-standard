@@ -36,6 +36,9 @@ function getExportTenantContext(ctx: Context) {
   };
 }
 
+/**
+ * Handles the export xlsx resource action.
+ */
 export async function exportXlsx(ctx: Context, next: Next) {
   const { filter, sort, fields, except } = ctx.action.params;
   const title = ctx.action.params.title ?? ctx.action.params.values?.title;

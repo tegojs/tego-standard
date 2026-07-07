@@ -69,6 +69,9 @@ async function resolveDefaultTenantId(ctx: Context, tenantIds: Array<string | nu
   return sortedTenantIds[0];
 }
 
+/**
+ * Runs the set current tenant middleware for request tenant context.
+ */
 export async function setCurrentTenant(ctx: Context, next: Next) {
   if (!ctx.state.currentUser && ctx.auth?.user) {
     ctx.state.currentUser = ctx.auth.user;

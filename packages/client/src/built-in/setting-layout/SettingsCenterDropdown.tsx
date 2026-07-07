@@ -8,6 +8,9 @@ import { PluginSettingsPageType, useApp } from '../../application';
 import { useCompile } from '../../schema-component';
 import { useToken } from '../../style';
 
+/**
+ * Renders or configures the settings center dropdown client entry point.
+ */
 export const SettingsCenterDropdown = () => {
   const compile = useCompile();
   const { token } = useToken();

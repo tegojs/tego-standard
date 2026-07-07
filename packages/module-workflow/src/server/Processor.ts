@@ -10,6 +10,9 @@ export interface ProcessorOptions extends Transactionable {
   [key: string]: any;
 }
 
+/**
+ * Provides the get execution field helper for this module.
+ */
 export function getExecutionField<T = Record<string, any>>(execution: any, key: string, fallback: T): T {
   const value = execution.get?.(key) ?? execution[key];
   return value ?? fallback;

@@ -1,3 +1,6 @@
+/**
+ * Provides the get audit context helper for this module.
+ */
 export function getAuditContext(options) {
   const state = options?.context?.state;
   const currentUserId = state?.currentUser?.id;

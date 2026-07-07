@@ -3,6 +3,9 @@ import { Plugin } from '@tego/server';
 import { LOG_TYPE_DESTROY } from '../constants';
 import { getAuditContext } from './audit-context';
 
+/**
+ * Provides the after destroy helper for this module.
+ */
 export async function afterDestroy(model, options, plugin: Plugin) {
   const { collection } = model.constructor;
   if (!collection || !collection.options.logging) {

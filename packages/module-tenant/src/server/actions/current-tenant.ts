@@ -18,6 +18,9 @@ function toPublicTenant(tenant: PublicTenantSource | null | undefined) {
   };
 }
 
+/**
+ * Returns the public shape of the tenant bound to the current request.
+ */
 export async function currentTenant(ctx: Context, next: Next) {
   ctx.body = toPublicTenant(ctx.state.currentTenant);
   await next();

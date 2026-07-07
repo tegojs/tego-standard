@@ -3,6 +3,9 @@ import { Plugin } from '@tego/server';
 import { LOG_TYPE_UPDATE } from '../constants';
 import { getAuditContext } from './audit-context';
 
+/**
+ * Provides the after update helper for this module.
+ */
 export async function afterUpdate(model, options, plugin: Plugin) {
   const { collection } = model.constructor;
   if (!collection || !collection.options.logging) {

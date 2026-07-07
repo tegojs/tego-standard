@@ -11,6 +11,9 @@ function setAvailableTenantsBody(ctx: Context, tenants: any[]) {
   }));
 }
 
+/**
+ * Returns the enabled tenants visible to the current user or tenant impersonator.
+ */
 export async function availableTenants(ctx: Context, next: Next) {
   if (isPlatformTenantImpersonatorContext(ctx)) {
     const tenants = await ctx.db.getRepository('tenants').find({

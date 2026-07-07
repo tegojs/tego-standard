@@ -2,6 +2,9 @@ import { AssociationField } from '@tachybase/client';
 
 import { tval } from './locale';
 
+/**
+ * Builds the use audit logs collection collection schema for the client.
+ */
 export const useAuditLogsCollection = () => {
   return {
     name: 'auditLogs',
@@ -142,6 +145,9 @@ export const useAuditLogsCollection = () => {
   };
 };
 
+/**
+ * Builds the use audit changes collection collection schema for the client.
+ */
 export const useAuditChangesCollection = () => {
   return {
     name: 'auditChanges',
@@ -178,6 +184,9 @@ export const useAuditChangesCollection = () => {
   };
 };
 
+/**
+ * Builds the use collections collection collection schema for the client.
+ */
 export const useCollectionsCollection = () => {
   return {
     name: 'collections',

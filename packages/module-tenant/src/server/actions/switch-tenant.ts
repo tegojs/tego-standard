@@ -3,6 +3,9 @@ import type { Context, Next } from '@tego/server';
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant';
 
+/**
+ * Switches the current user's default tenant after validating access to the requested tenant.
+ */
 export async function switchTenant(ctx: Context, next: Next) {
   const tenantId = ctx.action.params?.values?.tenantId;
   if (tenantId == null) {

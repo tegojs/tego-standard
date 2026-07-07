@@ -9,6 +9,9 @@ interface LoadOptions {
   skipExist?: boolean;
 }
 
+/**
+ * Provides the collection repository helper for this module.
+ */
 export class CollectionRepository extends Repository {
   private app: Application;
 

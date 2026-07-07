@@ -9,6 +9,9 @@ import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 
+/**
+ * Runs the select instruction workflow instruction.
+ */
 export class SelectInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, multiple, isTree, params = {}, failOnEmpty = false } = node.config;

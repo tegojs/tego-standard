@@ -37,11 +37,17 @@ const isExplicitAclSnippet = (record) => record?.aclMode === 'explicit';
 const SettingMenuContext = createContext(null);
 SettingMenuContext.displayName = 'SettingMenuContext';
 
+/**
+ * Renders or configures the setting center provider client entry point.
+ */
 export const SettingCenterProvider = (props) => {
   const configureItems = useContext(SettingsCenterContext);
   return <SettingMenuContext.Provider value={configureItems}>{props.children}</SettingMenuContext.Provider>;
 };
 
+/**
+ * Renders or configures the settings center configure client entry point.
+ */
 export const SettingsCenterConfigure = () => {
   const app = useApp();
   const { message } = App.useApp();

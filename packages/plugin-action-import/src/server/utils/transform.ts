@@ -5,10 +5,16 @@ import * as math from 'mathjs';
 
 import { namespace } from '../../';
 
+/**
+ * Transforms imported generic value field values into application values.
+ */
 export async function _({ value, field }) {
   return value;
 }
 
+/**
+ * Transforms imported email field values into application values.
+ */
 export async function email({ value, field, ctx }) {
   if (!value?.trim()) {
     return value;
@@ -20,6 +26,9 @@ export async function email({ value, field, ctx }) {
   return value;
 }
 
+/**
+ * Transforms imported password field values into application values.
+ */
 export async function password({ value, field, ctx }) {
   if (value === undefined || value === null) {
     throw new Error(ctx.t('password is empty', { ns: namespace }));
@@ -27,6 +36,9 @@ export async function password({ value, field, ctx }) {
   return `${value}`;
 }
 
+/**
+ * Transforms imported o2o field values into application values.
+ */
 export async function o2o({ value, column, field, ctx }) {
   const { dataIndex, enum: enumData } = column;
   const repository = ctx.db.getRepository(field.options.target);
@@ -40,6 +52,9 @@ export async function o2o({ value, column, field, ctx }) {
 export const oho = o2o;
 export const obo = o2o;
 
+/**
+ * Transforms imported o2m field values into application values.
+ */
 export async function o2m({ value, column, field, ctx }) {
   let results = [];
   const values = value.split(';').map((val) => val.trim());
@@ -60,6 +75,9 @@ export async function o2m({ value, column, field, ctx }) {
   return results;
 }
 
+/**
+ * Transforms imported m2o field values into application values.
+ */
 export async function m2o({ value, column, field, ctx }) {
   let results = null;
   const { dataIndex, enum: enumData } = column;
@@ -77,6 +95,9 @@ export async function m2o({ value, column, field, ctx }) {
   return results;
 }
 
+/**
+ * Transforms imported m2m field values into application values.
+ */
 export async function m2m({ value, column, field, ctx }) {
   let results = [];
   const values = value.split(';').map((val) => val.trim());
@@ -96,6 +117,9 @@ export async function m2m({ value, column, field, ctx }) {
   }
   return results;
 }
+/**
+ * Transforms imported datetime field values into application values.
+ */
 export async function datetime({ value, field, ctx }) {
   if (!value) {
     return '';
@@ -108,6 +132,9 @@ export async function datetime({ value, field, ctx }) {
   }
   return m.toDate();
 }
+/**
+ * Transforms imported time field values into application values.
+ */
 export async function time({ value, field, ctx }) {
   const { format } = field.options?.uiSchema?.['x-component-props'] ?? {};
   if (format) {
@@ -119,6 +146,9 @@ export async function time({ value, field, ctx }) {
   }
   return value;
 }
+/**
+ * Transforms imported percent field values into application values.
+ */
 export async function percent({ value, field, ctx }) {
   if (value) {
     const numberValue = Number(value?.split('%')?.[0] ?? value);
@@ -129,12 +159,18 @@ export async function percent({ value, field, ctx }) {
   }
   return 0;
 }
+/**
+ * Transforms imported checkbox field values into application values.
+ */
 export async function checkbox({ value, column, field, ctx }) {
   return value === ctx.t('Yes', { ns: namespace }) ? 1 : 0;
 }
 
 export const boolean = checkbox;
 
+/**
+ * Transforms imported select field values into application values.
+ */
 export async function select({ value, column, field, ctx }) {
   const { enum: enumData } = column;
   const item = enumData.find((item) => item.label === value);
@@ -144,6 +180,9 @@ export const radio = select;
 
 export const radioGroup = select;
 
+/**
+ * Transforms imported multiple select field values into application values.
+ */
 export async function multipleSelect({ value, column, field, ctx }) {
   const values = value?.split(';');
   const { enum: enumData } = column;
@@ -158,6 +197,9 @@ export const checkboxes = multipleSelect;
 
 export const checkboxGroup = multipleSelect;
 
+/**
+ * Transforms imported china region field values into application values.
+ */
 export async function chinaRegion({ value, column, field, ctx }) {
   const values = value?.split('/')?.map((val) => val.trim());
   const repository = ctx.db.getRepository('chinaRegions');

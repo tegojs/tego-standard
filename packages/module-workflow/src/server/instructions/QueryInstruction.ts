@@ -7,6 +7,9 @@ import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 
+/**
+ * Runs the query instruction workflow instruction.
+ */
 export class QueryInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, multiple, isTree, params = {}, failOnEmpty = false } = node.config;

@@ -3,6 +3,9 @@ import { Plugin } from '@tego/server';
 import { LOG_TYPE_CREATE } from '../constants';
 import { getAuditContext } from './audit-context';
 
+/**
+ * Provides the after create helper for this module.
+ */
 export async function afterCreate(model, options, plugin: Plugin) {
   if (options.logging === false) {
     return;

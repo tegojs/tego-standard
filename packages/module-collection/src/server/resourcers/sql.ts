@@ -161,18 +161,26 @@ async function applyReadOnlyTransactionGuard(ctx: Context, transaction: Transact
   }
 }
 
+function getPreviewQueryOptions(transaction?: Transaction) {
+  return {
+    // The result is for preview only, add limit clause to avoid too many results.
+    limit: 5,
+    raw: true,
+    ...(transaction ? { transaction } : {}),
+  };
+}
+
 /**
  * Executes SQL preview reads inside a read-only transaction where the dialect supports it.
  */
 export async function runReadOnlyPreviewQuery(ctx: Context, model: typeof SQLModel) {
+  if (getDialect(ctx) === 'sqlite') {
+    return await model.findAll(getPreviewQueryOptions());
+  }
+
   return ctx.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
     await applyReadOnlyTransactionGuard(ctx, transaction);
-    // The result is for preview only, add limit clause to avoid too many results.
-    return await model.findAll({
-      limit: 5,
-      raw: true,
-      transaction,
-    });
+    return await model.findAll(getPreviewQueryOptions(transaction));
   });
 }
 

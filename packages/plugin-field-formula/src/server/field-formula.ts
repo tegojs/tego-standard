@@ -69,7 +69,7 @@ export class FormulaField extends Field {
     });
 
     for (const record of records) {
-      const scope = record.toJSON();
+      const scope = record?.toJSON();
       const result = this.calculate(scope);
       if (result != null) {
         await record.update(
@@ -94,7 +94,7 @@ export class FormulaField extends Field {
       transaction,
       appends,
     });
-    const result = this.calculate(records.toJSON());
+    const result = this.calculate(records?.toJSON());
     instance.set(name, result);
   };
 
@@ -113,7 +113,7 @@ export class FormulaField extends Field {
     });
 
     for (const record of records) {
-      const scope = record.toJSON();
+      const scope = record?.toJSON();
       const result = this.calculate(scope);
       await record.update(
         {

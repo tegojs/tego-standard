@@ -12,6 +12,7 @@ import { AppMigrator, AppMigratorOptions } from './app-migrator';
 import { RestoreCheckError } from './errors/restore-check-error';
 import { FieldValueWriter } from './field-value-writer';
 import { readEveryLines, readLines } from './utils';
+import { sanitizeUnavailableApplicationPluginsSafely } from './utils/sanitize-application-plugins';
 
 type RestoreOptions = {
   groups: Set<DumpRulesGroupType>;
@@ -125,6 +126,7 @@ export class Restorer extends AppMigrator {
 
     // import plugins
     await importCollection('applicationPlugins');
+    await sanitizeUnavailableApplicationPluginsSafely(this.app);
     await this.app.reload();
 
     // import required collections
@@ -157,6 +159,7 @@ export class Restorer extends AppMigrator {
       }
     }
 
+    await sanitizeUnavailableApplicationPluginsSafely(this.app);
     await this.app.reload();
 
     await (this.app.db.getRepository('collections') as any).load();

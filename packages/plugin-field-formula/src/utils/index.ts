@@ -1,3 +1,25 @@
+export function getAppendsFromExpression(expression: string): string[] {
+  const regex = /\{\{([^}]+)\}\}/g;
+  const variables: string[] = [];
+  let match;
+
+  while ((match = regex.exec(expression)) !== null) {
+    variables.push(match[1].trim());
+  }
+
+  const uniqueVariables = [...new Set(variables)];
+  return uniqueVariables
+    .map((item) => {
+      if (item.includes('.')) {
+        const parts = item.split('.');
+        parts.pop();
+        return parts.join('.');
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
 export const DataTypeTransformers = {
   boolean: Boolean,
   integer: {
@@ -147,7 +169,7 @@ export function toDbType(value: any, type: string) {
   }
 
   let jsType: string = typeof value;
-  if (jsType == 'object' && value instanceof Date) {
+  if (jsType === 'object' && value instanceof Date) {
     jsType = 'date';
   }
 

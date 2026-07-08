@@ -1,6 +1,7 @@
-import { Database, mockDatabase } from '@tego/server';
+import { Database, evaluators, mockDatabase } from '@tego/server';
 
 import { FormulaField } from '../field-formula';
+import mathjs from '../utils/mathjs';
 
 describe('formula field', () => {
   let db: Database;
@@ -8,6 +9,9 @@ describe('formula field', () => {
   beforeEach(async () => {
     db = mockDatabase();
     await db.clean({ drop: true });
+    if (!evaluators.get('math.js')) {
+      evaluators.register('math.js', mathjs);
+    }
     db.registerFieldTypes({
       formula: FormulaField,
     });
@@ -109,6 +113,40 @@ describe('formula field', () => {
         });
 
         expect(test.get('sum')).toEqual(2);
+      });
+
+      it('should calculate with associated field values on create and update', async () => {
+        db.collection({
+          name: 'products',
+          fields: [{ type: 'float', name: 'price' }],
+        });
+
+        const expression = '{{product.price}}*{{count}}';
+        const Orders = db.collection({
+          name: 'orders',
+          fields: [
+            { type: 'float', name: 'count' },
+            { type: 'belongsTo', name: 'product', target: 'products', foreignKey: 'productId' },
+            { name: 'total', type: 'formula', expression, engine: 'math.js' },
+          ],
+        });
+
+        await db.sync();
+
+        const product = await db.getCollection('products').model.create<any>({
+          price: 10,
+        });
+
+        const order = await Orders.model.create<any>({
+          count: 3,
+          productId: product.get('id'),
+        });
+
+        expect(order.get('total')).toEqual(30);
+
+        order.set('count', 5);
+        await order.save();
+        expect(order.get('total')).toEqual(50);
       });
     });
 

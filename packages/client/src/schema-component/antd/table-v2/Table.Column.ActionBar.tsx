@@ -12,7 +12,7 @@ export const useStyles = createStyles(({ css }, { margin = '-18px -16px', paddin
       position: relative;
       margin: ${margin};
       padding: ${padding};
-
+      text-align: center;
       &:hover {
         > .general-schema-designer {
           display: block;

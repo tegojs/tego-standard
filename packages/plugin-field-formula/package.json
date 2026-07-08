@@ -25,7 +25,6 @@
     "@tego/server": "catalog:",
     "dayjs": "catalog:",
     "lodash": "^4.17.21",
-    "mathjs": "^10.6.4",
     "react": "catalog:",
     "react-i18next": "16.2.1"
   },

@@ -1,7 +1,7 @@
 import { Database, evaluators, mockDatabase } from '@tego/server';
 
+import mathjs from '../../../../plugin-evaluator-mathjs/src/server/utils/mathjs';
 import { FormulaField } from '../field-formula';
-import mathjs from '../utils/mathjs';
 
 describe('formula field', () => {
   let db: Database;

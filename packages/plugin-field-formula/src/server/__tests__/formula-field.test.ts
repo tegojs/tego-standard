@@ -1,6 +1,5 @@
-import { Database, evaluators, mockDatabase } from '@tego/server';
+import { Database, mockDatabase } from '@tego/server';
 
-import mathjs from '../../../../plugin-evaluator-mathjs/src/server/utils/mathjs';
 import { FormulaField } from '../field-formula';
 
 describe('formula field', () => {
@@ -9,9 +8,6 @@ describe('formula field', () => {
   beforeEach(async () => {
     db = mockDatabase();
     await db.clean({ drop: true });
-    if (!evaluators.get('math.js')) {
-      evaluators.register('math.js', mathjs);
-    }
     db.registerFieldTypes({
       formula: FormulaField,
     });

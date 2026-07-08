@@ -36,12 +36,36 @@ export class FormulaField extends Field {
     return null;
   }
 
+  getAppends(expression) {
+    const regex = /\{\{([^}]+)\}\}/g;
+    const variables = [];
+    let match;
+
+    while ((match = regex.exec(expression)) !== null) {
+      variables.push(match[1]);
+    }
+    const uniqueVariables = [...new Set(variables)];
+    const appends = uniqueVariables
+      .map((item) => {
+        if (item.includes('.')) {
+          const parts = item.split('.');
+          parts.pop();
+          const result = parts.join('.');
+          return result;
+        }
+        return '';
+      })
+      .filter(Boolean);
+    return appends;
+  }
+
   initFieldData = async ({ transaction }) => {
     const { name } = this.options;
-
+    const appends = this.getAppends(this.options.expression);
     const records = await this.collection.repository.find({
       order: [this.collection.model.primaryKeyAttribute],
       transaction,
+      appends,
     });
 
     for (const record of records) {
@@ -62,9 +86,15 @@ export class FormulaField extends Field {
     }
   };
 
-  calculateField = async (instance) => {
+  calculateField = async (instance, { transaction }) => {
     const { name } = this.options;
-    const result = this.calculate(instance.toJSON());
+    const appends = this.getAppends(this.options.expression);
+    const records = await this.collection.repository.findOne({
+      filterByTk: instance.id,
+      transaction,
+      appends,
+    });
+    const result = this.calculate(records.toJSON());
     instance.set(name, result);
   };
 
@@ -75,25 +105,7 @@ export class FormulaField extends Field {
 
     this.options = Object.assign(this.options, instance.options);
     const { name } = this.options;
-    const regex = /\{\{([^}]+)\}\}/g;
-    const variables = [];
-    let match;
-
-    while ((match = regex.exec(this.options.expression)) !== null) {
-      variables.push(match[1]);
-    }
-    const uniqueVariables = [...new Set(variables)];
-    const appends = uniqueVariables
-      .map((item) => {
-        if (item.includes('.')) {
-          const parts = item.split('.');
-          parts.pop();
-          const result = parts.join('.');
-          return result;
-        }
-        return '';
-      })
-      .filter(Boolean);
+    const appends = this.getAppends(this.options.expression);
     const records = await this.collection.repository.find({
       order: [this.collection.model.primaryKeyAttribute],
       transaction,

@@ -144,6 +144,49 @@ describe('formula field', () => {
         await order.save();
         expect(order.get('total')).toEqual(50);
       });
+
+      it('should recalculate with new associated record when foreign key changes', async () => {
+        db.collection({
+          name: 'products',
+          fields: [{ type: 'float', name: 'price' }],
+        });
+
+        const expression = '{{product.price}}*{{count}}';
+        const Orders = db.collection({
+          name: 'orders',
+          fields: [
+            { type: 'float', name: 'count' },
+            { type: 'belongsTo', name: 'product', target: 'products', foreignKey: 'productId' },
+            { name: 'total', type: 'formula', expression, engine: 'math.js' },
+          ],
+        });
+
+        await db.sync();
+
+        const productA = await db.getCollection('products').model.create<any>({
+          price: 10,
+        });
+        const productB = await db.getCollection('products').model.create<any>({
+          price: 20,
+        });
+
+        const order = await Orders.model.create<any>({
+          count: 3,
+          productId: productA.get('id'),
+        });
+
+        expect(order.get('total')).toEqual(30);
+
+        const loadedOrder = await Orders.repository.findOne({
+          filterByTk: order.get('id'),
+          appends: ['product'],
+        });
+
+        loadedOrder.set('productId', productB.get('id'));
+        await loadedOrder.save();
+
+        expect(loadedOrder.get('total')).toEqual(60);
+      });
     });
 
     describe('formula.js', () => {

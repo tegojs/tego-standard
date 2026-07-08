@@ -8,7 +8,7 @@ import { AutoBackupModel } from './model/AutoBackupModel';
 import backupFilesResourcer from './resourcers/backup-files';
 import { ensureSafePluginLoading } from './utils/ensure-safe-plugin-loading';
 import { cleanOldFiles } from './utils/files';
-import { sanitizeUnavailableApplicationPlugins } from './utils/sanitize-application-plugins';
+import { sanitizeUnavailableApplicationPluginsSafely } from './utils/sanitize-application-plugins';
 
 function parseDateWithoutMs(date: Date) {
   return Math.floor(date.getTime() / 1000) * 1000;
@@ -33,7 +33,7 @@ export default class PluginBackupRestoreServer extends Plugin {
     });
 
     this.app.on('beforeReload', async () => {
-      await sanitizeUnavailableApplicationPlugins(this.app);
+      await sanitizeUnavailableApplicationPluginsSafely(this.app);
     });
   }
 

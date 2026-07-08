@@ -42,30 +42,27 @@ export class FormulaField extends Field {
 
   getCalculationScope = async (instance, options?) => {
     const appends = getAppendsFromExpression(this.options.expression);
-    const scope = instance.toJSON();
+    const instanceScope = instance.toJSON();
+    let scope = { ...instanceScope };
 
     if (!appends.length) {
       return scope;
     }
 
     const pk = this.collection.model.primaryKeyAttribute;
-    const pkValue = instance.get(pk) ?? scope[pk];
+    const pkValue = instance.get(pk) ?? instanceScope[pk];
 
     if (pkValue) {
       const record = await this.collection.repository.findOne({
         filterByTk: pkValue,
-        appends,
         transaction: options?.transaction,
       });
       if (record) {
-        return { ...record.toJSON(), ...scope };
+        scope = { ...record.toJSON(), ...instanceScope };
       }
     }
 
     for (const append of appends) {
-      if (scope[append]) {
-        continue;
-      }
       const field = this.collection.getField(append);
       const target = field?.target ?? field?.options?.target;
       if (!target) {
@@ -74,6 +71,11 @@ export class FormulaField extends Field {
       const fkField = field.options?.foreignKey ?? field.foreignKey ?? `${append}Id`;
       const fkValue = scope[fkField];
       if (fkValue == null) {
+        continue;
+      }
+      const targetKey = field.options?.targetKey ?? 'id';
+      const relatedId = scope[append]?.[targetKey];
+      if (relatedId != null && `${relatedId}` === `${fkValue}`) {
         continue;
       }
       const targetCollection = this.database.getCollection(target);

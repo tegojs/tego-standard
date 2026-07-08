@@ -49,3 +49,12 @@ export async function sanitizeUnavailableApplicationPlugins(app: Application) {
 
   return skipped;
 }
+
+export async function sanitizeUnavailableApplicationPluginsSafely(app: Application) {
+  try {
+    return await sanitizeUnavailableApplicationPlugins(app);
+  } catch (error) {
+    app.logger.warn('Failed to sanitize unavailable application plugins:', error);
+    return [];
+  }
+}

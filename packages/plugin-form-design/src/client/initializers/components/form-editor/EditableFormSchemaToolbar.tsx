@@ -1,11 +1,14 @@
 import React, { FC, useContext, useEffect, useMemo, useRef } from 'react';
 import { useFormBlockContext, useSchemaOptionsContext } from '@tachybase/client';
-import { Field, useField, useFieldSchema, useForm } from '@tachybase/schema';
 import {
+  Field,
   SchemaComponentsContext,
   SchemaExpressionScopeContext,
   SchemaMarkupContext,
-} from '@tachybase/schema/lib/react';
+  useField,
+  useFieldSchema,
+  useForm,
+} from '@tachybase/schema';
 
 import { useEditableSelectedForm } from './EditableSelectedFormContent';
 

@@ -1,19 +1,19 @@
 import React from 'react';
-import {
-  APIClientProvider,
-  CurrentUserProvider,
-  FormItem,
-  FormProvider,
-  Input,
-  SchemaComponent,
-} from '@tachybase/client';
+import { useFieldSchema } from '@tachybase/schema';
 
-import { mockAPIClient } from '../../../../testUtils';
+import { FormProvider } from '../../../core/FormProvider';
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { Input } from '../../input/Input';
 
-const { apiClient, mockRequest } = mockAPIClient();
-mockRequest.onGet('/auth:check').reply(() => {
-  return [200, { data: {} }];
-});
+const TestFormItem = ({ children }) => {
+  const schema = useFieldSchema();
+  return (
+    <label>
+      <span>{schema.title}</span>
+      {children}
+    </label>
+  );
+};
 
 const schema = {
   type: 'object',
@@ -29,12 +29,8 @@ const schema = {
 
 export default () => {
   return (
-    <APIClientProvider apiClient={apiClient}>
-      <CurrentUserProvider>
-        <FormProvider>
-          <SchemaComponent components={{ FormItem, Input }} schema={schema} />
-        </FormProvider>
-      </CurrentUserProvider>
-    </APIClientProvider>
+    <FormProvider>
+      <SchemaComponent components={{ FormItem: TestFormItem, Input }} schema={schema} />
+    </FormProvider>
   );
 };

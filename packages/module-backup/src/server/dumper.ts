@@ -78,9 +78,11 @@ export class Dumper extends AppMigrator {
     filePath: string,
     appName?: string,
   ): Promise<BackUpStatusOk | BackUpStatusDoing | BackUpStatusError> {
-    const lockFile = filePath + '.lock';
-    const progressFile = filePath + '.progress';
-    const fileName = path.basename(filePath);
+    const isLockFilePath = path.extname(filePath) === '.lock';
+    const backupFilePath = isLockFilePath ? filePath.slice(0, -'.lock'.length) : filePath;
+    const lockFile = isLockFilePath ? filePath : filePath + '.lock';
+    const progressFile = backupFilePath + '.progress';
+    const fileName = path.basename(backupFilePath);
 
     return fs.promises
       .stat(lockFile)
@@ -118,7 +120,7 @@ export class Dumper extends AppMigrator {
       .catch((error) => {
         // 如果 Lock 文件不存在，检查备份文件
         if (error.code === 'ENOENT') {
-          return fs.promises.stat(filePath).then((backupFileStat) => {
+          return fs.promises.stat(backupFilePath).then((backupFileStat) => {
             if (backupFileStat.isFile()) {
               return {
                 name: fileName,
@@ -269,7 +271,7 @@ export class Dumper extends AppMigrator {
     return filePath;
   }
 
-  async cleanLockFile(fileName: string, appName: string) {
+  async cleanLockFile(fileName: string, appName?: string) {
     const filePath = this.lockFilePath(fileName, appName);
     await fsPromises.unlink(filePath);
     // 同时清理进度文件
@@ -282,13 +284,34 @@ export class Dumper extends AppMigrator {
     return backupFileName;
   }
 
-  async runDumpTask(options: DumpOptions) {
-    await this.dump({
+  startDumpTask(options: DumpOptions) {
+    const taskId = options.fileName || Dumper.generateFileName();
+    const taskPromise = this.dump({
       groups: options.groups,
-      fileName: options.fileName,
+      fileName: taskId,
       appName: options.appName,
       userId: options.userId,
     });
+
+    Dumper.dumpTasks.set(taskId, taskPromise);
+
+    taskPromise.then(
+      () => {
+        Dumper.dumpTasks.delete(taskId);
+      },
+      () => {
+        Dumper.dumpTasks.delete(taskId);
+      },
+    );
+
+    return taskId;
+  }
+
+  async runDumpTask(options: DumpOptions) {
+    const taskId = this.startDumpTask(options);
+    const taskPromise = Dumper.getTaskPromise(taskId);
+    await taskPromise;
+    return taskId;
   }
 
   async dumpableCollectionsGroupByGroup() {

@@ -1,17 +1,70 @@
 import { createMockServer, MockServer, waitSecond } from '@tachybase/test';
-
 import { CollectionManager, DataSource } from '@tego/server';
+
+import { TEST_ASSERTION_TIMEOUT } from './test-constants';
+
+async function waitForAssertion(
+  assertion: () => Promise<void> | void,
+  timeout = TEST_ASSERTION_TIMEOUT,
+  interval = 100,
+) {
+  const startedAt = Date.now();
+  let lastError: unknown;
+
+  while (Date.now() - startedAt < timeout) {
+    try {
+      await assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await waitSecond(interval);
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+}
+
+async function waitForDataSourceSettled(plugin: any, dataSourceKey: string) {
+  await waitForAssertion(() => {
+    const status = plugin.dataSourceStatus[dataSourceKey];
+    expect(status).toBeDefined();
+    expect(['loading', 'reloading']).not.toContain(status);
+  });
+}
+
+function createDeferred() {
+  let resolve: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+
+  return {
+    promise,
+    resolve: () => resolve(),
+  };
+}
 
 describe('data source', async () => {
   let app: MockServer;
+  let useSharedApp = false;
 
   beforeEach(async () => {
+    if (useSharedApp) {
+      return;
+    }
+
     app = await createMockServer({
-      plugins: ['tachybase', 'data-source-manager'],
+      plugins: ['collection-manager', 'error-handler', 'data-source-manager'],
     });
   });
 
   afterEach(async () => {
+    if (useSharedApp) {
+      return;
+    }
+
     await app.destroy();
   });
 
@@ -24,13 +77,18 @@ describe('data source', async () => {
   });
 
   it('should refresh status', async () => {
+    const initialLoad = createDeferred();
+    const refreshLoad = createDeferred();
+    let loadCount = 0;
+
     class MockDataSource extends DataSource {
       static testConnection(options?: any): Promise<boolean> {
         return Promise.resolve(true);
       }
 
       async load(): Promise<void> {
-        await waitSecond(1000);
+        loadCount += 1;
+        await (loadCount === 1 ? initialLoad.promise : refreshLoad.promise);
       }
 
       createCollectionManager(options?: any): any {
@@ -51,9 +109,10 @@ describe('data source', async () => {
 
     const plugin: any = app.pm.get('data-source-manager');
 
-    await waitSecond(2000);
-
-    expect(plugin.dataSourceStatus['mockInstance1']).toBe('loaded');
+    initialLoad.resolve();
+    await waitForAssertion(() => {
+      expect(plugin.dataSourceStatus['mockInstance1']).toBe('loaded');
+    });
 
     // current status is loaded
     // request refresh, should change to loading
@@ -64,7 +123,10 @@ describe('data source', async () => {
     expect(refreshResp.status).toBe(200);
     expect(refreshResp.body.data.status).toBe('reloading');
 
-    await waitSecond(2000);
+    refreshLoad.resolve();
+    await waitForAssertion(() => {
+      expect(plugin.dataSourceStatus['mockInstance1']).toBe('loaded');
+    });
 
     // get refresh loaded status
     const refreshResp1 = await app.agent().resource('dataSources').refresh({
@@ -78,6 +140,7 @@ describe('data source', async () => {
 
   it('should load datasource async', async () => {
     class MockCollectionManager extends CollectionManager {}
+    const loadDeferred = createDeferred();
 
     class MockDataSource extends DataSource {
       static testConnection(options?: any): Promise<boolean> {
@@ -85,7 +148,7 @@ describe('data source', async () => {
       }
 
       async load(): Promise<void> {
-        await waitSecond(1000);
+        await loadDeferred.promise;
       }
 
       createCollectionManager(options?: any): any {
@@ -116,10 +179,18 @@ describe('data source', async () => {
     const item1 = listResp.body.data[0];
 
     expect(item1.status).toBe('loading');
-    await waitSecond(2000);
-
-    const listResp2 = await app.agent().resource('dataSources').list();
-    expect(listResp2.body.data[0].status).toBe('loaded');
+    loadDeferred.resolve();
+    await waitForAssertion(async () => {
+      const listResp2 = await app
+        .agent()
+        .resource('dataSources')
+        .list({
+          filter: {
+            key: 'mockInstance1',
+          },
+        });
+      expect(listResp2.body.data[0].status).toBe('loaded');
+    });
 
     // get data source
     const getResp = await app
@@ -221,6 +292,8 @@ describe('data source', async () => {
         },
       });
 
+    const plugin: any = app.pm.get('data-source-manager');
+    await waitForDataSourceSettled(plugin, 'mockInstance1');
     testConnectionFn.mockClear();
 
     await app
@@ -235,8 +308,10 @@ describe('data source', async () => {
         },
       });
 
-    await waitSecond(1000);
-    expect(testConnectionFn).toBeCalledTimes(1);
+    await waitForAssertion(() => {
+      expect(testConnectionFn).toBeCalledTimes(1);
+    });
+    await waitForDataSourceSettled(plugin, 'mockInstance1');
   });
 
   it('should test datasource connection', async () => {
@@ -296,9 +371,11 @@ describe('data source', async () => {
         options: {},
       },
     });
-    await waitSecond(1000);
-
-    expect(loadFn).toBeCalledTimes(1);
+    await waitForAssertion(() => {
+      expect(loadFn).toBeCalledTimes(1);
+    });
+    const plugin: any = app.pm.get('data-source-manager');
+    await waitForDataSourceSettled(plugin, 'mockInstance1');
 
     const mockDataSource = app.dataSourceManager.dataSources.get('mockInstance1');
     expect(mockDataSource).toBeInstanceOf(MockDataSource);
@@ -312,9 +389,7 @@ describe('data source', async () => {
         return Promise.resolve(true);
       }
 
-      async load(): Promise<void> {
-        await waitSecond(1000);
-      }
+      async load(): Promise<void> {}
 
       createCollectionManager(options?: any): any {
         return new MockCollectionManager();
@@ -332,9 +407,9 @@ describe('data source', async () => {
       },
     });
 
-    await waitSecond(2000);
-
-    expect(app.dataSourceManager.dataSources.get('mockInstance1')).toBeDefined();
+    await waitForAssertion(() => {
+      expect(app.dataSourceManager.dataSources.get('mockInstance1')).toBeDefined();
+    });
 
     await app.agent().resource('dataSources').destroy({
       filterByTk: 'mockInstance1',
@@ -346,7 +421,12 @@ describe('data source', async () => {
   class MockCollectionManager extends CollectionManager {}
 
   describe('data source collections', () => {
-    beforeEach(async () => {
+    beforeAll(async () => {
+      useSharedApp = true;
+      app = await createMockServer({
+        plugins: ['collection-manager', 'error-handler', 'data-source-manager'],
+      });
+
       class MockDataSource extends DataSource {
         async load(): Promise<void> {
           this.collectionManager.defineCollection({
@@ -392,7 +472,14 @@ describe('data source', async () => {
         },
       });
 
-      await waitSecond(1000);
+      await waitForAssertion(() => {
+        expect(app.dataSourceManager.dataSources.get('mockInstance1')).toBeDefined();
+      });
+    });
+
+    afterAll(async () => {
+      await app.destroy();
+      useSharedApp = false;
     });
 
     it('should get data source collections', async () => {
@@ -433,15 +520,16 @@ describe('data source', async () => {
         },
       });
 
-      await waitSecond(1000);
+      const plugin: any = app.pm.get('data-source-manager');
+      await waitForAssertion(() => {
+        expect(plugin.dataSourceStatus['mockInstance2']).toBe('loading-failed');
+      });
 
       const listResp = await app.agent().resource('dataSources').listEnabled({
         appends: 'collections',
       });
 
       expect(listResp.status).toBe(200);
-
-      console.log(listResp.body.data);
     });
 
     it('should get collections from datasource', async () => {

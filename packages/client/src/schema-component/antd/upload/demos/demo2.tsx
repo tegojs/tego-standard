@@ -4,9 +4,9 @@
 import React from 'react';
 import { APIClientProvider, SchemaComponent, SchemaComponentProvider, Upload } from '@tachybase/client';
 
-import { FormItem } from '@tego/client';
-
 import apiClient from './apiClient';
+
+const FormItem = ({ children }) => <>{children}</>;
 
 const schema = {
   type: 'object',

@@ -1,11 +1,9 @@
 import React from 'react';
-import {
-  AntdSchemaComponentProvider,
-  Filter,
-  Input,
-  SchemaComponent,
-  SchemaComponentProvider,
-} from '@tachybase/client';
+
+import { SchemaComponent } from '../../../core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { Filter } from '../Filter';
 
 const options = [
   {
@@ -103,9 +101,7 @@ const schema: any = {
 export default () => {
   return (
     <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <SchemaComponent components={{ Input, Filter }} schema={schema} />
-      </AntdSchemaComponentProvider>
+      <SchemaComponent components={{ Input, Filter }} schema={schema} />
     </SchemaComponentProvider>
   );
 };

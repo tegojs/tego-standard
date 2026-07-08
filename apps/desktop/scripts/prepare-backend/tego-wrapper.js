@@ -18,6 +18,83 @@ const {
   findGlobalsModule,
 } = require('./tego-wrapper-utils');
 
+function patchSyncRunnerHandleDefaultValuesForSqlite() {
+  try {
+    let syncRunnerPath;
+    const attempted = [];
+
+    const candidateIds = ['@tachybase/database/lib/sync-runner', '@tachybase/database/lib/sync-runner.js'];
+
+    for (const candidateId of candidateIds) {
+      try {
+        syncRunnerPath = require.resolve(candidateId);
+        break;
+      } catch (err) {
+        attempted.push(`${candidateId} -> ${err?.message || err}`);
+      }
+    }
+
+    if (!syncRunnerPath) {
+      let dbEntry;
+      try {
+        dbEntry = require.resolve('@tachybase/database');
+      } catch (err) {
+        attempted.push(`@tachybase/database -> ${err?.message || err}`);
+      }
+
+      if (dbEntry) {
+        // 反推 @tachybase/database 包根目录（.../lib/index.js -> 包根目录）
+        const dbRoot = path.resolve(path.dirname(dbEntry), '..');
+        const fileCandidates = [path.join(dbRoot, 'lib', 'sync-runner.js'), path.join(dbRoot, 'lib', 'sync-runner')];
+        for (const filePath of fileCandidates) {
+          try {
+            if (fs.existsSync(filePath)) {
+              syncRunnerPath = filePath;
+              break;
+            }
+            attempted.push(`${filePath} -> not found`);
+          } catch (err) {
+            attempted.push(`${filePath} -> ${err?.message || err}`);
+          }
+        }
+      }
+    }
+
+    if (!syncRunnerPath) {
+      throw new Error(`Unable to resolve sync-runner. attempts=${attempted.join(' | ')}`);
+    }
+
+    console.log(`[Tego Wrapper] SyncRunner path: ${syncRunnerPath}`);
+    // eslint-disable-next-line import/no-dynamic-require, global-require
+    const syncRunnerModule = require(syncRunnerPath);
+    const SyncRunner = syncRunnerModule?.SyncRunner;
+    if (!SyncRunner || !SyncRunner.prototype) {
+      return;
+    }
+    if (SyncRunner.prototype.__tegoPatchedSqliteSkipDefaultSync) {
+      return;
+    }
+
+    const originalHandleDefaultValues = SyncRunner.prototype.handleDefaultValues;
+    SyncRunner.prototype.handleDefaultValues = async function patchedHandleDefaultValues(columns, options) {
+      try {
+        const dialect = this?.database?.sequelize?.getDialect?.();
+        if (dialect === 'sqlite') {
+          // SQLite 下跳过 default value 的列变更同步，避免触发 changeColumn 的重建备份表路径。
+          return;
+        }
+      } catch (error) {
+        console.warn(`[Tego Wrapper] SQLite default sync guard fallback: ${error?.message || error}`);
+      }
+      return originalHandleDefaultValues.call(this, columns, options);
+    };
+    SyncRunner.prototype.__tegoPatchedSqliteSkipDefaultSync = true;
+    console.log('[Tego Wrapper] Patched SyncRunner.handleDefaultValues: skip default sync on SQLite');
+  } catch (error) {
+    console.warn(`[Tego Wrapper] Failed to patch SyncRunner.handleDefaultValues: ${error?.message || error}`);
+  }
+}
+
 // 获取 backend 目录（wrapper 脚本在 backend/scripts/tego-wrapper.js）
 const backendDir = path.resolve(__dirname, '..');
 
@@ -289,6 +366,9 @@ if (!tegoPath) {
 // 修改 process.argv，让 tego 认为它是直接启动的
 // 保留 node 和 tego.js 路径，移除 wrapper 脚本路径
 process.argv = [process.argv[0], tegoPath, ...tegoArgs];
+
+// Patch database sync behavior before loading tego entrypoint.
+patchSyncRunnerHandleDefaultValuesForSqlite();
 
 // 使用 require 加载 tego（这会执行 tego 的代码）
 // tego.js 会读取 process.argv 来处理命令行参数

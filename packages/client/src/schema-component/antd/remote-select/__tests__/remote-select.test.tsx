@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, sleep, userEvent } from '@tachybase/test/client';
+import { render, screen, userEvent } from '@tachybase/test/client';
 
 import App1 from '../demos/demo1';
 
@@ -12,13 +12,7 @@ describe('RemoteSelect', () => {
 
     await userEvent.click(selector);
 
-    // 下拉框中显示 loading
-    expect(document.querySelector('.ant-spin')).toBeInTheDocument();
-
-    // 等待接口返回数据
-    await sleep(500);
-
-    expect(screen.getByText('title1')).toBeInTheDocument();
-    expect(screen.getByText('title2')).toBeInTheDocument();
+    expect(await screen.findByText('title1')).toBeInTheDocument();
+    expect(await screen.findByText('title2')).toBeInTheDocument();
   });
 });

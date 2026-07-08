@@ -20,6 +20,7 @@ import PluginWorkflowJSONParseServer from './features/_deprecated-json-parse/plu
 import { PluginAggregate } from './features/aggregate/Plugin';
 import { PluginDelay } from './features/delay/Plugin';
 import { PluginDynamicCalculation } from './features/dynamic-calculation/Plugin';
+import { PluginExitBranch } from './features/exit-branch';
 import { PluginInterception } from './features/interception';
 import { PluginLoop } from './features/loop/Plugin';
 import { PluginManual } from './features/manual/Plugin';
@@ -93,6 +94,7 @@ export default class PluginWorkflowServer extends Plugin {
     this.addFeature(PluginOmniTrigger);
     this.addFeature(PluginTriggerInstruction);
     this.addFeature(PluginWorkflowNoticeServer);
+    this.addFeature(PluginExitBranch);
   }
 
   getLogger(workflowId: ID): Logger {
@@ -545,7 +547,7 @@ export default class PluginWorkflowServer extends Plugin {
 
       this.executing = null;
 
-      if (next) {
+      if (next || this.events.length || this.pending.length) {
         this.dispatch();
       }
     })();
@@ -565,9 +567,12 @@ export default class PluginWorkflowServer extends Plugin {
     try {
       await (job ? processor.resume(job) : processor.start());
       logger.info(`execution (${execution.id}) finished with status: ${execution.status}`, { execution });
+      let shouldDeleteExecution = false;
       if (execution.status !== 0) {
         const executionDuration = execution.updatedAt.getTime() - execution.createdAt.getTime();
         await execution.update({ executionCost: executionDuration }, { transaction: options.transaction });
+        const deleteOnStatus = (execution as any).workflow?.options?.deleteExecutionOnStatus;
+        shouldDeleteExecution = Array.isArray(deleteOnStatus) && deleteOnStatus.includes(execution.status);
       }
       if (execution.status && execution.parentNode) {
         // 根据parentId找到parent
@@ -578,13 +583,19 @@ export default class PluginWorkflowServer extends Plugin {
         const job = jobs.find((v) => v.status === JOB_STATUS.PENDING && v.nodeId === execution.parentNode);
         if (job) {
           const lastSavedJob = processor.lastSavedJob;
-          job.status = execution.status;
           // 为了防止没有返回值导致错误, 取默认输入值
-          job.result = lastSavedJob.result || execution.context;
+          job.set({
+            status: execution.status,
+            result: lastSavedJob?.result ?? execution.context,
+          });
           await this.resume(job);
         } else {
           logger.error(`execution (${execution.id}) error: parent job not found`);
         }
+      }
+      if (shouldDeleteExecution) {
+        await (execution as any).destroy({ transaction: options.transaction });
+        return processor;
       }
     } catch (err) {
       logger.error(`execution (${execution.id}) error: ${err.message}`, err);

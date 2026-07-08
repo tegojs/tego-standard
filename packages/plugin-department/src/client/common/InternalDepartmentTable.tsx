@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from 'react';
-import { useResourceActionContext } from '@tachybase/client';
+import { useResourceActionContext, withAutoQuickJumper } from '@tachybase/client';
 import { useField } from '@tachybase/schema';
 
 import { Table } from 'antd';
@@ -58,18 +58,18 @@ export const InternalDepartmentTable = ({ useDisabled = useDisabledDefault }) =>
         },
         getCheckboxProps: () => ({ disabled: disabled() }),
       }}
-      pagination={{
+      pagination={withAutoQuickJumper({
         ...paginationParams,
         showSizeChanger: true,
         onChange(f, S) {
           let O;
           run({
-            ...(service?.params?.[0] || {}),
+            ...service?.params?.[0],
             page: f,
             pageSize: S,
           });
         },
-      }}
+      })}
       dataSource={hasFilter ? data?.data || [] : treeData}
       expandable={{
         onExpand: (expanded, r) => {

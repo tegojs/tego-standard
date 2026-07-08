@@ -48,7 +48,7 @@ async function main() {
 
   const webDevCmd = `cd ../.. && cross-env PORT=${webPort} WEB_PORT=${webPort} APP_PORT=${appPort} pnpm exec -- rsbuild dev --open --config rsbuild.config.ts --root apps/web`;
   const serverCmd = `cd ../.. && cross-env APP_PORT=${appPort} pnpm dev-server`;
-  const electronCmd = `wait-on http-get://localhost:${webPort} && cross-env NODE_ENV=development WEB_PORT=${webPort} pnpm electron:dev`;
+  const electronCmd = `wait-on http-get://localhost:${webPort} && cross-env NODE_ENV=development WEB_PORT=${webPort} APP_PORT=${appPort} pnpm electron:dev`;
 
   try {
     // 使用 execSync 执行 concurrently，保持与原命令一致的行为

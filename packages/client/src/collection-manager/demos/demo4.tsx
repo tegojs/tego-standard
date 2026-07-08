@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  AntdSchemaComponentProvider,
-  ExtendCollectionsProvider,
-  SchemaComponent,
-  SchemaComponentProvider,
-} from '@tachybase/client';
+import { ExtendCollectionsProvider, SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
 import { ISchema } from '@tachybase/schema';
 
 const schema: ISchema = {
@@ -154,11 +149,9 @@ const collections = [
 export default () => {
   return (
     <SchemaComponentProvider>
-      <AntdSchemaComponentProvider>
-        <ExtendCollectionsProvider collections={collections}>
-          <SchemaComponent schema={schema} />
-        </ExtendCollectionsProvider>
-      </AntdSchemaComponentProvider>
+      <ExtendCollectionsProvider collections={collections}>
+        <SchemaComponent schema={schema} />
+      </ExtendCollectionsProvider>
     </SchemaComponentProvider>
   );
 };

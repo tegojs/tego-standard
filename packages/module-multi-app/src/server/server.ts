@@ -41,19 +41,24 @@ const defaultSubAppUpgradeHandle: SubAppUpgradeHandler = async (mainApp: Applica
       upgrading: true,
     });
 
-    console.log({ beforeSubAppStatus });
     try {
       mainApp.setMaintainingMessage(`upgrading sub app ${instance.name}...`);
-      console.log(`${instance.name}: upgrading...`);
+      mainApp.logger.info(`upgrading sub app ${instance.name}...`, {
+        module: 'multi-app-manager',
+        subApp: instance.name,
+        beforeSubAppStatus,
+      });
 
       await subApp.runAsCLI(['upgrade'], { from: 'user' });
       if (!beforeSubAppStatus && AppSupervisor.getInstance().getAppStatus(instance.name) === 'initialized') {
         await AppSupervisor.getInstance().removeApp(instance.name);
       }
     } catch (error) {
-      console.log(`${instance.name}: upgrade failed`);
-      mainApp.logger.error(error);
-      console.error(error);
+      mainApp.logger.error(error, {
+        module: 'multi-app-manager',
+        subApp: instance.name,
+        method: 'defaultSubAppUpgradeHandle',
+      });
     }
   }
 };

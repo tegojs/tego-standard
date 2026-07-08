@@ -22,12 +22,12 @@ describe('signin', () => {
 
   beforeAll(async () => {
     app = await createMockServer({
-      plugins: ['users', 'auth', 'verification', 'acl', 'sms-auth', 'data-source-manager'],
+      plugins: ['users', 'auth', 'otp', 'acl', 'sms-auth', 'data-source-manager'],
     });
     db = app.db;
     agent = app.agent();
 
-    const verificationPlugin: VerificationPlugin = app.pm.get('verification');
+    const verificationPlugin: VerificationPlugin = app.pm.get('otp');
     verificationPlugin.providers.register('fake', Provider as any);
     const VerificationProviderRepo = db.getRepository('verifications_providers');
     await VerificationProviderRepo.create({

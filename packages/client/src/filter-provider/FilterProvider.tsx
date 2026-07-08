@@ -51,6 +51,8 @@ export interface DataBlock {
   foreignKeyFields?: ForeignKeyField[];
   /** 数据卡片已经存在的过滤条件（通过 `设置数据范围` 或者其它能设置筛选条件的功能） */
   defaultFilter?: FilterParam;
+  /** 本块作为连接发起方时，x-filter-targets 中的目标块 uid（用于把发起方的数据范围合并到被连接块） */
+  filterTargetUids?: string[];
   /** 数据卡片用于请求数据的接口 */
   service?: any;
   /** 数据卡片所的 DOM 容器 */
@@ -107,6 +109,15 @@ export const DataBlockCollector = ({
     field.decoratorProps.blockType !== 'filter';
 
   const addBlockToDataBlocks = useCallback(() => {
+    let filterTargetUids: string[] = [];
+    let s = fieldSchema;
+    while (s) {
+      if (s['x-filter-targets']) {
+        filterTargetUids = (s['x-filter-targets'] as { uid: string }[]).map((t) => t.uid);
+        break;
+      }
+      s = s.parent;
+    }
     recordDataBlocks({
       uid: fieldSchema['x-uid'],
       title: field.componentProps.title,
@@ -115,6 +126,7 @@ export const DataBlockCollector = ({
       associatedFields,
       foreignKeyFields: collection.foreignKeyFields as ForeignKeyField[],
       defaultFilter: params?.filter || {},
+      filterTargetUids,
       service,
       dom: container.current,
       dataLoadingMode,
@@ -168,6 +180,7 @@ export const useFilterBlock = () => {
       recordDataBlocks: () => {},
       getDataBlocks: () => [] as DataBlock[],
       removeDataBlock: () => {},
+      dataBlocks: [] as DataBlock[],
     };
   }
   const { dataBlocks, setDataBlocks } = ctx;
@@ -175,10 +188,18 @@ export const useFilterBlock = () => {
     const existingBlock = dataBlocks.find((item) => item.uid === block.uid);
 
     if (existingBlock) {
-      // 这里的值有可能会变化，所以需要更新
+      const prevDf = JSON.stringify(existingBlock.defaultFilter);
+      const prevTg = JSON.stringify(existingBlock.filterTargetUids);
       existingBlock.service = block.service;
       existingBlock.defaultFilter = block.defaultFilter;
+      existingBlock.filterTargetUids = block.filterTargetUids;
       existingBlock.dataLoadingMode = block.dataLoadingMode;
+      if (
+        JSON.stringify(existingBlock.defaultFilter) !== prevDf ||
+        JSON.stringify(existingBlock.filterTargetUids) !== prevTg
+      ) {
+        setDataBlocks((prev) => [...prev]);
+      }
       return;
     }
     // 由于 setDataBlocks 是异步操作，所以上面的 existingBlock 在判断时有可能用的是旧的 dataBlocks,所以下面还需要根据 uid 进行去重操作
@@ -193,6 +214,7 @@ export const useFilterBlock = () => {
     recordDataBlocks,
     getDataBlocks,
     removeDataBlock,
+    dataBlocks,
     /**
      * running in FilterBlockProvider
      */

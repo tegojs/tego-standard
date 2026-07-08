@@ -1,11 +1,20 @@
 {
   "name": "@tachybase/plugin-action-print",
   "displayName": "Action: Print",
-  "version": "1.6.6",
+  "version": "1.6.23",
   "description": "Calls the browser's print function to print a record.",
   "keywords": [
     "Actions"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-action-print"
+  },
   "license": "Apache-2.0",
   "main": "dist/server/index.js",
   "scripts": {},

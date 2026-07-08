@@ -1,6 +1,4 @@
-import { CollectionOptions } from '@tego/server';
-
-export default {
+module.exports = {
   name: 'tags',
   fields: [
     {
@@ -12,4 +10,4 @@ export default {
       name: 'name',
     },
   ],
-} as CollectionOptions;
+};

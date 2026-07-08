@@ -1,8 +1,8 @@
 import React, { createContext, useContext } from 'react';
 
-import { useCollection_deprecated } from '../collection-manager';
-import { CollectionRecordProvider } from '../data-source';
-import { useCurrentUserContext } from '../user';
+import { useCollection_deprecated } from '../collection-manager/hooks/useCollection_deprecated';
+import { CollectionRecordProvider } from '../data-source/collection-record/CollectionRecordProvider';
+import { useCurrentUserContext } from '../user/CurrentUserContext';
 
 export const RecordContext_deprecated = createContext({});
 RecordContext_deprecated.displayName = 'RecordContext_deprecated';

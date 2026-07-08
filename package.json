@@ -1,7 +1,15 @@
 {
   "name": "tachybase",
-  "version": "1.6.6",
+  "version": "1.6.23",
   "private": true,
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard"
+  },
   "license": "Apache-2.0",
   "scripts": {
     "prebuild": "node scripts/update-version-with-hash.mjs",
@@ -23,6 +31,7 @@
     "preinstall": "npx only-allow pnpm",
     "postinstall": "tegod postinstall",
     "lint": "oxlint",
+    "metadata:sync": "node scripts/sync-package-metadata.js",
     "pm": "tegod pm",
     "prepare": "husky",
     "start": "tego start",
@@ -30,15 +39,15 @@
     "tb": "node scripts/deprecated-command.mjs tb tg",
     "tbi": "node scripts/deprecated-command.mjs tbi tgi",
     "tbu": "node scripts/deprecated-command.mjs tbu tgu",
-    "tc": "tegod test:client",
+    "tc": "tegod test:client run",
     "tego": "tego",
     "tegod": "tegod",
-    "test": "tegod test",
-    "test:client": "tegod test:client",
-    "test:server": "tegod test:server",
+    "test": "tegod test run",
+    "test:client": "tegod test:client run",
+    "test:server": "tegod test:server run",
     "tgi": "tego install",
     "tgu": "tego upgrade",
-    "ts": "tegod test:server"
+    "ts": "tegod test:server run"
   },
   "lint-staged": {
     "*.{js,json,sql,ts,tsx}": [

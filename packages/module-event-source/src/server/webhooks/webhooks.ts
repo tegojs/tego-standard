@@ -254,19 +254,23 @@ export class WebhookController {
   }
 
   async triggerWorkflow(ctx, action, body): Promise<Processor | void> {
-    const { currentUser, currentRole } = ctx.state;
-    const { model: UserModel } = ctx.db.getCollection('users');
+    const { currentUser, currentRole } = ctx?.state || {};
+    const userCollection = ctx.db.getCollection('users');
+    const { model: UserModel } = userCollection;
     // 只有绑定工作流才执行
     if (!action.workflowKey) {
       return;
     }
     const userInfo = {
-      user: UserModel.build(currentUser).desensitize(),
+      user: currentUser ? UserModel.build(currentUser).desensitize() : null,
       roleName: currentRole,
     };
     const pluginWorkflow = ctx.tego.getPlugin(PluginWorkflow) as PluginWorkflow;
     const wfRepo = ctx.db.getRepository('workflows');
     const wf = await wfRepo.findOne({ filter: { key: action.workflowKey, enabled: true } });
-    return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, { httpContext: ctx });
+    // 与历史行为一致：未配置时默认透传 httpContext；仅显式 useHttpContext=false 时关闭
+    const useHttpContext = action?.options?.useHttpContext !== false;
+    const triggerOptions = useHttpContext ? { httpContext: ctx } : undefined;
+    return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, triggerOptions);
   }
 }

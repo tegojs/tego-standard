@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { isValid } from '@tachybase/schema';
-import { toFixedByStep } from '@tego/client';
+import { toFixedByStep } from '@tachybase/utils/client';
 
 import type { InputProps } from 'antd/es/input';
 import type { InputNumberProps } from 'antd/es/input-number';

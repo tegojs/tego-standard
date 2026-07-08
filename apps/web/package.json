@@ -1,6 +1,15 @@
 {
   "name": "@tego/web",
-  "version": "1.6.6",
+  "version": "1.6.23",
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "apps/web"
+  },
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
@@ -19,7 +28,7 @@
     "@tego/devkit": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "i18next": "23.16.8",
+    "i18next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-i18next": "16.2.1",

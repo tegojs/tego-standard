@@ -1,11 +1,20 @@
 {
   "name": "@tachybase/plugin-simple-cms",
   "displayName": "Simple CMS",
-  "version": "1.6.6",
+  "version": "1.6.23",
   "description": "simple content management system",
   "keywords": [
     "System management"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-prototype-simple-cms"
+  },
   "main": "dist/server/index.js",
   "scripts": {},
   "dependencies": {},

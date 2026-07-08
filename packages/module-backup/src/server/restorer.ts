@@ -226,7 +226,7 @@ export class Restorer extends AppMigrator {
     insert?: boolean;
     clear?: boolean;
     rowCondition?: (row: any) => boolean;
-  }) {
+  }): Promise<void | string> {
     const app = this.app;
     const db = app.db;
 
@@ -245,7 +245,7 @@ export class Restorer extends AppMigrator {
       await fsPromises.stat(collectionMetaPath);
     } catch (e) {
       app.logger.info(`${collectionName} has no meta`);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const metaContent = await fsPromises.readFile(collectionMetaPath, 'utf8');
@@ -261,7 +261,7 @@ export class Restorer extends AppMigrator {
 
     if (columns.length === 0) {
       app.logger.info(`${collectionName} has no columns`);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const fieldAttributes = lodash.mapValues(meta.attributes, (attr) => {
@@ -323,6 +323,7 @@ export class Restorer extends AppMigrator {
     // read file content from collection data
     const batchSize = 1000; // 定义每个批次的大小
     let batch = [];
+    const sqlResults = [];
 
     let allLength = 0;
     await readEveryLines(collectionDataPath, async (line) => {
@@ -330,7 +331,7 @@ export class Restorer extends AppMigrator {
 
       // 达到批次大小时进行处理
       if (batch.length >= batchSize) {
-        await this.insertMetaRows({
+        const result = await this.insertMetaRows({
           rows: batch,
           collectionName,
           columns,
@@ -339,13 +340,16 @@ export class Restorer extends AppMigrator {
           addSchemaTableName,
           options,
         }); // 批量处理
+        if (result) {
+          sqlResults.push(result);
+        }
         allLength += batchSize;
         batch = []; // 清空当前批次
       }
     });
 
-    if (!this.importedCollections.includes(collectionName)) {
-      await this.insertMetaRows({
+    if (batch.length > 0) {
+      const result = await this.insertMetaRows({
         rows: batch,
         collectionName,
         columns,
@@ -354,7 +358,14 @@ export class Restorer extends AppMigrator {
         addSchemaTableName,
         options,
       });
+      if (result) {
+        sqlResults.push(result);
+      }
       allLength += batch.length;
+    }
+
+    if (options.insert === false) {
+      return sqlResults.join('\n');
     }
 
     app.logger.info(`${collectionName} imported with ${allLength} rows`);
@@ -374,7 +385,9 @@ export class Restorer extends AppMigrator {
       });
     }
 
-    this.importedCollections.push(collectionName);
+    if (!this.importedCollections.includes(collectionName)) {
+      this.importedCollections.push(collectionName);
+    }
   }
 
   async importDb(options: RestoreOptions) {
@@ -420,13 +433,20 @@ export class Restorer extends AppMigrator {
     }
   }
 
-  async insertMetaRows({ rows, collectionName, columns, fieldAttributes, rawAttributes, addSchemaTableName, options }) {
+  async insertMetaRows({
+    rows,
+    collectionName,
+    columns,
+    fieldAttributes,
+    rawAttributes,
+    addSchemaTableName,
+    options,
+  }): Promise<void | string> {
     const app = this.app;
     const db = app.db;
     if (rows.length === 0) {
       app.logger.info(`${collectionName} has no data to import`);
-      this.importedCollections.push(collectionName);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const rowsWithMeta = rows
@@ -450,8 +470,7 @@ export class Restorer extends AppMigrator {
 
     if (rowsWithMeta.length === 0) {
       app.logger.info(`${collectionName} has no data to import`);
-      this.importedCollections.push(collectionName);
-      return;
+      return options.insert === false ? '' : undefined;
     }
 
     const insertGeneratorAttributes = lodash.mapKeys(rawAttributes, (value, key) => {

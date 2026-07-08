@@ -17,9 +17,10 @@ describe('Input', () => {
   it('should display the value of user input', async () => {
     const { container } = render(<App1 />);
 
-    await waitFor(async () => {
-      const input = container.querySelector('input') as HTMLInputElement;
-      await userEvent.type(input, 'Hello World');
+    const input = container.querySelector('input') as HTMLInputElement;
+    await userEvent.type(input, 'Hello World');
+
+    await waitFor(() => {
       expect(screen.getByText('Hello World').innerHTML).toBe('Hello World');
     });
   });
@@ -96,11 +97,12 @@ describe('Input.JSON', () => {
   it('should display the value of user input', async () => {
     const { container } = render(<App4 />);
 
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    const pre = container.querySelector('pre') as HTMLPreElement;
+    fireEvent.change(textarea, { target: { value: '{"name":"tachybase"}' } });
+    fireEvent.blur(textarea, { target: { value: '{"name":"tachybase"}' } });
+
     await waitFor(() => {
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      const pre = container.querySelector('pre') as HTMLPreElement;
-      fireEvent.change(textarea, { target: { value: '{"name":"tachybase"}' } });
-      fireEvent.blur(textarea, { target: { value: '{"name":"tachybase"}' } });
       expect(JSON.parse(textarea.value)).toEqual({ name: 'tachybase' });
       expect(pre).toMatchInlineSnapshot(`
       <pre
@@ -117,10 +119,11 @@ describe('Input.JSON', () => {
   it('should display the error when the value is invalid', async () => {
     const { container } = render(<App4 />);
 
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: '{"name":tachybase}' } });
+    fireEvent.blur(textarea, { target: { value: '{"name":tachybase}' } });
+
     await waitFor(() => {
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      fireEvent.change(textarea, { target: { value: '{"name":tachybase}' } });
-      fireEvent.blur(textarea, { target: { value: '{"name":tachybase}' } });
       expect(screen.getByText(/Unexpected token/)).toBeInTheDocument();
     });
   });

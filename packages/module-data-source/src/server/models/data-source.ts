@@ -1,8 +1,7 @@
 import { setCurrentRole } from '@tachybase/module-acl';
-
 import { ACL, Application, AvailableActionOptions, Model, Transaction } from '@tego/server';
 
-import PluginDataSourceManagerServer from '../plugin';
+import type PluginDataSourceManagerServer from '../plugin';
 import { LocalData } from '../services/database-introspector';
 import { DataSourcesRolesModel } from './data-sources-roles-model';
 
@@ -43,6 +42,15 @@ const availableActions: {
   },
 };
 
+function getDataSourceManagerPlugin(app: Application): PluginDataSourceManagerServer | undefined {
+  for (const pluginName of ['data-source-manager', 'data-source', '@tachybase/module-data-source']) {
+    const plugin = app.pm.get(pluginName) as PluginDataSourceManagerServer;
+    if (plugin) {
+      return plugin;
+    }
+  }
+}
+
 export class DataSourceModel extends Model {
   isMainRecord() {
     return this.get('type') === 'main';
@@ -82,7 +90,10 @@ export class DataSourceModel extends Model {
 
     const dataSourceKey = this.get('key');
 
-    const pluginDataSourceManagerServer = app.pm.get('data-source') as PluginDataSourceManagerServer;
+    const pluginDataSourceManagerServer = getDataSourceManagerPlugin(app);
+    if (!pluginDataSourceManagerServer) {
+      throw new Error('Data source manager plugin is required to load data sources');
+    }
 
     if (pluginDataSourceManagerServer.dataSourceStatus[dataSourceKey] === 'loaded') {
       pluginDataSourceManagerServer.dataSourceStatus[dataSourceKey] = 'reloading';

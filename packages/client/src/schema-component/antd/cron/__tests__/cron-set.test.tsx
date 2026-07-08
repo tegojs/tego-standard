@@ -31,7 +31,7 @@ describe('CronSet', () => {
     expect(selector).toBeInTheDocument();
 
     await userEvent.click(selector);
-    await userEvent.click(screen.getByText('Custom'));
+    await userEvent.click(screen.getByRole('option', { name: 'Custom' }));
 
     expect(screen.getByText('Every')).toBeInTheDocument();
     expect(screen.getByText('day')).toBeInTheDocument();

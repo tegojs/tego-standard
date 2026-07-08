@@ -25,6 +25,18 @@ import {
 type TokenControlService = ITokenControlService;
 
 const JTICACHEKEY = 'token-jti';
+const RENEWED_JTI_CACHE_KEY_PREFIX = 'jti-renewed-cache';
+// Keep the historical "cahce" key during the dual-write migration. Remove it after renewed JTI entries have aged out.
+const LEGACY_RENEWED_JTI_CACHE_KEY_PREFIX = 'jti-renewed-cahce';
+
+function getRenewedJtiCacheKey(jti: string) {
+  return `${RENEWED_JTI_CACHE_KEY_PREFIX}:${jti}`;
+}
+
+function getLegacyRenewedJtiCacheKey(jti: string) {
+  return `${LEGACY_RENEWED_JTI_CACHE_KEY_PREFIX}:${jti}`;
+}
+
 export class TokenController implements TokenControlService {
   cache: Cache;
   app: Application;
@@ -99,18 +111,42 @@ export class TokenController implements TokenControlService {
     };
     await this.setTokenInfo(jti, data);
 
-    try {
-      if (process.env.DB_DIALECT === 'sqlite') {
-        // SQLITE does not support concurrent operations
+    const logCleanupError = (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(message, {
+        module: 'auth',
+        submodule: 'token-controller',
+        method: 'removeSessionExpiredTokens',
+        err,
+      });
+    };
+
+    if (process.env.DB_DIALECT === 'sqlite') {
+      // SQLITE does not support concurrent operations
+      try {
         await this.removeSessionExpiredTokens(userId);
-      } else {
-        this.removeSessionExpiredTokens(userId);
+      } catch (err) {
+        logCleanupError(err);
       }
-    } catch (err) {
-      this.logger.error(err, { module: 'auth', submodule: 'token-controller', method: 'removeSessionExpiredTokens' });
+    } else {
+      void this.removeSessionExpiredTokens(userId).catch(logCleanupError);
     }
 
     return data;
+  }
+
+  private async setLegacyRenewedJtiCache(jti: string, data: { jti: string; issuedTime: EpochTimeStamp }) {
+    try {
+      await this.cache.set(getLegacyRenewedJtiCacheKey(jti), data, RENEWED_JTI_CACHE_MS);
+    } catch (err) {
+      this.logger.warn('legacy renewed jti cache write failed', {
+        module: 'auth',
+        submodule: 'token-controller',
+        method: 'renew',
+        jti,
+        err,
+      });
+    }
   }
 
   renew: TokenControlService['renew'] = async (jti) => {
@@ -127,13 +163,21 @@ export class TokenController implements TokenControlService {
     );
 
     if (count === 1) {
-      await this.cache.set(`jti-renewed-cahce:${jti}`, { jti: newId, issuedTime }, RENEWED_JTI_CACHE_MS);
+      const renewedJtiData = { jti: newId, issuedTime };
+      await this.cache.set(getRenewedJtiCacheKey(jti), renewedJtiData, RENEWED_JTI_CACHE_MS);
+      await this.setLegacyRenewedJtiCache(jti, renewedJtiData);
       this.logger.info('jti renewed', { oldJti: jti, newJti: newId, issuedTime });
-      return { jti: newId, issuedTime };
+      return renewedJtiData;
     } else {
-      const cachedJtiData = await this.cache.get(`jti-renewed-cahce:${jti}`);
+      const cachedJtiData = await this.cache.get(getRenewedJtiCacheKey(jti));
       if (cachedJtiData) {
         return cachedJtiData as { jti: string; issuedTime: EpochTimeStamp };
+      }
+
+      const legacyCachedJtiData = await this.cache.get(getLegacyRenewedJtiCacheKey(jti));
+      if (legacyCachedJtiData) {
+        await this.cache.set(getRenewedJtiCacheKey(jti), legacyCachedJtiData, RENEWED_JTI_CACHE_MS);
+        return legacyCachedJtiData as { jti: string; issuedTime: EpochTimeStamp };
       }
 
       this.logger.error('jti renew failed', {

@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Checkbox, DatePicker, useAPIClient, useApp, useCompile, useNoticeSub } from '@tachybase/client';
+import {
+  Checkbox,
+  DatePicker,
+  useAPIClient,
+  useApp,
+  useCompile,
+  useNoticeSub,
+  withAutoQuickJumper,
+} from '@tachybase/client';
 import { autorun } from '@tachybase/schema';
 import { FormItem } from '@tego/client';
 
@@ -137,7 +145,7 @@ const LearnMore: any = (props: { collectionsData?: any; isBackup?: boolean }) =>
         <>
           <Alert style={{ marginBottom: 16 }} message={t(`${item}.description`)} />
           <Table
-            pagination={{ pageSize: 100 }}
+            pagination={withAutoQuickJumper({ pageSize: 100, total: dataSource[item]?.length })}
             bordered
             size={'small'}
             dataSource={dataSource[item]}

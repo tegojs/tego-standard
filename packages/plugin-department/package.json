@@ -1,11 +1,20 @@
 {
   "name": "@tachybase/plugin-department",
   "displayName": "Department",
-  "version": "1.6.6",
+  "version": "1.6.23",
   "description": "Organize users into a hierarchical tree structure of departments, and assign roles to departments as well.",
   "keywords": [
     "Users & permissions"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-department"
+  },
   "main": "dist/server/index.js",
   "dependencies": {},
   "devDependencies": {

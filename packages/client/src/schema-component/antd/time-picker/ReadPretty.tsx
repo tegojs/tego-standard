@@ -1,10 +1,11 @@
 import React from 'react';
 import { toArr } from '@tachybase/schema';
 
-import { usePrefixCls } from '@tego/client';
 import { TimeRangePickerProps } from 'antd/es/time-picker';
 import cls from 'classnames';
 import dayjs from 'dayjs';
+
+import { usePrefixCls } from '../__builtins__';
 
 export const ReadPretty: React.FC<TimeRangePickerProps> = (props: any) => {
   const { value, format = 'HH:mm:ss' } = props;

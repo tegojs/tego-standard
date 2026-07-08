@@ -1,5 +1,4 @@
-import { Collection, literal, Op, where } from '@tego/server';
-import { col, WhereOptions } from 'sequelize';
+import { col, Collection, literal, Op, where, type WhereOptions } from '@tego/server';
 
 import { handleFieldParams } from '../types';
 import { escapeLike } from '../utils';
@@ -106,7 +105,7 @@ export class FieldBase {
     return matchEnum;
   }
 
-  protected getCollectionField(fieldName: string, collection: Collection, collectionName?: string) {
+  protected getCollectionField(fieldName: string, collection: Collection, collectionName?: string): { col: string } {
     let rawFieldName = fieldName;
     if (collection) {
       rawFieldName = collection.model.rawAttributes[fieldName]?.field || fieldName;

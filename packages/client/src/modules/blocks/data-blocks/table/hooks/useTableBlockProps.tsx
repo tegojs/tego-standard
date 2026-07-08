@@ -7,6 +7,7 @@ import _ from 'lodash';
 import { filterByCleanedFields, findFilterTargets } from '../../../../../block-provider/hooks';
 import { useTableBlockContext } from '../../../../../block-provider/TableBlockProvider';
 import { useFilterBlock } from '../../../../../filter-provider/FilterProvider';
+import { getFilterSourceDefaultFilter } from '../../../../../filter-provider/incomingFilterFromSources';
 import { mergeFilter } from '../../../../../filter-provider/utils';
 import { removeNullCondition } from '../../../../../schema-component';
 
@@ -85,8 +86,9 @@ export const useTableBlockProps = () => {
       );
     },
     onClickRow(record, setSelectedRow, selectedRow) {
-      const { targets, uid } = findFilterTargets(fieldSchema);
+      const { targets, uid: filterSourceUid } = findFilterTargets(fieldSchema);
       const dataBlocks = getDataBlocks();
+      const sourceDefaultFilter = getFilterSourceDefaultFilter(dataBlocks, filterSourceUid);
 
       // 如果是之前创建的卡片是没有 x-filter-targets 属性的，所以这里需要判断一下避免报错
       if (!targets || !targets.some((target) => dataBlocks.some((dataBlock) => dataBlock.uid === target.uid))) {
@@ -111,9 +113,9 @@ export const useTableBlockProps = () => {
           if (block.dataLoadingMode === 'manual') {
             return block.clearData();
           }
-          delete storedFilter[uid];
+          delete storedFilter[filterSourceUid];
         } else {
-          storedFilter[uid] = {
+          storedFilter[filterSourceUid] = {
             $and: [
               {
                 [target?.field || ctx.rowKey]: {
@@ -132,6 +134,7 @@ export const useTableBlockProps = () => {
         const mergeList = [
           ...Object.values(storedFilter).map((filter) => removeNullCondition(filter)),
           flat.unflatten(items),
+          sourceDefaultFilter,
           block.defaultFilter,
           prevMergedFilter,
         ];

@@ -1,20 +1,20 @@
 import { MockServer } from '@tachybase/test';
 import { ArrayFieldRepository, Database, Model } from '@tego/server';
 
-import UsersPlugin from 'packages/module-user/src';
-
-import { prepareApp } from './prepare';
+import { aclLightTestPlugins, prepareApp } from './prepare';
 
 describe('role api', () => {
   let app: MockServer;
   let db: Database;
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
-  beforeEach(async () => {
-    app = await prepareApp();
+  beforeAll(async () => {
+    app = await prepareApp({
+      plugins: aclLightTestPlugins,
+    });
     db = app.db;
   });
 
@@ -37,7 +37,6 @@ describe('role api', () => {
         },
       });
 
-      const userPlugin = app.pm.get('users') as UsersPlugin;
       adminAgent = app.agent().login(admin);
     });
 
@@ -68,9 +67,11 @@ describe('role api', () => {
   });
 
   it('should works with default option', async () => {
+    const role1Name = 'acl-default-role-1';
+    const role2Name = 'acl-default-role-2';
     await db.getRepository('roles').create({
       values: {
-        name: 'role1',
+        name: role1Name,
         title: 'admin 1',
         default: true,
       },
@@ -78,7 +79,7 @@ describe('role api', () => {
 
     await db.getRepository('roles').create({
       values: {
-        name: 'role2',
+        name: role2Name,
         default: true,
       },
     });
@@ -90,10 +91,11 @@ describe('role api', () => {
     });
 
     expect(defaultRole.length).toEqual(1);
-    expect(defaultRole[0].get('name')).toEqual('role2');
+    expect(defaultRole[0].get('name')).toEqual(role2Name);
   });
 
   it('should sync snippet patterns', async () => {
+    const roleName = 'acl-snippet-pattern-role';
     app.acl.registerSnippet({
       name: 'collections',
       actions: ['collection:*'],
@@ -101,19 +103,15 @@ describe('role api', () => {
 
     await db.getRepository('roles').create({
       values: {
-        name: 'role1',
+        name: roleName,
       },
     });
 
-    await db.getRepository<ArrayFieldRepository>('roles.snippets', 'role1').set({
+    await db.getRepository<ArrayFieldRepository>('roles.snippets', roleName).set({
       values: ['collections'],
     });
 
-    const role1Instance = await db.getRepository('roles').findOne({
-      filterByTk: 'role1',
-    });
-
-    const role1 = app.acl.getRole('role1');
+    const role1 = app.acl.getRole(roleName);
 
     expect(role1.toJSON()['snippets']).toEqual(['collections']);
   });

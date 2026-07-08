@@ -1,0 +1,120 @@
+name: Tego Image All
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      docker_tag:
+        description: 'Docker tag (optional, default to latest release tag, e.g. v1.6.0)'
+        required: false
+        default: ''
+
+run-name: "Tego Image All - Tag: ${{ github.event.inputs.docker_tag || 'auto-calculated-tag' }}"
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) }}
+    permissions:
+      actions: write
+      contents: read
+    outputs:
+      docker_tag: ${{ steps.set_tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set docker tag
+        id: set_tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # push tag 触发时，忠实使用当前触发的 tag
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.docker_tag }}" ]; then
+            # 手动触发且用户提供了 docker_tag，直接使用
+            echo "tag=${{ github.event.inputs.docker_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            # 手动触发且未指定 docker_tag，自动使用最新 tag（含 alpha）
+            git fetch --tags --force
+            TAG_NAME=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$' | head -1 || echo "")
+            if [ -z "$TAG_NAME" ]; then
+              echo "❌ Error: No version tag found (expected vX.Y.Z or vX.Y.Z-alpha.N)."
+              exit 1
+            fi
+            echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Resolve docker channel tags
+        id: resolve_tags
+        run: |
+          TAG="${{ steps.set_tag.outputs.tag }}"
+          IMAGE_TAGS="tegojs/tego-all:${TAG}"
+
+          # alpha 版本推 alpha 通道；稳定版本推 latest 通道
+          if echo "$TAG" | grep -Eq -- '-alpha\.[0-9]+$'; then
+            IMAGE_TAGS="$IMAGE_TAGS\ntegojs/tego-all:alpha"
+            echo "channel=alpha" >> "$GITHUB_OUTPUT"
+          else
+            IMAGE_TAGS="$IMAGE_TAGS\ntegojs/tego-all:latest"
+            echo "channel=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo "tags<<EOF"
+            echo -e "$IMAGE_TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Update workflow run name
+        run: |
+          DOCKER_TAG="${{ steps.set_tag.outputs.tag }}"
+          NEW_NAME="Tego Image All - Tag: ${DOCKER_TAG}"
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
+
+          # Output docker_tag as notice and code block for copy button
+          echo "::notice title=Docker Tag::Docker tag: ${DOCKER_TAG}"
+          echo "::notice title=Docker Channel::Channel tag: ${{ steps.resolve_tags.outputs.channel }}"
+          echo ""
+          echo '```'
+          echo "${DOCKER_TAG}"
+          echo '```'
+
+          # Try to update workflow run name
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            -d "{\"display_title\": $(echo "$NEW_NAME" | jq -Rs .)}" \
+            "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+            echo "✓ Workflow run name updated successfully"
+          else
+            echo "⚠ Failed to update run name (HTTP $HTTP_CODE), but continuing..."
+          fi
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.18.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/tego-all/Dockerfile
+          push: true
+          tags: ${{ steps.resolve_tags.outputs.tags }}

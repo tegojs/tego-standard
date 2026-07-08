@@ -1,9 +1,13 @@
-import { getApp, sleep } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-
 import { MockDatabase } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../constants';
+import {
+  createWorkflowTestAppCache,
+  FAST_POLL_INTERVAL_MS,
+  waitForFastAssertion as waitForAssertion,
+  waitForWorkflowIdle,
+} from '../utils';
 
 describe('workflow > triggers > collection', () => {
   let app: MockServer;
@@ -13,21 +17,53 @@ describe('workflow > triggers > collection', () => {
   let CommentRepo;
   let TagRepo;
   let WorkflowModel;
+  let withAnotherDataSource = false;
+  let testPlugins = [];
 
-  beforeEach(async () => {
-    app = await getApp({
-      plugins: ['error-handler', 'collection-manager', 'users', 'auth'],
-    });
+  const appCache = createWorkflowTestAppCache<MockServer>((currentApp) => {
+    app = currentApp;
+    bindRepositories();
+  });
 
+  function bindRepositories() {
     db = app.db;
     WorkflowModel = db.getCollection('workflows').model;
     CategoryRepo = db.getCollection('categories').repository;
     PostRepo = db.getCollection('posts').repository;
     CommentRepo = db.getCollection('comments').repository;
     TagRepo = db.getCollection('tags').repository;
+  }
+
+  async function resetAppData() {
+    await WorkflowModel.update({ enabled: false }, { where: { enabled: true } });
+    await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
+    await db.getRepository('jobs').destroy({ filter: {} });
+    await db.getRepository('executions').destroy({ filter: {} });
+    await db.getRepository('workflows').destroy({ filter: {} });
+    await CommentRepo.destroy({ filter: {} });
+    await PostRepo.destroy({ filter: {} });
+    await CategoryRepo.destroy({ filter: {} });
+    await TagRepo.destroy({ filter: {} });
+
+    if (withAnotherDataSource) {
+      // @ts-ignore
+      const anotherDB = app.dataSourceManager.dataSources.get('another').collectionManager.db;
+      await anotherDB.getRepository('posts').destroy({ filter: {} });
+    }
+  }
+
+  beforeEach(async () => {
+    await appCache.useApp({ plugins: testPlugins, withAnotherDataSource });
+    await resetAppData();
   });
 
-  afterEach(() => app.destroy());
+  afterEach(async () => {
+    await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
+  });
+
+  afterAll(async () => {
+    await appCache.destroy();
+  });
 
   describe('toggle', () => {
     it('create without config should ok', async () => {
@@ -59,10 +95,20 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
+    });
+  });
+
+  describe('collection-manager integration', () => {
+    beforeAll(() => {
+      testPlugins = ['collection-manager'];
+    });
+
+    afterAll(() => {
+      testPlugins = [];
     });
 
     it('restart server and listen a collection managed by collection-manager', async () => {
@@ -86,10 +132,10 @@ describe('workflow > triggers > collection', () => {
 
       await db.getRepository('temp').create({ values: {} });
 
-      await sleep(500);
-
-      const e1 = await workflow.getExecutions();
-      expect(e1.length).toBe(1);
+      await waitForAssertion(async () => {
+        const e1 = await workflow.getExecutions();
+        expect(e1.length).toBe(1);
+      });
 
       await app.restart();
 
@@ -97,10 +143,10 @@ describe('workflow > triggers > collection', () => {
 
       await db.getRepository('temp').create({ values: {} });
 
-      await sleep(500);
-
-      const e2 = await db.getModel('executions').findAll();
-      expect(e2.length).toBe(2);
+      await waitForAssertion(async () => {
+        const e2 = await db.getModel('executions').findAll();
+        expect(e2.length).toBe(2);
+      });
     });
   });
 
@@ -117,12 +163,12 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1', category: { title: 'c1' } } });
 
-      await sleep(500);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(executions[0].context.data.title).toBe('t1');
-      expect(executions[0].context.data.category.title).toBe('c1');
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].context.data.title).toBe('t1');
+        expect(executions[0].context.data.category.title).toBe('c1');
+      });
     });
   });
 
@@ -140,11 +186,11 @@ describe('workflow > triggers > collection', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       await PostRepo.update({ filterByTk: post.id, values: { title: 't2' } });
 
-      await sleep(500);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(executions[0].context.data.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].context.data.title).toBe('t2');
+      });
     });
 
     it('field in changed config', async () => {
@@ -161,12 +207,12 @@ describe('workflow > triggers > collection', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       await PostRepo.update({ filterByTk: post.id, values: { title: 't2' } });
 
-      await sleep(500);
-
-      const executions = await workflow.getExecutions();
-      expect(executions.length).toBe(1);
-      expect(executions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(executions[0].context.data.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.length).toBe(1);
+        expect(executions[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(executions[0].context.data.title).toBe('t2');
+      });
     });
 
     it('field not in changed config', async () => {
@@ -183,7 +229,7 @@ describe('workflow > triggers > collection', () => {
       const post = await PostRepo.create({ values: { title: 't1' } });
       await PostRepo.update({ filterByTk: post.id, values: { title: 't2' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
 
       const executions = await workflow.getExecutions();
       expect(executions.length).toBe(0);
@@ -214,12 +260,13 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.category).toBeUndefined();
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job).toBeTruthy();
+        expect(job.result.data.category).toBeUndefined();
+      });
     });
 
     it('appends association could be accessed', async () => {
@@ -246,12 +293,12 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.category.title).toBe('c1');
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.data.category.title).toBe('c1');
+      });
     });
 
     it('appends belongsTo null', async () => {
@@ -275,12 +322,12 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.category).toBeNull();
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.data.category).toBeNull();
+      });
     });
 
     it('appends hasMany', async () => {
@@ -307,12 +354,12 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.comments.length).toBe(1);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.data.comments.length).toBe(1);
+      });
     });
 
     it('appends belongsToMany', async () => {
@@ -339,12 +386,12 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await sleep(500);
-
-      const [execution] = await workflow.getExecutions();
-      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      const [job] = await execution.getJobs();
-      expect(job.result.data.tags.length).toBe(1);
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [job] = await execution.getJobs();
+        expect(job.result.data.tags.length).toBe(1);
+      });
     });
 
     describe('appends depth > 1', () => {
@@ -372,13 +419,13 @@ describe('workflow > triggers > collection', () => {
           },
         });
 
-        await sleep(500);
-
-        const [execution] = await workflow.getExecutions();
-        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-        expect(execution.context.data.posts.length).toBe(2);
-        expect(execution.context.data.posts.map((item) => item.title)).toEqual(['t1', 't2']);
-        expect(execution.context.data.posts.map((item) => item.tags.map((tag) => tag.id))).toEqual([tagIds, tagIds]);
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+          expect(execution.context.data.posts.length).toBe(2);
+          expect(execution.context.data.posts.map((item) => item.title)).toEqual(['t1', 't2']);
+          expect(execution.context.data.posts.map((item) => item.tags.map((tag) => tag.id))).toEqual([tagIds, tagIds]);
+        });
       });
     });
   });
@@ -408,26 +455,26 @@ describe('workflow > triggers > collection', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const posts = await PostRepo.find();
+        expect(posts.length).toBe(2);
 
-      const posts = await PostRepo.find();
-      expect(posts.length).toBe(2);
-
-      const e1s = await workflow.getExecutions();
-      expect(e1s.length).toBe(1);
-      expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e1s = await workflow.getExecutions();
+        expect(e1s.length).toBe(1);
+        expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
 
       // NOTE: second trigger to ensure no skipped event
       const p3 = await PostRepo.create({ values: { title: 't3' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const posts2 = await PostRepo.find();
+        expect(posts2.length).toBe(4);
 
-      const posts2 = await PostRepo.find();
-      expect(posts2.length).toBe(4);
-
-      const e2s = await workflow.getExecutions({ order: [['createdAt', 'DESC']] });
-      expect(e2s.length).toBe(2);
-      expect(e2s[1].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e2s = await workflow.getExecutions({ order: [['createdAt', 'DESC']] });
+        expect(e2s.length).toBe(2);
+        expect(e2s[1].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
     });
 
     it('multiple cycling trigger should not trigger more than once', async () => {
@@ -475,18 +522,29 @@ describe('workflow > triggers > collection', () => {
 
       const p1 = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForAssertion(async () => {
+        const posts = await PostRepo.find();
+        expect(posts.length).toBe(2);
 
-      const posts = await PostRepo.find();
-      expect(posts.length).toBe(2);
+        const e1s = await w1.getExecutions();
+        expect(e1s.length).toBe(1);
+        expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
 
-      const e1s = await w1.getExecutions();
-      expect(e1s.length).toBe(1);
-      expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e2s = await w2.getExecutions();
+        expect(e2s.length).toBe(1);
+        expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
+      await waitForAssertion(async () => {
+        const posts = await PostRepo.find();
+        expect(posts.length).toBe(2);
 
-      const e2s = await w2.getExecutions();
-      expect(e2s.length).toBe(1);
-      expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        const e1s = await w1.getExecutions();
+        expect(e1s.length).toBe(1);
+
+        const e2s = await w2.getExecutions();
+        expect(e2s.length).toBe(1);
+      });
     });
   });
 
@@ -522,6 +580,15 @@ describe('workflow > triggers > collection', () => {
 
   describe('multiple data source', () => {
     let anotherDB: MockDatabase;
+    beforeAll(() => {
+      withAnotherDataSource = true;
+      testPlugins = ['users', 'auth'];
+    });
+    afterAll(() => {
+      withAnotherDataSource = false;
+      testPlugins = [];
+    });
+
     beforeEach(async () => {
       // @ts-ignore
       anotherDB = app.dataSourceManager.dataSources.get('another').collectionManager.db;
@@ -539,7 +606,7 @@ describe('workflow > triggers > collection', () => {
 
       const post = await PostRepo.create({ values: { title: 't1' } });
 
-      await sleep(500);
+      await waitForWorkflowIdle(app, { interval: FAST_POLL_INTERVAL_MS });
 
       const e1s = await workflow.getExecutions();
       expect(e1s.length).toBe(0);
@@ -547,12 +614,12 @@ describe('workflow > triggers > collection', () => {
       const AnotherPostRepo = anotherDB.getRepository('posts');
       const anotherPost = await AnotherPostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const e2s = await workflow.getExecutions();
-      expect(e2s.length).toBe(1);
-      expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(e2s[0].context.data.title).toBe('t2');
+      await waitForAssertion(async () => {
+        const e2s = await workflow.getExecutions();
+        expect(e2s.length).toBe(1);
+        expect(e2s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(e2s[0].context.data.title).toBe('t2');
+      });
 
       const p1s = await PostRepo.find();
       expect(p1s.length).toBe(1);
@@ -574,42 +641,44 @@ describe('workflow > triggers > collection', () => {
       const AnotherPostRepo = anotherDB.getRepository('posts');
       const p1 = await AnotherPostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const e1s = await w1.getExecutions();
-      expect(e1s.length).toBe(1);
+      await waitForAssertion(async () => {
+        const e1s = await w1.getExecutions();
+        expect(e1s.length).toBe(1);
+        expect(e1s[0].status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
 
       const user = await app.db.getRepository('users').findOne();
       const agent = app.agent().login(user);
 
-      const { body } = await agent.resource('workflows').revision({
+      const { body, status } = await agent.resource('workflows').revision({
         filterByTk: w1.id,
         filter: {
           key: w1.key,
         },
       });
+      expect(status).toBe(200);
       const w2 = await WorkflowModel.findByPk(body.data.id);
+      expect(w2).toBeTruthy();
       await w2.update({ enabled: true });
       expect(w2.enabled).toBe(true);
-      console.log('w2', w2.toJSON());
 
       await w1.reload();
       expect(w1.enabled).toBe(false);
 
       const p2 = await AnotherPostRepo.create({ values: { title: 't2' } });
 
-      await sleep(500);
-
-      const e2s = await w1.getExecutions({ order: [['createdAt', 'ASC']] });
-      expect(e2s.length).toBe(1);
-
       const ExecutionRepo = app.db.getRepository('executions');
-      const e3s = await ExecutionRepo.find({
-        filter: {
-          workflowId: w2.id,
-        },
+      await waitForAssertion(async () => {
+        const e2s = await w1.getExecutions({ order: [['createdAt', 'ASC']] });
+        expect(e2s.length).toBe(1);
+
+        const e3s = await ExecutionRepo.find({
+          filter: {
+            workflowId: w2.id,
+          },
+        });
+        expect(e3s.length).toBe(1);
       });
-      expect(e3s.length).toBe(1);
     });
   });
 });

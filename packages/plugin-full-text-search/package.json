@@ -1,11 +1,20 @@
 {
   "name": "@tachybase/plugin-full-text-search",
   "displayName": "Full-text Search",
-  "version": "1.6.6",
+  "version": "1.6.23",
   "description": "Provides full text search capability",
   "keywords": [
     "System management"
   ],
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-full-text-search"
+  },
   "main": "dist/server/index.js",
   "devDependencies": {
     "@tachybase/client": "workspace:*",

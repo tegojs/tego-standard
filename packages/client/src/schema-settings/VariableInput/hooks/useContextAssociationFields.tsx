@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-
 import { error } from '@tego/client';
+
 import { useTranslation } from 'react-i18next';
 
 import { CollectionFieldOptions_deprecated, useCollectionManager_deprecated } from '../../../collection-manager';
-import { useCompile, useGetFilterOptions } from '../../../schema-component';
+import { useGetFilterOptions } from '../../../schema-component/antd/filter/useGetFilterOptions';
+import { useCompile } from '../../../schema-component/hooks/useCompile';
 import { FieldOption, Option } from '../type';
 
 export const useIsSameOrChildCollection = () => {

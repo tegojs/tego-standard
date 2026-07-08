@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { connect, mapReadPretty, useFieldSchema } from '@tachybase/schema';
+import { connect, mapProps, mapReadPretty, useFieldSchema } from '@tachybase/schema';
 
 import { Select, SelectProps } from 'antd';
 
@@ -34,7 +34,7 @@ const CronSetInternal = (props: CronSetProps) => {
           label: compile(item.label),
         };
       });
-  }, [props.options, customizeOption]);
+  }, [props.options, uiSchemaOptions, customizeOption]);
 
   useEffect(() => {
     if (typeof value === 'undefined' || value === null) {
@@ -94,7 +94,7 @@ const ReadPretty = (props: CronSetProps) => {
 
   const options = useMemo(() => {
     return (props.options || []).concat((uiSchemaOptions as any[]) || []);
-  }, [props.options]);
+  }, [props.options, uiSchemaOptions]);
 
   const label = useMemo(() => {
     return value && options?.find((o) => o.value === value)?.label;
@@ -107,4 +107,12 @@ const ReadPretty = (props: CronSetProps) => {
   );
 };
 
-export const CronSet = connect(CronSetInternal, mapReadPretty(ReadPretty));
+export const CronSet = connect(
+  CronSetInternal,
+  mapProps({
+    dataSource: 'options',
+    value: 'value',
+    onInput: 'onChange',
+  }),
+  mapReadPretty(ReadPretty),
+);

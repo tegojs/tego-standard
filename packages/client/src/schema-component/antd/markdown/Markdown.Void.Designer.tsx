@@ -3,12 +3,12 @@ import { useField } from '@tachybase/schema';
 
 import { useTranslation } from 'react-i18next';
 
+import { GeneralSchemaDesigner } from '../../../schema-settings/GeneralSchemaDesigner';
 import {
-  GeneralSchemaDesigner,
   SchemaSettingsDivider,
   SchemaSettingsItem,
   SchemaSettingsRemove,
-} from '../../../schema-settings';
+} from '../../../schema-settings/SchemaSettings';
 
 export const MarkdownVoidDesigner = () => {
   const field = useField();

@@ -140,6 +140,8 @@ const properties = {
     'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
     'x-collection-field': 'webhooks.type',
+    /** 与 collection 一致：新建抽屉打开时即有 type，options 子表单才会出现 */
+    default: 'resource',
   },
   options: {
     type: 'object',
@@ -165,14 +167,8 @@ const properties = {
     'x-collection-field': 'webhooks.code',
   },
   effectConfig: {
-    title: tval('Effect config'),
     type: 'string',
-    'x-component': 'CodeMirror',
-    'x-component-props': {
-      options: {
-        readOnly: true,
-      },
-    },
+    'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
     'x-decorator-props': {
       tooltip: tval('The real effect of the server, not the preset configuration'),
@@ -182,6 +178,7 @@ const properties = {
   description: {
     'x-component': 'CollectionField',
     'x-decorator': 'FormItem',
+    'x-collection-field': 'webhooks.description',
   },
 };
 
@@ -202,6 +199,9 @@ const createForm: ISchema = {
     form: {
       type: 'void',
       'x-component': 'FormV2',
+      'x-component-props': {
+        layout: 'vertical',
+      },
       'x-use-component-props': 'useCreateFormBlockProps',
       properties: {
         actionBar: {
@@ -272,6 +272,9 @@ const editAction: ISchema = {
             form: {
               type: 'void',
               'x-component': 'FormV2',
+              'x-component-props': {
+                layout: 'vertical',
+              },
               'x-use-component-props': 'useEditFormBlockProps',
               properties: {
                 actionBar: {

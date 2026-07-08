@@ -3,12 +3,12 @@ import { ObjectField, useField, useFieldSchema } from '@tachybase/schema';
 
 import { Card } from 'antd';
 import { createStyles } from 'antd-style';
-import { useNavigate } from 'react-router-dom';
 
 import { withDynamicSchemaProps } from '../../../application/hoc/withDynamicSchemaProps';
 import { useCollection } from '../../../data-source';
 import { useCollectionParentRecordData } from '../../../data-source/collection-record/CollectionRecordProvider';
 import { RecordProvider } from '../../../record-provider';
+import { useOptionalNavigate } from '../../hooks/useOptionalNavigate';
 import { useGridCardDetailUrl, useGridCustomPageUrl } from './hooks';
 
 const useStyles = createStyles(({ css }) => {
@@ -40,7 +40,7 @@ export const GridCardItem = withDynamicSchemaProps((props) => {
   const field = useField<ObjectField>();
   const fieldSchema = useFieldSchema();
   const parentRecordData = useCollectionParentRecordData();
-  const navigate = useNavigate();
+  const navigate = useOptionalNavigate();
   const { styles } = useStyles();
   const detailUrl = useGridCustomPageUrl({ field, fieldSchema });
   // XXX: 实现的有些丑陋, 需要想想有没有更好的办法

@@ -1,4 +1,4 @@
-import { createGridCardBlockSchema } from '../createGridCardBlockUISchema';
+import { createGridCardBlockUISchema as createGridCardBlockSchema } from '../createGridCardBlockUISchema';
 
 describe('createGridCardBlockSchema', () => {
   test('should return the correct schema', () => {
@@ -63,6 +63,9 @@ describe('createGridCardBlockSchema', () => {
           "association": "testAssociation",
           "collection": "testCollection",
           "dataSource": "testDataSource",
+          "isLinkable": false,
+          "layoutDirection": "column",
+          "needInfiniteScroll": false,
           "params": {
             "pageSize": 12,
           },
@@ -141,6 +144,9 @@ describe('createGridCardBlockSchema', () => {
           "association": "testAssociation",
           "collection": "testCollection",
           "dataSource": "testDataSource",
+          "isLinkable": false,
+          "layoutDirection": "column",
+          "needInfiniteScroll": false,
           "params": {
             "pageSize": 12,
           },

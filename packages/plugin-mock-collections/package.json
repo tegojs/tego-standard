@@ -1,8 +1,17 @@
 {
   "name": "@tachybase/plugin-mock-collections",
   "displayName": "mock-collections",
-  "version": "1.6.6",
+  "version": "1.6.23",
   "description": "mock-collections",
+  "homepage": "https://github.com/tegojs/tego-standard#readme",
+  "bugs": {
+    "url": "https://github.com/tegojs/tego-standard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tegojs/tego-standard",
+    "directory": "packages/plugin-mock-collections"
+  },
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
   "scripts": {},

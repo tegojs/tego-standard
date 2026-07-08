@@ -1,10 +1,16 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useFieldSchema } from '@tachybase/schema';
 
-import { useComponent, useDesignable } from '.';
-import { SchemaToolbar } from '../../schema-settings';
+import { useComponent } from './useComponent';
+import { useDesignable } from './useDesignable';
 
 const Def = () => null;
+const LazySchemaToolbar = React.lazy(() =>
+  import('../../schema-settings/GeneralSchemaDesigner').then((module) => ({ default: module.SchemaToolbar })),
+);
+
+const SchemaToolbar = (props) =>
+  React.createElement(React.Suspense, { fallback: null }, React.createElement(LazySchemaToolbar, props));
 
 export const useDesigner = () => {
   const { designable } = useDesignable();

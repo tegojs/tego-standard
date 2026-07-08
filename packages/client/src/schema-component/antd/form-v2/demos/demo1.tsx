@@ -1,123 +1,58 @@
 import React from 'react';
-import {
-  Action,
-  Application,
-  CollectionField,
-  CollectionPlugin,
-  CurrentUserProvider,
-  DEFAULT_DATA_SOURCE_KEY,
-  DEFAULT_DATA_SOURCE_TITLE,
-  FormBlockProvider,
-  FormItem,
-  FormV2,
-  Input,
-  LocalDataSource,
-  Plugin,
-  SchemaComponent,
-  useFormBlockContext,
-} from '@tachybase/client';
-import { ISchema, useForm } from '@tachybase/schema';
+import { ISchema, useField, useForm } from '@tachybase/schema';
 
-import { notification } from 'antd';
+import { Form as AntdForm, Button, notification } from 'antd';
 
-import { useFilterByTk } from '../../../../block-provider/BlockProvider';
-import { mockAPIClient } from '../../../../testUtils';
-import collections from './collections';
+import { SchemaComponent } from '../../../../schema-component/core/SchemaComponent';
+import { SchemaComponentProvider } from '../../../../schema-component/core/SchemaComponentProvider';
+import { Input } from '../../input/Input';
+import { Form as FormV2 } from '../Form';
 
-const { apiClient, mockRequest } = mockAPIClient();
+const FormItem = (props) => {
+  const field = useField();
+  return <AntdForm.Item label={field.title}>{props.children}</AntdForm.Item>;
+};
 
-mockRequest.onPost('/users:update').reply((params) => {
-  notification.success({
-    message: params.data,
-  });
-  return [200, JSON.parse(params.data)];
-});
-mockRequest.onGet('/auth:check').reply(() => {
-  return [200, { data: {} }];
-});
-
-function useAction() {
-  const ctx = useFormBlockContext();
+const SubmitButton = () => {
   const form = useForm();
-  const filterByTk = useFilterByTk();
-  return {
-    async run() {
-      console.log('form.values', form.values);
-      await ctx.resource.update({
-        filterByTk,
-        values: form.values,
-      });
-    },
-  };
-}
+  return (
+    <Button
+      type="primary"
+      onClick={() => {
+        notification.success({ message: JSON.stringify(form.values) });
+      }}
+    >
+      Submit
+    </Button>
+  );
+};
 
 const schema: ISchema = {
   type: 'object',
   properties: {
-    block: {
+    form: {
       type: 'void',
-      'x-decorator': 'FormBlockProvider',
-      'x-decorator-props': {
-        collection: 'users',
-        resource: 'users',
-      },
+      'x-component': 'FormV2',
       properties: {
-        form: {
+        nickname: {
+          type: 'string',
+          title: 'Nickname',
+          'x-decorator': 'FormItem',
+          'x-component': 'Input',
+        },
+        button: {
           type: 'void',
-          'x-component': 'FormV2',
-          'x-component-props': {},
-          properties: {
-            nickname: {
-              type: 'string',
-              'x-decorator': 'FormItem',
-              'x-component': 'CollectionField',
-            },
-            button: {
-              title: 'Submit',
-              'x-component': 'Action',
-              'x-component-props': {
-                htmlType: 'submit',
-                type: 'primary',
-                useAction,
-              },
-            },
-          },
+          'x-component': 'SubmitButton',
         },
       },
     },
   },
 };
 
-const Demo = () => {
+export default function App() {
   return (
-    <CurrentUserProvider>
+    <SchemaComponentProvider components={{ FormV2, FormItem, Input, SubmitButton }}>
       <SchemaComponent schema={schema} />
-    </CurrentUserProvider>
+    </SchemaComponentProvider>
   );
-};
-
-class MyPlugin extends Plugin {
-  async load() {
-    this.app.dataSourceManager.addDataSource(LocalDataSource, {
-      key: DEFAULT_DATA_SOURCE_KEY,
-      displayName: DEFAULT_DATA_SOURCE_TITLE,
-      collections: collections as any,
-    });
-  }
 }
-
-const app = new Application({
-  apiClient,
-  plugins: [CollectionPlugin, MyPlugin],
-  components: {
-    FormBlockProvider,
-    FormV2,
-    FormItem,
-    CollectionField,
-    Action,
-    Input,
-  },
-  providers: [Demo],
-});
-
-export default app.getRootComponent();

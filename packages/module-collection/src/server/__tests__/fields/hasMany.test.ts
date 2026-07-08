@@ -9,36 +9,43 @@ describe('hasMany field options', () => {
   let Collection: DBCollection;
   let Field: DBCollection;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createApp();
     db = app.db;
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
-    await Collection.repository.create({
-      values: {
-        name: 'tests',
-      },
-      context: {},
-    });
-
-    await Collection.repository.create({
-      values: {
-        name: 'foos',
-      },
-      context: {},
-    });
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.destroy();
   });
 
+  async function createCollections(sourceName: string, targetName: string) {
+    await Collection.repository.create({
+      values: {
+        name: sourceName,
+      },
+      context: {},
+    });
+
+    await Collection.repository.create({
+      values: {
+        name: targetName,
+      },
+      context: {},
+    });
+  }
+
   it('should create fields with sortable option', async () => {
+    const sourceName = 'testsCreateSortable';
+    const targetName = 'foosCreateSortable';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'foos',
+        collectionName: sourceName,
+        target: targetName,
         sortable: true,
         foreignKey: 'test_id',
       },
@@ -51,11 +58,15 @@ describe('hasMany field options', () => {
   });
 
   it('should update field with sortable option', async () => {
+    const sourceName = 'testsUpdateSortable';
+    const targetName = 'foosUpdateSortable';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'foos',
+        collectionName: sourceName,
+        target: targetName,
         foreignKey: 'test_id',
       },
       context: {},
@@ -78,25 +89,29 @@ describe('hasMany field options', () => {
     await field.reload();
 
     expect(field.get('sortBy')).toBe('test_idSort');
-    const collection = db.getCollection('foos');
+    const collection = db.getCollection(targetName);
     const columns = await db.sequelize.getQueryInterface().describeTable(collection.getTableNameWithSchema());
     expect(columns).toHaveProperty(collection.model.rawAttributes['test_idSort'].field);
   });
 
   it('should generate the foreignKey randomly', async () => {
+    const sourceName = 'testsRandomForeignKey';
+    const targetName = 'foosRandomForeignKey';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'foos',
+        collectionName: sourceName,
+        target: targetName,
       },
     });
     await field.reload();
     const json = field.toJSON();
     expect(json).toMatchObject({
       type: 'hasMany',
-      collectionName: 'tests',
-      target: 'foos',
+      collectionName: sourceName,
+      target: targetName,
       sourceKey: 'id',
       targetKey: 'id',
     });
@@ -105,12 +120,16 @@ describe('hasMany field options', () => {
   });
 
   it('the parameters are not generated randomly', async () => {
+    const sourceName = 'testsExplicitParameters';
+    const targetName = 'foosExplicitParameters';
+    await createCollections(sourceName, targetName);
+
     const field = await Field.repository.create({
       values: {
         name: 'foos',
         type: 'hasMany',
-        collectionName: 'tests',
-        target: 'foos',
+        collectionName: sourceName,
+        target: targetName,
         sourceKey: 'abc',
         foreignKey: 'def',
         targetKey: 'ghi',
@@ -120,8 +139,8 @@ describe('hasMany field options', () => {
     expect(field.toJSON()).toMatchObject({
       name: 'foos',
       type: 'hasMany',
-      collectionName: 'tests',
-      target: 'foos',
+      collectionName: sourceName,
+      target: targetName,
       sourceKey: 'abc',
       foreignKey: 'def',
       targetKey: 'ghi',

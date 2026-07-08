@@ -1,4 +1,5 @@
 import { getDefaultFormat, str2moment, toGmt, toLocal } from '@tego/client';
+
 import dayjs, { type Dayjs } from 'dayjs';
 
 const toStringByPicker = (value, picker, timezone: 'gmt' | 'local') => {
@@ -44,7 +45,132 @@ export interface Moment2strOptions {
   gmt?: boolean;
   utc?: boolean;
   picker?: 'year' | 'month' | 'week' | 'quarter';
+  value?: any;
+  component?: string;
 }
+
+export const DATE_PICKER_RANGE_VALUE_MODE = Symbol.for('tachybase.datePicker.rangeValueMode');
+
+export type DatePickerRangeValueMode = 'date' | 'datetime';
+
+export type DatePickerRangeValueSource =
+  | 'metadata'
+  | 'schema'
+  | 'retained-date-boundary'
+  | 'retained-local-date-boundary'
+  | 'unknown';
+
+export interface DatePickerRangeValueInfo {
+  mode?: DatePickerRangeValueMode;
+  source: DatePickerRangeValueSource;
+}
+
+export const getRangeValueMode = (value: any): DatePickerRangeValueMode | undefined => {
+  return Array.isArray(value) ? value[DATE_PICKER_RANGE_VALUE_MODE] : undefined;
+};
+
+export const markRangeValueMode = (value: any[], mode: DatePickerRangeValueMode) => {
+  Object.defineProperty(value, DATE_PICKER_RANGE_VALUE_MODE, {
+    configurable: true,
+    enumerable: false,
+    value: mode,
+  });
+  return value;
+};
+
+export const isDatePickerDefaultRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const match = value.match(/^\d{4}-\d{2}-\d{2}[T\s](\d{2}:\d{2}:\d{2})(?:\.\d{3})?(?:Z|[+-]\d\d:\d\d)?$/);
+  if (!match) {
+    return false;
+  }
+  return boundary === 'start' ? match[1] === '00:00:00' : match[1] === '23:59:59';
+};
+
+export const isDatePickerDefaultRangeBoundaryPair = (value: any) => {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    isDatePickerDefaultRangeBoundaryValue(value[0], 'start') &&
+    isDatePickerDefaultRangeBoundaryValue(value[value.length - 1], 'end')
+  );
+};
+
+const isDatePickerLocalRangeBoundaryValue = (value: any, boundary: 'start' | 'end') => {
+  const m = dayjs(value);
+  if (!m.isValid()) {
+    return false;
+  }
+
+  return boundary === 'start' ? m.format('HH:mm:ss') === '00:00:00' : m.format('HH:mm:ss') === '23:59:59';
+};
+
+const isDatePickerRetainedLocalBoundaryPair = (value: any) => {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    isDatePickerLocalRangeBoundaryValue(value[0], 'start') &&
+    isDatePickerLocalRangeBoundaryValue(value[value.length - 1], 'end')
+  );
+};
+
+export const resolveDatePickerRangeValueInfo = (
+  value: any,
+  options: { showTime?: boolean; component?: string; preferDateBoundaryFallback?: boolean } = {},
+): DatePickerRangeValueInfo => {
+  const metadataMode = getRangeValueMode(value);
+  if (metadataMode) {
+    if (metadataMode === 'date' && isDatePickerDefaultRangeBoundaryPair(value)) {
+      return { mode: 'date', source: 'retained-date-boundary' };
+    }
+    return { mode: metadataMode, source: 'metadata' };
+  }
+
+  if (options.preferDateBoundaryFallback && isDatePickerRetainedLocalBoundaryPair(value)) {
+    return { mode: 'date', source: 'retained-local-date-boundary' };
+  }
+
+  if (options.component === 'DatePicker.RangePicker' && !options.showTime) {
+    return { mode: 'date', source: 'schema' };
+  }
+
+  if (options.preferDateBoundaryFallback && isDatePickerDefaultRangeBoundaryPair(value)) {
+    return { mode: 'date', source: 'retained-date-boundary' };
+  }
+
+  return { source: 'unknown' };
+};
+
+export const normalizeDatePickerParseOptions = (options: Moment2strOptions = {}) => {
+  if (options.utc === false || options.gmt === true || options.picker) {
+    return options;
+  }
+
+  const rangeValueInfo = resolveDatePickerRangeValueInfo(options.value, {
+    component: options.component,
+    showTime: options.showTime,
+    preferDateBoundaryFallback: options.component === 'DatePicker.RangePicker',
+  });
+
+  if (options.showTime) {
+    if (rangeValueInfo.mode !== 'date' || rangeValueInfo.source === 'retained-local-date-boundary') {
+      return options;
+    }
+  }
+
+  const { gmt, ...rest } = options;
+
+  // retained-date-boundary values are naive GMT (local-time + Z suffix),
+  // str2moment needs gmt:true to interpret them in GMT mode for correct display.
+  if (rangeValueInfo.source === 'retained-date-boundary') {
+    return { ...rest, gmt: true };
+  }
+
+  // strip gmt so str2moment uses default local-time parsing for proper UTC values
+  return rest;
+};
 
 export const moment2str = (value?: Dayjs | null, options: Moment2strOptions = {}) => {
   const { showTime, gmt, picker, utc = true } = options;
@@ -72,7 +198,7 @@ export const mapDatePicker = function () {
     return {
       ...props,
       format: format,
-      value: str2moment(props.value, props),
+      value: str2moment(props.value, normalizeDatePickerParseOptions(props)),
       onChange: (value: Dayjs | null) => {
         if (onChange) {
           if (!props.showTime && value) {
@@ -93,12 +219,18 @@ export const mapRangePicker = function () {
     return {
       ...props,
       format: format,
-      value: str2moment(props.value, props),
+      value: str2moment(
+        props.value,
+        normalizeDatePickerParseOptions({ ...props, component: 'DatePicker.RangePicker' }),
+      ),
       onChange: (value: Dayjs[]) => {
         if (onChange) {
           onChange(
             value
-              ? [moment2str(getRangeStart(value[0], props), props), moment2str(getRangeEnd(value[1], props), props)]
+              ? markRangeValueMode(
+                  [moment2str(getRangeStart(value[0], props), props), moment2str(getRangeEnd(value[1], props), props)],
+                  props.showTime ? 'datetime' : 'date',
+                )
               : [],
           );
         }

@@ -1,12 +1,12 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef } from 'react';
 import { raw, untracked } from '@tachybase/schema';
-
 import { getValuesByPath } from '@tego/client';
+
 import _ from 'lodash';
 
 import { useAPIClient } from '../api-client';
 import { useCollectionManager_deprecated, type CollectionFieldOptions_deprecated } from '../collection-manager';
-import { useCompile } from '../schema-component';
+import { useCompile } from '../schema-component/hooks/useCompile';
 import useBuiltInVariables from './hooks/useBuiltinVariables';
 import { VariableOption, VariablesContextType } from './types';
 import { filterEmptyValues } from './utils/filterEmptyValues';

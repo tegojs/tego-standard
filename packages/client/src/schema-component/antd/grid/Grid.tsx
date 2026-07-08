@@ -7,9 +7,12 @@ import cls from 'classnames';
 import _ from 'lodash';
 
 import { useToken } from '../__builtins__';
-import { SchemaComponent, useDesignable, useFormBlockContext, useSchemaInitializerRender } from '../../../';
-import { useFormBlockType } from '../../../block-provider';
+import { useSchemaInitializerRender } from '../../../application/schema-initializer/hooks';
+import { useFormBlockContext } from '../../../block-provider/FormBlockContext';
+import { useFormBlockType } from '../../../block-provider/FormBlockProvider';
 import { DndContext } from '../../common/dnd-context';
+import { SchemaComponent } from '../../core/SchemaComponent';
+import { useDesignable } from '../../hooks/useDesignable';
 import useStyles from './Grid.style';
 
 export const GridRowContext = createContext<any>({});

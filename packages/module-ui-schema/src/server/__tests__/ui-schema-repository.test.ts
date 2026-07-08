@@ -1,9 +1,83 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import { Collection, Database } from '@tego/server';
 
 import { SchemaNode } from '../dao/ui_schema_node_dao';
 import UiSchemaRepository from '../repository';
+
+describe('schemaToSingleNodes', () => {
+  it('should turn schema to single nodes', () => {
+    const schema = {
+      type: 'object',
+      title: 'title',
+      name: 'root',
+      properties: {
+        a1: {
+          type: 'string',
+          title: 'A1',
+          'x-component': 'Input',
+        },
+        b1: {
+          'x-async': true,
+          type: 'string',
+          title: 'B1',
+          properties: {
+            c1: {
+              type: 'string',
+              title: 'C1',
+            },
+            d1: {
+              'x-async': true,
+              type: 'string',
+              title: 'D1',
+            },
+          },
+        },
+      },
+    };
+
+    const nodes = UiSchemaRepository.schemaToSingleNodes(schema);
+    expect(nodes.length).toEqual(5);
+  });
+
+  it('should with parent Paths', () => {
+    const schema = {
+      name: 'root-name',
+      'x-uid': 'root',
+      properties: {
+        p1: {
+          'x-uid': 'p1',
+        },
+        p2: {
+          'x-uid': 'p2',
+          properties: {
+            p21: {
+              'x-uid': 'p21',
+              properties: {
+                p211: {
+                  'x-uid': 'p211',
+                },
+              },
+            },
+          },
+        },
+      },
+      items: [
+        {
+          name: 'i1',
+          'x-uid': 'i1',
+        },
+        {
+          name: 'i2',
+          'x-uid': 'i2',
+        },
+      ],
+    };
+
+    const nodes = UiSchemaRepository.schemaToSingleNodes(schema);
+    const p211Node = nodes.find((node) => node['x-uid'] === 'p211');
+    expect(p211Node['childOptions'].parentPath).toEqual(['p21', 'p2', 'root']);
+  });
+});
 
 describe('ui_schema repository', () => {
   let app: MockServer;
@@ -12,11 +86,7 @@ describe('ui_schema repository', () => {
 
   let treePathCollection: Collection;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       plugins: ['ui-schema-storage'],
@@ -27,8 +97,29 @@ describe('ui_schema repository', () => {
     treePathCollection = db.getCollection('uiSchemaTreePath');
   });
 
+  afterAll(async () => {
+    await app.destroy();
+  });
+
+  beforeEach(async () => {
+    try {
+      await db.getModel('uiSchemaTreePath').truncate();
+      await db.getModel('uiSchemas').truncate();
+    } catch (error) {
+      throw new Error(
+        `Failed to reset ui schema test tables: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
+  });
+
   it('should be registered', async () => {
-    expect(db.getCollection('uiSchemas').repository).toBeInstanceOf(UiSchemaRepository);
+    // The repository can come from a compiled package instance in tests, so avoid cross-instance instanceof checks.
+    expect(db.getCollection('uiSchemas').repository).toMatchObject({
+      insertSingleNode: expect.any(Function),
+      getJsonSchema: expect.any(Function),
+      insertAdjacent: expect.any(Function),
+    });
   });
 
   it('should insert single ui schema node', async () => {
@@ -250,11 +341,6 @@ describe('ui_schema repository', () => {
           },
         },
       };
-    });
-
-    it('should turn schema to single nodes', async () => {
-      const nodes = UiSchemaRepository.schemaToSingleNodes(schema);
-      expect(nodes.length).toEqual(5);
     });
 
     it('should save schema', async () => {
@@ -791,7 +877,6 @@ describe('ui_schema repository', () => {
       await repository.remove('item9');
 
       tree = await repository.getJsonSchema('root');
-      console.log(JSON.stringify(tree, null, 2));
       expect(tree['properties']).toBeUndefined();
     });
 
@@ -1161,9 +1246,7 @@ describe('ui_schema repository', () => {
   it('should insert big schema', async () => {
     const schema = (await import('./fixtures/data')).default;
 
-    console.time('test');
     await repository.insertNewSchema(schema);
-    console.timeEnd('test');
 
     const rootUid = schema['x-uid'];
     const savedSchema = await repository.getJsonSchema(rootUid);
@@ -1244,46 +1327,6 @@ describe('ui_schema repository', () => {
     const rootUid = schema['x-uid'];
     const savedSchema = await repository.getJsonSchema(rootUid);
     expect(savedSchema).toBeDefined();
-  });
-
-  describe('schemaToSingleNodes', () => {
-    it('should with parent Paths', async () => {
-      const schema = {
-        name: 'root-name',
-        'x-uid': 'root',
-        properties: {
-          p1: {
-            'x-uid': 'p1',
-          },
-          p2: {
-            'x-uid': 'p2',
-            properties: {
-              p21: {
-                'x-uid': 'p21',
-                properties: {
-                  p211: {
-                    'x-uid': 'p211',
-                  },
-                },
-              },
-            },
-          },
-        },
-        items: [
-          {
-            name: 'i1',
-            'x-uid': 'i1',
-          },
-          {
-            name: 'i2',
-            'x-uid': 'i2',
-          },
-        ],
-      };
-      const nodes = UiSchemaRepository.schemaToSingleNodes(schema);
-      const p211Node = nodes.find((node) => node['x-uid'] === 'p211');
-      expect(p211Node['childOptions'].parentPath).toEqual(['p21', 'p2', 'root']);
-    });
   });
 
   describe('insertAdjacent', () => {

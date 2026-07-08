@@ -1,7 +1,6 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database, { BelongsToManyRepository } from '@tego/server';
-import jwt from 'jsonwebtoken';
+
 import UsersPlugin from 'packages/module-user/src';
 
 describe('role', () => {
@@ -10,7 +9,7 @@ describe('role', () => {
 
   let usersPlugin: UsersPlugin;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     api = await createMockServer({
       plugins: ['users', 'acl', 'auth', 'data-source-manager'],
     });
@@ -18,7 +17,20 @@ describe('role', () => {
     usersPlugin = api.getPlugin('users');
   });
 
-  afterEach(async () => {
+  beforeEach(async () => {
+    await db.getRepository('users').destroy({
+      truncate: true,
+    });
+    await db.getRepository('roles').destroy({
+      filter: {
+        name: {
+          $in: ['test1', 'test2'],
+        },
+      },
+    });
+  });
+
+  afterAll(async () => {
     await api.destroy();
   });
 
@@ -53,8 +65,6 @@ describe('role', () => {
           ],
         },
       });
-    console.log('resp.body', JSON.stringify(resp.body, null, 2));
-
     expect(resp.body.data.roles[0].name).toBeDefined();
   });
 
@@ -136,17 +146,9 @@ describe('role', () => {
     await userRolesRepo.add('test1');
     await userRolesRepo.add('test2');
 
-    const userToken = jwt.sign({ userId: user.get('id') }, 'test-key');
-    const response = await api
-      .agent()
-      .post('/users:setDefaultRole')
-      .send({
-        roleName: 'test2',
-      })
-      .set({
-        Authorization: `Bearer ${userToken}`,
-        'X-Authenticator': 'basic',
-      });
+    const response = await api.agent().login(user).post('/users:setDefaultRole').send({
+      roleName: 'test2',
+    });
 
     expect(response.statusCode).toEqual(200);
 

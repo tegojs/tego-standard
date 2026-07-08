@@ -1,4 +1,5 @@
-import { isPlainObject } from '@tego/client';
+import { isPlainObject } from '@tachybase/utils/client';
+
 import { castArray } from 'lodash';
 
 export interface FieldNames {
@@ -14,6 +15,8 @@ export const defaultFieldNames: FieldNames = {
   color: 'color',
   options: 'children',
 };
+
+export { isPlainObject };
 
 interface Option {
   label: string;

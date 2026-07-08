@@ -29,12 +29,12 @@ export const fileDef = {
 
 /** 图像类型的默认展示组件 */
 const ViewComponentImageDefault = (props) => {
-  const { file, prefixCls } = props;
+  const { file, prefixCls, style } = props;
   return (
     file.imageUrl && (
       <img
         src={`${file.imageUrl}${file.thumbnailRule || ''}`}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', ...style }}
         alt={file.title}
         className={`${prefixCls}-list-item-image`}
       />
@@ -44,7 +44,7 @@ const ViewComponentImageDefault = (props) => {
 
 /** 图像类型的默认预览组件 */
 const CheckedComponentImageDefault = (props) => {
-  const { file } = props;
+  const { file, style } = props;
   return (
     file.imageUrl && (
       <img
@@ -57,6 +57,7 @@ const CheckedComponentImageDefault = (props) => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
+          ...style,
         }}
       />
     )

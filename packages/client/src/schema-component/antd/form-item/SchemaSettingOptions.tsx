@@ -1,7 +1,7 @@
 import React from 'react';
-import { Field, ISchema, Schema, useField, useFieldSchema } from '@tachybase/schema';
-
+import { Field, ISchema, useField, useFieldSchema } from '@tachybase/schema';
 import { ArrayCollapse, FormLayout } from '@tego/client';
+
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
@@ -12,19 +12,9 @@ import { isPatternDisabled } from '../../../schema-settings/isPatternDisabled';
 import { useCompile, useDesignable, useFieldModeOptions } from '../../hooks';
 import { useOperatorList } from '../filter/useOperators';
 import { isFileCollection } from './FormItem';
+import { findFilterOperators, getDefaultFilterOperatorValue } from './operatorUtils';
 
-export const findFilterOperators = (schema: Schema) => {
-  while (schema) {
-    if (schema['x-filter-operators']) {
-      return {
-        operators: schema['x-filter-operators'],
-        uid: schema['x-uid'],
-      };
-    }
-    schema = schema.parent;
-  }
-  return {};
-};
+export { findFilterOperators, getDefaultFilterOperatorValue, useEnsureOperatorsValid } from './operatorUtils';
 
 export const EditTitle = () => {
   const { getCollectionJoinField } = useCollectionManager_deprecated();
@@ -467,20 +457,6 @@ export const EditPattern = () => {
   ) : null;
 };
 
-/**
- * 如果用户没有手动设置过 operator，那么在筛选的时候 operator 会是空的，
- * 该方法确保 operator 一定有值（需要在 FormItem 中调用）
- */
-export const useEnsureOperatorsValid = () => {
-  const fieldSchema = useFieldSchema();
-  const operatorList = useOperatorList();
-  const { operators: storedOperators } = findFilterOperators(fieldSchema);
-
-  if (storedOperators && operatorList.length && !storedOperators[fieldSchema.name]) {
-    storedOperators[fieldSchema.name] = operatorList[0].value;
-  }
-};
-
 export const EditOperator = () => {
   const compile = useCompile();
   const fieldSchema = useFieldSchema();
@@ -492,7 +468,7 @@ export const EditOperator = () => {
   const { operators: storedOperators = {}, uid } = findFilterOperators(fieldSchema);
 
   if (operatorList.length && !storedOperators[fieldSchema.name]) {
-    storedOperators[fieldSchema.name] = operatorList[0].value;
+    storedOperators[fieldSchema.name] = getDefaultFilterOperatorValue(fieldSchema, operatorList);
   }
 
   return operatorList.length ? (

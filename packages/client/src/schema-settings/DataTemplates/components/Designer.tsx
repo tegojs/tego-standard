@@ -1,17 +1,18 @@
 import React from 'react';
 import { Field, ISchema, observer, useField, useFieldSchema } from '@tachybase/schema';
-
 import { error } from '@tego/client';
+
 import { Select } from 'antd';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
-import { GeneralSchemaDesigner, SchemaSettingsItem } from '../..';
 import { useFormBlockContext } from '../../../block-provider';
 import { useCollectionManager_deprecated } from '../../../collection-manager';
 import { mergeFilter } from '../../../filter-provider/utils';
 import { removeNullCondition, useCompile, useDesignable } from '../../../schema-component';
 import { ITemplate } from '../../../schema-component/antd/form-v2/Templates';
+import { GeneralSchemaDesigner } from '../../GeneralSchemaDesigner';
+import { SchemaSettingsItem } from '../../SchemaSettings';
 import { SchemaSettingsDataScope } from '../../SchemaSettingsDataScope';
 
 export const Designer = observer(

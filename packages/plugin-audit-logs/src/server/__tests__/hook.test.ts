@@ -1,6 +1,28 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database from '@tego/server';
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForAuditLogs(db: Database, expected: number) {
+  const repo = db.getCollection('auditLogs').repository;
+  const start = Date.now();
+  let auditLogs = [];
+
+  while (Date.now() - start < 3000) {
+    auditLogs = await repo.find({
+      appends: ['changes'],
+    });
+    if (auditLogs.length === expected) {
+      return auditLogs;
+    }
+    await sleep(50);
+  }
+
+  expect(auditLogs.length).toBe(expected);
+  return auditLogs;
+}
 
 describe('hook', () => {
   let api: MockServer;
@@ -46,9 +68,7 @@ describe('hook', () => {
     const post = await Post.create({ title: 't1' });
     await post.update({ title: 't2' });
     await post.destroy();
-    const auditLogs = await db.getCollection('auditLogs').repository.find({
-      appends: ['changes'],
-    });
+    const auditLogs = await waitForAuditLogs(db, 3);
     expect(auditLogs.length).toBe(3);
 
     const titleChange = (changes) => {
@@ -76,6 +96,7 @@ describe('hook', () => {
         },
       },
     });
+    await waitForAuditLogs(db, 1);
     const AuditLog = db.getCollection('auditLogs');
     const log = await AuditLog.repository.findOne({
       appends: ['changes'],

@@ -1,17 +1,11 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { useMemo } from 'react';
 
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { ReturnTypeOfUseRequest, useAPIClient, useRequest } from '../api-client';
 import { useACLRoleContext } from '../built-in/acl';
 import { useCompile } from '../schema-component';
-
-export const CurrentUserContext = createContext<ReturnTypeOfUseRequest>(null);
-CurrentUserContext.displayName = 'CurrentUserContext';
-
-export const useCurrentUserContext = () => {
-  return useContext(CurrentUserContext);
-};
+import { CurrentUserContext, useCurrentUserContext } from './CurrentUserContext';
 
 export const useCurrentRoles = () => {
   const { allowAnonymous } = useACLRoleContext();

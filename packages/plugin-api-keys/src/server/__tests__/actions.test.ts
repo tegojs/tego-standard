@@ -1,5 +1,4 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-
 import Database, { Repository } from '@tego/server';
 
 describe('actions', () => {
@@ -9,10 +8,6 @@ describe('actions', () => {
   let agent;
   let resource;
 
-  afterEach(async () => {
-    await app.destroy();
-  });
-
   let user;
   let testUser;
   let role;
@@ -20,7 +15,7 @@ describe('actions', () => {
   let createData;
   const expiresIn = 60 * 60 * 24;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createMockServer({
       registerActions: true,
       acl: true,
@@ -63,16 +58,32 @@ describe('actions', () => {
         expiresIn,
       },
     };
+  });
+
+  beforeEach(async () => {
+    await repo.destroy({
+      truncate: true,
+    });
+    agent = app.agent();
+    resource = agent.set('X-Role', 'admin').resource('apiKeys');
     await agent.login(user);
+  });
+
+  afterAll(async () => {
+    await app.destroy();
   });
 
   describe('create', () => {
     let result;
     let tokenData;
+    let apiAccessToken;
 
     beforeEach(async () => {
       result = (await resource.create(createData)).body.data;
-      tokenData = await app.authManager.jwt.decode(result.token);
+      apiAccessToken = result.accessToken || result.token;
+      const apiKey = await repo.findOne({ filter: { accessToken: apiAccessToken } });
+      expect(apiKey).toBeTruthy();
+      tokenData = await app.authManager.jwt.decode(apiKey.get('token'));
     });
 
     it('basic', async () => {
@@ -91,7 +102,14 @@ describe('actions', () => {
     });
 
     it('token should work', async () => {
-      const checkRes = await agent.set('Authorization', `Bearer ${result.token}`).resource('auth').check();
+      const checkRes = await agent.set('Authorization', `Bearer ${apiAccessToken}`).resource('auth').check();
+      expect(checkRes.body.data.nickname).toBe(user.nickname);
+    });
+
+    it('legacy 64-character access token should work', async () => {
+      expect(apiAccessToken).toHaveLength(64);
+      const checkRes = await agent.set('Authorization', `Bearer ${apiAccessToken}`).resource('auth').check();
+      expect(checkRes.status).toBe(200);
       expect(checkRes.body.data.nickname).toBe(user.nickname);
     });
 
@@ -137,9 +155,11 @@ describe('actions', () => {
 
   describe('destroy', () => {
     let result;
+    let apiAccessToken;
 
     beforeEach(async () => {
       result = (await resource.create(createData)).body.data;
+      apiAccessToken = result.accessToken || result.token;
     });
 
     it('basic', async () => {
@@ -171,7 +191,7 @@ describe('actions', () => {
       await resource.destroy({
         filterByTk: data.id,
       });
-      const response = await agent.set('Authorization', `Bearer ${result.token}`).resource('auth').check();
+      const response = await agent.set('Authorization', `Bearer ${apiAccessToken}`).resource('auth').check();
       expect(response.status).toBe(401);
     });
   });

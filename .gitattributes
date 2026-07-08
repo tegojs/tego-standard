@@ -1,0 +1,2 @@
+# Force LF line endings for husky hooks (CRLF breaks shell execution on Windows)
+.husky/** text eol=lf

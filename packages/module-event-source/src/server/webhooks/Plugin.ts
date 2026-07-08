@@ -3,6 +3,7 @@ import { Context, Gateway, Next, Plugin, Registry, WSServer } from '@tego/server
 import { EVENT_SOURCE_COLLECTION, EVENT_SOURCE_REALTIME } from '../constants';
 import { EventSourceModel } from '../model/EventSourceModel';
 import { WebhookCategories } from '../model/WebhookCategories';
+import { EventSourceQueueWorker } from '../queue/EventSourceQueueWorker';
 import { AppEventTrigger } from '../trigger/AppEventTrigger';
 import { CustomActionTrigger } from '../trigger/CustomctionTrigger';
 import { DatabaseEventTrigger } from '../trigger/DatabaseEventTrigger';
@@ -13,6 +14,7 @@ import { WebhookController } from './webhooks';
 export class PluginWebhook extends Plugin {
   triggers: Registry<EventSourceTrigger> = new Registry();
   ws: WSServer;
+  queueWorker: EventSourceQueueWorker;
 
   refreshRealTime: boolean = EVENT_SOURCE_REALTIME;
   changed: boolean = false;
@@ -65,6 +67,14 @@ export class PluginWebhook extends Plugin {
       },
       { tag: 'webhooks-show-effect' },
     );
+
+    this.queueWorker = new EventSourceQueueWorker(this.app);
+    (this.app as any).eventSourceQueueWorker = this.queueWorker;
+    this.queueWorker.start();
+
+    this.app.on('beforeStop', async () => {
+      this.queueWorker?.stop();
+    });
 
     this.triggers.register('resource', new CustomActionTrigger(this.app, this.refreshRealTime));
     this.triggers.register('beforeResource', new ResourceEventTrigger(this.app, this.refreshRealTime));

@@ -277,7 +277,7 @@ export class PluginDataSourceManagerServer extends Plugin {
         const klass = ctx.tego.dataSourceManager.factory.getClass(type);
 
         try {
-          await klass.testConnection(this.renderJsonTemplate(options || {}));
+          await klass.testConnection(plugin.renderJsonTemplate(options || {}));
         } catch (error) {
           throw new Error(`Test connection failed: ${error.message}`);
         }

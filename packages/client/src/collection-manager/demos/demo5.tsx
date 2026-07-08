@@ -1,6 +1,5 @@
 import React, { useContext } from 'react';
 import {
-  AntdSchemaComponentProvider,
   Application,
   CardItem,
   CollectionManagerProvider,
@@ -22,8 +21,8 @@ import {
   useSchemaInitializerItem,
 } from '@tachybase/client';
 import { createForm, FormContext, ISchema, SchemaOptionsContext, uid } from '@tachybase/schema';
-
 import { FormDrawer, FormLayout } from '@tego/client';
+
 import { cloneDeep } from 'lodash';
 
 const collection: any = {
@@ -90,17 +89,15 @@ const FormItemInitializer = () => {
         await FormDrawer('Add field', () => {
           return (
             <CollectionManagerProvider instance={cm}>
-              <AntdSchemaComponentProvider>
-                <SchemaComponentOptions scope={schemaOptions.scope} components={schemaOptions.components}>
-                  <FormLayout layout={'vertical'}>
-                    <SchemaComponent
-                      schema={{
-                        properties: interfaceOptions.properties,
-                      }}
-                    />
-                  </FormLayout>
-                </SchemaComponentOptions>
-              </AntdSchemaComponentProvider>
+              <SchemaComponentOptions scope={schemaOptions.scope} components={schemaOptions.components}>
+                <FormLayout layout={'vertical'}>
+                  <SchemaComponent
+                    schema={{
+                      properties: interfaceOptions.properties,
+                    }}
+                  />
+                </FormLayout>
+              </SchemaComponentOptions>
             </CollectionManagerProvider>
           );
         }).open({

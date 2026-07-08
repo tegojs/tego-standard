@@ -4,9 +4,9 @@
 import React from 'react';
 import { SchemaComponent, SchemaComponentProvider } from '@tachybase/client';
 
-import { FormItem } from '@tego/client';
-
 import Preview from '../Preview';
+
+const FormItem = ({ children }) => <>{children}</>;
 
 const defaultValue = [
   {

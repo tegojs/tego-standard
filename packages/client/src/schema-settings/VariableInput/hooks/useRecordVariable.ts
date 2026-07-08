@@ -3,7 +3,7 @@ import { Schema } from '@tachybase/schema';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
-import { useFormBlockContext } from '../../../block-provider/FormBlockProvider';
+import { useFormBlockContext } from '../../../block-provider/FormBlockContext';
 import { CollectionFieldOptions_deprecated } from '../../../collection-manager';
 import { useBaseVariable } from './useBaseVariable';
 

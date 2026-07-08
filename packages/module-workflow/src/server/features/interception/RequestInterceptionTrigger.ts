@@ -102,8 +102,14 @@ export class RequestInterceptionTrigger extends Trigger {
   };
   constructor(workflow: PluginWorkflowServer) {
     super(workflow);
+    const errorHandlerPlugin = (workflow.app.pm.get('error-handler') || workflow.app.pm.get(PluginErrorHandler)) as
+      | InstanceType<typeof PluginErrorHandler>
+      | undefined;
+    if (!errorHandlerPlugin?.errorHandler) {
+      throw new Error('Workflow request interception requires the error-handler plugin');
+    }
     workflow.app.use(this.middleware, { tag: 'workflowFilter', after: 'dataSource' });
-    (workflow.app.pm.get(PluginErrorHandler) as InstanceType<typeof PluginErrorHandler>).errorHandler.register(
+    errorHandlerPlugin.errorHandler.register(
       (err) => err instanceof RequestInterceptionError,
       async (err, ctx) => {
         ctx.body = {

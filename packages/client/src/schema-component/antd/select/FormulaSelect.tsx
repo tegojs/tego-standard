@@ -2,13 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { isValid, toArr, useFieldSchema, useForm } from '@tachybase/schema';
 
 import { CloseCircleFilled, CloseOutlined } from '@ant-design/icons';
-import { isPlainObject } from '@tego/client';
 import { useAsyncEffect } from 'ahooks';
 import { Select as AntdSelect, Empty, Spin, Tag, type SelectProps } from 'antd';
 
 import { useAPIClient, useRequest } from '../../../api-client';
 import { useCollection_deprecated } from '../../../collection-manager';
-import { FieldNames, getCurrentOptions } from './utils';
+import { FieldNames, getCurrentOptions, isPlainObject } from './utils';
 
 type Props = SelectProps<any, any> & {
   objectValue?: boolean;

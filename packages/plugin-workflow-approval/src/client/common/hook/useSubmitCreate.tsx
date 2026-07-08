@@ -31,7 +31,8 @@ export function useSubmitCreate() {
   const flowContext = useFlowContext();
   const { isResubmit } = useResubmit();
   const { approval } = useContextApprovalExecution();
-  const { workflow } = flowContext || approval || {};
+  const { workflow } = flowContext ?? approval ?? {};
+
   const isMobile = useIsMobile();
 
   return {
@@ -42,20 +43,18 @@ export function useSubmitCreate() {
         field.data.loading = true;
         delete form.values['createdAt'];
         delete form.values['updatedAt'];
-
         // 如果是复制操作（有 workflowKey），需要清洗关联字段的 id
         let dataToSubmit = form.values;
-        if (isResubmit && workflow?.key) {
+        if (isResubmit && (workflow?.key || approval?.workflow?.key)) {
           dataToSubmit = cleanAssociationIds(form.values, collection);
         }
-
         const res = await apiClient.resource('approvals').create({
           values: {
             collectionName: joinCollectionName(collection.dataSource, collection.name),
             data: dataToSubmit,
             status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
-            workflowId: workflow.id || workflowId,
-            workflowKey: workflow.key,
+            workflowId: workflow?.id || workflowId || approval?.workflow?.id,
+            workflowKey: workflow?.key || approval?.workflow.key,
           },
         });
         if (res.status === 200 && isMobile) {

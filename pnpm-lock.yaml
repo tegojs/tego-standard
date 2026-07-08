@@ -9,6 +9,9 @@ catalogs:
     '@types/express':
       specifier: 5.0.2
       version: 5.0.2
+    docx-preview:
+      specifier: ^0.3.7
+      version: 0.3.7
     i18next:
       specifier: 25.10.10
       version: 25.10.10
@@ -302,6 +305,9 @@ importers:
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
+      docx-preview:
+        specifier: 'catalog:'
+        version: 0.3.7
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
@@ -10666,6 +10672,9 @@ packages:
     engines: {node: '>=8'}
     os: [darwin]
     hasBin: true
+
+  docx-preview@0.3.7:
+    resolution: {integrity: sha512-Lav69CTA/IYZPJTsKH7oYeoZjyg96N0wEJMNslGJnZJ+dMUZK85Lt5ASC79yUlD48ecWjuv+rkcmFt6EVPV0Xg==}
 
   docxtemplater@3.55.8:
     resolution: {integrity: sha512-sDfZA//rrycVK2nSL763ek5+q9O3yzBhJTB+GWG+NBERL/PbYZGVeFl1+nj+fkFblMWo07NCVqM+HVyuHYbQ9Q==}
@@ -26775,6 +26784,10 @@ snapshots:
       smart-buffer: 4.2.0
       verror: 1.10.0
     optional: true
+
+  docx-preview@0.3.7:
+    dependencies:
+      jszip: 3.10.1
 
   docxtemplater@3.55.8:
     dependencies:

@@ -21,8 +21,8 @@ import {
   useSchemaInitializerItem,
 } from '@tachybase/client';
 import { createForm, FormContext, ISchema, SchemaOptionsContext, uid } from '@tachybase/schema';
-
 import { FormDrawer, FormLayout } from '@tego/client';
+
 import { cloneDeep } from 'lodash';
 
 const collection: any = {
@@ -89,16 +89,16 @@ const FormItemInitializer = () => {
         await FormDrawer('Add field', () => {
           return (
             <CollectionManagerProvider instance={cm}>
-<SchemaComponentOptions scope={schemaOptions.scope} components={schemaOptions.components}>
-                  <FormLayout layout={'vertical'}>
-                    <SchemaComponent
-                      schema={{
-                        properties: interfaceOptions.properties,
-                      }}
-                    />
-                  </FormLayout>
-                </SchemaComponentOptions>
-</CollectionManagerProvider>
+              <SchemaComponentOptions scope={schemaOptions.scope} components={schemaOptions.components}>
+                <FormLayout layout={'vertical'}>
+                  <SchemaComponent
+                    schema={{
+                      properties: interfaceOptions.properties,
+                    }}
+                  />
+                </FormLayout>
+              </SchemaComponentOptions>
+            </CollectionManagerProvider>
           );
         }).open({
           initialValues: {},

@@ -47,8 +47,8 @@ const schema: ISchema = {
 const Root = () => {
   return (
     <SchemaComponentProvider designable components={{ Tabs, Action }}>
-<SchemaComponent schema={schema} />
-</SchemaComponentProvider>
+      <SchemaComponent schema={schema} />
+    </SchemaComponentProvider>
   );
 };
 

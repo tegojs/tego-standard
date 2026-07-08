@@ -6,7 +6,9 @@ import { COLLECTION_AUTOBACKUP } from '../constants';
 import { Dumper } from './dumper';
 import { AutoBackupModel } from './model/AutoBackupModel';
 import backupFilesResourcer from './resourcers/backup-files';
+import { ensureSafePluginLoading } from './utils/ensure-safe-plugin-loading';
 import { cleanOldFiles } from './utils/files';
+import { sanitizeUnavailableApplicationPlugins } from './utils/sanitize-application-plugins';
 
 function parseDateWithoutMs(date: Date) {
   return Math.floor(date.getTime() / 1000) * 1000;
@@ -15,6 +17,11 @@ function parseDateWithoutMs(date: Date) {
 const MAX_SAFE_INTERVAL = 2147483647;
 export default class PluginBackupRestoreServer extends Plugin {
   private static readonly inspectFields = ['repeat', 'enabled'];
+
+  afterAdd() {
+    ensureSafePluginLoading(this.app);
+  }
+
   beforeLoad() {
     this.app.acl.registerSnippet({
       name: `pm.${this.name}.files`,
@@ -23,6 +30,10 @@ export default class PluginBackupRestoreServer extends Plugin {
     this.app.acl.registerSnippet({
       name: `pm.${this.name}.auto`,
       actions: ['autoBackup:*'],
+    });
+
+    this.app.on('beforeReload', async () => {
+      await sanitizeUnavailableApplicationPlugins(this.app);
     });
   }
 

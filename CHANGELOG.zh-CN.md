@@ -9,6 +9,14 @@
 
 
 
+## [1.6.24] - 2026-07-09
+
+### 🐛 修复
+
+- **formula-field**: 仅计算保存和加载关联范围和修复（备份）：在恢复和启动期间跳过不可用的插件([#401](https://github.com/tegojs/tego-standard/pull/401)) (@bai.zixv)
+- 添加文档预览 ([#319](https://github.com/tegojs/tego-standard/pull/319)) (@dududuna)
+- 将表格对齐设置为居中([#394](https://github.com/tegojs/tego-standard/pull/394)) (@dududuna)
+
 ## [1.6.23] - 2026-07-07
 
 ### ✨ 新增
@@ -3055,7 +3063,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.23...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.24...HEAD
+[1.6.24]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.24
 [1.6.23]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.23
 [1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22
 [1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21

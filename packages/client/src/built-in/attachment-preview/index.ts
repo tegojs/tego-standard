@@ -1,5 +1,5 @@
 import { Plugin } from '../../application/Plugin';
-import { fileCSV, fileDef, filePdf, fileXLS, fileXLSX, imagejpeg, imagePng, imageSvg } from './previewers';
+import { fileCSV, fileDef, fileDocx, filePdf, fileXLS, fileXLSX, imagejpeg, imagePng, imageSvg } from './previewers';
 
 export class AttachmentPreviewPlugin extends Plugin {
   async load() {
@@ -13,5 +13,6 @@ export class AttachmentPreviewPlugin extends Plugin {
     this.app.AttachmentPreviewManager.add(fileXLS);
     this.app.AttachmentPreviewManager.add(fileXLSX);
     this.app.AttachmentPreviewManager.add(fileCSV);
+    this.app.AttachmentPreviewManager.add(fileDocx);
   }
 }

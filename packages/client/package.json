@@ -1,6 +1,6 @@
 {
   "name": "@tachybase/client",
-  "version": "1.6.22",
+  "version": "1.6.23",
   "homepage": "https://github.com/tegojs/tego-standard#readme",
   "bugs": {
     "url": "https://github.com/tegojs/tego-standard/issues"
@@ -44,6 +44,7 @@
     "d3-format": "^3.1.0",
     "dayjs": "catalog:",
     "deepmerge": "^4.3.1",
+    "docx-preview": "catalog:",
     "file-saver": "^2.0.5",
     "flat": "^5.0.2",
     "i18next": "catalog:",

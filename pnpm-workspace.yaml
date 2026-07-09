@@ -23,6 +23,7 @@ catalog:
   '@types/react-dom': 18.3.7
   antd: 5.22.5
   dayjs: 1.11.13
+  docx-preview: ^0.3.7
   i18next: 25.10.10
   node-sql-parser: 5.3.10
   react: 18.3.1

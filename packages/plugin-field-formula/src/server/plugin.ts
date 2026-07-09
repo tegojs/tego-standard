@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-
 import { InstallOptions, Plugin } from '@tego/server';
 
 import { FormulaField } from './field-formula';

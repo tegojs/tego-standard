@@ -1,6 +1,6 @@
 import { BaseFieldOptions, DataTypes, evaluators, Field } from '@tego/server';
 
-import { toDbType } from '../utils';
+import { getAppendsFromExpression, toDbType } from '../utils';
 
 export interface FormulaFieldOptions extends BaseFieldOptions {
   type: 'formula';
@@ -27,6 +27,10 @@ export class FormulaField extends Field {
   calculate(scope) {
     const { expression, engine = 'math.js', dataType = 'double' } = this.options;
     const evaluate = evaluators.get(engine);
+    if (!evaluate) {
+      console.error(`Formula evaluator "${engine}" is not registered.`);
+      return null;
+    }
     try {
       const result = evaluate(expression, scope);
       return toDbType(result, dataType);
@@ -36,99 +40,74 @@ export class FormulaField extends Field {
     return null;
   }
 
-  initFieldData = async ({ transaction }) => {
-    const { name } = this.options;
+  getCalculationScope = async (instance, options?) => {
+    const appends = getAppendsFromExpression(this.options.expression);
+    const instanceScope = instance.toJSON();
+    let scope = { ...instanceScope };
 
-    const records = await this.collection.repository.find({
-      order: [this.collection.model.primaryKeyAttribute],
-      transaction,
-    });
+    if (!appends.length) {
+      return scope;
+    }
 
-    for (const record of records) {
-      const scope = record.toJSON();
-      const result = this.calculate(scope);
-      if (result != null) {
-        await record.update(
-          {
-            [name]: result,
-          },
-          {
-            transaction,
-            silent: true,
-            hooks: false,
-          },
-        );
+    const pk = this.collection.model.primaryKeyAttribute;
+    const pkValue = instance.get(pk) ?? instanceScope[pk];
+
+    if (pkValue) {
+      const record = await this.collection.repository.findOne({
+        filterByTk: pkValue,
+        transaction: options?.transaction,
+      });
+      if (record) {
+        scope = { ...record.toJSON(), ...instanceScope };
       }
     }
+
+    for (const append of appends) {
+      const field = this.collection.getField(append);
+      const target = field?.target ?? field?.options?.target;
+      if (!target) {
+        continue;
+      }
+      const fkField = field.options?.foreignKey ?? field.foreignKey ?? `${append}Id`;
+      const fkValue = scope[fkField];
+      if (fkValue == null) {
+        continue;
+      }
+      const targetKey = field.options?.targetKey ?? 'id';
+      const relatedId = scope[append]?.[targetKey];
+      if (relatedId != null && `${relatedId}` === `${fkValue}`) {
+        continue;
+      }
+      const targetCollection = this.database.getCollection(target);
+      if (!targetCollection) {
+        continue;
+      }
+      const targetRecord = await targetCollection.repository.findOne({
+        filterByTk: fkValue,
+        transaction: options?.transaction,
+      });
+      if (targetRecord) {
+        scope[append] = targetRecord.toJSON();
+      }
+    }
+
+    return scope;
   };
 
-  calculateField = async (instance) => {
+  calculateField = async (instance, options?) => {
     const { name } = this.options;
-    const result = this.calculate(instance.toJSON());
+    const scope = await this.getCalculationScope(instance, options);
+    const result = this.calculate(scope);
     instance.set(name, result);
-  };
-
-  updateFieldData = async (instance, { transaction }) => {
-    if (this.collection.name !== instance.collectionName || instance.name !== this.options.name) {
-      return;
-    }
-
-    this.options = Object.assign(this.options, instance.options);
-    const { name } = this.options;
-    const regex = /\{\{([^}]+)\}\}/g;
-    const variables = [];
-    let match;
-
-    while ((match = regex.exec(this.options.expression)) !== null) {
-      variables.push(match[1]);
-    }
-    const uniqueVariables = [...new Set(variables)];
-    const appends = uniqueVariables
-      .map((item) => {
-        if (item.includes('.')) {
-          const parts = item.split('.');
-          parts.pop();
-          const result = parts.join('.');
-          return result;
-        }
-        return '';
-      })
-      .filter(Boolean);
-    const records = await this.collection.repository.find({
-      order: [this.collection.model.primaryKeyAttribute],
-      transaction,
-      appends,
-    });
-
-    for (const record of records) {
-      const scope = record.toJSON();
-      const result = this.calculate(scope);
-      await record.update(
-        {
-          [name]: result,
-        },
-        {
-          transaction,
-          silent: true,
-          hooks: false,
-        },
-      );
-    }
   };
 
   bind() {
     super.bind();
-    // this.on('afterSync', this.initFieldData);
-    // TODO: should not depends on fields table (which is defined by other plugin)
-    this.database.on('fields.afterUpdate', this.updateFieldData);
     this.on('beforeSave', this.calculateField);
   }
 
   unbind() {
     super.unbind();
     this.off('beforeSave', this.calculateField);
-    // TODO: should not depends on fields table
-    this.database.off('fields.afterUpdate', this.updateFieldData);
-    // this.off('afterSync', this.initFieldData);
   }
 }

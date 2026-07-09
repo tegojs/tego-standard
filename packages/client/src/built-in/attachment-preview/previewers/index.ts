@@ -6,3 +6,5 @@ export * from './file-pdf';
 
 export * from './file-sheet';
 export * from './image-svg';
+
+export * from './file-docx';

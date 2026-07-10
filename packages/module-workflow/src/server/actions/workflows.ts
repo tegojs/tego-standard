@@ -1,5 +1,6 @@
 import { actions, Context, Next, Op, Repository, utils } from '@tego/server';
 
+import { buildExecutionTenantFilter } from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { WorkflowModel } from '../types';
 import { triggerWorkflowAndGetExecution } from '../utils';
@@ -54,6 +55,9 @@ export async function listExtended(ctx: Context, next: Next) {
   return ctx;
 }
 
+/**
+ * Handles the update resource action.
+ */
 export async function update(ctx: Context, next) {
   const repository = utils.getRepositoryFromParams(ctx) as Repository;
   const { filterByTk, values } = ctx.action.params;
@@ -83,6 +87,9 @@ export async function update(ctx: Context, next) {
   return actions.update(ctx, next);
 }
 
+/**
+ * Handles the destroy resource action.
+ */
 export async function destroy(ctx: Context, next) {
   const repository = utils.getRepositoryFromParams(ctx) as Repository;
   const { filterByTk, filter } = ctx.action.params;
@@ -117,6 +124,9 @@ export async function destroy(ctx: Context, next) {
   next();
 }
 
+/**
+ * Handles the dump resource action.
+ */
 export async function dump(ctx: Context, next: Next) {
   const repository = utils.getRepositoryFromParams(ctx);
   const { filterByTk, filter = {}, values = {} } = ctx.action.params;
@@ -152,6 +162,9 @@ export async function dump(ctx: Context, next: Next) {
   await next();
 }
 
+/**
+ * Handles the load resource action.
+ */
 export async function load(ctx: Context, next: Next) {
   const plugin = ctx.tego.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(ctx);
@@ -226,6 +239,9 @@ export async function load(ctx: Context, next: Next) {
   await next();
 }
 
+/**
+ * Handles the test resource action.
+ */
 export async function test(ctx: Context, next: Next) {
   const plugin = ctx.tego.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(ctx);
@@ -275,6 +291,9 @@ export async function test(ctx: Context, next: Next) {
   await next();
 }
 
+/**
+ * Handles the revision resource action.
+ */
 export async function revision(ctx: Context, next: Next) {
   const plugin = ctx.tego.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(ctx);
@@ -364,6 +383,9 @@ export async function revision(ctx: Context, next: Next) {
   await next();
 }
 
+/**
+ * Handles the retry resource action.
+ */
 export async function retry(ctx: Context, next: Next) {
   const plugin = ctx.tego.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(ctx);
@@ -383,14 +405,25 @@ export async function retry(ctx: Context, next: Next) {
     context: ctx,
   });
 
+  if (!workflow) {
+    ctx.state.messages.push({
+      message: ctx.t('Workflow not found', { ns: 'workflow' }),
+    });
+    return ctx.throw(404, ctx.t('Workflow not found', { ns: 'workflow' }));
+  }
+
   const execution = await ExecutionRepo.findOne({
-    filter: { key: workflow.key },
+    filter: {
+      key: workflow.key,
+      ...buildExecutionTenantFilter(ctx),
+    },
     sort: ['-createdAt'],
   });
   if (!execution) {
     ctx.state.messages.push({
       message: ctx.t('No execution records found for this workflow.', { ns: 'workflow' }),
     });
+    return ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
   }
 
   try {
@@ -428,6 +461,9 @@ export async function retry(ctx: Context, next: Next) {
   await next();
 }
 
+/**
+ * Handles the sync resource action.
+ */
 export async function sync(ctx: Context, next) {
   const plugin = ctx.tego.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(ctx);
@@ -448,6 +484,9 @@ export async function sync(ctx: Context, next) {
   await next();
 }
 
+/**
+ * Handles the trigger resource action.
+ */
 export async function trigger(ctx: Context, next: Next) {
   if (!ctx.action.params.triggerWorkflows) {
     const plugin = ctx.tego.getPlugin(Plugin) as Plugin;
@@ -460,7 +499,6 @@ export async function trigger(ctx: Context, next: Next) {
       {
         data: {
           updateData,
-          httpContext: ctx,
           user: ctx?.auth?.user,
         },
       },
@@ -471,6 +509,9 @@ export async function trigger(ctx: Context, next: Next) {
   }
 }
 
+/**
+ * Handles the move workflow resource action.
+ */
 export async function moveWorkflow(ctx: Context, next: Next) {
   const { id, targetKey } = ctx.action.params;
   if (!id || !targetKey) {

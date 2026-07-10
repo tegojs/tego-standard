@@ -8,7 +8,175 @@ import xlsx from 'node-xlsx';
 import { exportXlsx } from './actions';
 import { EXPORT_WORKER_PAGESIZE } from './constants';
 import render from './renders';
+import {
+  buildWorkerExportFileName,
+  buildWorkerExportRelativePath,
+  buildWorkerExportSavePath,
+  filterExportColumnsByCollection,
+  getExportTenantId,
+  normalizeExportColumns,
+} from './utils';
 
+type ExportTenantContext = {
+  currentTenant?: any;
+  currentTenantId?: string | number;
+  currentTenantDescendantIds?: Array<string | number>;
+  currentTenancyMode?: string;
+  currentLegacyDataTenantIds?: Array<string | number>;
+};
+
+function isEmptyObject(value: any) {
+  return isPlainObject(value) && Object.keys(value).length === 0;
+}
+
+function isPlainObject(value: any) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function cleanFilter(filter: any, stripTenant: boolean): any {
+  if (!filter || typeof filter !== 'object') {
+    return filter;
+  }
+
+  if (Array.isArray(filter)) {
+    return filter.map((item) => cleanFilter(item, stripTenant)).filter((item) => !isEmptyObject(item));
+  }
+
+  if (!isPlainObject(filter)) {
+    return filter;
+  }
+
+  const next = Object.fromEntries(
+    Object.entries(filter)
+      .filter(([key]) => !stripTenant || (key !== 'tenantId' && !key.startsWith('tenantId.')))
+      .map(([key, value]) => [key, cleanFilter(value, stripTenant)]),
+  );
+
+  for (const key of ['$and', '$or']) {
+    if (Array.isArray(next[key])) {
+      next[key] = next[key].filter((item: any) => !isEmptyObject(item));
+      if (next[key].length === 0) {
+        delete next[key];
+      }
+    }
+  }
+
+  return next;
+}
+
+function stripTenantFilter(filter: any): any {
+  return cleanFilter(filter, true);
+}
+
+function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
+  return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
+}
+
+function getLegacyDataTenantIds(tenantContext: ExportTenantContext, collection: any) {
+  if (
+    tenantContext &&
+    Object.prototype.hasOwnProperty.call(tenantContext, 'currentLegacyDataTenantIds') &&
+    Array.isArray(tenantContext.currentLegacyDataTenantIds)
+  ) {
+    return Array.from(new Set(tenantContext.currentLegacyDataTenantIds));
+  }
+
+  return collection?.options?.legacyDataTenantIds || [];
+}
+
+function appendTenantFilter(original: any, tenantFilter: any) {
+  const sanitizedOriginal = cleanFilter(original, false);
+
+  if (!sanitizedOriginal || Object.keys(sanitizedOriginal).length === 0) {
+    return tenantFilter;
+  }
+
+  return {
+    $and: [sanitizedOriginal, tenantFilter],
+  };
+}
+
+function buildTenantFilter(tenantId: string | number, includeLegacyData = false) {
+  if (!includeLegacyData) {
+    return { tenantId };
+  }
+
+  return {
+    $or: [{ tenantId }, { tenantId: null }],
+  };
+}
+
+function buildInheritedTenantFilter(tenantIds: Array<string | number>, includeLegacyData = false) {
+  const tenantFilter = { tenantId: { $in: tenantIds } };
+
+  if (!includeLegacyData) {
+    return tenantFilter;
+  }
+
+  return {
+    $or: [tenantFilter, { tenantId: null }],
+  };
+}
+
+function buildWorkerTenantState(currentTenantId?: string | number, tenantContext?: ExportTenantContext) {
+  const tenantId = getExportTenantId({
+    state: tenantContext,
+    currentTenantId,
+  });
+
+  if (tenantId === null || tenantId === undefined) {
+    return;
+  }
+
+  const hasLegacyDataTenantIds =
+    tenantContext && Object.prototype.hasOwnProperty.call(tenantContext, 'currentLegacyDataTenantIds');
+
+  return {
+    ...tenantContext,
+    currentTenant: tenantContext?.currentTenant || { id: tenantId },
+    currentTenantId: tenantId,
+    currentTenantDescendantIds: Array.from(new Set(tenantContext?.currentTenantDescendantIds || [])),
+    ...(hasLegacyDataTenantIds
+      ? {
+          currentLegacyDataTenantIds: Array.from(new Set(tenantContext?.currentLegacyDataTenantIds || [])),
+        }
+      : {}),
+  };
+}
+
+function applyTenantScopeToWorkerFindOptions(options: any, collection: any, tenantContext?: ExportTenantContext) {
+  const tenancyMode = collection?.options?.tenancy;
+
+  if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
+    return options;
+  }
+
+  const tenantId = tenantContext?.currentTenant?.id ?? tenantContext?.currentTenantId;
+
+  if (tenantId === null || tenantId === undefined) {
+    throw new Error('Tenant context is required for tenant-scoped export worker');
+  }
+
+  const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(tenantContext, collection));
+  const tenantFilter =
+    tenancyMode === 'tenantInherited'
+      ? buildInheritedTenantFilter([tenantId, ...(tenantContext.currentTenantDescendantIds || [])], includeLegacyData)
+      : buildTenantFilter(tenantId, includeLegacyData);
+
+  return {
+    ...options,
+    filter: appendTenantFilter(options.filter, tenantFilter),
+  };
+}
+
+/**
+ * Provides the export plugin helper for this module.
+ */
 export class ExportPlugin extends Plugin {
   beforeLoad() {}
 
@@ -29,14 +197,41 @@ export class ExportPlugin extends Plugin {
   }
 
   async workerExportXlsx(params) {
-    const { title, filter, sort, fields, except, appends, resourceName, resourceOf, timezone } = params;
-    let columns = params?.columns || params?.columns;
-    if (typeof columns === 'string') {
-      columns = JSON.parse(columns);
-    }
+    const {
+      title,
+      filter,
+      sort,
+      fields,
+      except,
+      appends,
+      resourceName,
+      resourceOf,
+      timezone,
+      currentTenantId,
+      tenantContext: rawTenantContext,
+    } = params;
+    let columns = normalizeExportColumns(params?.columns);
     const repository = this.db.getRepository<any>(resourceName, resourceOf) as Repository;
     const collection = repository.collection;
-    columns = columns?.filter((col) => collection.hasField(col.dataIndex[0]) && col?.dataIndex?.length > 0);
+    const tenantState = buildWorkerTenantState(currentTenantId, rawTenantContext);
+    const tenantId = getExportTenantId({ state: tenantState });
+    const tenantContext = tenantState
+      ? {
+          state: tenantState,
+        }
+      : undefined;
+    const findOptions = applyTenantScopeToWorkerFindOptions(
+      {
+        filter,
+        fields,
+        appends,
+        except,
+        sort,
+      },
+      collection,
+      tenantState,
+    );
+    columns = filterExportColumnsByCollection(columns, collection);
     // 分页处理
     let page = 1;
     const pageSize = EXPORT_WORKER_PAGESIZE;
@@ -45,13 +240,10 @@ export class ExportPlugin extends Plugin {
 
     while (hasMore) {
       const pageData = await repository.find({
-        filter,
-        fields,
-        appends,
-        except,
-        sort,
+        ...findOptions,
         offset: (page - 1) * pageSize,
         limit: pageSize,
+        context: tenantContext as any,
       });
 
       data = data.concat(pageData);
@@ -79,14 +271,14 @@ export class ExportPlugin extends Plugin {
         },
       },
     ]);
-    const savePath = this.xlsxStorageDir();
+    const savePath = buildWorkerExportSavePath(this.xlsxStorageDir(), tenantId);
     if (!existsSync(savePath)) {
       mkdirSync(savePath, { recursive: true });
     }
-    const fileName = `${resourceName}_${dayjs().format('YYYYMMDDHHmm')}.xlsx`;
+    const fileName = buildWorkerExportFileName(resourceName, title, tenantId);
     const rawFile = `${savePath}/${fileName}`;
     writeFileSync(rawFile, Buffer.from(stream));
-    return `${ExportPlugin.defaultSavePath}/${fileName}`;
+    return buildWorkerExportRelativePath(fileName, tenantId, ExportPlugin.defaultSavePath);
   }
 }
 

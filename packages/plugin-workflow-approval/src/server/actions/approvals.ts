@@ -3,8 +3,12 @@ import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server'
 
 import { NAMESPACE } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';
+import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 import { getSummary } from '../tools';
 
+/**
+ * Handles the approvals resource action.
+ */
 export const approvals = {
   async create(ctx, next) {
     const { status, collectionName, data, workflowId, workflowKey } = ctx.action.params.values ?? {};
@@ -129,9 +133,9 @@ export const approvals = {
     const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
-      filter: {
+      filter: withCurrentTenantFilter(ctx, {
         createdById: ctx.state.currentUser.id,
-      },
+      }),
     });
     if (!approval) {
       return ctx.throw(404);
@@ -143,6 +147,7 @@ export const approvals = {
     const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
+      filter: withCurrentTenantFilter(ctx),
       appends: ['workflow'],
       except: ['workflow.options'],
     });
@@ -240,9 +245,9 @@ export const approvals = {
     });
 
     ctx.action.mergeParams({
-      filter: {
+      filter: withCurrentTenantFilter(ctx, {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
-      },
+      }),
     });
 
     return await actions.list(ctx, next);
@@ -253,6 +258,7 @@ export const approvals = {
     const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
+      filter: withCurrentTenantFilter(ctx),
       appends: ['records', 'workflow', 'createdBy.nickname'],
     });
     if (!approval) {

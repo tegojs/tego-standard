@@ -3,7 +3,11 @@ import { actions, utils } from '@tego/server';
 
 import { ERROR_CODE_MAP } from '../constants/error-code';
 import { APPROVAL_ACTION_STATUS } from '../constants/status';
+import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 
+/**
+ * Handles the approval records resource action.
+ */
 export const approvalRecords = {
   async listCentralized(ctx, next) {
     const centralizedApprovalFlow = await ctx.db.getRepository('workflows').find({
@@ -14,9 +18,9 @@ export const approvalRecords = {
       fields: ['id'],
     });
     ctx.action.mergeParams({
-      filter: {
+      filter: withCurrentTenantFilter(ctx, {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
-      },
+      }),
     });
 
     return actions.list(ctx, next);
@@ -31,9 +35,9 @@ export const approvalRecords = {
     }
     const approvalRecord = await repository.findOne({
       filterByTk,
-      filter: {
+      filter: withCurrentTenantFilter(ctx, {
         userId: currentUser == null ? void 0 : currentUser.id,
-      },
+      }),
       appends: ['job', 'node', 'execution', 'workflow', 'approval'],
       context: ctx,
     });

@@ -86,6 +86,21 @@ export default class PluginUsersServer extends Plugin {
           targetKey: 'id',
         });
       }
+
+      const tenantPlugin = this.app.pm.get('tenant');
+      if (
+        tenantPlugin?.enabled &&
+        (collection.options.tenancy === 'tenantScoped' || collection.options.tenancy === 'tenantInherited')
+      ) {
+        collection.setField('tenantId', {
+          type: 'context',
+          dataIndex: 'state.currentTenant.id',
+          dataType: 'string',
+          createOnly: true,
+          visible: true,
+          index: true,
+        });
+      }
     });
 
     for (const [key, action] of Object.entries(actions)) {

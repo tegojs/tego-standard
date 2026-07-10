@@ -1,13 +1,20 @@
 import { str2moment } from '@tego/server';
+
 import dayjs from 'dayjs';
 import * as math from 'mathjs';
 
 import { namespace } from '../../';
 
+/**
+ * Transforms imported generic value field values into application values.
+ */
 export async function _({ value, field }) {
   return value;
 }
 
+/**
+ * Transforms imported email field values into application values.
+ */
 export async function email({ value, field, ctx }) {
   if (!value?.trim()) {
     return value;
@@ -19,6 +26,9 @@ export async function email({ value, field, ctx }) {
   return value;
 }
 
+/**
+ * Transforms imported password field values into application values.
+ */
 export async function password({ value, field, ctx }) {
   if (value === undefined || value === null) {
     throw new Error(ctx.t('password is empty', { ns: namespace }));
@@ -26,6 +36,9 @@ export async function password({ value, field, ctx }) {
   return `${value}`;
 }
 
+/**
+ * Transforms imported o2o field values into application values.
+ */
 export async function o2o({ value, column, field, ctx }) {
   const { dataIndex, enum: enumData } = column;
   const repository = ctx.db.getRepository(field.options.target);
@@ -33,12 +46,15 @@ export async function o2o({ value, column, field, ctx }) {
   if (enumData?.length > 0) {
     enumItem = enumData.find((e) => e.label === value);
   }
-  const val = await repository.findOne({ filter: { [dataIndex[1]]: enumItem?.value ?? value } });
+  const val = await repository.findOne({ filter: { [dataIndex[1]]: enumItem?.value ?? value }, context: ctx });
   return val;
 }
 export const oho = o2o;
 export const obo = o2o;
 
+/**
+ * Transforms imported o2m field values into application values.
+ */
 export async function o2m({ value, column, field, ctx }) {
   let results = [];
   const values = value.split(';').map((val) => val.trim());
@@ -52,26 +68,36 @@ export async function o2m({ value, column, field, ctx }) {
       }
       return v.value;
     });
-    results = await repository.find({ filter: { [dataIndex[1]]: enumValues } });
+    results = await repository.find({ filter: { [dataIndex[1]]: enumValues }, context: ctx });
   } else {
-    results = await repository.find({ filter: { [dataIndex[1]]: values } });
+    results = await repository.find({ filter: { [dataIndex[1]]: values }, context: ctx });
   }
   return results;
 }
 
+/**
+ * Transforms imported m2o field values into application values.
+ */
 export async function m2o({ value, column, field, ctx }) {
   let results = null;
   const { dataIndex, enum: enumData } = column;
   const repository = ctx.db.getRepository(field.options.target);
+  const normalizedValue = typeof value === 'string' ? value.trim() : value;
   if (enumData?.length > 0) {
-    const enumValue = enumData.find((e) => e.label === value?.trim())?.value;
-    results = await repository.findOne({ filter: { [dataIndex[1]]: enumValue } });
+    const enumItem = enumData.find((e) => e.label === normalizedValue);
+    if (enumItem === undefined) {
+      throw new Error(`not found enum value ${value}`);
+    }
+    results = await repository.findOne({ filter: { [dataIndex[1]]: enumItem.value }, context: ctx });
   } else {
-    results = await repository.findOne({ filter: { [dataIndex[1]]: value } });
+    results = await repository.findOne({ filter: { [dataIndex[1]]: normalizedValue }, context: ctx });
   }
   return results;
 }
 
+/**
+ * Transforms imported m2m field values into application values.
+ */
 export async function m2m({ value, column, field, ctx }) {
   let results = [];
   const values = value.split(';').map((val) => val.trim());
@@ -85,12 +111,15 @@ export async function m2m({ value, column, field, ctx }) {
       }
       return v.value;
     });
-    results = await repository.find({ filter: { [dataIndex[1]]: enumValues } });
+    results = await repository.find({ filter: { [dataIndex[1]]: enumValues }, context: ctx });
   } else {
-    results = await repository.find({ filter: { [dataIndex[1]]: values } });
+    results = await repository.find({ filter: { [dataIndex[1]]: values }, context: ctx });
   }
   return results;
 }
+/**
+ * Transforms imported datetime field values into application values.
+ */
 export async function datetime({ value, field, ctx }) {
   if (!value) {
     return '';
@@ -103,6 +132,9 @@ export async function datetime({ value, field, ctx }) {
   }
   return m.toDate();
 }
+/**
+ * Transforms imported time field values into application values.
+ */
 export async function time({ value, field, ctx }) {
   const { format } = field.options?.uiSchema?.['x-component-props'] ?? {};
   if (format) {
@@ -114,6 +146,9 @@ export async function time({ value, field, ctx }) {
   }
   return value;
 }
+/**
+ * Transforms imported percent field values into application values.
+ */
 export async function percent({ value, field, ctx }) {
   if (value) {
     const numberValue = Number(value?.split('%')?.[0] ?? value);
@@ -124,12 +159,18 @@ export async function percent({ value, field, ctx }) {
   }
   return 0;
 }
+/**
+ * Transforms imported checkbox field values into application values.
+ */
 export async function checkbox({ value, column, field, ctx }) {
   return value === ctx.t('Yes', { ns: namespace }) ? 1 : 0;
 }
 
 export const boolean = checkbox;
 
+/**
+ * Transforms imported select field values into application values.
+ */
 export async function select({ value, column, field, ctx }) {
   const { enum: enumData } = column;
   const item = enumData.find((item) => item.label === value);
@@ -139,6 +180,9 @@ export const radio = select;
 
 export const radioGroup = select;
 
+/**
+ * Transforms imported multiple select field values into application values.
+ */
 export async function multipleSelect({ value, column, field, ctx }) {
   const values = value?.split(';');
   const { enum: enumData } = column;
@@ -153,6 +197,9 @@ export const checkboxes = multipleSelect;
 
 export const checkboxGroup = multipleSelect;
 
+/**
+ * Transforms imported china region field values into application values.
+ */
 export async function chinaRegion({ value, column, field, ctx }) {
   const values = value?.split('/')?.map((val) => val.trim());
   const repository = ctx.db.getRepository('chinaRegions');

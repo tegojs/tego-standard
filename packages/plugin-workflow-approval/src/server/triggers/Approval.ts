@@ -6,6 +6,7 @@ import { get } from 'lodash';
 import { BelongsTo, HasOne, Op } from 'sequelize';
 
 import { APPROVAL_STATUS } from '../constants/status';
+import { getTenantValuesFromContext, getTenantValuesFromExecution } from '../helpers/tenant-filter';
 import { getSummary } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
 
@@ -106,6 +107,7 @@ export default class ApprovalTrigger extends Trigger {
         approvalId,
         executionId: execution.id,
         status: execution.status,
+        ...getTenantValuesFromExecution(execution, 'approvalExecutions'),
         snapshot: data,
         summary,
         collectionName,
@@ -263,6 +265,7 @@ export default class ApprovalTrigger extends Trigger {
           data: toJSON(data),
           dataKey: data.get(collecton.filterTargetKey),
           status: APPROVAL_STATUS.SUBMITTED,
+          ...getTenantValuesFromContext(ctx, 'approvals'),
           // createdBy: currentUser.id,
           // updatedById: currentUser.id,
           workflowId: workflow.id,
@@ -297,16 +300,24 @@ export default class ApprovalTrigger extends Trigger {
         continue;
       }
 
-      (Array.isArray(data) ? data : [data]).forEach(async (row) => {
+      const collection = ctx.tego.dataSourceManager.dataSources
+        .get(dataSourceName)
+        .collectionManager.getCollection(collectionName);
+      if (!collection) {
+        continue;
+      }
+
+      for (const row of Array.isArray(data) ? data : [data]) {
         let dataCurrent = {};
-        if (row.id) {
+        const filterTargetKey = collection.filterTargetKey || 'id';
+        const rowFilterByTk = row?.get?.(filterTargetKey) ?? row?.[filterTargetKey] ?? row?.get?.('id') ?? row?.id;
+        if (rowFilterByTk != null) {
           // XXX: 丑陋的实现, 应该从 data 直接获取的就是有值的 data, 走通优先.
-          const { repository } = this.workflow.app.dataSourceManager.dataSources
-            .get(dataSourceName)
-            .collectionManager.getCollection(collectionName);
-          dataCurrent = await repository.findOne({
-            filterByTk: data.id,
-            appends: [...workflow.config.appends],
+          dataCurrent = await collection.repository.findOne({
+            filterByTk: rowFilterByTk,
+            appends: [...(workflow.config.appends || [])],
+            context: ctx,
+            transaction: this.workflow.useDataSourceTransaction(dataSourceName, ctx.transaction),
           });
         }
         let payload = row;
@@ -321,11 +332,8 @@ export default class ApprovalTrigger extends Trigger {
             }
           }
         }
-        const collection = ctx.tego.dataSourceManager.dataSources
-          .get(dataSourceName)
-          .collectionManager.getCollection(collectionName);
         if (!collection || collection.model !== payload.constructor) {
-          return;
+          continue;
         }
 
         // 以上是 审批摘要取值逻辑
@@ -335,6 +343,7 @@ export default class ApprovalTrigger extends Trigger {
             data: toJSON(payload),
             dataKey: payload.get(collection.filterTargetKey),
             status: APPROVAL_STATUS.SUBMITTED,
+            ...getTenantValuesFromContext(ctx, 'approvals'),
             // createdBy: currentUser.id,
             // updatedBy: currentUser.id,
             workflowId: workflow.id,
@@ -348,8 +357,9 @@ export default class ApprovalTrigger extends Trigger {
             }),
           },
           context: ctx,
+          transaction: ctx.transaction,
         });
-      });
+      }
     }
   }
   on(workflow) {}

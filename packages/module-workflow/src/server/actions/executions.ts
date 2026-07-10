@@ -1,32 +1,80 @@
 import { actions, Context, Next, Op, utils } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
+import {
+  buildExecutionTenantFilter,
+  canReadLegacyExecutions,
+  getCurrentTenantIdFromState,
+  NEVER_MATCH_TENANT_FILTER,
+} from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { triggerWorkflowAndGetExecution } from '../utils';
 
+function getModelValue(model: any, key: string) {
+  return model?.get?.(key) ?? model?.[key];
+}
+
+function appendExecutionTenantFilter(filter: any, ctx: Context, fallback: any = NEVER_MATCH_TENANT_FILTER) {
+  const tenantFilter = buildExecutionTenantFilter(ctx, fallback);
+  if (!tenantFilter) {
+    return filter;
+  }
+
+  return {
+    $and: [filter, tenantFilter],
+  };
+}
+
+function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
+  const tenantId = getCurrentTenantIdFromState(ctx.state);
+  if (tenantId === null || tenantId === undefined || !execution) {
+    return;
+  }
+
+  const executionTenantId = getModelValue(execution, 'tenantId');
+  if ((executionTenantId === null || executionTenantId === undefined) && canReadLegacyExecutions(ctx.state, tenantId)) {
+    return;
+  }
+
+  if (`${executionTenantId}` !== `${tenantId}`) {
+    ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
+  }
+}
+
+/**
+ * Handles the destroy resource action.
+ */
 export async function destroy(ctx: Context, next) {
   ctx.action.mergeParams({
-    filter: {
-      status: {
-        [Op.ne]: EXECUTION_STATUS.STARTED,
+    filter: appendExecutionTenantFilter(
+      {
+        status: {
+          [Op.ne]: EXECUTION_STATUS.STARTED,
+        },
       },
-    },
+      ctx,
+    ),
   });
 
   await actions.destroy(ctx, next);
 }
 
+/**
+ * Handles the cancel resource action.
+ */
 export async function cancel(ctx: Context, next) {
   const { filterByTk } = ctx.action.params;
   const ExecutionRepo = ctx.db.getRepository('executions');
   const JobRepo = ctx.db.getRepository('jobs');
   const execution = await ExecutionRepo.findOne({
     filterByTk,
+    filter: buildExecutionTenantFilter(ctx),
     appends: ['jobs'],
   });
   if (!execution) {
     return ctx.throw(404);
   }
+  assertExecutionInCurrentTenant(ctx, execution);
   if (execution.status) {
     return ctx.throw(400);
   }
@@ -59,6 +107,9 @@ export async function cancel(ctx: Context, next) {
   await next();
 }
 
+/**
+ * Handles the retry resource action.
+ */
 export async function retry(ctx: Context, next: Next) {
   const plugin = ctx.tego.pm.get(Plugin);
   const repository = utils.getRepositoryFromParams(ctx);
@@ -76,10 +127,12 @@ export async function retry(ctx: Context, next: Next) {
   }
   const execution = await repository.findOne({
     filterByTk,
+    filter: buildExecutionTenantFilter(ctx),
   });
   if (!execution) {
     ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
   }
+  assertExecutionInCurrentTenant(ctx, execution);
   const workflow = await WorkflowRepo.findOne({
     filterByTk: execution.workflowId,
     appends: ['nodes'],

@@ -1,7 +1,11 @@
 import { Plugin } from '@tego/server';
 
 import { LOG_TYPE_UPDATE } from '../constants';
+import { getAuditContext } from './audit-context';
 
+/**
+ * Provides the after update helper for this module.
+ */
 export async function afterUpdate(model, options, plugin: Plugin) {
   const { collection } = model.constructor;
   if (!collection || !collection.options.logging) {
@@ -12,7 +16,7 @@ export async function afterUpdate(model, options, plugin: Plugin) {
     return;
   }
   const transaction = options.transaction;
-  const currentUserId = options?.context?.state?.currentUser?.id;
+  const auditContext = getAuditContext(options);
   const changes = [];
   changed.forEach((key: string) => {
     const field = collection.findField((field) => {
@@ -60,7 +64,12 @@ export async function afterUpdate(model, options, plugin: Plugin) {
       collectionName: model.constructor.name,
       recordId: model.get(model.constructor.primaryKeyAttribute),
       createdAt: model.get('updatedAt'),
-      userId: currentUserId,
+      userId: auditContext.userId,
+      tenantId: auditContext.tenantId,
+      actorUserId: auditContext.actorUserId,
+      impersonatedTenantId: auditContext.impersonatedTenantId,
+      tenantContextSource: auditContext.tenantContextSource,
+      isTenantImpersonation: auditContext.isTenantImpersonation,
       changes,
     };
 

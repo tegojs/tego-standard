@@ -8,6 +8,9 @@ import { PluginSettingsPageType, useApp } from '../../application';
 import { useCompile } from '../../schema-component';
 import { useToken } from '../../style';
 
+/**
+ * Renders or configures the settings center dropdown client entry point.
+ */
 export const SettingsCenterDropdown = () => {
   const compile = useCompile();
   const { token } = useToken();
@@ -31,21 +34,25 @@ export const SettingsCenterDropdown = () => {
     // compile title
     function traverse(settings: Partial<PluginSettingsPageType>[]) {
       return settings
-        .filter((item) => !item.path.includes(':'))
+        .filter((item) => !item.hideInMenu && !item.path.includes(':'))
         .map((item) => {
-          item.title = compile(item.title);
-          item.label = <Link to={item.path}>{compile(item.title)}</Link>;
+          const title = compile(item.title);
+          item.label = (
+            <Link key={item.key ?? item.path} to={item.path}>
+              {title}
+            </Link>
+          );
           if (item.children?.length) {
             item.children = traverse(item.children) as any;
             // No link should be set if there are children.
-            item.label = compile(item.title);
+            item.label = title;
           }
           return {
             key: item.key,
             label: item.label,
             path: item.path,
             children: item.children,
-            name: item.title as string,
+            name: title as string,
           };
         });
     }

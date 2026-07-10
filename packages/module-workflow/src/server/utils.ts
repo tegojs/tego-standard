@@ -1,8 +1,17 @@
 import { Database, Model, Op, Transactionable } from '@tego/server';
 
+import { getCurrentTenantIdFromState } from './helpers/tenant-context';
 import PluginWorkflowServer from './Plugin';
 import { WorkflowModel } from './types';
 
+type WorkflowTriggerContext = {
+  state?: Record<string, any>;
+  [key: string]: any;
+};
+
+/**
+ * Provides the to json helper for this module.
+ */
 export function toJSON(data: any): any {
   if (Array.isArray(data)) {
     return data.map(toJSON);
@@ -32,7 +41,7 @@ export async function triggerWorkflowAndGetExecution(
   plugin: PluginWorkflowServer,
   workflow: WorkflowModel,
   context: object,
-  options: { httpContext?: any; transaction?: any } & Transactionable = {},
+  options: { httpContext?: any; transaction?: any; context?: WorkflowTriggerContext } & Transactionable = {},
   db: Database,
 ): Promise<any | null> {
   // 记录触发前的时间，用于队列模式下查找新创建的执行记录
@@ -51,11 +60,15 @@ export async function triggerWorkflowAndGetExecution(
     const ExecutionRepo = db.getRepository('executions');
     const maxRetries = 10;
     const retryDelay = 200;
+    const tenantState = options.context?.state || options.httpContext?.state || (context as any)?.state;
+    const tenantId = getCurrentTenantIdFromState(tenantState);
+    const tenantFilter = tenantId === null || tenantId === undefined ? {} : { tenantId };
     for (let i = 0; i < maxRetries; i++) {
       await new Promise((resolve) => setTimeout(resolve, retryDelay));
       execution = await ExecutionRepo.findOne({
         filter: {
           key: workflow.key,
+          ...tenantFilter,
           createdAt: {
             [Op.gte]: beforeTriggerTime,
           },

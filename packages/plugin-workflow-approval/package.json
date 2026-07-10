@@ -20,6 +20,7 @@
   "devDependencies": {
     "@ant-design/icons": "^6.1.0",
     "@tachybase/client": "workspace:*",
+    "@tachybase/module-tenant": "workspace:*",
     "@tachybase/module-ui-schema": "workspace:*",
     "@tachybase/module-workflow": "workspace:*",
     "@tachybase/schema": "catalog:",

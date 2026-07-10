@@ -7,10 +7,15 @@ import mime from 'mime-types';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
+import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
 
+/**
+ * Runs the update or create instruction workflow instruction.
+ */
 export class UpdateOrCreateInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, params: { appends = [], ...params } = {} } = node.config;
@@ -27,6 +32,7 @@ export class UpdateOrCreateInstruction extends Instruction {
     const fields = c.getFields();
     const fieldNames = Object.keys(params.values);
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
+    const repositoryContext = processor.getRepositoryContext();
 
     const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
     const token = this.workflow.app.authManager.jwt.sign({ userId });
@@ -159,10 +165,7 @@ export class UpdateOrCreateInstruction extends Instruction {
         method: 'post',
         url: origin + '/api/attachments:create',
         data: form,
-        headers: {
-          ...form.getHeaders(),
-          Authorization: 'Bearer ' + token,
-        },
+        headers: buildAttachmentUploadHeaders(form.getHeaders(), token, repositoryContext),
       });
 
       return uploadResponse.data.data;
@@ -183,15 +186,14 @@ export class UpdateOrCreateInstruction extends Instruction {
       }
     }
 
-    const instance = await (repository as Repository).findOne({ filter: options.filter, transaction });
+    const context = repositoryContext;
+    const updateOptions = applyTenantFilterToContext(repositoryContext, c, 'update', options);
+    const instance = await (repository as Repository).findOne({ ...updateOptions, context, transaction });
 
     if (instance) {
       const result = await (repository as Repository).update({
-        ...options,
-        context: {
-          stack: Array.from(new Set((processor.execution.context.stack ?? []).concat(processor.execution.id))),
-          state: processor.options?.httpContext?.state,
-        },
+        ...updateOptions,
+        context,
         transaction,
       });
 
@@ -200,12 +202,10 @@ export class UpdateOrCreateInstruction extends Instruction {
         status: JOB_STATUS.RESOLVED,
       };
     } else {
+      const createOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
       const created = await (repository as Repository).create({
-        ...options,
-        context: {
-          stack: Array.from(new Set((processor.execution.context.stack ?? []).concat(processor.execution.id))),
-          state: processor.options?.httpContext?.state,
-        },
+        ...createOptions,
+        context,
         transaction,
       });
 
@@ -219,6 +219,7 @@ export class UpdateOrCreateInstruction extends Instruction {
         result = await repository.findOne({
           filterByTk: created[filterTargetKey],
           appends: Array.from(includeFields),
+          context,
           transaction,
         });
       }

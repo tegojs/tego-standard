@@ -18,7 +18,9 @@
   "license": "Apache-2.0",
   "main": "./dist/server/index.js",
   "scripts": {},
-  "dependencies": {},
+  "dependencies": {
+    "node-sql-parser": "catalog:"
+  },
   "devDependencies": {
     "@hapi/topo": "^6.0.2",
     "@tachybase/client": "workspace:*",

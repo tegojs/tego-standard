@@ -61,6 +61,89 @@ describe('query', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('should append ACL scope filter to the chart filter', async () => {
+    const aclScopeFilter = {
+      createdById: '{{ $user.id }}',
+    };
+    const acl = {
+      can: vi.fn().mockReturnValue({
+        params: {
+          filter: aclScopeFilter,
+        },
+      }),
+    };
+    const next = vi.fn();
+    const ctx: any = {
+      state: {
+        currentRole: 'member',
+      },
+      tego: {
+        acl,
+      },
+      throw(status: number, message: string) {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      },
+      action: {
+        params: {
+          values: {
+            collection: 'orders',
+            filter: {
+              status: 'published',
+            },
+          },
+        },
+      },
+    };
+
+    await checkPermission(ctx, next);
+
+    expect(ctx.action.params.values.filter).toEqual({
+      $and: [{ status: 'published' }, aclScopeFilter],
+    });
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('should use ACL scope filter when chart filter is empty', async () => {
+    const aclScopeFilter = {
+      createdById: '{{ $user.id }}',
+    };
+    const acl = {
+      can: vi.fn().mockReturnValue({
+        params: {
+          filter: aclScopeFilter,
+        },
+      }),
+    };
+    const next = vi.fn();
+    const ctx: any = {
+      state: {
+        currentRole: 'member',
+      },
+      tego: {
+        acl,
+      },
+      throw(status: number, message: string) {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      },
+      action: {
+        params: {
+          values: {
+            collection: 'orders',
+          },
+        },
+      },
+    };
+
+    await checkPermission(ctx, next);
+
+    expect(ctx.action.params.values.filter).toEqual(aclScopeFilter);
+    expect(next).toHaveBeenCalled();
+  });
+
   describe('parseBuilder', () => {
     const sequelize = {
       fn: vi.fn().mockImplementation((fn: string, field: string) => [fn, field]),

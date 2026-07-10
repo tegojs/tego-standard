@@ -112,6 +112,20 @@ function appendTenantFilter(original: any, tenantFilter: any) {
   };
 }
 
+function appendFilter(original: any, filter: any) {
+  if (!filter || Object.keys(filter).length === 0) {
+    return original;
+  }
+
+  if (!original || Object.keys(original).length === 0) {
+    return filter;
+  }
+
+  return {
+    $and: [original, filter],
+  };
+}
+
 function getCurrentTenantId(ctx: Context) {
   return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
 }
@@ -555,6 +569,7 @@ export const checkPermission = (ctx: Context, next: Next) => {
   if (!can) {
     ctx.throw(403, 'No permissions');
   }
+  ctx.action.params.values.filter = appendFilter(ctx.action.params.values.filter, can.params?.filter);
   return next();
 };
 

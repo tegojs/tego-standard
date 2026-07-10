@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { isReadOnlyPreviewSql, runReadOnlyPreviewQuery } from '../resourcers/sql';
+import sqlCollectionResource, { isReadOnlyPreviewSql, runReadOnlyPreviewQuery } from '../resourcers/sql';
 
 describe('sqlCollection preview SQL safety', () => {
   it('does not let string literal comment markers hide writable CTE keywords', () => {
@@ -42,6 +42,31 @@ describe('sqlCollection preview SQL safety', () => {
 
   it('rejects additional statements after a read-only query', () => {
     expect(isReadOnlyPreviewSql('SELECT 1; DELETE FROM accounts')).toBe(false);
+  });
+
+  it('rejects additional statements in the execute action before creating a SQL collection', async () => {
+    const next = vi.fn();
+    const ctx = {
+      action: {
+        params: {
+          values: {
+            sql: 'SELECT 1; DELETE FROM accounts',
+          },
+        },
+      },
+      t: (message: string) => message,
+      throw(status: number, message: string) {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      },
+    } as any;
+
+    await expect(sqlCollectionResource.actions.execute(ctx, next)).rejects.toMatchObject({
+      status: 400,
+      message: 'Only select query allowed',
+    });
+    expect(next).not.toHaveBeenCalled();
   });
 
   it('rejects select into because it creates data', () => {

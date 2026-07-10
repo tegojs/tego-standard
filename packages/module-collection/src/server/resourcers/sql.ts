@@ -207,7 +207,7 @@ export default {
       let {
         values: { sql },
       } = ctx.action.params;
-      sql = sql.trim().split(';').shift();
+      sql = sql.trim();
       if (!sql) {
         ctx.throw(400, ctx.t('SQL is empty'));
       }

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.24] - 2026-07-09
+
+### 🐛 Fixed
+
+- **formula-field**: calculate on save only and load association scope & fix(backup): skip unavailable plugins during restore and startup ([#401](https://github.com/tegojs/tego-standard/pull/401)) (@bai.zixv)
+- add document preview ([#319](https://github.com/tegojs/tego-standard/pull/319)) (@dududuna)
+- set the table alignment to center ([#394](https://github.com/tegojs/tego-standard/pull/394)) (@dududuna)
+
 ## [1.6.23] - 2026-07-07
 
 ### ✨ Added
@@ -3055,7 +3063,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.23...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.24...HEAD
+[1.6.24]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.24
 [1.6.23]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.23
 [1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22
 [1.6.21]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.21

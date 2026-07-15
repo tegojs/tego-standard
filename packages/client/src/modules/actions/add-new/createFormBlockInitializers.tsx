@@ -1,3 +1,5 @@
+import { useActionContext } from '@tachybase/client';
+
 import { useTranslation } from 'react-i18next';
 
 import { SchemaInitializer } from '../../../application/schema-initializer/SchemaInitializer';
@@ -17,6 +19,7 @@ export const createFormBlockInitializers = new SchemaInitializer({
       useChildren() {
         const currentCollection = useCollection();
         const { t } = useTranslation();
+        const action = useActionContext();
 
         return [
           {
@@ -34,6 +37,7 @@ export const createFormBlockInitializers = new SchemaInitializer({
                   return true;
                 }
               },
+              newRecord: action.fieldSchema?.['x-component-props']?.newRecord,
               showAssociationFields: true,
               onlyCurrentDataSource: true,
               hideSearch: true,

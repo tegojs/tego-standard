@@ -1,9 +1,8 @@
-import { useActionContext } from '@tachybase/client';
-
 import { useTranslation } from 'react-i18next';
 
 import { SchemaInitializer } from '../../../application/schema-initializer/SchemaInitializer';
 import { useCollection } from '../../../data-source/collection/CollectionProvider';
+import { useActionContext } from '../../../schema-component';
 import { gridRowColWrap } from '../../../schema-initializer/utils';
 
 export const createFormBlockInitializers = new SchemaInitializer({

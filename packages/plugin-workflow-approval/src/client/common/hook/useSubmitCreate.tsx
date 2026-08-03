@@ -13,9 +13,8 @@ import { Toast } from 'antd-mobile';
 import _ from 'lodash';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useContextApprovalExecution, useResubmit } from '..';
+import { useContextApprovalExecution } from '..';
 import { useContextApprovalStatus } from '../../user-interface/pc/block/common/providers/ActionStatus.provider';
-import { cleanAssociationIds } from '../tools/cleanAssociationIds';
 
 export function useSubmitCreate() {
   const form = useForm();
@@ -29,7 +28,6 @@ export function useSubmitCreate() {
   const params = useParams();
   const { id: workflowId } = params;
   const flowContext = useFlowContext();
-  const { isResubmit } = useResubmit();
   const { approval } = useContextApprovalExecution();
   const { workflow } = flowContext ?? approval ?? {};
 
@@ -43,15 +41,10 @@ export function useSubmitCreate() {
         field.data.loading = true;
         delete form.values['createdAt'];
         delete form.values['updatedAt'];
-        // 如果是复制操作（有 workflowKey），需要清洗关联字段的 id
-        let dataToSubmit = form.values;
-        if (isResubmit && (workflow?.key || approval?.workflow?.key)) {
-          dataToSubmit = cleanAssociationIds(form.values, collection);
-        }
         const res = await apiClient.resource('approvals').create({
           values: {
             collectionName: joinCollectionName(collection.dataSource, collection.name),
-            data: dataToSubmit,
+            data: form.values,
             status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
             workflowId: workflow?.id || workflowId || approval?.workflow?.id,
             workflowKey: workflow?.key || approval?.workflow.key,

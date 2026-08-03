@@ -3,11 +3,13 @@ import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server'
 
 import { NAMESPACE } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';
+import { CopyAssociationError, omitCopyAssociationTargetKeys } from '../copyAssociations';
 import { getSummary } from '../tools';
 
 export const approvals = {
   async create(ctx, next) {
-    const { status, collectionName, data, workflowId, workflowKey } = ctx.action.params.values ?? {};
+    const { status, collectionName, data, workflowId, workflowKey, isCopy, copyAssociationValues } =
+      ctx.action.params.values ?? {};
     const [dataSourceName, cName] = parseCollectionName(collectionName);
     const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceName);
     if (!dataSource) {
@@ -55,9 +57,20 @@ export const approvals = {
       });
     }
     const { repository, model } = collection;
+    let createData = traverseJSON(data, { collection });
+    if (isCopy === true) {
+      try {
+        createData = omitCopyAssociationTargetKeys(createData, collection, copyAssociationValues);
+      } catch (error) {
+        if (error instanceof CopyAssociationError) {
+          return ctx.throw(400, error.message);
+        }
+        throw error;
+      }
+    }
     const values = await repository.create({
       values: {
-        ...traverseJSON(data, { collection }),
+        ...createData,
         createdBy: ctx.state.currentUser.id,
         updatedBy: ctx.state.currentUser.id,
       },
@@ -87,17 +100,20 @@ export const approvals = {
     Object.keys(model.associations).forEach((key) => {
       delete approvalData[key];
     });
-    ctx.action.mergeParams({
-      values: {
-        collectionName,
-        data: approvalData,
-        dataKey,
-        workflowKey: workflow.key,
-        workflowId: workflow.id,
-        applicantRoleName: ctx.state.currentRole,
-        summary,
+    ctx.action.mergeParams(
+      {
+        values: {
+          collectionName,
+          data: approvalData,
+          dataKey,
+          workflowKey: workflow.key,
+          workflowId: workflow.id,
+          applicantRoleName: ctx.state.currentRole,
+          summary,
+        },
       },
-    });
+      { values: 'merge' },
+    );
     return actions.create(ctx, next);
   },
   async update(ctx, next) {

@@ -31,9 +31,9 @@ function normalizeDetails(details: Array<{ id: unknown; amount: unknown }>) {
     .sort((left, right) => left.id - right.id);
 }
 
-function getSummaryDetails(summary: SummaryItem[]) {
-  const ids = getSummaryTableColumn(summary, 'details', 'id') as unknown[];
-  const amounts = getSummaryTableColumn(summary, 'details', 'amount') as unknown[];
+function getSummaryDetails(summary: SummaryItem[], tableKey = 'details') {
+  const ids = getSummaryTableColumn(summary, tableKey, 'id') as unknown[];
+  const amounts = getSummaryTableColumn(summary, tableKey, 'amount') as unknown[];
   return normalizeDetails(ids.map((id, index) => ({ id, amount: amounts[index] })));
 }
 
@@ -43,8 +43,12 @@ describe('workflow approval actions', () => {
   let agent;
   let collectionName: string;
   let detailsCollectionName: string;
+  let accountItemsCollectionName: string;
+  let tagsCollectionName: string;
   let mainRepo;
   let detailsRepo;
+  let accountItemsRepo;
+  let tagsRepo;
   let workflowModel;
 
   beforeEach(async () => {
@@ -64,6 +68,23 @@ describe('workflow approval actions', () => {
     const suffix = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     collectionName = `approval_copy_roots_${suffix}`;
     detailsCollectionName = `approval_copy_details_${suffix}`;
+    accountItemsCollectionName = `approval_copy_account_items_${suffix}`;
+    tagsCollectionName = `approval_copy_tags_${suffix}`;
+
+    db.collection({
+      name: accountItemsCollectionName,
+      fields: [
+        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
+        { type: 'integer', name: 'amount' },
+      ],
+    });
+    db.collection({
+      name: tagsCollectionName,
+      fields: [
+        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
+        { type: 'string', name: 'name' },
+      ],
+    });
 
     db.collection({
       name: detailsCollectionName,
@@ -79,6 +100,7 @@ describe('workflow approval actions', () => {
         { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
         { type: 'integer', name: 'amountA' },
         { type: 'integer', name: 'amountB' },
+        { type: 'integer', name: 'itemsTotal' },
         {
           type: 'formula',
           name: 'total',
@@ -86,12 +108,30 @@ describe('workflow approval actions', () => {
           expression: 'sum([{{amountA}}, {{amountB}}])',
         },
         { type: 'hasMany', name: 'details', target: detailsCollectionName, foreignKey: 'rootId' },
+        {
+          type: 'belongsToMany',
+          name: 'accountItems',
+          target: accountItemsCollectionName,
+          through: `approval_copy_root_items_${suffix}`,
+          foreignKey: 'rootId',
+          otherKey: 'accountItemId',
+        },
+        {
+          type: 'belongsToMany',
+          name: 'tags',
+          target: tagsCollectionName,
+          through: `approval_copy_root_tags_${suffix}`,
+          foreignKey: 'rootId',
+          otherKey: 'tagId',
+        },
       ],
     });
     await db.sync();
 
     mainRepo = db.getCollection(collectionName).repository;
     detailsRepo = db.getCollection(detailsCollectionName).repository;
+    accountItemsRepo = db.getCollection(accountItemsCollectionName).repository;
+    tagsRepo = db.getCollection(tagsCollectionName).repository;
     workflowModel = db.getCollection('workflows').model;
 
     const user = await db.getCollection('users').model.create({ nickname: `approval-copy-${suffix}` });
@@ -103,14 +143,27 @@ describe('workflow approval actions', () => {
     await app.destroy();
   });
 
-  async function createApproval(data: object) {
+  async function createApproval(
+    data: object,
+    copyOptions: { isCopy?: boolean; copyAssociationValues?: string[] } = {},
+  ) {
     const workflow = await workflowModel.create({
       enabled: true,
       type: 'approval',
       config: {
         collection: collectionName,
-        summary: ['id', 'total', 'details', 'details.id', 'details.amount'],
-        appends: ['details'],
+        summary: [
+          'id',
+          'total',
+          'itemsTotal',
+          'details',
+          'details.id',
+          'details.amount',
+          'accountItems',
+          'accountItems.id',
+          'accountItems.amount',
+        ],
+        appends: ['details', 'accountItems', 'tags'],
       },
     });
     await workflow.createNode({ type: 'echo' });
@@ -122,6 +175,7 @@ describe('workflow approval actions', () => {
         status: APPROVAL_STATUS.SUBMITTED,
         workflowId: workflow.id,
         workflowKey: workflow.key,
+        ...copyOptions,
       },
     });
     expect(response.status).toBe(200);
@@ -183,5 +237,55 @@ describe('workflow approval actions', () => {
     expect(copiedAmounts).toEqual([7, 13]);
     expect.soft(getSummaryValue(approval.summary, 'total')).toBe(copied.get('total'));
     expect.soft(getSummaryDetails(approval.summary)).toEqual(copiedDetails);
+  });
+
+  it('clones selected belongsToMany details but preserves unselected shared associations', async () => {
+    const sourceAccountItem = await accountItemsRepo.create({ values: { amount: 26667 } });
+    const sharedTag = await tagsRepo.create({ values: { name: 'shared' } });
+    const source = await mainRepo.create({
+      values: {
+        amountA: 1,
+        amountB: 2,
+        itemsTotal: 26667,
+        accountItems: [{ id: sourceAccountItem.get('id'), amount: 26667 }],
+        tags: [{ id: sharedTag.get('id'), name: 'shared' }],
+      },
+    });
+
+    const approval = await createApproval(
+      {
+        id: source.get('id'),
+        amountA: 1,
+        amountB: 2,
+        itemsTotal: 12345,
+        accountItems: [{ id: sourceAccountItem.get('id'), amount: 12345 }],
+        tags: [{ id: sharedTag.get('id'), name: 'shared' }],
+      },
+      {
+        isCopy: true,
+        copyAssociationValues: ['accountItems'],
+      },
+    );
+    const copied = await mainRepo.findOne({
+      filterByTk: approval.dataKey,
+      appends: ['accountItems', 'tags'],
+    });
+    const copiedAccountItems = normalizeDetails(copied.get('accountItems'));
+
+    expect(copiedAccountItems).toHaveLength(1);
+    expect(copiedAccountItems[0].id).not.toBe(Number(sourceAccountItem.get('id')));
+    expect(copiedAccountItems[0].amount).toBe(12345);
+    expect(copied.get('itemsTotal')).toBe(12345);
+    expect(copied.get('tags')).toHaveLength(1);
+    expect(Number(copied.get('tags')[0].id)).toBe(Number(sharedTag.get('id')));
+    expect.soft(getSummaryValue(approval.summary, 'itemsTotal')).toBe(copied.get('itemsTotal'));
+    expect.soft(getSummaryDetails(approval.summary, 'accountItems')).toEqual(copiedAccountItems);
+    expect(approval.data).not.toHaveProperty('accountItems');
+    expect(approval.data).not.toHaveProperty('tags');
+
+    const persistedSourceAccountItem = await accountItemsRepo.findOne({
+      filterByTk: sourceAccountItem.get('id'),
+    });
+    expect(persistedSourceAccountItem.get('amount')).toBe(26667);
   });
 });

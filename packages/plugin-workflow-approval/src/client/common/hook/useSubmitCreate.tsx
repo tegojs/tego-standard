@@ -4,6 +4,7 @@ import {
   useAPIClient,
   useBlockRequestContext,
   useCollection_deprecated,
+  useFormBlockContext,
   useIsMobile,
 } from '@tachybase/client';
 import { useFlowContext } from '@tachybase/module-workflow/client';
@@ -13,8 +14,9 @@ import { Toast } from 'antd-mobile';
 import _ from 'lodash';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useContextApprovalExecution } from '..';
+import { useContextApprovalExecution, useQuickCreate, useResubmit } from '..';
 import { useContextApprovalStatus } from '../../user-interface/pc/block/common/providers/ActionStatus.provider';
+import { getCopyAssociationValues } from './copyAssociationValues';
 
 export function useSubmitCreate() {
   const form = useForm();
@@ -29,7 +31,11 @@ export function useSubmitCreate() {
   const { id: workflowId } = params;
   const flowContext = useFlowContext();
   const { approval } = useContextApprovalExecution();
+  const { isQuickCreate } = useQuickCreate();
+  const { isResubmit } = useResubmit();
+  const { updateAssociationValues = [] } = useFormBlockContext();
   const { workflow } = flowContext ?? approval ?? {};
+  const isCopy = Boolean(isQuickCreate || isResubmit);
 
   const isMobile = useIsMobile();
 
@@ -48,6 +54,8 @@ export function useSubmitCreate() {
             status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
             workflowId: workflow?.id || workflowId || approval?.workflow?.id,
             workflowKey: workflow?.key || approval?.workflow.key,
+            isCopy,
+            copyAssociationValues: getCopyAssociationValues(form, updateAssociationValues),
           },
         });
         if (res.status === 200 && isMobile) {

@@ -63,24 +63,35 @@ export const approvals = {
       },
       context: ctx,
     });
-    const instance = values.get();
+    const createdDataKey = values.get(collection.filterTargetKey);
+    const persistedRecord = await repository.findOne({
+      filterByTk: createdDataKey,
+      appends: workflow.config?.appends ?? [],
+      context: ctx,
+    });
+    if (!persistedRecord) {
+      return ctx.throw(500, 'Created approval data could not be reloaded');
+    }
+    const persistedData = { ...(persistedRecord.toJSON?.() ?? persistedRecord) };
+    const dataKey = persistedData[collection.filterTargetKey];
+    if (dataKey == null) {
+      return ctx.throw(500, 'Reloaded approval data is missing its target key');
+    }
     const summary = getSummary({
       summaryConfig: workflow.config.summary,
-      data: {
-        ...instance,
-        ...data,
-      },
+      data: persistedData,
       collection,
       app: ctx.tego,
     });
+    const approvalData = { ...persistedData };
     Object.keys(model.associations).forEach((key) => {
-      delete instance[key];
+      delete approvalData[key];
     });
     ctx.action.mergeParams({
       values: {
         collectionName,
-        data: instance,
-        dataKey: values[collection.filterTargetKey],
+        data: approvalData,
+        dataKey,
         workflowKey: workflow.key,
         workflowId: workflow.id,
         applicantRoleName: ctx.state.currentRole,

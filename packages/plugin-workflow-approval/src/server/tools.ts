@@ -37,6 +37,41 @@ function getSummary(params: ParamsType): object {
   return summaryDataSource;
 }
 
+/**
+ * Return association paths referenced by a summary configuration.
+ * Summary fields and repository appends are configured independently, so the
+ * latter must include every association needed to render the former.
+ */
+function getSummaryAssociationAppends(
+  summaryConfig: string[] = [],
+  collection?: Collection,
+  app?: Application,
+): string[] {
+  const associationPaths = new Set<string>();
+
+  for (const key of summaryConfig) {
+    const segments = key.split('.').filter(Boolean);
+    let currentCollection = collection;
+    const path: string[] = [];
+
+    for (const segment of segments) {
+      const field = currentCollection?.getField(segment);
+      if (!field?.target) {
+        break;
+      }
+
+      path.push(segment);
+      associationPaths.add(path.join('.'));
+      currentCollection = getTargetCollection(segment, currentCollection, app);
+      if (!currentCollection) {
+        break;
+      }
+    }
+  }
+
+  return [...associationPaths];
+}
+
 // 获取关联表的 titleField 值
 function getAssociationTitleFieldValue(
   value: any,
@@ -373,4 +408,4 @@ function getSummaryDataSource({ summaryConfig = [], data, collection, app }: Par
   return summaryDataSource;
 }
 
-export { getSummary, parsePerson };
+export { getSummary, getSummaryAssociationAppends, parsePerson };

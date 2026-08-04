@@ -146,6 +146,7 @@ describe('workflow approval actions', () => {
   async function createApproval(
     data: object,
     copyOptions: { isCopy?: boolean; copyAssociationValues?: string[] } = {},
+    workflowConfig: { summary?: string[]; appends?: string[] } = {},
   ) {
     const workflow = await workflowModel.create({
       enabled: true,
@@ -164,6 +165,7 @@ describe('workflow approval actions', () => {
           'accountItems.amount',
         ],
         appends: ['details', 'accountItems', 'tags'],
+        ...workflowConfig,
       },
     });
     await workflow.createNode({ type: 'echo' });
@@ -237,6 +239,35 @@ describe('workflow approval actions', () => {
     expect(copiedAmounts).toEqual([7, 13]);
     expect.soft(getSummaryValue(approval.summary, 'total')).toBe(copied.get('total'));
     expect.soft(getSummaryDetails(approval.summary)).toEqual(copiedDetails);
+  });
+
+  it('loads associations required by the summary when workflow appends are empty', async () => {
+    const source = await mainRepo.create({ values: { amountA: 11, amountB: 17 } });
+    await detailsRepo.create({ values: { amount: 28, rootId: source.get('id') } });
+    const sourceWithDetails = await mainRepo.findOne({
+      filterByTk: source.get('id'),
+      appends: ['details'],
+    });
+
+    const approval = await createApproval(
+      {
+        id: source.get('id'),
+        amountA: 11,
+        amountB: 17,
+        details: sourceWithDetails.get('details').map((detail) => ({ id: detail.id, amount: detail.amount })),
+      },
+      {},
+      {
+        summary: ['details', 'details.id', 'details.amount'],
+        appends: [],
+      },
+    );
+    const copied = await mainRepo.findOne({
+      filterByTk: approval.dataKey,
+      appends: ['details'],
+    });
+
+    expect(getSummaryDetails(approval.summary)).toEqual(normalizeDetails(copied.get('details')));
   });
 
   it('clones selected belongsToMany details but preserves unselected shared associations', async () => {

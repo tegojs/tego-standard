@@ -4,7 +4,7 @@ import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server'
 import { NAMESPACE } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';
 import { CopyAssociationError, omitCopyAssociationTargetKeys } from '../copyAssociations';
-import { getSummary } from '../tools';
+import { getSummary, getSummaryAssociationAppends } from '../tools';
 
 export const approvals = {
   async create(ctx, next) {
@@ -79,7 +79,12 @@ export const approvals = {
     const createdDataKey = values.get(collection.filterTargetKey);
     const persistedRecord = await repository.findOne({
       filterByTk: createdDataKey,
-      appends: workflow.config?.appends ?? [],
+      appends: [
+        ...new Set([
+          ...(workflow.config?.appends ?? []),
+          ...getSummaryAssociationAppends(workflow.config?.summary ?? [], collection, ctx.tego),
+        ]),
+      ],
       context: ctx,
     });
     if (!persistedRecord) {

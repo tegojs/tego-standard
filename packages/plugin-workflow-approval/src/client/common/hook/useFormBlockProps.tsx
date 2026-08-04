@@ -30,7 +30,7 @@ export function useFormBlockProps() {
       form.setPattern('readPretty');
     }
     if (isResubmit && approval.id) {
-      const formValue = { ...approvalExecution?.snapshot, ...approval.data };
+      const formValue = { ...approval.data, ...approvalExecution.approval.data, ...approval?.snapshot };
       form.setValues(formValue);
       form.setPattern('editable');
     }

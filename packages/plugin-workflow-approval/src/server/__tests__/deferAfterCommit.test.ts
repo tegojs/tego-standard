@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { deferUntilTransactionCommitSucceeds } from '../deferAfterCommit';
+import { deferUntilTransactionCommitSucceeds, runDeferredAfterCommitCallbacks } from '../deferAfterCommit';
 
 function createTransaction(parent?: any) {
   return {
@@ -80,20 +80,42 @@ describe('deferUntilTransactionCommitSucceeds', () => {
 
     deferUntilTransactionCommitSucceeds(transaction, [first, second, third]);
 
-    let caughtError: any;
-    try {
-      await transaction.commit();
-    } catch (error) {
-      caughtError = error;
-    }
+    await expect(runDeferredAfterCommitCallbacks([first, second, third])).rejects.toBeInstanceOf(AggregateError);
 
     expect(first).toHaveBeenCalledOnce();
     expect(second).toHaveBeenCalledOnce();
     expect(third).toHaveBeenCalledOnce();
-    expect(caughtError).toBeInstanceOf(AggregateError);
-    expect(caughtError.errors.map((error) => error.message)).toEqual([
-      'first callback failed',
-      'third callback failed',
-    ]);
+    await expect(runDeferredAfterCommitCallbacks([])).resolves.toBeUndefined();
+  });
+
+  it('keeps the database commit successful when callback failures are reported separately', async () => {
+    const transaction = createTransaction();
+    const callback = vi.fn(async () => {
+      throw new Error('post-commit failed');
+    });
+    const reportError = vi.fn();
+
+    deferUntilTransactionCommitSucceeds(transaction, [callback], reportError);
+
+    await expect(transaction.commit()).resolves.toBeUndefined();
+    expect(callback).toHaveBeenCalledOnce();
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('does not reject a commit when callback failures have no reporter', async () => {
+    const transaction = createTransaction();
+    const callback = vi.fn(async () => {
+      throw new Error('unreported post-commit failed');
+    });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      deferUntilTransactionCommitSucceeds(transaction, [callback]);
+
+      await expect(transaction.commit()).resolves.toBeUndefined();
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Deferred after-commit callbacks failed', expect.any(Error));
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

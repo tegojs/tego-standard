@@ -139,7 +139,7 @@ export const approvals = {
     let createData = traverseJSON(data, { collection });
     if (isCopy === true) {
       try {
-        createData = cleanCopyAssociationData(data, createData, collection, copyAssociationValues);
+        createData = cleanCopyAssociationData(data, createData, collection, copyAssociationValues, ctx.tego);
       } catch (error) {
         if (error instanceof CopyAssociationError) {
           return ctx.throw(400, error.message);
@@ -158,6 +158,9 @@ export const approvals = {
         transaction,
       });
       const createdDataKey = values.get(collection.filterTargetKey);
+      if (createdDataKey == null || createdDataKey === '') {
+        return ctx.throw(500, 'Created approval data is missing its target key');
+      }
       const persistedRecord = await repository.findOne({
         filterByTk: createdDataKey,
         appends: getWorkflowAppends(workflow.config, collection, ctx.tego),
@@ -200,12 +203,22 @@ export const approvals = {
       return createApprovalRecord(ctx, approvalValues, transaction, dataSourceTransaction, deferAfterCommit);
     };
 
+    const reportDeferredWorkflowTriggerError = (dataKey: unknown) => (error: unknown) => {
+      ctx.logger?.error?.('Deferred workflow trigger failed after approval commit', {
+        dataKey,
+        collectionName,
+        error: serializeError(error),
+      });
+    };
+
     const businessSequelize = model.sequelize;
     const approvalSequelize = ctx.db.sequelize;
     let approval;
     if (businessSequelize === approvalSequelize) {
+      let businessDataKey: unknown;
       const createInTransaction = async (transaction) => {
         const businessRecord = await createBusinessRecord(transaction);
+        businessDataKey = businessRecord.dataKey;
         return createApproval(businessRecord, transaction);
       };
       approval =
@@ -213,9 +226,25 @@ export const approvals = {
           ? await createInTransaction(ctx.transaction)
           : await approvalSequelize.transaction(createInTransaction);
       if (ctx.transaction?.sequelize === approvalSequelize) {
-        deferUntilTransactionCommitSucceeds(ctx.transaction, deferredWorkflowTriggers);
+        try {
+          deferUntilTransactionCommitSucceeds(
+            ctx.transaction,
+            deferredWorkflowTriggers,
+            reportDeferredWorkflowTriggerError(businessDataKey),
+          );
+        } catch (error) {
+          ctx.logger?.error?.('Failed to defer workflow trigger until approval transaction commit', {
+            dataKey: businessDataKey,
+            collectionName,
+            error: serializeError(error),
+          });
+          throw error;
+        }
       } else {
-        await runDeferredAfterCommitCallbacks(deferredWorkflowTriggers);
+        await runDeferredAfterCommitCallbacks(
+          deferredWorkflowTriggers,
+          reportDeferredWorkflowTriggerError(businessDataKey),
+        );
       }
     } else {
       const inheritedApprovalTransaction =
@@ -290,9 +319,25 @@ export const approvals = {
           });
           throw error;
         }
-        await runDeferredAfterCommitCallbacks(deferredWorkflowTriggers);
+        await runDeferredAfterCommitCallbacks(
+          deferredWorkflowTriggers,
+          reportDeferredWorkflowTriggerError(businessRecord.dataKey),
+        );
       } else {
-        deferUntilTransactionCommitSucceeds(approvalTransaction, deferredWorkflowTriggers);
+        try {
+          deferUntilTransactionCommitSucceeds(
+            approvalTransaction,
+            deferredWorkflowTriggers,
+            reportDeferredWorkflowTriggerError(businessRecord.dataKey),
+          );
+        } catch (error) {
+          ctx.logger?.error?.('Failed to defer workflow trigger until inherited approval transaction commit', {
+            dataKey: businessRecord.dataKey,
+            collectionName,
+            error: serializeError(error),
+          });
+          throw error;
+        }
       }
     }
 

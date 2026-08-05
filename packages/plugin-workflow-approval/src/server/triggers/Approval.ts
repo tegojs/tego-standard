@@ -3,17 +3,30 @@ import { EXECUTION_STATUS, JOB_STATUS, toJSON, Trigger } from '@tachybase/module
 import { modelAssociationByKey, parseCollectionName } from '@tego/server';
 
 import { get } from 'lodash';
-import { BelongsTo, HasOne, Op } from 'sequelize';
+import { BelongsTo, HasOne, Op, type Transaction } from 'sequelize';
 
 import { APPROVAL_STATUS } from '../constants/status';
-import { deferUntilTransactionCommitSucceeds } from '../deferAfterCommit';
+import { deferUntilTransactionCommitSucceeds, type DeferredAfterCommit } from '../deferAfterCommit';
 import { getSummary, getWorkflowAppends } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
+
+type ApprovalTriggerOptions = {
+  transaction?: ApprovalTriggerTransaction;
+  dataSourceTransaction?: ApprovalTriggerTransaction;
+  deferAfterCommit?: (callback: DeferredAfterCommit) => void;
+};
+
+type ApprovalTriggerTransaction = Transaction & {
+  sequelize?: unknown;
+};
 
 export default class ApprovalTrigger extends Trigger {
   static TYPE = 'approval';
   sync = false;
-  triggerHandler = async (approval, { transaction, dataSourceTransaction, deferAfterCommit } = {}) => {
+  triggerHandler = async (
+    approval,
+    { transaction, dataSourceTransaction, deferAfterCommit }: ApprovalTriggerOptions = {},
+  ) => {
     // 修正逻辑：找 id 且 enabled 为 true 的，找不到再找 workflowKey 且 enabled 为 true 的
     let workflow = await approval.getWorkflow({
       where: {
@@ -88,7 +101,13 @@ export default class ApprovalTrigger extends Trigger {
     if (deferAfterCommit) {
       deferAfterCommit(triggerWorkflow);
     } else if (transaction) {
-      deferUntilTransactionCommitSucceeds(transaction, [triggerWorkflow]);
+      deferUntilTransactionCommitSucceeds(transaction, [triggerWorkflow], (error) => {
+        this.workflow.app.logger?.error?.('Approval workflow trigger failed after transaction commit', {
+          approvalId: approval.id,
+          collectionName: approval.collectionName,
+          error,
+        });
+      });
     } else {
       triggerWorkflow();
     }

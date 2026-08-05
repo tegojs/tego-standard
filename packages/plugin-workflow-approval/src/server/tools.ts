@@ -419,4 +419,4 @@ function getSummaryDataSource({ summaryConfig = [], data, collection, app }: Par
   return summaryDataSource;
 }
 
-export { getSummary, getSummaryAssociationAppends, getWorkflowAppends, parsePerson };
+export { getSummary, getSummaryAssociationAppends, getTargetCollection, getWorkflowAppends, parsePerson };

@@ -257,6 +257,40 @@ describe('workflow approval actions', () => {
     return ctx.body;
   }
 
+  it('rejects a business record that does not expose its filter target key', async () => {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: collectionName,
+        summary: ['amountA'],
+        appends: [],
+      },
+    });
+    await workflow.createNode({ type: 'echo' });
+
+    const createdValue = { get: vi.fn().mockReturnValue(undefined) };
+    const createSpy = vi.spyOn(mainRepo, 'create').mockResolvedValueOnce(createdValue as any);
+    const findSpy = vi.spyOn(mainRepo, 'findOne');
+    try {
+      const response = await agent.resource('approvals').create({
+        values: {
+          collectionName,
+          data: { amountA: 17 },
+          status: APPROVAL_STATUS.SUBMITTED,
+          workflowId: workflow.id,
+          workflowKey: workflow.key,
+        },
+      });
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(findSpy).not.toHaveBeenCalled();
+    } finally {
+      createSpy.mockRestore();
+      findSpy.mockRestore();
+    }
+  });
+
   it('copies a source root id into a new business record and summarizes the new id', async () => {
     const source = await mainRepo.create({ values: { amountA: 3, amountB: 5 } });
     const sourceId = source.get('id');
@@ -1087,6 +1121,47 @@ describe('workflow approval actions', () => {
     } finally {
       queryInterfaceCommitSpy.mockRestore();
       workflowTriggerSpy.mockRestore();
+    }
+  });
+
+  it('keeps a committed approval successful when its deferred workflow trigger fails', async () => {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: collectionName,
+        summary: ['amountA', 'amountB'],
+        appends: [],
+      },
+    });
+    await workflow.createNode({ type: 'echo' });
+
+    const workflowTriggerSpy = vi
+      .spyOn(app.pm.get('workflow'), 'trigger')
+      .mockRejectedValueOnce(new Error('deferred trigger failed'));
+    const loggerErrorSpy = vi.spyOn(app.logger, 'error');
+    try {
+      const response = await agent.resource('approvals').create({
+        values: {
+          collectionName,
+          data: { amountA: 63, amountB: 37 },
+          status: APPROVAL_STATUS.SUBMITTED,
+          workflowId: workflow.id,
+          workflowKey: workflow.key,
+        },
+      });
+
+      expect(response.status).toBe(200);
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        'Deferred workflow trigger failed after approval commit',
+        expect.objectContaining({
+          collectionName,
+          error: expect.objectContaining({ message: 'deferred trigger failed' }),
+        }),
+      );
+    } finally {
+      workflowTriggerSpy.mockRestore();
+      loggerErrorSpy.mockRestore();
     }
   });
 

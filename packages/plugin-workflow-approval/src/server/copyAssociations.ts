@@ -1,4 +1,6 @@
-import type { Collection } from '@tego/server';
+import type { Application, Collection } from '@tego/server';
+
+import { getTargetCollection } from './tools';
 
 type JSONValue = Record<string, unknown>;
 
@@ -18,7 +20,11 @@ export class CopyAssociationError extends Error {
 }
 
 function isJSONValue(value: unknown): value is JSONValue {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function getTargetKeys(collection: Collection, field: any): string[] {
@@ -34,7 +40,7 @@ function getTargetKeys(collection: Collection, field: any): string[] {
   );
 }
 
-function resolveCopyPath(collection: Collection, path: string): CopyPathStep[] {
+function resolveCopyPath(collection: Collection, path: string, app?: Application): CopyPathStep[] {
   const fieldNames = path.split('.');
   if (fieldNames.some((fieldName) => !fieldName)) {
     throw new CopyAssociationError(`Invalid copy association path "${path}"`);
@@ -48,7 +54,7 @@ function resolveCopyPath(collection: Collection, path: string): CopyPathStep[] {
       throw new CopyAssociationError(`Copy association path "${path}" is not a valid association path`);
     }
 
-    const targetCollection = (currentCollection as any).db?.getCollection(field.target) as Collection | undefined;
+    const targetCollection = getTargetCollection(fieldName, currentCollection, app);
     if (!targetCollection) {
       throw new CopyAssociationError(`Target collection for copy association path "${path}" was not found`);
     }
@@ -96,8 +102,11 @@ function omitTargetKeys(
       const copiedItems = Array.isArray(copiedItem) ? copiedItem : [];
       return sourceItem.map((item, index) => cleanAssociationValue(item, copiedItems[index]));
     }
-    if (!isJSONValue(sourceItem)) {
+    if (typeof sourceItem !== 'object') {
       return sourceItem;
+    }
+    if (!isJSONValue(sourceItem)) {
+      return copiedItem;
     }
     if (stepIndex < steps.length - 1) {
       return omitTargetKeys(sourceItem, copiedItem, steps, stepIndex + 1, path);
@@ -124,6 +133,7 @@ export function cleanCopyAssociationData(
   copiedData: Record<string, unknown>,
   collection: Collection,
   copyAssociationValues: unknown,
+  app?: Application,
 ): Record<string, unknown> {
   if (copyAssociationValues == null) {
     return copiedData;
@@ -134,7 +144,7 @@ export function cleanCopyAssociationData(
 
   let cleanedData = copiedData;
   for (const path of new Set(copyAssociationValues)) {
-    const steps = resolveCopyPath(collection, path);
+    const steps = resolveCopyPath(collection, path, app);
     cleanedData = omitTargetKeys(sourceData, cleanedData, steps, 0, path) as Record<string, unknown>;
   }
   return cleanedData;

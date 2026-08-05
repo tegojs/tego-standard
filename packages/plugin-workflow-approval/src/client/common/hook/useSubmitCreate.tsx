@@ -15,6 +15,7 @@ import _ from 'lodash';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useContextApprovalExecution, useQuickCreate, useResubmit } from '..';
+import { useTranslation } from '../../locale';
 import { useContextApprovalStatus } from '../../user-interface/pc/block/common/providers/ActionStatus.provider';
 import { getCopyAssociationValues } from './copyAssociationValues';
 
@@ -36,6 +37,7 @@ export function useSubmitCreate() {
   const { updateAssociationValues = [] } = useFormBlockContext();
   const { workflow } = flowContext ?? approval ?? {};
   const isCopy = Boolean(isQuickCreate || isResubmit);
+  const { t } = useTranslation();
 
   const isMobile = useIsMobile();
 
@@ -43,52 +45,70 @@ export function useSubmitCreate() {
     async run(args) {
       let requestStarted = false;
       try {
-        await form.submit();
-        field.data = field.data || {};
-        field.data.loading = true;
-        delete form.values['createdAt'];
-        delete form.values['updatedAt'];
-        const resource = apiClient.resource('approvals');
-        const request = resource.create({
-          values: {
-            collectionName: joinCollectionName(collection.dataSource, collection.name),
-            data: form.values,
-            status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
-            workflowId: workflow?.id || workflowId || approval?.workflow?.id,
-            workflowKey: workflow?.key || approval?.workflow?.key,
-            isCopy,
-            copyAssociationValues: getCopyAssociationValues(form, updateAssociationValues),
-          },
-        });
-        requestStarted = true;
-        const res = await request;
-        if (res.status === 200 && isMobile) {
-          Toast.show({
-            icon: 'success',
-            content: '提交成功',
+        try {
+          await form.submit();
+          field.data = field.data || {};
+          field.data.loading = true;
+          delete form.values['createdAt'];
+          delete form.values['updatedAt'];
+          const resource = apiClient.resource('approvals');
+          const request = resource.create({
+            values: {
+              collectionName: joinCollectionName(collection.dataSource, collection.name),
+              data: form.values,
+              status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
+              workflowId: workflow?.id || workflowId || approval?.workflow?.id,
+              workflowKey: workflow?.key || approval?.workflow?.key,
+              isCopy,
+              copyAssociationValues: getCopyAssociationValues(form, collection, updateAssociationValues),
+            },
           });
-          setTimeout(() => {
-            navigate(-1);
-          }, 1000);
+          requestStarted = true;
+          const res = await request;
+          if (res.status === 200 && isMobile) {
+            Toast.show({
+              icon: 'success',
+              content: '提交成功',
+            });
+            setTimeout(() => {
+              navigate(-1);
+            }, 1000);
+          }
+        } catch (error: any) {
+          if (!requestStarted) {
+            if (isMobile) {
+              Toast.show({
+                icon: 'fail',
+                content: t('Submit failed'),
+              });
+            } else {
+              apiClient.notification?.error({
+                message: t('Submit failed'),
+                description: error?.message,
+              });
+            }
+          }
+          return;
         }
-        form.reset();
-        const service = __parent?.service;
-        if (service) {
-          service.refresh();
-        }
-        if (setVisible) {
-          setVisible(false, false);
-        }
-      } catch (error: any) {
-        if (!requestStarted) {
+
+        try {
+          form.reset();
+          const service = __parent?.service;
+          if (service) {
+            await service.refresh();
+          }
+          if (setVisible) {
+            setVisible(false, false);
+          }
+        } catch (error: any) {
           if (isMobile) {
             Toast.show({
               icon: 'fail',
-              content: '提交失败',
+              content: t('Submit failed'),
             });
           } else {
             apiClient.notification?.error({
-              message: '提交失败',
+              message: t('Submit failed'),
               description: error?.message,
             });
           }

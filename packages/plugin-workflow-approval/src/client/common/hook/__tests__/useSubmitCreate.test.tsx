@@ -8,9 +8,11 @@ import { useSubmitCreate } from '../useSubmitCreate';
 const mocks = vi.hoisted(() => ({
   configuredPaths: [] as string[],
   create: vi.fn(),
+  collection: { getField: vi.fn() },
   field: { data: {} },
   flowContext: { workflow: { id: 1304, key: 'approval-copy' } },
   form: null as ReturnType<typeof createForm> | null,
+  blockContext: { __parent: undefined as { service?: { refresh: () => unknown } } | undefined },
   notification: { error: vi.fn() },
 }));
 
@@ -21,14 +23,18 @@ vi.mock('@tachybase/client', () => ({
     notification: mocks.notification,
     resource: () => ({ create: mocks.create }),
   }),
-  useBlockRequestContext: () => ({}),
-  useCollection_deprecated: () => ({ dataSource: 'main', name: 'receipt' }),
+  useBlockRequestContext: () => mocks.blockContext,
+  useCollection_deprecated: () => ({ dataSource: 'main', name: 'receipt', getField: mocks.collection.getField }),
   useFormBlockContext: () => ({ updateAssociationValues: mocks.configuredPaths }),
   useIsMobile: () => false,
 }));
 
 vi.mock('@tachybase/module-workflow/client', () => ({
   useFlowContext: () => mocks.flowContext,
+}));
+
+vi.mock('../../../locale', () => ({
+  useTranslation: () => ({ t: (key: string) => `translated:${key}` }),
 }));
 
 vi.mock('@tachybase/schema', async (importOriginal) => {
@@ -63,7 +69,17 @@ describe('useSubmitCreate', () => {
   beforeEach(() => {
     mocks.configuredPaths = [];
     mocks.create.mockReset().mockResolvedValue({ status: 200 });
+    mocks.collection.getField.mockReset().mockImplementation((name: string) => {
+      const fields = {
+        accountItemList: { type: 'hasMany', target: 'account_items' },
+        configuredDetails: { type: 'belongsToMany', target: 'details' },
+        'accountItemList.subdetails': { type: 'hasMany', target: 'subdetails' },
+        plainNester: { type: 'string' },
+      };
+      return fields[name];
+    });
     mocks.notification.error.mockReset();
+    mocks.blockContext = { __parent: undefined };
     mocks.field.data = {};
     mocks.flowContext = { workflow: { id: 1304, key: 'approval-copy' } };
     mocks.form = createForm({
@@ -123,6 +139,23 @@ describe('useSubmitCreate', () => {
     });
   });
 
+  it('does not send fields rendered as copy controls unless their collection field is an association', async () => {
+    mocks.form.createField({
+      name: 'plainNester',
+      component: ['CollectionField', { mode: 'Nester' }],
+    });
+
+    const { result } = renderHook(() => useSubmitCreate());
+
+    await result.current.run({});
+
+    expect(mocks.create).toHaveBeenCalledWith({
+      values: expect.objectContaining({
+        copyAssociationValues: [],
+      }),
+    });
+  });
+
   it('reports form submission errors and always clears loading state', async () => {
     mocks.form.submit = vi.fn().mockRejectedValue(new Error('form validation failed'));
 
@@ -132,7 +165,7 @@ describe('useSubmitCreate', () => {
 
     expect(mocks.notification.error).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: '提交失败',
+        message: 'translated:Submit failed',
       }),
     );
     expect(mocks.field.data.loading).toBe(false);
@@ -156,6 +189,46 @@ describe('useSubmitCreate', () => {
     await result.current.run({});
 
     expect(mocks.notification.error).not.toHaveBeenCalled();
+    expect(mocks.field.data.loading).toBe(false);
+  });
+
+  it('reports errors thrown while cleaning up after a successful request', async () => {
+    mocks.form.reset = vi.fn(() => {
+      throw new Error('reset failed');
+    });
+
+    const { result } = renderHook(() => useSubmitCreate());
+
+    await result.current.run({});
+
+    expect(mocks.notification.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'translated:Submit failed',
+        description: 'reset failed',
+      }),
+    );
+    expect(mocks.field.data.loading).toBe(false);
+  });
+
+  it('reports asynchronous service refresh failures after a successful request', async () => {
+    mocks.blockContext = {
+      __parent: {
+        service: {
+          refresh: vi.fn().mockRejectedValue(new Error('refresh failed')),
+        },
+      },
+    };
+
+    const { result } = renderHook(() => useSubmitCreate());
+
+    await result.current.run({});
+
+    expect(mocks.notification.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'translated:Submit failed',
+        description: 'refresh failed',
+      }),
+    );
     expect(mocks.field.data.loading).toBe(false);
   });
 });

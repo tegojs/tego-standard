@@ -63,38 +63,50 @@ function resolveCopyPath(collection: Collection, path: string): CopyPathStep[] {
   return steps;
 }
 
-function omitTargetKeys(value: unknown, steps: CopyPathStep[], stepIndex: number, path: string): unknown {
-  if (value == null) {
-    return value;
+function omitTargetKeys(
+  sourceValue: unknown,
+  copiedValue: unknown,
+  steps: CopyPathStep[],
+  stepIndex: number,
+  path: string,
+): unknown {
+  if (sourceValue == null) {
+    return copiedValue;
   }
-  if (Array.isArray(value)) {
-    return value.map((item) => omitTargetKeys(item, steps, stepIndex, path));
+  if (Array.isArray(sourceValue)) {
+    const copiedItems = Array.isArray(copiedValue) ? copiedValue : [];
+    return sourceValue.map((item, index) => omitTargetKeys(item, copiedItems[index], steps, stepIndex, path));
   }
-  if (!isJSONValue(value)) {
+  if (!isJSONValue(sourceValue) || !isJSONValue(copiedValue)) {
     throw new CopyAssociationError(`Copy association path "${path}" must contain object values`);
   }
 
   const step = steps[stepIndex];
-  const associationValue = value[step.fieldName];
-  if (associationValue === undefined) {
-    return value;
+  const sourceAssociationValue = sourceValue[step.fieldName];
+  if (sourceAssociationValue === undefined) {
+    return copiedValue;
   }
+  const copiedAssociationValue = copiedValue[step.fieldName];
 
-  const cleanAssociationValue = (item: unknown): unknown => {
-    if (item == null) {
-      return item;
+  const cleanAssociationValue = (sourceItem: unknown, copiedItem: unknown): unknown => {
+    if (sourceItem == null) {
+      return copiedItem;
     }
-    if (Array.isArray(item)) {
-      return item.map(cleanAssociationValue);
+    if (Array.isArray(sourceItem)) {
+      const copiedItems = Array.isArray(copiedItem) ? copiedItem : [];
+      return sourceItem.map((item, index) => cleanAssociationValue(item, copiedItems[index]));
     }
-    if (!isJSONValue(item)) {
-      throw new CopyAssociationError(`Copy association path "${path}" must contain object values`);
+    if (!isJSONValue(sourceItem)) {
+      return sourceItem;
     }
     if (stepIndex < steps.length - 1) {
-      return omitTargetKeys(item, steps, stepIndex + 1, path);
+      return omitTargetKeys(sourceItem, copiedItem, steps, stepIndex + 1, path);
+    }
+    if (!isJSONValue(copiedItem)) {
+      throw new CopyAssociationError(`Copy association path "${path}" must contain object values`);
     }
 
-    const clonedItem = { ...item };
+    const clonedItem = { ...copiedItem };
     for (const targetKey of step.targetKeys) {
       delete clonedItem[targetKey];
     }
@@ -102,27 +114,28 @@ function omitTargetKeys(value: unknown, steps: CopyPathStep[], stepIndex: number
   };
 
   return {
-    ...value,
-    [step.fieldName]: cleanAssociationValue(associationValue),
+    ...copiedValue,
+    [step.fieldName]: cleanAssociationValue(sourceAssociationValue, copiedAssociationValue),
   };
 }
 
-export function omitCopyAssociationTargetKeys(
-  data: Record<string, unknown>,
+export function cleanCopyAssociationData(
+  sourceData: Record<string, unknown>,
+  copiedData: Record<string, unknown>,
   collection: Collection,
   copyAssociationValues: unknown,
 ): Record<string, unknown> {
   if (copyAssociationValues == null) {
-    return data;
+    return copiedData;
   }
   if (!Array.isArray(copyAssociationValues) || copyAssociationValues.some((path) => typeof path !== 'string')) {
     throw new CopyAssociationError('copyAssociationValues must be an array of association paths');
   }
 
-  let copiedData = data;
+  let cleanedData = copiedData;
   for (const path of new Set(copyAssociationValues)) {
     const steps = resolveCopyPath(collection, path);
-    copiedData = omitTargetKeys(copiedData, steps, 0, path) as Record<string, unknown>;
+    cleanedData = omitTargetKeys(sourceData, cleanedData, steps, 0, path) as Record<string, unknown>;
   }
-  return copiedData;
+  return cleanedData;
 }

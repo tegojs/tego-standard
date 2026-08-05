@@ -6,13 +6,14 @@ import { get } from 'lodash';
 import { BelongsTo, HasOne, Op } from 'sequelize';
 
 import { APPROVAL_STATUS } from '../constants/status';
-import { getSummary } from '../tools';
+import { deferUntilTransactionCommitSucceeds } from '../deferAfterCommit';
+import { getSummary, getWorkflowAppends } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
 
 export default class ApprovalTrigger extends Trigger {
   static TYPE = 'approval';
   sync = false;
-  triggerHandler = async (approval, { transaction }) => {
+  triggerHandler = async (approval, { transaction, dataSourceTransaction, deferAfterCommit } = {}) => {
     // 修正逻辑：找 id 且 enabled 为 true 的，找不到再找 workflowKey 且 enabled 为 true 的
     let workflow = await approval.getWorkflow({
       where: {
@@ -65,8 +66,11 @@ export default class ApprovalTrigger extends Trigger {
     const { repository } = collection;
     const data = await repository.findOne({
       filterByTk: approval.get('dataKey'),
-      appends: workflow.config.appends,
-      transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
+      appends: getWorkflowAppends(workflow.config, collection as any, this.workflow.app),
+      transaction:
+        dataSourceTransaction?.sequelize === collection.model.sequelize
+          ? dataSourceTransaction
+          : this.workflow.useDataSourceTransaction(dataSourceName, transaction),
     });
     const context = {
       data: toJSON(data),
@@ -81,8 +85,10 @@ export default class ApprovalTrigger extends Trigger {
       collectionName: approval.collectionName,
     };
     const triggerWorkflow = () => this.workflow.trigger(workflow, context);
-    if (transaction?.afterCommit) {
-      transaction.afterCommit(triggerWorkflow);
+    if (deferAfterCommit) {
+      deferAfterCommit(triggerWorkflow);
+    } else if (transaction) {
+      deferUntilTransactionCommitSucceeds(transaction, [triggerWorkflow]);
     } else {
       triggerWorkflow();
     }

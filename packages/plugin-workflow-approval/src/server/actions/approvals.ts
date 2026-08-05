@@ -3,8 +3,83 @@ import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server'
 
 import { NAMESPACE } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';
-import { CopyAssociationError, omitCopyAssociationTargetKeys } from '../copyAssociations';
-import { getSummary, getSummaryAssociationAppends } from '../tools';
+import { cleanCopyAssociationData, CopyAssociationError } from '../copyAssociations';
+import {
+  deferUntilTransactionCommitSucceeds,
+  runDeferredAfterCommitCallbacks,
+  type DeferredAfterCommit,
+} from '../deferAfterCommit';
+import { getSummary, getWorkflowAppends } from '../tools';
+
+async function createApprovalRecord(ctx, values, transaction, dataSourceTransaction, deferAfterCommit) {
+  const { whitelist, blacklist, updateAssociationValues } = ctx.action.params;
+  return ctx.db.getRepository('approvals').create({
+    values,
+    whitelist,
+    blacklist,
+    updateAssociationValues,
+    context: ctx,
+    transaction,
+    dataSourceTransaction,
+    deferAfterCommit,
+  });
+}
+
+type DeferredWorkflowTrigger = DeferredAfterCommit;
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+
+  if (error && typeof error === 'object') {
+    const errorRecord = error as { name?: unknown; message?: unknown; stack?: unknown };
+    return {
+      name: typeof errorRecord.name === 'string' ? errorRecord.name : undefined,
+      message: typeof errorRecord.message === 'string' ? errorRecord.message : String(error),
+      stack: typeof errorRecord.stack === 'string' ? errorRecord.stack : undefined,
+    };
+  }
+
+  return { message: String(error) };
+}
+
+async function rollbackTransactions(ctx, pendingTransactions, originalError, dataKey) {
+  const errors = [originalError];
+  for (const { name, transaction } of pendingTransactions) {
+    if (!transaction) {
+      continue;
+    }
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      errors.push(rollbackError);
+      let forceCleanupError;
+      try {
+        await transaction.forceCleanup?.();
+      } catch (error) {
+        forceCleanupError = error;
+        errors.push(error);
+      }
+      ctx.logger?.error?.('Transaction rollback outcome is uncertain', {
+        dataKey,
+        transaction: name,
+        error: serializeError(rollbackError),
+        forceCleanupError: forceCleanupError ? serializeError(forceCleanupError) : undefined,
+      });
+    }
+  }
+  if (errors.length > 1) {
+    throw new AggregateError(
+      errors,
+      `Approval creation and transaction rollback failed for business record ${dataKey}`,
+    );
+  }
+}
 
 export const approvals = {
   async create(ctx, next) {
@@ -20,7 +95,7 @@ export const approvals = {
       return ctx.throw(400, `Collection "${cName}" not found`);
     }
 
-    // 如果能拿到 key, 说明是复制操作, 否则是新建操作;
+    // workflowKey selects the workflow; isCopy is the explicit copy protocol flag.
     let workflow;
     if (workflowKey) {
       workflow = await ctx.db.getRepository('workflows').findOne({
@@ -57,10 +132,14 @@ export const approvals = {
       });
     }
     const { repository, model } = collection;
+    const deferredWorkflowTriggers: DeferredWorkflowTrigger[] = [];
+    const deferAfterCommit = (callback: DeferredWorkflowTrigger) => {
+      deferredWorkflowTriggers.push(callback);
+    };
     let createData = traverseJSON(data, { collection });
     if (isCopy === true) {
       try {
-        createData = omitCopyAssociationTargetKeys(createData, collection, copyAssociationValues);
+        createData = cleanCopyAssociationData(data, createData, collection, copyAssociationValues);
       } catch (error) {
         if (error instanceof CopyAssociationError) {
           return ctx.throw(400, error.message);
@@ -68,58 +147,157 @@ export const approvals = {
         throw error;
       }
     }
-    const values = await repository.create({
-      values: {
-        ...createData,
-        createdBy: ctx.state.currentUser.id,
-        updatedBy: ctx.state.currentUser.id,
-      },
-      context: ctx,
-    });
-    const createdDataKey = values.get(collection.filterTargetKey);
-    const persistedRecord = await repository.findOne({
-      filterByTk: createdDataKey,
-      appends: [
-        ...new Set([
-          ...(workflow.config?.appends ?? []),
-          ...getSummaryAssociationAppends(workflow.config?.summary ?? [], collection, ctx.tego),
-        ]),
-      ],
-      context: ctx,
-    });
-    if (!persistedRecord) {
-      return ctx.throw(500, 'Created approval data could not be reloaded');
-    }
-    const persistedData = { ...(persistedRecord.toJSON?.() ?? persistedRecord) };
-    const dataKey = persistedData[collection.filterTargetKey];
-    if (dataKey == null) {
-      return ctx.throw(500, 'Reloaded approval data is missing its target key');
-    }
-    const summary = getSummary({
-      summaryConfig: workflow.config.summary,
-      data: persistedData,
-      collection,
-      app: ctx.tego,
-    });
-    const approvalData = { ...persistedData };
-    Object.keys(model.associations).forEach((key) => {
-      delete approvalData[key];
-    });
-    ctx.action.mergeParams(
-      {
+    const createBusinessRecord = async (transaction?) => {
+      const values = await repository.create({
         values: {
-          collectionName,
-          data: approvalData,
-          dataKey,
-          workflowKey: workflow.key,
-          workflowId: workflow.id,
-          applicantRoleName: ctx.state.currentRole,
-          summary,
+          ...createData,
+          createdBy: ctx.state.currentUser.id,
+          updatedBy: ctx.state.currentUser.id,
         },
-      },
-      { values: 'merge' },
-    );
-    return actions.create(ctx, next);
+        context: ctx,
+        transaction,
+      });
+      const createdDataKey = values.get(collection.filterTargetKey);
+      const persistedRecord = await repository.findOne({
+        filterByTk: createdDataKey,
+        appends: getWorkflowAppends(workflow.config, collection, ctx.tego),
+        context: ctx,
+        transaction,
+      });
+      if (!persistedRecord) {
+        return ctx.throw(500, 'Created approval data could not be reloaded');
+      }
+      const persistedData = { ...(persistedRecord.toJSON?.() ?? persistedRecord) };
+      const dataKey = persistedData[collection.filterTargetKey];
+      if (dataKey == null) {
+        return ctx.throw(500, 'Reloaded approval data is missing its target key');
+      }
+      return { persistedData, dataKey };
+    };
+
+    const createApproval = async ({ persistedData, dataKey }, transaction?, dataSourceTransaction?) => {
+      const summary = getSummary({
+        summaryConfig: workflow.config.summary,
+        data: persistedData,
+        collection,
+        app: ctx.tego,
+      });
+      const approvalData = { ...persistedData };
+      Object.keys(model.associations).forEach((key) => {
+        delete approvalData[key];
+      });
+      const approvalValues = {
+        ...ctx.action.params.values,
+        collectionName,
+        data: approvalData,
+        dataKey,
+        workflowKey: workflow.key,
+        workflowId: workflow.id,
+        applicantRoleName: ctx.state.currentRole,
+        summary,
+      };
+      ctx.action.mergeParams({ values: approvalValues }, { values: 'overwrite' });
+      return createApprovalRecord(ctx, approvalValues, transaction, dataSourceTransaction, deferAfterCommit);
+    };
+
+    const businessSequelize = model.sequelize;
+    const approvalSequelize = ctx.db.sequelize;
+    let approval;
+    if (businessSequelize === approvalSequelize) {
+      const createInTransaction = async (transaction) => {
+        const businessRecord = await createBusinessRecord(transaction);
+        return createApproval(businessRecord, transaction);
+      };
+      approval =
+        ctx.transaction?.sequelize === approvalSequelize
+          ? await createInTransaction(ctx.transaction)
+          : await approvalSequelize.transaction(createInTransaction);
+      if (ctx.transaction?.sequelize === approvalSequelize) {
+        deferUntilTransactionCommitSucceeds(ctx.transaction, deferredWorkflowTriggers);
+      } else {
+        await runDeferredAfterCommitCallbacks(deferredWorkflowTriggers);
+      }
+    } else {
+      const inheritedApprovalTransaction =
+        ctx.transaction?.sequelize === approvalSequelize ? ctx.transaction : undefined;
+      let approvalTransaction = inheritedApprovalTransaction;
+      let businessTransaction;
+      let businessRecord;
+      const ownsApprovalTransaction = !inheritedApprovalTransaction;
+      try {
+        if (ownsApprovalTransaction) {
+          approvalTransaction = await approvalSequelize.transaction();
+        }
+        businessTransaction = await businessSequelize.transaction();
+        businessRecord = await createBusinessRecord(businessTransaction);
+        approval = await createApproval(businessRecord, approvalTransaction, businessTransaction);
+      } catch (error) {
+        await rollbackTransactions(
+          ctx,
+          [
+            { name: 'approval', transaction: ownsApprovalTransaction ? approvalTransaction : undefined },
+            { name: 'business', transaction: businessTransaction },
+          ],
+          error,
+          businessRecord?.dataKey,
+        );
+        throw error;
+      }
+      try {
+        await businessTransaction.commit();
+        businessTransaction = undefined;
+      } catch (error) {
+        const failedBusinessTransaction = businessTransaction;
+        businessTransaction = undefined;
+        try {
+          await rollbackTransactions(
+            ctx,
+            [
+              { name: 'approval', transaction: ownsApprovalTransaction ? approvalTransaction : undefined },
+              { name: 'business', transaction: failedBusinessTransaction },
+            ],
+            error,
+            businessRecord.dataKey,
+          );
+        } catch (rollbackError) {
+          ctx.logger?.error?.('Business commit outcome is uncertain and transaction cleanup failed', {
+            dataKey: businessRecord.dataKey,
+            error: serializeError(error),
+            rollbackError: serializeError(rollbackError),
+          });
+          throw rollbackError;
+        }
+        ctx.logger?.error?.(
+          ownsApprovalTransaction
+            ? 'Business commit outcome is uncertain; approval transaction was rolled back'
+            : 'Business commit outcome is uncertain; inherited approval transaction was left open',
+          {
+            dataKey: businessRecord.dataKey,
+            error: serializeError(error),
+          },
+        );
+        throw error;
+      }
+      if (ownsApprovalTransaction) {
+        try {
+          await approvalTransaction.commit();
+          approvalTransaction = undefined;
+        } catch (error) {
+          ctx.logger?.error?.('Approval commit outcome is uncertain; the external business record was retained', {
+            dataKey: businessRecord.dataKey,
+            approvalId: approval?.id,
+            error: serializeError(error),
+          });
+          throw error;
+        }
+        await runDeferredAfterCommitCallbacks(deferredWorkflowTriggers);
+      } else {
+        deferUntilTransactionCommitSucceeds(approvalTransaction, deferredWorkflowTriggers);
+      }
+    }
+
+    ctx.body = approval;
+    await next();
   },
   async update(ctx, next) {
     const { collectionName, data, status, updateAssociationValues, summaryConfig } = ctx.action.params.values ?? {};

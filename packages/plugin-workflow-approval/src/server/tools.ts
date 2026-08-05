@@ -72,6 +72,17 @@ function getSummaryAssociationAppends(
   return [...associationPaths];
 }
 
+function getWorkflowAppends(
+  workflowConfig: { appends?: string[]; summary?: string[] } = {},
+  collection?: Collection,
+  app?: Application,
+): string[] {
+  const config = workflowConfig ?? {};
+  return [
+    ...new Set([...(config.appends ?? []), ...getSummaryAssociationAppends(config.summary ?? [], collection, app)]),
+  ];
+}
+
 // 获取关联表的 titleField 值
 function getAssociationTitleFieldValue(
   value: any,
@@ -408,4 +419,4 @@ function getSummaryDataSource({ summaryConfig = [], data, collection, app }: Par
   return summaryDataSource;
 }
 
-export { getSummary, getSummaryAssociationAppends, parsePerson };
+export { getSummary, getSummaryAssociationAppends, getWorkflowAppends, parsePerson };

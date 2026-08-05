@@ -41,23 +41,27 @@ export function useSubmitCreate() {
 
   return {
     async run(args) {
+      let requestStarted = false;
       try {
         await form.submit();
         field.data = field.data || {};
         field.data.loading = true;
         delete form.values['createdAt'];
         delete form.values['updatedAt'];
-        const res = await apiClient.resource('approvals').create({
+        const resource = apiClient.resource('approvals');
+        const request = resource.create({
           values: {
             collectionName: joinCollectionName(collection.dataSource, collection.name),
             data: form.values,
             status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
             workflowId: workflow?.id || workflowId || approval?.workflow?.id,
-            workflowKey: workflow?.key || approval?.workflow.key,
+            workflowKey: workflow?.key || approval?.workflow?.key,
             isCopy,
             copyAssociationValues: getCopyAssociationValues(form, updateAssociationValues),
           },
         });
+        requestStarted = true;
+        const res = await request;
         if (res.status === 200 && isMobile) {
           Toast.show({
             icon: 'success',
@@ -68,7 +72,6 @@ export function useSubmitCreate() {
           }, 1000);
         }
         form.reset();
-        field.data.loading = false;
         const service = __parent?.service;
         if (service) {
           service.refresh();
@@ -76,7 +79,21 @@ export function useSubmitCreate() {
         if (setVisible) {
           setVisible(false, false);
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (!requestStarted) {
+          if (isMobile) {
+            Toast.show({
+              icon: 'fail',
+              content: '提交失败',
+            });
+          } else {
+            apiClient.notification?.error({
+              message: '提交失败',
+              description: error?.message,
+            });
+          }
+        }
+      } finally {
         if (field.data) {
           field.data.loading = false;
         }

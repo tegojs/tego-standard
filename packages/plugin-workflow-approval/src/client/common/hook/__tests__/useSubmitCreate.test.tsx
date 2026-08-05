@@ -9,13 +9,16 @@ const mocks = vi.hoisted(() => ({
   configuredPaths: [] as string[],
   create: vi.fn(),
   field: { data: {} },
+  flowContext: { workflow: { id: 1304, key: 'approval-copy' } },
   form: null as ReturnType<typeof createForm> | null,
+  notification: { error: vi.fn() },
 }));
 
 vi.mock('@tachybase/client', () => ({
   joinCollectionName: (dataSource: string, collection: string) => `${dataSource}:${collection}`,
   useActionContext: () => ({}),
   useAPIClient: () => ({
+    notification: mocks.notification,
     resource: () => ({ create: mocks.create }),
   }),
   useBlockRequestContext: () => ({}),
@@ -25,7 +28,7 @@ vi.mock('@tachybase/client', () => ({
 }));
 
 vi.mock('@tachybase/module-workflow/client', () => ({
-  useFlowContext: () => ({ workflow: { id: 1304, key: 'approval-copy' } }),
+  useFlowContext: () => mocks.flowContext,
 }));
 
 vi.mock('@tachybase/schema', async (importOriginal) => {
@@ -60,7 +63,9 @@ describe('useSubmitCreate', () => {
   beforeEach(() => {
     mocks.configuredPaths = [];
     mocks.create.mockReset().mockResolvedValue({ status: 200 });
+    mocks.notification.error.mockReset();
     mocks.field.data = {};
+    mocks.flowContext = { workflow: { id: 1304, key: 'approval-copy' } };
     mocks.form = createForm({
       values: {
         accountItemList: [{ id: 73954, amount: 13579 }],
@@ -116,5 +121,41 @@ describe('useSubmitCreate', () => {
         copyAssociationValues: ['configuredDetails', 'accountItemList', 'accountItemList.subdetails'],
       }),
     });
+  });
+
+  it('reports form submission errors and always clears loading state', async () => {
+    mocks.form.submit = vi.fn().mockRejectedValue(new Error('form validation failed'));
+
+    const { result } = renderHook(() => useSubmitCreate());
+
+    await result.current.run({});
+
+    expect(mocks.notification.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: '提交失败',
+      }),
+    );
+    expect(mocks.field.data.loading).toBe(false);
+  });
+
+  it('submits when the approval context has no workflow object', async () => {
+    mocks.flowContext = {};
+
+    const { result } = renderHook(() => useSubmitCreate());
+
+    await result.current.run({});
+
+    expect(mocks.create).toHaveBeenCalledOnce();
+  });
+
+  it('leaves API errors to the global error handler without showing a duplicate notification', async () => {
+    mocks.create.mockRejectedValueOnce({ response: { status: 500 } });
+
+    const { result } = renderHook(() => useSubmitCreate());
+
+    await result.current.run({});
+
+    expect(mocks.notification.error).not.toHaveBeenCalled();
+    expect(mocks.field.data.loading).toBe(false);
   });
 });

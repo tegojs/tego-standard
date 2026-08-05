@@ -17,7 +17,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useContextApprovalExecution, useQuickCreate, useResubmit } from '..';
 import { useTranslation } from '../../locale';
 import { useContextApprovalStatus } from '../../user-interface/pc/block/common/providers/ActionStatus.provider';
-import { getCopyAssociationValues } from './copyAssociationValues';
+import { getCopyAssociationValues } from './copy-association-values';
 
 export function useSubmitCreate() {
   const form = useForm();

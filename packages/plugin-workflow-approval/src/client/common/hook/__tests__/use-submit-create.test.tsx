@@ -24,7 +24,11 @@ vi.mock('@tachybase/client', () => ({
     resource: () => ({ create: mocks.create }),
   }),
   useBlockRequestContext: () => mocks.blockContext,
-  useCollection_deprecated: () => ({ dataSource: 'main', name: 'receipt', getField: mocks.collection.getField }),
+  useCollection_deprecated: () => ({
+    dataSource: 'main',
+    name: 'receipt',
+    getField: mocks.collection.getField,
+  }),
   useFormBlockContext: () => ({ updateAssociationValues: mocks.configuredPaths }),
   useIsMobile: () => false,
 }));

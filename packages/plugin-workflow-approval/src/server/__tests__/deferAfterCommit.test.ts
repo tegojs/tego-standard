@@ -93,13 +93,20 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     const callback = vi.fn(async () => {
       throw new Error('post-commit failed');
     });
-    const reportError = vi.fn();
+    const reportError = vi.fn().mockRejectedValue(new Error('report failed'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    deferUntilTransactionCommitSucceeds(transaction, [callback], reportError);
+    try {
+      deferUntilTransactionCommitSucceeds(transaction, [callback], reportError);
 
-    await expect(transaction.commit()).resolves.toBeUndefined();
-    expect(callback).toHaveBeenCalledOnce();
-    expect(reportError).toHaveBeenCalledWith(expect.any(Error));
+      await expect(transaction.commit()).resolves.toBeUndefined();
+      expect(callback).toHaveBeenCalledOnce();
+      expect(reportError).toHaveBeenCalledOnce();
+      expect(reportError).toHaveBeenCalledWith(expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Deferred after-commit error reporting failed', expect.any(Error));
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it('does not reject a commit when callback failures have no reporter', async () => {

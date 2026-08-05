@@ -74,7 +74,7 @@ export function deferUntilTransactionCommitSucceeds(
           deferUntilTransactionCommitSucceeds(transaction.parent, pendingCallbacks, state.errorHandler);
         } else {
           try {
-            await runDeferredAfterCommitCallbacks(pendingCallbacks, state.errorHandler);
+            await runDeferredAfterCommitCallbacks(pendingCallbacks);
           } catch (error) {
             await reportDeferredAfterCommitError(error, state.errorHandler);
           }

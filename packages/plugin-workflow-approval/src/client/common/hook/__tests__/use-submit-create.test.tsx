@@ -1,6 +1,7 @@
 import { createForm } from '@tachybase/schema';
 import { renderHook } from '@tachybase/test/client';
 
+import { Toast } from 'antd-mobile';
 import { beforeEach, vi } from 'vitest';
 
 import { useSubmitCreate } from '../useSubmitCreate';
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   field: { data: {} },
   flowContext: { workflow: { id: 1304, key: 'approval-copy' } },
   form: null as ReturnType<typeof createForm> | null,
+  isMobile: false,
   blockContext: { __parent: undefined as { service?: { refresh: () => unknown } } | undefined },
   notification: { error: vi.fn() },
 }));
@@ -30,7 +32,7 @@ vi.mock('@tachybase/client', () => ({
     getField: mocks.collection.getField,
   }),
   useFormBlockContext: () => ({ updateAssociationValues: mocks.configuredPaths }),
-  useIsMobile: () => false,
+  useIsMobile: () => mocks.isMobile,
 }));
 
 vi.mock('@tachybase/module-workflow/client', () => ({
@@ -72,6 +74,7 @@ vi.mock('../../../user-interface/pc/block/common/providers/ActionStatus.provider
 describe('useSubmitCreate', () => {
   beforeEach(() => {
     mocks.configuredPaths = [];
+    mocks.isMobile = false;
     mocks.create.mockReset().mockResolvedValue({ status: 200 });
     mocks.collection.getField.mockReset().mockImplementation((name: string) => {
       const fields = {
@@ -83,6 +86,7 @@ describe('useSubmitCreate', () => {
       return fields[name];
     });
     mocks.notification.error.mockReset();
+    vi.mocked(Toast.show).mockClear();
     mocks.blockContext = { __parent: undefined };
     mocks.field.data = {};
     mocks.flowContext = { workflow: { id: 1304, key: 'approval-copy' } };
@@ -234,5 +238,18 @@ describe('useSubmitCreate', () => {
       }),
     );
     expect(mocks.field.data.loading).toBe(false);
+  });
+
+  it('uses a localized success message on mobile', async () => {
+    mocks.isMobile = true;
+
+    const { result } = renderHook(() => useSubmitCreate());
+
+    await result.current.run({});
+
+    expect(Toast.show).toHaveBeenCalledWith({
+      icon: 'success',
+      content: 'translated:Submit succeeded',
+    });
   });
 });

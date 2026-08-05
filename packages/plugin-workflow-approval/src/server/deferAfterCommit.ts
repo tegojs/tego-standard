@@ -1,9 +1,13 @@
 export type DeferredAfterCommit = () => unknown | Promise<unknown>;
 export type DeferredAfterCommitErrorHandler = (error: unknown) => unknown | Promise<unknown>;
 
-type TransactionState = {
-  callbacks: DeferredAfterCommit[];
+type DeferredAfterCommitRegistration = {
+  callback: DeferredAfterCommit;
   errorHandler?: DeferredAfterCommitErrorHandler;
+};
+
+type TransactionState = {
+  callbacks: DeferredAfterCommitRegistration[];
 };
 
 const transactionStates = new WeakMap<object, TransactionState>();
@@ -44,12 +48,31 @@ export async function runDeferredAfterCommitCallbacks(
   }
 }
 
-export function deferUntilTransactionCommitSucceeds(
-  transaction,
-  callbacks: DeferredAfterCommit[],
-  errorHandler?: DeferredAfterCommitErrorHandler,
-) {
-  if (!callbacks.length) {
+async function runDeferredAfterCommitRegistrations(registrations: DeferredAfterCommitRegistration[]) {
+  const errorsWithoutHandlers: unknown[] = [];
+  for (const { callback, errorHandler } of registrations) {
+    try {
+      await callback();
+    } catch (error) {
+      if (errorHandler) {
+        await reportDeferredAfterCommitError(error, errorHandler);
+      } else {
+        errorsWithoutHandlers.push(error);
+      }
+    }
+  }
+
+  if (errorsWithoutHandlers.length) {
+    const error =
+      errorsWithoutHandlers.length === 1
+        ? errorsWithoutHandlers[0]
+        : new AggregateError(errorsWithoutHandlers, 'Deferred after-commit callbacks failed');
+    await reportDeferredAfterCommitError(error);
+  }
+}
+
+function registerDeferredAfterCommitRegistrations(transaction, registrations: DeferredAfterCommitRegistration[]) {
+  if (!registrations.length) {
     return;
   }
 
@@ -59,7 +82,7 @@ export function deferUntilTransactionCommitSucceeds(
 
   let state = transactionStates.get(transaction);
   if (!state) {
-    state = { callbacks: [], errorHandler };
+    state = { callbacks: [] };
     transactionStates.set(transaction, state);
 
     const commit = transaction.commit.bind(transaction);
@@ -71,13 +94,9 @@ export function deferUntilTransactionCommitSucceeds(
         const result = await commit();
         const pendingCallbacks = state.callbacks.splice(0);
         if (transaction.parent) {
-          deferUntilTransactionCommitSucceeds(transaction.parent, pendingCallbacks, state.errorHandler);
+          registerDeferredAfterCommitRegistrations(transaction.parent, pendingCallbacks);
         } else {
-          try {
-            await runDeferredAfterCommitCallbacks(pendingCallbacks);
-          } catch (error) {
-            await reportDeferredAfterCommitError(error, state.errorHandler);
-          }
+          await runDeferredAfterCommitRegistrations(pendingCallbacks);
         }
         return result;
       } finally {
@@ -98,8 +117,18 @@ export function deferUntilTransactionCommitSucceeds(
     }
   }
 
-  if (!state.errorHandler && errorHandler) {
-    state.errorHandler = errorHandler;
+  state.callbacks.push(...registrations);
+}
+
+export function deferUntilTransactionCommitSucceeds(
+  transaction,
+  callbacks: DeferredAfterCommit[],
+  errorHandler?: DeferredAfterCommitErrorHandler,
+) {
+  if (!callbacks.length) {
+    return;
   }
-  state.callbacks.push(...callbacks.splice(0));
+
+  const registrations = callbacks.splice(0).map((callback) => ({ callback, errorHandler }));
+  registerDeferredAfterCommitRegistrations(transaction, registrations);
 }

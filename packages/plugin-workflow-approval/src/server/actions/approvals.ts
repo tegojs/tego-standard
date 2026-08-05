@@ -3,13 +3,13 @@ import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server'
 
 import { NAMESPACE } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';
-import { cleanCopyAssociationData, CopyAssociationError } from '../copyAssociations';
+import { cleanCopyAssociationData, CopyAssociationError } from '../copy-associations';
 import {
   deferUntilTransactionCommitSucceeds,
   runDeferredAfterCommitCallbacks,
   type DeferredAfterCommit,
 } from '../deferAfterCommit';
-import { getSummary, getWorkflowAppends } from '../tools';
+import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 
 async function createApprovalRecord(ctx, values, transaction, dataSourceTransaction, deferAfterCommit) {
   const { whitelist, blacklist, updateAssociationValues } = ctx.action.params;
@@ -27,27 +27,6 @@ async function createApprovalRecord(ctx, values, transaction, dataSourceTransact
 
 type DeferredWorkflowTrigger = DeferredAfterCommit;
 
-function serializeError(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    };
-  }
-
-  if (error && typeof error === 'object') {
-    const errorRecord = error as { name?: unknown; message?: unknown; stack?: unknown };
-    return {
-      name: typeof errorRecord.name === 'string' ? errorRecord.name : undefined,
-      message: typeof errorRecord.message === 'string' ? errorRecord.message : String(error),
-      stack: typeof errorRecord.stack === 'string' ? errorRecord.stack : undefined,
-    };
-  }
-
-  return { message: String(error) };
-}
-
 async function rollbackTransactions(ctx, pendingTransactions, originalError, dataKey) {
   const errors = [originalError];
   for (const { name, transaction } of pendingTransactions) {
@@ -60,7 +39,7 @@ async function rollbackTransactions(ctx, pendingTransactions, originalError, dat
       errors.push(rollbackError);
       let forceCleanupError;
       try {
-        await transaction.forceCleanup?.();
+        await transaction.forceCleanup();
       } catch (error) {
         forceCleanupError = error;
         errors.push(error);
@@ -213,6 +192,7 @@ export const approvals = {
 
     const businessSequelize = model.sequelize;
     const approvalSequelize = ctx.db.sequelize;
+    const usesApprovalTransaction = ctx.transaction?.sequelize === approvalSequelize;
     let approval;
     if (businessSequelize === approvalSequelize) {
       let businessDataKey: unknown;
@@ -221,11 +201,10 @@ export const approvals = {
         businessDataKey = businessRecord.dataKey;
         return createApproval(businessRecord, transaction);
       };
-      approval =
-        ctx.transaction?.sequelize === approvalSequelize
-          ? await createInTransaction(ctx.transaction)
-          : await approvalSequelize.transaction(createInTransaction);
-      if (ctx.transaction?.sequelize === approvalSequelize) {
+      approval = usesApprovalTransaction
+        ? await createInTransaction(ctx.transaction)
+        : await approvalSequelize.transaction(createInTransaction);
+      if (usesApprovalTransaction) {
         try {
           deferUntilTransactionCommitSucceeds(
             ctx.transaction,
@@ -276,15 +255,12 @@ export const approvals = {
         await businessTransaction.commit();
         businessTransaction = undefined;
       } catch (error) {
-        const failedBusinessTransaction = businessTransaction;
         businessTransaction = undefined;
         try {
+          // Sequelize commit() force-cleans connections when the commit outcome is uncertain.
           await rollbackTransactions(
             ctx,
-            [
-              { name: 'approval', transaction: ownsApprovalTransaction ? approvalTransaction : undefined },
-              { name: 'business', transaction: failedBusinessTransaction },
-            ],
+            [{ name: 'approval', transaction: ownsApprovalTransaction ? approvalTransaction : undefined }],
             error,
             businessRecord.dataKey,
           );

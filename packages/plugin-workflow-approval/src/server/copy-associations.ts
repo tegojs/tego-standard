@@ -108,9 +108,6 @@ function omitTargetKeys(
     if (!isJSONValue(sourceItem)) {
       return copiedItem;
     }
-    if (stepIndex < steps.length - 1) {
-      return omitTargetKeys(sourceItem, copiedItem, steps, stepIndex + 1, path);
-    }
     if (!isJSONValue(copiedItem)) {
       throw new CopyAssociationError(`Copy association path "${path}" must contain object values`);
     }
@@ -118,6 +115,9 @@ function omitTargetKeys(
     const clonedItem = { ...copiedItem };
     for (const targetKey of step.targetKeys) {
       delete clonedItem[targetKey];
+    }
+    if (stepIndex < steps.length - 1) {
+      return omitTargetKeys(sourceItem, clonedItem, steps, stepIndex + 1, path);
     }
     return clonedItem;
   };

@@ -118,4 +118,6 @@ export async function getApp(options: MockServerOptions = {}): Promise<MockServe
   return app;
 }
 
+export { waitForFastAssertion, waitForWorkflowIdle } from './wait';
+
 export default class WorkflowTestPlugin extends Plugin {}

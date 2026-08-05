@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { cleanCopyAssociationData } from '../copyAssociations';
+import { cleanCopyAssociationData } from '../copy-associations';
 
 function createCollection(fields: Record<string, any>, options: Record<string, any> = {}) {
   return {
@@ -86,5 +86,45 @@ describe('cleanCopyAssociationData', () => {
 
     expect(result).toEqual({ details: [{ amount: 3 }] });
     expect(getCollection).toHaveBeenCalledWith('details');
+  });
+
+  it('removes target keys at every level of a nested copy path', () => {
+    const childCollection = createCollection(
+      {},
+      {
+        filterTargetKey: 'id',
+        model: { primaryKeyAttributes: ['id'], primaryKeyAttribute: 'id' },
+      },
+    );
+    const parentCollection = createCollection(
+      {
+        children: { type: 'hasMany', target: 'children' },
+      },
+      { filterTargetKey: 'id', model: { primaryKeyAttributes: ['id'], primaryKeyAttribute: 'id' } },
+    );
+    const collection = createCollection(
+      {
+        parents: { type: 'hasMany', target: 'parents' },
+      },
+      {
+        filterTargetKey: 'id',
+        model: { primaryKeyAttributes: ['id'], primaryKeyAttribute: 'id' },
+        db: {
+          getCollection: (name: string) => (name === 'parents' ? parentCollection : childCollection),
+        },
+      },
+    );
+    parentCollection.db = {
+      getCollection: () => childCollection,
+    };
+
+    expect(
+      cleanCopyAssociationData(
+        { parents: [{ id: 1, children: [{ id: 2, amount: 3 }] }] },
+        { parents: [{ id: 1, children: [{ id: 2, amount: 3 }] }] },
+        collection as any,
+        ['parents.children'],
+      ),
+    ).toEqual({ parents: [{ children: [{ amount: 3 }] }] });
   });
 });

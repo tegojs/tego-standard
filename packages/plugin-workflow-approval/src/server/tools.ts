@@ -6,6 +6,27 @@ import { SUMMARY_TYPE } from '../common/constants';
 import { type ParamsType, type SummaryDataSourceItem } from '../common/interface';
 import { isDateType } from '../common/utils';
 
+export function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+
+  if (error && typeof error === 'object') {
+    const errorRecord = error as { name?: unknown; message?: unknown; stack?: unknown };
+    return {
+      name: typeof errorRecord.name === 'string' ? errorRecord.name : undefined,
+      message: typeof errorRecord.message === 'string' ? errorRecord.message : String(error),
+      stack: typeof errorRecord.stack === 'string' ? errorRecord.stack : undefined,
+    };
+  }
+
+  return { message: String(error) };
+}
+
 async function parsePerson({ node, processor, keyName }) {
   const configPerson = processor
     .getParsedValue(node.config?.[keyName] ?? [], node.id)

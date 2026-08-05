@@ -68,7 +68,7 @@ export function useSubmitCreate() {
           if (res.status === 200 && isMobile) {
             Toast.show({
               icon: 'success',
-              content: '提交成功',
+              content: t('Submit succeeded'),
             });
             setTimeout(() => {
               navigate(-1);

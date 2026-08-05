@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { deferUntilTransactionCommitSucceeds, runDeferredAfterCommitCallbacks } from '../deferAfterCommit';
+import { deferUntilTransactionCommitSucceeds } from '../deferAfterCommit';
 
 function createTransaction(parent?: any) {
   return {
@@ -77,15 +77,55 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     const third = vi.fn(async () => {
       throw new Error('third callback failed');
     });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    deferUntilTransactionCommitSucceeds(transaction, [first, second, third]);
+    try {
+      deferUntilTransactionCommitSucceeds(transaction, [first, second, third]);
 
-    await expect(runDeferredAfterCommitCallbacks([first, second, third])).rejects.toBeInstanceOf(AggregateError);
+      await expect(transaction.commit()).resolves.toBeUndefined();
 
-    expect(first).toHaveBeenCalledOnce();
-    expect(second).toHaveBeenCalledOnce();
-    expect(third).toHaveBeenCalledOnce();
-    await expect(runDeferredAfterCommitCallbacks([])).resolves.toBeUndefined();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Deferred after-commit callbacks failed',
+        expect.any(AggregateError),
+      );
+      expect(first).toHaveBeenCalledOnce();
+      expect(second).toHaveBeenCalledOnce();
+      expect(third).toHaveBeenCalledOnce();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it('keeps each nested registration bound to its own error reporter', async () => {
+    const root = createTransaction();
+    const child = createTransaction(root);
+    const rootReporter = vi.fn();
+    const childReporter = vi.fn();
+
+    deferUntilTransactionCommitSucceeds(
+      root,
+      [
+        async () => {
+          throw new Error('root callback failed');
+        },
+      ],
+      rootReporter,
+    );
+    deferUntilTransactionCommitSucceeds(
+      child,
+      [
+        async () => {
+          throw new Error('child callback failed');
+        },
+      ],
+      childReporter,
+    );
+
+    await child.commit();
+    await root.commit();
+
+    expect(rootReporter).toHaveBeenCalledWith(expect.objectContaining({ message: 'root callback failed' }));
+    expect(childReporter).toHaveBeenCalledWith(expect.objectContaining({ message: 'child callback failed' }));
   });
 
   it('keeps the database commit successful when callback failures are reported separately', async () => {

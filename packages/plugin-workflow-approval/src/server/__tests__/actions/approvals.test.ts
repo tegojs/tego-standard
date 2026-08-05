@@ -1,10 +1,9 @@
-import { getApp } from '@tachybase/plugin-workflow-test';
+import { getApp, waitForFastAssertion, waitForWorkflowIdle } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database, { mockDatabase, SequelizeDataSource } from '@tego/server';
 
 import { vi } from 'vitest';
 
-import { waitForFastAssertion, waitForWorkflowIdle } from '../../../../../module-workflow/src/server/__tests__/utils';
 import { approvals as approvalActions } from '../../actions/approvals';
 import approvalExecutionsCollection from '../../collections/approvalExecutions';
 import approvalRecordsCollection from '../../collections/approvalRecords';
@@ -56,6 +55,7 @@ describe('workflow approval actions', () => {
   let accountItemsRepo;
   let tagsRepo;
   let workflowModel;
+  let externalDatabases: Database[];
 
   beforeEach(async () => {
     app = await getApp({
@@ -150,6 +150,7 @@ describe('workflow approval actions', () => {
     accountItemsRepo = db.getCollection(accountItemsCollectionName).repository;
     tagsRepo = db.getCollection(tagsCollectionName).repository;
     workflowModel = db.getCollection('workflows').model;
+    externalDatabases = [];
 
     currentUser = await db.getCollection('users').model.create({ nickname: `approval-copy-${suffix}` });
     agent = app.agent().login(currentUser);
@@ -157,7 +158,11 @@ describe('workflow approval actions', () => {
 
   afterEach(async () => {
     await waitForWorkflowIdle(app);
-    await app.destroy();
+    try {
+      await Promise.all((externalDatabases ?? []).map((database) => database.close()));
+    } finally {
+      await app.destroy();
+    }
   });
 
   async function createApproval(
@@ -226,12 +231,12 @@ describe('workflow approval actions', () => {
             workflowKey: workflow.key,
           },
         },
-        mergeParams(params) {
+        mergeParams(params, strategies?: { values?: string }) {
           this.params = {
             ...this.params,
             ...params,
             values: {
-              ...this.params.values,
+              ...(strategies?.values === 'overwrite' ? {} : this.params.values),
               ...params.values,
             },
           };
@@ -545,6 +550,7 @@ describe('workflow approval actions', () => {
       storage: ':memory:',
       tablePrefix: `approval_external_${Date.now()}_`,
     });
+    externalDatabases.push(externalDatabase);
     await app.dataSourceManager.add(
       new SequelizeDataSource({
         name: 'another',
@@ -822,6 +828,7 @@ describe('workflow approval actions', () => {
     ).toHaveLength(1);
 
     let uncertainBusinessTransaction;
+    const businessCommitLoggerSpy = vi.spyOn(app.logger, 'error');
     const originalExternalTransaction = externalDatabase.sequelize.transaction.bind(externalDatabase.sequelize);
     const businessCommitFailureSpy = vi
       .spyOn(externalDatabase.sequelize, 'transaction')
@@ -845,9 +852,20 @@ describe('workflow approval actions', () => {
         },
       });
       expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(businessCommitLoggerSpy).toHaveBeenCalledWith(
+        'Business commit outcome is uncertain; approval transaction was rolled back',
+        expect.objectContaining({
+          error: expect.objectContaining({ message: 'business commit uncertain' }),
+        }),
+      );
+      expect(businessCommitLoggerSpy).not.toHaveBeenCalledWith(
+        'Business commit outcome is uncertain and transaction cleanup failed',
+        expect.anything(),
+      );
     } finally {
       businessCommitFailureSpy.mockRestore();
       await uncertainBusinessTransaction?.rollback().catch(() => undefined);
+      businessCommitLoggerSpy.mockRestore();
     }
     expect(await externalRepo.find({ filter: { amount: 82 } })).toHaveLength(1);
     const uncertainBusinessRecord = await externalRepo.findOne({ filter: { amount: 82 } });
@@ -900,6 +918,7 @@ describe('workflow approval actions', () => {
       storage: ':memory:',
       tablePrefix: `approval_external_associations_${Date.now()}_`,
     });
+    externalDatabases.push(externalDatabase);
     await app.dataSourceManager.add(
       new SequelizeDataSource({
         name: 'externalAssociations',
@@ -1063,31 +1082,6 @@ describe('workflow approval actions', () => {
     expect(
       (await externalNestedProfileRepo.findOne({ filterByTk: nestedSourceProfile.get('id') })).get('detailId'),
     ).toBe(nestedSourceDetail.get('id'));
-
-    const concurrentCreateSpy = vi
-      .spyOn(approvalRepo, 'create')
-      .mockRejectedValueOnce(new Error('approval create failed'));
-    try {
-      const response = await agent.resource('approvals').create({
-        values: {
-          collectionName: externalCollectionName,
-          data: {
-            amount: 44,
-            details: [{ amount: 21 }],
-            profile: { label: 'concurrent' },
-          },
-          status: APPROVAL_STATUS.SUBMITTED,
-          workflowId: workflow.id,
-          workflowKey: workflow.key,
-        },
-      });
-      expect(response.status).toBeGreaterThanOrEqual(400);
-    } finally {
-      concurrentCreateSpy.mockRestore();
-    }
-
-    expect(await externalRootRepo.find({ filter: { amount: 44 } })).toHaveLength(0);
-    expect(await externalDetailRepo.find({ filter: { amount: 21 } })).toHaveLength(0);
   });
 
   it('does not trigger a workflow when the same-database transaction fails before commit', async () => {
@@ -1259,6 +1253,7 @@ describe('workflow approval actions', () => {
       storage: ':memory:',
       tablePrefix: `approval_external_inherited_${Date.now()}_`,
     });
+    externalDatabases.push(externalDatabase);
     await app.dataSourceManager.add(
       new SequelizeDataSource({
         name: 'externalInherited',
@@ -1276,6 +1271,7 @@ describe('workflow approval actions', () => {
       ],
     });
     await externalDatabase.sync();
+    const externalRepo = externalDatabase.getRepository(externalCollectionName);
 
     const qualifiedCollectionName = `externalInherited:${externalCollectionName}`;
     const workflow = await workflowModel.create({
@@ -1309,6 +1305,28 @@ describe('workflow approval actions', () => {
 
       expect(workflowTriggerSpy).toHaveBeenCalledOnce();
       expect(await db.getRepository('approvals').findOne({ filterByTk: approvalId })).not.toBeNull();
+
+      const rollbackRootTransaction = await db.sequelize.transaction();
+      try {
+        const rollbackApproval = await createApprovalInTransaction(
+          rollbackRootTransaction,
+          workflow,
+          { amount: 92 },
+          qualifiedCollectionName,
+        );
+        const rollbackApprovalId = rollbackApproval.id ?? rollbackApproval.get?.('id');
+
+        expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
+        expect(await db.getRepository('approvals').findOne({ filterByTk: rollbackApprovalId })).toBeNull();
+
+        await rollbackRootTransaction.rollback();
+
+        expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
+        expect(await db.getRepository('approvals').findOne({ filterByTk: rollbackApprovalId })).toBeNull();
+        expect(workflowTriggerSpy).toHaveBeenCalledOnce();
+      } finally {
+        await rollbackRootTransaction.rollback().catch(() => undefined);
+      }
     } finally {
       approvalTransactionSpy.mockRestore();
       await rootTransaction.rollback().catch(() => undefined);

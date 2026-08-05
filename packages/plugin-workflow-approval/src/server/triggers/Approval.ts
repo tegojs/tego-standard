@@ -7,7 +7,7 @@ import { BelongsTo, HasOne, Op, type Transaction } from 'sequelize';
 
 import { APPROVAL_STATUS } from '../constants/status';
 import { deferUntilTransactionCommitSucceeds, type DeferredAfterCommit } from '../deferAfterCommit';
-import { getSummary, getWorkflowAppends } from '../tools';
+import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
 
 type ApprovalTriggerOptions = {
@@ -105,7 +105,7 @@ export default class ApprovalTrigger extends Trigger {
         this.workflow.app.logger?.error?.('Approval workflow trigger failed after transaction commit', {
           approvalId: approval.id,
           collectionName: approval.collectionName,
-          error,
+          error: serializeError(error),
         });
       });
     } else {

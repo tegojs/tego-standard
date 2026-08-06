@@ -157,11 +157,14 @@ describe('workflow approval actions', () => {
   });
 
   afterEach(async () => {
-    await waitForWorkflowIdle(app);
     try {
-      await Promise.all((externalDatabases ?? []).map((database) => database.close()));
+      await waitForWorkflowIdle(app);
     } finally {
-      await app.destroy();
+      try {
+        await Promise.all((externalDatabases ?? []).map((database) => database.close()));
+      } finally {
+        await app.destroy();
+      }
     }
   });
 
@@ -1317,12 +1320,20 @@ describe('workflow approval actions', () => {
         const rollbackApprovalId = rollbackApproval.id ?? rollbackApproval.get?.('id');
 
         expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
-        expect(await db.getRepository('approvals').findOne({ filterByTk: rollbackApprovalId })).toBeNull();
+        expect(
+          await db.getRepository('approvals').findOne({
+            filterByTk: rollbackApprovalId,
+          }),
+        ).toBeNull();
 
         await rollbackRootTransaction.rollback();
 
         expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
-        expect(await db.getRepository('approvals').findOne({ filterByTk: rollbackApprovalId })).toBeNull();
+        expect(
+          await db.getRepository('approvals').findOne({
+            filterByTk: rollbackApprovalId,
+          }),
+        ).toBeNull();
         expect(workflowTriggerSpy).toHaveBeenCalledOnce();
       } finally {
         await rollbackRootTransaction.rollback().catch(() => undefined);

@@ -124,8 +124,16 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     await child.commit();
     await root.commit();
 
-    expect(rootReporter).toHaveBeenCalledWith(expect.objectContaining({ message: 'root callback failed' }));
-    expect(childReporter).toHaveBeenCalledWith(expect.objectContaining({ message: 'child callback failed' }));
+    expect(rootReporter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'root callback failed',
+      }),
+    );
+    expect(childReporter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'child callback failed',
+      }),
+    );
   });
 
   it('keeps the database commit successful when callback failures are reported separately', async () => {

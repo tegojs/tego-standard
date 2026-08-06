@@ -21,7 +21,13 @@ export async function waitForFastAssertion(assertion: () => Promise<void> | void
   throw lastError instanceof Error ? lastError : new Error('waitForFastAssertion timed out');
 }
 
-export async function waitForWorkflowIdle(app, options: { timeout?: number; interval?: number } = {}) {
+export async function waitForWorkflowIdle(
+  app,
+  options: {
+    timeout?: number;
+    interval?: number;
+  } = {},
+) {
   const { timeout, interval = FAST_POLL_INTERVAL_MS } = options;
   const start = Date.now();
   let lastError: unknown;

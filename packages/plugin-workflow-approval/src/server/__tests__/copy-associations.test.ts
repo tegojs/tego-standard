@@ -32,6 +32,56 @@ describe('cleanCopyAssociationData', () => {
     });
   });
 
+  it('removes the parent foreign key from copied hasMany records', () => {
+    const targetCollection = createCollection(
+      {},
+      {
+        filterTargetKey: 'id',
+        model: { primaryKeyAttributes: ['id'], primaryKeyAttribute: 'id' },
+      },
+    );
+    const collection = createCollection(
+      {
+        details: { type: 'hasMany', target: 'details', foreignKey: 'rootId' },
+      },
+      { db: { getCollection: () => targetCollection } },
+    );
+
+    expect(
+      cleanCopyAssociationData(
+        { details: [{ id: 2, rootId: 1, amount: 3 }] },
+        { details: [{ id: 2, rootId: 1, amount: 3 }] },
+        collection as any,
+        ['details'],
+      ),
+    ).toEqual({ details: [{ amount: 3 }] });
+  });
+
+  it('removes the old foreign key from the owner of a copied belongsTo association', () => {
+    const targetCollection = createCollection(
+      {},
+      {
+        filterTargetKey: 'id',
+        model: { primaryKeyAttributes: ['id'], primaryKeyAttribute: 'id' },
+      },
+    );
+    const collection = createCollection(
+      {
+        account: { type: 'belongsTo', target: 'accounts', foreignKey: 'accountId' },
+      },
+      { db: { getCollection: () => targetCollection } },
+    );
+
+    expect(
+      cleanCopyAssociationData(
+        { accountId: 7, account: { id: 7, name: 'source' } },
+        { accountId: 7, account: { id: 7, name: 'source' } },
+        collection as any,
+        ['account'],
+      ),
+    ).toEqual({ account: { name: 'source' } });
+  });
+
   it('keeps the traversed value for non-JSON object association values', () => {
     const targetCollection = createCollection(
       {},

@@ -314,6 +314,24 @@ export const approvals = {
           });
           throw error;
         }
+        const rollback = approvalTransaction.rollback?.bind(approvalTransaction);
+        if (rollback) {
+          let rollbackReported = false;
+          approvalTransaction.rollback = async () => {
+            const shouldReport = !approvalTransaction.finished && !rollbackReported;
+            try {
+              return await rollback();
+            } finally {
+              if (shouldReport) {
+                rollbackReported = true;
+                ctx.logger?.error?.('Approval outcome is uncertain after inherited transaction rollback', {
+                  dataKey: businessRecord.dataKey,
+                  collectionName,
+                });
+              }
+            }
+          };
+        }
       }
     }
 

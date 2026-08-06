@@ -28,11 +28,11 @@ export async function waitForWorkflowIdle(
     interval?: number;
   } = {},
 ) {
-  const { timeout, interval = FAST_POLL_INTERVAL_MS } = options;
+  const { timeout = 10000, interval = FAST_POLL_INTERVAL_MS } = options;
   const start = Date.now();
   let lastError: unknown;
 
-  while (Date.now() - start < (timeout ?? 10000)) {
+  while (Date.now() - start < timeout) {
     try {
       const plugin = app.pm.get('workflow') as any;
       if ((plugin.events?.length ?? 0) > 0 || (plugin.pending?.length ?? 0) > 0 || plugin.executing) {

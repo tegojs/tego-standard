@@ -7,6 +7,9 @@ type JSONValue = Record<string, unknown>;
 type CopyPathStep = {
   fieldName: string;
   targetCollection: Collection;
+  associationType: string;
+  foreignKey?: string;
+  foreignKeyOwner?: 'source' | 'target';
   targetKeys: string[];
 };
 
@@ -27,17 +30,32 @@ function isJSONValue(value: unknown): value is JSONValue {
   return prototype === Object.prototype || prototype === null;
 }
 
-function getTargetKeys(collection: Collection, field: any): string[] {
+function getTargetKeys(
+  collection: Collection,
+  field: any,
+): Pick<CopyPathStep, 'associationType' | 'foreignKey' | 'foreignKeyOwner' | 'targetKeys'> {
   const model = collection.model;
-  return [
-    ...(model?.primaryKeyAttributes ?? []),
-    model?.primaryKeyAttribute,
-    collection.filterTargetKey,
-    field.targetKey,
-    field.options?.targetKey,
-  ].filter(
-    (key, index, keys): key is string => typeof key === 'string' && key.length > 0 && keys.indexOf(key) === index,
-  );
+  const associationType = field.type;
+  const foreignKey = field.foreignKey ?? field.options?.foreignKey;
+  return {
+    associationType,
+    foreignKey,
+    foreignKeyOwner:
+      associationType === 'belongsTo'
+        ? 'source'
+        : associationType === 'hasMany' || associationType === 'hasOne'
+          ? 'target'
+          : undefined,
+    targetKeys: [
+      ...(model?.primaryKeyAttributes ?? []),
+      model?.primaryKeyAttribute,
+      collection.filterTargetKey,
+      field.targetKey,
+      field.options?.targetKey,
+    ].filter(
+      (key, index, keys): key is string => typeof key === 'string' && key.length > 0 && keys.indexOf(key) === index,
+    ),
+  };
 }
 
 function resolveCopyPath(collection: Collection, path: string, app?: Application): CopyPathStep[] {
@@ -62,7 +80,7 @@ function resolveCopyPath(collection: Collection, path: string, app?: Application
     steps.push({
       fieldName,
       targetCollection,
-      targetKeys: getTargetKeys(targetCollection, field),
+      ...getTargetKeys(targetCollection, field),
     });
     currentCollection = targetCollection;
   }
@@ -93,6 +111,10 @@ function omitTargetKeys(
     return copiedValue;
   }
   const copiedAssociationValue = copiedValue[step.fieldName];
+  const cleanedValue = { ...copiedValue };
+  if (step.foreignKeyOwner === 'source' && step.foreignKey) {
+    delete cleanedValue[step.foreignKey];
+  }
 
   const cleanAssociationValue = (sourceItem: unknown, copiedItem: unknown): unknown => {
     if (sourceItem == null) {
@@ -116,6 +138,9 @@ function omitTargetKeys(
     for (const targetKey of step.targetKeys) {
       delete clonedItem[targetKey];
     }
+    if (step.foreignKeyOwner === 'target' && step.foreignKey) {
+      delete clonedItem[step.foreignKey];
+    }
     if (stepIndex < steps.length - 1) {
       return omitTargetKeys(sourceItem, clonedItem, steps, stepIndex + 1, path);
     }
@@ -123,7 +148,7 @@ function omitTargetKeys(
   };
 
   return {
-    ...copiedValue,
+    ...cleanedValue,
     [step.fieldName]: cleanAssociationValue(sourceAssociationValue, copiedAssociationValue),
   };
 }

@@ -100,14 +100,15 @@ function registerDeferredCallbacks(
   let state = transactionStates.get(transaction);
   if (!state) {
     state = { callbacks: [], rollbackCallbacks: [] };
-    transactionStates.set(transaction, state);
 
-    const commit = transaction.commit.bind(transaction);
-    const rollback = transaction.rollback?.bind(transaction);
+    const originalCommit = transaction.commit;
+    const originalRollback = transaction.rollback;
+    const commit = originalCommit.bind(transaction);
+    const rollback = originalRollback?.bind(transaction);
 
     // Sequelize runs native afterCommit hooks even when commit rejects.
     // Drain this queue only after commit resolves.
-    transaction.commit = async () => {
+    const wrappedCommit = async () => {
       const result = await commit();
       try {
         const pendingCallbacks = state.callbacks.splice(0);
@@ -130,8 +131,9 @@ function registerDeferredCallbacks(
       }
     };
 
+    let wrappedRollback;
     if (rollback) {
-      transaction.rollback = async () => {
+      wrappedRollback = async () => {
         const shouldRunCallbacks = !transaction.finished;
         const pendingCallbacks = shouldRunCallbacks ? state.rollbackCallbacks.splice(0) : [];
         try {
@@ -144,6 +146,24 @@ function registerDeferredCallbacks(
         }
       };
     }
+
+    try {
+      transaction.commit = wrappedCommit;
+      if (wrappedRollback) {
+        transaction.rollback = wrappedRollback;
+      }
+    } catch (error) {
+      try {
+        transaction.commit = originalCommit;
+      } catch {}
+      if (wrappedRollback) {
+        try {
+          transaction.rollback = originalRollback;
+        } catch {}
+      }
+      throw error;
+    }
+    transactionStates.set(transaction, state);
   }
 
   state.callbacks.push(...registrations);
@@ -160,7 +180,8 @@ export function deferUntilTransactionCommitSucceeds(
     return;
   }
 
-  const registrations = callbacks.splice(0).map((callback) => ({ callback, errorHandler }));
+  const registrations = callbacks.map((callback) => ({ callback, errorHandler }));
   const rollbackCallbacks = rollbackCallback ? [rollbackCallback] : [];
   registerDeferredCallbacks(transaction, registrations, rollbackCallbacks);
+  callbacks.splice(0);
 }

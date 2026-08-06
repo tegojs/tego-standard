@@ -7,11 +7,17 @@ const CALLBACK_FAILURE = 'Deferred after-commit callbacks failed';
 const DEFERRED_REPORTING_FAILURE = 'Deferred after-commit error reporting failed';
 
 function createTransaction(parent?: any) {
-  return {
+  const transaction = {
     parent,
-    commit: vi.fn(async () => undefined),
-    rollback: vi.fn(async () => undefined),
+    finished: undefined,
+    commit: vi.fn(async () => {
+      transaction.finished = 'commit';
+    }),
+    rollback: vi.fn(async () => {
+      transaction.finished = 'rollback';
+    }),
   };
+  return transaction;
 }
 
 describe('deferUntilTransactionCommitSucceeds', () => {
@@ -75,6 +81,52 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     await transaction.rollback();
     expect(firstRollback).toHaveBeenCalledOnce();
     expect(secondRollback).toHaveBeenCalledOnce();
+  });
+
+  it('does not run rollback callbacks after the transaction has committed', async () => {
+    const transaction = createTransaction();
+    const rollbackCallback = vi.fn();
+
+    await transaction.commit();
+    deferUntilTransactionCommitSucceeds(transaction, [vi.fn()], undefined, rollbackCallback);
+    await transaction.rollback();
+
+    expect(rollbackCallback).not.toHaveBeenCalled();
+  });
+
+  it('retains callbacks when transaction validation fails', () => {
+    const callback = vi.fn();
+    const callbacks = [callback];
+
+    expect(() => deferUntilTransactionCommitSucceeds({}, callbacks)).toThrow(
+      'External approval transaction must expose a commit method',
+    );
+    expect(callbacks).toEqual([callback]);
+  });
+
+  it('retains callbacks and allows retry when transaction wrapping fails', async () => {
+    const transaction = createTransaction();
+    const callback = vi.fn();
+    const callbacks = [callback];
+    const commit = transaction.commit;
+    Object.defineProperty(transaction, 'commit', {
+      configurable: true,
+      value: commit,
+      writable: false,
+    });
+
+    expect(() => deferUntilTransactionCommitSucceeds(transaction, callbacks)).toThrow(TypeError);
+    expect(callbacks).toEqual([callback]);
+
+    Object.defineProperty(transaction, 'commit', {
+      configurable: true,
+      value: commit,
+      writable: true,
+    });
+    deferUntilTransactionCommitSucceeds(transaction, callbacks);
+    await transaction.commit();
+
+    expect(callback).toHaveBeenCalledOnce();
   });
 
   it('does not run callbacks when the transaction commit fails', async () => {

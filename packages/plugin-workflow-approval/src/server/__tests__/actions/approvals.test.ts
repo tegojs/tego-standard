@@ -172,6 +172,20 @@ describe('workflow approval actions', () => {
     }
   });
 
+  async function createApprovalWorkflow(targetCollectionName = collectionName, summary = ['amountA', 'amountB']) {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: targetCollectionName,
+        summary,
+        appends: [],
+      },
+    });
+    await workflow.createNode({ type: 'echo' });
+    return workflow;
+  }
+
   async function createApproval(
     data: object,
     copyOptions: { isCopy?: boolean; copyAssociationValues?: string[] } = {},
@@ -297,16 +311,7 @@ describe('workflow approval actions', () => {
     await externalDatabase.sync();
 
     const externalQualifiedName = `${dataSourceName}:${externalCollectionName}`;
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: externalQualifiedName,
-        summary: ['amount'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
+    const workflow = await createApprovalWorkflow(externalQualifiedName, ['amount']);
 
     return {
       approvalRepo: db.getRepository('approvals'),
@@ -716,16 +721,7 @@ describe('workflow approval actions', () => {
   });
 
   it('rolls back the business record when approval creation fails', async () => {
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: collectionName,
-        summary: ['amountA', 'amountB'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
+    const workflow = await createApprovalWorkflow();
 
     const approvalRepo = db.getRepository('approvals');
     const createSpy = vi.spyOn(approvalRepo, 'create').mockRejectedValueOnce(new Error('approval create failed'));
@@ -1126,16 +1122,7 @@ describe('workflow approval actions', () => {
   });
 
   it('does not trigger a workflow when the same-database transaction fails before commit', async () => {
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: collectionName,
-        summary: ['amountA', 'amountB'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
+    const workflow = await createApprovalWorkflow();
 
     const workflowTriggerSpy = vi.spyOn(app.pm.get('workflow'), 'trigger').mockResolvedValue(undefined);
     const queryInterfaceCommitSpy = vi
@@ -1160,16 +1147,7 @@ describe('workflow approval actions', () => {
   });
 
   it('keeps a committed approval successful when its deferred workflow trigger fails', async () => {
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: collectionName,
-        summary: ['amountA', 'amountB'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
+    const workflow = await createApprovalWorkflow();
 
     const workflowTriggerSpy = vi
       .spyOn(app.pm.get('workflow'), 'trigger')
@@ -1201,16 +1179,7 @@ describe('workflow approval actions', () => {
   });
 
   it('waits for the root transaction when approval creation uses a nested transaction', async () => {
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: collectionName,
-        summary: ['amountA', 'amountB'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
+    const workflow = await createApprovalWorkflow();
 
     const rootTransaction = await db.sequelize.transaction();
     const nestedTransaction = await db.sequelize.transaction({ transaction: rootTransaction });
@@ -1233,16 +1202,7 @@ describe('workflow approval actions', () => {
   });
 
   it('discards deferred workflow triggers when a nested transaction rolls back', async () => {
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: collectionName,
-        summary: ['amountA', 'amountB'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
+    const workflow = await createApprovalWorkflow();
 
     const rootTransaction = await db.sequelize.transaction();
     const nestedTransaction = await db.sequelize.transaction({ transaction: rootTransaction });
@@ -1262,16 +1222,7 @@ describe('workflow approval actions', () => {
   });
 
   it('does not trigger a workflow when an external root transaction fails before commit', async () => {
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: collectionName,
-        summary: ['amountA', 'amountB'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
+    const workflow = await createApprovalWorkflow();
 
     const transaction = await db.sequelize.transaction();
     const workflowTriggerSpy = vi.spyOn(app.pm.get('workflow'), 'trigger').mockResolvedValue(undefined);
@@ -1293,51 +1244,16 @@ describe('workflow approval actions', () => {
   });
 
   it('reuses an existing approval transaction for cross-database creation', async () => {
-    const externalDatabase = mockDatabase({
-      storage: ':memory:',
-      tablePrefix: `approval_external_inherited_${Date.now()}_`,
-    });
-    externalDatabases.push(externalDatabase);
-    await app.dataSourceManager.add(
-      new SequelizeDataSource({
-        name: 'externalInherited',
-        collectionManager: { database: externalDatabase },
-        resourceManager: {},
-      }),
-    );
-
-    const externalCollectionName = `approval_external_inherited_roots_${Date.now()}`;
-    externalDatabase.collection({
-      name: externalCollectionName,
-      fields: [
-        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
-        { name: 'amount', type: 'integer' },
-      ],
-    });
-    await externalDatabase.sync();
-    const externalRepo = externalDatabase.getRepository(externalCollectionName);
-
-    const qualifiedCollectionName = `externalInherited:${externalCollectionName}`;
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: qualifiedCollectionName,
-        summary: ['amount'],
-        appends: [],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
-
+    const setup = await setupExternalApprovalCollection();
     const rootTransaction = await db.sequelize.transaction();
     const approvalTransactionSpy = vi.spyOn(db.sequelize, 'transaction');
     const workflowTriggerSpy = vi.spyOn(app.pm.get('workflow'), 'trigger').mockResolvedValue(undefined);
     try {
       const approval = await createApprovalInTransaction(
         rootTransaction,
-        workflow,
+        setup.workflow,
         { amount: 91 },
-        qualifiedCollectionName,
+        setup.externalQualifiedName,
       );
       const approvalId = approval.id ?? approval.get?.('id');
 
@@ -1351,67 +1267,60 @@ describe('workflow approval actions', () => {
         expect(workflowTriggerSpy).toHaveBeenCalledOnce();
       });
       expect(await db.getRepository('approvals').findOne({ filterByTk: approvalId })).not.toBeNull();
-
-      const rollbackRootTransaction = await db.sequelize.transaction();
-      const rollbackLoggerSpy = vi.spyOn(app.logger, 'error');
-      try {
-        const rollbackApproval = await createApprovalInTransaction(
-          rollbackRootTransaction,
-          workflow,
-          { amount: 92 },
-          qualifiedCollectionName,
-        );
-        const rollbackApprovalId = rollbackApproval.id ?? rollbackApproval.get?.('id');
-        const sharedRollback = rollbackRootTransaction.rollback;
-        const secondRollbackApproval = await createApprovalInTransaction(
-          rollbackRootTransaction,
-          workflow,
-          { amount: 93 },
-          qualifiedCollectionName,
-        );
-        const secondApprovalId = secondRollbackApproval.id ?? secondRollbackApproval.get?.('id');
-
-        expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
-        expect(await externalRepo.find({ filter: { amount: 93 } })).toHaveLength(1);
-        expect(rollbackRootTransaction.rollback).toBe(sharedRollback);
-        expect(
-          await db.getRepository('approvals').findOne({
-            filterByTk: rollbackApprovalId,
-          }),
-        ).toBeNull();
-
-        await rollbackRootTransaction.rollback();
-        await rollbackRootTransaction.rollback().catch(() => undefined);
-
-        expect(rollbackLoggerSpy).toHaveBeenCalledWith(ROLLBACK_MESSAGE, {
-          dataKey: rollbackApproval.dataKey,
-          collectionName: qualifiedCollectionName,
-        });
-        expect(rollbackLoggerSpy).toHaveBeenCalledWith(ROLLBACK_MESSAGE, {
-          dataKey: secondRollbackApproval.dataKey,
-          collectionName: qualifiedCollectionName,
-        });
-        const logs = rollbackLoggerSpy.mock.calls.filter(([message]) => message === ROLLBACK_MESSAGE);
-        expect(logs).toHaveLength(2);
-        expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
-        expect(await externalRepo.find({ filter: { amount: 93 } })).toHaveLength(1);
-        expect(
-          await db.getRepository('approvals').findOne({
-            filterByTk: rollbackApprovalId,
-          }),
-        ).toBeNull();
-        expect(
-          await db.getRepository('approvals').findOne({
-            filterByTk: secondApprovalId,
-          }),
-        ).toBeNull();
-        expect(workflowTriggerSpy).toHaveBeenCalledOnce();
-      } finally {
-        rollbackLoggerSpy.mockRestore();
-        await rollbackRootTransaction.rollback().catch(() => undefined);
-      }
     } finally {
       approvalTransactionSpy.mockRestore();
+      await rootTransaction.rollback().catch(() => undefined);
+      workflowTriggerSpy.mockRestore();
+    }
+  });
+
+  it('logs pending approvals when an inherited approval transaction rolls back', async () => {
+    const setup = await setupExternalApprovalCollection();
+    const rootTransaction = await db.sequelize.transaction();
+    const rollbackLoggerSpy = vi.spyOn(app.logger, 'error');
+    const workflowTriggerSpy = vi.spyOn(app.pm.get('workflow'), 'trigger').mockResolvedValue(undefined);
+    try {
+      const firstApproval = await createApprovalInTransaction(
+        rootTransaction,
+        setup.workflow,
+        { amount: 92 },
+        setup.externalQualifiedName,
+      );
+      const firstApprovalId = firstApproval.id ?? firstApproval.get?.('id');
+      const sharedRollback = rootTransaction.rollback;
+      const secondApproval = await createApprovalInTransaction(
+        rootTransaction,
+        setup.workflow,
+        { amount: 93 },
+        setup.externalQualifiedName,
+      );
+      const secondApprovalId = secondApproval.id ?? secondApproval.get?.('id');
+
+      expect(await setup.externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
+      expect(await setup.externalRepo.find({ filter: { amount: 93 } })).toHaveLength(1);
+      expect(rootTransaction.rollback).toBe(sharedRollback);
+      expect(await db.getRepository('approvals').findOne({ filterByTk: firstApprovalId })).toBeNull();
+
+      await rootTransaction.rollback();
+      await rootTransaction.rollback().catch(() => undefined);
+
+      expect(rollbackLoggerSpy).toHaveBeenCalledWith(ROLLBACK_MESSAGE, {
+        dataKey: firstApproval.dataKey,
+        collectionName: setup.externalQualifiedName,
+      });
+      expect(rollbackLoggerSpy).toHaveBeenCalledWith(ROLLBACK_MESSAGE, {
+        dataKey: secondApproval.dataKey,
+        collectionName: setup.externalQualifiedName,
+      });
+      const logs = rollbackLoggerSpy.mock.calls.filter(([message]) => message === ROLLBACK_MESSAGE);
+      expect(logs).toHaveLength(2);
+      expect(await setup.externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
+      expect(await setup.externalRepo.find({ filter: { amount: 93 } })).toHaveLength(1);
+      expect(await db.getRepository('approvals').findOne({ filterByTk: firstApprovalId })).toBeNull();
+      expect(await db.getRepository('approvals').findOne({ filterByTk: secondApprovalId })).toBeNull();
+      expect(workflowTriggerSpy).not.toHaveBeenCalled();
+    } finally {
+      rollbackLoggerSpy.mockRestore();
       await rootTransaction.rollback().catch(() => undefined);
       workflowTriggerSpy.mockRestore();
     }

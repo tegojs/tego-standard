@@ -86,7 +86,7 @@ export default class ApprovalTrigger extends Trigger {
       filterByTk: approval.get('dataKey'),
       appends: getWorkflowAppends(workflow.config, collection as any, this.workflow.app),
       transaction:
-        dataSourceTransaction?.sequelize === collection.model.sequelize
+        dataSourceTransaction && dataSourceTransaction.sequelize === collection.model.sequelize
           ? dataSourceTransaction
           : this.workflow.useDataSourceTransaction(dataSourceName, transaction),
     });

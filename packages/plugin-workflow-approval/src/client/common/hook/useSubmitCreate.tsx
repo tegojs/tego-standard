@@ -105,11 +105,11 @@ export function useSubmitCreate() {
           if (isMobile) {
             Toast.show({
               icon: 'fail',
-              content: t('Submit failed'),
+              content: t('Submission succeeded, but post-processing failed'),
             });
           } else {
             apiClient.notification?.error({
-              message: t('Submit failed'),
+              message: t('Submission succeeded, but post-processing failed'),
               description: error?.message,
             });
           }

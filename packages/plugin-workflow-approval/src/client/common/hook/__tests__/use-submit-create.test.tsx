@@ -212,7 +212,7 @@ describe('useSubmitCreate', () => {
 
     expect(mocks.notification.error).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'translated:Submit failed',
+        message: 'translated:Submission succeeded, but post-processing failed',
         description: 'reset failed',
       }),
     );
@@ -234,7 +234,7 @@ describe('useSubmitCreate', () => {
 
     expect(mocks.notification.error).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'translated:Submit failed',
+        message: 'translated:Submission succeeded, but post-processing failed',
         description: 'refresh failed',
       }),
     );

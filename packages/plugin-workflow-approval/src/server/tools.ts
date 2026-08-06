@@ -6,6 +6,14 @@ import { SUMMARY_TYPE } from '../common/constants';
 import { type ParamsType, type SummaryDataSourceItem } from '../common/interface';
 import { isDateType } from '../common/utils';
 
+function stringifyError(error: unknown) {
+  try {
+    return String(error);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
 export function serializeError(error: unknown) {
   if (error instanceof Error) {
     return {
@@ -17,14 +25,18 @@ export function serializeError(error: unknown) {
 
   if (error && typeof error === 'object') {
     const errorRecord = error as { name?: unknown; message?: unknown; stack?: unknown };
+    let message = stringifyError(error);
+    if (typeof errorRecord.message === 'string') {
+      message = errorRecord.message;
+    }
     return {
       name: typeof errorRecord.name === 'string' ? errorRecord.name : undefined,
-      message: typeof errorRecord.message === 'string' ? errorRecord.message : String(error),
+      message,
       stack: typeof errorRecord.stack === 'string' ? errorRecord.stack : undefined,
     };
   }
 
-  return { message: String(error) };
+  return { message: stringifyError(error) };
 }
 
 async function parsePerson({ node, processor, keyName }) {

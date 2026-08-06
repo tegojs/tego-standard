@@ -19,6 +19,8 @@ type SummaryItem = {
 };
 
 const ROLLBACK_MESSAGE = 'Approval outcome is uncertain after inherited transaction rollback';
+const APPROVAL_COMMIT_UNCERTAIN_MESSAGE =
+  'Approval commit outcome is uncertain; the external business record was retained';
 
 function getSummaryValue(summary: SummaryItem[], key: string) {
   return summary.find((item) => item.key === key)?.value;
@@ -475,9 +477,33 @@ describe('workflow approval actions', () => {
     expect(getSummaryValue(approval.summary, 'id')).toBe(copied.get('id'));
   });
 
+  it('rejects invalid copy association paths with a 400 response', async () => {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: { collection: collectionName, summary: [], appends: [] },
+    });
+    await workflow.createNode({ type: 'echo' });
+    const response = await agent.resource('approvals').create({
+      values: {
+        collectionName,
+        data: { amountA: 3, details: [] },
+        status: APPROVAL_STATUS.SUBMITTED,
+        workflowId: workflow.id,
+        workflowKey: workflow.key,
+        isCopy: true,
+        copyAssociationValues: [1],
+      },
+    });
+
+    expect(response.status).toBe(400);
+  });
+
   it('summarizes persisted formula and new hasMany details instead of source payload values', async () => {
     const source = await mainRepo.create({ values: { amountA: 7, amountB: 13 } });
-    await Promise.all([7, 13].map((amount) => detailsRepo.create({ values: { amount, rootId: source.get('id') } })));
+    const sourceId = source.get('id');
+    const createDetail = (amount) => detailsRepo.create({ values: { amount, rootId: sourceId } });
+    await Promise.all([7, 13].map(createDetail));
     const sourceWithDetails = await mainRepo.findOne({
       filterByTk: source.get('id'),
       appends: ['details'],
@@ -737,8 +763,11 @@ describe('workflow approval actions', () => {
 
   it('does not run direct cleanup after an external business transaction rolls back', async () => {
     const setup = await setupExternalApprovalCollection();
-    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(new Error('approval create failed'));
-    const destroySpy = vi.spyOn(setup.externalRepo.model, 'destroy').mockRejectedValueOnce(new Error('cleanup failed'));
+    const creationError = new Error('approval create failed');
+    const cleanupError = new Error('cleanup failed');
+    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(creationError);
+    const externalModel = setup.externalRepo.model;
+    const destroySpy = vi.spyOn(externalModel, 'destroy').mockRejectedValueOnce(cleanupError);
     try {
       const response = await submitExternalApproval(setup, 74);
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -768,7 +797,8 @@ describe('workflow approval actions', () => {
 
   it('force-cleans the approval transaction when rollback fails', async () => {
     const setup = await setupExternalApprovalCollection();
-    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(new Error('approval create failed'));
+    const creationError = new Error('approval create failed');
+    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(creationError);
     const forceCleanup = vi.fn().mockResolvedValue(undefined);
     const rollback = vi.fn().mockRejectedValueOnce(new Error('approval rollback failed'));
     const transactionSpy = vi
@@ -803,7 +833,8 @@ describe('workflow approval actions', () => {
 
   it('rolls back records in an external collection without timestamps', async () => {
     const setup = await setupExternalApprovalCollection({ timestamps: false });
-    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(new Error('approval create failed'));
+    const creationError = new Error('approval create failed');
+    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(creationError);
     try {
       const response = await submitExternalApproval(setup, 81);
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -816,7 +847,8 @@ describe('workflow approval actions', () => {
 
   it('does not destroy a concurrently changed external record outside the transaction', async () => {
     const setup = await setupExternalApprovalCollection();
-    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(new Error('approval create failed'));
+    const creationError = new Error('approval create failed');
+    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(creationError);
     const originalDestroy = setup.externalRepo.model.destroy.bind(setup.externalRepo.model);
     const destroySpy = vi.spyOn(setup.externalRepo.model, 'destroy').mockImplementation(async (options: any) => {
       const dataKey = options.where.id;
@@ -861,6 +893,7 @@ describe('workflow approval actions', () => {
   it('retains the external record when approval commit outcome is uncertain', async () => {
     const setup = await setupExternalApprovalCollection();
     const workflowTriggerSpy = vi.spyOn(app.pm.get('workflow'), 'trigger').mockResolvedValue(undefined);
+    const loggerErrorSpy = vi.spyOn(app.logger, 'error');
     let uncertainTransaction;
     const originalTransaction = db.sequelize.transaction.bind(db.sequelize);
     const transactionSpy = vi.spyOn(db.sequelize, 'transaction').mockImplementationOnce(async (...args: any[]) => {
@@ -875,11 +908,18 @@ describe('workflow approval actions', () => {
     try {
       const response = await submitExternalApproval(setup, 76);
       expect(response.status).toBeGreaterThanOrEqual(400);
+      const expectedError = expect.objectContaining({ message: 'approval commit uncertain' });
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        APPROVAL_COMMIT_UNCERTAIN_MESSAGE,
+        expect.objectContaining({ error: expectedError }),
+      );
+      expect(workflowTriggerSpy).not.toHaveBeenCalled();
     } finally {
       transactionSpy.mockRestore();
       if (uncertainTransaction) {
         await uncertainTransaction.rollback().catch(() => undefined);
       }
+      loggerErrorSpy.mockRestore();
       workflowTriggerSpy.mockRestore();
     }
 
@@ -1318,8 +1358,18 @@ describe('workflow approval actions', () => {
           qualifiedCollectionName,
         );
         const rollbackApprovalId = rollbackApproval.id ?? rollbackApproval.get?.('id');
+        const sharedRollback = rollbackRootTransaction.rollback;
+        const secondRollbackApproval = await createApprovalInTransaction(
+          rollbackRootTransaction,
+          workflow,
+          { amount: 93 },
+          qualifiedCollectionName,
+        );
+        const secondApprovalId = secondRollbackApproval.id ?? secondRollbackApproval.get?.('id');
 
         expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
+        expect(await externalRepo.find({ filter: { amount: 93 } })).toHaveLength(1);
+        expect(rollbackRootTransaction.rollback).toBe(sharedRollback);
         expect(
           await db.getRepository('approvals').findOne({
             filterByTk: rollbackApprovalId,
@@ -1333,12 +1383,22 @@ describe('workflow approval actions', () => {
           dataKey: rollbackApproval.dataKey,
           collectionName: qualifiedCollectionName,
         });
+        expect(rollbackLoggerSpy).toHaveBeenCalledWith(ROLLBACK_MESSAGE, {
+          dataKey: secondRollbackApproval.dataKey,
+          collectionName: qualifiedCollectionName,
+        });
         const logs = rollbackLoggerSpy.mock.calls.filter(([message]) => message === ROLLBACK_MESSAGE);
-        expect(logs).toHaveLength(1);
+        expect(logs).toHaveLength(2);
         expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
+        expect(await externalRepo.find({ filter: { amount: 93 } })).toHaveLength(1);
         expect(
           await db.getRepository('approvals').findOne({
             filterByTk: rollbackApprovalId,
+          }),
+        ).toBeNull();
+        expect(
+          await db.getRepository('approvals').findOne({
+            filterByTk: secondApprovalId,
           }),
         ).toBeNull();
         expect(workflowTriggerSpy).toHaveBeenCalledOnce();

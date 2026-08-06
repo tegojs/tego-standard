@@ -10,16 +10,18 @@ type DeferredAfterCommitRegistration = {
 
 type TransactionState = {
   callbacks: DeferredAfterCommitRegistration[];
+  rollbackCallbacks: DeferredAfterCommit[];
 };
 
 const transactionStates = new WeakMap<object, TransactionState>();
+const CALLBACK_ERROR = 'Deferred after-commit callbacks failed';
 
 async function reportDeferredAfterCommitError(error: unknown, handler?: AfterCommitErrorHandler) {
   try {
     if (handler) {
       await handler(error);
     } else {
-      console.error('Deferred after-commit callbacks failed', error);
+      console.error(CALLBACK_ERROR, error);
     }
   } catch (reportError) {
     console.error('Deferred after-commit error reporting failed', reportError);
@@ -40,8 +42,7 @@ export async function runDeferredAfterCommitCallbacks(
     }
   }
   if (errors.length) {
-    const error =
-      errors.length === 1 ? errors[0] : new AggregateError(errors, 'Deferred after-commit callbacks failed');
+    const error = errors.length === 1 ? errors[0] : new AggregateError(errors, CALLBACK_ERROR);
     if (errorHandler) {
       await reportDeferredAfterCommitError(error, errorHandler);
     } else {
@@ -68,13 +69,27 @@ async function runDeferredAfterCommitRegistrations(registrations: DeferredAfterC
     const error =
       errorsWithoutHandlers.length === 1
         ? errorsWithoutHandlers[0]
-        : new AggregateError(errorsWithoutHandlers, 'Deferred after-commit callbacks failed');
+        : new AggregateError(errorsWithoutHandlers, CALLBACK_ERROR);
     await reportDeferredAfterCommitError(error);
   }
 }
 
-function registerDeferredAfterCommitRegistrations(transaction, registrations: DeferredAfterCommitRegistration[]) {
-  if (!registrations.length) {
+async function runDeferredRollbackCallbacks(callbacks: DeferredAfterCommit[]) {
+  for (const callback of callbacks) {
+    try {
+      await callback();
+    } catch (error) {
+      console.error('Deferred rollback callback failed', error);
+    }
+  }
+}
+
+function registerDeferredCallbacks(
+  transaction,
+  registrations: DeferredAfterCommitRegistration[],
+  rollbackCallbacks: DeferredAfterCommit[],
+) {
+  if (!registrations.length && !rollbackCallbacks.length) {
     return;
   }
 
@@ -84,19 +99,21 @@ function registerDeferredAfterCommitRegistrations(transaction, registrations: De
 
   let state = transactionStates.get(transaction);
   if (!state) {
-    state = { callbacks: [] };
+    state = { callbacks: [], rollbackCallbacks: [] };
     transactionStates.set(transaction, state);
 
     const commit = transaction.commit.bind(transaction);
     const rollback = transaction.rollback?.bind(transaction);
 
-    // Sequelize runs native afterCommit hooks even when commit rejects. Drain this queue only after commit resolves.
+    // Sequelize runs native afterCommit hooks even when commit rejects.
+    // Drain this queue only after commit resolves.
     transaction.commit = async () => {
       const result = await commit();
       try {
         const pendingCallbacks = state.callbacks.splice(0);
+        const pendingRollbackCallbacks = state.rollbackCallbacks.splice(0);
         if (transaction.parent) {
-          registerDeferredAfterCommitRegistrations(transaction.parent, pendingCallbacks);
+          registerDeferredCallbacks(transaction.parent, pendingCallbacks, pendingRollbackCallbacks);
         } else {
           await runDeferredAfterCommitRegistrations(pendingCallbacks);
         }
@@ -104,33 +121,41 @@ function registerDeferredAfterCommitRegistrations(transaction, registrations: De
       } finally {
         transactionStates.delete(transaction);
         state.callbacks.splice(0);
+        state.rollbackCallbacks.splice(0);
       }
     };
 
     if (rollback) {
       transaction.rollback = async () => {
+        const shouldRunCallbacks = !transaction.finished;
+        const pendingCallbacks = shouldRunCallbacks ? state.rollbackCallbacks.splice(0) : [];
         try {
           return await rollback();
         } finally {
           state.callbacks.splice(0);
+          state.rollbackCallbacks.splice(0);
           transactionStates.delete(transaction);
+          await runDeferredRollbackCallbacks(pendingCallbacks);
         }
       };
     }
   }
 
   state.callbacks.push(...registrations);
+  state.rollbackCallbacks.push(...rollbackCallbacks);
 }
 
 export function deferUntilTransactionCommitSucceeds(
   transaction,
   callbacks: DeferredAfterCommit[],
   errorHandler?: DeferredAfterCommitErrorHandler,
+  rollbackCallback?: DeferredAfterCommit,
 ) {
-  if (!callbacks.length) {
+  if (!callbacks.length && !rollbackCallback) {
     return;
   }
 
   const registrations = callbacks.splice(0).map((callback) => ({ callback, errorHandler }));
-  registerDeferredAfterCommitRegistrations(transaction, registrations);
+  const rollbackCallbacks = rollbackCallback ? [rollbackCallback] : [];
+  registerDeferredCallbacks(transaction, registrations, rollbackCallbacks);
 }

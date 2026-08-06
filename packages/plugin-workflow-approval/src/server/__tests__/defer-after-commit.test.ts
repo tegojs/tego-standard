@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { deferUntilTransactionCommitSucceeds, runDeferredAfterCommitCallbacks } from '../defer-after-commit';
+import * as afterCommit from '../defer-after-commit';
 
+const { deferUntilTransactionCommitSucceeds, runDeferredAfterCommitCallbacks } = afterCommit;
+const CALLBACK_FAILURE = 'Deferred after-commit callbacks failed';
 const DEFERRED_REPORTING_FAILURE = 'Deferred after-commit error reporting failed';
 
 function createTransaction(parent?: any) {
@@ -59,6 +61,22 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     expect(callback).not.toHaveBeenCalled();
   });
 
+  it('uses one rollback wrapper and reports every pending registration once', async () => {
+    const transaction = createTransaction();
+    const firstRollback = vi.fn();
+    const secondRollback = vi.fn();
+
+    deferUntilTransactionCommitSucceeds(transaction, [vi.fn()], undefined, firstRollback);
+    const wrappedRollback = transaction.rollback;
+    deferUntilTransactionCommitSucceeds(transaction, [vi.fn()], undefined, secondRollback);
+
+    expect(transaction.rollback).toBe(wrappedRollback);
+    await transaction.rollback();
+    await transaction.rollback();
+    expect(firstRollback).toHaveBeenCalledOnce();
+    expect(secondRollback).toHaveBeenCalledOnce();
+  });
+
   it('does not run callbacks when the transaction commit fails', async () => {
     const transaction = createTransaction();
     const callback = vi.fn();
@@ -105,10 +123,7 @@ describe('deferUntilTransactionCommitSucceeds', () => {
 
       await expect(transaction.commit()).resolves.toBeUndefined();
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Deferred after-commit callbacks failed',
-        expect.any(AggregateError),
-      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(CALLBACK_FAILURE, expect.any(AggregateError));
       expect(first).toHaveBeenCalledOnce();
       expect(second).toHaveBeenCalledOnce();
       expect(third).toHaveBeenCalledOnce();
@@ -157,7 +172,7 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     );
   });
 
-  it('keeps the database commit successful when callback failures are reported separately', async () => {
+  it('keeps commits successful when callback error reporting fails', async () => {
     const transaction = createTransaction();
     const callback = vi.fn(async () => {
       throw new Error('post-commit failed');
@@ -189,7 +204,7 @@ describe('deferUntilTransactionCommitSucceeds', () => {
       deferUntilTransactionCommitSucceeds(transaction, [callback]);
 
       await expect(transaction.commit()).resolves.toBeUndefined();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Deferred after-commit callbacks failed', expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(CALLBACK_FAILURE, expect.any(Error));
     } finally {
       consoleErrorSpy.mockRestore();
     }

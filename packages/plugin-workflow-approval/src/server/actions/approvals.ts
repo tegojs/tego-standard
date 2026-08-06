@@ -13,8 +13,11 @@ import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 
 const APPROVAL_COMMIT_UNCERTAIN_MESSAGE =
   'Approval commit outcome is uncertain; the external business record was retained';
+const DEFER_ERROR = 'Failed to defer workflow trigger until inherited approval transaction commit';
+const ROLLBACK_MESSAGE = 'Approval outcome is uncertain after inherited transaction rollback';
 
-async function createApprovalRecord(ctx, values, transaction, dataSourceTransaction, deferAfterCommit) {
+async function createApprovalRecord(ctx, options) {
+  const { values, transaction, dataSourceTransaction, deferAfterCommit } = options;
   const { whitelist, blacklist, updateAssociationValues } = ctx.action.params;
   return ctx.db.getRepository('approvals').create({
     values,
@@ -161,7 +164,7 @@ export const approvals = {
       return { persistedData, dataKey };
     };
 
-    const createApproval = async ({ persistedData, dataKey }, transaction?, dataSourceTransaction?) => {
+    const createApproval = async ({ persistedData, dataKey }, transaction?, sourceTransaction?) => {
       const summary = getSummary({
         summaryConfig: workflow.config.summary,
         data: persistedData,
@@ -186,7 +189,12 @@ export const approvals = {
         summary,
       };
       ctx.action.mergeParams({ values: approvalValues }, { values: 'overwrite' });
-      return createApprovalRecord(ctx, approvalValues, transaction, dataSourceTransaction, deferAfterCommit);
+      return createApprovalRecord(ctx, {
+        values: approvalValues,
+        transaction,
+        dataSourceTransaction: sourceTransaction,
+        deferAfterCommit,
+      });
     };
 
     const reportDeferredWorkflowTriggerError = (dataKey: unknown) => (error: unknown) => {
@@ -311,32 +319,20 @@ export const approvals = {
             approvalTransaction,
             deferredWorkflowTriggers,
             reportDeferredWorkflowTriggerError(businessRecord.dataKey),
+            () => {
+              ctx.logger?.error?.(ROLLBACK_MESSAGE, {
+                dataKey: businessRecord.dataKey,
+                collectionName,
+              });
+            },
           );
         } catch (error) {
-          ctx.logger?.error?.('Failed to defer workflow trigger until inherited approval transaction commit', {
+          ctx.logger?.error?.(DEFER_ERROR, {
             dataKey: businessRecord.dataKey,
             collectionName,
             error: serializeError(error),
           });
           throw error;
-        }
-        const rollback = approvalTransaction.rollback?.bind(approvalTransaction);
-        if (rollback) {
-          let rollbackReported = false;
-          approvalTransaction.rollback = async () => {
-            const shouldReport = !approvalTransaction.finished && !rollbackReported;
-            try {
-              return await rollback();
-            } finally {
-              if (shouldReport) {
-                rollbackReported = true;
-                ctx.logger?.error?.('Approval outcome is uncertain after inherited transaction rollback', {
-                  dataKey: businessRecord.dataKey,
-                  collectionName,
-                });
-              }
-            }
-          };
         }
       }
     }

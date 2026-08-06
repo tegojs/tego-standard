@@ -4,6 +4,12 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isWorkflowIdle(plugin: any) {
+  const hasEvents = (plugin.events?.length ?? 0) > 0;
+  const hasPendingItems = (plugin.pending?.length ?? 0) > 0;
+  return !hasEvents && !hasPendingItems && !plugin.executing;
+}
+
 export async function waitForFastAssertion(assertion: () => Promise<void> | void, timeout = 10000) {
   const start = Date.now();
   let lastError: unknown;
@@ -36,13 +42,14 @@ export async function waitForWorkflowIdle(
   }
 
   while (Date.now() - start < timeout) {
-    const hasEvents = (plugin.events?.length ?? 0) > 0;
-    const hasPendingItems = (plugin.pending?.length ?? 0) > 0;
-    if (!hasEvents && !hasPendingItems && !plugin.executing) {
+    if (isWorkflowIdle(plugin)) {
       return;
     }
     await sleep(interval);
   }
 
+  if (isWorkflowIdle(plugin)) {
+    return;
+  }
   throw new Error('waitForWorkflowIdle timed out');
 }

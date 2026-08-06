@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { cleanCopyAssociationData } from '../copy-associations';
+import { cleanCopyAssociationData, CopyAssociationError } from '../copy-associations';
 
 function createCollection(fields: Record<string, any>, options: Record<string, any> = {}) {
   return {
@@ -10,6 +10,18 @@ function createCollection(fields: Record<string, any>, options: Record<string, a
 }
 
 describe('cleanCopyAssociationData', () => {
+  it.each([null, undefined])('returns copied data for missing paths: %s', (copyPaths) => {
+    const sourceData = { details: [{ id: 1 }] };
+    const copiedData = { details: [{ id: 2 }] };
+
+    expect(cleanCopyAssociationData(sourceData, copiedData, {} as any, copyPaths)).toBe(copiedData);
+  });
+
+  it.each([[1], ['details', null], {}])('rejects invalid copy paths: %j', (copyPaths) => {
+    const cleanInvalidCopy = () => cleanCopyAssociationData({}, {}, {} as any, copyPaths);
+    expect(cleanInvalidCopy).toThrow(CopyAssociationError);
+  });
+
   it('preserves primitive association ids from the source data', () => {
     const targetCollection = createCollection(
       {},
@@ -28,8 +40,8 @@ describe('cleanCopyAssociationData', () => {
     const copiedData = { details: [8] };
 
     const copyPaths = ['details'];
-    const cleanCopy = cleanCopyAssociationData;
-    const cleanedData = cleanCopy(sourceData, copiedData, collection as any, copyPaths);
+    const copyCollection = collection as any;
+    const cleanedData = cleanCopyAssociationData(sourceData, copiedData, copyCollection, copyPaths);
     expect(cleanedData).toEqual({
       details: [7],
     });

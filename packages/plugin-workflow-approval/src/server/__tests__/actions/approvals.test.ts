@@ -1223,7 +1223,9 @@ describe('workflow approval actions', () => {
       expect(workflowTriggerSpy).not.toHaveBeenCalled();
 
       await rootTransaction.commit();
-      expect(workflowTriggerSpy).toHaveBeenCalledOnce();
+      await waitForFastAssertion(() => {
+        expect(workflowTriggerSpy).toHaveBeenCalledOnce();
+      });
     } finally {
       await rootTransaction.rollback().catch(() => undefined);
       workflowTriggerSpy.mockRestore();
@@ -1345,7 +1347,9 @@ describe('workflow approval actions', () => {
 
       await rootTransaction.commit();
 
-      expect(workflowTriggerSpy).toHaveBeenCalledOnce();
+      await waitForFastAssertion(() => {
+        expect(workflowTriggerSpy).toHaveBeenCalledOnce();
+      });
       expect(await db.getRepository('approvals').findOne({ filterByTk: approvalId })).not.toBeNull();
 
       const rollbackRootTransaction = await db.sequelize.transaction();

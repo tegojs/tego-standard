@@ -19,7 +19,7 @@ describe('waitForFastAssertion', () => {
     });
 
     await expect(waitForFastAssertion(assertion, 1)).rejects.toBe(lastError);
-    expect(assertion).toHaveBeenCalledOnce();
+    expect(assertion).toHaveBeenCalledTimes(2);
   });
 });
 

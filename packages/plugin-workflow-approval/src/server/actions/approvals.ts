@@ -13,6 +13,8 @@ import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 
 const APPROVAL_COMMIT_UNCERTAIN_MESSAGE =
   'Approval commit outcome is uncertain; the external business record was retained';
+const APPROVAL_DEFER_ERROR = 'Failed to defer workflow trigger until approval transaction commit';
+const COMMIT_CLEANUP_ERROR = 'Business commit outcome is uncertain and transaction cleanup failed';
 const DEFER_ERROR = 'Failed to defer workflow trigger until inherited approval transaction commit';
 const ROLLBACK_MESSAGE = 'Approval outcome is uncertain after inherited transaction rollback';
 
@@ -227,7 +229,7 @@ export const approvals = {
             reportDeferredWorkflowTriggerError(businessDataKey),
           );
         } catch (error) {
-          ctx.logger?.error?.('Failed to defer workflow trigger until approval transaction commit', {
+          ctx.logger?.error?.(APPROVAL_DEFER_ERROR, {
             dataKey: businessDataKey,
             collectionName,
             error: serializeError(error),
@@ -246,6 +248,9 @@ export const approvals = {
       let businessTransaction;
       let businessRecord;
       const ownsApprovalTransaction = !inheritedApprovalTransaction;
+      const getOwnedApprovalTransaction = () => {
+        return ownsApprovalTransaction ? approvalTransaction : undefined;
+      };
       try {
         if (ownsApprovalTransaction) {
           approvalTransaction = await approvalSequelize.transaction();
@@ -257,7 +262,7 @@ export const approvals = {
         await rollbackTransactions(
           ctx,
           [
-            { name: 'approval', transaction: ownsApprovalTransaction ? approvalTransaction : undefined },
+            { name: 'approval', transaction: getOwnedApprovalTransaction() },
             { name: 'business', transaction: businessTransaction },
           ],
           error,
@@ -274,12 +279,12 @@ export const approvals = {
           // Sequelize commit() force-cleans connections when the commit outcome is uncertain.
           await rollbackTransactions(
             ctx,
-            [{ name: 'approval', transaction: ownsApprovalTransaction ? approvalTransaction : undefined }],
+            [{ name: 'approval', transaction: getOwnedApprovalTransaction() }],
             error,
             businessRecord.dataKey,
           );
         } catch (rollbackError) {
-          ctx.logger?.error?.('Business commit outcome is uncertain and transaction cleanup failed', {
+          ctx.logger?.error?.(COMMIT_CLEANUP_ERROR, {
             dataKey: businessRecord.dataKey,
             error: serializeError(error),
             rollbackError: serializeError(rollbackError),

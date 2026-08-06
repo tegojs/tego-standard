@@ -24,6 +24,13 @@ export async function waitForFastAssertion(assertion: () => Promise<void> | void
     }
   }
 
+  try {
+    await assertion();
+    return;
+  } catch (error) {
+    lastError = error;
+  }
+
   throw lastError instanceof Error ? lastError : new Error('waitForFastAssertion timed out');
 }
 

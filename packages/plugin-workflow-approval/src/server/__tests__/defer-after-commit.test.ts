@@ -107,6 +107,27 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     expect(secondCallback).toHaveBeenCalledOnce();
   });
 
+  it('keeps a committed child successful when callback migration to its parent fails', async () => {
+    const child = createTransaction({});
+    const callback = vi.fn();
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      deferUntilTransactionCommitSucceeds(child, [callback]);
+
+      await expect(child.commit()).resolves.toBeUndefined();
+      expect(callback).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        CALLBACK_FAILURE,
+        expect.objectContaining({
+          message: 'External approval transaction must expose a commit method',
+        }),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it('runs every callback and aggregates callback failures after a successful commit', async () => {
     const transaction = createTransaction();
     const first = vi.fn(async () => {

@@ -6,14 +6,19 @@ import { get } from 'lodash';
 import { BelongsTo, HasOne, Op, type Transaction } from 'sequelize';
 
 import { APPROVAL_STATUS } from '../constants/status';
-import { deferUntilTransactionCommitSucceeds, type DeferredAfterCommit } from '../defer-after-commit';
+import {
+  deferUntilTransactionCommitSucceeds,
+  type DeferredAfterCommit as DeferredCallback,
+} from '../defer-after-commit';
 import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
+
+const TRIGGER_ERROR = 'Approval workflow trigger failed after transaction commit';
 
 type ApprovalTriggerOptions = {
   transaction?: ApprovalTriggerTransaction;
   dataSourceTransaction?: ApprovalTriggerTransaction;
-  deferAfterCommit?: (callback: DeferredAfterCommit) => void;
+  deferAfterCommit?: (callback: DeferredCallback) => void;
 };
 
 type ApprovalTriggerTransaction = Transaction & {
@@ -102,7 +107,7 @@ export default class ApprovalTrigger extends Trigger {
       deferAfterCommit(triggerWorkflow);
     } else if (transaction) {
       deferUntilTransactionCommitSucceeds(transaction, [triggerWorkflow], (error) => {
-        this.workflow.app.logger?.error?.('Approval workflow trigger failed after transaction commit', {
+        this.workflow.app.logger?.error?.(TRIGGER_ERROR, {
           approvalId: approval.id,
           collectionName: approval.collectionName,
           error: serializeError(error),

@@ -112,8 +112,13 @@ function registerDeferredCallbacks(
       try {
         const pendingCallbacks = state.callbacks.splice(0);
         const pendingRollbackCallbacks = state.rollbackCallbacks.splice(0);
-        if (transaction.parent) {
-          registerDeferredCallbacks(transaction.parent, pendingCallbacks, pendingRollbackCallbacks);
+        const parent = transaction.parent;
+        if (parent) {
+          try {
+            registerDeferredCallbacks(parent, pendingCallbacks, pendingRollbackCallbacks);
+          } catch (error) {
+            await reportDeferredAfterCommitError(error);
+          }
         } else {
           await runDeferredAfterCommitRegistrations(pendingCallbacks);
         }

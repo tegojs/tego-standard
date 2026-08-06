@@ -18,6 +18,8 @@ type SummaryItem = {
   value: unknown;
 };
 
+const ROLLBACK_MESSAGE = 'Approval outcome is uncertain after inherited transaction rollback';
+
 function getSummaryValue(summary: SummaryItem[], key: string) {
   return summary.find((item) => item.key === key)?.value;
 }
@@ -326,6 +328,103 @@ describe('workflow approval actions', () => {
     });
   }
 
+  async function setupExternalAssociationApproval() {
+    const suffix = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const externalDatabase = mockDatabase({
+      storage: ':memory:',
+      tablePrefix: `approval_external_associations_${suffix}_`,
+    });
+    externalDatabases.push(externalDatabase);
+    await app.dataSourceManager.add(
+      new SequelizeDataSource({
+        name: 'externalAssociations',
+        collectionManager: { database: externalDatabase },
+        resourceManager: {},
+      }),
+    );
+
+    const externalRootName = `approval_external_association_roots_${suffix}`;
+    const externalDetailName = `approval_external_association_details_${suffix}`;
+    const externalProfileName = `approval_external_association_profiles_${suffix}`;
+    const externalNestedProfileName = `approval_external_nested_profiles_${suffix}`;
+    externalDatabase.collection({
+      name: externalDetailName,
+      timestamps: false,
+      fields: [
+        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
+        { name: 'amount', type: 'integer' },
+        { type: 'belongsTo', name: 'root', target: externalRootName, foreignKey: 'rootId' },
+        {
+          type: 'hasOne',
+          name: 'profile',
+          target: externalNestedProfileName,
+          foreignKey: 'detailId',
+        },
+      ],
+    });
+    externalDatabase.collection({
+      name: externalProfileName,
+      fields: [
+        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
+        { name: 'label', type: 'string' },
+        { type: 'belongsTo', name: 'root', target: externalRootName, foreignKey: 'rootId' },
+      ],
+    });
+    externalDatabase.collection({
+      name: externalNestedProfileName,
+      fields: [
+        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
+        { name: 'label', type: 'string' },
+        { type: 'belongsTo', name: 'detail', target: externalDetailName, foreignKey: 'detailId' },
+      ],
+    });
+    externalDatabase.collection({
+      name: externalRootName,
+      fields: [
+        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
+        { name: 'amount', type: 'integer' },
+        {
+          type: 'hasMany',
+          name: 'details',
+          target: externalDetailName,
+          foreignKey: 'rootId',
+          onDelete: 'CASCADE',
+        },
+        {
+          type: 'hasOne',
+          name: 'profile',
+          target: externalProfileName,
+          foreignKey: 'rootId',
+          onDelete: 'CASCADE',
+        },
+      ],
+    });
+    await externalDatabase.sync();
+
+    const externalCollectionName = `externalAssociations:${externalRootName}`;
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: externalCollectionName,
+        summary: ['amount', 'details', 'profile'],
+        appends: ['details', 'profile'],
+      },
+    });
+    await workflow.createNode({ type: 'echo' });
+
+    return {
+      approvalRepo: db.getRepository('approvals'),
+      externalCollectionName,
+      externalDatabase,
+      externalDetailRepo: externalDatabase.getRepository(externalDetailName),
+      externalNestedProfileRepo: externalDatabase.getRepository(externalNestedProfileName),
+      externalProfileRepo: externalDatabase.getRepository(externalProfileName),
+      externalRootRepo: externalDatabase.getRepository(externalRootName),
+      workflow,
+    };
+  }
+
   it('rejects a business record that does not expose its filter target key', async () => {
     const workflow = await workflowModel.create({
       enabled: true,
@@ -459,20 +558,31 @@ describe('workflow approval actions', () => {
       },
     });
 
-    const approval = await createApproval(
-      {
-        id: source.get('id'),
-        amountA: 1,
-        amountB: 2,
-        itemsTotal: 12345,
-        accountItems: [{ id: sourceAccountItem.get('id'), amount: 12345 }],
-        tags: [{ id: sharedTag.get('id'), name: 'shared' }],
-      },
-      {
-        isCopy: true,
-        copyAssociationValues: ['accountItems'],
-      },
-    );
+    const approvalRepo = db.getRepository('approvals');
+    const approvalCreateSpy = vi.spyOn(approvalRepo, 'create');
+    let approval;
+    let approvalCreateValues;
+    try {
+      approval = await createApproval(
+        {
+          id: source.get('id'),
+          amountA: 1,
+          amountB: 2,
+          itemsTotal: 12345,
+          accountItems: [{ id: sourceAccountItem.get('id'), amount: 12345 }],
+          tags: [{ id: sharedTag.get('id'), name: 'shared' }],
+        },
+        {
+          isCopy: true,
+          copyAssociationValues: ['accountItems'],
+        },
+      );
+      approvalCreateValues = approvalCreateSpy.mock.calls[0][0].values;
+    } finally {
+      approvalCreateSpy.mockRestore();
+    }
+    expect(approvalCreateValues).not.toHaveProperty('isCopy');
+    expect(approvalCreateValues).not.toHaveProperty('copyAssociationValues');
     const copied = await mainRepo.findOne({
       filterByTk: approval.dataKey,
       appends: ['accountItems', 'tags'],
@@ -515,7 +625,8 @@ describe('workflow approval actions', () => {
       appends: ['accountItems'],
     });
 
-    expect(copied.get('accountItems').map((item) => Number(item.id))).toEqual([Number(sourceAccountItem.get('id'))]);
+    const copiedAccountItemIds = copied.get('accountItems').map((item) => Number(item.id));
+    expect(copiedAccountItemIds).toEqual([Number(sourceAccountItem.get('id'))]);
   });
 
   it('preserves primitive ids while cloning object payloads in a mixed association array', async () => {
@@ -571,7 +682,8 @@ describe('workflow approval actions', () => {
       appends: ['details', 'profile'],
     });
 
-    expect(copied.get('details').map((item) => Number(item.id))).toEqual([Number(sourceDetail.get('id'))]);
+    const copiedDetailIds = copied.get('details').map((item) => Number(item.id));
+    expect(copiedDetailIds).toEqual([Number(sourceDetail.get('id'))]);
     expect(Number(copied.get('profile').id)).toBe(Number(sourceProfile.get('id')));
     expect(await detailsRepo.count()).toBe(1);
     expect(await profilesRepo.count()).toBe(1);
@@ -611,7 +723,8 @@ describe('workflow approval actions', () => {
 
   it('rolls back an external business transaction when approval creation fails', async () => {
     const setup = await setupExternalApprovalCollection();
-    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(new Error('approval create failed'));
+    const createSpy = vi.spyOn(setup.approvalRepo, 'create');
+    createSpy.mockRejectedValueOnce(new Error('approval create failed'));
     try {
       const response = await submitExternalApproval(setup, 73);
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -861,90 +974,21 @@ describe('workflow approval actions', () => {
   });
 
   it('rolls back newly created external associations when approval creation fails', async () => {
-    const externalDatabase = mockDatabase({
-      storage: ':memory:',
-      tablePrefix: `approval_external_associations_${Date.now()}_`,
-    });
-    externalDatabases.push(externalDatabase);
-    await app.dataSourceManager.add(
-      new SequelizeDataSource({
-        name: 'externalAssociations',
-        collectionManager: { database: externalDatabase },
-        resourceManager: {},
-      }),
-    );
-
-    const externalRootName = `approval_external_association_roots_${Date.now()}`;
-    const externalDetailName = `approval_external_association_details_${Date.now()}`;
-    const externalProfileName = `approval_external_association_profiles_${Date.now()}`;
-    const externalNestedProfileName = `approval_external_nested_profiles_${Date.now()}`;
-    externalDatabase.collection({
-      name: externalDetailName,
-      timestamps: false,
-      fields: [
-        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
-        { name: 'amount', type: 'integer' },
-        { type: 'belongsTo', name: 'root', target: externalRootName, foreignKey: 'rootId' },
-        { type: 'hasOne', name: 'profile', target: externalNestedProfileName, foreignKey: 'detailId' },
-      ],
-    });
-    externalDatabase.collection({
-      name: externalProfileName,
-      fields: [
-        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
-        { name: 'label', type: 'string' },
-        { type: 'belongsTo', name: 'root', target: externalRootName, foreignKey: 'rootId' },
-      ],
-    });
-    externalDatabase.collection({
-      name: externalNestedProfileName,
-      fields: [
-        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
-        { name: 'label', type: 'string' },
-        { type: 'belongsTo', name: 'detail', target: externalDetailName, foreignKey: 'detailId' },
-      ],
-    });
-    externalDatabase.collection({
-      name: externalRootName,
-      fields: [
-        { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
-        { name: 'amount', type: 'integer' },
-        { type: 'hasMany', name: 'details', target: externalDetailName, foreignKey: 'rootId', onDelete: 'CASCADE' },
-        { type: 'hasOne', name: 'profile', target: externalProfileName, foreignKey: 'rootId', onDelete: 'CASCADE' },
-      ],
-    });
-    await externalDatabase.sync();
-
-    const externalRootRepo = externalDatabase.getRepository(externalRootName);
-    const externalDetailRepo = externalDatabase.getRepository(externalDetailName);
-    const externalProfileRepo = externalDatabase.getRepository(externalProfileName);
-    const externalNestedProfileRepo = externalDatabase.getRepository(externalNestedProfileName);
-    const externalCollectionName = `externalAssociations:${externalRootName}`;
-    const workflow = await workflowModel.create({
-      enabled: true,
-      type: 'approval',
-      config: {
-        collection: externalCollectionName,
-        summary: ['amount', 'details', 'profile'],
-        appends: ['details', 'profile'],
-      },
-    });
-    await workflow.createNode({ type: 'echo' });
-
-    const approvalRepo = db.getRepository('approvals');
-    const createSpy = vi.spyOn(approvalRepo, 'create').mockRejectedValueOnce(new Error('approval create failed'));
+    const setup = await setupExternalAssociationApproval();
+    const creationError = new Error('approval create failed');
+    const createSpy = vi.spyOn(setup.approvalRepo, 'create').mockRejectedValueOnce(creationError);
     try {
       const response = await agent.resource('approvals').create({
         values: {
-          collectionName: externalCollectionName,
+          collectionName: setup.externalCollectionName,
           data: {
             amount: 42,
             details: [{ amount: 20, profile: { label: 'nested' } }, { amount: 22 }],
             profile: { label: 'new' },
           },
           status: APPROVAL_STATUS.SUBMITTED,
-          workflowId: workflow.id,
-          workflowKey: workflow.key,
+          workflowId: setup.workflow.id,
+          workflowKey: setup.workflow.key,
         },
       });
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -952,35 +996,39 @@ describe('workflow approval actions', () => {
       createSpy.mockRestore();
     }
 
-    expect(await externalRootRepo.find({ filter: { amount: 42 } })).toHaveLength(0);
-    expect(await externalDetailRepo.find({ filter: { amount: 20 } })).toHaveLength(0);
-    expect(await externalNestedProfileRepo.find({ filter: { label: 'nested' } })).toHaveLength(0);
-    expect(await externalProfileRepo.find({ filter: { label: 'new' } })).toHaveLength(0);
+    expect(await setup.externalRootRepo.find({ filter: { amount: 42 } })).toHaveLength(0);
+    expect(await setup.externalDetailRepo.find({ filter: { amount: 20 } })).toHaveLength(0);
+    const nestedProfileRepo = setup.externalNestedProfileRepo;
+    const nestedProfiles = await nestedProfileRepo.find({ filter: { label: 'nested' } });
+    expect(nestedProfiles).toHaveLength(0);
+    expect(await setup.externalProfileRepo.find({ filter: { label: 'new' } })).toHaveLength(0);
+  });
 
-    const existingRoot = await externalRootRepo.create({ values: { amount: 1 } });
+  it('restores existing external association foreign keys on failure', async () => {
+    const setup = await setupExternalAssociationApproval();
+    const existingRoot = await setup.externalRootRepo.create({ values: { amount: 1 } });
     const existingRootId = existingRoot.get('id');
-    const existingDetail = await externalDetailRepo.create({
+    const existingDetail = await setup.externalDetailRepo.create({
       values: { amount: 99, rootId: existingRootId },
     });
-    const existingProfile = await externalProfileRepo.create({
+    const existingProfile = await setup.externalProfileRepo.create({
       values: { label: 'shared', rootId: existingRootId },
     });
-
     const restoreCreateSpy = vi
-      .spyOn(approvalRepo, 'create')
+      .spyOn(setup.approvalRepo, 'create')
       .mockRejectedValueOnce(new Error('approval create failed'));
     try {
       const response = await agent.resource('approvals').create({
         values: {
-          collectionName: externalCollectionName,
+          collectionName: setup.externalCollectionName,
           data: {
             amount: 43,
             details: [existingDetail.get('id')],
             profile: existingProfile.get('id'),
           },
           status: APPROVAL_STATUS.SUBMITTED,
-          workflowId: workflow.id,
-          workflowKey: workflow.key,
+          workflowId: setup.workflow.id,
+          workflowKey: setup.workflow.key,
         },
       });
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -988,35 +1036,40 @@ describe('workflow approval actions', () => {
       restoreCreateSpy.mockRestore();
     }
 
-    expect(await externalRootRepo.find({ filter: { amount: 43 } })).toHaveLength(0);
-    expect((await externalDetailRepo.findOne({ filterByTk: existingDetail.get('id') })).get('rootId')).toBe(
-      existingRootId,
-    );
-    expect((await externalProfileRepo.findOne({ filterByTk: existingProfile.get('id') })).get('rootId')).toBe(
-      existingRootId,
-    );
+    expect(await setup.externalRootRepo.find({ filter: { amount: 43 } })).toHaveLength(0);
+    const detailId = existingDetail.get('id');
+    const profileId = existingProfile.get('id');
+    const restoredDetail = await setup.externalDetailRepo.findOne({ filterByTk: detailId });
+    const restoredProfile = await setup.externalProfileRepo.findOne({ filterByTk: profileId });
+    expect(restoredDetail.get('rootId')).toBe(existingRootId);
+    expect(restoredProfile.get('rootId')).toBe(existingRootId);
+  });
 
-    const nestedSourceDetail = await externalDetailRepo.create({
+  it('restores existing nested association foreign keys on failure', async () => {
+    const setup = await setupExternalAssociationApproval();
+    const existingRoot = await setup.externalRootRepo.create({ values: { amount: 1 } });
+    const existingRootId = existingRoot.get('id');
+    const nestedSourceDetail = await setup.externalDetailRepo.create({
       values: { amount: 100, rootId: existingRootId },
     });
-    const nestedSourceProfile = await externalNestedProfileRepo.create({
+    const nestedSourceProfile = await setup.externalNestedProfileRepo.create({
       values: { label: 'shared-nested', detailId: nestedSourceDetail.get('id') },
     });
     const nestedRestoreCreateSpy = vi
-      .spyOn(approvalRepo, 'create')
+      .spyOn(setup.approvalRepo, 'create')
       .mockRejectedValueOnce(new Error('approval create failed'));
     try {
       const response = await agent.resource('approvals').create({
         values: {
-          collectionName: externalCollectionName,
+          collectionName: setup.externalCollectionName,
           data: {
             amount: 45,
             details: [{ amount: 23, profile: nestedSourceProfile.get('id') }],
             profile: { label: 'new-nested-root-profile' },
           },
           status: APPROVAL_STATUS.SUBMITTED,
-          workflowId: workflow.id,
-          workflowKey: workflow.key,
+          workflowId: setup.workflow.id,
+          workflowKey: setup.workflow.key,
         },
       });
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -1024,11 +1077,12 @@ describe('workflow approval actions', () => {
       nestedRestoreCreateSpy.mockRestore();
     }
 
-    expect(await externalRootRepo.find({ filter: { amount: 45 } })).toHaveLength(0);
-    expect(await externalDetailRepo.find({ filter: { amount: 23 } })).toHaveLength(0);
-    expect(
-      (await externalNestedProfileRepo.findOne({ filterByTk: nestedSourceProfile.get('id') })).get('detailId'),
-    ).toBe(nestedSourceDetail.get('id'));
+    expect(await setup.externalRootRepo.find({ filter: { amount: 45 } })).toHaveLength(0);
+    expect(await setup.externalDetailRepo.find({ filter: { amount: 23 } })).toHaveLength(0);
+    const restoredNestedProfile = await setup.externalNestedProfileRepo.findOne({
+      filterByTk: nestedSourceProfile.get('id'),
+    });
+    expect(restoredNestedProfile.get('detailId')).toBe(nestedSourceDetail.get('id'));
   });
 
   it('does not trigger a workflow when the same-database transaction fails before commit', async () => {
@@ -1186,7 +1240,8 @@ describe('workflow approval actions', () => {
       await createApprovalInTransaction(transaction, workflow, { amountA: 86, amountB: 14 });
       expect(workflowTriggerSpy).not.toHaveBeenCalled();
 
-      await expect(transaction.commit()).rejects.toThrow('external transaction commit failed before database commit');
+      const commitErrorMessage = 'external transaction commit failed before database commit';
+      await expect(transaction.commit()).rejects.toThrow(commitErrorMessage);
       expect(workflowTriggerSpy).not.toHaveBeenCalled();
     } finally {
       queryInterfaceCommitSpy.mockRestore();
@@ -1274,14 +1329,12 @@ describe('workflow approval actions', () => {
         await rollbackRootTransaction.rollback();
         await rollbackRootTransaction.rollback().catch(() => undefined);
 
-        expect(rollbackLoggerSpy).toHaveBeenCalledWith(
-          'Approval outcome is uncertain after inherited transaction rollback',
-          {
-            dataKey: rollbackApproval.dataKey,
-            collectionName: qualifiedCollectionName,
-          },
-        );
-        expect(rollbackLoggerSpy).toHaveBeenCalledTimes(1);
+        expect(rollbackLoggerSpy).toHaveBeenCalledWith(ROLLBACK_MESSAGE, {
+          dataKey: rollbackApproval.dataKey,
+          collectionName: qualifiedCollectionName,
+        });
+        const logs = rollbackLoggerSpy.mock.calls.filter(([message]) => message === ROLLBACK_MESSAGE);
+        expect(logs).toHaveLength(1);
         expect(await externalRepo.find({ filter: { amount: 92 } })).toHaveLength(1);
         expect(
           await db.getRepository('approvals').findOne({

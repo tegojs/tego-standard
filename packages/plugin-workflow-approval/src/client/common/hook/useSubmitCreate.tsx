@@ -52,6 +52,7 @@ export function useSubmitCreate() {
           delete form.values['createdAt'];
           delete form.values['updatedAt'];
           const resource = apiClient.resource('approvals');
+          const copyPaths = getCopyAssociationValues(form, collection, updateAssociationValues);
           const request = resource.create({
             values: {
               collectionName: joinCollectionName(collection.dataSource, collection.name),
@@ -60,7 +61,7 @@ export function useSubmitCreate() {
               workflowId: workflow?.id || workflowId || approval?.workflow?.id,
               workflowKey: workflow?.key || approval?.workflow?.key,
               isCopy,
-              copyAssociationValues: getCopyAssociationValues(form, collection, updateAssociationValues),
+              copyAssociationValues: copyPaths,
             },
           });
           requestStarted = true;

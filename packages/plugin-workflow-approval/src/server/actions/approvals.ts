@@ -8,8 +8,11 @@ import {
   deferUntilTransactionCommitSucceeds,
   runDeferredAfterCommitCallbacks,
   type DeferredAfterCommit,
-} from '../deferAfterCommit';
+} from '../defer-after-commit';
 import { getSummary, getWorkflowAppends, serializeError } from '../tools';
+
+const APPROVAL_COMMIT_UNCERTAIN_MESSAGE =
+  'Approval commit outcome is uncertain; the external business record was retained';
 
 async function createApprovalRecord(ctx, values, transaction, dataSourceTransaction, deferAfterCommit) {
   const { whitelist, blacklist, updateAssociationValues } = ctx.action.params;
@@ -118,7 +121,8 @@ export const approvals = {
     let createData = traverseJSON(data, { collection });
     if (isCopy === true) {
       try {
-        createData = cleanCopyAssociationData(data, createData, collection, copyAssociationValues, ctx.tego);
+        const copyPaths = copyAssociationValues;
+        createData = cleanCopyAssociationData(data, createData, collection, copyPaths, ctx.tego);
       } catch (error) {
         if (error instanceof CopyAssociationError) {
           return ctx.throw(400, error.message);
@@ -168,8 +172,11 @@ export const approvals = {
       Object.keys(model.associations).forEach((key) => {
         delete approvalData[key];
       });
+      const approvalParams = { ...ctx.action.params.values };
+      delete approvalParams.isCopy;
+      delete approvalParams.copyAssociationValues;
       const approvalValues = {
-        ...ctx.action.params.values,
+        ...approvalParams,
         collectionName,
         data: approvalData,
         dataKey,
@@ -226,8 +233,7 @@ export const approvals = {
         );
       }
     } else {
-      const inheritedApprovalTransaction =
-        ctx.transaction?.sequelize === approvalSequelize ? ctx.transaction : undefined;
+      const inheritedApprovalTransaction = usesApprovalTransaction ? ctx.transaction : undefined;
       let approvalTransaction = inheritedApprovalTransaction;
       let businessTransaction;
       let businessRecord;
@@ -288,7 +294,7 @@ export const approvals = {
           await approvalTransaction.commit();
           approvalTransaction = undefined;
         } catch (error) {
-          ctx.logger?.error?.('Approval commit outcome is uncertain; the external business record was retained', {
+          ctx.logger?.error?.(APPROVAL_COMMIT_UNCERTAIN_MESSAGE, {
             dataKey: businessRecord.dataKey,
             approvalId: approval?.id,
             error: serializeError(error),

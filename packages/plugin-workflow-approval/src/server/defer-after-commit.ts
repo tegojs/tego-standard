@@ -1,6 +1,8 @@
 export type DeferredAfterCommit = () => unknown | Promise<unknown>;
 export type DeferredAfterCommitErrorHandler = (error: unknown) => unknown | Promise<unknown>;
 
+type AfterCommitErrorHandler = DeferredAfterCommitErrorHandler;
+
 type DeferredAfterCommitRegistration = {
   callback: DeferredAfterCommit;
   errorHandler?: DeferredAfterCommitErrorHandler;
@@ -12,10 +14,10 @@ type TransactionState = {
 
 const transactionStates = new WeakMap<object, TransactionState>();
 
-async function reportDeferredAfterCommitError(error: unknown, errorHandler?: DeferredAfterCommitErrorHandler) {
+async function reportDeferredAfterCommitError(error: unknown, handler?: AfterCommitErrorHandler) {
   try {
-    if (errorHandler) {
-      await errorHandler(error);
+    if (handler) {
+      await handler(error);
     } else {
       console.error('Deferred after-commit callbacks failed', error);
     }
@@ -41,7 +43,7 @@ export async function runDeferredAfterCommitCallbacks(
     const error =
       errors.length === 1 ? errors[0] : new AggregateError(errors, 'Deferred after-commit callbacks failed');
     if (errorHandler) {
-      await errorHandler(error);
+      await reportDeferredAfterCommitError(error, errorHandler);
     } else {
       throw error;
     }
@@ -90,8 +92,8 @@ function registerDeferredAfterCommitRegistrations(transaction, registrations: De
 
     // Sequelize runs native afterCommit hooks even when commit rejects. Drain this queue only after commit resolves.
     transaction.commit = async () => {
+      const result = await commit();
       try {
-        const result = await commit();
         const pendingCallbacks = state.callbacks.splice(0);
         if (transaction.parent) {
           registerDeferredAfterCommitRegistrations(transaction.parent, pendingCallbacks);

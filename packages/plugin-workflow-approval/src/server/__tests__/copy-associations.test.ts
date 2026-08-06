@@ -27,7 +27,10 @@ describe('cleanCopyAssociationData', () => {
     const sourceData = { details: [7] };
     const copiedData = { details: [8] };
 
-    expect(cleanCopyAssociationData(sourceData, copiedData, collection as any, ['details'])).toEqual({
+    const copyPaths = ['details'];
+    const cleanCopy = cleanCopyAssociationData;
+    const cleanedData = cleanCopy(sourceData, copiedData, collection as any, copyPaths);
+    expect(cleanedData).toEqual({
       details: [7],
     });
   });
@@ -150,7 +153,10 @@ describe('cleanCopyAssociationData', () => {
       {
         children: { type: 'hasMany', target: 'children' },
       },
-      { filterTargetKey: 'id', model: { primaryKeyAttributes: ['id'], primaryKeyAttribute: 'id' } },
+      {
+        filterTargetKey: 'id',
+        model: { primaryKeyAttributes: ['id'], primaryKeyAttribute: 'id' },
+      },
     );
     const collection = createCollection(
       {

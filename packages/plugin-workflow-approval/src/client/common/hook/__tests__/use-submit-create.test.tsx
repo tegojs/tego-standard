@@ -140,14 +140,15 @@ describe('useSubmitCreate', () => {
 
     await result.current.run({});
 
+    const copyPaths = ['configuredDetails', 'accountItemList', 'accountItemList.subdetails'];
     expect(mocks.create).toHaveBeenCalledWith({
       values: expect.objectContaining({
-        copyAssociationValues: ['configuredDetails', 'accountItemList', 'accountItemList.subdetails'],
+        copyAssociationValues: copyPaths,
       }),
     });
   });
 
-  it('does not send fields rendered as copy controls unless their collection field is an association', async () => {
+  it('ignores copy controls that do not map to association fields', async () => {
     mocks.form.createField({
       name: 'plainNester',
       component: ['CollectionField', { mode: 'Nester' }],

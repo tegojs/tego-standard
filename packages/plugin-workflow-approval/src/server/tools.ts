@@ -99,9 +99,8 @@ function getWorkflowAppends(
   app?: Application,
 ): string[] {
   const config = workflowConfig ?? {};
-  return [
-    ...new Set([...(config.appends ?? []), ...getSummaryAssociationAppends(config.summary ?? [], collection, app)]),
-  ];
+  const summaryAppends = getSummaryAssociationAppends(config.summary ?? [], collection, app);
+  return [...new Set([...(config.appends ?? []), ...summaryAppends])];
 }
 
 // 获取关联表的 titleField 值

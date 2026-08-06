@@ -30,20 +30,19 @@ export async function waitForWorkflowIdle(
 ) {
   const { timeout = 10000, interval = FAST_POLL_INTERVAL_MS } = options;
   const start = Date.now();
-  let lastError: unknown;
-
-  while (Date.now() - start < timeout) {
-    try {
-      const plugin = app.pm.get('workflow') as any;
-      if ((plugin.events?.length ?? 0) > 0 || (plugin.pending?.length ?? 0) > 0 || plugin.executing) {
-        throw new Error('Workflow is still running');
-      }
-      return;
-    } catch (error) {
-      lastError = error;
-      await sleep(interval);
-    }
+  const plugin = app.pm.get('workflow') as any;
+  if (!plugin) {
+    throw new Error('Workflow plugin is not available');
   }
 
-  throw lastError instanceof Error ? lastError : new Error('waitForWorkflowIdle timed out');
+  while (Date.now() - start < timeout) {
+    const hasEvents = (plugin.events?.length ?? 0) > 0;
+    const hasPendingItems = (plugin.pending?.length ?? 0) > 0;
+    if (!hasEvents && !hasPendingItems && !plugin.executing) {
+      return;
+    }
+    await sleep(interval);
+  }
+
+  throw new Error('waitForWorkflowIdle timed out');
 }

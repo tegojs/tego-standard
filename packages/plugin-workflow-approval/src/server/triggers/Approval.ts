@@ -6,7 +6,7 @@ import { get } from 'lodash';
 import { BelongsTo, HasOne, Op, type Transaction } from 'sequelize';
 
 import { APPROVAL_STATUS } from '../constants/status';
-import { deferUntilTransactionCommitSucceeds, type DeferredAfterCommit } from '../deferAfterCommit';
+import { deferUntilTransactionCommitSucceeds, type DeferredAfterCommit } from '../defer-after-commit';
 import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
 

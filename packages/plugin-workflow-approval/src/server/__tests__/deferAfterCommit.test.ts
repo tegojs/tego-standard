@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { deferUntilTransactionCommitSucceeds } from '../deferAfterCommit';
+import { deferUntilTransactionCommitSucceeds, runDeferredAfterCommitCallbacks } from '../defer-after-commit';
+
+const DEFERRED_REPORTING_FAILURE = 'Deferred after-commit error reporting failed';
 
 function createTransaction(parent?: any) {
   return {
@@ -66,6 +68,25 @@ describe('deferUntilTransactionCommitSucceeds', () => {
 
     await expect(transaction.commit()).rejects.toThrow('commit failed');
     expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('reuses the wrapped transaction and retains callbacks after a failed commit', async () => {
+    const transaction = createTransaction();
+    const firstCallback = vi.fn();
+    const secondCallback = vi.fn();
+    transaction.commit.mockRejectedValueOnce(new Error('commit failed'));
+    transaction.commit.mockResolvedValueOnce(undefined);
+
+    deferUntilTransactionCommitSucceeds(transaction, [firstCallback]);
+    const wrappedCommit = transaction.commit;
+
+    await expect(transaction.commit()).rejects.toThrow('commit failed');
+    deferUntilTransactionCommitSucceeds(transaction, [secondCallback]);
+
+    expect(transaction.commit).toBe(wrappedCommit);
+    await expect(transaction.commit()).resolves.toBeUndefined();
+    expect(firstCallback).toHaveBeenCalledOnce();
+    expect(secondCallback).toHaveBeenCalledOnce();
   });
 
   it('runs every callback and aggregates callback failures after a successful commit', async () => {
@@ -151,7 +172,7 @@ describe('deferUntilTransactionCommitSucceeds', () => {
       expect(callback).toHaveBeenCalledOnce();
       expect(reportError).toHaveBeenCalledOnce();
       expect(reportError).toHaveBeenCalledWith(expect.any(Error));
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Deferred after-commit error reporting failed', expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(DEFERRED_REPORTING_FAILURE, expect.any(Error));
     } finally {
       consoleErrorSpy.mockRestore();
     }
@@ -169,6 +190,62 @@ describe('deferUntilTransactionCommitSucceeds', () => {
 
       await expect(transaction.commit()).resolves.toBeUndefined();
       expect(consoleErrorSpy).toHaveBeenCalledWith('Deferred after-commit callbacks failed', expect.any(Error));
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+});
+
+describe('runDeferredAfterCommitCallbacks', () => {
+  it('reports callback failures through the configured handler', async () => {
+    const callbackError = new Error('callback failed');
+    const errorHandler = vi.fn();
+
+    await expect(
+      runDeferredAfterCommitCallbacks(
+        [
+          async () => {
+            throw callbackError;
+          },
+        ],
+        errorHandler,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(errorHandler).toHaveBeenCalledOnce();
+    expect(errorHandler).toHaveBeenCalledWith(callbackError);
+  });
+
+  it('throws the original callback failure when no handler is configured', async () => {
+    const callbackError = new Error('callback failed');
+
+    await expect(
+      runDeferredAfterCommitCallbacks([
+        async () => {
+          throw callbackError;
+        },
+      ]),
+    ).rejects.toBe(callbackError);
+  });
+
+  it('contains handler failures while reporting callback errors', async () => {
+    const reportError = new Error('report failed');
+    const errorHandler = vi.fn().mockRejectedValue(reportError);
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      await expect(
+        runDeferredAfterCommitCallbacks(
+          [
+            async () => {
+              throw new Error('callback failed');
+            },
+          ],
+          errorHandler,
+        ),
+      ).resolves.toBeUndefined();
+      expect(errorHandler).toHaveBeenCalledOnce();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(DEFERRED_REPORTING_FAILURE, reportError);
     } finally {
       consoleErrorSpy.mockRestore();
     }

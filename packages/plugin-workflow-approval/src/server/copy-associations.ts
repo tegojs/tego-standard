@@ -30,6 +30,14 @@ function isJSONValue(value: unknown): value is JSONValue {
   return prototype === Object.prototype || prototype === null;
 }
 
+function isUniqueNonEmptyString(key: unknown, index: number, keys: unknown[]): key is string {
+  return typeof key === 'string' && key.length > 0 && keys.indexOf(key) === index;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((path) => typeof path === 'string');
+}
+
 function getTargetKeys(
   collection: Collection,
   field: any,
@@ -52,9 +60,7 @@ function getTargetKeys(
       collection.filterTargetKey,
       field.targetKey,
       field.options?.targetKey,
-    ].filter(
-      (key, index, keys): key is string => typeof key === 'string' && key.length > 0 && keys.indexOf(key) === index,
-    ),
+    ].filter(isUniqueNonEmptyString),
   };
 }
 
@@ -163,7 +169,7 @@ export function cleanCopyAssociationData(
   if (copyAssociationValues == null) {
     return copiedData;
   }
-  if (!Array.isArray(copyAssociationValues) || copyAssociationValues.some((path) => typeof path !== 'string')) {
+  if (!isStringArray(copyAssociationValues)) {
     throw new CopyAssociationError('copyAssociationValues must be an array of association paths');
   }
 

@@ -103,18 +103,19 @@ export default class ApprovalTrigger extends Trigger {
       collectionName: approval.collectionName,
     };
     const triggerWorkflow = () => this.workflow.trigger(workflow, context);
+    const reportTriggerError = (error: unknown) => {
+      this.workflow.app.logger?.error?.(TRIGGER_ERROR, {
+        approvalId: approval.id,
+        collectionName: approval.collectionName,
+        error: serializeError(error),
+      });
+    };
     if (deferAfterCommit) {
       deferAfterCommit(triggerWorkflow);
     } else if (transaction) {
-      deferUntilTransactionCommitSucceeds(transaction, [triggerWorkflow], (error) => {
-        this.workflow.app.logger?.error?.(TRIGGER_ERROR, {
-          approvalId: approval.id,
-          collectionName: approval.collectionName,
-          error: serializeError(error),
-        });
-      });
+      deferUntilTransactionCommitSucceeds(transaction, [triggerWorkflow], reportTriggerError);
     } else {
-      triggerWorkflow();
+      void (async () => triggerWorkflow())().catch(reportTriggerError);
     }
   };
   onExecutionCreate = async (execution, { transaction }) => {

@@ -180,14 +180,19 @@ describe('useSubmitCreate', () => {
     expect(mocks.field.data.loading).toBe(false);
   });
 
-  it('submits when the approval context has no workflow object', async () => {
+  it('does not submit when neither a workflow id nor key is available', async () => {
     mocks.flowContext = {};
 
     const { result } = renderHook(() => useSubmitCreate());
 
     await result.current.run({});
 
-    expect(mocks.create).toHaveBeenCalledOnce();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.notification.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'translated:Submit failed',
+      }),
+    );
   });
 
   it('leaves API errors to the global error handler without showing a duplicate notification', async () => {

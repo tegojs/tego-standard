@@ -53,13 +53,18 @@ export function useSubmitCreate() {
           delete form.values['updatedAt'];
           const resource = apiClient.resource('approvals');
           const copyPaths = getCopyAssociationValues(form, collection, updateAssociationValues);
+          const selectedWorkflowId = workflow?.id || workflowId || approval?.workflow?.id;
+          const selectedWorkflowKey = workflow?.key || approval?.workflow?.key;
+          if (!selectedWorkflowId && !selectedWorkflowKey) {
+            throw new Error('Approval workflow identifier is required');
+          }
           const request = resource.create({
             values: {
               collectionName: joinCollectionName(collection.dataSource, collection.name),
               data: form.values,
               status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
-              workflowId: workflow?.id || workflowId || approval?.workflow?.id,
-              workflowKey: workflow?.key || approval?.workflow?.key,
+              workflowId: selectedWorkflowId,
+              workflowKey: selectedWorkflowKey,
               isCopy,
               copyAssociationValues: copyPaths,
             },

@@ -4,6 +4,19 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function runAssertionWithinTimeout(assertion: () => Promise<void> | void, timeout: number) {
+  let timeoutHandle: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error('waitForFastAssertion timed out')), Math.max(0, timeout));
+  });
+
+  try {
+    await Promise.race([Promise.resolve().then(assertion), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
 function isWorkflowIdle(plugin: any) {
   const hasEvents = (plugin.events?.length ?? 0) > 0;
   const hasPendingItems = (plugin.pending?.length ?? 0) > 0;
@@ -16,7 +29,7 @@ export async function waitForFastAssertion(assertion: () => Promise<void> | void
 
   while (Date.now() - start < timeout) {
     try {
-      await assertion();
+      await runAssertionWithinTimeout(assertion, timeout - (Date.now() - start));
       return;
     } catch (error) {
       lastError = error;
@@ -25,7 +38,7 @@ export async function waitForFastAssertion(assertion: () => Promise<void> | void
   }
 
   try {
-    await assertion();
+    await runAssertionWithinTimeout(assertion, timeout - (Date.now() - start));
     return;
   } catch (error) {
     lastError = error;

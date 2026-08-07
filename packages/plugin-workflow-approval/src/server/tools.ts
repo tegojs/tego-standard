@@ -14,25 +14,27 @@ function stringifyError(error: unknown) {
   }
 }
 
-export function serializeError(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    };
+function readErrorProperty(error: object, property: 'name' | 'message' | 'stack') {
+  try {
+    return Reflect.get(error, property);
+  } catch {
+    return undefined;
   }
+}
 
+export function serializeError(error: unknown) {
   if (error && typeof error === 'object') {
-    const errorRecord = error as { name?: unknown; message?: unknown; stack?: unknown };
+    const name = readErrorProperty(error, 'name');
+    const errorMessage = readErrorProperty(error, 'message');
+    const stack = readErrorProperty(error, 'stack');
     let message = stringifyError(error);
-    if (typeof errorRecord.message === 'string') {
-      message = errorRecord.message;
+    if (typeof errorMessage === 'string') {
+      message = errorMessage;
     }
     return {
-      name: typeof errorRecord.name === 'string' ? errorRecord.name : undefined,
+      name: typeof name === 'string' ? name : undefined,
       message,
-      stack: typeof errorRecord.stack === 'string' ? errorRecord.stack : undefined,
+      stack: typeof stack === 'string' ? stack : undefined,
     };
   }
 

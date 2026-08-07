@@ -21,6 +21,22 @@ describe('waitForFastAssertion', () => {
     await expect(waitForFastAssertion(assertion, 1)).rejects.toBe(lastError);
     expect(assertion).toHaveBeenCalledTimes(2);
   });
+
+  it('times out when an assertion promise never settles', async () => {
+    const assertion = vi.fn(() => new Promise<void>(() => {}));
+    let guardTimeout: ReturnType<typeof setTimeout>;
+    const guard = new Promise<never>((_, reject) => {
+      guardTimeout = setTimeout(() => reject(new Error('test guard timed out')), 200);
+    });
+
+    try {
+      await expect(Promise.race([waitForFastAssertion(assertion, 10), guard])).rejects.toThrow(
+        'waitForFastAssertion timed out',
+      );
+    } finally {
+      clearTimeout(guardTimeout);
+    }
+  });
 });
 
 describe('waitForWorkflowIdle', () => {

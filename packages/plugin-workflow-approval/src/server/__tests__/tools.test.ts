@@ -12,4 +12,21 @@ describe('serializeError', () => {
       stack: undefined,
     });
   });
+
+  it('safely serializes a proxy whose properties throw', () => {
+    const error = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('property access failed');
+        },
+      },
+    );
+
+    expect(serializeError(error)).toEqual({
+      name: undefined,
+      message: 'Unknown error',
+      stack: undefined,
+    });
+  });
 });

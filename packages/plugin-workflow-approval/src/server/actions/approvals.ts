@@ -34,6 +34,28 @@ async function createApprovalRecord(ctx, options) {
 }
 
 type DeferredWorkflowTrigger = DeferredAfterCommit;
+type CreatedBusinessRecord = { persistedData: any; dataKey: unknown };
+type CreateBusinessRecord = (transaction?: any) => Promise<CreatedBusinessRecord>;
+type CreateApproval = (
+  businessRecord: CreatedBusinessRecord,
+  transaction?: any,
+  sourceTransaction?: any,
+) => Promise<any>;
+type ReportDeferredWorkflowTriggerError = (dataKey: unknown) => (error: unknown) => void;
+
+type ApprovalCreationPathOptions = {
+  approvalSequelize: any;
+  collectionName: string;
+  createApproval: CreateApproval;
+  createBusinessRecord: CreateBusinessRecord;
+  ctx: any;
+  deferredWorkflowTriggers: DeferredWorkflowTrigger[];
+  reportDeferredWorkflowTriggerError: ReportDeferredWorkflowTriggerError;
+};
+
+type CrossSequelizeCreationOptions = ApprovalCreationPathOptions & {
+  businessSequelize: any;
+};
 
 async function rollbackTransactions(ctx, pendingTransactions, originalError, dataKey) {
   const errors = [originalError];
@@ -66,6 +88,169 @@ async function rollbackTransactions(ctx, pendingTransactions, originalError, dat
       `Approval creation and transaction rollback failed for business record ${dataKey}`,
     );
   }
+}
+
+async function createWithSharedSequelize(options: ApprovalCreationPathOptions) {
+  const {
+    approvalSequelize,
+    collectionName,
+    createApproval,
+    createBusinessRecord,
+    ctx,
+    deferredWorkflowTriggers,
+    reportDeferredWorkflowTriggerError,
+  } = options;
+  const usesApprovalTransaction = ctx.transaction?.sequelize === approvalSequelize;
+  let businessDataKey: unknown;
+  const createInTransaction = async (transaction) => {
+    const businessRecord = await createBusinessRecord(transaction);
+    businessDataKey = businessRecord.dataKey;
+    return createApproval(businessRecord, transaction);
+  };
+  const approval = usesApprovalTransaction
+    ? await createInTransaction(ctx.transaction)
+    : await approvalSequelize.transaction(createInTransaction);
+
+  if (usesApprovalTransaction) {
+    try {
+      deferUntilTransactionCommitSucceeds(
+        ctx.transaction,
+        deferredWorkflowTriggers,
+        reportDeferredWorkflowTriggerError(businessDataKey),
+      );
+    } catch (error) {
+      ctx.logger?.error?.(APPROVAL_DEFER_ERROR, {
+        dataKey: businessDataKey,
+        collectionName,
+        error: serializeError(error),
+      });
+      throw error;
+    }
+  } else {
+    await runDeferredAfterCommitCallbacks(
+      deferredWorkflowTriggers,
+      reportDeferredWorkflowTriggerError(businessDataKey),
+    );
+  }
+
+  return approval;
+}
+
+async function createAcrossSequelize(options: CrossSequelizeCreationOptions) {
+  const {
+    approvalSequelize,
+    businessSequelize,
+    collectionName,
+    createApproval,
+    createBusinessRecord,
+    ctx,
+    deferredWorkflowTriggers,
+    reportDeferredWorkflowTriggerError,
+  } = options;
+  const usesApprovalTransaction = ctx.transaction?.sequelize === approvalSequelize;
+  const inheritedApprovalTransaction = usesApprovalTransaction ? ctx.transaction : undefined;
+  let approvalTransaction = inheritedApprovalTransaction;
+  let businessTransaction;
+  let businessRecord: CreatedBusinessRecord;
+  let approval;
+  const ownsApprovalTransaction = !inheritedApprovalTransaction;
+  const getOwnedApprovalTransaction = () => {
+    return ownsApprovalTransaction ? approvalTransaction : undefined;
+  };
+
+  try {
+    if (ownsApprovalTransaction) {
+      approvalTransaction = await approvalSequelize.transaction();
+    }
+    businessTransaction = await businessSequelize.transaction();
+    businessRecord = await createBusinessRecord(businessTransaction);
+    approval = await createApproval(businessRecord, approvalTransaction, businessTransaction);
+  } catch (error) {
+    await rollbackTransactions(
+      ctx,
+      [
+        { name: 'approval', transaction: getOwnedApprovalTransaction() },
+        { name: 'business', transaction: businessTransaction },
+      ],
+      error,
+      businessRecord?.dataKey,
+    );
+    throw error;
+  }
+
+  try {
+    await businessTransaction.commit();
+    businessTransaction = undefined;
+  } catch (error) {
+    businessTransaction = undefined;
+    try {
+      // Sequelize commit() force-cleans connections when the commit outcome is uncertain.
+      await rollbackTransactions(
+        ctx,
+        [{ name: 'approval', transaction: getOwnedApprovalTransaction() }],
+        error,
+        businessRecord.dataKey,
+      );
+    } catch (rollbackError) {
+      ctx.logger?.error?.(COMMIT_CLEANUP_ERROR, {
+        dataKey: businessRecord.dataKey,
+        error: serializeError(error),
+        rollbackError: serializeError(rollbackError),
+      });
+      throw rollbackError;
+    }
+    ctx.logger?.error?.(
+      ownsApprovalTransaction
+        ? 'Business commit outcome is uncertain; approval transaction was rolled back'
+        : 'Business commit outcome is uncertain; inherited approval transaction was left open',
+      {
+        dataKey: businessRecord.dataKey,
+        error: serializeError(error),
+      },
+    );
+    throw error;
+  }
+
+  if (ownsApprovalTransaction) {
+    try {
+      await approvalTransaction.commit();
+      approvalTransaction = undefined;
+    } catch (error) {
+      ctx.logger?.error?.(APPROVAL_COMMIT_UNCERTAIN_MESSAGE, {
+        dataKey: businessRecord.dataKey,
+        approvalId: approval?.id,
+        error: serializeError(error),
+      });
+      throw error;
+    }
+    await runDeferredAfterCommitCallbacks(
+      deferredWorkflowTriggers,
+      reportDeferredWorkflowTriggerError(businessRecord.dataKey),
+    );
+  } else {
+    try {
+      deferUntilTransactionCommitSucceeds(
+        approvalTransaction,
+        deferredWorkflowTriggers,
+        reportDeferredWorkflowTriggerError(businessRecord.dataKey),
+        () => {
+          ctx.logger?.error?.(ROLLBACK_MESSAGE, {
+            dataKey: businessRecord.dataKey,
+            collectionName,
+          });
+        },
+      );
+    } catch (error) {
+      ctx.logger?.error?.(DEFER_ERROR, {
+        dataKey: businessRecord.dataKey,
+        collectionName,
+        error: serializeError(error),
+      });
+      throw error;
+    }
+  }
+
+  return approval;
 }
 
 export const approvals = {
@@ -207,140 +392,20 @@ export const approvals = {
       });
     };
 
-    const businessSequelize = model.sequelize;
     const approvalSequelize = ctx.db.sequelize;
-    const usesApprovalTransaction = ctx.transaction?.sequelize === approvalSequelize;
-    let approval;
-    if (businessSequelize === approvalSequelize) {
-      let businessDataKey: unknown;
-      const createInTransaction = async (transaction) => {
-        const businessRecord = await createBusinessRecord(transaction);
-        businessDataKey = businessRecord.dataKey;
-        return createApproval(businessRecord, transaction);
-      };
-      approval = usesApprovalTransaction
-        ? await createInTransaction(ctx.transaction)
-        : await approvalSequelize.transaction(createInTransaction);
-      if (usesApprovalTransaction) {
-        try {
-          deferUntilTransactionCommitSucceeds(
-            ctx.transaction,
-            deferredWorkflowTriggers,
-            reportDeferredWorkflowTriggerError(businessDataKey),
-          );
-        } catch (error) {
-          ctx.logger?.error?.(APPROVAL_DEFER_ERROR, {
-            dataKey: businessDataKey,
-            collectionName,
-            error: serializeError(error),
-          });
-          throw error;
-        }
-      } else {
-        await runDeferredAfterCommitCallbacks(
-          deferredWorkflowTriggers,
-          reportDeferredWorkflowTriggerError(businessDataKey),
-        );
-      }
-    } else {
-      const inheritedApprovalTransaction = usesApprovalTransaction ? ctx.transaction : undefined;
-      let approvalTransaction = inheritedApprovalTransaction;
-      let businessTransaction;
-      let businessRecord;
-      const ownsApprovalTransaction = !inheritedApprovalTransaction;
-      const getOwnedApprovalTransaction = () => {
-        return ownsApprovalTransaction ? approvalTransaction : undefined;
-      };
-      try {
-        if (ownsApprovalTransaction) {
-          approvalTransaction = await approvalSequelize.transaction();
-        }
-        businessTransaction = await businessSequelize.transaction();
-        businessRecord = await createBusinessRecord(businessTransaction);
-        approval = await createApproval(businessRecord, approvalTransaction, businessTransaction);
-      } catch (error) {
-        await rollbackTransactions(
-          ctx,
-          [
-            { name: 'approval', transaction: getOwnedApprovalTransaction() },
-            { name: 'business', transaction: businessTransaction },
-          ],
-          error,
-          businessRecord?.dataKey,
-        );
-        throw error;
-      }
-      try {
-        await businessTransaction.commit();
-        businessTransaction = undefined;
-      } catch (error) {
-        businessTransaction = undefined;
-        try {
-          // Sequelize commit() force-cleans connections when the commit outcome is uncertain.
-          await rollbackTransactions(
-            ctx,
-            [{ name: 'approval', transaction: getOwnedApprovalTransaction() }],
-            error,
-            businessRecord.dataKey,
-          );
-        } catch (rollbackError) {
-          ctx.logger?.error?.(COMMIT_CLEANUP_ERROR, {
-            dataKey: businessRecord.dataKey,
-            error: serializeError(error),
-            rollbackError: serializeError(rollbackError),
-          });
-          throw rollbackError;
-        }
-        ctx.logger?.error?.(
-          ownsApprovalTransaction
-            ? 'Business commit outcome is uncertain; approval transaction was rolled back'
-            : 'Business commit outcome is uncertain; inherited approval transaction was left open',
-          {
-            dataKey: businessRecord.dataKey,
-            error: serializeError(error),
-          },
-        );
-        throw error;
-      }
-      if (ownsApprovalTransaction) {
-        try {
-          await approvalTransaction.commit();
-          approvalTransaction = undefined;
-        } catch (error) {
-          ctx.logger?.error?.(APPROVAL_COMMIT_UNCERTAIN_MESSAGE, {
-            dataKey: businessRecord.dataKey,
-            approvalId: approval?.id,
-            error: serializeError(error),
-          });
-          throw error;
-        }
-        await runDeferredAfterCommitCallbacks(
-          deferredWorkflowTriggers,
-          reportDeferredWorkflowTriggerError(businessRecord.dataKey),
-        );
-      } else {
-        try {
-          deferUntilTransactionCommitSucceeds(
-            approvalTransaction,
-            deferredWorkflowTriggers,
-            reportDeferredWorkflowTriggerError(businessRecord.dataKey),
-            () => {
-              ctx.logger?.error?.(ROLLBACK_MESSAGE, {
-                dataKey: businessRecord.dataKey,
-                collectionName,
-              });
-            },
-          );
-        } catch (error) {
-          ctx.logger?.error?.(DEFER_ERROR, {
-            dataKey: businessRecord.dataKey,
-            collectionName,
-            error: serializeError(error),
-          });
-          throw error;
-        }
-      }
-    }
+    const creationOptions = {
+      approvalSequelize,
+      collectionName,
+      createApproval,
+      createBusinessRecord,
+      ctx,
+      deferredWorkflowTriggers,
+      reportDeferredWorkflowTriggerError,
+    };
+    const approval =
+      model.sequelize === approvalSequelize
+        ? await createWithSharedSequelize(creationOptions)
+        : await createAcrossSequelize({ ...creationOptions, businessSequelize: model.sequelize });
 
     ctx.body = approval;
     await next();

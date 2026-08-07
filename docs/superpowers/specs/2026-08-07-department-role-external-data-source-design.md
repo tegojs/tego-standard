@@ -28,7 +28,8 @@ auth
   -> acl
 ```
 
-`setDepartmentsInfo` 从主数据库加载当前用户的部门及部门角色，并把部门角色写入 `ctx.state.attachRoles`。`setCurrentRole` 再把直接角色与 `attachRoles` 合并。
+`setDepartmentsInfo` 从主数据库加载当前用户的部门及部门角色，并把部门角色写入 `ctx.state.attachRoles`。
+`setCurrentRole` 再把直接角色与 `attachRoles` 合并。
 
 外部数据源拥有独立的 `resourceManager`，请求链只有：
 

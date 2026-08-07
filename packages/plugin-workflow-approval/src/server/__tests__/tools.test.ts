@@ -1,6 +1,38 @@
 import { describe, expect, it } from 'vitest';
 
-import { serializeError } from '../tools';
+import { getSummaryAssociationAppends, getWorkflowAppends, serializeError } from '../tools';
+
+function createCollection(fields: Record<string, any>, targets: Record<string, any> = {}) {
+  return {
+    getField: (name: string) => fields[name],
+    db: {
+      getCollection: (name: string) => targets[name],
+    },
+  } as any;
+}
+
+function createSummaryCollections() {
+  const products = createCollection({ name: { type: 'string' } });
+  const items = createCollection(
+    {
+      amount: { type: 'integer' },
+      product: { type: 'belongsTo', target: 'products' },
+    },
+    { products },
+  );
+  const users = createCollection({ name: { type: 'string' } });
+  const root = createCollection(
+    {
+      items: { type: 'hasMany', target: 'items' },
+      owner: { type: 'belongsTo', target: 'users' },
+      total: { type: 'integer' },
+      unresolved: { type: 'hasOne', target: 'missing' },
+    },
+    { items, users },
+  );
+
+  return root;
+}
 
 describe('serializeError', () => {
   it('uses a stable message when an object cannot be converted to a string', () => {
@@ -28,5 +60,29 @@ describe('serializeError', () => {
       message: 'Unknown error',
       stack: undefined,
     });
+  });
+});
+
+describe('workflow appends', () => {
+  it('collects nested summary associations and stops at non-association or unresolved fields', () => {
+    const collection = createSummaryCollections();
+
+    expect(
+      getSummaryAssociationAppends(['items.product.name', 'items.amount', 'total', 'unresolved.value'], collection),
+    ).toEqual(['items', 'items.product', 'unresolved']);
+  });
+
+  it('merges explicit and summary appends without duplicates', () => {
+    const collection = createSummaryCollections();
+
+    expect(
+      getWorkflowAppends(
+        {
+          appends: ['owner', 'items', 'owner'],
+          summary: ['items.product.name', 'owner.name'],
+        },
+        collection,
+      ),
+    ).toEqual(['owner', 'items', 'items.product']);
   });
 });

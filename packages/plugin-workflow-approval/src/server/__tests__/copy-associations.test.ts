@@ -17,7 +17,7 @@ describe('cleanCopyAssociationData', () => {
     expect(cleanCopyAssociationData(sourceData, copiedData, {} as any, copyPaths)).toBe(copiedData);
   });
 
-  it.each([[1], ['details', null], {}])('rejects invalid copy paths: %j', (copyPaths) => {
+  it.each([[[1]], [['details', null]], [{}]])('rejects invalid copy paths: %j', (copyPaths) => {
     const cleanInvalidCopy = () => cleanCopyAssociationData({}, {}, {} as any, copyPaths);
     expect(cleanInvalidCopy).toThrow(CopyAssociationError);
   });

@@ -22,11 +22,50 @@ describe('waitForFastAssertion', () => {
     expect(assertion).toHaveBeenCalledTimes(2);
   });
 
+  it('preserves the last assertion error when the final attempt times out', async () => {
+    const lastError = new Error('still not ready');
+    const assertion = vi
+      .fn()
+      .mockRejectedValueOnce(lastError)
+      .mockImplementation(() => new Promise<void>(() => {}));
+
+    await expect(waitForFastAssertion(assertion, 1)).rejects.toBe(lastError);
+    expect(assertion).toHaveBeenCalledTimes(2);
+  });
+
+  it('allows the final assertion to settle during its grace period', async () => {
+    const assertion = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('not ready'))
+      .mockImplementation(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+
+    await expect(waitForFastAssertion(assertion, 1)).resolves.toBeUndefined();
+    expect(assertion).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a real final assertion error after the primary attempt times out', async () => {
+    const finalError = new Error('final assertion failed');
+    const assertion = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<void>(() => {}))
+      .mockRejectedValueOnce(finalError);
+
+    await expect(waitForFastAssertion(assertion, 1)).rejects.toBe(finalError);
+    expect(assertion).toHaveBeenCalledTimes(2);
+  });
+
+  it('normalizes non-error assertion failures to the timeout error', async () => {
+    const assertion = vi.fn().mockRejectedValue('not ready');
+
+    await expect(waitForFastAssertion(assertion, 1)).rejects.toThrow('waitForFastAssertion timed out');
+    expect(assertion).toHaveBeenCalledTimes(2);
+  });
+
   it('times out when an assertion promise never settles', async () => {
     const assertion = vi.fn(() => new Promise<void>(() => {}));
     let guardTimeout: ReturnType<typeof setTimeout>;
     const guard = new Promise<never>((_, reject) => {
-      guardTimeout = setTimeout(() => reject(new Error('test guard timed out')), 200);
+      guardTimeout = setTimeout(() => reject(new Error('test guard timed out')), 1000);
     });
 
     try {

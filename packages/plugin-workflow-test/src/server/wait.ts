@@ -1,4 +1,8 @@
 const FAST_POLL_INTERVAL_MS = 50;
+const FINAL_ASSERTION_GRACE_MS = 100;
+const WAIT_FOR_FAST_ASSERTION_TIMEOUT = 'waitForFastAssertion timed out';
+
+class AssertionTimeoutError extends Error {}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -7,7 +11,7 @@ function sleep(ms: number) {
 async function runAssertionWithinTimeout(assertion: () => Promise<void> | void, timeout: number) {
   let timeoutHandle: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => reject(new Error('waitForFastAssertion timed out')), Math.max(0, timeout));
+    timeoutHandle = setTimeout(() => reject(new AssertionTimeoutError()), Math.max(0, timeout));
   });
 
   try {
@@ -32,19 +36,23 @@ export async function waitForFastAssertion(assertion: () => Promise<void> | void
       await runAssertionWithinTimeout(assertion, timeout - (Date.now() - start));
       return;
     } catch (error) {
-      lastError = error;
+      if (!(error instanceof AssertionTimeoutError)) {
+        lastError = error;
+      }
       await sleep(FAST_POLL_INTERVAL_MS);
     }
   }
 
   try {
-    await runAssertionWithinTimeout(assertion, timeout - (Date.now() - start));
+    await runAssertionWithinTimeout(assertion, FINAL_ASSERTION_GRACE_MS);
     return;
   } catch (error) {
-    lastError = error;
+    if (!(error instanceof AssertionTimeoutError)) {
+      lastError = error;
+    }
   }
 
-  throw lastError instanceof Error ? lastError : new Error('waitForFastAssertion timed out');
+  throw lastError instanceof Error ? lastError : new Error(WAIT_FOR_FAST_ASSERTION_TIMEOUT);
 }
 
 export async function waitForWorkflowIdle(

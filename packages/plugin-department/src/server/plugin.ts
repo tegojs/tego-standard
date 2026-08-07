@@ -1,5 +1,4 @@
 import type { CollectionRepository } from '@tachybase/module-collection';
-
 import { InstallOptions, Plugin } from '@tego/server';
 
 import {
@@ -12,6 +11,7 @@ import {
 import { departmentsField, mainDepartmentField } from './collections/users';
 import {
   destroyDepartmentCheck,
+  loadDepartmentsInfo,
   resetUserDepartmentsCache,
   setDepartmentOwners,
   setDepartmentsInfo,
@@ -68,6 +68,7 @@ export class PluginDepartmentServer extends Plugin {
       before: 'setCurrentRole',
       after: 'auth',
     });
+    this.app.on('acl:beforeSetCurrentRole', loadDepartmentsInfo);
     this.app.resourcer.use(setDepartmentOwners, { tag: 'setDepartmentOwners' });
     this.app.resourcer.use(destroyDepartmentCheck, { tag: 'destroyDepartmentCheck' });
     this.app.resourcer.use(updateDepartmentIsLeaf, { tag: 'updateDepartmentIsLeaf' });

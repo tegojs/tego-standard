@@ -1,9 +1,16 @@
 import type { ArrayFieldRepository, Context, Next } from '@tego/server';
 
-export const setDepartmentsInfo = async (ctx: Context, next: Next) => {
+const departmentsInfoLoaded = Symbol('departmentsInfoLoaded');
+
+export const loadDepartmentsInfo = async (ctx: Context) => {
+  if (ctx.state[departmentsInfoLoaded]) {
+    return;
+  }
+  ctx.state[departmentsInfoLoaded] = true;
+
   const currentUser = ctx.state.currentUser;
   if (!currentUser) {
-    return next();
+    return;
   }
   const cache = ctx.cache;
   const repo = ctx.db.getRepository<ArrayFieldRepository>('users.departments', currentUser.id);
@@ -16,7 +23,7 @@ export const setDepartmentsInfo = async (ctx: Context, next: Next) => {
     }),
   );
   if (!departments.length) {
-    return next();
+    return;
   }
   ctx.state.currentUser.departments = departments;
   ctx.state.currentUser.mainDeparmtent = departments.find((dept) => dept.isMain);
@@ -30,10 +37,14 @@ export const setDepartmentsInfo = async (ctx: Context, next: Next) => {
     },
   });
   if (!roles.length) {
-    return next();
+    return;
   }
   const rolesMap = new Map();
   roles.forEach((role) => rolesMap.set(role.name, role));
   ctx.state.attachRoles = Array.from(rolesMap.values());
+};
+
+export const setDepartmentsInfo = async (ctx: Context, next: Next) => {
+  await loadDepartmentsInfo(ctx);
   await next();
 };

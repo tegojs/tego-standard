@@ -48,10 +48,57 @@ describe('data source with acl', () => {
     'ui-schema-storage',
     'collection-manager',
     'data-source-manager',
+    'department',
   ];
 
   const getDataSourceAgent = (agent: SuperAgentTest, dataSourceKey: string) => {
     return agent.set('X-data-source', dataSourceKey) as any;
+  };
+
+  const createUserWithoutRoles = async () => {
+    const user = await app.db.getRepository('users').create({
+      values: {
+        roles: [],
+      },
+    });
+    await app.db.getRepository('rolesUsers').destroy({
+      filter: {
+        userId: user.id,
+      },
+    });
+    const directRoles = await app.db.getRepository('users.roles', user.id).find();
+    expect(directRoles).toHaveLength(0);
+    return user;
+  };
+
+  const createDepartmentRoleUser = async (suffix: string) => {
+    const roleName = `department-role-${suffix}`;
+    await app.db.getRepository('roles').create({
+      values: {
+        name: roleName,
+        title: `Department role ${suffix}`,
+      },
+    });
+    const user = await createUserWithoutRoles();
+    const department = await app.db.getRepository('departments').create({
+      values: {
+        title: `Department ${suffix}`,
+      },
+    });
+    await app.db.getRepository('departmentsUsers').create({
+      values: {
+        departmentId: department.id,
+        userId: user.id,
+        isMain: true,
+      },
+    });
+    await app.db.getRepository('departmentsRoles').create({
+      values: {
+        departmentId: department.id,
+        roleName,
+      },
+    });
+    return { roleName, user };
   };
 
   beforeAll(async () => {
@@ -431,6 +478,47 @@ describe('data source with acl', () => {
     const checkData = checkRep.body;
 
     expect(checkData.meta.dataSources.mockInstance1).toBeDefined();
+  });
+
+  it('should use a department role on the main data source', async () => {
+    const { roleName, user } = await createDepartmentRoleUser('main');
+
+    const response = await app.agent().login(user).set('X-Role', roleName).resource('roles').check({});
+
+    expect(response.status).toBe(200);
+  });
+
+  it('should use a department role on an external data source', async () => {
+    const { roleName, user } = await createDepartmentRoleUser('external');
+    const adminUser = await app.db.getRepository('users').create({
+      values: {
+        roles: ['root'],
+      },
+    });
+    const adminAgent: any = app.agent().login(adminUser);
+    const updateResponse = await adminAgent.resource('dataSources.roles', 'mockInstance1').update({
+      filterByTk: roleName,
+      values: {
+        strategy: {
+          actions: ['view'],
+        },
+      },
+    });
+    expect(updateResponse.status).toBe(200);
+
+    const userAgent = app.agent().login(user).set('X-Role', roleName);
+    const response = await getDataSourceAgent(userAgent, 'mockInstance1').resource('api/posts').list({});
+
+    expect(response.status).toBe(200);
+  });
+
+  it('should reject a user without direct or attached roles on an external data source', async () => {
+    const user = await createUserWithoutRoles();
+
+    const response = await getDataSourceAgent(app.agent().login(user), 'mockInstance1').resource('api/posts').list({});
+
+    expect(response.status).toBe(401);
+    expect(response.body.errors[0].code).toBe('USER_HAS_NO_ROLES_ERR');
   });
 
   // This test mutates the shared application middleware stack, so keep it last.

@@ -22,6 +22,7 @@ describe('role', () => {
 
   beforeEach(async () => {
     ctx = {
+      tego: api,
       db,
       cache: api.cache,
       state: {
@@ -78,6 +79,27 @@ describe('role', () => {
     };
     await setCurrentRole(ctx, () => {});
     expect(ctx.state.currentRole).toBe('root');
+  });
+
+  it('should wait for roles attached by ACL extensions', async () => {
+    ctx.state.currentUser = await createUser(['admin']);
+    ctx.get = (name) => (name === 'X-Role' ? 'department-role' : undefined);
+    ctx.throw = vi.fn();
+
+    const listener = vi.fn(async (eventCtx) => {
+      await Promise.resolve();
+      eventCtx.state.attachRoles = [{ name: 'department-role' }];
+    });
+    api.on('acl:beforeSetCurrentRole', listener);
+
+    try {
+      await setCurrentRole(ctx, () => {});
+    } finally {
+      api.off('acl:beforeSetCurrentRole', listener);
+    }
+
+    expect(listener).toHaveBeenCalledWith(ctx);
+    expect(ctx.state.currentRole).toBe('department-role');
   });
 
   it('should throw 401', async () => {

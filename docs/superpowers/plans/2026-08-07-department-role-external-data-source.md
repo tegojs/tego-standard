@@ -130,7 +130,12 @@ const createDepartmentRoleUser = async (suffix: string) => {
   await app.db.getRepository('roles').create({
     values: { name: roleName, title: `Department role ${suffix}` },
   });
-  const user = await app.db.getRepository('users').create({ values: {} });
+  const user = await app.db.getRepository('users').create({ values: { roles: [] } });
+  await app.db.getRepository('rolesUsers').destroy({
+    filter: { userId: user.id },
+  });
+  const directRoles = await app.db.getRepository('users.roles', user.id).find();
+  expect(directRoles).toHaveLength(0);
   const department = await app.db.getRepository('departments').create({
     values: { title: `Department ${suffix}` },
   });
@@ -182,7 +187,10 @@ it('should use a department role on an external data source', async () => {
 
 ```typescript
 it('should reject a user without direct or attached roles on an external data source', async () => {
-  const user = await app.db.getRepository('users').create({ values: {} });
+  const user = await app.db.getRepository('users').create({ values: { roles: [] } });
+  await app.db.getRepository('rolesUsers').destroy({
+    filter: { userId: user.id },
+  });
 
   const response = await getDataSourceAgent(app.agent().login(user), 'mockInstance1')
     .resource('api/posts')

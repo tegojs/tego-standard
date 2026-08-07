@@ -20,6 +20,8 @@ export async function setCurrentRole(ctx: Context, next) {
     return next();
   }
 
+  await ctx.tego.emitAsync('acl:beforeSetCurrentRole', ctx);
+
   const attachRoles = ctx.state.attachRoles || [];
   const cache = ctx.cache as Cache;
   const repository = ctx.db.getRepository('users.roles', ctx.state.currentUser.id) as unknown as Repository;

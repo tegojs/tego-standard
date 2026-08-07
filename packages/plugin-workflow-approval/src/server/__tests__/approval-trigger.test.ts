@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { APPROVAL_STATUS } from '../constants/status';
 import ApprovalTrigger from '../triggers/Approval';
 
-function createTriggerContext(options: { collectionSequelize?: unknown; trigger?: ReturnType<typeof vi.fn> } = {}) {
+function createTriggerContext(
+  options: {
+    collectionSequelize?: unknown;
+    trigger?: ReturnType<typeof vi.fn>;
+  } = {},
+) {
   const fallbackTransaction = { id: 'fallback' };
   const repository = {
     findOne: vi.fn().mockResolvedValue({ id: 42 }),
@@ -56,17 +61,27 @@ function createTriggerContext(options: { collectionSequelize?: unknown; trigger?
     status: APPROVAL_STATUS.SUBMITTED,
   };
 
-  return { approval, fallbackTransaction, loggerError, repository, trigger, useDataSourceTransaction };
+  return {
+    approval,
+    fallbackTransaction,
+    loggerError,
+    repository,
+    trigger,
+    useDataSourceTransaction,
+  };
 }
 
 describe('ApprovalTrigger', () => {
   it('uses the workflow transaction when no data source transaction is provided', async () => {
-    const { approval, fallbackTransaction, repository, trigger, useDataSourceTransaction } = createTriggerContext();
+    const context = createTriggerContext();
+    const { approval, fallbackTransaction, repository } = context;
+    const { trigger, useDataSourceTransaction } = context;
 
     await trigger.triggerHandler(approval);
 
     expect(useDataSourceTransaction).toHaveBeenCalledWith('main', undefined);
-    expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({ transaction: fallbackTransaction }));
+    const expectedTransaction = expect.objectContaining({ transaction: fallbackTransaction });
+    expect(repository.findOne).toHaveBeenCalledWith(expectedTransaction);
   });
 
   it('uses a matching data source transaction directly', async () => {
@@ -78,19 +93,51 @@ describe('ApprovalTrigger', () => {
 
     await trigger.triggerHandler(approval, { dataSourceTransaction } as any);
 
-    expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({ transaction: dataSourceTransaction }));
+    const expectedTransaction = expect.objectContaining({ transaction: dataSourceTransaction });
+    expect(repository.findOne).toHaveBeenCalledWith(expectedTransaction);
     expect(useDataSourceTransaction).not.toHaveBeenCalled();
+  });
+
+  it('defers the workflow trigger through deferAfterCommit when provided', async () => {
+    const triggerWorkflow = vi.fn();
+    const deferAfterCommit = vi.fn();
+    const { approval, trigger } = createTriggerContext({ trigger: triggerWorkflow });
+
+    await trigger.triggerHandler(approval, { deferAfterCommit });
+
+    expect(deferAfterCommit).toHaveBeenCalledWith(expect.any(Function));
+    expect(triggerWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('wraps transaction commit and triggers the workflow after a successful commit', async () => {
+    const triggerWorkflow = vi.fn();
+    const { approval, trigger } = createTriggerContext({ trigger: triggerWorkflow });
+    const transaction = {
+      commit: vi.fn().mockResolvedValue(undefined),
+    };
+    const originalCommit = transaction.commit;
+
+    await trigger.triggerHandler(approval, { transaction } as any);
+
+    expect(transaction.commit).not.toBe(originalCommit);
+    expect(triggerWorkflow).not.toHaveBeenCalled();
+
+    await transaction.commit();
+
+    expect(originalCommit).toHaveBeenCalledOnce();
+    expect(triggerWorkflow).toHaveBeenCalledOnce();
   });
 
   it('logs workflow trigger rejection when no transaction is available', async () => {
     const triggerError = new Error('trigger failed');
     const triggerWorkflow = vi.fn().mockRejectedValue(triggerError);
     const { approval, loggerError, trigger } = createTriggerContext({ trigger: triggerWorkflow });
+    const expectedMessage = 'Approval workflow trigger failed after transaction commit';
 
     await trigger.triggerHandler(approval);
 
     await vi.waitFor(() => {
-      expect(loggerError).toHaveBeenCalledWith('Approval workflow trigger failed after transaction commit', {
+      expect(loggerError).toHaveBeenCalledWith(expectedMessage, {
         approvalId: 7,
         collectionName: 'orders',
         error: {

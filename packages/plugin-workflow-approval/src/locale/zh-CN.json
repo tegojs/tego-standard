@@ -44,6 +44,7 @@
   "Approval flow": "审批流",
   "Approval process": "审批处理",
   "Approval todos": "审批待办",
+  "Approval workflow identifier is required": "必须提供审批工作流标识",
   "ApprovalCarbonCopy": "审批:抄送",
   "Approvals": "审批",
   "Approve": "通过",

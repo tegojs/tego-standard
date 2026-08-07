@@ -191,6 +191,7 @@ describe('useSubmitCreate', () => {
     expect(mocks.notification.error).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'translated:Submit failed',
+        description: 'translated:Approval workflow identifier is required',
       }),
     );
   });

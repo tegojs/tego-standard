@@ -1,7 +1,5 @@
-export type DeferredAfterCommit = () => unknown | Promise<unknown>;
+export type DeferredAfterCommit = () => unknown;
 export type DeferredAfterCommitErrorHandler = (error: unknown) => unknown | Promise<unknown>;
-
-type AfterCommitErrorHandler = DeferredAfterCommitErrorHandler;
 
 type DeferredAfterCommitRegistration = {
   callback: DeferredAfterCommit;
@@ -16,7 +14,7 @@ type TransactionState = {
 const transactionStates = new WeakMap<object, TransactionState>();
 const CALLBACK_ERROR = 'Deferred after-commit callbacks failed';
 
-async function reportDeferredAfterCommitError(error: unknown, handler?: AfterCommitErrorHandler) {
+async function reportDeferredAfterCommitError(error: unknown, handler?: DeferredAfterCommitErrorHandler) {
   try {
     if (handler) {
       await handler(error);

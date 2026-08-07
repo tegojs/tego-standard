@@ -1,4 +1,5 @@
 {
+  "Approval workflow identifier is required": "必須提供審批工作流程識別碼",
   "Submission succeeded, but post-processing failed": "提交成功，但後續處理失敗",
   "Submit failed": "提交失敗",
   "Submit succeeded": "提交成功"

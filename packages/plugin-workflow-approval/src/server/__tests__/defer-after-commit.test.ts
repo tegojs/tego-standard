@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import * as afterCommit from '../defer-after-commit';
+import { deferUntilTransactionCommitSucceeds, runDeferredAfterCommitCallbacks } from '../defer-after-commit';
 
-const { deferUntilTransactionCommitSucceeds, runDeferredAfterCommitCallbacks } = afterCommit;
 const CALLBACK_FAILURE = 'Deferred after-commit callbacks failed';
 const DEFERRED_REPORTING_FAILURE = 'Deferred after-commit error reporting failed';
 

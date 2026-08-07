@@ -23,35 +23,72 @@ describe('waitForFastAssertion', () => {
   });
 
   it('preserves the last assertion error when the final attempt times out', async () => {
-    const lastError = new Error('still not ready');
-    const assertion = vi
-      .fn()
-      .mockRejectedValueOnce(lastError)
-      .mockImplementation(() => new Promise<void>(() => {}));
+    vi.useFakeTimers();
+    try {
+      const lastError = new Error('still not ready');
+      const assertion = vi
+        .fn()
+        .mockRejectedValueOnce(lastError)
+        .mockImplementation(() => new Promise<void>(() => {}));
+      const result = waitForFastAssertion(assertion, 1).catch((error) => error);
 
-    await expect(waitForFastAssertion(assertion, 1)).rejects.toBe(lastError);
-    expect(assertion.mock.calls.length).toBeGreaterThanOrEqual(1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(assertion).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(50);
+      expect(assertion).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(100);
+      await expect(result).resolves.toBe(lastError);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('allows the final assertion to settle during its grace period', async () => {
-    const assertion = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('not ready'))
-      .mockImplementation(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+    vi.useFakeTimers();
+    try {
+      const assertion = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('not ready'))
+        .mockImplementation(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+      const result = waitForFastAssertion(assertion, 1);
 
-    await expect(waitForFastAssertion(assertion, 1)).resolves.toBeUndefined();
-    expect(assertion.mock.calls.length).toBeGreaterThanOrEqual(1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(assertion).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(50);
+      expect(assertion).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(result).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('reports a real final assertion error after the primary attempt times out', async () => {
-    const finalError = new Error('final assertion failed');
-    const assertion = vi
-      .fn()
-      .mockImplementationOnce(() => new Promise<void>(() => {}))
-      .mockRejectedValueOnce(finalError);
+    vi.useFakeTimers();
+    try {
+      const finalError = new Error('final assertion failed');
+      const assertion = vi
+        .fn()
+        .mockImplementationOnce(() => new Promise<void>(() => {}))
+        .mockRejectedValueOnce(finalError);
+      const result = waitForFastAssertion(assertion, 1).catch((error) => error);
 
-    await expect(waitForFastAssertion(assertion, 1)).rejects.toBe(finalError);
-    expect(assertion.mock.calls.length).toBeGreaterThanOrEqual(1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(assertion).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(assertion).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(50);
+      expect(assertion).toHaveBeenCalledTimes(2);
+      await expect(result).resolves.toBe(finalError);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('normalizes non-error assertion failures to the timeout error', async () => {

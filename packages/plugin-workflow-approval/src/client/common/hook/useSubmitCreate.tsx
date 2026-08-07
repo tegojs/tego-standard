@@ -56,7 +56,7 @@ export function useSubmitCreate() {
           const selectedWorkflowId = workflow?.id || workflowId || approval?.workflow?.id;
           const selectedWorkflowKey = workflow?.key || approval?.workflow?.key;
           if (!selectedWorkflowId && !selectedWorkflowKey) {
-            throw new Error('Approval workflow identifier is required');
+            throw new Error(t('Approval workflow identifier is required'));
           }
           const request = resource.create({
             values: {

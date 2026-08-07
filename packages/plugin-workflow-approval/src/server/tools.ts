@@ -95,12 +95,13 @@ function getSummaryAssociationAppends(
         break;
       }
 
-      path.push(segment);
-      associationPaths.add(path.join('.'));
-      currentCollection = getTargetCollection(segment, currentCollection, app);
-      if (!currentCollection) {
+      const targetCollection = getTargetCollection(segment, currentCollection, app);
+      if (!targetCollection) {
         break;
       }
+      path.push(segment);
+      associationPaths.add(path.join('.'));
+      currentCollection = targetCollection;
     }
   }
 

@@ -35,6 +35,17 @@ function createSummaryCollections() {
 }
 
 describe('serializeError', () => {
+  it('serializes a standard Error instance', () => {
+    const error = new Error('known failure');
+    error.name = 'KnownError';
+
+    expect(serializeError(error)).toEqual({
+      name: 'KnownError',
+      message: 'known failure',
+      stack: error.stack,
+    });
+  });
+
   it('uses a stable message when an object cannot be converted to a string', () => {
     const error = Object.assign(Object.create(null), { message: 42 });
 
@@ -69,7 +80,7 @@ describe('workflow appends', () => {
 
     expect(
       getSummaryAssociationAppends(['items.product.name', 'items.amount', 'total', 'unresolved.value'], collection),
-    ).toEqual(['items', 'items.product', 'unresolved']);
+    ).toEqual(['items', 'items.product']);
   });
 
   it('merges explicit and summary appends without duplicates', () => {

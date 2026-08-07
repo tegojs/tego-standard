@@ -510,7 +510,8 @@ describe('data source with acl', () => {
     expect(updateResponse.status).toBe(200);
 
     const userAgent = app.agent().login(user).set('X-Role', roleName);
-    const response = await getDataSourceAgent(userAgent, 'mockInstance1').resource('api/posts').list({});
+    const dataSourceAgent = getDataSourceAgent(userAgent, 'mockInstance1');
+    const response = await dataSourceAgent.resource('api/posts').list({});
 
     expect(response.status).toBe(200);
   });
@@ -518,7 +519,9 @@ describe('data source with acl', () => {
   it('should reject a user without direct or attached roles on an external data source', async () => {
     const user = await createUserWithoutRoles();
 
-    const response = await getDataSourceAgent(app.agent().login(user), 'mockInstance1').resource('api/posts').list({});
+    const userAgent = app.agent().login(user);
+    const dataSourceAgent = getDataSourceAgent(userAgent, 'mockInstance1');
+    const response = await dataSourceAgent.resource('api/posts').list({});
 
     expect(response.status).toBe(401);
     expect(response.body.errors[0].code).toBe('USER_HAS_NO_ROLES_ERR');

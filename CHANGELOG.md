@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- approval quick add ([#403](https://github.com/tegojs/tego-standard/pull/403)) [b5154d0](https://github.com/tegojs/tego-standard/commit/b5154d064e929e228b5345d1a8259e0b6f6a483a) (@dududuna)
+
 
 
 ## [1.6.24] - 2026-07-09

@@ -1,12 +1,15 @@
 import type { ArrayFieldRepository, Context, Next } from '@tego/server';
 
-const departmentsInfoLoaded = Symbol('departmentsInfoLoaded');
+const DEPARTMENTS_INFO_LOADED = Symbol('departmentsInfoLoaded');
 
 export const loadDepartmentsInfo = async (ctx: Context) => {
-  if (ctx.state[departmentsInfoLoaded]) {
+  const state = ctx.state as {
+    [DEPARTMENTS_INFO_LOADED]?: boolean;
+  };
+  if (state[DEPARTMENTS_INFO_LOADED]) {
     return;
   }
-  ctx.state[departmentsInfoLoaded] = true;
+  state[DEPARTMENTS_INFO_LOADED] = true;
 
   const currentUser = ctx.state.currentUser;
   if (!currentUser) {
@@ -40,6 +43,7 @@ export const loadDepartmentsInfo = async (ctx: Context) => {
     return;
   }
   const rolesMap = new Map();
+  (ctx.state.attachRoles || []).forEach((role) => rolesMap.set(role.name, role));
   roles.forEach((role) => rolesMap.set(role.name, role));
   ctx.state.attachRoles = Array.from(rolesMap.values());
 };

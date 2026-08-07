@@ -4,20 +4,26 @@
 
 **目标：** 让仅通过部门获得角色的用户可以用该角色访问已授权的外部数据源，同时保持主数据源和现有角色选择行为不变。
 
-**架构：** `setCurrentRole` 在合并角色前触发 `acl:beforeSetCurrentRole` 异步事件。部门插件复用请求级幂等的部门信息加载函数订阅该事件，同时保留主数据源原有 `setDepartmentsInfo` 中间件及标签顺序。
+**架构：** `setCurrentRole` 在合并角色前触发 `acl:beforeSetCurrentRole` 异步事件。
+部门插件复用请求级幂等的部门信息加载函数订阅该事件，同时保留主数据源原有
+`setDepartmentsInfo` 中间件及标签顺序。
 
-**技术栈：** TypeScript、Tego Application `AsyncEmitter`、Koa middleware、Vitest、SQLite 测试数据库、pnpm 10、Node.js 22。
+**技术栈：** TypeScript、Tego Application `AsyncEmitter`、Koa middleware、Vitest、
+SQLite 测试数据库、pnpm 10、Node.js 22。
 
 ---
 
 ## 文件职责
 
 - 修改 `packages/module-acl/src/server/middlewares/setCurrentRole.ts`：定义角色扩展事件的调用时机。
-- 修改 `packages/plugin-department/src/server/middlewares/set-departments-roles.ts`：拆分可复用加载函数，并保证同一请求只加载一次。
+- 修改 `packages/plugin-department/src/server/middlewares/set-departments-roles.ts`：
+  拆分可复用加载函数，并保证同一请求只加载一次。
 - 修改 `packages/plugin-department/src/server/plugin.ts`：注册部门角色扩展监听器，保留原中间件注册。
 - 修改 `packages/module-acl/src/server/__tests__/setCurrentRole.test.ts`：验证扩展角色先于当前角色选择完成。
-- 创建 `packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts`：验证部门加载的请求级幂等及中间件续传。
-- 修改 `packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts`：覆盖主数据源和外部数据源的部门角色行为，以及真正无角色错误。
+- 创建 `packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts`：
+  验证部门加载的请求级幂等及中间件续传。
+- 修改 `packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts`：
+  覆盖主数据源和外部数据源的部门角色行为，以及真正无角色错误。
 
 ## 环境约束
 
@@ -155,7 +161,12 @@ const createDepartmentRoleUser = async (suffix: string) => {
 it('should use a department role on the main data source', async () => {
   const { roleName, user } = await createDepartmentRoleUser('main');
 
-  const response = await app.agent().login(user).set('X-Role', roleName).resource('roles').check({});
+  const response = await app
+    .agent()
+    .login(user)
+    .set('X-Role', roleName)
+    .resource('roles')
+    .check({});
 
   expect(response.status).toBe(200);
 });
@@ -222,7 +233,10 @@ pnpm test:server packages/module-data-source/src/server/__tests__/data-source-wi
 - [ ] **步骤 9：提交红灯测试**
 
 ```powershell
-git add packages/module-acl/src/server/__tests__/setCurrentRole.test.ts packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
+git add `
+  packages/module-acl/src/server/__tests__/setCurrentRole.test.ts `
+  packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts `
+  packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
 git commit -m "test: cover department roles on external data sources"
 ```
 
@@ -360,7 +374,9 @@ pnpm test:server packages/module-data-source/src/server/__tests__/data-source-wi
 - [ ] **步骤 5：提交部门插件实现**
 
 ```powershell
-git add packages/plugin-department/src/server/middlewares/set-departments-roles.ts packages/plugin-department/src/server/plugin.ts
+git add `
+  packages/plugin-department/src/server/middlewares/set-departments-roles.ts `
+  packages/plugin-department/src/server/plugin.ts
 git commit -m "fix(department): resolve roles for external data sources"
 ```
 
@@ -375,7 +391,13 @@ git commit -m "fix(department): resolve roles for external data sources"
 运行：
 
 ```powershell
-pnpm exec prettier --write packages/module-acl/src/server/middlewares/setCurrentRole.ts packages/module-acl/src/server/__tests__/setCurrentRole.test.ts packages/plugin-department/src/server/middlewares/set-departments-roles.ts packages/plugin-department/src/server/plugin.ts packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
+pnpm exec prettier --write `
+  packages/module-acl/src/server/middlewares/setCurrentRole.ts `
+  packages/module-acl/src/server/__tests__/setCurrentRole.test.ts `
+  packages/plugin-department/src/server/middlewares/set-departments-roles.ts `
+  packages/plugin-department/src/server/plugin.ts `
+  packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts `
+  packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
 ```
 
 - [ ] **步骤 2：运行定向测试**
@@ -383,7 +405,10 @@ pnpm exec prettier --write packages/module-acl/src/server/middlewares/setCurrent
 运行：
 
 ```powershell
-pnpm test:server packages/module-acl/src/server/__tests__/setCurrentRole.test.ts packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
+pnpm test:server `
+  packages/module-acl/src/server/__tests__/setCurrentRole.test.ts `
+  packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts `
+  packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
 ```
 
 预期：所有测试通过，无失败或跳过。
@@ -393,7 +418,10 @@ pnpm test:server packages/module-acl/src/server/__tests__/setCurrentRole.test.ts
 运行：
 
 ```powershell
-pnpm test:server packages/module-acl/src/server/__tests__ packages/plugin-department/src/server/__tests__ packages/module-data-source/src/server/__tests__
+pnpm test:server `
+  packages/module-acl/src/server/__tests__ `
+  packages/plugin-department/src/server/__tests__ `
+  packages/module-data-source/src/server/__tests__
 ```
 
 预期：所有相关测试通过。若仓库基线存在与本变更无关的失败，记录具体测试、错误和与本分支的关系。
@@ -403,7 +431,13 @@ pnpm test:server packages/module-acl/src/server/__tests__ packages/plugin-depart
 运行：
 
 ```powershell
-pnpm exec oxlint packages/module-acl/src/server/middlewares/setCurrentRole.ts packages/module-acl/src/server/__tests__/setCurrentRole.test.ts packages/plugin-department/src/server/middlewares/set-departments-roles.ts packages/plugin-department/src/server/plugin.ts packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
+pnpm exec oxlint `
+  packages/module-acl/src/server/middlewares/setCurrentRole.ts `
+  packages/module-acl/src/server/__tests__/setCurrentRole.test.ts `
+  packages/plugin-department/src/server/middlewares/set-departments-roles.ts `
+  packages/plugin-department/src/server/plugin.ts `
+  packages/plugin-department/src/server/__tests__/set-departments-roles.test.ts `
+  packages/module-data-source/src/server/__tests__/data-source-with-acl.test.ts
 git diff --check main...HEAD
 git status --short
 ```
@@ -412,7 +446,9 @@ git status --short
 
 - [ ] **步骤 5：验证回归测试确实能捕获原缺陷**
 
-临时反向验证：在工作区中撤销 `setCurrentRole` 的事件调用但不提交，运行外部数据源部门角色测试，确认它重新以 HTTP 401 和 `USER_HAS_NO_ROLES_ERR` 失败；随后恢复工作区实现并重新运行，确认通过。
+临时反向验证：在工作区中撤销 `setCurrentRole` 的事件调用但不提交，运行外部数据源
+部门角色测试，确认它重新以 HTTP 401 和 `USER_HAS_NO_ROLES_ERR` 失败；随后恢复工作区实现
+并重新运行，确认通过。
 
 - [ ] **步骤 6：请求代码审查并处理反馈**
 

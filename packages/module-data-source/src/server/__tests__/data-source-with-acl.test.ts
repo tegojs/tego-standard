@@ -483,7 +483,10 @@ describe('data source with acl', () => {
   it('should use a department role on the main data source', async () => {
     const { roleName, user } = await createDepartmentRoleUser('main');
 
-    const response = await app.agent().login(user).set('X-Role', roleName).resource('roles').check({});
+    const agent = app.agent();
+    const userAgent = agent.login(user);
+    const roleRequest = userAgent.set('X-Role', roleName).resource('roles');
+    const response = await roleRequest.check({});
 
     expect(response.status).toBe(200);
   });

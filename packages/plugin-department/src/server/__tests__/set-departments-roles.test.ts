@@ -48,4 +48,13 @@ describe('setDepartmentsInfo', () => {
 
     expect(next).toHaveBeenCalledTimes(2);
   });
+
+  it('preserves roles attached before department roles are loaded', async () => {
+    const { ctx, next } = setupContext();
+    ctx.state.attachRoles = [{ name: 'pre-attached' }];
+
+    await setDepartmentsInfo(ctx, next);
+
+    expect(ctx.state.attachRoles).toEqual([{ name: 'pre-attached' }, { name: 'developer' }]);
+  });
 });

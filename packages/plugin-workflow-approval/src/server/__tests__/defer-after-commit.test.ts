@@ -66,6 +66,18 @@ describe('deferUntilTransactionCommitSucceeds', () => {
     expect(callback).not.toHaveBeenCalled();
   });
 
+  it('runs a child rollback callback once when the parent transaction rolls back', async () => {
+    const parent = createTransaction();
+    const child = createTransaction(parent);
+    const rollbackCallback = vi.fn();
+
+    deferUntilTransactionCommitSucceeds(child, [], undefined, rollbackCallback);
+    await child.commit();
+    await parent.rollback();
+
+    expect(rollbackCallback).toHaveBeenCalledOnce();
+  });
+
   it('uses one rollback wrapper and reports every pending registration once', async () => {
     const transaction = createTransaction();
     const firstRollback = vi.fn();

@@ -105,7 +105,9 @@ function omitTargetKeys(
   }
   if (Array.isArray(sourceValue)) {
     const copiedItems = Array.isArray(copiedValue) ? copiedValue : [];
-    return sourceValue.map((item, index) => omitTargetKeys(item, copiedItems[index], steps, stepIndex, path));
+    return sourceValue.map((item, index) =>
+      omitTargetKeys(item, copiedItems[index], steps, stepIndex, path),
+    );
   }
   if (!isJSONValue(sourceValue) || !isJSONValue(copiedValue)) {
     throw new CopyAssociationError(`Copy association path "${path}" must contain object values`);

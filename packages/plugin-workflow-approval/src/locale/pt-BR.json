@@ -1,6 +1,8 @@
 {
-  "Approval workflow identifier is required": "O identificador do fluxo de trabalho de aprovação é obrigatório",
-  "Submission succeeded, but post-processing failed": "O envio foi concluído, mas o pós-processamento falhou",
+  "Approval workflow identifier is required":
+    "O identificador do fluxo de trabalho de aprovação é obrigatório",
+  "Submission succeeded, but post-processing failed":
+    "O envio foi concluído, mas o pós-processamento falhou",
   "Submit failed": "Falha ao enviar",
   "Submit succeeded": "Enviado com sucesso"
 }

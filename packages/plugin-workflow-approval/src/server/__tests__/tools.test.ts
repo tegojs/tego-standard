@@ -79,7 +79,10 @@ describe('workflow appends', () => {
     const collection = createSummaryCollections();
 
     expect(
-      getSummaryAssociationAppends(['items.product.name', 'items.amount', 'total', 'unresolved.value'], collection),
+      getSummaryAssociationAppends(
+        ['items.product.name', 'items.amount', 'total', 'unresolved.value'],
+        collection,
+      ),
     ).toEqual(['items', 'items.product']);
   });
 

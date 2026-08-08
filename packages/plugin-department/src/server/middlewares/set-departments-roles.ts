@@ -2,6 +2,14 @@ import type { ArrayFieldRepository, Context, Next } from '@tego/server';
 
 const DEPARTMENTS_INFO_LOADED = Symbol('departmentsInfoLoaded');
 
+/**
+ * Loads the current user's departments and merges their roles into `ctx.state.attachRoles`.
+ *
+ * A request-scoped marker prevents duplicate database queries when resource middleware and ACL
+ * role resolution invoke this function for the same request.
+ *
+ * @param ctx - Request context to enrich with department and role data.
+ */
 export const loadDepartmentsInfo = async (ctx: Context) => {
   const state = ctx.state as {
     [DEPARTMENTS_INFO_LOADED]?: boolean;

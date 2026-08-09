@@ -76,11 +76,13 @@ await ctx.tego.emitAsync('acl:beforeSetCurrentRole', ctx);
 - `loadDepartmentsInfo(ctx)`：加载部门信息和部门角色，不负责中间件续传。
 - `setDepartmentsInfo(ctx, next)`：调用加载函数，再调用 `next()`，继续作为主数据源中间件使用。
 
-部门插件同时为 `acl:beforeSetCurrentRole` 注册 `loadDepartmentsInfo`。这样主数据源继续使用原有中间件位置，外部数据源则通过 ACL 扩展点执行同一套加载逻辑。
+部门插件同时为 `acl:beforeSetCurrentRole` 注册 `loadDepartmentsInfo`。
+这样主数据源继续使用原有中间件位置，外部数据源则通过 ACL 扩展点执行同一套加载逻辑。
 
 ### 请求级幂等
 
-主数据源会先执行 `setDepartmentsInfo`，之后 `setCurrentRole` 仍会触发扩展点。为避免同一请求重复查询，`loadDepartmentsInfo` 使用模块内部 `Symbol` 在 `ctx.state` 上记录已执行状态。
+主数据源会先执行 `setDepartmentsInfo`，之后 `setCurrentRole` 仍会触发扩展点。
+为避免同一请求重复查询，`loadDepartmentsInfo` 使用模块内部 `Symbol` 在 `ctx.state` 上记录已执行状态。
 
 标记只在单个请求上下文内生效，不改变跨请求缓存规则。现有 `departments:<userId>` 缓存及失效事件保持不变。
 

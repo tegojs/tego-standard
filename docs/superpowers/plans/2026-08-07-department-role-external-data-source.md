@@ -197,19 +197,22 @@ it('should use a department role on an external data source', async () => {
 - [ ] **步骤 7：编写真正无角色用户的外部数据源回归测试**
 
 ```typescript
-it('should reject a user without direct or attached roles on an external data source', async () => {
-  const user = await app.db.getRepository('users').create({ values: { roles: [] } });
-  await app.db.getRepository('rolesUsers').destroy({
-    filter: { userId: user.id },
-  });
+it(
+  'should reject a user without direct or attached roles on an external data source',
+  async () => {
+    const user = await app.db.getRepository('users').create({ values: { roles: [] } });
+    await app.db.getRepository('rolesUsers').destroy({
+      filter: { userId: user.id },
+    });
 
-  const response = await getDataSourceAgent(app.agent().login(user), 'mockInstance1')
-    .resource('api/posts')
-    .list({});
+    const response = await getDataSourceAgent(app.agent().login(user), 'mockInstance1')
+      .resource('api/posts')
+      .list({});
 
-  expect(response.status).toBe(401);
-  expect(response.body.errors[0].code).toBe('USER_HAS_NO_ROLES_ERR');
-});
+    expect(response.status).toBe(401);
+    expect(response.body.errors[0].code).toBe('USER_HAS_NO_ROLES_ERR');
+  },
+);
 ```
 
 - [ ] **步骤 8：构建未修改的部门包并验证红灯原因**

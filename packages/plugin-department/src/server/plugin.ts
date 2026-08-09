@@ -22,6 +22,11 @@ import { listUsersIncludeChildDepartment } from './middlewares/list-users-includ
 import { DepartmentModel } from './models/department';
 
 export class PluginDepartmentServer extends Plugin {
+  /**
+   * Participates in the plugin lifecycle without additional initialization.
+   */
+  async afterAdd() {}
+
   beforeLoad() {
     this.app.db.registerModels({ DepartmentModel });
     this.app.acl.addFixedParams('collections', 'destroy', () => {

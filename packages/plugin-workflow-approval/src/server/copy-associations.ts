@@ -130,7 +130,9 @@ function omitTargetKeys(
     }
     if (Array.isArray(sourceItem)) {
       const copiedItems = Array.isArray(copiedItem) ? copiedItem : [];
-      return sourceItem.map((item, index) => cleanAssociationValue(item, copiedItems[index]));
+      return sourceItem.map((item, index) =>
+        cleanAssociationValue(item, copiedItems[index]),
+      );
     }
     if (typeof sourceItem !== 'object') {
       return sourceItem;

@@ -1,0 +1,6 @@
+{
+  "Approval workflow identifier is required": "Потрібен ідентифікатор процесу погодження",
+  "Submission succeeded, but post-processing failed": "Надіслано, але постобробка не вдалася",
+  "Submit failed": "Не вдалося надіслати",
+  "Submit succeeded": "Надіслано успішно"
+}

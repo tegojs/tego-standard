@@ -1,0 +1,6 @@
+{
+  "Approval workflow identifier is required": "Onay iş akışı tanımlayıcısı gereklidir",
+  "Submission succeeded, but post-processing failed": "Gönderildi, ancak son işlem başarısız",
+  "Submit failed": "Gönderim başarısız",
+  "Submit succeeded": "Gönderim başarılı"
+}

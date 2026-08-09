@@ -6,6 +6,41 @@ import { SUMMARY_TYPE } from '../common/constants';
 import { type ParamsType, type SummaryDataSourceItem } from '../common/interface';
 import { isDateType } from '../common/utils';
 
+function stringifyError(error: unknown) {
+  try {
+    return String(error);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
+function readErrorProperty(error: object, property: 'name' | 'message' | 'stack') {
+  try {
+    return Reflect.get(error, property);
+  } catch {
+    return undefined;
+  }
+}
+
+export function serializeError(error: unknown) {
+  if (error && typeof error === 'object') {
+    const name = readErrorProperty(error, 'name');
+    const errorMessage = readErrorProperty(error, 'message');
+    const stack = readErrorProperty(error, 'stack');
+    let message = stringifyError(error);
+    if (typeof errorMessage === 'string') {
+      message = errorMessage;
+    }
+    return {
+      name: typeof name === 'string' ? name : undefined,
+      message,
+      stack: typeof stack === 'string' ? stack : undefined,
+    };
+  }
+
+  return { message: stringifyError(error) };
+}
+
 async function parsePerson({ node, processor, keyName }) {
   const configPerson = processor
     .getParsedValue(node.config?.[keyName] ?? [], node.id)
@@ -35,6 +70,52 @@ function getSummary(params: ParamsType): object {
   const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
 
   return summaryDataSource;
+}
+
+/**
+ * Return association paths referenced by a summary configuration.
+ * Summary fields and repository appends are configured independently, so the
+ * latter must include every association needed to render the former.
+ */
+function getSummaryAssociationAppends(
+  summaryConfig: string[] = [],
+  collection?: Collection,
+  app?: Application,
+): string[] {
+  const associationPaths = new Set<string>();
+
+  for (const key of summaryConfig) {
+    const segments = key.split('.').filter(Boolean);
+    let currentCollection = collection;
+    const path: string[] = [];
+
+    for (const segment of segments) {
+      const field = currentCollection?.getField(segment);
+      if (!field?.target) {
+        break;
+      }
+
+      const targetCollection = getTargetCollection(segment, currentCollection, app);
+      if (!targetCollection) {
+        break;
+      }
+      path.push(segment);
+      associationPaths.add(path.join('.'));
+      currentCollection = targetCollection;
+    }
+  }
+
+  return [...associationPaths];
+}
+
+function getWorkflowAppends(
+  workflowConfig: { appends?: string[]; summary?: string[] } = {},
+  collection?: Collection,
+  app?: Application,
+): string[] {
+  const config = workflowConfig ?? {};
+  const summaryAppends = getSummaryAssociationAppends(config.summary ?? [], collection, app);
+  return [...new Set([...(config.appends ?? []), ...summaryAppends])];
 }
 
 // 获取关联表的 titleField 值
@@ -373,4 +454,4 @@ function getSummaryDataSource({ summaryConfig = [], data, collection, app }: Par
   return summaryDataSource;
 }
 
-export { getSummary, parsePerson };
+export { getSummary, getSummaryAssociationAppends, getTargetCollection, getWorkflowAppends, parsePerson };

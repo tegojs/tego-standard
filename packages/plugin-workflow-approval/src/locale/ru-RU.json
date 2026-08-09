@@ -1,0 +1,6 @@
+{
+  "Approval workflow identifier is required": "Требуется идентификатор процесса согласования",
+  "Submission succeeded, but post-processing failed": "Отправлено, но постобработка не удалась",
+  "Submit failed": "Не удалось отправить",
+  "Submit succeeded": "Отправлено успешно"
+}

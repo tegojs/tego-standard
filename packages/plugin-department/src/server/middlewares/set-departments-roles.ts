@@ -56,6 +56,12 @@ export const loadDepartmentsInfo = async (ctx: Context) => {
   ctx.state.attachRoles = Array.from(rolesMap.values());
 };
 
+/**
+ * Loads department roles and continues the resource middleware chain.
+ *
+ * @param ctx - Request context to enrich with department and role data.
+ * @param next - Middleware callback invoked after department data is loaded.
+ */
 export const setDepartmentsInfo = async (ctx: Context, next: Next) => {
   await loadDepartmentsInfo(ctx);
   await next();

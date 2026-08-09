@@ -32,6 +32,10 @@ export class PluginDepartmentServer extends Plugin {
       };
     });
   }
+
+  /**
+   * Registers department resources, ACL snippets, middleware, and cache listeners.
+   */
   async load() {
     this.app.resourcer.define({
       name: 'users',

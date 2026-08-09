@@ -8,6 +8,12 @@ type CurrentUserRole = {
   [key: string]: any;
 };
 
+/**
+ * Resolves the current user's role after ACL extensions attach additional roles.
+ *
+ * @param ctx - Request context containing the authenticated user and role header.
+ * @param next - Middleware callback invoked after the current role is resolved.
+ */
 export async function setCurrentRole(ctx: Context, next) {
   const currentRole = ctx.get('X-Role');
 

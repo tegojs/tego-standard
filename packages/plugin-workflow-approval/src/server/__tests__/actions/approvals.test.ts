@@ -1325,4 +1325,62 @@ describe('workflow approval actions', () => {
       workflowTriggerSpy.mockRestore();
     }
   });
+
+  it('does not update a business record before rejecting a cross-tenant approval update', async () => {
+    const businessUpdateError: any = new Error('business update should not run');
+    businessUpdateError.status = 409;
+    const businessUpdate = vi.fn().mockRejectedValue(businessUpdateError);
+    const approvalFindOne = vi.fn().mockResolvedValue(null);
+    const businessCollection = {
+      filterTargetKey: 'id',
+      options: { tenancy: 'tenantScoped' },
+      repository: { update: businessUpdate },
+      model: { associations: {} },
+      fields: [],
+    } as any;
+    const ctx: any = {
+      action: {
+        resourceName: 'approvals',
+        params: {
+          filterByTk: 'approval-b',
+          values: {
+            collectionName: `main:${collectionName}`,
+            data: { id: 'business-b', amountA: 999 },
+            status: APPROVAL_STATUS.SUBMITTED,
+          },
+        },
+        mergeParams: vi.fn(),
+      },
+      db: {
+        getRepository: vi.fn((name) => (name === 'approvals' ? { findOne: approvalFindOne } : undefined)),
+      },
+      tego: {
+        dataSourceManager: {
+          dataSources: new Map([['main', { collectionManager: { getCollection: () => businessCollection } }]]),
+        },
+      },
+      state: {
+        currentTenant: { id: 'tenant-a' },
+        currentTenantId: 'tenant-a',
+        currentRole: 'root',
+      },
+      transaction: { id: 'approval-transaction' },
+      throw(status: number) {
+        const error: any = new Error(`HTTP ${status}`);
+        error.status = status;
+        throw error;
+      },
+    };
+
+    await expect(approvalActions.update(ctx, vi.fn())).rejects.toMatchObject({ status: 404 });
+    expect(approvalFindOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filterByTk: 'approval-b',
+        filter: { tenantId: 'tenant-a' },
+        context: ctx,
+        transaction: ctx.transaction,
+      }),
+    );
+    expect(businessUpdate).not.toHaveBeenCalled();
+  });
 });

@@ -1,3 +1,4 @@
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
 import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
 
@@ -419,12 +420,24 @@ export const approvals = {
     const [dataSourceName, cName] = parseCollectionName(collectionName);
     const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceName);
     const collection = dataSource.collectionManager.getCollection(cName);
+    const approval = await utils.getRepositoryFromParams(ctx).findOne({
+      filterByTk: ctx.action.params.filterByTk,
+      filter: withCurrentTenantFilter(ctx),
+      context: ctx,
+      transaction: ctx.transaction,
+    });
+    if (!approval) {
+      return ctx.throw(404);
+    }
 
-    const [target] = await collection.repository.update({
+    const updateOptions = applyTenantFilterToContext({ state: ctx.state }, collection, 'update', {
       filterByTk: data[collection.filterTargetKey],
       values: data,
       updateAssociationValues,
+      context: ctx,
+      transaction: ctx.transaction,
     });
+    const [target] = await collection.repository.update(updateOptions);
 
     const summary = getSummary({
       summaryConfig,

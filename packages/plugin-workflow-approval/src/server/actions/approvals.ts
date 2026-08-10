@@ -20,7 +20,28 @@ const COMMIT_CLEANUP_ERROR = 'Business commit outcome is uncertain and transacti
 const DEFER_ERROR = 'Failed to defer workflow trigger until inherited approval transaction commit';
 const ROLLBACK_MESSAGE = 'Approval outcome is uncertain after inherited transaction rollback';
 
-function getApprovalUpdateTargetKey(data: any, filterTargetKey: string | string[]) {
+function getRecordValue(record: any, key: string) {
+  return record?.get?.(key) ?? record?.[key];
+}
+
+function getApprovalTargetKeys(collection: any): string | string[] | undefined {
+  const filterTargetKey = collection?.filterTargetKey;
+  if (filterTargetKey) {
+    return filterTargetKey;
+  }
+
+  const primaryKeyAttributes = collection?.model?.primaryKeyAttributes;
+  if (primaryKeyAttributes?.length === 1) {
+    return primaryKeyAttributes[0];
+  }
+  return primaryKeyAttributes?.length ? primaryKeyAttributes : undefined;
+}
+
+function getApprovalUpdateTargetKey(data: any, filterTargetKey?: string | string[]) {
+  if (!filterTargetKey || (Array.isArray(filterTargetKey) && filterTargetKey.length === 0)) {
+    return undefined;
+  }
+
   const targetKeys = Array.isArray(filterTargetKey) ? filterTargetKey : [filterTargetKey];
   if (
     targetKeys.some((key) => {
@@ -36,6 +57,56 @@ function getApprovalUpdateTargetKey(data: any, filterTargetKey: string | string[
   }
 
   return data?.[filterTargetKey];
+}
+
+function parsePersistedTargetKey(dataKey: unknown) {
+  if (typeof dataKey !== 'string') {
+    return dataKey;
+  }
+
+  try {
+    return JSON.parse(dataKey);
+  } catch {
+    return dataKey;
+  }
+}
+
+function getPersistedApprovalTargetKey(approval: any, targetKeys: string | string[]) {
+  const dataKey = getRecordValue(approval, 'dataKey');
+  if (!Array.isArray(targetKeys)) {
+    if (dataKey !== undefined && dataKey !== null && dataKey !== '') {
+      return dataKey;
+    }
+    return getRecordValue(approval, 'data')?.[targetKeys];
+  }
+
+  const parsedDataKey = parsePersistedTargetKey(dataKey);
+  if (parsedDataKey && typeof parsedDataKey === 'object' && !Array.isArray(parsedDataKey)) {
+    return parsedDataKey;
+  }
+
+  const persistedData = getRecordValue(approval, 'data');
+  if (persistedData && typeof persistedData === 'object') {
+    return Object.fromEntries(targetKeys.map((key) => [key, persistedData[key]]));
+  }
+}
+
+function matchesApprovalTarget(approval: any, targetKey: unknown, targetKeys: string | string[]) {
+  const persistedTargetKey = getPersistedApprovalTargetKey(approval, targetKeys);
+  if (persistedTargetKey === undefined || persistedTargetKey === null || persistedTargetKey === '') {
+    return false;
+  }
+
+  if (Array.isArray(targetKeys)) {
+    return targetKeys.every(
+      (key) =>
+        targetKey?.[key] !== undefined &&
+        targetKey?.[key] !== null &&
+        `${targetKey[key]}` === `${persistedTargetKey?.[key]}`,
+    );
+  }
+
+  return `${targetKey}` === `${persistedTargetKey}`;
 }
 
 async function createApprovalRecord(ctx, options) {
@@ -435,9 +506,6 @@ export const approvals = {
   },
   async update(ctx, next) {
     const { collectionName, data, status, updateAssociationValues, summaryConfig } = ctx.action.params.values ?? {};
-    const [dataSourceName, cName] = parseCollectionName(collectionName);
-    const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceName);
-    const collection = dataSource.collectionManager.getCollection(cName);
     const approval = await utils.getRepositoryFromParams(ctx).findOne({
       filterByTk: ctx.action.params.filterByTk,
       filter: withCurrentTenantFilter(ctx),
@@ -448,8 +516,35 @@ export const approvals = {
       return ctx.throw(404);
     }
 
-    const targetKey = getApprovalUpdateTargetKey(data, collection.filterTargetKey);
-    if (targetKey === undefined) {
+    const persistedCollectionName = getRecordValue(approval, 'collectionName');
+    if (typeof collectionName !== 'string' || typeof persistedCollectionName !== 'string') {
+      return ctx.throw(400);
+    }
+
+    const [requestedDataSourceName, requestedCollectionName] = parseCollectionName(collectionName);
+    const [persistedDataSourceName, persistedCollectionNameOnly] = parseCollectionName(persistedCollectionName);
+    if (
+      requestedDataSourceName !== persistedDataSourceName ||
+      requestedCollectionName !== persistedCollectionNameOnly
+    ) {
+      return ctx.throw(400);
+    }
+
+    const dataSource = ctx.tego.dataSourceManager.dataSources.get(persistedDataSourceName);
+    if (!dataSource) {
+      return ctx.throw(400, `Data source "${persistedDataSourceName}" not found`);
+    }
+    const collection = dataSource.collectionManager.getCollection(persistedCollectionNameOnly);
+    if (!collection) {
+      return ctx.throw(400, `Collection "${persistedCollectionNameOnly}" not found`);
+    }
+
+    const targetKeys = getApprovalTargetKeys(collection);
+    if (!targetKeys) {
+      return ctx.throw(400);
+    }
+    const targetKey = getApprovalUpdateTargetKey(data, targetKeys);
+    if (targetKey === undefined || !matchesApprovalTarget(approval, targetKey, targetKeys)) {
       return ctx.throw(400);
     }
 
@@ -474,6 +569,8 @@ export const approvals = {
 
     ctx.action.mergeParams({
       values: {
+        collectionName: persistedCollectionName,
+        dataKey: getRecordValue(approval, 'dataKey'),
         status: status ?? APPROVAL_STATUS.SUBMITTED,
         data: data,
         applicantRoleName: ctx.state.currentRole,

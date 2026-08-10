@@ -1384,6 +1384,159 @@ describe('workflow approval actions', () => {
     expect(businessUpdate).not.toHaveBeenCalled();
   });
 
+  it.each(['collection', 'record'])(
+    'rejects an approval update that retargets the persisted business %s',
+    async (retargetedPart) => {
+      const persistedCollectionName = `main:${collectionName}`;
+      const requestedCollectionName =
+        retargetedPart === 'collection' ? `main:${collectionName}_shared` : persistedCollectionName;
+      const requestedDataKey = retargetedPart === 'record' ? 'business-b' : 'business-a';
+      const businessUpdateError: any = new Error('retargeted business update should not run');
+      businessUpdateError.status = 409;
+      const businessUpdate = vi.fn().mockRejectedValue(businessUpdateError);
+      const approvalRepository = {
+        findOne: vi.fn().mockResolvedValue({
+          id: 'approval-a',
+          collectionName: persistedCollectionName,
+          dataKey: 'business-a',
+          data: { id: 'business-a' },
+        }),
+        update: vi.fn(),
+      };
+      const ctx: any = {
+        action: {
+          resourceName: 'approvals',
+          params: {
+            filterByTk: 'approval-a',
+            values: {
+              collectionName: requestedCollectionName,
+              data: { id: requestedDataKey, amountA: 999 },
+              status: APPROVAL_STATUS.SUBMITTED,
+            },
+          },
+          mergeParams: vi.fn(),
+        },
+        db: {
+          getRepository: vi.fn(() => approvalRepository),
+        },
+        tego: {
+          dataSourceManager: {
+            dataSources: new Map([
+              [
+                'main',
+                {
+                  collectionManager: {
+                    getCollection: vi.fn(() => ({
+                      filterTargetKey: 'id',
+                      options: {},
+                      repository: { update: businessUpdate },
+                      model: { associations: {}, primaryKeyAttributes: ['id'] },
+                      fields: [],
+                    })),
+                  },
+                },
+              ],
+            ]),
+          },
+        },
+        state: {
+          currentRole: 'root',
+        },
+        throw(errorStatus: number) {
+          const error: any = new Error(`HTTP ${errorStatus}`);
+          error.status = errorStatus;
+          throw error;
+        },
+      };
+
+      await expect(approvalActions.update(ctx, vi.fn())).rejects.toMatchObject({ status: 400 });
+      expect(businessUpdate).not.toHaveBeenCalled();
+      expect(approvalRepository.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it('accepts an equivalent numeric target key while preserving the persisted approval target', async () => {
+    const persistedCollectionName = `main:${collectionName}`;
+    const businessUpdate = vi.fn().mockResolvedValue([{ id: 17, amountA: 18 }]);
+    const approvalUpdate = vi.fn().mockResolvedValue([{ id: 'approval-a' }]);
+    const approvalRepository = {
+      findOne: vi.fn().mockResolvedValue({
+        id: 'approval-a',
+        collectionName: persistedCollectionName,
+        dataKey: '17',
+        data: { id: 17, amountA: 9 },
+      }),
+      update: approvalUpdate,
+    };
+    const ctx: any = {
+      action: {
+        resourceName: 'approvals',
+        params: {
+          filterByTk: 'approval-a',
+          values: {
+            collectionName: persistedCollectionName,
+            dataKey: 'forged-target',
+            data: { id: 17, amountA: 18 },
+            status: APPROVAL_STATUS.DRAFT,
+          },
+        },
+        mergeParams(params) {
+          this.params = {
+            ...this.params,
+            ...params,
+            values: {
+              ...this.params.values,
+              ...params.values,
+            },
+          };
+        },
+      },
+      db: {
+        getRepository: vi.fn(() => approvalRepository),
+      },
+      tego: {
+        dataSourceManager: {
+          dataSources: new Map([
+            [
+              'main',
+              {
+                collectionManager: {
+                  getCollection: vi.fn(() => ({
+                    filterTargetKey: 'id',
+                    options: {},
+                    repository: { update: businessUpdate },
+                    model: { associations: {}, primaryKeyAttributes: ['id'] },
+                    fields: [],
+                  })),
+                },
+              },
+            ],
+          ]),
+        },
+      },
+      state: {
+        currentRole: 'root',
+      },
+      throw(errorStatus: number) {
+        const error: any = new Error(`HTTP ${errorStatus}`);
+        error.status = errorStatus;
+        throw error;
+      },
+    };
+
+    await approvalActions.update(ctx, vi.fn());
+
+    expect(businessUpdate).toHaveBeenCalledWith(expect.objectContaining({ filterByTk: 17 }));
+    expect(approvalUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({
+          collectionName: persistedCollectionName,
+          dataKey: '17',
+        }),
+      }),
+    );
+  });
+
   it.each([
     ['missing business primary key', { amountA: 999 }, 400],
     ['business record outside current tenant', { id: 'business-b', amountA: 999 }, 404],
@@ -1406,7 +1559,15 @@ describe('workflow approval actions', () => {
       db: {
         getRepository: vi.fn((name) =>
           name === 'approvals'
-            ? { findOne: vi.fn().mockResolvedValue({ id: 'approval-a' }), update: approvalUpdate }
+            ? {
+                findOne: vi.fn().mockResolvedValue({
+                  id: 'approval-a',
+                  collectionName: `main:${collectionName}`,
+                  dataKey: 'business-b',
+                  data: { id: 'business-b' },
+                }),
+                update: approvalUpdate,
+              }
             : undefined,
         ),
       },

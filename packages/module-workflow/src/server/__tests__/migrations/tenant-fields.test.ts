@@ -84,4 +84,27 @@ describe('workflow tenant fields migration', () => {
     expect(indexes.some((index) => index.name === 'executions_tenant_id')).toBe(false);
     expect(indexes.some((index) => index.name === 'executions_tenant_key_created_at')).toBe(false);
   });
+
+  it('should use physical identifiers when database naming is underscored', async () => {
+    await app.destroy();
+    app = await createMockServer({ database: { underscored: true } });
+    const queryInterface = app.db.sequelize.getQueryInterface();
+
+    await queryInterface.createTable('executions', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      created_at: { type: DataTypes.DATE },
+      updated_at: { type: DataTypes.DATE },
+      key: { type: DataTypes.STRING },
+    });
+
+    const migration = new TenantFieldsMigration({ db: app.db } as MigrationContext);
+    migration.context.app = app;
+
+    await migration.up();
+
+    const table = await queryInterface.describeTable('executions');
+    expect(table.tenant_id).toBeDefined();
+    expect(table.tenant_context).toBeDefined();
+    expect(table.auth_context).toBeDefined();
+  });
 });

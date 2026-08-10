@@ -168,4 +168,36 @@ describe('file tenant fields migration', () => {
     const [rows] = (await app.db.sequelize.query('select id, tenantId from attachments order by id')) as any;
     expect(rows).toEqual([{ id: 1, tenantId: null }]);
   });
+
+  it('should use physical identifiers when database naming is underscored', async () => {
+    await app.destroy();
+    app = await createMockServer({ database: { underscored: true } });
+    const queryInterface = app.db.sequelize.getQueryInterface();
+
+    await queryInterface.createTable('users', {
+      id: { type: DataTypes.INTEGER, primaryKey: true },
+      default_tenant_id: { type: DataTypes.STRING },
+    });
+    await queryInterface.createTable('tenant_users', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      user_id: { type: DataTypes.INTEGER },
+      tenant_id: { type: DataTypes.STRING },
+    });
+    await queryInterface.createTable('attachments', {
+      id: { type: DataTypes.INTEGER, primaryKey: true },
+      created_by_id: { type: DataTypes.INTEGER },
+      created_at: { type: DataTypes.DATE },
+      updated_at: { type: DataTypes.DATE },
+    });
+    await queryInterface.bulkInsert('users', [{ id: 1, default_tenant_id: 'tenant-default' }]);
+    await queryInterface.bulkInsert('attachments', [{ id: 1, created_by_id: 1 }]);
+
+    const migration = new TenantFieldsMigration({ db: app.db } as MigrationContext);
+    migration.context.app = app;
+
+    await migration.up();
+
+    const [rows] = (await app.db.sequelize.query('select id, tenant_id from attachments order by id')) as any;
+    expect(rows).toEqual([{ id: 1, tenant_id: 'tenant-default' }]);
+  });
 });

@@ -1,7 +1,27 @@
-import { DataTypes, Migration } from '@tego/server';
+import { DataTypes, Migration, snakeCase } from '@tego/server';
 
 function normalizeTableName(table: any) {
   return typeof table === 'string' ? table : table?.tableName || table?.name;
+}
+
+function getModel(db: any, collectionName: string) {
+  try {
+    return db.getCollection?.(collectionName)?.model || db.getModel?.(collectionName) || null;
+  } catch {
+    return null;
+  }
+}
+
+function getPhysicalTableName(db: any, collectionName: string) {
+  const model = getModel(db, collectionName);
+  const modelTableName = normalizeTableName(model?.getTableName?.() || model?.tableName);
+  return modelTableName || (db.options?.underscored ? snakeCase(collectionName) : collectionName);
+}
+
+function getPhysicalColumnName(db: any, collectionName: string, attributeName: string) {
+  const model = getModel(db, collectionName);
+  const attribute = model?.getAttributes?.()?.[attributeName] || model?.rawAttributes?.[attributeName];
+  return attribute?.field || (db.options?.underscored ? snakeCase(attributeName) : attributeName);
 }
 
 async function hasTable(queryInterface: any, tableName: string) {
@@ -46,7 +66,13 @@ export default class AddTenantFieldsToExecutionsMigration extends Migration {
 
   async up() {
     const queryInterface = this.db.sequelize.getQueryInterface();
-    const tableName = 'executions';
+    const collectionName = 'executions';
+    const tableName = getPhysicalTableName(this.db, collectionName);
+    const tenantId = getPhysicalColumnName(this.db, collectionName, 'tenantId');
+    const tenantContext = getPhysicalColumnName(this.db, collectionName, 'tenantContext');
+    const authContext = getPhysicalColumnName(this.db, collectionName, 'authContext');
+    const createdAt = getPhysicalColumnName(this.db, collectionName, 'createdAt');
+    const key = getPhysicalColumnName(this.db, collectionName, 'key');
 
     if (!(await hasTable(queryInterface, tableName))) {
       this.app?.logger?.info?.(`[migration skipped] table ${tableName} does not exist`);
@@ -55,39 +81,35 @@ export default class AddTenantFieldsToExecutionsMigration extends Migration {
 
     const table = await queryInterface.describeTable(tableName);
 
-    if (!table.tenantId) {
-      await queryInterface.addColumn(tableName, 'tenantId', {
+    if (!table[tenantId]) {
+      await queryInterface.addColumn(tableName, tenantId, {
         type: DataTypes.STRING,
         allowNull: true,
       });
     }
 
-    if (!table.tenantContext) {
-      await queryInterface.addColumn(tableName, 'tenantContext', {
+    if (!table[tenantContext]) {
+      await queryInterface.addColumn(tableName, tenantContext, {
         type: DataTypes.JSON,
         allowNull: true,
       });
     }
 
-    if (!table.authContext) {
-      await queryInterface.addColumn(tableName, 'authContext', {
+    if (!table[authContext]) {
+      await queryInterface.addColumn(tableName, authContext, {
         type: DataTypes.JSON,
         allowNull: true,
       });
     }
 
-    await addIndexIfMissing(queryInterface, tableName, 'tenantId', 'executions_tenant_id');
-    await addIndexIfMissing(
-      queryInterface,
-      tableName,
-      ['tenantId', 'key', 'createdAt'],
-      'executions_tenant_key_created_at',
-    );
+    await addIndexIfMissing(queryInterface, tableName, tenantId, 'executions_tenant_id');
+    await addIndexIfMissing(queryInterface, tableName, [tenantId, key, createdAt], 'executions_tenant_key_created_at');
   }
 
   async down() {
     const queryInterface = this.db.sequelize.getQueryInterface();
-    const tableName = 'executions';
+    const collectionName = 'executions';
+    const tableName = getPhysicalTableName(this.db, collectionName);
 
     if (!(await hasTable(queryInterface, tableName))) {
       this.app?.logger?.info?.(`[migration skipped] table ${tableName} does not exist`);
@@ -98,7 +120,10 @@ export default class AddTenantFieldsToExecutionsMigration extends Migration {
     await removeIndexIfExists(queryInterface, tableName, 'executions_tenant_id');
 
     const table = await queryInterface.describeTable(tableName);
-    for (const columnName of ['authContext', 'tenantContext', 'tenantId']) {
+    const columnNames = ['authContext', 'tenantContext', 'tenantId'].map((attributeName) =>
+      getPhysicalColumnName(this.db, collectionName, attributeName),
+    );
+    for (const columnName of columnNames) {
       if (table[columnName]) {
         await queryInterface.removeColumn(tableName, columnName);
       }

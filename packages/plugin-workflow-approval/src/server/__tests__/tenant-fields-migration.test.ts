@@ -46,4 +46,29 @@ describe('workflow approval tenant fields migration', () => {
       expect(table.tenantId).toBeDefined();
     }
   });
+
+  it('should use physical identifiers when database naming is underscored', async () => {
+    await app.destroy();
+    app = await createMockServer({ database: { underscored: true } });
+    const queryInterface = app.db.sequelize.getQueryInterface();
+    const tableNames = ['approvals', 'approval_records', 'approval_executions', 'approval_carbon_copy'];
+
+    for (const tableName of tableNames) {
+      await queryInterface.createTable(tableName, {
+        id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+        created_at: { type: DataTypes.DATE },
+        updated_at: { type: DataTypes.DATE },
+      });
+    }
+
+    const migration = new TenantFieldsMigration({ db: app.db } as MigrationContext);
+    migration.context.app = app;
+
+    await migration.up();
+
+    for (const tableName of tableNames) {
+      const table = await queryInterface.describeTable(tableName);
+      expect(table.tenant_id).toBeDefined();
+    }
+  });
 });

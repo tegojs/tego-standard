@@ -78,4 +78,28 @@ describe('audit log tenant fields migration', () => {
     );
     expect(tenantIdIndexes).toHaveLength(1);
   });
+
+  it('should use physical identifiers when database naming is underscored', async () => {
+    await app.destroy();
+    app = await createMockServer({ database: { underscored: true } });
+    const queryInterface = app.db.sequelize.getQueryInterface();
+
+    await queryInterface.createTable('audit_logs', {
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      created_at: { type: DataTypes.DATE },
+      updated_at: { type: DataTypes.DATE },
+    });
+
+    const migration = new TenantFieldsMigration({ db: app.db } as MigrationContext);
+    migration.context.app = app;
+
+    await migration.up();
+
+    const table = await queryInterface.describeTable('audit_logs');
+    expect(table.tenant_id).toBeDefined();
+    expect(table.actor_user_id).toBeDefined();
+    expect(table.impersonated_tenant_id).toBeDefined();
+    expect(table.tenant_context_source).toBeDefined();
+    expect(table.is_tenant_impersonation).toBeDefined();
+  });
 });

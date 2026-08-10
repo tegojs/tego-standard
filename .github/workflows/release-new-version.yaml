@@ -493,11 +493,3 @@ jobs:
             CHANGELOG.zh-CN.md
           skip_dirty_check: true
           skip_fetch: false
-
-  sync-changelog:
-    needs: release
-    if: always() && needs.release.result == 'success'
-    uses: ./.github/workflows/sync-changelog-to-docs.yaml
-    secrets: inherit
-    with:
-      version: v${{ needs.release.outputs.version }}

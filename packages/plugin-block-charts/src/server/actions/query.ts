@@ -127,7 +127,7 @@ function appendFilter(original: any, filter: any) {
 }
 
 function getCurrentTenantId(ctx: Context) {
-  return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
+  return ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId;
 }
 
 function isTenantPluginEnabled(ctx: Context) {
@@ -159,8 +159,28 @@ function getLegacyDataTenantIds(ctx: Context, collection: any) {
   return collection?.options?.legacyDataTenantIds || [];
 }
 
-function getCollectionTenancyMode(ctx: Context, collection: any) {
-  return collection?.options?.tenancy ?? ctx.state.currentTenancyMode;
+function getCollectionTenancyMode(ctx: Context, collection: any, useContextFallback = true) {
+  return collection?.options?.tenancy ?? (useContextFallback ? ctx.state?.currentTenancyMode : undefined);
+}
+
+function getTenantFilter(ctx: Context, collection: any, useContextFallback = true) {
+  const tenancyMode = getCollectionTenancyMode(ctx, collection, useContextFallback);
+  if (tenancyMode !== 'tenantScoped' && tenancyMode !== 'tenantInherited') {
+    return;
+  }
+
+  const tenantId = getCurrentTenantId(ctx);
+  if (tenantId === null || tenantId === undefined) {
+    if (isTenantPluginEnabled(ctx)) {
+      return ctx.throw(403, 'Tenant context is required');
+    }
+    return;
+  }
+
+  const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(ctx, collection));
+  return tenancyMode === 'tenantInherited'
+    ? buildInheritedTenantFilter([tenantId, ...(ctx.state?.currentTenantDescendantIds || [])], includeLegacyData)
+    : buildTenantFilter(tenantId, includeLegacyData);
 }
 
 function getTenantCacheScope(ctx: Context, params: QueryParams) {
@@ -432,7 +452,8 @@ export const parseFieldAndAssociations = async (ctx: Context, next: Next) => {
     collection,
   });
   const { where, include: filterInclude } = filterParser.toSequelizeParams();
-  addBelongsToManyThrough(filterInclude, collectionName, ctx.db);
+  addBelongsToManyThrough(filterInclude, collectionName, db);
+  const includes = scopeChartIncludes(ctx, db, collection, [...include, ...(filterInclude || [])]);
 
   ctx.action.params.values = {
     ...ctx.action.params.values,
@@ -440,10 +461,31 @@ export const parseFieldAndAssociations = async (ctx: Context, next: Next) => {
     measures: parsedMeasures,
     dimensions: parsedDimensions,
     orders: parsedOrders,
-    include: [...include, ...(filterInclude || [])],
+    include: includes,
   };
   await next();
 };
+
+function scopeChartIncludes(ctx: Context, db: any, collection: any, includes: any[]) {
+  return includes.map((include) => {
+    const associationName = typeof include.association === 'string' ? include.association : include.as;
+    const associationField = associationName ? collection?.fields?.get?.(associationName) : undefined;
+    const targetCollection = associationField?.target ? db.getCollection(associationField.target) : undefined;
+    const tenantFilter = getTenantFilter(ctx, targetCollection, false);
+    const scopedInclude = tenantFilter
+      ? {
+          ...include,
+          where: appendTenantFilter(include.where, tenantFilter),
+        }
+      : { ...include };
+
+    if (include.include && targetCollection) {
+      scopedInclude.include = scopeChartIncludes(ctx, db, targetCollection, include.include);
+    }
+
+    return scopedInclude;
+  });
+}
 
 // 针对多对多添加{ through: { attributes: [] } }
 function addBelongsToManyThrough(include, collectionName, db) {
@@ -525,23 +567,10 @@ export const applyTenantScope = async (ctx: Context, next: Next) => {
   const { dataSource, collection: collectionName, filter } = ctx.action.params.values as QueryParams;
   const db = getDB(ctx, dataSource) || ctx.db;
   const collection = db.getCollection(collectionName);
-  const tenancyMode = getCollectionTenancyMode(ctx, collection);
 
-  if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
-    const tenantId = getCurrentTenantId(ctx);
-
-    if (!tenantId) {
-      if (isTenantPluginEnabled(ctx)) {
-        return ctx.throw(403, 'Tenant context is required');
-      }
-    } else {
-      const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(ctx, collection));
-      const tenantFilter =
-        tenancyMode === 'tenantInherited'
-          ? buildInheritedTenantFilter([tenantId, ...(ctx.state.currentTenantDescendantIds || [])], includeLegacyData)
-          : buildTenantFilter(tenantId, includeLegacyData);
-      ctx.action.params.values.filter = appendTenantFilter(filter, tenantFilter);
-    }
+  const tenantFilter = getTenantFilter(ctx, collection);
+  if (tenantFilter) {
+    ctx.action.params.values.filter = appendTenantFilter(filter, tenantFilter);
   }
 
   await next();

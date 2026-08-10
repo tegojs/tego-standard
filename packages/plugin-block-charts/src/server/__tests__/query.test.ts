@@ -1173,4 +1173,97 @@ describe('query', () => {
       });
     });
   });
+
+  describe('tenant association scope', () => {
+    const buildContext = (
+      state: Record<string, any>,
+      tenantPluginEnabled = false,
+      targetTenancy: 'tenantScoped' | null = 'tenantScoped',
+    ) => {
+      const targetCollection = {
+        name: 'profiles',
+        options: targetTenancy ? { tenancy: targetTenancy } : {},
+        fields: new Map([['name', { type: 'string' }]]),
+      };
+      const sourceCollection = {
+        name: 'orders',
+        options: {},
+        context: {
+          database: {
+            operators: {},
+          },
+        },
+        fields: new Map([['profile', { type: 'belongsTo', target: 'profiles' }]]),
+        model: {
+          getAttributes: () => ({}),
+        },
+      };
+      const db = {
+        getCollection: vi.fn((name: string) => (name === 'orders' ? sourceCollection : targetCollection)),
+      };
+
+      return {
+        state,
+        tego: tenantPluginEnabled
+          ? {
+              pm: {
+                get: vi.fn().mockReturnValue({ enabled: true }),
+              },
+            }
+          : undefined,
+        db,
+        action: {
+          params: {
+            values: {
+              collection: 'orders',
+              measures: [],
+              dimensions: [{ field: ['profile', 'name'] }],
+            },
+          },
+        },
+        throw(status: number, message: string) {
+          const error: any = new Error(message);
+          error.status = status;
+          throw error;
+        },
+      };
+    };
+
+    it('scopes tenant-aware association includes to the current tenant', async () => {
+      const context: any = buildContext({ currentTenantId: 'tenant-a' });
+
+      await parseFieldAndAssociations(context, async () => {});
+
+      expect(context.action.params.values.include).toEqual([
+        {
+          association: 'profile',
+          attributes: [],
+          where: { tenantId: 'tenant-a' },
+        },
+      ]);
+    });
+
+    it('rejects tenant-aware association includes without tenant context', async () => {
+      const context: any = buildContext({}, true);
+
+      await expect(parseFieldAndAssociations(context, async () => {})).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('does not inherit top-level tenant mode for shared association targets', async () => {
+      const context: any = buildContext(
+        { currentTenantId: 'tenant-a', currentTenancyMode: 'tenantScoped' },
+        false,
+        null,
+      );
+
+      await parseFieldAndAssociations(context, async () => {});
+
+      expect(context.action.params.values.include).toEqual([
+        {
+          association: 'profile',
+          attributes: [],
+        },
+      ]);
+    });
+  });
 });

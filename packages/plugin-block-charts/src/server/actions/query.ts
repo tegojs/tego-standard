@@ -130,6 +130,23 @@ function getCurrentTenantId(ctx: Context) {
   return ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
 }
 
+function isTenantPluginEnabled(ctx: Context) {
+  const pluginManagers = [ctx.tego?.pm, ctx.app?.pm];
+
+  for (const pluginManager of pluginManagers) {
+    try {
+      const tenantPlugin = pluginManager?.get?.('tenant');
+      if (tenantPlugin?.enabled === true) {
+        return true;
+      }
+    } catch {
+      // Ignore plugin-manager lookup failures and fall back to request state.
+    }
+  }
+
+  return false;
+}
+
 function normalizeTenantIds(ids?: Array<string | number>) {
   return (ids || []).map((item) => `${item}`).sort();
 }
@@ -513,7 +530,11 @@ export const applyTenantScope = async (ctx: Context, next: Next) => {
   if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
     const tenantId = getCurrentTenantId(ctx);
 
-    if (tenantId) {
+    if (!tenantId) {
+      if (isTenantPluginEnabled(ctx)) {
+        return ctx.throw(403, 'Tenant context is required');
+      }
+    } else {
       const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(ctx, collection));
       const tenantFilter =
         tenancyMode === 'tenantInherited'

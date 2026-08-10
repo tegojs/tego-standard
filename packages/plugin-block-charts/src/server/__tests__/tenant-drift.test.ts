@@ -165,4 +165,36 @@ describe('charts > tenant helper drift', () => {
     );
     expect((authOptions as any).filter).toEqual(inputFilter);
   });
+
+  it('fails closed when the tenant plugin is enabled but request context is missing', async () => {
+    const next = vi.fn();
+    const ctx: any = {
+      state: {},
+      tego: {
+        pm: {
+          get: vi.fn().mockReturnValue({ enabled: true }),
+        },
+      },
+      db: {
+        getCollection: vi.fn().mockReturnValue({ options: { tenancy: 'tenantScoped' } }),
+      },
+      action: {
+        params: {
+          values: {
+            collection: 'tenant_records',
+            filter: { status: 'published' },
+          },
+        },
+      },
+      throw(status: number, message: string) {
+        const error: any = new Error(message);
+        error.status = status;
+        throw error;
+      },
+    };
+
+    await expect(applyTenantScope(ctx, next)).rejects.toMatchObject({ status: 403 });
+    expect(next).not.toHaveBeenCalled();
+    expect(ctx.action.params.values.filter).toEqual({ status: 'published' });
+  });
 });

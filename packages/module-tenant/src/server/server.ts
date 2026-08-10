@@ -10,13 +10,85 @@ import usersCollection from './collections/users';
 import { TENANT_ENABLED_MODES } from './constants';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
-import applyTenantFilter from './helpers/tenant-filter';
+import applyTenantFilter, { applyTenantFilterToContext } from './helpers/tenant-filter';
 import { buildPath, getDescendantIds, getDescendantTenants, wouldCreateCycle } from './helpers/tenant-tree';
 import { enUS, zhCN } from './locale';
 import setCurrentTenant from './middlewares/setCurrentTenant';
 
 export interface TenantPluginConfig {
   name: string;
+}
+
+const ASSOCIATION_TARGET_WRITE_ACTIONS = new Set(['add', 'remove', 'set', 'toggle', 'move']);
+
+function getAssociationCollections(db: any, resourceName?: string) {
+  const [sourceName, associationName] = resourceName?.split('.') || [];
+  if (!sourceName || !associationName) {
+    return null;
+  }
+
+  const sourceCollection = db.getCollection(sourceName);
+  const targetName = sourceCollection?.getField?.(associationName)?.target;
+  const targetCollection = targetName ? db.getCollection(targetName) : db.getCollection(resourceName);
+  if (!sourceCollection || !targetCollection) {
+    return null;
+  }
+
+  return { sourceCollection, targetCollection };
+}
+
+function getAssociationTargetKeys(actionName: string, params: Record<string, any> = {}) {
+  const rawValues =
+    actionName === 'move'
+      ? [params.sourceId, params.targetId]
+      : (params.values ?? params.filterByTks ?? params.filterByTk);
+  const values = Array.isArray(rawValues) ? rawValues : [rawValues];
+
+  return values
+    .map((value) => (Array.isArray(value) ? value[0] : value))
+    .filter((value) => value !== undefined && value !== null && value !== '');
+}
+
+async function assertTenantRecordAccess(ctx: any, collection: any, filterByTk: any, actionName: 'get' | 'update') {
+  const options = applyTenantFilterToContext(ctx, collection, actionName, {
+    filterByTk,
+    context: ctx,
+  });
+  const record = await collection.repository.findOne(options);
+  if (!record) {
+    ctx.throw(404, 'Record not found in the current tenant');
+  }
+}
+
+async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: string) {
+  const association = getAssociationCollections(db, resourceName);
+  if (!association || ctx.action?.sourceId === undefined || ctx.action?.sourceId === null) {
+    return;
+  }
+
+  const { sourceCollection, targetCollection } = association;
+  const sourceTenancyMode = getCollectionTenancyMode(sourceCollection);
+  const targetTenancyMode = getCollectionTenancyMode(targetCollection);
+  const tenantAware =
+    TENANT_ENABLED_MODES.includes(sourceTenancyMode as any) || TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
+  if (!tenantAware) {
+    return;
+  }
+
+  if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
+    ctx.throw(403, 'Tenant context is required');
+  }
+
+  await assertTenantRecordAccess(ctx, sourceCollection, ctx.action.sourceId, 'get');
+
+  const actionName = ctx.action.actionName;
+  if (!ASSOCIATION_TARGET_WRITE_ACTIONS.has(actionName)) {
+    return;
+  }
+
+  for (const targetKey of getAssociationTargetKeys(actionName, ctx.action.params)) {
+    await assertTenantRecordAccess(ctx, targetCollection, targetKey, 'update');
+  }
 }
 
 /**
@@ -237,6 +309,9 @@ export class PluginTenantServer extends Plugin {
         dataSource?.collectionManager?.getCollection(collectionName) ||
         (collectionName ? dataSource?.collectionManager?.getCollection(ctx.action.resourceName) : null) ||
         db.getCollection(collectionName);
+
+      await guardTenantAssociationAction(ctx, db, collectionName);
+
       const tenancyMode = getCollectionTenancyMode(collection);
 
       if (TENANT_ENABLED_MODES.includes(tenancyMode as any)) {

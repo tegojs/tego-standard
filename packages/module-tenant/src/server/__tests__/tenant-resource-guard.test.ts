@@ -545,4 +545,87 @@ describe('tenant resource guard', () => {
     // Auth middleware must reject the forged token – never reach tenant guard
     expect(response.status).toBe(401);
   });
+
+  it.each(['set', 'add', 'remove', 'toggle'])(
+    'should reject %s association actions across tenants',
+    async (actionName) => {
+      app = await createTenantApp();
+
+      await app.db.getRepository('tenants').create({
+        values: [
+          { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+          { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+        ],
+      });
+
+      const user = await app.db.getRepository('users').create({
+        values: {
+          username: `tenant_association_guard_${actionName}`,
+          email: `tenant-association-guard-${actionName}@example.com`,
+          phone: `1000000001${actionName.length}`,
+          password: '123456',
+          roles: ['root'],
+          tenants: ['tenant-a'],
+          defaultTenantId: 'tenant-a',
+        },
+      });
+
+      await app.db.getRepository('collections').create({
+        values: {
+          name: 'tenant_assoc_tags',
+          tenancy: 'tenantScoped',
+          fields: [{ type: 'string', name: 'name' }],
+        },
+        context: {},
+      });
+      await app.db.getRepository('collections').create({
+        values: {
+          name: 'tenant_assoc_posts',
+          tenancy: 'tenantScoped',
+          fields: [
+            { type: 'string', name: 'title' },
+            { type: 'belongsToMany', name: 'tags', target: 'tenant_assoc_tags' },
+          ],
+        },
+        context: {},
+      });
+
+      const postA = await app.db.getRepository('tenant_assoc_posts').create({
+        values: { title: 'Post A' },
+        context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+      });
+      const postB = await app.db.getRepository('tenant_assoc_posts').create({
+        values: { title: 'Post B' },
+        context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+      });
+      const tagA = await app.db.getRepository('tenant_assoc_tags').create({
+        values: { name: 'Tag A' },
+        context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+      });
+      const tagB = await app.db.getRepository('tenant_assoc_tags').create({
+        values: { name: 'Tag B' },
+        context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+      });
+
+      const agent = app.agent().login(user);
+      if (actionName === 'remove') {
+        await app.db.getRepository('tenant_assoc_posts.tags', postA.get('id')).add([tagA.get('id'), tagB.get('id')]);
+      }
+
+      const allowedResponse = await agent.resource('tenant_assoc_posts.tags', postA.get('id'))[actionName]({
+        values: [tagA.get('id')],
+      });
+      expect(allowedResponse.status).toBe(200);
+
+      const targetResponse = await agent.resource('tenant_assoc_posts.tags', postA.get('id'))[actionName]({
+        values: [tagB.get('id')],
+      });
+      expect(targetResponse.status).toBeGreaterThanOrEqual(400);
+
+      const sourceResponse = await agent.resource('tenant_assoc_posts.tags', postB.get('id'))[actionName]({
+        values: [tagB.get('id')],
+      });
+      expect(sourceResponse.status).toBeGreaterThanOrEqual(400);
+    },
+  );
 });

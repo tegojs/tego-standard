@@ -151,8 +151,8 @@ function normalizeTenantIds(ids?: Array<string | number>) {
   return (ids || []).map((item) => `${item}`).sort();
 }
 
-function getLegacyDataTenantIds(ctx: Context, collection: any) {
-  if (Array.isArray(ctx.state.currentLegacyDataTenantIds)) {
+function getLegacyDataTenantIds(ctx: Context, collection: any, useContextFallback = true) {
+  if (useContextFallback && Array.isArray(ctx.state.currentLegacyDataTenantIds)) {
     return ctx.state.currentLegacyDataTenantIds;
   }
 
@@ -177,7 +177,7 @@ function getTenantFilter(ctx: Context, collection: any, useContextFallback = tru
     return;
   }
 
-  const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(ctx, collection));
+  const includeLegacyData = canReadLegacyData(tenantId, getLegacyDataTenantIds(ctx, collection, useContextFallback));
   return tenancyMode === 'tenantInherited'
     ? buildInheritedTenantFilter([tenantId, ...(ctx.state?.currentTenantDescendantIds || [])], includeLegacyData)
     : buildTenantFilter(tenantId, includeLegacyData);

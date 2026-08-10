@@ -1179,10 +1179,14 @@ describe('query', () => {
       state: Record<string, any>,
       tenantPluginEnabled = false,
       targetTenancy: 'tenantScoped' | null = 'tenantScoped',
+      targetLegacyDataTenantIds: string[] = [],
     ) => {
       const targetCollection = {
         name: 'profiles',
-        options: targetTenancy ? { tenancy: targetTenancy } : {},
+        options: {
+          ...(targetTenancy ? { tenancy: targetTenancy } : {}),
+          legacyDataTenantIds: targetLegacyDataTenantIds,
+        },
         fields: new Map([['name', { type: 'string' }]]),
       };
       const sourceCollection = {
@@ -1262,6 +1266,25 @@ describe('query', () => {
         {
           association: 'profile',
           attributes: [],
+        },
+      ]);
+    });
+
+    it('uses the association collection legacy policy for tenant-aware includes', async () => {
+      const context: any = buildContext(
+        { currentTenantId: 'tenant-a', currentLegacyDataTenantIds: ['tenant-a'] },
+        false,
+        'tenantScoped',
+        [],
+      );
+
+      await parseFieldAndAssociations(context, async () => {});
+
+      expect(context.action.params.values.include).toEqual([
+        {
+          association: 'profile',
+          attributes: [],
+          where: { tenantId: 'tenant-a' },
         },
       ]);
     });

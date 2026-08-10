@@ -11,6 +11,7 @@ import { TENANT_ENABLED_MODES } from './constants';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
 import applyTenantFilter, { applyTenantFilterToContext } from './helpers/tenant-filter';
+import { moveTenantRecords } from './helpers/tenant-move';
 import { buildPath, getDescendantIds, getDescendantTenants, wouldCreateCycle } from './helpers/tenant-tree';
 import { enUS, zhCN } from './locale';
 import setCurrentTenant from './middlewares/setCurrentTenant';
@@ -63,7 +64,7 @@ async function assertTenantRecordAccess(ctx: any, collection: any, filterByTk: a
 async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: string) {
   const association = getAssociationCollections(db, resourceName);
   if (!association || ctx.action?.sourceId === undefined || ctx.action?.sourceId === null) {
-    return;
+    return association;
   }
 
   const { sourceCollection, targetCollection } = association;
@@ -72,7 +73,7 @@ async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: st
   const tenantAware =
     TENANT_ENABLED_MODES.includes(sourceTenancyMode as any) || TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
   if (!tenantAware) {
-    return;
+    return association;
   }
 
   if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
@@ -83,12 +84,14 @@ async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: st
 
   const actionName = ctx.action.actionName;
   if (!ASSOCIATION_TARGET_WRITE_ACTIONS.has(actionName)) {
-    return;
+    return association;
   }
 
   for (const targetKey of getAssociationTargetKeys(actionName, ctx.action.params)) {
     await assertTenantRecordAccess(ctx, targetCollection, targetKey, 'update');
   }
+
+  return association;
 }
 
 /**
@@ -310,7 +313,7 @@ export class PluginTenantServer extends Plugin {
         (collectionName ? dataSource?.collectionManager?.getCollection(ctx.action.resourceName) : null) ||
         db.getCollection(collectionName);
 
-      await guardTenantAssociationAction(ctx, db, collectionName);
+      const association = await guardTenantAssociationAction(ctx, db, collectionName);
 
       const tenancyMode = getCollectionTenancyMode(collection);
 
@@ -333,6 +336,14 @@ export class PluginTenantServer extends Plugin {
         ctx.state.currentTenancyMode = tenancyMode;
         ctx.state.currentLegacyDataTenantIds = collection.options?.legacyDataTenantIds || [];
         applyTenantFilter(ctx);
+      }
+
+      const tenantAwareMove = [collection, association?.sourceCollection, association?.targetCollection].some((item) =>
+        TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(item) as any),
+      );
+      if (ctx.action.actionName === 'move' && tenantAwareMove) {
+        await moveTenantRecords(ctx, db, collectionName);
+        ctx.action.params.sourceId = null;
       }
 
       await next();

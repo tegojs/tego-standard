@@ -628,4 +628,154 @@ describe('tenant resource guard', () => {
       expect(sourceResponse.status).toBeGreaterThanOrEqual(400);
     },
   );
+
+  async function prepareMoveGuardUser() {
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    return app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_move_guard_user',
+        email: 'tenant-move-guard-user@example.com',
+        phone: '10000000020',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+  }
+
+  const tenantContext = (tenantId: string) => ({
+    state: { currentTenant: { id: tenantId }, currentTenantId: tenantId },
+  });
+
+  async function prepareTenantMoveRecords(collectionName: string) {
+    await app.db.getRepository('collections').create({
+      values: {
+        name: collectionName,
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'sort', name: 'sort' },
+        ],
+      },
+      context: {},
+    });
+
+    const repository = app.db.getRepository(collectionName);
+    const firstA = await repository.create({ values: { title: 'A1' }, context: tenantContext('tenant-a') });
+    const middleB = await repository.create({ values: { title: 'B1' }, context: tenantContext('tenant-b') });
+    const lastA = await repository.create({ values: { title: 'A2' }, context: tenantContext('tenant-a') });
+
+    return { repository, firstA, middleB, lastA };
+  }
+
+  it.each([
+    ['source', 'tenant-b', 'tenant-a'],
+    ['target', 'tenant-a', 'tenant-b'],
+  ])('should reject move when the %s record belongs to another tenant', async (_side, sourceTenant, targetTenant) => {
+    app = await createTenantApp();
+    const user = await prepareMoveGuardUser();
+    const { firstA, middleB } = await prepareTenantMoveRecords('tenant_move_endpoint_items');
+    const records = { 'tenant-a': firstA, 'tenant-b': middleB };
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_move_endpoint_items')
+      .move({
+        sourceId: records[sourceTenant].get('id'),
+        targetId: records[targetTenant].get('id'),
+      });
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it('should not renumber another tenant while moving records in the same collection', async () => {
+    app = await createTenantApp();
+    const user = await prepareMoveGuardUser();
+    const { repository, firstA, middleB, lastA } = await prepareTenantMoveRecords('tenant_move_range_items');
+    const middleSort = middleB.get('sort');
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_move_range_items')
+      .move({
+        sourceId: firstA.get('id'),
+        targetId: lastA.get('id'),
+      });
+
+    expect(response.status).toBe(200);
+    expect((await repository.findById(middleB.get('id'))).get('sort')).toBe(middleSort);
+  });
+
+  it('should not renumber another tenant while moving has-many association records', async () => {
+    app = await createTenantApp();
+    const user = await prepareMoveGuardUser();
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_move_assoc_items',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_move_assoc_lists',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          {
+            type: 'hasMany',
+            name: 'items',
+            target: 'tenant_move_assoc_items',
+            sortable: true,
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const listA = await app.db.getRepository('tenant_move_assoc_lists').create({
+      values: { title: 'List A' },
+      context: tenantContext('tenant-a'),
+    });
+    const listCollection = app.db.getCollection('tenant_move_assoc_lists');
+    const foreignKey = listCollection.model.associations.items.foreignKey;
+    const sortField = `${foreignKey}Sort`;
+    const itemRepository = app.db.getRepository('tenant_move_assoc_items');
+    const firstA = await itemRepository.create({
+      values: { title: 'A1', [foreignKey]: listA.get('id') },
+      context: tenantContext('tenant-a'),
+    });
+    const middleB = await itemRepository.create({
+      values: { title: 'B1', [foreignKey]: listA.get('id') },
+      context: tenantContext('tenant-b'),
+    });
+    const lastA = await itemRepository.create({
+      values: { title: 'A2', [foreignKey]: listA.get('id') },
+      context: tenantContext('tenant-a'),
+    });
+    const middleSort = middleB.get(sortField);
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_move_assoc_lists.items', listA.get('id'))
+      .move({
+        sourceId: firstA.get('id'),
+        targetId: lastA.get('id'),
+      });
+
+    expect(response.status).toBe(200);
+    expect((await itemRepository.findById(middleB.get('id'))).get(sortField)).toBe(middleSort);
+  });
 });

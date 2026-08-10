@@ -601,8 +601,8 @@ export const query = async (ctx: Context, next: Next) => {
   try {
     await compose([
       checkPermission,
-      cacheMiddleware,
       applyTenantScope,
+      cacheMiddleware,
       parseVariables,
       parseFieldAndAssociations,
       parseBuilder,

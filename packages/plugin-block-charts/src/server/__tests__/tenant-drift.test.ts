@@ -11,7 +11,7 @@ import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { applyTenantScope } from '../actions/query';
+import { applyTenantScope, query } from '../actions/query';
 
 const chartTenantAwareFiles = ['actions/query.ts'];
 
@@ -196,5 +196,44 @@ describe('charts > tenant helper drift', () => {
     await expect(applyTenantScope(ctx, next)).rejects.toMatchObject({ status: 403 });
     expect(next).not.toHaveBeenCalled();
     expect(ctx.action.params.values.filter).toEqual({ status: 'published' });
+  });
+
+  it('checks tenant context before serving a cached tenant query', async () => {
+    const cacheGet = vi.fn().mockResolvedValue({ data: 'cached cross-tenant result' });
+    const ctx: any = {
+      state: { currentRole: 'root' },
+      tego: {
+        pm: {
+          get: vi.fn().mockReturnValue({ enabled: true }),
+        },
+        cacheManager: {
+          getCache: vi.fn().mockReturnValue({ get: cacheGet, set: vi.fn() }),
+        },
+      },
+      db: {
+        getCollection: vi.fn().mockReturnValue({ options: { tenancy: 'tenantScoped' } }),
+      },
+      action: {
+        params: {
+          values: {
+            collection: 'tenant_records',
+            uid: 'chart-1',
+            cache: { enabled: true },
+            filter: { status: 'published' },
+          },
+        },
+      },
+      throw(status: number, errorOrMessage: any) {
+        if (errorOrMessage instanceof Error) {
+          throw errorOrMessage;
+        }
+        const error: any = new Error(errorOrMessage);
+        error.status = status;
+        throw error;
+      },
+    };
+
+    await expect(query(ctx, vi.fn())).rejects.toMatchObject({ status: 403 });
+    expect(cacheGet).not.toHaveBeenCalled();
   });
 });

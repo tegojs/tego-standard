@@ -1338,6 +1338,8 @@ describe('workflow approval actions', () => {
       model: { associations: {} },
       fields: [],
     } as any;
+    const approvalSequelize = {};
+    const businessSequelize = {};
     const ctx: any = {
       action: {
         resourceName: 'approvals',
@@ -1352,6 +1354,7 @@ describe('workflow approval actions', () => {
         mergeParams: vi.fn(),
       },
       db: {
+        sequelize: approvalSequelize,
         getRepository: vi.fn((name) => (name === 'approvals' ? { findOne: approvalFindOne } : undefined)),
       },
       tego: {
@@ -1364,7 +1367,7 @@ describe('workflow approval actions', () => {
         currentTenantId: 'tenant-a',
         currentRole: 'root',
       },
-      transaction: { id: 'approval-transaction' },
+      transaction: { id: 'business-transaction', sequelize: businessSequelize },
       throw(status: number) {
         const error: any = new Error(`HTTP ${status}`);
         error.status = status;
@@ -1378,7 +1381,7 @@ describe('workflow approval actions', () => {
         filterByTk: 'approval-b',
         filter: { tenantId: 'tenant-a' },
         context: ctx,
-        transaction: ctx.transaction,
+        transaction: undefined,
       }),
     );
     expect(businessUpdate).not.toHaveBeenCalled();
@@ -1557,9 +1560,7 @@ describe('workflow approval actions', () => {
     transaction.sequelize = sequelize;
 
     const businessUpdate = vi.fn().mockResolvedValue([{ id: 17, amountA: 18 }]);
-    const approvalUpdateError: any = new Error('approval update failed');
-    approvalUpdateError.status = 500;
-    const approvalUpdate = vi.fn().mockRejectedValue(approvalUpdateError);
+    const approvalUpdate = vi.fn().mockResolvedValue([]);
     const approvalRepository = {
       findOne: vi.fn().mockResolvedValue({
         id: 'approval-a',
@@ -1627,7 +1628,7 @@ describe('workflow approval actions', () => {
       },
     };
 
-    await expect(approvalActions.update(ctx, vi.fn())).rejects.toMatchObject({ status: 500 });
+    await expect(approvalActions.update(ctx, vi.fn())).rejects.toMatchObject({ status: 404 });
     expect(sequelize.transaction).toHaveBeenCalledOnce();
     expect(businessUpdate).toHaveBeenCalledWith(expect.objectContaining({ transaction }));
     expect(approvalUpdate).toHaveBeenCalledWith(expect.objectContaining({ transaction }));

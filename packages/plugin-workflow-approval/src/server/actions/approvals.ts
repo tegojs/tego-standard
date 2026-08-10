@@ -141,6 +141,24 @@ async function updateApprovalRecord(ctx, transaction) {
   });
 }
 
+function requireUpdatedRecord(ctx: any, result: any) {
+  if (!result || (Array.isArray(result) && result.length === 0)) {
+    return ctx.throw(404);
+  }
+
+  return result;
+}
+
+function getApprovalTransaction(ctx: any) {
+  const transaction = ctx.transaction;
+  const approvalSequelize = ctx.db?.sequelize;
+  if (approvalSequelize && transaction?.sequelize && transaction.sequelize !== approvalSequelize) {
+    return undefined;
+  }
+
+  return transaction;
+}
+
 type DeferredWorkflowTrigger = DeferredAfterCommit;
 type CreatedBusinessRecord = { persistedData: any; dataKey: unknown };
 type CreateBusinessRecord = (transaction?: any) => Promise<CreatedBusinessRecord>;
@@ -523,11 +541,12 @@ export const approvals = {
   },
   async update(ctx, next) {
     const { collectionName, data, status, updateAssociationValues, summaryConfig } = ctx.action.params.values ?? {};
+    const approvalTransaction = getApprovalTransaction(ctx);
     const approval = await utils.getRepositoryFromParams(ctx).findOne({
       filterByTk: ctx.action.params.filterByTk,
       filter: withCurrentTenantFilter(ctx),
       context: ctx,
-      transaction: ctx.transaction,
+      transaction: approvalTransaction,
     });
     if (!approval) {
       return ctx.throw(404);
@@ -603,7 +622,7 @@ export const approvals = {
     const updateBusinessAndApproval = async (transaction?) => {
       await updateBusinessRecord(transaction);
       prepareApprovalUpdate();
-      return updateApprovalRecord(ctx, transaction);
+      return requireUpdatedRecord(ctx, await updateApprovalRecord(ctx, transaction));
     };
 
     const approvalSequelize = ctx.db.sequelize;
@@ -622,7 +641,10 @@ export const approvals = {
     const businessTransaction = ctx.transaction?.sequelize === businessSequelize ? ctx.transaction : undefined;
     await updateBusinessRecord(businessTransaction);
     prepareApprovalUpdate();
-    return actions.update(ctx, next);
+    const updatedApproval = requireUpdatedRecord(ctx, await updateApprovalRecord(ctx));
+    ctx.body = updatedApproval;
+    ctx.status = 200;
+    await next();
   },
   async destroy(ctx, next) {
     const {

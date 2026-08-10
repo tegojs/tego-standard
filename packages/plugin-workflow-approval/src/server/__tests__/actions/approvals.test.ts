@@ -1383,4 +1383,79 @@ describe('workflow approval actions', () => {
     );
     expect(businessUpdate).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['missing business primary key', { amountA: 999 }, 400],
+    ['business record outside current tenant', { id: 'business-b', amountA: 999 }, 404],
+  ])('rejects approval update for %s before mutating approval state', async (_caseName, data, status) => {
+    const businessUpdate = vi.fn().mockResolvedValue([]);
+    const approvalUpdate = vi.fn();
+    const ctx: any = {
+      action: {
+        resourceName: 'approvals',
+        params: {
+          filterByTk: 'approval-a',
+          values: {
+            collectionName: `main:${collectionName}`,
+            data,
+            status: APPROVAL_STATUS.SUBMITTED,
+          },
+        },
+        mergeParams: vi.fn(),
+      },
+      db: {
+        getRepository: vi.fn((name) =>
+          name === 'approvals'
+            ? { findOne: vi.fn().mockResolvedValue({ id: 'approval-a' }), update: approvalUpdate }
+            : undefined,
+        ),
+      },
+      tego: {
+        dataSourceManager: {
+          dataSources: new Map([
+            [
+              'main',
+              {
+                collectionManager: {
+                  getCollection: () => ({
+                    filterTargetKey: 'id',
+                    options: { tenancy: 'tenantScoped' },
+                    repository: { update: businessUpdate },
+                    model: { associations: {} },
+                    fields: [],
+                  }),
+                },
+              },
+            ],
+          ]),
+        },
+      },
+      state: {
+        currentTenant: { id: 'tenant-a' },
+        currentTenantId: 'tenant-a',
+        currentRole: 'root',
+      },
+      transaction: { id: 'approval-transaction' },
+      throw(errorStatus: number) {
+        const error: any = new Error(`HTTP ${errorStatus}`);
+        error.status = errorStatus;
+        throw error;
+      },
+    };
+
+    await expect(approvalActions.update(ctx, vi.fn())).rejects.toMatchObject({ status });
+    if (data.id === undefined) {
+      expect(businessUpdate).not.toHaveBeenCalled();
+    } else {
+      expect(businessUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filterByTk: data.id,
+          filter: { tenantId: 'tenant-a' },
+          context: ctx,
+          transaction: ctx.transaction,
+        }),
+      );
+    }
+    expect(approvalUpdate).not.toHaveBeenCalled();
+  });
 });

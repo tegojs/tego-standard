@@ -20,6 +20,24 @@ const COMMIT_CLEANUP_ERROR = 'Business commit outcome is uncertain and transacti
 const DEFER_ERROR = 'Failed to defer workflow trigger until inherited approval transaction commit';
 const ROLLBACK_MESSAGE = 'Approval outcome is uncertain after inherited transaction rollback';
 
+function getApprovalUpdateTargetKey(data: any, filterTargetKey: string | string[]) {
+  const targetKeys = Array.isArray(filterTargetKey) ? filterTargetKey : [filterTargetKey];
+  if (
+    targetKeys.some((key) => {
+      const value = data?.[key];
+      return value === undefined || value === null || value === '';
+    })
+  ) {
+    return undefined;
+  }
+
+  if (Array.isArray(filterTargetKey)) {
+    return Object.fromEntries(targetKeys.map((key) => [key, data[key]]));
+  }
+
+  return data?.[filterTargetKey];
+}
+
 async function createApprovalRecord(ctx, options) {
   const { values, transaction, dataSourceTransaction, deferAfterCommit } = options;
   const { whitelist, blacklist, updateAssociationValues } = ctx.action.params;
@@ -430,14 +448,22 @@ export const approvals = {
       return ctx.throw(404);
     }
 
+    const targetKey = getApprovalUpdateTargetKey(data, collection.filterTargetKey);
+    if (targetKey === undefined) {
+      return ctx.throw(400);
+    }
+
     const updateOptions = applyTenantFilterToContext({ state: ctx.state }, collection, 'update', {
-      filterByTk: data[collection.filterTargetKey],
+      filterByTk: targetKey,
       values: data,
       updateAssociationValues,
       context: ctx,
       transaction: ctx.transaction,
     });
     const [target] = await collection.repository.update(updateOptions);
+    if (!target) {
+      return ctx.throw(404);
+    }
 
     const summary = getSummary({
       summaryConfig,

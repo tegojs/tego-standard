@@ -4,6 +4,7 @@ import {
   useAPIClient,
   useBlockRequestContext,
   useCollection_deprecated,
+  useFormBlockContext,
   useIsMobile,
 } from '@tachybase/client';
 import { useFlowContext } from '@tachybase/module-workflow/client';
@@ -13,9 +14,10 @@ import { Toast } from 'antd-mobile';
 import _ from 'lodash';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useContextApprovalExecution, useResubmit } from '..';
+import { useContextApprovalExecution, useQuickCreate, useResubmit } from '..';
+import { useTranslation } from '../../locale';
 import { useContextApprovalStatus } from '../../user-interface/pc/block/common/providers/ActionStatus.provider';
-import { cleanAssociationIds } from '../tools/cleanAssociationIds';
+import { getCopyAssociationValues } from './copy-association-values';
 
 export function useSubmitCreate() {
   const form = useForm();
@@ -29,53 +31,95 @@ export function useSubmitCreate() {
   const params = useParams();
   const { id: workflowId } = params;
   const flowContext = useFlowContext();
-  const { isResubmit } = useResubmit();
   const { approval } = useContextApprovalExecution();
+  const { isQuickCreate } = useQuickCreate();
+  const { isResubmit } = useResubmit();
+  const { updateAssociationValues = [] } = useFormBlockContext();
   const { workflow } = flowContext ?? approval ?? {};
+  const isCopy = Boolean(isQuickCreate || isResubmit);
+  const { t } = useTranslation();
 
   const isMobile = useIsMobile();
 
   return {
     async run(args) {
+      let requestStarted = false;
       try {
-        await form.submit();
-        field.data = field.data || {};
-        field.data.loading = true;
-        delete form.values['createdAt'];
-        delete form.values['updatedAt'];
-        // 如果是复制操作（有 workflowKey），需要清洗关联字段的 id
-        let dataToSubmit = form.values;
-        if (isResubmit && (workflow?.key || approval?.workflow?.key)) {
-          dataToSubmit = cleanAssociationIds(form.values, collection);
-        }
-        const res = await apiClient.resource('approvals').create({
-          values: {
-            collectionName: joinCollectionName(collection.dataSource, collection.name),
-            data: dataToSubmit,
-            status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
-            workflowId: workflow?.id || workflowId || approval?.workflow?.id,
-            workflowKey: workflow?.key || approval?.workflow.key,
-          },
-        });
-        if (res.status === 200 && isMobile) {
-          Toast.show({
-            icon: 'success',
-            content: '提交成功',
+        try {
+          await form.submit();
+          field.data = field.data || {};
+          field.data.loading = true;
+          delete form.values['createdAt'];
+          delete form.values['updatedAt'];
+          const resource = apiClient.resource('approvals');
+          const copyPaths = getCopyAssociationValues(form, collection, updateAssociationValues);
+          const selectedWorkflowId = workflow?.id || workflowId || approval?.workflow?.id;
+          const selectedWorkflowKey = workflow?.key || approval?.workflow?.key;
+          if (!selectedWorkflowId && !selectedWorkflowKey) {
+            throw new Error(t('Approval workflow identifier is required'));
+          }
+          const request = resource.create({
+            values: {
+              collectionName: joinCollectionName(collection.dataSource, collection.name),
+              data: form.values,
+              status: typeof args?.approvalStatus !== 'undefined' ? args?.approvalStatus : status,
+              workflowId: selectedWorkflowId,
+              workflowKey: selectedWorkflowKey,
+              isCopy,
+              copyAssociationValues: copyPaths,
+            },
           });
-          setTimeout(() => {
-            navigate(-1);
-          }, 1000);
+          requestStarted = true;
+          const res = await request;
+          if (res.status === 200 && isMobile) {
+            Toast.show({
+              icon: 'success',
+              content: t('Submit succeeded'),
+            });
+            setTimeout(() => {
+              navigate(-1);
+            }, 1000);
+          }
+        } catch (error: any) {
+          if (!requestStarted) {
+            if (isMobile) {
+              Toast.show({
+                icon: 'fail',
+                content: t('Submit failed'),
+              });
+            } else {
+              apiClient.notification?.error({
+                message: t('Submit failed'),
+                description: error?.message,
+              });
+            }
+          }
+          return;
         }
-        form.reset();
-        field.data.loading = false;
-        const service = __parent?.service;
-        if (service) {
-          service.refresh();
+
+        try {
+          form.reset();
+          const service = __parent?.service;
+          if (service) {
+            await service.refresh();
+          }
+          if (setVisible) {
+            setVisible(false, false);
+          }
+        } catch (error: any) {
+          if (isMobile) {
+            Toast.show({
+              icon: 'fail',
+              content: t('Submission succeeded, but post-processing failed'),
+            });
+          } else {
+            apiClient.notification?.error({
+              message: t('Submission succeeded, but post-processing failed'),
+              description: error?.message,
+            });
+          }
         }
-        if (setVisible) {
-          setVisible(false, false);
-        }
-      } catch (error) {
+      } finally {
         if (field.data) {
           field.data.loading = false;
         }

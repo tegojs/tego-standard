@@ -1,0 +1,6 @@
+{
+  "Approval workflow identifier is required": "Se requiere el identificador del flujo de trabajo de aprobación",
+  "Submission succeeded, but post-processing failed": "El envío se realizó correctamente, pero falló el procesamiento posterior",
+  "Submit failed": "Error al enviar",
+  "Submit succeeded": "Enviado correctamente"
+}

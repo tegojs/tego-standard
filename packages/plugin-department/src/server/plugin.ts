@@ -1,5 +1,4 @@
 import type { CollectionRepository } from '@tachybase/module-collection';
-
 import { InstallOptions, Plugin } from '@tego/server';
 
 import {
@@ -12,6 +11,7 @@ import {
 import { departmentsField, mainDepartmentField } from './collections/users';
 import {
   destroyDepartmentCheck,
+  loadDepartmentsInfo,
   resetUserDepartmentsCache,
   setDepartmentOwners,
   setDepartmentsInfo,
@@ -22,6 +22,11 @@ import { listUsersIncludeChildDepartment } from './middlewares/list-users-includ
 import { DepartmentModel } from './models/department';
 
 export class PluginDepartmentServer extends Plugin {
+  /**
+   * Participates in the plugin lifecycle without additional initialization.
+   */
+  async afterAdd() {}
+
   beforeLoad() {
     this.app.db.registerModels({ DepartmentModel });
     this.app.acl.addFixedParams('collections', 'destroy', () => {
@@ -32,6 +37,10 @@ export class PluginDepartmentServer extends Plugin {
       };
     });
   }
+
+  /**
+   * Registers department resources, ACL snippets, middleware, and cache listeners.
+   */
   async load() {
     this.app.resourcer.define({
       name: 'users',
@@ -68,6 +77,7 @@ export class PluginDepartmentServer extends Plugin {
       before: 'setCurrentRole',
       after: 'auth',
     });
+    this.app.on('acl:beforeSetCurrentRole', loadDepartmentsInfo);
     this.app.resourcer.use(setDepartmentOwners, { tag: 'setDepartmentOwners' });
     this.app.resourcer.use(destroyDepartmentCheck, { tag: 'destroyDepartmentCheck' });
     this.app.resourcer.use(updateDepartmentIsLeaf, { tag: 'updateDepartmentIsLeaf' });

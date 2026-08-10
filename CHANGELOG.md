@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.25] - 2026-08-10
+
+### ✨ Added
+
+- approval quick add ([#403](https://github.com/tegojs/tego-standard/pull/403)) (@dududuna)
+
+### 🐛 Fixed
+
+- **department**: resolve roles for external data sources ([#405](https://github.com/tegojs/tego-standard/pull/405)) (@TomyJan)
+- **workflow-approval**: ensure copied approval data and transaction consistency ([#404](https://github.com/tegojs/tego-standard/pull/404)) (@TomyJan)
+
 ## [1.6.24] - 2026-07-09
 
 ### 🐛 Fixed
@@ -3063,7 +3074,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.24...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.25...HEAD
+[1.6.25]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.25
 [1.6.24]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.24
 [1.6.23]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.23
 [1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22

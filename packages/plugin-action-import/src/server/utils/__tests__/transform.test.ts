@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { m2o } from '../transform';
+import { m2m, m2o, o2m, o2o } from '../transform';
 
 describe('import transform relation helpers', () => {
   it('should throw when m2o enum label is missing', async () => {
@@ -55,6 +55,39 @@ describe('import transform relation helpers', () => {
     expect(result).toBe(relatedRecord);
     expect(findOne).toHaveBeenCalledWith({
       filter: { name: 'Category A' },
+      context: ctx,
+    });
+  });
+
+  it.each([
+    ['o2o', o2o, 'findOne', 'Category A'],
+    ['o2m', o2m, 'find', 'Category A; Category B'],
+    ['m2o', m2o, 'findOne', 'Category A'],
+    ['m2m', m2m, 'find', 'Category A; Category B'],
+  ])('should scope %s relation lookups to the current tenant', async (_name, transform, method, value) => {
+    const findOne = vi.fn().mockResolvedValue({ id: 1, tenantId: 'tenant-a' });
+    const find = vi.fn().mockResolvedValue([{ id: 1, tenantId: 'tenant-a' }]);
+    const repository = { findOne, find };
+    const ctx: any = {
+      state: { currentTenantId: 'tenant-a' },
+      db: {
+        getRepository: vi.fn(() => repository),
+        getCollection: vi.fn(() => ({ options: { tenancy: 'tenantScoped' } })),
+      },
+    };
+
+    await transform({
+      value,
+      column: { dataIndex: ['category', 'name'] },
+      field: { options: { target: 'categories' } },
+      ctx,
+    });
+
+    const query = method === 'findOne' ? findOne : find;
+    expect(query).toHaveBeenCalledWith({
+      filter: {
+        $and: [{ name: method === 'findOne' ? 'Category A' : ['Category A', 'Category B'] }, { tenantId: 'tenant-a' }],
+      },
       context: ctx,
     });
   });

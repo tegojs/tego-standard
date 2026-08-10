@@ -5,6 +5,59 @@ import * as math from 'mathjs';
 
 import { namespace } from '../../';
 
+const TENANT_ENABLED_MODES = ['tenantScoped', 'tenantInherited'];
+
+function isTenantPluginEnabled(ctx: any) {
+  for (const pluginManager of [ctx?.tego?.pm, ctx?.app?.pm]) {
+    try {
+      if (pluginManager?.get?.('tenant')?.enabled === true) {
+        return true;
+      }
+    } catch {
+      // Ignore plugin-manager lookup failures and fall back to request state.
+    }
+  }
+
+  return false;
+}
+
+function appendTenantFilter(filter: any, tenantFilter: any) {
+  if (!filter || Reflect.ownKeys(filter).length === 0) {
+    return tenantFilter;
+  }
+
+  return { $and: [filter, tenantFilter] };
+}
+
+function getRelationQueryOptions(ctx: any, target: string, repository: any, filter: any) {
+  const collection = ctx.db.getCollection?.(target) || repository?.collection;
+  const tenancyMode = collection?.options?.tenancy;
+  if (!TENANT_ENABLED_MODES.includes(tenancyMode)) {
+    return { filter, context: ctx };
+  }
+
+  const tenantId = ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId;
+  if (tenantId === null || tenantId === undefined) {
+    const tenantFilter = isTenantPluginEnabled(ctx) ? { id: -1 } : null;
+    return {
+      filter: tenantFilter ? appendTenantFilter(filter, tenantFilter) : filter,
+      context: ctx,
+    };
+  }
+
+  const tenantIds =
+    tenancyMode === 'tenantInherited' ? [tenantId, ...(ctx.state?.currentTenantDescendantIds || [])] : null;
+  const tenantFilter = tenantIds ? { tenantId: { $in: tenantIds } } : { tenantId };
+  const legacyDataTenantIds = ctx.state?.currentLegacyDataTenantIds || collection?.options?.legacyDataTenantIds || [];
+  const includeLegacyData = legacyDataTenantIds.some((item: string | number) => `${item}` === `${tenantId}`);
+  const effectiveTenantFilter = includeLegacyData ? { $or: [tenantFilter, { tenantId: null }] } : tenantFilter;
+
+  return {
+    filter: appendTenantFilter(filter, effectiveTenantFilter),
+    context: ctx,
+  };
+}
+
 /**
  * Transforms imported generic value field values into application values.
  */
@@ -46,7 +99,11 @@ export async function o2o({ value, column, field, ctx }) {
   if (enumData?.length > 0) {
     enumItem = enumData.find((e) => e.label === value);
   }
-  const val = await repository.findOne({ filter: { [dataIndex[1]]: enumItem?.value ?? value }, context: ctx });
+  const val = await repository.findOne(
+    getRelationQueryOptions(ctx, field.options.target, repository, {
+      [dataIndex[1]]: enumItem?.value ?? value,
+    }),
+  );
   return val;
 }
 export const oho = o2o;
@@ -68,9 +125,13 @@ export async function o2m({ value, column, field, ctx }) {
       }
       return v.value;
     });
-    results = await repository.find({ filter: { [dataIndex[1]]: enumValues }, context: ctx });
+    results = await repository.find(
+      getRelationQueryOptions(ctx, field.options.target, repository, { [dataIndex[1]]: enumValues }),
+    );
   } else {
-    results = await repository.find({ filter: { [dataIndex[1]]: values }, context: ctx });
+    results = await repository.find(
+      getRelationQueryOptions(ctx, field.options.target, repository, { [dataIndex[1]]: values }),
+    );
   }
   return results;
 }
@@ -88,9 +149,13 @@ export async function m2o({ value, column, field, ctx }) {
     if (enumItem === undefined) {
       throw new Error(`not found enum value ${value}`);
     }
-    results = await repository.findOne({ filter: { [dataIndex[1]]: enumItem.value }, context: ctx });
+    results = await repository.findOne(
+      getRelationQueryOptions(ctx, field.options.target, repository, { [dataIndex[1]]: enumItem.value }),
+    );
   } else {
-    results = await repository.findOne({ filter: { [dataIndex[1]]: normalizedValue }, context: ctx });
+    results = await repository.findOne(
+      getRelationQueryOptions(ctx, field.options.target, repository, { [dataIndex[1]]: normalizedValue }),
+    );
   }
   return results;
 }
@@ -111,9 +176,13 @@ export async function m2m({ value, column, field, ctx }) {
       }
       return v.value;
     });
-    results = await repository.find({ filter: { [dataIndex[1]]: enumValues }, context: ctx });
+    results = await repository.find(
+      getRelationQueryOptions(ctx, field.options.target, repository, { [dataIndex[1]]: enumValues }),
+    );
   } else {
-    results = await repository.find({ filter: { [dataIndex[1]]: values }, context: ctx });
+    results = await repository.find(
+      getRelationQueryOptions(ctx, field.options.target, repository, { [dataIndex[1]]: values }),
+    );
   }
   return results;
 }

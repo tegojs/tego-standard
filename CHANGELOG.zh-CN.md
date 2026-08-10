@@ -7,11 +7,18 @@
 
 ## [未发布]
 
+
+
+## [1.6.25] - 2026-08-10
+
 ### ✨ 新增
 
-- 审批快速添加 ([#403](https://github.com/tegojs/tego-standard/pull/403)) [b5154d0](https://github.com/tegojs/tego-standard/commit/b5154d064e929e228b5345d1a8259e0b6f6a483a) (@dududuna)
+- 审批快速添加 ([#403](https://github.com/tegojs/tego-standard/pull/403)) (@dududuna)
 
+### 🐛 修复
 
+- **department**: 解析外部数据源的角色 ([#405](https://github.com/tegojs/tego-standard/pull/405)) (@TomyJan)
+- **workflow-approval**: 确保复制的审批数据和交易一致性([#404](https://github.com/tegojs/tego-standard/pull/404)) (@TomyJan)
 
 ## [1.6.24] - 2026-07-09
 
@@ -3067,7 +3074,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.24...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.25...HEAD
+[1.6.25]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.25
 [1.6.24]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.24
 [1.6.23]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.23
 [1.6.22]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.22

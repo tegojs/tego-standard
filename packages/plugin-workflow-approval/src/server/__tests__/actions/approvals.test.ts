@@ -1537,6 +1537,104 @@ describe('workflow approval actions', () => {
     );
   });
 
+  it('rolls back the business update when the same-database approval update fails', async () => {
+    const transaction: any = {
+      commit: vi.fn(),
+      rollback: vi.fn(),
+    };
+    const sequelize: any = {
+      transaction: vi.fn(async (callback) => {
+        try {
+          const result = await callback(transaction);
+          await transaction.commit();
+          return result;
+        } catch (error) {
+          await transaction.rollback();
+          throw error;
+        }
+      }),
+    };
+    transaction.sequelize = sequelize;
+
+    const businessUpdate = vi.fn().mockResolvedValue([{ id: 17, amountA: 18 }]);
+    const approvalUpdateError: any = new Error('approval update failed');
+    approvalUpdateError.status = 500;
+    const approvalUpdate = vi.fn().mockRejectedValue(approvalUpdateError);
+    const approvalRepository = {
+      findOne: vi.fn().mockResolvedValue({
+        id: 'approval-a',
+        collectionName: `main:${collectionName}`,
+        dataKey: '17',
+        data: { id: 17, amountA: 9 },
+      }),
+      update: approvalUpdate,
+    };
+    const ctx: any = {
+      action: {
+        resourceName: 'approvals',
+        params: {
+          filterByTk: 'approval-a',
+          values: {
+            collectionName: `main:${collectionName}`,
+            data: { id: 17, amountA: 18 },
+            status: APPROVAL_STATUS.SUBMITTED,
+          },
+        },
+        mergeParams(params) {
+          this.params = {
+            ...this.params,
+            ...params,
+            values: {
+              ...this.params.values,
+              ...params.values,
+            },
+          };
+        },
+      },
+      db: {
+        sequelize,
+        getRepository: vi.fn(() => approvalRepository),
+      },
+      tego: {
+        dataSourceManager: {
+          dataSources: new Map([
+            [
+              'main',
+              {
+                collectionManager: {
+                  getCollection: vi.fn(() => ({
+                    filterTargetKey: 'id',
+                    options: {},
+                    repository: { update: businessUpdate },
+                    model: { associations: {}, primaryKeyAttributes: ['id'], sequelize },
+                    fields: [],
+                  })),
+                },
+              },
+            ],
+          ]),
+        },
+      },
+      state: {
+        currentTenant: { id: 'tenant-a' },
+        currentTenantId: 'tenant-a',
+        currentRole: 'root',
+      },
+      throw(errorStatus: number) {
+        const error: any = new Error(`HTTP ${errorStatus}`);
+        error.status = errorStatus;
+        throw error;
+      },
+    };
+
+    await expect(approvalActions.update(ctx, vi.fn())).rejects.toMatchObject({ status: 500 });
+    expect(sequelize.transaction).toHaveBeenCalledOnce();
+    expect(businessUpdate).toHaveBeenCalledWith(expect.objectContaining({ transaction }));
+    expect(approvalUpdate).toHaveBeenCalledWith(expect.objectContaining({ transaction }));
+    expect(transaction.rollback).toHaveBeenCalledOnce();
+    expect(transaction.commit).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['missing business primary key', { amountA: 999 }, 400],
     ['business record outside current tenant', { id: 'business-b', amountA: 999 }, 404],

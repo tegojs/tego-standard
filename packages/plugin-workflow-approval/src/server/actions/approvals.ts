@@ -124,6 +124,23 @@ async function createApprovalRecord(ctx, options) {
   });
 }
 
+async function updateApprovalRecord(ctx, transaction) {
+  const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues, forceUpdate, targetCollection } =
+    ctx.action.params;
+  return utils.getRepositoryFromParams(ctx).update({
+    filterByTk,
+    values,
+    whitelist,
+    blacklist,
+    filter,
+    updateAssociationValues,
+    forceUpdate,
+    targetCollection,
+    context: ctx,
+    transaction,
+  });
+}
+
 type DeferredWorkflowTrigger = DeferredAfterCommit;
 type CreatedBusinessRecord = { persistedData: any; dataKey: unknown };
 type CreateBusinessRecord = (transaction?: any) => Promise<CreatedBusinessRecord>;
@@ -548,35 +565,63 @@ export const approvals = {
       return ctx.throw(400);
     }
 
-    const updateOptions = applyTenantFilterToContext({ state: ctx.state }, collection, 'update', {
-      filterByTk: targetKey,
-      values: data,
-      updateAssociationValues,
-      context: ctx,
-      transaction: ctx.transaction,
-    });
-    const [target] = await collection.repository.update(updateOptions);
-    if (!target) {
-      return ctx.throw(404);
+    const updateBusinessRecord = async (transaction?) => {
+      const updateOptions = applyTenantFilterToContext({ state: ctx.state }, collection, 'update', {
+        filterByTk: targetKey,
+        values: data,
+        updateAssociationValues,
+        context: ctx,
+        transaction,
+      });
+      const [target] = await collection.repository.update(updateOptions);
+      if (!target) {
+        return ctx.throw(404);
+      }
+      return target;
+    };
+
+    const prepareApprovalUpdate = () => {
+      const summary = getSummary({
+        summaryConfig,
+        data: data,
+        collection,
+        app: ctx.tego,
+      });
+
+      ctx.action.mergeParams({
+        values: {
+          collectionName: persistedCollectionName,
+          dataKey: getRecordValue(approval, 'dataKey'),
+          status: status ?? APPROVAL_STATUS.SUBMITTED,
+          data: data,
+          applicantRoleName: ctx.state.currentRole,
+          summary,
+        },
+      });
+    };
+
+    const updateBusinessAndApproval = async (transaction?) => {
+      await updateBusinessRecord(transaction);
+      prepareApprovalUpdate();
+      return updateApprovalRecord(ctx, transaction);
+    };
+
+    const approvalSequelize = ctx.db.sequelize;
+    const businessSequelize = collection.model?.sequelize;
+    if (approvalSequelize && businessSequelize === approvalSequelize) {
+      const inheritedTransaction = ctx.transaction?.sequelize === approvalSequelize ? ctx.transaction : undefined;
+      ctx.body = inheritedTransaction
+        ? await updateBusinessAndApproval(inheritedTransaction)
+        : await approvalSequelize.transaction(updateBusinessAndApproval);
+      ctx.status = 200;
+      await next();
+      return;
     }
 
-    const summary = getSummary({
-      summaryConfig,
-      data: data,
-      collection,
-      app: ctx.tego,
-    });
-
-    ctx.action.mergeParams({
-      values: {
-        collectionName: persistedCollectionName,
-        dataKey: getRecordValue(approval, 'dataKey'),
-        status: status ?? APPROVAL_STATUS.SUBMITTED,
-        data: data,
-        applicantRoleName: ctx.state.currentRole,
-        summary,
-      },
-    });
+    // Separate data sources cannot share a Sequelize transaction, so retain the sequential update path.
+    const businessTransaction = ctx.transaction?.sequelize === businessSequelize ? ctx.transaction : undefined;
+    await updateBusinessRecord(businessTransaction);
+    prepareApprovalUpdate();
     return actions.update(ctx, next);
   },
   async destroy(ctx, next) {

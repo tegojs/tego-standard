@@ -778,4 +778,64 @@ describe('tenant resource guard', () => {
     expect(response.status).toBe(200);
     expect((await itemRepository.findById(middleB.get('id'))).get(sortField)).toBe(middleSort);
   });
+
+  it('should reject moving a has-many record into a parent from another tenant', async () => {
+    app = await createTenantApp();
+    const user = await prepareMoveGuardUser();
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_move_scope_items',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_move_scope_lists',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          {
+            type: 'hasMany',
+            name: 'items',
+            target: 'tenant_move_scope_items',
+            sortable: true,
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const listRepository = app.db.getRepository('tenant_move_scope_lists');
+    const listA = await listRepository.create({
+      values: { title: 'List A' },
+      context: tenantContext('tenant-a'),
+    });
+    const listB = await listRepository.create({
+      values: { title: 'List B' },
+      context: tenantContext('tenant-b'),
+    });
+    const listCollection = app.db.getCollection('tenant_move_scope_lists');
+    const foreignKey = listCollection.model.associations.items.foreignKey;
+    const itemRepository = app.db.getRepository('tenant_move_scope_items');
+    const itemA = await itemRepository.create({
+      values: { title: 'Item A', [foreignKey]: listA.get('id') },
+      context: tenantContext('tenant-a'),
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_move_scope_lists.items', listA.get('id'))
+      .move({
+        sourceId: itemA.get('id'),
+        targetScope: { [foreignKey]: listB.get('id') },
+        method: 'prepend',
+      });
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect((await itemRepository.findById(itemA.get('id'))).get(foreignKey)).toBe(listA.get('id'));
+  });
 });

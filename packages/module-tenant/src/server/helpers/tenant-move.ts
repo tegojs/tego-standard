@@ -74,8 +74,9 @@ class TenantSortableCollection {
   field: any;
   fieldName: string;
   scopeKey?: string;
+  scopeCollection?: any;
 
-  constructor(collection: any, fieldName = 'sort') {
+  constructor(collection: any, fieldName = 'sort', scopeCollection?: any) {
     this.collection = collection;
     this.field = collection.getField(fieldName);
     if (this.field?.type !== 'sort') {
@@ -84,6 +85,7 @@ class TenantSortableCollection {
 
     this.fieldName = this.field.name;
     this.scopeKey = this.field.options?.scopeKey;
+    this.scopeCollection = scopeCollection;
   }
 
   async move(ctx: any, sourceId: any, targetId: any, insertAfter: boolean, transaction: any) {
@@ -169,9 +171,18 @@ class TenantSortableCollection {
     const source = await findTenantRecord(ctx, this.collection, sourceId, transaction);
     const targetScopeValue = targetScope?.[this.scopeKey as string];
 
-    if (targetScopeValue && source.get(this.scopeKey) !== targetScopeValue) {
+    if (
+      targetScopeValue !== undefined &&
+      targetScopeValue !== null &&
+      targetScopeValue !== '' &&
+      source.get(this.scopeKey) !== targetScopeValue
+    ) {
       if (this.scopeKey === 'tenantId') {
         ctx.throw(400, 'Tenant ownership cannot be changed by move');
+      }
+
+      if (this.scopeCollection) {
+        await findTenantRecord(ctx, this.scopeCollection, targetScopeValue, transaction);
       }
 
       await updateTenantRecord(
@@ -216,13 +227,14 @@ export async function moveTenantRecords(ctx: any, db: any, resourceName: string)
 
   const isCollectionRepository = repository instanceof Repository;
   const collection = isCollectionRepository ? repository.collection : repository.targetCollection;
+  const scopeCollection = repository instanceof HasManyRepository ? repository.sourceCollection : undefined;
   const requestedSortField = ctx.action.params.sortField;
   const fieldName = isCollectionRepository
     ? requestedSortField === undefined
       ? 'sort'
       : requestedSortField
     : `${repository.association.foreignKey}Sort`;
-  const sortableCollection = new TenantSortableCollection(collection, fieldName);
+  const sortableCollection = new TenantSortableCollection(collection, fieldName, scopeCollection);
   const { sourceId, targetId, targetScope, sticky, method } = ctx.action.params;
 
   await collection.model.sequelize.transaction(async (transaction: any) => {

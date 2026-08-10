@@ -331,6 +331,7 @@ export const loadDepartmentsInfo = async (ctx: Context) => {
     return;
   }
   const rolesMap = new Map();
+  (ctx.state.attachRoles || []).forEach((role) => rolesMap.set(role.name, role));
   roles.forEach((role) => rolesMap.set(role.name, role));
   ctx.state.attachRoles = Array.from(rolesMap.values());
 };

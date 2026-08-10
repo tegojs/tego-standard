@@ -122,4 +122,33 @@ describe('import transform relation helpers', () => {
     ).rejects.toMatchObject({ status: 403 });
     expect(findOne).not.toHaveBeenCalled();
   });
+
+  it('uses the relation collection legacy policy instead of the source request state', async () => {
+    const findOne = vi.fn().mockResolvedValue({ id: 1, tenantId: 'tenant-a' });
+    const repository = { findOne };
+    const ctx: any = {
+      state: {
+        currentTenantId: 'tenant-a',
+        currentLegacyDataTenantIds: ['tenant-a'],
+      },
+      db: {
+        getRepository: vi.fn(() => repository),
+        getCollection: vi.fn(() => ({ options: { tenancy: 'tenantScoped', legacyDataTenantIds: [] } })),
+      },
+    };
+
+    await m2o({
+      value: 'Category A',
+      column: { dataIndex: ['category', 'name'] },
+      field: { options: { target: 'categories' } },
+      ctx,
+    });
+
+    expect(findOne).toHaveBeenCalledWith({
+      filter: {
+        $and: [{ name: 'Category A' }, { tenantId: 'tenant-a' }],
+      },
+      context: ctx,
+    });
+  });
 });

@@ -61,7 +61,7 @@ function getRelationQueryOptions(ctx: any, target: string, repository: any, filt
   const tenantIds =
     tenancyMode === 'tenantInherited' ? [tenantId, ...(ctx.state?.currentTenantDescendantIds || [])] : null;
   const tenantFilter = tenantIds ? { tenantId: { $in: tenantIds } } : { tenantId };
-  const legacyDataTenantIds = ctx.state?.currentLegacyDataTenantIds || collection?.options?.legacyDataTenantIds || [];
+  const legacyDataTenantIds = collection?.options?.legacyDataTenantIds || [];
   const includeLegacyData = legacyDataTenantIds.some((item: string | number) => `${item}` === `${tenantId}`);
   const effectiveTenantFilter = includeLegacyData ? { $or: [tenantFilter, { tenantId: null }] } : tenantFilter;
 

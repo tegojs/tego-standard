@@ -91,4 +91,35 @@ describe('import transform relation helpers', () => {
       context: ctx,
     });
   });
+
+  it('rejects tenant-aware relation lookups without context when the tenant plugin is enabled', async () => {
+    const findOne = vi.fn();
+    const ctx: any = {
+      state: {},
+      tego: {
+        pm: {
+          get: vi.fn().mockReturnValue({ enabled: true }),
+        },
+      },
+      db: {
+        getRepository: vi.fn(() => ({ findOne })),
+        getCollection: vi.fn(() => ({ options: { tenancy: 'tenantScoped' } })),
+      },
+      throw(status: number, message: string) {
+        const error: any = new Error(message);
+        error.status = status;
+        throw error;
+      },
+    };
+
+    await expect(
+      m2o({
+        value: 'Category A',
+        column: { dataIndex: ['category', 'name'] },
+        field: { options: { target: 'categories' } },
+        ctx,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(findOne).not.toHaveBeenCalled();
+  });
 });

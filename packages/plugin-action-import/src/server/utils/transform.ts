@@ -29,6 +29,16 @@ function appendTenantFilter(filter: any, tenantFilter: any) {
   return { $and: [filter, tenantFilter] };
 }
 
+function throwMissingTenantContext(ctx: any): never {
+  if (typeof ctx?.throw === 'function') {
+    ctx.throw(403, 'Tenant context is required');
+  }
+
+  const error: any = new Error('Tenant context is required');
+  error.status = 403;
+  throw error;
+}
+
 function getRelationQueryOptions(ctx: any, target: string, repository: any, filter: any) {
   const collection = ctx.db.getCollection?.(target) || repository?.collection;
   const tenancyMode = collection?.options?.tenancy;
@@ -38,9 +48,12 @@ function getRelationQueryOptions(ctx: any, target: string, repository: any, filt
 
   const tenantId = ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId;
   if (tenantId === null || tenantId === undefined) {
-    const tenantFilter = isTenantPluginEnabled(ctx) ? { id: -1 } : null;
+    if (isTenantPluginEnabled(ctx)) {
+      throwMissingTenantContext(ctx);
+    }
+
     return {
-      filter: tenantFilter ? appendTenantFilter(filter, tenantFilter) : filter,
+      filter,
       context: ctx,
     };
   }

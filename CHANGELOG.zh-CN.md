@@ -9,6 +9,14 @@
 
 
 
+## [1.6.29] - 2026-08-11
+
+### 🐛 修复
+
+- **workflow**: 标准化空脚本源 (@TomyJan)
+- **workflow**: 处理没有源的遗留脚本节点 (@TomyJan)
+- **workflow-approval**: 保护陈旧的摘要关联 (@TomyJan)
+
 ## [1.6.28] - 2026-08-11
 
 ### 🐛 修复
@@ -3092,7 +3100,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.28...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.29...HEAD
+[1.6.29]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.29
 [1.6.28]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.28
 [1.6.27]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.27
 [1.6.26]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.26

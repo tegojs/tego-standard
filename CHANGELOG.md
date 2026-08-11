@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.26] - 2026-08-11
+
+### ✨ Added
+
+- **tenant**: platform tenant isolation ([#370](https://github.com/tegojs/tego-standard/pull/370)) (@TomyJan)
+
 ## [1.6.25] - 2026-08-10
 
 ### ✨ Added
@@ -3074,7 +3080,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.25...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.26...HEAD
+[1.6.26]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.26
 [1.6.25]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.25
 [1.6.24]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.24
 [1.6.23]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.23

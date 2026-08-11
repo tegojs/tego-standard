@@ -38,7 +38,10 @@ async function createSecurityAuditLog(plugin: { db: any }, values: Record<string
 
   for (let attempt = 0; ; attempt++) {
     try {
-      await auditLogRepo.model.create(values);
+      // The tenantId field is a context field at runtime. Security events already
+      // carry their authoritative tenant, so do not let an empty model context
+      // overwrite it during the internal write.
+      await auditLogRepo.model.create(values, { hooks: false });
       return;
     } catch (error) {
       const retryDelay = SQLITE_BUSY_RETRY_DELAYS[attempt];

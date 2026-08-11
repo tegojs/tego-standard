@@ -71,7 +71,20 @@ export default class PluginActionLogs extends Plugin {
     });
 
     this.app.acl.allow('auditLogs', ['list', 'get'], 'loggedIn');
-    this.app.acl.allow('auditChanges', ['get'], 'loggedIn');
+
+    this.app.resourcer.use(
+      async (ctx, next) => {
+        if (
+          ctx.action?.resourceName === 'auditChanges' &&
+          ctx.action.actionName === 'get' &&
+          ctx.state.currentRole !== 'root'
+        ) {
+          ctx.throw(403, 'Direct audit change access is not allowed');
+        }
+        await next();
+      },
+      { tag: 'auditChangesReadBoundary', after: 'acl' },
+    );
   }
 
   async handleSyncMessage(message: Readonly<any>): Promise<void> {

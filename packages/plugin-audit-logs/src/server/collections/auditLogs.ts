@@ -5,6 +5,7 @@ export default defineCollection({
     group: 'log',
   },
   name: 'auditLogs',
+  tenancy: 'tenantScoped',
   createdBy: false,
   updatedBy: false,
   updatedAt: false,

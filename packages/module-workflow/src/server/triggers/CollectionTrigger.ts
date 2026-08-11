@@ -1,6 +1,7 @@
 import { ICollection, Model, parseCollectionName, Transactionable } from '@tego/server';
 
 import Trigger from '.';
+import { getCurrentTenantIdFromState } from '../helpers/tenant-context';
 import type { WorkflowModel } from '../types';
 import { toJSON } from '../utils';
 
@@ -32,6 +33,22 @@ function getFieldRawName(collection: ICollection, name: string) {
     return field.options.foreignKey;
   }
   return name;
+}
+
+function pickTenantState(state: Record<string, any> = {}) {
+  const currentTenantId = getCurrentTenantIdFromState(state);
+
+  if (currentTenantId === null || currentTenantId === undefined) {
+    return undefined;
+  }
+
+  return {
+    currentTenant: state.currentTenant,
+    currentTenantId,
+    currentTenantDescendantIds: state.currentTenantDescendantIds || [],
+    currentTenancyMode: state.currentTenancyMode,
+    currentLegacyDataTenantIds: state.currentLegacyDataTenantIds || [],
+  };
 }
 
 // async function, should return promise
@@ -103,23 +120,23 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
     result = await repository.findOne({
       filterByTk: data[filterTargetKey],
       appends: Array.from(includeFields),
+      context,
       transaction,
     });
   }
 
   // TODO: `result.toJSON()` throws error
   const json = toJSON(result);
+  const state = pickTenantState(context?.state);
+  const triggerContext = state ? { data: json, stack: context?.stack, state } : { data: json, stack: context?.stack };
 
   if (workflow.sync) {
-    await this.workflow.trigger(
-      workflow,
-      { data: json, stack: context?.stack },
-      {
-        transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
-      },
-    );
+    await this.workflow.trigger(workflow, triggerContext, {
+      context,
+      transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
+    });
   } else {
-    this.workflow.trigger(workflow, { data: json, stack: context?.stack });
+    this.workflow.trigger(workflow, triggerContext, { context });
   }
 }
 

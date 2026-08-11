@@ -1,5 +1,13 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { useAPIClient, useApp, useCollectionRecord, useCompile, useRequest } from '@tachybase/client';
+import {
+  getAclSnippetChecked,
+  updateAclSnippetSelection,
+  useAPIClient,
+  useApp,
+  useCollectionRecord,
+  useCompile,
+  useRequest,
+} from '@tachybase/client';
 
 import { Checkbox, message, Table } from 'antd';
 import lodash, { flatMap } from 'lodash';
@@ -21,14 +29,6 @@ const getParentKeys = (tree, func, path = []) => {
   }
   return [];
 };
-const getChildrenKeys = (data = [], arr = []) => {
-  for (const item of data) {
-    arr.push(item.aclSnippet);
-    if (item.children && item.children.length) getChildrenKeys(item.children, arr);
-  }
-  return arr;
-};
-
 export const PluginPermissions: React.FC<{
   active: boolean;
 }> = ({ active }) => {
@@ -81,23 +81,12 @@ export const PluginPermissions: React.FC<{
   }
   const resource = api.resource('roles.snippets', role?.name);
   const handleChange = async (checked, record) => {
-    const childrenKeys = getChildrenKeys(record?.children, []);
-    const totalKeys = childrenKeys.concat(record.aclSnippet);
-    if (!checked) {
-      await resource.remove({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    } else {
-      await resource.add({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    }
+    await updateAclSnippetSelection(resource, checked, record);
+    refresh();
     message.success(t('Saved successfully'));
   };
   return (
-    <Table
+    <Table<any>
       className={styles}
       loading={loading}
       rowKey={'key'}
@@ -138,7 +127,7 @@ export const PluginPermissions: React.FC<{
             </>
           ),
           render: (_, record) => {
-            const checked = !snippets.includes('!' + record.aclSnippet);
+            const checked = getAclSnippetChecked(record, snippets);
             return <Checkbox checked={checked} onChange={() => handleChange(checked, record)} />;
           },
         },

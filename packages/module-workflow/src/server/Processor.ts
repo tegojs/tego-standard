@@ -10,6 +10,14 @@ export interface ProcessorOptions extends Transactionable {
   [key: string]: any;
 }
 
+/**
+ * Provides the get execution field helper for this module.
+ */
+export function getExecutionField<T = Record<string, any>>(execution: any, key: string, fallback: T): T {
+  const value = execution.get?.(key) ?? execution[key];
+  return value ?? fallback;
+}
+
 export default class Processor {
   static StatusMap = {
     [JOB_STATUS.PENDING]: EXECUTION_STATUS.STARTED,
@@ -212,6 +220,27 @@ export default class Processor {
     }
     this.logger.info(`execution (${this.execution.id}) exiting with status ${this.execution.status}`);
     return null;
+  }
+
+  public getRepositoryContext() {
+    const tenantContext = getExecutionField(this.execution, 'tenantContext', {});
+    const authContext = getExecutionField(this.execution, 'authContext', {});
+    const state = {
+      ...this.options?.httpContext?.state,
+      ...this.options?.context?.state,
+      ...tenantContext,
+      ...authContext,
+    };
+    if (!state.currentUser && state.currentUserId != null) {
+      state.currentUser = { id: state.currentUserId };
+    }
+
+    return {
+      ...this.options?.httpContext,
+      ...this.options?.context,
+      stack: Array.from(new Set((this.execution.context?.stack ?? []).concat(this.execution.id))),
+      state,
+    };
   }
 
   // TODO(optimize)

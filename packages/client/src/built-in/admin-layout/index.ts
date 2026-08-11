@@ -3,6 +3,7 @@ export * from './AdminLayout';
 export * from './AdminLayoutPlugin';
 export * from './AdminProvider';
 export * from './AdminTabs';
+export * from './CurrentNavigationMenuProvider';
 export * from './InternalAdminLayout';
 export * from './MenuEditor';
 export * from './NoticeArea';

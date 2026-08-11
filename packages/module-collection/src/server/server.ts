@@ -24,6 +24,9 @@ import collectionActions from './resourcers/collections';
 import sqlResourcer from './resourcers/sql';
 import viewResourcer from './resourcers/views';
 
+/**
+ * Registers the collection manager plugin plugin integration.
+ */
 export class CollectionManagerPlugin extends Plugin {
   public schema: string;
 
@@ -297,6 +300,11 @@ export class CollectionManagerPlugin extends Plugin {
 
     this.app.resourcer.define(viewResourcer);
     this.app.resourcer.define(sqlResourcer);
+    // Tenant isolation boundary: sqlCollection and dbViews resources are NOT explicitly
+    // allowed for any role. The default ACL deny-all policy ensures that only root
+    // (via wildcard allow) and admin (via allowConfigure) can access these resources.
+    // This is intentional — SQL collections and view collections do not support the
+    // `tenancy` option and execute raw SQL without tenant filtering.
     this.app.resourcer.registerActions(collectionActions);
 
     const handleFieldSource = (fields) => {

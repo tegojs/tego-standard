@@ -286,6 +286,7 @@
   "Role of user submitted form": "Role of user submitted form",
   "Run multiple branch processes in parallel.": "Run multiple branch processes in parallel.",
   "SQL action": "SQL action",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Tenant isolation warning: SQL nodes execute raw SQL directly and do not automatically inject tenantId filters. Unlike query/update/delete nodes, SQL nodes bypass the repository layer and tenant resource guard. Manually include tenantId conditions in your SQL when accessing tenant-scoped data.",
   "Save temporarily": "Save temporarily",
   "Schedule event": "Schedule event",
   "Scope variables": "Scope variables",

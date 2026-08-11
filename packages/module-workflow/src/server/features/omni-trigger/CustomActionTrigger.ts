@@ -4,6 +4,7 @@ import { Context, joinCollectionName, Model, modelAssociationByKey, Next, parseC
 import _, { get, isArray } from 'lodash';
 
 import { EXECUTION_STATUS } from '../../constants';
+import { applyTenantFilterToContext } from '../../helpers/tenant-context';
 import Trigger from '../../triggers';
 import { toJSON } from '../../utils';
 
@@ -15,6 +16,24 @@ class CustomActionInterceptionError extends Error {
     this.name = 'CustomActionInterceptionError';
   }
 }
+
+function isEmptyLookupResult(data: any) {
+  return !data || (Array.isArray(data) && data.length === 0);
+}
+
+function mergeFormData(data: any, formData: any) {
+  if (Array.isArray(data)) {
+    data.forEach((item) => Object.assign(item, formData));
+    return data;
+  }
+
+  Object.assign(data, formData);
+  return data;
+}
+
+/**
+ * Provides the omni trigger helper for this module.
+ */
 export class OmniTrigger extends Trigger {
   static TYPE = 'general-action';
   constructor(workflow) {
@@ -88,27 +107,36 @@ export class OmniTrigger extends Trigger {
       const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
       const dataPath = triggerWorkflowsMap.get(workflow.key);
       const event = [workflow];
-      const { repository } = ctx.tego.dataSourceManager.dataSources
+      const targetCollection = ctx.tego.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
+      const { repository } = targetCollection;
       const formData = dataPath ? _.get(values, dataPath) : values;
       let data = formData;
       if (filterByTk != null) {
+        const findOptions = applyTenantFilterToContext(ctx, targetCollection, 'list', {
+          filterByTk,
+          appends,
+        });
         if (isArray(filterByTk)) {
-          data = await repository.find({ filterByTk, appends });
+          data = await repository.find({ ...findOptions, context: ctx });
         } else {
-          data = await repository.findOne({ filterByTk, appends });
+          data = await repository.findOne({ ...findOptions, context: ctx });
         }
-        if (!data) {
+        if (isEmptyLookupResult(data)) {
           continue;
         }
-        Object.assign(data, formData);
+        data = mergeFormData(data, formData);
       } else if (filter != null) {
-        data = await repository.find({ filter, appends });
-        if (!data) {
+        const findOptions = applyTenantFilterToContext(ctx, targetCollection, 'list', {
+          filter,
+          appends,
+        });
+        data = await repository.find({ ...findOptions, context: ctx });
+        if (isEmptyLookupResult(data)) {
           continue;
         }
-        Object.assign(data, formData);
+        data = mergeFormData(data, formData);
       }
       // @ts-ignore
       event.push({ data: toJSON(data), ...userInfo });
@@ -142,7 +170,7 @@ export class OmniTrigger extends Trigger {
       return ctx.throw(500, 'Workflow on your action hangs, please contact the administrator');
     }
     for (const event of asyncGroup) {
-      this.workflow.trigger(event[0], event[1]);
+      this.workflow.trigger(event[0], event[1], { httpContext: ctx });
     }
     await next();
   };
@@ -241,26 +269,41 @@ export class OmniTrigger extends Trigger {
               continue;
             }
             if (appends.length) {
-              payload = await model.collection.repository.findOne({
+              const findOptions = applyTenantFilterToContext(ctx, model.collection, 'list', {
                 filterByTk: payload.get(model.primaryKeyAttribute),
                 appends,
               });
+              payload = await model.collection.repository.findOne({
+                ...findOptions,
+                context: ctx,
+              });
+              if (isEmptyLookupResult(payload)) {
+                continue;
+              }
             }
           }
           // this.workflow.trigger(workflow, { data: toJSON(payload), ...userInfo });
           event.push({ data: toJSON(payload), ...userInfo });
         }
       } else {
-        const { model, repository } = (<any>ctx.tego).dataSourceManager.dataSources
+        const targetCollection = (<any>ctx.tego).dataSourceManager.dataSources
           .get(dataSourceName)
           .collectionManager.getCollection(collectionName);
+        const { model, repository } = targetCollection;
         let data = trigger[1] ? get(values, trigger[1]) : values;
         const pk = get(data, model.primaryKeyAttribute);
         if (appends.length && pk != null) {
-          data = await repository.findOne({
+          const findOptions = applyTenantFilterToContext(ctx, targetCollection, 'list', {
             filterByTk: pk,
             appends,
           });
+          data = await repository.findOne({
+            ...findOptions,
+            context: ctx,
+          });
+          if (isEmptyLookupResult(data)) {
+            continue;
+          }
         }
         // this.workflow.trigger(workflow, {
         //   data,
@@ -276,7 +319,7 @@ export class OmniTrigger extends Trigger {
     }
 
     for (const event of asyncGroup) {
-      this.workflow.trigger(event[0], event[1]);
+      this.workflow.trigger(event[0], event[1], { httpContext: ctx });
     }
   }
 

@@ -1,3 +1,4 @@
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
 import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
 
@@ -9,6 +10,7 @@ import {
   runDeferredAfterCommitCallbacks,
   type DeferredAfterCommit,
 } from '../defer-after-commit';
+import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 
 const APPROVAL_COMMIT_UNCERTAIN_MESSAGE =
@@ -17,6 +19,95 @@ const APPROVAL_DEFER_ERROR = 'Failed to defer workflow trigger until approval tr
 const COMMIT_CLEANUP_ERROR = 'Business commit outcome is uncertain and transaction cleanup failed';
 const DEFER_ERROR = 'Failed to defer workflow trigger until inherited approval transaction commit';
 const ROLLBACK_MESSAGE = 'Approval outcome is uncertain after inherited transaction rollback';
+
+function getRecordValue(record: any, key: string) {
+  return record?.get?.(key) ?? record?.[key];
+}
+
+function getApprovalTargetKeys(collection: any): string | string[] | undefined {
+  const filterTargetKey = collection?.filterTargetKey;
+  if (filterTargetKey) {
+    return filterTargetKey;
+  }
+
+  const primaryKeyAttributes = collection?.model?.primaryKeyAttributes;
+  if (primaryKeyAttributes?.length === 1) {
+    return primaryKeyAttributes[0];
+  }
+  return primaryKeyAttributes?.length ? primaryKeyAttributes : undefined;
+}
+
+function getApprovalUpdateTargetKey(data: any, filterTargetKey?: string | string[]) {
+  if (!filterTargetKey || (Array.isArray(filterTargetKey) && filterTargetKey.length === 0)) {
+    return undefined;
+  }
+
+  const targetKeys = Array.isArray(filterTargetKey) ? filterTargetKey : [filterTargetKey];
+  if (
+    targetKeys.some((key) => {
+      const value = data?.[key];
+      return value === undefined || value === null || value === '';
+    })
+  ) {
+    return undefined;
+  }
+
+  if (Array.isArray(filterTargetKey)) {
+    return Object.fromEntries(targetKeys.map((key) => [key, data[key]]));
+  }
+
+  return data?.[filterTargetKey];
+}
+
+function parsePersistedTargetKey(dataKey: unknown) {
+  if (typeof dataKey !== 'string') {
+    return dataKey;
+  }
+
+  try {
+    return JSON.parse(dataKey);
+  } catch {
+    return dataKey;
+  }
+}
+
+function getPersistedApprovalTargetKey(approval: any, targetKeys: string | string[]) {
+  const dataKey = getRecordValue(approval, 'dataKey');
+  if (!Array.isArray(targetKeys)) {
+    if (dataKey !== undefined && dataKey !== null && dataKey !== '') {
+      return dataKey;
+    }
+    return getRecordValue(approval, 'data')?.[targetKeys];
+  }
+
+  const parsedDataKey = parsePersistedTargetKey(dataKey);
+  if (parsedDataKey && typeof parsedDataKey === 'object' && !Array.isArray(parsedDataKey)) {
+    return parsedDataKey;
+  }
+
+  const persistedData = getRecordValue(approval, 'data');
+  if (persistedData && typeof persistedData === 'object') {
+    return Object.fromEntries(targetKeys.map((key) => [key, persistedData[key]]));
+  }
+}
+
+function matchesApprovalTarget(approval: any, targetKey: unknown, targetKeys: string | string[]) {
+  const persistedTargetKey = getPersistedApprovalTargetKey(approval, targetKeys);
+  if (persistedTargetKey === undefined || persistedTargetKey === null || persistedTargetKey === '') {
+    return false;
+  }
+
+  if (Array.isArray(targetKeys)) {
+    return targetKeys.every(
+      (key) =>
+        targetKey?.[key] !== undefined &&
+        targetKey?.[key] !== null &&
+        `${targetKey[key]}` === `${persistedTargetKey?.[key]}`,
+    );
+  }
+
+  return `${targetKey}` === `${persistedTargetKey}`;
+}
 
 async function createApprovalRecord(ctx, options) {
   const { values, transaction, dataSourceTransaction, deferAfterCommit } = options;
@@ -31,6 +122,41 @@ async function createApprovalRecord(ctx, options) {
     dataSourceTransaction,
     deferAfterCommit,
   });
+}
+
+async function updateApprovalRecord(ctx, transaction) {
+  const { filterByTk, values, whitelist, blacklist, filter, updateAssociationValues, forceUpdate, targetCollection } =
+    ctx.action.params;
+  return utils.getRepositoryFromParams(ctx).update({
+    filterByTk,
+    values,
+    whitelist,
+    blacklist,
+    filter,
+    updateAssociationValues,
+    forceUpdate,
+    targetCollection,
+    context: ctx,
+    transaction,
+  });
+}
+
+function requireUpdatedRecord(ctx: any, result: any) {
+  if (!result || (Array.isArray(result) && result.length === 0)) {
+    return ctx.throw(404);
+  }
+
+  return result;
+}
+
+function getApprovalTransaction(ctx: any) {
+  const transaction = ctx.transaction;
+  const approvalSequelize = ctx.db?.sequelize;
+  if (approvalSequelize && transaction?.sequelize && transaction.sequelize !== approvalSequelize) {
+    return undefined;
+  }
+
+  return transaction;
 }
 
 type DeferredWorkflowTrigger = DeferredAfterCommit;
@@ -253,6 +379,9 @@ async function createAcrossSequelize(options: CrossSequelizeCreationOptions) {
   return approval;
 }
 
+/**
+ * Handles the approvals resource action.
+ */
 export const approvals = {
   async create(ctx, next) {
     const { status, collectionName, data, workflowId, workflowKey, isCopy, copyAssociationValues } =
@@ -412,32 +541,110 @@ export const approvals = {
   },
   async update(ctx, next) {
     const { collectionName, data, status, updateAssociationValues, summaryConfig } = ctx.action.params.values ?? {};
-    const [dataSourceName, cName] = parseCollectionName(collectionName);
-    const dataSource = ctx.tego.dataSourceManager.dataSources.get(dataSourceName);
-    const collection = dataSource.collectionManager.getCollection(cName);
-
-    const [target] = await collection.repository.update({
-      filterByTk: data[collection.filterTargetKey],
-      values: data,
-      updateAssociationValues,
+    const approvalTransaction = getApprovalTransaction(ctx);
+    const approval = await utils.getRepositoryFromParams(ctx).findOne({
+      filterByTk: ctx.action.params.filterByTk,
+      filter: withCurrentTenantFilter(ctx),
+      context: ctx,
+      transaction: approvalTransaction,
     });
+    if (!approval) {
+      return ctx.throw(404);
+    }
 
-    const summary = getSummary({
-      summaryConfig,
-      data: data,
-      collection,
-      app: ctx.tego,
-    });
+    const persistedCollectionName = getRecordValue(approval, 'collectionName');
+    if (typeof collectionName !== 'string' || typeof persistedCollectionName !== 'string') {
+      return ctx.throw(400);
+    }
 
-    ctx.action.mergeParams({
-      values: {
-        status: status ?? APPROVAL_STATUS.SUBMITTED,
+    const [requestedDataSourceName, requestedCollectionName] = parseCollectionName(collectionName);
+    const [persistedDataSourceName, persistedCollectionNameOnly] = parseCollectionName(persistedCollectionName);
+    if (
+      requestedDataSourceName !== persistedDataSourceName ||
+      requestedCollectionName !== persistedCollectionNameOnly
+    ) {
+      return ctx.throw(400);
+    }
+
+    const dataSource = ctx.tego.dataSourceManager.dataSources.get(persistedDataSourceName);
+    if (!dataSource) {
+      return ctx.throw(400, `Data source "${persistedDataSourceName}" not found`);
+    }
+    const collection = dataSource.collectionManager.getCollection(persistedCollectionNameOnly);
+    if (!collection) {
+      return ctx.throw(400, `Collection "${persistedCollectionNameOnly}" not found`);
+    }
+
+    const targetKeys = getApprovalTargetKeys(collection);
+    if (!targetKeys) {
+      return ctx.throw(400);
+    }
+    const targetKey = getApprovalUpdateTargetKey(data, targetKeys);
+    if (targetKey === undefined || !matchesApprovalTarget(approval, targetKey, targetKeys)) {
+      return ctx.throw(400);
+    }
+
+    const updateBusinessRecord = async (transaction?) => {
+      const updateOptions = applyTenantFilterToContext({ state: ctx.state }, collection, 'update', {
+        filterByTk: targetKey,
+        values: data,
+        updateAssociationValues,
+        context: ctx,
+        transaction,
+      });
+      const [target] = await collection.repository.update(updateOptions);
+      if (!target) {
+        return ctx.throw(404);
+      }
+      return target;
+    };
+
+    const prepareApprovalUpdate = () => {
+      const summary = getSummary({
+        summaryConfig,
         data: data,
-        applicantRoleName: ctx.state.currentRole,
-        summary,
-      },
-    });
-    return actions.update(ctx, next);
+        collection,
+        app: ctx.tego,
+      });
+
+      ctx.action.mergeParams({
+        values: {
+          collectionName: persistedCollectionName,
+          dataKey: getRecordValue(approval, 'dataKey'),
+          status: status ?? APPROVAL_STATUS.SUBMITTED,
+          data: data,
+          applicantRoleName: ctx.state.currentRole,
+          summary,
+        },
+      });
+    };
+
+    const updateBusinessAndApproval = async (transaction?) => {
+      await updateBusinessRecord(transaction);
+      prepareApprovalUpdate();
+      return requireUpdatedRecord(ctx, await updateApprovalRecord(ctx, transaction));
+    };
+
+    const approvalSequelize = ctx.db.sequelize;
+    const businessSequelize = collection.model?.sequelize;
+    if (approvalSequelize && businessSequelize === approvalSequelize) {
+      const inheritedTransaction = ctx.transaction?.sequelize === approvalSequelize ? ctx.transaction : undefined;
+      ctx.body = inheritedTransaction
+        ? await updateBusinessAndApproval(inheritedTransaction)
+        : await approvalSequelize.transaction(updateBusinessAndApproval);
+      ctx.status = 200;
+      await next();
+      return;
+    }
+
+    // Separate data sources cannot share a Sequelize transaction, so retain the sequential update path.
+    const businessTransaction = ctx.transaction?.sequelize === businessSequelize ? ctx.transaction : undefined;
+    await updateBusinessRecord(businessTransaction);
+    prepareApprovalUpdate();
+    const updatedApproval = requireUpdatedRecord(ctx, await updateApprovalRecord(ctx, approvalTransaction));
+    ctx.body = updatedApproval;
+    ctx.status = 200;
+    await next();
   },
   async destroy(ctx, next) {
     const {
@@ -450,9 +657,9 @@ export const approvals = {
     const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
-      filter: {
+      filter: withCurrentTenantFilter(ctx, {
         createdById: ctx.state.currentUser.id,
-      },
+      }),
     });
     if (!approval) {
       return ctx.throw(404);
@@ -464,6 +671,7 @@ export const approvals = {
     const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
+      filter: withCurrentTenantFilter(ctx),
       appends: ['workflow'],
       except: ['workflow.options'],
     });
@@ -561,9 +769,9 @@ export const approvals = {
     });
 
     ctx.action.mergeParams({
-      filter: {
+      filter: withCurrentTenantFilter(ctx, {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
-      },
+      }),
     });
 
     return await actions.list(ctx, next);
@@ -574,6 +782,7 @@ export const approvals = {
     const repository = utils.getRepositoryFromParams(ctx);
     const approval = await repository.findOne({
       filterByTk,
+      filter: withCurrentTenantFilter(ctx),
       appends: ['records', 'workflow', 'createdBy.nickname'],
     });
     if (!approval) {

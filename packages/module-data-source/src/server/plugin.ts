@@ -18,6 +18,9 @@ type DataSourceState = 'loading' | 'loaded' | 'loading-failed' | 'reloading' | '
 
 const canRefreshStatus = ['loaded', 'loading-failed', 'reloading-failed'];
 
+/**
+ * Registers the plugin data source manager server plugin integration.
+ */
 export class PluginDataSourceManagerServer extends Plugin {
   public dataSourceErrors: {
     [dataSourceKey: string]: Error;
@@ -543,7 +546,19 @@ export class PluginDataSourceManagerServer extends Plugin {
 
     this.app.acl.registerSnippet({
       name: 'pm.database-connections.collections',
-      actions: ['collections:*', 'collections.fields:*', 'collectionCategories:*', 'dbViews:*'],
+      actions: [
+        'collections:*',
+        'collections.fields:*',
+        'collectionCategories:*',
+        'dbViews:*',
+        'sqlCollection:update',
+        'sqlCollection:setFields',
+      ],
+    });
+
+    this.app.acl.registerSnippet({
+      name: 'pm.database-connections.sql.execute',
+      actions: ['sqlCollection:execute'],
     });
 
     this.app.acl.allow('dataSources', 'listEnabled', 'loggedIn');

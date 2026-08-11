@@ -507,6 +507,76 @@ describe('collections repository', () => {
     });
   });
 
+  it('should persist tenancy option on collection record and loaded collection', async () => {
+    await Collection.repository.create({
+      values: {
+        name: 'tenantScopedPosts',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const data = await Collection.repository.findOne({
+      filter: {
+        name: 'tenantScopedPosts',
+      },
+    });
+
+    expect(data.toJSON()).toMatchObject({
+      name: 'tenantScopedPosts',
+      tenancy: 'tenantScoped',
+    });
+
+    expect(db.getCollection('tenantScopedPosts').options.tenancy).toEqual('tenantScoped');
+  });
+
+  it('should not reload stale db2cm fields for code-defined collections', async () => {
+    const name = 'db2cmCodeDefinedPosts';
+
+    db.collection({
+      name,
+      fields: [
+        {
+          type: 'hasMany',
+          name: 'approvalExecutions',
+          target: 'approvalExecutions',
+        },
+      ],
+    });
+
+    await Collection.repository.create({
+      values: {
+        name,
+        from: 'db2cm',
+        fields: [
+          {
+            type: 'hasMany',
+            name: 'approvalExecutions',
+            target: 'approvalExecutions',
+          },
+        ],
+      },
+    });
+
+    const collection = db.getCollection(name);
+    const originalSetField = collection.setField.bind(collection);
+    const loadedFieldNames: string[] = [];
+    collection.setField = ((fieldName: string, ...args: any[]) => {
+      loadedFieldNames.push(fieldName);
+      return originalSetField(fieldName, ...args);
+    }) as any;
+
+    await Collection.repository.load({ filter: { name } });
+
+    expect(loadedFieldNames).not.toContain('approvalExecutions');
+  });
+
   it('case 4', async () => {
     await Collection.repository.create({
       values: {

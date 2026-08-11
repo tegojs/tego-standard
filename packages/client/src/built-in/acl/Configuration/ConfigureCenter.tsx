@@ -9,6 +9,7 @@ import { useApp } from '../../../application';
 import { useRecord } from '../../../record-provider';
 import { useCompile } from '../../../schema-component';
 import { SettingsCenterContext } from '../../pm';
+import { getAclSnippetChecked, updateAclSnippetSelection } from '../acl-snippet';
 import { useStyles } from '../style';
 
 const getParentKeys = (tree, func, path = []) => {
@@ -24,22 +25,20 @@ const getParentKeys = (tree, func, path = []) => {
   }
   return [];
 };
-const getChildrenKeys = (data = [], arr = []) => {
-  for (const item of data) {
-    arr.push(item.aclSnippet);
-    if (item.children && item.children.length) getChildrenKeys(item.children, arr);
-  }
-  return arr;
-};
-
 const SettingMenuContext = createContext(null);
 SettingMenuContext.displayName = 'SettingMenuContext';
 
+/**
+ * Renders or configures the setting center provider client entry point.
+ */
 export const SettingCenterProvider = (props) => {
   const configureItems = useContext(SettingsCenterContext);
   return <SettingMenuContext.Provider value={configureItems}>{props.children}</SettingMenuContext.Provider>;
 };
 
+/**
+ * Renders or configures the settings center configure client entry point.
+ */
 export const SettingsCenterConfigure = () => {
   const app = useApp();
   const { message } = App.useApp();
@@ -73,19 +72,8 @@ export const SettingsCenterConfigure = () => {
   );
   const resource = api.resource('roles.snippets', record.name);
   const handleChange = async (checked, record) => {
-    const childrenKeys = getChildrenKeys(record?.children, []);
-    const totalKeys = childrenKeys.concat(record.aclSnippet);
-    if (!checked) {
-      await resource.remove({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    } else {
-      await resource.add({
-        values: totalKeys.map((v) => '!' + v),
-      });
-      refresh();
-    }
+    await updateAclSnippetSelection(resource, checked, record);
+    refresh();
     message.success(t('Saved successfully'));
   };
   return (
@@ -130,7 +118,7 @@ export const SettingsCenterConfigure = () => {
             </>
           ),
           render: (_, record) => {
-            const checked = !snippets.includes('!' + record.aclSnippet);
+            const checked = getAclSnippetChecked(record, snippets);
             return <Checkbox checked={checked} onChange={() => handleChange(checked, record)} />;
           },
         },

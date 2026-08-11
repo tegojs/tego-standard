@@ -1,0 +1,986 @@
+diff --git a/esm/index.js b/esm/index.js
+index 1d078beb2c061a41b2db4dc63e375a114655bddb..449ee8738599f66b3dd664d25cba2e899776d4d6 100644
+--- a/esm/index.js
++++ b/esm/index.js
+@@ -26,4 +26,3 @@ export { d3Time } from './tick-methods/d3-time';
+ export { DURATION_SECOND, DURATION_MINUTE, DURATION_HOUR, DURATION_DAY, DURATION_WEEK, DURATION_YEAR, DURATION_MONTH, } from './utils';
+ // interpolators
+ export { createInterpolateNumber, createInterpolateValue, createInterpolateColor } from './utils';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/scales/band.js b/esm/scales/band.js
+index 84120a46b0122f2c47a178d79b944f51ef94b70a..6a0eed3aa9ae4df9efadd176741586f7e6c0ea39 100644
+--- a/esm/scales/band.js
++++ b/esm/scales/band.js
+@@ -231,4 +231,3 @@ export class Band extends Ordinal {
+         this.adjustedRange = adjustedRange;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=band.js.map
+\ No newline at end of file
+diff --git a/esm/scales/base.js b/esm/scales/base.js
+index 727e67fef959fb449e6770a566de08c693a83fa3..d7faeb53a2380e515d5175dd8854230c30d891e6 100644
+--- a/esm/scales/base.js
++++ b/esm/scales/base.js
+@@ -31,4 +31,3 @@ export class Base {
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     rescale(options) { }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=base.js.map
+\ No newline at end of file
+diff --git a/esm/scales/constant.js b/esm/scales/constant.js
+index 3500d226ac313e7ff8a7269838ee23e49563af94..11b264fdb8a6ab171f36310f2b34391ba712b8f2 100644
+--- a/esm/scales/constant.js
++++ b/esm/scales/constant.js
+@@ -49,4 +49,3 @@ export class Constant extends Base {
+         return new Constant(this.options);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=constant.js.map
+\ No newline at end of file
+diff --git a/esm/scales/continuous.js b/esm/scales/continuous.js
+index 670e4da6c853a4bd5cc45f8b44b025265fa4b90e..dd078cb9c13469ca4a3b776f9cc1dc0d16d18c2c 100644
+--- a/esm/scales/continuous.js
++++ b/esm/scales/continuous.js
+@@ -121,4 +121,3 @@ export class Continuous extends Base {
+         this.input = compose(untransform, clamp, piecewise);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=continuous.js.map
+\ No newline at end of file
+diff --git a/esm/scales/diverging.js b/esm/scales/diverging.js
+index 21b9cbb9759eef047f11000fc958fd0510788414..97cb693bdcc66dbd10a8a7245a7a1147ef264add 100644
+--- a/esm/scales/diverging.js
++++ b/esm/scales/diverging.js
+@@ -57,4 +57,3 @@ Diverging = Diverging_1 = __decorate([
+     interpolatize(rangeOf, normalizeDomain)
+ ], Diverging);
+ export { Diverging };
+\ No newline at end of file
+-//# sourceMappingURL=diverging.js.map
+\ No newline at end of file
+diff --git a/esm/scales/identity.js b/esm/scales/identity.js
+index ad46a4d41779ac6c5751eb524cfbc16b61144ac7..8f067b61c361c935a9f8eaef96bfe984133f00cd 100644
+--- a/esm/scales/identity.js
++++ b/esm/scales/identity.js
+@@ -51,4 +51,3 @@ export class Identity extends Base {
+         return tickMethod(min, max, tickCount);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=identity.js.map
+\ No newline at end of file
+diff --git a/esm/scales/linear.js b/esm/scales/linear.js
+index d36086fb1a4c36f808e1ca42d750c83ffe7c1c6a..c3c188165c278da6796d1d51fe1f05fce85648d5 100644
+--- a/esm/scales/linear.js
++++ b/esm/scales/linear.js
+@@ -28,4 +28,3 @@ export class Linear extends Continuous {
+         return new Linear(this.options);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=linear.js.map
+\ No newline at end of file
+diff --git a/esm/scales/log.js b/esm/scales/log.js
+index 92b712cde329811c5353a117497663fa8ca3c5ea..8e1cefdddcb969db12498d2024755dda78b7f188 100644
+--- a/esm/scales/log.js
++++ b/esm/scales/log.js
+@@ -36,4 +36,3 @@ export class Log extends Continuous {
+         return new Log(this.options);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=log.js.map
+\ No newline at end of file
+diff --git a/esm/scales/ordinal.js b/esm/scales/ordinal.js
+index b471471acc47d69f399e193b3d0ab7a9308800a4..519b279e4415b8a7de674df0f84e8d074108cb56 100644
+--- a/esm/scales/ordinal.js
++++ b/esm/scales/ordinal.js
+@@ -126,4 +126,3 @@ export class Ordinal extends Base {
+         return this.sortedDomain;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=ordinal.js.map
+\ No newline at end of file
+diff --git a/esm/scales/point.js b/esm/scales/point.js
+index 14661e0cae297110bc449413435e77293c013e2e..dc0c79d7faadd3460c3e0e419cf54d2d945aacdc 100644
+--- a/esm/scales/point.js
++++ b/esm/scales/point.js
+@@ -51,4 +51,3 @@ export class Point extends Band {
+         return this.options.padding;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=point.js.map
+\ No newline at end of file
+diff --git a/esm/scales/pow.js b/esm/scales/pow.js
+index 6634826b8e09eda17e7032fc1f1a684bf3061a07..a6b541b33c78bd97e811cf6e8d6d989a995c3965 100644
+--- a/esm/scales/pow.js
++++ b/esm/scales/pow.js
+@@ -51,4 +51,3 @@ export class Pow extends Continuous {
+         return new Pow(this.options);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=pow.js.map
+\ No newline at end of file
+diff --git a/esm/scales/quantile.js b/esm/scales/quantile.js
+index e0d940c71de19a602b11f0ce3923621141654f3a..d34c7a6a145d9fa16392f2b34e8a58f1cdd2e6d5 100644
+--- a/esm/scales/quantile.js
++++ b/esm/scales/quantile.js
+@@ -47,4 +47,3 @@ export class Quantile extends Threshold {
+         return tickMethod(min, max, tickCount);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=quantile.js.map
+\ No newline at end of file
+diff --git a/esm/scales/quantize.js b/esm/scales/quantize.js
+index 6637f37cf90e0bb8974d9a1b3848cf68ec028aa6..9fb6e00d410d0cd82bc21e0f588e997074a49251 100644
+--- a/esm/scales/quantize.js
++++ b/esm/scales/quantize.js
+@@ -60,4 +60,3 @@ export class Quantize extends Threshold {
+         return new Quantize(this.options);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=quantize.js.map
+\ No newline at end of file
+diff --git a/esm/scales/sequential.js b/esm/scales/sequential.js
+index 4cb41ce6870f3085d9d07269e3217252aa77fa16..ca22672dc6e9bad15d932a2ead45c0f7297e23c5 100644
+--- a/esm/scales/sequential.js
++++ b/esm/scales/sequential.js
+@@ -48,4 +48,3 @@ Sequential = Sequential_1 = __decorate([
+     interpolatize(rangeOf, normalizeDomain)
+ ], Sequential);
+ export { Sequential };
+\ No newline at end of file
+-//# sourceMappingURL=sequential.js.map
+\ No newline at end of file
+diff --git a/esm/scales/sqrt.js b/esm/scales/sqrt.js
+index e870f7e5063d43d5bd7c80123a231fe4420203b3..86aa4dca4c3603d2b9fd97c519adcd736d224df1 100644
+--- a/esm/scales/sqrt.js
++++ b/esm/scales/sqrt.js
+@@ -25,4 +25,3 @@ export class Sqrt extends Pow {
+         return new Sqrt(this.options);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=sqrt.js.map
+\ No newline at end of file
+diff --git a/esm/scales/threshold.js b/esm/scales/threshold.js
+index 8819d07e163c4c8188b99de063e0cf806785b03a..90d61f8a4be0b7d88d70a0fc93fa96a9aa8b8e2b 100644
+--- a/esm/scales/threshold.js
++++ b/esm/scales/threshold.js
+@@ -40,4 +40,3 @@ export class Threshold extends Base {
+         this.thresholds = domain;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=threshold.js.map
+\ No newline at end of file
+diff --git a/esm/scales/time.js b/esm/scales/time.js
+index a759c2496d0b3e28031a5a2e399d115efad1ca89..cc90e34c46846739850162f906ffba691718c8b7 100644
+--- a/esm/scales/time.js
++++ b/esm/scales/time.js
+@@ -49,4 +49,3 @@ export class Time extends Continuous {
+         return new Time(this.options);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=time.js.map
+\ No newline at end of file
+diff --git a/esm/tick-methods/d3-log.js b/esm/tick-methods/d3-log.js
+index 973f1ed4b5c3dd6b4eaf5fb7a2aea704f84e5187..1b888e140831fcc74abcfbcafd2096b068f0f10e 100644
+--- a/esm/tick-methods/d3-log.js
++++ b/esm/tick-methods/d3-log.js
+@@ -47,4 +47,3 @@ export const d3Log = (a, b, n, base = 10) => {
+     }
+     return r ? ticks.reverse() : ticks;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=d3-log.js.map
+\ No newline at end of file
+diff --git a/esm/tick-methods/d3-ticks.js b/esm/tick-methods/d3-ticks.js
+index 18046655916ec8b944dca8497af728db2b9bc820..31af679a1c7e0b48d0b5902f5a81165323475855 100644
+--- a/esm/tick-methods/d3-ticks.js
++++ b/esm/tick-methods/d3-ticks.js
+@@ -30,4 +30,3 @@ export const d3Ticks = (begin, end, count) => {
+     }
+     return ticks;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=d3-ticks.js.map
+\ No newline at end of file
+diff --git a/esm/tick-methods/d3-time.js b/esm/tick-methods/d3-time.js
+index e2330cf8202bf2724e6162fc0a8c17798373364a..115f6b7ccfff7dd69a33b296abc845ab19f7cd3a 100644
+--- a/esm/tick-methods/d3-time.js
++++ b/esm/tick-methods/d3-time.js
+@@ -7,4 +7,3 @@ export const d3Time = (min, max, count, interval, utc) => {
+     const ticks = tickInterval.range(lo, new Date(+hi + 1), step, true);
+     return r ? ticks.reverse() : ticks;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=d3-time.js.map
+\ No newline at end of file
+diff --git a/esm/tick-methods/r-pretty.js b/esm/tick-methods/r-pretty.js
+index db14ea95f3164f014c7f8d535473381475183cff..9dc8c5e411397a71f9722635e064b795810e878a 100644
+--- a/esm/tick-methods/r-pretty.js
++++ b/esm/tick-methods/r-pretty.js
+@@ -50,4 +50,3 @@ export const rPretty = (min, max, m = 5) => {
+     }
+     return ticks;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=r-pretty.js.map
+\ No newline at end of file
+diff --git a/esm/tick-methods/wilkinson-extended.js b/esm/tick-methods/wilkinson-extended.js
+index cd4b0548679de619c8126f7f79d3cf22c45ece62..2bf2229fe3a88a9aa7a6a6f2864c4e80f1d399e0 100644
+--- a/esm/tick-methods/wilkinson-extended.js
++++ b/esm/tick-methods/wilkinson-extended.js
+@@ -145,4 +145,3 @@ export const wilkinsonExtended = (dMin, dMax, n = 5, onlyLoose = true, Q = DEFAU
+     }
+     return ticks;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=wilkinson-extended.js.map
+\ No newline at end of file
+diff --git a/esm/types.js b/esm/types.js
+index 718fd38ae40c67ea23b242517cf9919f602c5a3e..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/esm/types.js
++++ b/esm/types.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/esm/utils/bisect.js b/esm/utils/bisect.js
+index 6acf7c3ecef88af4068996849fcbc6d1df74422b..d70685cf1b1cb615d14457c5a545bd1b1c84e0ac 100644
+--- a/esm/utils/bisect.js
++++ b/esm/utils/bisect.js
+@@ -22,4 +22,3 @@ export function bisect(array, x, lo, hi, getter) {
+     }
+     return i;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=bisect.js.map
+\ No newline at end of file
+diff --git a/esm/utils/choose-mask.js b/esm/utils/choose-mask.js
+index eb92b6f59f0788398e1fd133523156346e3a4fde..8608ab1caf8b69705ed9d80293f1006c492f25e2 100644
+--- a/esm/utils/choose-mask.js
++++ b/esm/utils/choose-mask.js
+@@ -17,4 +17,3 @@ export function chooseNiceTimeMask(date, intervalMap) {
+         return 'MMMM';
+     return 'YYYY';
+ }
+\ No newline at end of file
+-//# sourceMappingURL=choose-mask.js.map
+\ No newline at end of file
+diff --git a/esm/utils/clamp.js b/esm/utils/clamp.js
+index 2374c229f592506cf7737020d05cc274a6767718..1ca620d77b91b14977abf4948748eb9aab52455e 100644
+--- a/esm/utils/clamp.js
++++ b/esm/utils/clamp.js
+@@ -9,4 +9,3 @@ export function createClamp(a, b) {
+     const hi = a > b ? a : b;
+     return (x) => Math.min(Math.max(lo, x), hi);
+ }
+\ No newline at end of file
+-//# sourceMappingURL=clamp.js.map
+\ No newline at end of file
+diff --git a/esm/utils/color.js b/esm/utils/color.js
+index 848500e4150de1d227799bd9998c747747a54d3c..b5bba652f09967f389528cd776f57a8cc068b6ff 100644
+--- a/esm/utils/color.js
++++ b/esm/utils/color.js
+@@ -38,4 +38,3 @@ export function string2rbg(s) {
+         return hsl2rbg(value);
+     return null;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=color.js.map
+\ No newline at end of file
+diff --git a/esm/utils/compose.js b/esm/utils/compose.js
+index 2315447c57b63f265eb07adcc722b1128083146f..d0ec1a2f2d70d302f79c19570f563299b9b023db 100644
+--- a/esm/utils/compose.js
++++ b/esm/utils/compose.js
+@@ -7,4 +7,3 @@
+ export function compose(fn, ...rest) {
+     return rest.reduce((pre, cur) => (x) => pre(cur(x)), fn);
+ }
+\ No newline at end of file
+-//# sourceMappingURL=compose.js.map
+\ No newline at end of file
+diff --git a/esm/utils/create-quartile.js b/esm/utils/create-quartile.js
+index 3e23f66f277c056433fb5e280e0074553f75152a..1e9ef9920c0ece07575a737a2a0d2494e9b1636f 100644
+--- a/esm/utils/create-quartile.js
++++ b/esm/utils/create-quartile.js
+@@ -38,4 +38,3 @@ export function createQuartile(arr, n, isSorted = false) {
+     }
+     return tmp;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=create-quartile.js.map
+\ No newline at end of file
+diff --git a/esm/utils/d3-linear-nice.js b/esm/utils/d3-linear-nice.js
+index 769fcc0fae936ef10e180ab3f014f11dc414e0f5..79a57350f4651587fb0da0d53e5338987de593a5 100644
+--- a/esm/utils/d3-linear-nice.js
++++ b/esm/utils/d3-linear-nice.js
+@@ -33,4 +33,3 @@ export const d3LinearNice = (min, max, count = 5) => {
+     }
+     return d;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=d3-linear-nice.js.map
+\ No newline at end of file
+diff --git a/esm/utils/d3-log-nice.js b/esm/utils/d3-log-nice.js
+index 55aea032b356067512c67bf24c38612b3d5aabf5..68eec0cd2e64f77a8b12697537f1515a2903b50c 100644
+--- a/esm/utils/d3-log-nice.js
++++ b/esm/utils/d3-log-nice.js
+@@ -9,4 +9,3 @@ export const d3LogNice = (a, b, _, base) => {
+     const niceDomain = [pow(Math.floor(log(min))), pow(Math.ceil(log(max)))];
+     return r ? niceDomain.reverse() : niceDomain;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=d3-log-nice.js.map
+\ No newline at end of file
+diff --git a/esm/utils/d3-time-nice.js b/esm/utils/d3-time-nice.js
+index 80c0b3dd5b17249229b4374ffcee00039da2e19f..d5430f8b86e80a41117cc0f1b6ec0c79e1e877b2 100644
+--- a/esm/utils/d3-time-nice.js
++++ b/esm/utils/d3-time-nice.js
+@@ -7,4 +7,3 @@ export const d3TimeNice = (min, max, count, interval, utc) => {
+     const domain = [tickInterval.floor(lo, step), tickInterval.ceil(hi, step)];
+     return r ? domain.reverse() : domain;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=d3-time-nice.js.map
+\ No newline at end of file
+diff --git a/esm/utils/find-tick-interval.js b/esm/utils/find-tick-interval.js
+index ee6d1ba9d90701306dc65651b62d6dc63f402648..e3150d7369f1afedd582ee49f4b330d2b56f84ec 100644
+--- a/esm/utils/find-tick-interval.js
++++ b/esm/utils/find-tick-interval.js
+@@ -57,4 +57,3 @@ export function findTickInterval(start, stop, count, interval, utc) {
+     }
+     return matchInterval;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=find-tick-interval.js.map
+\ No newline at end of file
+diff --git a/esm/utils/index.js b/esm/utils/index.js
+index 063f635a079c95bf5359f51e28aa09e3c97cef1a..a7636f6304885b74295e29dfd04dc553efea9d79 100644
+--- a/esm/utils/index.js
++++ b/esm/utils/index.js
+@@ -15,4 +15,3 @@ export { DURATION_SECOND, DURATION_MINUTE, DURATION_HOUR, DURATION_DAY, DURATION
+ export { utcMillisecond, utcSecond, utcMinute, utcHour, utcDay, utcWeek, utcMonth, utcYear, utcIntervalMap, } from './utc-interval';
+ export { chooseNiceTimeMask } from './choose-mask';
+ export { InternMap } from './internMap';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/utils/internMap.js b/esm/utils/internMap.js
+index 18d4e797f208f83999cc416d0dd0d477a7aa4a5b..ac9fca1f725d1148b4afbf401f7de392d4f0ad56 100644
+--- a/esm/utils/internMap.js
++++ b/esm/utils/internMap.js
+@@ -47,4 +47,3 @@ export class InternMap extends Map {
+         return super.delete(internDelete({ map: this.map, initKey: this.initKey }, key));
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=internMap.js.map
+\ No newline at end of file
+diff --git a/esm/utils/interpolate.js b/esm/utils/interpolate.js
+index 1a768ab6cdfcf79f69a3dd0fc1a6c3b258590945..58783c880aecb4ccdc242d06977bc2f9f1c97c24 100644
+--- a/esm/utils/interpolate.js
++++ b/esm/utils/interpolate.js
+@@ -47,4 +47,3 @@ export const createInterpolateRound = (a, b) => {
+     const interpolateNumber = createInterpolateNumber(a, b);
+     return (t) => Math.round(interpolateNumber(t));
+ };
+\ No newline at end of file
+-//# sourceMappingURL=interpolate.js.map
+\ No newline at end of file
+diff --git a/esm/utils/interpolatize.js b/esm/utils/interpolatize.js
+index ed1c3928a55d8f2cb89c6594c5b8bbb7db80e91a..7adaa21ce76956850dce1e5f114d72dfad186a7e 100644
+--- a/esm/utils/interpolatize.js
++++ b/esm/utils/interpolatize.js
+@@ -28,4 +28,3 @@ export function interpolatize(rangeOf, normalizeDomain) {
+         Scale.prototype.invert = undefined;
+     };
+ }
+\ No newline at end of file
+-//# sourceMappingURL=interpolatize.js.map
+\ No newline at end of file
+diff --git a/esm/utils/is-valid.js b/esm/utils/is-valid.js
+index 8d88eb341f40c5311e5f7c30bd7ae103cfbe074f..11b2665e488b6c9a4825c4ebb7694851a163445b 100644
+--- a/esm/utils/is-valid.js
++++ b/esm/utils/is-valid.js
+@@ -2,4 +2,3 @@ import { isNull, isUndefined } from '@antv/util';
+ export function isValid(x) {
+     return !isUndefined(x) && !isNull(x) && !Number.isNaN(x);
+ }
+\ No newline at end of file
+-//# sourceMappingURL=is-valid.js.map
+\ No newline at end of file
+diff --git a/esm/utils/log.js b/esm/utils/log.js
+index 55ee2f23ce858f1c92dc7f53cf3a6cca8b9b4c6a..b83378871c86850f1188f8b201eed163e8f039ff 100644
+--- a/esm/utils/log.js
++++ b/esm/utils/log.js
+@@ -16,4 +16,3 @@ export const pows = (base, shouldReflect) => {
+     const pow = base === Math.E ? Math.exp : (x) => base ** x;
+     return shouldReflect ? reflect(pow) : pow;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=log.js.map
+\ No newline at end of file
+diff --git a/esm/utils/normalize.js b/esm/utils/normalize.js
+index f7981c1e0a1f8822b7eb3c56ce12f2aeb6fe0fcd..6726951345e27af71e3a030bcbdc0815a4cede26 100644
+--- a/esm/utils/normalize.js
++++ b/esm/utils/normalize.js
+@@ -8,4 +8,3 @@ export function createNormalize(a, b) {
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     return b - a ? (t) => (t - a) / (b - a) : (_) => 0.5;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=normalize.js.map
+\ No newline at end of file
+diff --git a/esm/utils/pretty-number.js b/esm/utils/pretty-number.js
+index bccd37a57fa4cdcbb96a83d05245ca4ef5c68fe9..bb097fdd8123806211d6a74ea38fdc44339ad746 100644
+--- a/esm/utils/pretty-number.js
++++ b/esm/utils/pretty-number.js
+@@ -2,4 +2,3 @@
+ export function prettyNumber(n) {
+     return Math.abs(n) < 1e-14 ? n : parseFloat(n.toFixed(14));
+ }
+\ No newline at end of file
+-//# sourceMappingURL=pretty-number.js.map
+\ No newline at end of file
+diff --git a/esm/utils/ticks.js b/esm/utils/ticks.js
+index 9beb147f6e470cc8544b6d9b2c71f4facc76c582..44b24a80e2ff774a6a8f5af528d17427ebff4fd7 100644
+--- a/esm/utils/ticks.js
++++ b/esm/utils/ticks.js
+@@ -24,4 +24,3 @@ export function tickStep(start, stop, count) {
+         step1 *= 2;
+     return stop < start ? -step1 : step1;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=ticks.js.map
+\ No newline at end of file
+diff --git a/esm/utils/time-interval.js b/esm/utils/time-interval.js
+index 16558856f43bbda3d3d1b9621d4aa90e2db37e37..487c86ab52875235a082d719479e391c28ae0e4f 100644
+--- a/esm/utils/time-interval.js
++++ b/esm/utils/time-interval.js
+@@ -105,4 +105,3 @@ export const localIntervalMap = {
+     month,
+     year,
+ };
+\ No newline at end of file
+-//# sourceMappingURL=time-interval.js.map
+\ No newline at end of file
+diff --git a/esm/utils/utc-interval.js b/esm/utils/utc-interval.js
+index 95b60151d6bd9701d0478983d5600d92865ede1e..d7905c446a7be8a1b78e861a9ae12175646a105a 100644
+--- a/esm/utils/utc-interval.js
++++ b/esm/utils/utc-interval.js
+@@ -56,4 +56,3 @@ export const utcIntervalMap = {
+     month: utcMonth,
+     year: utcYear,
+ };
+\ No newline at end of file
+-//# sourceMappingURL=utc-interval.js.map
+\ No newline at end of file
+diff --git a/lib/index.js b/lib/index.js
+index e1ccdca84c4ce6012d6d3d44cb13cd549a14976d..02fc603d82c51b69e0e7f7fc4f2ac3e56b2c25d8 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -61,4 +61,3 @@ var utils_2 = require("./utils");
+ Object.defineProperty(exports, "createInterpolateNumber", { enumerable: true, get: function () { return utils_2.createInterpolateNumber; } });
+ Object.defineProperty(exports, "createInterpolateValue", { enumerable: true, get: function () { return utils_2.createInterpolateValue; } });
+ Object.defineProperty(exports, "createInterpolateColor", { enumerable: true, get: function () { return utils_2.createInterpolateColor; } });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/scales/band.js b/lib/scales/band.js
+index d7444db533d163383171842c2ace88b35e864c10..8d0cd4548026d747ff3a4bc12365cbdd1abc71f9 100644
+--- a/lib/scales/band.js
++++ b/lib/scales/band.js
+@@ -235,4 +235,3 @@ class Band extends ordinal_1.Ordinal {
+     }
+ }
+ exports.Band = Band;
+\ No newline at end of file
+-//# sourceMappingURL=band.js.map
+\ No newline at end of file
+diff --git a/lib/scales/base.js b/lib/scales/base.js
+index b14201c7bed9654feb1b27bb19c230ed0d40ff37..d07b3a47fa6e5833bc5cc9fe25071529787b0fe6 100644
+--- a/lib/scales/base.js
++++ b/lib/scales/base.js
+@@ -35,4 +35,3 @@ class Base {
+     rescale(options) { }
+ }
+ exports.Base = Base;
+\ No newline at end of file
+-//# sourceMappingURL=base.js.map
+\ No newline at end of file
+diff --git a/lib/scales/constant.js b/lib/scales/constant.js
+index 84f6c850f01e79e7bb4a2ac3d09f8a50a1367317..32d6169053a6da841ba65167451fd3d928043bf0 100644
+--- a/lib/scales/constant.js
++++ b/lib/scales/constant.js
+@@ -53,4 +53,3 @@ class Constant extends base_1.Base {
+     }
+ }
+ exports.Constant = Constant;
+\ No newline at end of file
+-//# sourceMappingURL=constant.js.map
+\ No newline at end of file
+diff --git a/lib/scales/continuous.js b/lib/scales/continuous.js
+index ed706813818c513a3a2e35b331fc35af9924eadf..0cdda0df823f542c34c2562cc9edbb094f08e4c4 100644
+--- a/lib/scales/continuous.js
++++ b/lib/scales/continuous.js
+@@ -125,4 +125,3 @@ class Continuous extends base_1.Base {
+     }
+ }
+ exports.Continuous = Continuous;
+\ No newline at end of file
+-//# sourceMappingURL=continuous.js.map
+\ No newline at end of file
+diff --git a/lib/scales/diverging.js b/lib/scales/diverging.js
+index 35691bc0a694fb611a4e164af8d4e2ca852bd1f8..e6995426bb82ba06d04ebecc601510ae9539f86f 100644
+--- a/lib/scales/diverging.js
++++ b/lib/scales/diverging.js
+@@ -60,4 +60,3 @@ Diverging = Diverging_1 = __decorate([
+     (0, utils_1.interpolatize)(rangeOf, normalizeDomain)
+ ], Diverging);
+ exports.Diverging = Diverging;
+\ No newline at end of file
+-//# sourceMappingURL=diverging.js.map
+\ No newline at end of file
+diff --git a/lib/scales/identity.js b/lib/scales/identity.js
+index 9bf1e7a51c67041871a5ce3e166364530616f5a3..5385e8969e9287ffcadc484a5df163e084e96e42 100644
+--- a/lib/scales/identity.js
++++ b/lib/scales/identity.js
+@@ -55,4 +55,3 @@ class Identity extends base_1.Base {
+     }
+ }
+ exports.Identity = Identity;
+\ No newline at end of file
+-//# sourceMappingURL=identity.js.map
+\ No newline at end of file
+diff --git a/lib/scales/linear.js b/lib/scales/linear.js
+index e7b678d3a94bfee02e549717ed8bb936f31361fe..85df24a98089bf0a73ddd408a4c86ce2fa0f01f3 100644
+--- a/lib/scales/linear.js
++++ b/lib/scales/linear.js
+@@ -32,4 +32,3 @@ class Linear extends continuous_1.Continuous {
+     }
+ }
+ exports.Linear = Linear;
+\ No newline at end of file
+-//# sourceMappingURL=linear.js.map
+\ No newline at end of file
+diff --git a/lib/scales/log.js b/lib/scales/log.js
+index bd29a1d333a0f2acce13fc392894ac1c280742c2..7380fb81e259c495093026469f747b9004c177d8 100644
+--- a/lib/scales/log.js
++++ b/lib/scales/log.js
+@@ -40,4 +40,3 @@ class Log extends continuous_1.Continuous {
+     }
+ }
+ exports.Log = Log;
+\ No newline at end of file
+-//# sourceMappingURL=log.js.map
+\ No newline at end of file
+diff --git a/lib/scales/ordinal.js b/lib/scales/ordinal.js
+index d6e717ccb3a5c899c5059e63602839bbd367d464..4e8185e8f1746247349e1da4d297d526316e36b7 100644
+--- a/lib/scales/ordinal.js
++++ b/lib/scales/ordinal.js
+@@ -130,4 +130,3 @@ class Ordinal extends base_1.Base {
+     }
+ }
+ exports.Ordinal = Ordinal;
+\ No newline at end of file
+-//# sourceMappingURL=ordinal.js.map
+\ No newline at end of file
+diff --git a/lib/scales/point.js b/lib/scales/point.js
+index 25085bb2ac6bec385560e078c525ad038ddb4cb8..0f06a9b3f8a8eff8d2774e5b4291798c2bfa8f30 100644
+--- a/lib/scales/point.js
++++ b/lib/scales/point.js
+@@ -55,4 +55,3 @@ class Point extends band_1.Band {
+     }
+ }
+ exports.Point = Point;
+\ No newline at end of file
+-//# sourceMappingURL=point.js.map
+\ No newline at end of file
+diff --git a/lib/scales/pow.js b/lib/scales/pow.js
+index ba6a89d1bb01d40feae0baca5937e3a4e0d5783d..08fa56eff3809512e17f789a35e2e502236b8ddb 100644
+--- a/lib/scales/pow.js
++++ b/lib/scales/pow.js
+@@ -55,4 +55,3 @@ class Pow extends continuous_1.Continuous {
+     }
+ }
+ exports.Pow = Pow;
+\ No newline at end of file
+-//# sourceMappingURL=pow.js.map
+\ No newline at end of file
+diff --git a/lib/scales/quantile.js b/lib/scales/quantile.js
+index d827c0b7055ed737c6ed0391e3c5278946d1716d..7a00cf7082e41c9fcca0e818a34d02f39929b1a8 100644
+--- a/lib/scales/quantile.js
++++ b/lib/scales/quantile.js
+@@ -51,4 +51,3 @@ class Quantile extends threshold_1.Threshold {
+     }
+ }
+ exports.Quantile = Quantile;
+\ No newline at end of file
+-//# sourceMappingURL=quantile.js.map
+\ No newline at end of file
+diff --git a/lib/scales/quantize.js b/lib/scales/quantize.js
+index aa3ccd0e1debe125387dbaa4dcb3c9c652dd25dc..aa14f2c2456e0ee984742f7436a8424e0ad5d096 100644
+--- a/lib/scales/quantize.js
++++ b/lib/scales/quantize.js
+@@ -64,4 +64,3 @@ class Quantize extends threshold_1.Threshold {
+     }
+ }
+ exports.Quantize = Quantize;
+\ No newline at end of file
+-//# sourceMappingURL=quantize.js.map
+\ No newline at end of file
+diff --git a/lib/scales/sequential.js b/lib/scales/sequential.js
+index e88256296701db6759e62efd8fd1c84c27a299e7..be1ea31a4e49732175f2720fe3d520d1603b5472 100644
+--- a/lib/scales/sequential.js
++++ b/lib/scales/sequential.js
+@@ -51,4 +51,3 @@ Sequential = Sequential_1 = __decorate([
+     (0, utils_1.interpolatize)(rangeOf, normalizeDomain)
+ ], Sequential);
+ exports.Sequential = Sequential;
+\ No newline at end of file
+-//# sourceMappingURL=sequential.js.map
+\ No newline at end of file
+diff --git a/lib/scales/sqrt.js b/lib/scales/sqrt.js
+index ef89ff349d782b75313ba9b9a4457361602fc469..b77501a6ea80951c2a6899a1e8bda5fcf8e39355 100644
+--- a/lib/scales/sqrt.js
++++ b/lib/scales/sqrt.js
+@@ -29,4 +29,3 @@ class Sqrt extends pow_1.Pow {
+     }
+ }
+ exports.Sqrt = Sqrt;
+\ No newline at end of file
+-//# sourceMappingURL=sqrt.js.map
+\ No newline at end of file
+diff --git a/lib/scales/threshold.js b/lib/scales/threshold.js
+index 187746a326f45b8f21d1eda62e475d02b5535faa..3c16b0af9d69a3a09900746f95df5f42038ca4af 100644
+--- a/lib/scales/threshold.js
++++ b/lib/scales/threshold.js
+@@ -44,4 +44,3 @@ class Threshold extends base_1.Base {
+     }
+ }
+ exports.Threshold = Threshold;
+\ No newline at end of file
+-//# sourceMappingURL=threshold.js.map
+\ No newline at end of file
+diff --git a/lib/scales/time.js b/lib/scales/time.js
+index 92ec5fec8cc83a7673556a844cbda1e7f4d1a587..b2843a01556be23f078eee076f06dd5126636a6b 100644
+--- a/lib/scales/time.js
++++ b/lib/scales/time.js
+@@ -53,4 +53,3 @@ class Time extends continuous_1.Continuous {
+     }
+ }
+ exports.Time = Time;
+\ No newline at end of file
+-//# sourceMappingURL=time.js.map
+\ No newline at end of file
+diff --git a/lib/tick-methods/d3-log.js b/lib/tick-methods/d3-log.js
+index 508ad44fb8b37a8716b87c0653e3935eeedfd372..1263db92e2065bbdf1a49941792695e42f77c0f3 100644
+--- a/lib/tick-methods/d3-log.js
++++ b/lib/tick-methods/d3-log.js
+@@ -51,4 +51,3 @@ const d3Log = (a, b, n, base = 10) => {
+     return r ? ticks.reverse() : ticks;
+ };
+ exports.d3Log = d3Log;
+\ No newline at end of file
+-//# sourceMappingURL=d3-log.js.map
+\ No newline at end of file
+diff --git a/lib/tick-methods/d3-ticks.js b/lib/tick-methods/d3-ticks.js
+index b3853be4950132c4bb59c51ec9b2696b6e7d8207..ca6f98192a6ccc2977905c800f033aed9af7e25a 100644
+--- a/lib/tick-methods/d3-ticks.js
++++ b/lib/tick-methods/d3-ticks.js
+@@ -34,4 +34,3 @@ const d3Ticks = (begin, end, count) => {
+     return ticks;
+ };
+ exports.d3Ticks = d3Ticks;
+\ No newline at end of file
+-//# sourceMappingURL=d3-ticks.js.map
+\ No newline at end of file
+diff --git a/lib/tick-methods/d3-time.js b/lib/tick-methods/d3-time.js
+index 9f93680154e7434b6f9120a06659dd6d9a4c6cbc..46d1fe5644de5916bc60014657675f7d9f88c636 100644
+--- a/lib/tick-methods/d3-time.js
++++ b/lib/tick-methods/d3-time.js
+@@ -11,4 +11,3 @@ const d3Time = (min, max, count, interval, utc) => {
+     return r ? ticks.reverse() : ticks;
+ };
+ exports.d3Time = d3Time;
+\ No newline at end of file
+-//# sourceMappingURL=d3-time.js.map
+\ No newline at end of file
+diff --git a/lib/tick-methods/r-pretty.js b/lib/tick-methods/r-pretty.js
+index e2e0f9b9935e1ffda5cd6ffe621b9b144699517f..f26518ea0bda6e509344b59234db4ae42a0b4982 100644
+--- a/lib/tick-methods/r-pretty.js
++++ b/lib/tick-methods/r-pretty.js
+@@ -54,4 +54,3 @@ const rPretty = (min, max, m = 5) => {
+     return ticks;
+ };
+ exports.rPretty = rPretty;
+\ No newline at end of file
+-//# sourceMappingURL=r-pretty.js.map
+\ No newline at end of file
+diff --git a/lib/tick-methods/wilkinson-extended.js b/lib/tick-methods/wilkinson-extended.js
+index 05bfd3f7f8f74f02470b7a184e1a08c651b78a18..703d4b77faa91699972972fad82d345a764c3fa3 100644
+--- a/lib/tick-methods/wilkinson-extended.js
++++ b/lib/tick-methods/wilkinson-extended.js
+@@ -149,4 +149,3 @@ const wilkinsonExtended = (dMin, dMax, n = 5, onlyLoose = true, Q = exports.DEFA
+     return ticks;
+ };
+ exports.wilkinsonExtended = wilkinsonExtended;
+\ No newline at end of file
+-//# sourceMappingURL=wilkinson-extended.js.map
+\ No newline at end of file
+diff --git a/lib/types.js b/lib/types.js
+index 11e638d1ee44ae0dcb1feb5aef676ea74a7d4df3..31785ed88aa4491a3b7b81fd50f1dbcc1046133c 100644
+--- a/lib/types.js
++++ b/lib/types.js
+@@ -1,3 +1,2 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/utils/bisect.js b/lib/utils/bisect.js
+index 72cff7e15a86841c78217ff30a6e9ad509c93a7b..4fae81235d77bffaa295da7e14ff4cf91ba37e52 100644
+--- a/lib/utils/bisect.js
++++ b/lib/utils/bisect.js
+@@ -26,4 +26,3 @@ function bisect(array, x, lo, hi, getter) {
+     return i;
+ }
+ exports.bisect = bisect;
+\ No newline at end of file
+-//# sourceMappingURL=bisect.js.map
+\ No newline at end of file
+diff --git a/lib/utils/choose-mask.js b/lib/utils/choose-mask.js
+index 0e73717fda058ec8b634f8a2a81f62da39dd3760..461db435a2a640e31025398b02edee020b939ffd 100644
+--- a/lib/utils/choose-mask.js
++++ b/lib/utils/choose-mask.js
+@@ -21,4 +21,3 @@ function chooseNiceTimeMask(date, intervalMap) {
+     return 'YYYY';
+ }
+ exports.chooseNiceTimeMask = chooseNiceTimeMask;
+\ No newline at end of file
+-//# sourceMappingURL=choose-mask.js.map
+\ No newline at end of file
+diff --git a/lib/utils/clamp.js b/lib/utils/clamp.js
+index 4867c3273333a36af69e8ceb2b1dab3aaf87b762..f8ca6c272c224019824921e5da81849362abcbca 100644
+--- a/lib/utils/clamp.js
++++ b/lib/utils/clamp.js
+@@ -13,4 +13,3 @@ function createClamp(a, b) {
+     return (x) => Math.min(Math.max(lo, x), hi);
+ }
+ exports.createClamp = createClamp;
+\ No newline at end of file
+-//# sourceMappingURL=clamp.js.map
+\ No newline at end of file
+diff --git a/lib/utils/color.js b/lib/utils/color.js
+index acf87104fe1beed523acfe74e624301489459c1f..df2aec04844719e9bc5d96750b1aa43b3678708d 100644
+--- a/lib/utils/color.js
++++ b/lib/utils/color.js
+@@ -45,4 +45,3 @@ function string2rbg(s) {
+     return null;
+ }
+ exports.string2rbg = string2rbg;
+\ No newline at end of file
+-//# sourceMappingURL=color.js.map
+\ No newline at end of file
+diff --git a/lib/utils/compose.js b/lib/utils/compose.js
+index fec2aad9c4749f7e3b0acfd9bbd75947a5478cae..c2fe4753c68f9261966b09882dae3066b93cc712 100644
+--- a/lib/utils/compose.js
++++ b/lib/utils/compose.js
+@@ -11,4 +11,3 @@ function compose(fn, ...rest) {
+     return rest.reduce((pre, cur) => (x) => pre(cur(x)), fn);
+ }
+ exports.compose = compose;
+\ No newline at end of file
+-//# sourceMappingURL=compose.js.map
+\ No newline at end of file
+diff --git a/lib/utils/create-quartile.js b/lib/utils/create-quartile.js
+index 378825086cf0b08e20a3a5891e88dfb08a415572..16198973d74ec7b68013918598e7cb7258371578 100644
+--- a/lib/utils/create-quartile.js
++++ b/lib/utils/create-quartile.js
+@@ -42,4 +42,3 @@ function createQuartile(arr, n, isSorted = false) {
+     return tmp;
+ }
+ exports.createQuartile = createQuartile;
+\ No newline at end of file
+-//# sourceMappingURL=create-quartile.js.map
+\ No newline at end of file
+diff --git a/lib/utils/d3-linear-nice.js b/lib/utils/d3-linear-nice.js
+index 030d3051d3504074239bed500cd0310c63b0e515..82e50db37a541eb1171be239675b3572e6ef947f 100644
+--- a/lib/utils/d3-linear-nice.js
++++ b/lib/utils/d3-linear-nice.js
+@@ -37,4 +37,3 @@ const d3LinearNice = (min, max, count = 5) => {
+     return d;
+ };
+ exports.d3LinearNice = d3LinearNice;
+\ No newline at end of file
+-//# sourceMappingURL=d3-linear-nice.js.map
+\ No newline at end of file
+diff --git a/lib/utils/d3-log-nice.js b/lib/utils/d3-log-nice.js
+index 14ce3279c923946beba136a5a2735931e6af2549..d2d5332d8b55b7e7b30deda29dcf267aa1719f2f 100644
+--- a/lib/utils/d3-log-nice.js
++++ b/lib/utils/d3-log-nice.js
+@@ -13,4 +13,3 @@ const d3LogNice = (a, b, _, base) => {
+     return r ? niceDomain.reverse() : niceDomain;
+ };
+ exports.d3LogNice = d3LogNice;
+\ No newline at end of file
+-//# sourceMappingURL=d3-log-nice.js.map
+\ No newline at end of file
+diff --git a/lib/utils/d3-time-nice.js b/lib/utils/d3-time-nice.js
+index ed77fbaff3e9311be5d697b76dece3841c5e7f48..10553de48689da558ba82f7ff77f2a057a71a12e 100644
+--- a/lib/utils/d3-time-nice.js
++++ b/lib/utils/d3-time-nice.js
+@@ -11,4 +11,3 @@ const d3TimeNice = (min, max, count, interval, utc) => {
+     return r ? domain.reverse() : domain;
+ };
+ exports.d3TimeNice = d3TimeNice;
+\ No newline at end of file
+-//# sourceMappingURL=d3-time-nice.js.map
+\ No newline at end of file
+diff --git a/lib/utils/find-tick-interval.js b/lib/utils/find-tick-interval.js
+index f72dd7b2e665df024eacc2dd1ccd7f24222a530e..5ecb431b7d2daaae832344bbb2ad76f6273edc33 100644
+--- a/lib/utils/find-tick-interval.js
++++ b/lib/utils/find-tick-interval.js
+@@ -61,4 +61,3 @@ function findTickInterval(start, stop, count, interval, utc) {
+     return matchInterval;
+ }
+ exports.findTickInterval = findTickInterval;
+\ No newline at end of file
+-//# sourceMappingURL=find-tick-interval.js.map
+\ No newline at end of file
+diff --git a/lib/utils/index.js b/lib/utils/index.js
+index 329ac7f4b821beccaf87e4baea68ba4b5076aff3..a6f87a2e76d3d8a31e04cc71cef2b8ac9bc367e8 100644
+--- a/lib/utils/index.js
++++ b/lib/utils/index.js
+@@ -63,4 +63,3 @@ var choose_mask_1 = require("./choose-mask");
+ Object.defineProperty(exports, "chooseNiceTimeMask", { enumerable: true, get: function () { return choose_mask_1.chooseNiceTimeMask; } });
+ var internMap_1 = require("./internMap");
+ Object.defineProperty(exports, "InternMap", { enumerable: true, get: function () { return internMap_1.InternMap; } });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/utils/internMap.js b/lib/utils/internMap.js
+index 1d1defda55954f5b985be084769e1028288fb5b9..89e9a5541e53f6dc83993674bf337dd7dcd04997 100644
+--- a/lib/utils/internMap.js
++++ b/lib/utils/internMap.js
+@@ -51,4 +51,3 @@ class InternMap extends Map {
+     }
+ }
+ exports.InternMap = InternMap;
+\ No newline at end of file
+-//# sourceMappingURL=internMap.js.map
+\ No newline at end of file
+diff --git a/lib/utils/interpolate.js b/lib/utils/interpolate.js
+index 2f8a41626cc159e0660049a3c370474c7fab34ed..a5fc190a0efa120a7ceb65029251bd64f622ec06 100644
+--- a/lib/utils/interpolate.js
++++ b/lib/utils/interpolate.js
+@@ -54,4 +54,3 @@ const createInterpolateRound = (a, b) => {
+     return (t) => Math.round(interpolateNumber(t));
+ };
+ exports.createInterpolateRound = createInterpolateRound;
+\ No newline at end of file
+-//# sourceMappingURL=interpolate.js.map
+\ No newline at end of file
+diff --git a/lib/utils/interpolatize.js b/lib/utils/interpolatize.js
+index 86d6deee541878bc38b5f2a61fe6448762427685..0cf42b00c6c4199ca3c17ac874314e2b247c4d01 100644
+--- a/lib/utils/interpolatize.js
++++ b/lib/utils/interpolatize.js
+@@ -32,4 +32,3 @@ function interpolatize(rangeOf, normalizeDomain) {
+     };
+ }
+ exports.interpolatize = interpolatize;
+\ No newline at end of file
+-//# sourceMappingURL=interpolatize.js.map
+\ No newline at end of file
+diff --git a/lib/utils/is-valid.js b/lib/utils/is-valid.js
+index 3b326a861acad2d6c54331b3b60a1b3504968009..4fbf5cc31d49411d6b80587a8d31cd840c84a79b 100644
+--- a/lib/utils/is-valid.js
++++ b/lib/utils/is-valid.js
+@@ -6,4 +6,3 @@ function isValid(x) {
+     return !(0, util_1.isUndefined)(x) && !(0, util_1.isNull)(x) && !Number.isNaN(x);
+ }
+ exports.isValid = isValid;
+\ No newline at end of file
+-//# sourceMappingURL=is-valid.js.map
+\ No newline at end of file
+diff --git a/lib/utils/log.js b/lib/utils/log.js
+index 8c251037e16a7fb0d529bf7ef1705e3e636bc0e0..85c7a6aeec1eed24637a06f820647ed3401be875 100644
+--- a/lib/utils/log.js
++++ b/lib/utils/log.js
+@@ -21,4 +21,3 @@ const pows = (base, shouldReflect) => {
+     return shouldReflect ? reflect(pow) : pow;
+ };
+ exports.pows = pows;
+\ No newline at end of file
+-//# sourceMappingURL=log.js.map
+\ No newline at end of file
+diff --git a/lib/utils/normalize.js b/lib/utils/normalize.js
+index 932084fc5338a22440bb1cc23a92ef09664af11c..b6946651c7eaa096c2a46f2aeec4baefdb806e15 100644
+--- a/lib/utils/normalize.js
++++ b/lib/utils/normalize.js
+@@ -12,4 +12,3 @@ function createNormalize(a, b) {
+     return b - a ? (t) => (t - a) / (b - a) : (_) => 0.5;
+ }
+ exports.createNormalize = createNormalize;
+\ No newline at end of file
+-//# sourceMappingURL=normalize.js.map
+\ No newline at end of file
+diff --git a/lib/utils/pretty-number.js b/lib/utils/pretty-number.js
+index d84c039a76a2fea69b7b04bec67f31c3bcf5476c..0baa0bde2fd91cab863714da1ee38ba58db19262 100644
+--- a/lib/utils/pretty-number.js
++++ b/lib/utils/pretty-number.js
+@@ -6,4 +6,3 @@ function prettyNumber(n) {
+     return Math.abs(n) < 1e-14 ? n : parseFloat(n.toFixed(14));
+ }
+ exports.prettyNumber = prettyNumber;
+\ No newline at end of file
+-//# sourceMappingURL=pretty-number.js.map
+\ No newline at end of file
+diff --git a/lib/utils/ticks.js b/lib/utils/ticks.js
+index dd7c02e6e2d9dd42773ecdb162c691e9af58766d..fda13fc67c1f22ff117fa3e2cf921fe25c12f56c 100644
+--- a/lib/utils/ticks.js
++++ b/lib/utils/ticks.js
+@@ -29,4 +29,3 @@ function tickStep(start, stop, count) {
+     return stop < start ? -step1 : step1;
+ }
+ exports.tickStep = tickStep;
+\ No newline at end of file
+-//# sourceMappingURL=ticks.js.map
+\ No newline at end of file
+diff --git a/lib/utils/time-interval.js b/lib/utils/time-interval.js
+index f8009e3baa06e660a5f71e36282654265e9bba6f..4e4e09aa472b9740e27d94103af205a03de834f0 100644
+--- a/lib/utils/time-interval.js
++++ b/lib/utils/time-interval.js
+@@ -109,4 +109,3 @@ exports.localIntervalMap = {
+     month: exports.month,
+     year: exports.year,
+ };
+\ No newline at end of file
+-//# sourceMappingURL=time-interval.js.map
+\ No newline at end of file
+diff --git a/lib/utils/utc-interval.js b/lib/utils/utc-interval.js
+index e861584102eadbdb83581a5227f0cffc872b6310..c38a6a0d116dfacfbf849fd3f5808965990dd0fe 100644
+--- a/lib/utils/utc-interval.js
++++ b/lib/utils/utc-interval.js
+@@ -59,4 +59,3 @@ exports.utcIntervalMap = {
+     month: exports.utcMonth,
+     year: exports.utcYear,
+ };
+\ No newline at end of file
+-//# sourceMappingURL=utc-interval.js.map

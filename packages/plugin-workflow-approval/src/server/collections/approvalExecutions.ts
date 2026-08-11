@@ -5,6 +5,7 @@ export default defineCollection({
   namespace: 'workflow.approvalExecutions',
   dumpRules: 'required',
   name: 'approvalExecutions',
+  tenancy: 'tenantScoped',
   fields: [
     {
       type: 'string',

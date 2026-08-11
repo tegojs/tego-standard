@@ -109,6 +109,13 @@ async function renderRows({ columns, fields, data, utcOffset }, db: Database) {
 }
 
 export default async function ({ columns, fields, data, utcOffset }, db: Database) {
+  if (fields.length === 0) {
+    return {
+      rows: [],
+      ranges: [],
+    };
+  }
+
   const headers = [];
   renderHeader({ columns, fields, headers });
   const ranges = [];

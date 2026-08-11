@@ -116,6 +116,7 @@
   "Repeat limit": "Límite de repetición",
   "Repeat mode": "Modo repetición",
   "Retry": "Reintentar",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Advertencia de aislamiento de tenants: los nodos SQL ejecutan SQL sin procesar directamente y no inyectan automáticamente filtros tenantId. A diferencia de los nodos de consulta/actualización/eliminación, los nodos SQL omiten la capa de repositorio y la protección de recursos de tenant. Incluya manualmente condiciones tenantId en su SQL cuando acceda a datos aislados por tenant.",
   "Schedule event": "Programar evento",
   "Seconds": "Segundos",
   "Select status": "Seleccionar estado",

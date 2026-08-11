@@ -4,7 +4,17 @@ import { defaultFieldNames, WorkflowVariableRawTextArea } from '../..';
 import { NAMESPACE } from '../../locale';
 import { Instruction } from '../../nodes/default-node/interface';
 
-/** 节点: SQL */
+/** 节点: SQL
+ *
+ * Tenant isolation boundary:
+ * - The SQL instruction executes raw SQL via `db.sequelize.query()` directly.
+ * - It does NOT call `applyTenantFilterToContext()` — no tenant filtering is applied.
+ * - Unlike Query/Select/Update/Destroy/Aggregate instructions, the SQL instruction
+ *   bypasses the repository layer and tenant resource guard entirely.
+ * - Workflow users must manually include tenant conditions (e.g. `WHERE tenantId = ...`)
+ *   in their SQL when accessing tenant-scoped data.
+ * - When module-tenant is enabled, its client plugin injects the corresponding UI warning.
+ */
 export default class extends Instruction {
   title = `{{t("SQL action", { ns: "${NAMESPACE}" })}}`;
   type = 'sql';

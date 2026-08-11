@@ -5,6 +5,7 @@ import { DEFAULT_MAX_FILE_SIZE, FILE_FIELD_NAME, LIMIT_FILES } from '../constant
 import * as Rules from '../rules';
 import PluginFileManager from '../server';
 import { getStorageConfig } from '../storages';
+import { getCurrentTenantId, getTenantStoragePath } from '../utils';
 
 // TODO(optimize): 需要优化错误处理，计算失败后需要抛出对应错误，以便程序处理
 function getFileFilter(storage) {
@@ -91,6 +92,9 @@ async function multipart(ctx: Context, next: Next) {
   await next();
 }
 
+/**
+ * Handles the create middleware resource action.
+ */
 export async function createMiddleware(ctx: Context, next: Next) {
   const { resourceName, actionName } = ctx.action;
   const { attachmentField } = ctx.action.params;
@@ -105,11 +109,21 @@ export async function createMiddleware(ctx: Context, next: Next) {
   const storage = await StorageRepo.findOne({ filter: storageName ? { name: storageName } : { default: true } });
 
   const plugin = ctx.tego.pm.get(PluginFileManager) as PluginFileManager;
-  ctx.storage = plugin.parseStorage(storage);
+  const parsedStorage = plugin.parseStorage(storage);
+  if (!parsedStorage) {
+    return multipart(ctx, next);
+  }
+  ctx.storage = {
+    ...parsedStorage,
+    path: getTenantStoragePath(parsedStorage?.path, getCurrentTenantId(ctx)),
+  };
 
   await multipart(ctx, next);
 }
 
+/**
+ * Handles the destroy middleware resource action.
+ */
 export async function destroyMiddleware(ctx: Context, next: Next) {
   const { resourceName, actionName } = ctx.action;
   const collection = ctx.db.getCollection(resourceName);

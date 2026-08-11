@@ -1,6 +1,7 @@
 import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
+import { JOB_STATUS } from '../../constants';
 import { waitForFastAssertion as waitForAssertion } from '../utils';
 
 describe('workflow > instructions > destroy', () => {
@@ -44,6 +45,23 @@ describe('workflow > instructions > destroy', () => {
   }
 
   describe('destroy one', () => {
+    it('handles null params without throwing before repository destroy', async () => {
+      await PostRepo.create({ values: { title: 't1' } });
+
+      await workflow.createNode({
+        type: 'destroy',
+        config: {
+          collection: 'posts',
+          params: null,
+        },
+      });
+
+      await waitForLatestJob(async (job) => {
+        expect(job.status).toBe(JOB_STATUS.RESOLVED);
+        expect(job.result?.message).toBeUndefined();
+      });
+    });
+
     it('params: from context', async () => {
       const n1 = await workflow.createNode({
         type: 'destroy',

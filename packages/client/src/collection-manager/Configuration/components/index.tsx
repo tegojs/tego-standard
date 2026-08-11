@@ -3,11 +3,15 @@ import { Field, observer, useField, useForm } from '@tachybase/schema';
 
 import { AutoComplete, Select } from 'antd';
 
+import { useAPIClient } from '../../../api-client';
 import { useRecord } from '../../../record-provider';
 import { useCompile } from '../../../schema-component';
 import { useCollectionManager_deprecated } from '../../hooks';
 
 const supportTypes = ['string', 'bigInt', 'integer', 'uuid', 'uid'];
+/**
+ * Renders the source foreign key client component.
+ */
 export const SourceForeignKey = observer(
   () => {
     const record = useRecord();
@@ -38,6 +42,9 @@ export const SourceForeignKey = observer(
   { displayName: 'SourceForeignKey' },
 );
 
+/**
+ * Renders the through foreign key client component.
+ */
 export const ThroughForeignKey = observer(
   () => {
     const field = useField<Field>();
@@ -66,6 +73,9 @@ export const ThroughForeignKey = observer(
   { displayName: 'ThroughForeignKey' },
 );
 
+/**
+ * Renders the target foreign key client component.
+ */
 export const TargetForeignKey = observer(
   () => {
     const field = useField<Field>();
@@ -94,6 +104,9 @@ export const TargetForeignKey = observer(
   { displayName: 'TargetForeignKey' },
 );
 
+/**
+ * Renders the source collection client component.
+ */
 export const SourceCollection = observer(
   () => {
     const record = useRecord();
@@ -114,6 +127,9 @@ export const SourceCollection = observer(
   { displayName: 'SourceCollection' },
 );
 
+/**
+ * Renders the source key client component.
+ */
 export const SourceKey = observer(
   (props: any) => {
     const { sourceKey, collectionName, name } = useRecord();
@@ -147,6 +163,10 @@ export const SourceKey = observer(
   },
   { displayName: 'SourceKey' },
 );
+
+/**
+ * Renders the target key client component.
+ */
 export const TargetKey = observer(
   (props: any) => {
     const { value, disabled } = props;
@@ -215,6 +235,9 @@ export const TargetKey = observer(
   { displayName: 'TargetKey' },
 );
 
+/**
+ * Renders the foreign key client component.
+ */
 export const ForeignKey = observer(
   (props: any) => {
     const { disabled } = props;
@@ -294,6 +317,9 @@ export const ForeignKey = observer(
   { displayName: 'ForeignKey' },
 );
 
+/**
+ * Renders the through collection client component.
+ */
 export const ThroughCollection = observer(
   (props: any) => {
     const { disabled } = props;

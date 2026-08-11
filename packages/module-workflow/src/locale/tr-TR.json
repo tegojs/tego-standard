@@ -85,6 +85,7 @@
   "Repeat limit": "Tekrarlama limiti",
   "Repeat mode": "Tekrarlama modu",
   "Retry": "Yeniden yürüt",
+  "SQL_NODE_TENANT_ISOLATION_WARNING": "⚠ Tenant izolasyonu uyarısı: SQL düğümleri ham SQL’i doğrudan çalıştırır ve tenantId filtrelerini otomatik olarak eklemez. Sorgu/güncelleme/silme düğümlerinden farklı olarak SQL düğümleri repository katmanını ve tenant kaynak korumasını atlar. Tenant kapsamındaki verilere erişirken SQL içine tenantId koşullarını elle ekleyin.",
   "Schedule event": "Etkinlik planla",
   "Seconds": "Saniye",
   "Show execution history": "Yürütme geçmişini göster",

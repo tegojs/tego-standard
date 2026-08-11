@@ -1,4 +1,4 @@
-import { createMockServer, MockServer } from '@tachybase/test';
+import { createMockServer, mockServer, MockServer } from '@tachybase/test';
 import Database, { Collection as DBCollection } from '@tego/server';
 
 describe('createdBy/updatedBy', () => {
@@ -9,12 +9,15 @@ describe('createdBy/updatedBy', () => {
 
   beforeAll(async () => {
     api = await createMockServer({
-      plugins: ['acl', 'users', 'collection-manager', 'error-handler', 'data-source-manager'],
+      plugins: ['error-handler', 'acl', 'users', 'collection-manager', 'data-source-manager', 'tenant'],
     });
     db = api.db;
 
     Collection = db.getCollection('collections');
     Field = db.getCollection('fields');
+    const Users = db.getCollection('users');
+    Users.options.logging = false;
+    Users.model.options.logging = false;
   });
 
   afterAll(async () => {
@@ -139,6 +142,110 @@ describe('createdBy/updatedBy', () => {
       const data = p2.toJSON();
       expect(data.createdBy.id).toBe(user1.get('id'));
       expect(data.updatedBy.id).toBe(user2.get('id'));
+    });
+
+    it('should append tenantId field and inject current tenant value for tenantScoped collection', async () => {
+      const Post = db.collection({
+        name: 'tenant_posts',
+        tenancy: 'tenantScoped',
+      });
+
+      expect(Post.hasField('tenantId')).toBeTruthy();
+
+      await db.sync();
+
+      await Post.repository.create({
+        values: {
+          tenantId: 999,
+        },
+        context: {
+          state: {
+            currentTenant: {
+              id: 2,
+            },
+          },
+        },
+      });
+
+      const record = await Post.repository.findOne();
+      expect(record.get('tenantId')).toBe('2');
+    });
+
+    it('should append tenantId field and inject current tenant value for tenantInherited collection', async () => {
+      const Post = db.collection({
+        name: 'tenant_inherited_posts',
+        tenancy: 'tenantInherited',
+      });
+
+      expect(Post.hasField('tenantId')).toBeTruthy();
+
+      await db.sync();
+
+      await Post.repository.create({
+        values: {
+          tenantId: 'foreign-tenant',
+        },
+        context: {
+          state: {
+            currentTenant: {
+              id: 'tenant-a',
+            },
+          },
+        },
+      });
+
+      const record = await Post.repository.findOne();
+      expect(record.get('tenantId')).toBe('tenant-a');
+    });
+
+    it('should not append tenantId field when tenant plugin is disabled', async () => {
+      const appWithoutTenant = mockServer({
+        name: 'without-tenant',
+        plugins: [['error-handler', { subView: true }], 'acl', 'users', 'collection-manager'],
+      });
+
+      try {
+        await appWithoutTenant.load();
+
+        const Post = appWithoutTenant.db.collection({
+          name: 'tenant_disabled_posts',
+          tenancy: 'tenantScoped',
+        });
+
+        expect(Post.hasField('tenantId')).toBeFalsy();
+      } finally {
+        await appWithoutTenant.destroy();
+      }
+    });
+
+    it('should not append tenantId field when tenant plugin exists but is disabled', async () => {
+      const appWithDisabledTenant = mockServer({
+        name: 'disabled-tenant',
+        plugins: [
+          ['error-handler', { subView: true }],
+          'acl',
+          'users',
+          'collection-manager',
+          ['tenant', { enabled: false, subView: true }],
+        ],
+      });
+
+      try {
+        await appWithDisabledTenant.load();
+
+        const tenantPlugin = appWithDisabledTenant.pm.get('tenant');
+        expect(tenantPlugin).toBeTruthy();
+        expect(tenantPlugin.enabled).toBeFalsy();
+
+        const Post = appWithDisabledTenant.db.collection({
+          name: 'tenant_plugin_disabled_posts',
+          tenancy: 'tenantScoped',
+        });
+
+        expect(Post.hasField('tenantId')).toBeFalsy();
+      } finally {
+        await appWithDisabledTenant.destroy();
+      }
     });
   });
 });

@@ -1,0 +1,19 @@
+import { defineCollection } from '@tego/server';
+
+export default defineCollection({
+  name: 'tenantUsers',
+  dumpRules: 'required',
+  fields: [
+    {
+      type: 'string',
+      name: 'tenantId',
+      primaryKey: true,
+    },
+    {
+      type: 'bigInt',
+      name: 'userId',
+      primaryKey: true,
+      index: true,
+    },
+  ],
+});

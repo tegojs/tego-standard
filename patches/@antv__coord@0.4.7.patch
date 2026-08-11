@@ -1,0 +1,589 @@
+diff --git a/esm/coordinate.js b/esm/coordinate.js
+index 8225006c7b8837943c66bd66ed39c577fee99daf..c44954e206c9ad4f742a2f6c7852aac0e0a8fb9b 100644
+--- a/esm/coordinate.js
++++ b/esm/coordinate.js
+@@ -228,4 +228,3 @@ var Coordinate = /** @class */ (function () {
+     return Coordinate;
+ }());
+ export { Coordinate };
+\ No newline at end of file
+-//# sourceMappingURL=coordinate.js.map
+\ No newline at end of file
+diff --git a/esm/coordinate3D.js b/esm/coordinate3D.js
+index ef082ab33a7e587edd432b461923fa6ed61361b0..f50fbe4f6758f48d07b9b988408622e72722f9df 100644
+--- a/esm/coordinate3D.js
++++ b/esm/coordinate3D.js
+@@ -215,4 +215,3 @@ var Coordinate3D = /** @class */ (function () {
+     return Coordinate3D;
+ }());
+ export { Coordinate3D };
+\ No newline at end of file
+-//# sourceMappingURL=coordinate3D.js.map
+\ No newline at end of file
+diff --git a/esm/index.js b/esm/index.js
+index 575126028093537f6cec63fb0585ccad73aeb18e..941cfa35461783b26a2a7c6c341cf8245cb5495a 100644
+--- a/esm/index.js
++++ b/esm/index.js
+@@ -1,3 +1,2 @@
+ export { Coordinate } from './coordinate';
+ export { Coordinate3D } from './coordinate3D';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/cartesian.js b/esm/transforms/cartesian.js
+index bbb4cf63a471317d58cf990b29d2c1a83d170ad5..de79a1380ce7c9a09d9e79c293f6faaf11f77a84 100644
+--- a/esm/transforms/cartesian.js
++++ b/esm/transforms/cartesian.js
+@@ -42,4 +42,3 @@ export var cartesian = function (params, x, y, width, height) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=cartesian.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/cartesian3D.js b/esm/transforms/cartesian3D.js
+index 3bb3dd19c96399bb014ff29db1813b73c68f3667..b15ed7de5ba3119d162b423d05e118c4abb0bba0 100644
+--- a/esm/transforms/cartesian3D.js
++++ b/esm/transforms/cartesian3D.js
+@@ -36,4 +36,3 @@ export var cartesian3D = function (params, x, y, z, width, height, depth) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=cartesian3D.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/custom.js b/esm/transforms/custom.js
+index bbd5547031640faa0afa7d551c1a7bc916142393..524dddfce0065ddb6131c08c943d4a71ef729484 100644
+--- a/esm/transforms/custom.js
++++ b/esm/transforms/custom.js
+@@ -27,4 +27,3 @@ export var custom = function (params, x, y, width, height) {
+     var _a = __read(params, 1), callback = _a[0];
+     return callback(x, y, width, height);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=custom.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/fisheye.js b/esm/transforms/fisheye.js
+index 235ff87f134c9fb1fbef96633aa9616ca642852d..34b38f1abe9bcf9a3414f6df629475b73dbff42e 100644
+--- a/esm/transforms/fisheye.js
++++ b/esm/transforms/fisheye.js
+@@ -170,4 +170,3 @@ export var fisheyeCircular = function (params, x, y, width, height) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=fisheye.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/helix.js b/esm/transforms/helix.js
+index 0fb19234e87345d6a200444e1ce575eed6579a15..7198febe0b390d8adb95a2659e8a661831c37e6e 100644
+--- a/esm/transforms/helix.js
++++ b/esm/transforms/helix.js
+@@ -72,4 +72,3 @@ export var helix = function (params, x, y, width, height) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=helix.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/index.js b/esm/transforms/index.js
+index 8313c76bccf3558aa573ce1800ab5d149428d5eb..10dcaff387408925c2afbeaa7bc3d79cc870e572 100644
+--- a/esm/transforms/index.js
++++ b/esm/transforms/index.js
+@@ -15,4 +15,3 @@ export { cartesian3D } from './cartesian3D';
+ export { translate3D } from './translate3D';
+ export { transpose3D } from './transpose3D';
+ export { scale3D } from './scale3D';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/matrix.js b/esm/transforms/matrix.js
+index 51b8eaeb0ec58ea2d5486ae4df1c0f2602327648..5a61c2d01b47c57936ff122c24dc61c53307152e 100644
+--- a/esm/transforms/matrix.js
++++ b/esm/transforms/matrix.js
+@@ -27,4 +27,3 @@ export var matrix = function (params, x, y, width, height) {
+     var _a = __read(params, 1), matrix = _a[0];
+     return matrix;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=matrix.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/parallel.js b/esm/transforms/parallel.js
+index b16022c88e7f5c74ca1cf0d790bb499c8006104b..b202e0e2ba372d6fc777c60cdb9a4b81efafccf6 100644
+--- a/esm/transforms/parallel.js
++++ b/esm/transforms/parallel.js
+@@ -56,4 +56,3 @@ export var parallel = function (params, x, y, width, height) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=parallel.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/polar.js b/esm/transforms/polar.js
+index faf26b509eb39a14408af848c90ac1caa797e67c..708beadb5d4c3f41c09e80ca4d50fa0db838ba4e 100644
+--- a/esm/transforms/polar.js
++++ b/esm/transforms/polar.js
+@@ -64,4 +64,3 @@ export var polar = function (params, x, y, width, height) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=polar.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/reflect.js b/esm/transforms/reflect.js
+index b48717da1779794b4201be4d9105de0dcd25f258..b359d1f6334f9ca3d1becacb795c1c4218500b5c 100644
+--- a/esm/transforms/reflect.js
++++ b/esm/transforms/reflect.js
+@@ -60,4 +60,3 @@ export var reflectY = function (params) {
+     }
+     return scale.apply(void 0, __spreadArray([[1, -1]], __read(args), false));
+ };
+\ No newline at end of file
+-//# sourceMappingURL=reflect.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/rotate.js b/esm/transforms/rotate.js
+index e25cc19b01390d43a8356eecfd2f49c072404f76..bfee4337a7fdc6e1e1a7c0cf0ba80434a2cd9399 100644
+--- a/esm/transforms/rotate.js
++++ b/esm/transforms/rotate.js
+@@ -29,4 +29,3 @@ export var rotate = function (params, x, y, width, height) {
+     var matrix = mat3.create();
+     return mat3.fromRotation(matrix, theta);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=rotate.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/scale.js b/esm/transforms/scale.js
+index c0db77941d2b69077ea6af1fbd9276f5feca92d0..fa8b2883edd2213cba26448f8f5d2972cecdf314 100644
+--- a/esm/transforms/scale.js
++++ b/esm/transforms/scale.js
+@@ -29,4 +29,3 @@ export var scale = function (params, x, y, width, height) {
+     var matrix = mat3.create();
+     return mat3.fromScaling(matrix, [sx, sy]);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=scale.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/scale3D.js b/esm/transforms/scale3D.js
+index 7241bf86f40f80993a49370d0383f5eb0745cc54..0c34c1bc65d99b8dbb8ed0753e60a94f8b268baf 100644
+--- a/esm/transforms/scale3D.js
++++ b/esm/transforms/scale3D.js
+@@ -30,4 +30,3 @@ export var scale3D = function (params, x, y, z, width, height, depth) {
+     var _a = __read(params, 3), sx = _a[0], sy = _a[1], sz = _a[2];
+     return mat4.fromScaling(mat4.create(), [sx, sy, sz]);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=scale3D.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/shear.js b/esm/transforms/shear.js
+index fed1a581876fcf3a3218437dd47af3079b0f434a..90f4c24c040026998fb95604805255c493e104a6 100644
+--- a/esm/transforms/shear.js
++++ b/esm/transforms/shear.js
+@@ -67,4 +67,3 @@ export var shearY = function (params, x, y, width, height) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=shear.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/translate.js b/esm/transforms/translate.js
+index e1a3cea21a94a4f71b7560c488f3563ba9f4b759..6fccad65089e36ae4b4e0a27db39f9683d075036 100644
+--- a/esm/transforms/translate.js
++++ b/esm/transforms/translate.js
+@@ -29,4 +29,3 @@ export var translate = function (params, x, y, width, height) {
+     var matrix = mat3.create();
+     return mat3.fromTranslation(matrix, [tx, ty]);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=translate.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/translate3D.js b/esm/transforms/translate3D.js
+index 83ef7dd623343b4c70d5528c6639e0478c8510a5..e6b1bf06ba3478ed57f0deed3a0bb4d5011ac9c2 100644
+--- a/esm/transforms/translate3D.js
++++ b/esm/transforms/translate3D.js
+@@ -30,4 +30,3 @@ export var translate3D = function (params, x, y, z, width, height, depth) {
+     var _a = __read(params, 3), tx = _a[0], ty = _a[1], tz = _a[2];
+     return mat4.fromTranslation(mat4.create(), [tx, ty, tz]);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=translate3D.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/transpose.js b/esm/transforms/transpose.js
+index 5fd21790cfe327761a41f7697350374a4a594e31..51f0874a5f897767d3bf983d7d385d0f83369c99 100644
+--- a/esm/transforms/transpose.js
++++ b/esm/transforms/transpose.js
+@@ -35,4 +35,3 @@ export var transpose = function (params, x, y, width, height) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=transpose.js.map
+\ No newline at end of file
+diff --git a/esm/transforms/transpose3D.js b/esm/transforms/transpose3D.js
+index 6c76d899a70e09d6a9882ba9c71ee7dc5a27ded2..cc16fd12579e432bf25c5bb9633595cc1c86fc37 100644
+--- a/esm/transforms/transpose3D.js
++++ b/esm/transforms/transpose3D.js
+@@ -35,4 +35,3 @@ export var transpose3D = function (params, x, y, z, width, height, depth) {
+         },
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=transpose3D.js.map
+\ No newline at end of file
+diff --git a/esm/type.js b/esm/type.js
+index c698029df818de9a37cf71c6c7e8d432b0b3e651..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/esm/type.js
++++ b/esm/type.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=type.js.map
+\ No newline at end of file
+diff --git a/esm/utils/adjustAngle.js b/esm/utils/adjustAngle.js
+index 292753c3bbab10a78962c56d5f64e35b0af0a1fa..d4b885c9cc3bffa11a01ab23099fbcaf4ae5d214 100644
+--- a/esm/utils/adjustAngle.js
++++ b/esm/utils/adjustAngle.js
+@@ -5,4 +5,3 @@ export function adjustAngle(theta, min, max) {
+         theta -= Math.PI * 2;
+     return theta;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=adjustAngle.js.map
+\ No newline at end of file
+diff --git a/esm/utils/compose.js b/esm/utils/compose.js
+index 9869421a75f318412482651caa298bd05a3ecc9c..deef8ddc4a993ccb828f6c64ba0318c174df206b 100644
+--- a/esm/utils/compose.js
++++ b/esm/utils/compose.js
+@@ -6,4 +6,3 @@ export function compose(fn) {
+     }
+     return fn ? rest.reduce(function (total, current) { return function (x) { return current(total(x)); }; }, fn) : identity;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=compose.js.map
+\ No newline at end of file
+diff --git a/esm/utils/extend.js b/esm/utils/extend.js
+index 1277442ea023cbe0ddfedebe2c44ee18af0af541..65bd86ada478b4a4399fb88cc0eba1f00150ec2c 100644
+--- a/esm/utils/extend.js
++++ b/esm/utils/extend.js
+@@ -48,4 +48,3 @@ export function extend3D(transform) {
+         return v;
+     };
+ }
+\ No newline at end of file
+-//# sourceMappingURL=extend.js.map
+\ No newline at end of file
+diff --git a/esm/utils/index.js b/esm/utils/index.js
+index deb5a1a10c204b38c4e9ba294c57b287648160f1..87d5b4f44cc94c9f6111134ad1a8d9ce42842ac1 100644
+--- a/esm/utils/index.js
++++ b/esm/utils/index.js
+@@ -2,4 +2,3 @@ export { compose } from './compose';
+ export { isMatrix } from './isMatrix';
+ export { extend, extend3D } from './extend';
+ export { adjustAngle } from './adjustAngle';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/utils/isMatrix.js b/esm/utils/isMatrix.js
+index da90ad4dc34af6865d62131adf8b809f4a93f408..954644ffcaf793f013a3d8fa269998d5fd09da61 100644
+--- a/esm/utils/isMatrix.js
++++ b/esm/utils/isMatrix.js
+@@ -1,4 +1,3 @@
+ export function isMatrix(transformer) {
+     return transformer instanceof Float32Array || transformer instanceof Array;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=isMatrix.js.map
+\ No newline at end of file
+diff --git a/lib/coordinate.js b/lib/coordinate.js
+index 47a36dc6a607c507259e115d08b7d2724e6aa3df..3638ac3ffe3ab9bebabddb2a41a026945b390db7 100644
+--- a/lib/coordinate.js
++++ b/lib/coordinate.js
+@@ -231,4 +231,3 @@ var Coordinate = /** @class */ (function () {
+     return Coordinate;
+ }());
+ exports.Coordinate = Coordinate;
+\ No newline at end of file
+-//# sourceMappingURL=coordinate.js.map
+\ No newline at end of file
+diff --git a/lib/coordinate3D.js b/lib/coordinate3D.js
+index 3ecc01a79bff1e92564b12930df7b03618473b7e..bd2ea3ff7e7d6c6d492e7758e27c9179abc4de03 100644
+--- a/lib/coordinate3D.js
++++ b/lib/coordinate3D.js
+@@ -218,4 +218,3 @@ var Coordinate3D = /** @class */ (function () {
+     return Coordinate3D;
+ }());
+ exports.Coordinate3D = Coordinate3D;
+\ No newline at end of file
+-//# sourceMappingURL=coordinate3D.js.map
+\ No newline at end of file
+diff --git a/lib/index.js b/lib/index.js
+index dad9143992ed1816256c801d69141d11d340efe5..8bc29218c069ec2275d548005e5a6ff8ee59a840 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -5,4 +5,3 @@ var coordinate_1 = require("./coordinate");
+ Object.defineProperty(exports, "Coordinate", { enumerable: true, get: function () { return coordinate_1.Coordinate; } });
+ var coordinate3D_1 = require("./coordinate3D");
+ Object.defineProperty(exports, "Coordinate3D", { enumerable: true, get: function () { return coordinate3D_1.Coordinate3D; } });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/cartesian.js b/lib/transforms/cartesian.js
+index d467a02577b9ce82b135c968e9d7035e63bafa1b..b6e672b5a7fb16f3275821638222d223ff5a0a46 100644
+--- a/lib/transforms/cartesian.js
++++ b/lib/transforms/cartesian.js
+@@ -46,4 +46,3 @@ var cartesian = function (params, x, y, width, height) {
+     };
+ };
+ exports.cartesian = cartesian;
+\ No newline at end of file
+-//# sourceMappingURL=cartesian.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/cartesian3D.js b/lib/transforms/cartesian3D.js
+index 0f016b74f5b52a6edfa5935df2d01a0dd9e63880..513fb57941a6b8212338196298420ed256fa572e 100644
+--- a/lib/transforms/cartesian3D.js
++++ b/lib/transforms/cartesian3D.js
+@@ -40,4 +40,3 @@ var cartesian3D = function (params, x, y, z, width, height, depth) {
+     };
+ };
+ exports.cartesian3D = cartesian3D;
+\ No newline at end of file
+-//# sourceMappingURL=cartesian3D.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/custom.js b/lib/transforms/custom.js
+index 012ef99df02e0f49e65dcdd76eee383086ba6b6f..480fc99131d043ae231331e238c685316d49d62f 100644
+--- a/lib/transforms/custom.js
++++ b/lib/transforms/custom.js
+@@ -31,4 +31,3 @@ var custom = function (params, x, y, width, height) {
+     return callback(x, y, width, height);
+ };
+ exports.custom = custom;
+\ No newline at end of file
+-//# sourceMappingURL=custom.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/fisheye.js b/lib/transforms/fisheye.js
+index aff18e92abbb966d73261839db03e95f5215cba5..acd43206c4ec9633ebb2cc91ce4ddfa126d59329 100644
+--- a/lib/transforms/fisheye.js
++++ b/lib/transforms/fisheye.js
+@@ -177,4 +177,3 @@ var fisheyeCircular = function (params, x, y, width, height) {
+     };
+ };
+ exports.fisheyeCircular = fisheyeCircular;
+\ No newline at end of file
+-//# sourceMappingURL=fisheye.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/helix.js b/lib/transforms/helix.js
+index 87327c73839b5d4a611a745fffd6f928e6acbba5..fb455cae5258a55e4201315c99dce45eeb76f3e9 100644
+--- a/lib/transforms/helix.js
++++ b/lib/transforms/helix.js
+@@ -76,4 +76,3 @@ var helix = function (params, x, y, width, height) {
+     };
+ };
+ exports.helix = helix;
+\ No newline at end of file
+-//# sourceMappingURL=helix.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/index.js b/lib/transforms/index.js
+index d80e2f0d86cd8993d403a3e0ef0f5e196a035ae8..4a95d623e924b6094dbbcbe802b4400ae3367202 100644
+--- a/lib/transforms/index.js
++++ b/lib/transforms/index.js
+@@ -41,4 +41,3 @@ var transpose3D_1 = require("./transpose3D");
+ Object.defineProperty(exports, "transpose3D", { enumerable: true, get: function () { return transpose3D_1.transpose3D; } });
+ var scale3D_1 = require("./scale3D");
+ Object.defineProperty(exports, "scale3D", { enumerable: true, get: function () { return scale3D_1.scale3D; } });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/matrix.js b/lib/transforms/matrix.js
+index cc6c0b88aa93b12893d419932d24303994abed14..c3c27f4dd75db54dc86b8a24170a5a723e14b932 100644
+--- a/lib/transforms/matrix.js
++++ b/lib/transforms/matrix.js
+@@ -31,4 +31,3 @@ var matrix = function (params, x, y, width, height) {
+     return matrix;
+ };
+ exports.matrix = matrix;
+\ No newline at end of file
+-//# sourceMappingURL=matrix.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/parallel.js b/lib/transforms/parallel.js
+index 08bbb39f4d7cfbe32f2b868001a3627d151f606f..ae611db9d49a2174f65a181d986bacc4b313ca2e 100644
+--- a/lib/transforms/parallel.js
++++ b/lib/transforms/parallel.js
+@@ -60,4 +60,3 @@ var parallel = function (params, x, y, width, height) {
+     };
+ };
+ exports.parallel = parallel;
+\ No newline at end of file
+-//# sourceMappingURL=parallel.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/polar.js b/lib/transforms/polar.js
+index 7fb858867032172bac132cd13a8e58ef29c5f1c7..7daa630981b7ed76039e1a08693536c64cfcf8c7 100644
+--- a/lib/transforms/polar.js
++++ b/lib/transforms/polar.js
+@@ -68,4 +68,3 @@ var polar = function (params, x, y, width, height) {
+     };
+ };
+ exports.polar = polar;
+\ No newline at end of file
+-//# sourceMappingURL=polar.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/reflect.js b/lib/transforms/reflect.js
+index a294a921692ba30b5907f2bfdce8f6cb1f1b07be..76938d5ddddc337cc9194db9174c1f901a391d50 100644
+--- a/lib/transforms/reflect.js
++++ b/lib/transforms/reflect.js
+@@ -66,4 +66,3 @@ var reflectY = function (params) {
+     return scale_1.scale.apply(void 0, __spreadArray([[1, -1]], __read(args), false));
+ };
+ exports.reflectY = reflectY;
+\ No newline at end of file
+-//# sourceMappingURL=reflect.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/rotate.js b/lib/transforms/rotate.js
+index 55ec3fc2a945012c1f01586b96747adec2ff97d0..e5bbb30bb653e96652ab74bb03387a93bad3fd31 100644
+--- a/lib/transforms/rotate.js
++++ b/lib/transforms/rotate.js
+@@ -33,4 +33,3 @@ var rotate = function (params, x, y, width, height) {
+     return gl_matrix_1.mat3.fromRotation(matrix, theta);
+ };
+ exports.rotate = rotate;
+\ No newline at end of file
+-//# sourceMappingURL=rotate.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/scale.js b/lib/transforms/scale.js
+index 10ecd301961c896a137000ffa40aaf3c5f95452a..0280ace9dbdea4683b0ec8a46fca158b97dc165a 100644
+--- a/lib/transforms/scale.js
++++ b/lib/transforms/scale.js
+@@ -33,4 +33,3 @@ var scale = function (params, x, y, width, height) {
+     return gl_matrix_1.mat3.fromScaling(matrix, [sx, sy]);
+ };
+ exports.scale = scale;
+\ No newline at end of file
+-//# sourceMappingURL=scale.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/scale3D.js b/lib/transforms/scale3D.js
+index 6186dce9a6ee08a3ad91d4d137db6cc86b7fd5c1..2b38fde5baffb3bdc239532ac44629cb8fa26326 100644
+--- a/lib/transforms/scale3D.js
++++ b/lib/transforms/scale3D.js
+@@ -34,4 +34,3 @@ var scale3D = function (params, x, y, z, width, height, depth) {
+     return gl_matrix_1.mat4.fromScaling(gl_matrix_1.mat4.create(), [sx, sy, sz]);
+ };
+ exports.scale3D = scale3D;
+\ No newline at end of file
+-//# sourceMappingURL=scale3D.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/shear.js b/lib/transforms/shear.js
+index 7bfa502c0ecaca82cb8abdcb1fd75a09a18fbfd8..cb3b0f1b0840bfbdd3185e93dbb075d29a9c7c53 100644
+--- a/lib/transforms/shear.js
++++ b/lib/transforms/shear.js
+@@ -72,4 +72,3 @@ var shearY = function (params, x, y, width, height) {
+     };
+ };
+ exports.shearY = shearY;
+\ No newline at end of file
+-//# sourceMappingURL=shear.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/translate.js b/lib/transforms/translate.js
+index 8f208de6f2e552a36c94012bb13819bdd3a886c8..755fe54ca6ccc289369fd276991d6fd14d78a933 100644
+--- a/lib/transforms/translate.js
++++ b/lib/transforms/translate.js
+@@ -33,4 +33,3 @@ var translate = function (params, x, y, width, height) {
+     return gl_matrix_1.mat3.fromTranslation(matrix, [tx, ty]);
+ };
+ exports.translate = translate;
+\ No newline at end of file
+-//# sourceMappingURL=translate.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/translate3D.js b/lib/transforms/translate3D.js
+index ad187fe69bb22bbb4ec49fa0fa50d050864a6a3f..aea9395f0385994a33d3e1fd7d3193171f1f2082 100644
+--- a/lib/transforms/translate3D.js
++++ b/lib/transforms/translate3D.js
+@@ -34,4 +34,3 @@ var translate3D = function (params, x, y, z, width, height, depth) {
+     return gl_matrix_1.mat4.fromTranslation(gl_matrix_1.mat4.create(), [tx, ty, tz]);
+ };
+ exports.translate3D = translate3D;
+\ No newline at end of file
+-//# sourceMappingURL=translate3D.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/transpose.js b/lib/transforms/transpose.js
+index 7a86dff927022c50bb954027c0cd67d31b027ab3..189dbf7320b39b063af381e5e1c9f279b4fd16a8 100644
+--- a/lib/transforms/transpose.js
++++ b/lib/transforms/transpose.js
+@@ -39,4 +39,3 @@ var transpose = function (params, x, y, width, height) {
+     };
+ };
+ exports.transpose = transpose;
+\ No newline at end of file
+-//# sourceMappingURL=transpose.js.map
+\ No newline at end of file
+diff --git a/lib/transforms/transpose3D.js b/lib/transforms/transpose3D.js
+index bb28b6888515f06bf7ffc01745865ad6ff033667..7b5cee13fd19a3c8a116f1cbed3771d54afad365 100644
+--- a/lib/transforms/transpose3D.js
++++ b/lib/transforms/transpose3D.js
+@@ -39,4 +39,3 @@ var transpose3D = function (params, x, y, z, width, height, depth) {
+     };
+ };
+ exports.transpose3D = transpose3D;
+\ No newline at end of file
+-//# sourceMappingURL=transpose3D.js.map
+\ No newline at end of file
+diff --git a/lib/type.js b/lib/type.js
+index cd671e58073f43d1506479ea8d6259e6c5928f71..31785ed88aa4491a3b7b81fd50f1dbcc1046133c 100644
+--- a/lib/type.js
++++ b/lib/type.js
+@@ -1,3 +1,2 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+\ No newline at end of file
+-//# sourceMappingURL=type.js.map
+\ No newline at end of file
+diff --git a/lib/utils/adjustAngle.js b/lib/utils/adjustAngle.js
+index 445dc0efbc9c4e885f6bbbd85b77bd0c25c26b5b..cbb8caa922a10d5b2dbe547ecd3cc17de5157cc8 100644
+--- a/lib/utils/adjustAngle.js
++++ b/lib/utils/adjustAngle.js
+@@ -9,4 +9,3 @@ function adjustAngle(theta, min, max) {
+     return theta;
+ }
+ exports.adjustAngle = adjustAngle;
+\ No newline at end of file
+-//# sourceMappingURL=adjustAngle.js.map
+\ No newline at end of file
+diff --git a/lib/utils/compose.js b/lib/utils/compose.js
+index e9c6621214ac5961ae6becaa43ac165f0637eb03..b1aa91f57ae46b4bd2d2198d7771b5922dc605f6 100644
+--- a/lib/utils/compose.js
++++ b/lib/utils/compose.js
+@@ -10,4 +10,3 @@ function compose(fn) {
+     return fn ? rest.reduce(function (total, current) { return function (x) { return current(total(x)); }; }, fn) : util_1.identity;
+ }
+ exports.compose = compose;
+\ No newline at end of file
+-//# sourceMappingURL=compose.js.map
+\ No newline at end of file
+diff --git a/lib/utils/extend.js b/lib/utils/extend.js
+index 2c0bf810a809ed10f09fae9e94e9aed5c3974663..73830f79317ceae500bbd4afe42ccdb87981c6c1 100644
+--- a/lib/utils/extend.js
++++ b/lib/utils/extend.js
+@@ -53,4 +53,3 @@ function extend3D(transform) {
+     };
+ }
+ exports.extend3D = extend3D;
+\ No newline at end of file
+-//# sourceMappingURL=extend.js.map
+\ No newline at end of file
+diff --git a/lib/utils/index.js b/lib/utils/index.js
+index 3d962a7bc9735a2ac062ac7f159db9186d90b83a..fcb38ce21a95627b0de5aa1312b691c8acb36a43 100644
+--- a/lib/utils/index.js
++++ b/lib/utils/index.js
+@@ -10,4 +10,3 @@ Object.defineProperty(exports, "extend", { enumerable: true, get: function () {
+ Object.defineProperty(exports, "extend3D", { enumerable: true, get: function () { return extend_1.extend3D; } });
+ var adjustAngle_1 = require("./adjustAngle");
+ Object.defineProperty(exports, "adjustAngle", { enumerable: true, get: function () { return adjustAngle_1.adjustAngle; } });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/utils/isMatrix.js b/lib/utils/isMatrix.js
+index bc001c162a9334558897ebf47ec0f9a286f505f4..8edbdcd9ab2c13a830b31351bf3c885a2ee62710 100644
+--- a/lib/utils/isMatrix.js
++++ b/lib/utils/isMatrix.js
+@@ -5,4 +5,3 @@ function isMatrix(transformer) {
+     return transformer instanceof Float32Array || transformer instanceof Array;
+ }
+ exports.isMatrix = isMatrix;
+\ No newline at end of file
+-//# sourceMappingURL=isMatrix.js.map

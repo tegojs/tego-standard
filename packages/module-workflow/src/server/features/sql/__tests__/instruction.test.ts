@@ -1,9 +1,8 @@
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/plugin-workflow';
 import { getApp } from '@tachybase/plugin-workflow-test';
-import Database, { Application, fn } from '@tego/server';
+import Database, { Application } from '@tego/server';
 
 import { waitForFastAssertion as waitForAssertion, waitForWorkflowIdle } from '../../../__tests__/utils';
-import Plugin from '../Plugin';
 
 describe('workflow > instructions > sql', () => {
   let app: Application;
@@ -16,7 +15,6 @@ describe('workflow > instructions > sql', () => {
 
   async function setupApp(options: { withAnotherDataSource?: boolean } = {}) {
     app = await getApp({
-      plugins: [Plugin],
       withAnotherDataSource: options.withAnotherDataSource,
     });
 

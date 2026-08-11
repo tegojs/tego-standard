@@ -105,9 +105,7 @@ function omitTargetKeys(
   }
   if (Array.isArray(sourceValue)) {
     const copiedItems = Array.isArray(copiedValue) ? copiedValue : [];
-    return sourceValue.map((item, index) =>
-      omitTargetKeys(item, copiedItems[index], steps, stepIndex, path),
-    );
+    return sourceValue.map((item, index) => omitTargetKeys(item, copiedItems[index], steps, stepIndex, path));
   }
   if (!isJSONValue(sourceValue) || !isJSONValue(copiedValue)) {
     throw new CopyAssociationError(`Copy association path "${path}" must contain object values`);
@@ -130,9 +128,7 @@ function omitTargetKeys(
     }
     if (Array.isArray(sourceItem)) {
       const copiedItems = Array.isArray(copiedItem) ? copiedItem : [];
-      return sourceItem.map((item, index) =>
-        cleanAssociationValue(item, copiedItems[index]),
-      );
+      return sourceItem.map((item, index) => cleanAssociationValue(item, copiedItems[index]));
     }
     if (typeof sourceItem !== 'object') {
       return sourceItem;

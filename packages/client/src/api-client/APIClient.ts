@@ -6,6 +6,7 @@ import { notification } from 'antd';
 
 import type { Application } from '../application';
 import { i18n } from '../i18n';
+import { CURRENT_TENANT_ID_STORAGE_KEY } from './constants';
 
 const TECH_PATTERNS: RegExp[] = [
   /\bat\s+\S+\s+\(.+\)/i,
@@ -60,6 +61,9 @@ const getCurrentTimezone = () => {
 };
 
 const errorCache = new Map();
+/**
+ * Renders or configures the apiclient client entry point.
+ */
 export class APIClient extends APIClientSDK {
   services: Record<string, Result<any, any>> = {};
   silence = false;
@@ -93,8 +97,12 @@ export class APIClient extends APIClientSDK {
   getHeaders() {
     const headers = super.getHeaders();
     const appName = this.app?.getName();
+    const currentTenantId = this.storage?.getItem?.(CURRENT_TENANT_ID_STORAGE_KEY);
     if (appName) {
       headers['X-App'] = appName;
+    }
+    if (currentTenantId) {
+      headers['X-Tenant-Id'] = currentTenantId;
     }
     headers['X-Timezone'] = getCurrentTimezone();
     headers['X-Hostname'] = window?.location?.hostname;
@@ -110,7 +118,17 @@ export class APIClient extends APIClientSDK {
       config.headers['X-With-ACL-Meta'] = true;
       const headers = this.getHeaders();
       Object.keys(headers).forEach((key) => {
-        config.headers[key] = config.headers[key] || headers[key];
+        const hasHeader =
+          typeof config.headers?.has === 'function'
+            ? config.headers.has(key)
+            : Object.keys(config.headers || {}).some((headerKey) => headerKey.toLowerCase() === key.toLowerCase());
+        if (!hasHeader) {
+          if (typeof config.headers?.set === 'function') {
+            config.headers.set(key, headers[key]);
+          } else {
+            config.headers[key] = headers[key];
+          }
+        }
       });
       return config;
     });

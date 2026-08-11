@@ -1,5 +1,19 @@
 import { Database, ViewFieldInference } from '@tego/server';
 
+/**
+ * Database view resource.
+ *
+ * Tenant isolation boundary:
+ * - `query` executes raw `SELECT * FROM <view> LIMIT/OFFSET` with no tenant filtering.
+ *   The database view itself is responsible for any row-level security.
+ * - `get` and `list` are metadata operations (field inference, view listing),
+ *   not data access, and are gated by the default ACL deny-all for non-admin roles.
+ * - No `tenantId` is injected. The tenant resource guard does not apply because
+ *   view collections do not have a `tenancy` option.
+ * - If tenant isolation is required at the view level, it must be implemented
+ *   via database-level row security policies (e.g. PostgreSQL RLS) on the
+ *   underlying view.
+ */
 export default {
   name: 'dbViews',
   actions: {

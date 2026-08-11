@@ -59,6 +59,17 @@ alwaysApply: true
 - Check dependency relationships.
 - 检查依赖关系
 
+## Review Feedback Handling / Review 反馈处理
+
+- Verify every review finding against the current code before changing it. Fix only issues that are still valid; skip invalid findings with a brief technical reason.
+- 修改前必须用当前代码核查每条 review 意见。只修复仍然有效的问题；失效意见需要用简短技术理由说明跳过。
+- Keep commits atomic by behavior or module. Do not mix unrelated fixes, dependency changes, generated output cleanup, and documentation edits in one commit.
+- 按行为或模块保持原子提交。不要把无关修复、依赖变更、生成产物清理和文档修改混进同一个提交。
+- Inspect diffs from other agents or automation before relying on their result. A reported pass is not enough without checking the actual changed files and running relevant validation.
+- 依赖其他 agent 或自动化结果前，必须检查实际 diff。仅有“通过”报告不够，还要查看变更文件并运行相关验证。
+- Do not commit generated `dist` files, temporary screenshots, local runner scripts, or scratch design notes unless the user explicitly asks for those artifacts.
+- 不要提交生成的 `dist`、临时截图、本地 runner 脚本或临时设计草稿，除非用户明确要求提交这些产物。
+
 ## Troubleshooting / 问题排查
 - Check console errors and logs.
 - 查看控制台错误和日志

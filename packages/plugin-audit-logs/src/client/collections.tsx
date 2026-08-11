@@ -2,6 +2,9 @@ import { AssociationField } from '@tachybase/client';
 
 import { tval } from './locale';
 
+/**
+ * Builds the use audit logs collection collection schema for the client.
+ */
 export const useAuditLogsCollection = () => {
   return {
     name: 'auditLogs',
@@ -36,6 +39,10 @@ export const useAuditLogsCollection = () => {
             { label: tval('Create record'), value: 'create', color: 'lime' },
             { label: tval('Update record'), value: 'update', color: 'gold' },
             { label: tval('Delete record'), value: 'destroy', color: 'magenta' },
+            { label: tval('Tenant access denied'), value: 'tenant_access_denied', color: 'red' },
+            { label: tval('Cross-tenant attempt'), value: 'tenant_cross_tenant_attempt', color: 'red' },
+            { label: tval('Bulk export alert'), value: 'tenant_bulk_export_alert', color: 'orange' },
+            { label: tval('Tenant impersonation'), value: 'tenant_impersonation', color: 'blue' },
           ],
         },
       },
@@ -78,6 +85,16 @@ export const useAuditLogsCollection = () => {
         },
       },
       {
+        name: 'tenantId',
+        type: 'string',
+        interface: 'input',
+        uiSchema: {
+          type: 'string',
+          title: tval('Tenant ID'),
+          'x-component': 'Input',
+        },
+      },
+      {
         name: 'user',
         collectionName: 'auditLogs',
         type: 'belongsTo',
@@ -107,6 +124,18 @@ export const useAuditLogsCollection = () => {
         },
       },
       {
+        name: 'details',
+        type: 'json',
+        interface: 'input',
+        uiSchema: {
+          type: 'object',
+          title: tval('Security event details'),
+          'x-component': 'Input.JSON',
+          'x-component-props': { ellipsis: true },
+          'x-read-pretty': true,
+        },
+      },
+      {
         type: 'bigInt',
         name: 'id',
         interface: 'number',
@@ -116,6 +145,9 @@ export const useAuditLogsCollection = () => {
   };
 };
 
+/**
+ * Builds the use audit changes collection collection schema for the client.
+ */
 export const useAuditChangesCollection = () => {
   return {
     name: 'auditChanges',
@@ -152,6 +184,9 @@ export const useAuditChangesCollection = () => {
   };
 };
 
+/**
+ * Builds the use collections collection collection schema for the client.
+ */
 export const useCollectionsCollection = () => {
   return {
     name: 'collections',

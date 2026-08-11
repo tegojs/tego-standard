@@ -1,0 +1,244 @@
+diff --git a/esm/index.js b/esm/index.js
+index 3cd20d43566e01339dc2fe753b2a08cc26119ac9..1f81992af57b2f77505458bde1eafda9530776e5 100644
+--- a/esm/index.js
++++ b/esm/index.js
+@@ -1,4 +1,3 @@
+ export { plotlib } from './lib';
+ export * from './mark';
+ export * from './interaction';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/interaction/drillDown.js b/esm/interaction/drillDown.js
+index 063befed09a3300617c1780de93b3ffae755b615..a6d9a45a44464765673b941fb1003a1d5ea42e45 100644
+--- a/esm/interaction/drillDown.js
++++ b/esm/interaction/drillDown.js
+@@ -203,4 +203,3 @@ export function DrillDown(drillDownOptions = {}) {
+         };
+     };
+ }
+\ No newline at end of file
+-//# sourceMappingURL=drillDown.js.map
+\ No newline at end of file
+diff --git a/esm/interaction/index.js b/esm/interaction/index.js
+index 15c720f1621af9c861035aa97a2c2f4c91da4c57..6cb765b42be01ff725ab9f8d46d3280491f18f21 100644
+--- a/esm/interaction/index.js
++++ b/esm/interaction/index.js
+@@ -1,2 +1 @@
+ export { DrillDown } from './drillDown';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/lib.js b/esm/lib.js
+index 53cb2f2e9f752f61bd8eb68f8178959c0400f3c5..ac7d6108e124164d44910e2de8cb1b48635dae91 100644
+--- a/esm/lib.js
++++ b/esm/lib.js
+@@ -6,4 +6,3 @@ export function plotlib() {
+         "mark.sunburst": Sunburst,
+     };
+ }
+\ No newline at end of file
+-//# sourceMappingURL=lib.js.map
+\ No newline at end of file
+diff --git a/esm/mark/index.js b/esm/mark/index.js
+index d0e7864bd0ae8c0916c1276a2d05ba717b39a4b2..6af8dbf6a1890422c349d3fba24c2e37c6b5c24f 100644
+--- a/esm/mark/index.js
++++ b/esm/mark/index.js
+@@ -1,2 +1 @@
+ export { Sunburst } from './sunburst';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/esm/mark/sunburst.js b/esm/mark/sunburst.js
+index 398b1b65b780438bdaa7baf04791fa37c80905ee..cf3d4f6726f6d678150add4bede7600ce1e98535 100644
+--- a/esm/mark/sunburst.js
++++ b/esm/mark/sunburst.js
+@@ -113,4 +113,3 @@ export const Sunburst = (options) => {
+     ];
+ };
+ Sunburst.props = {};
+\ No newline at end of file
+-//# sourceMappingURL=sunburst.js.map
+\ No newline at end of file
+diff --git a/esm/mark/types.js b/esm/mark/types.js
+index 718fd38ae40c67ea23b242517cf9919f602c5a3e..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/esm/mark/types.js
++++ b/esm/mark/types.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/esm/spec/interaction.js b/esm/spec/interaction.js
+index c681848a02ba671257b50eec66b4d0fb2f7bf6a2..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/esm/spec/interaction.js
++++ b/esm/spec/interaction.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=interaction.js.map
+\ No newline at end of file
+diff --git a/esm/spec/mark.js b/esm/spec/mark.js
+index 7926c354ca07b6c58febc8a4b4196dbd21ac675f..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/esm/spec/mark.js
++++ b/esm/spec/mark.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=mark.js.map
+\ No newline at end of file
+diff --git a/esm/spec/utils.js b/esm/spec/utils.js
+index e6c75f0b7bf923de69499e8beee4d3238e2f66fc..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/esm/spec/utils.js
++++ b/esm/spec/utils.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=utils.js.map
+\ No newline at end of file
+diff --git a/esm/utils/hierarchy/partition.js b/esm/utils/hierarchy/partition.js
+index 2737a1f63475d6f6b11d7c3b5cca45f1368c6e5b..3413ddeb70d4e9173019a9b1a55ffe30ac09c279 100644
+--- a/esm/utils/hierarchy/partition.js
++++ b/esm/utils/hierarchy/partition.js
+@@ -125,4 +125,3 @@ export function partition(data, options) {
+     });
+     return getAllNodes(root);
+ }
+\ No newline at end of file
+-//# sourceMappingURL=partition.js.map
+\ No newline at end of file
+diff --git a/esm/utils/hierarchy/types.js b/esm/utils/hierarchy/types.js
+index 718fd38ae40c67ea23b242517cf9919f602c5a3e..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/esm/utils/hierarchy/types.js
++++ b/esm/utils/hierarchy/types.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/index.js b/lib/index.js
+index fef814dc2dc59bde98242db57285640d2d42d9b5..4f740adb705a43a922129fe7e8471fad16239af3 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -19,4 +19,3 @@ var lib_1 = require("./lib");
+ Object.defineProperty(exports, "plotlib", { enumerable: true, get: function () { return lib_1.plotlib; } });
+ __exportStar(require("./mark"), exports);
+ __exportStar(require("./interaction"), exports);
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/interaction/drillDown.js b/lib/interaction/drillDown.js
+index b97e79e77ab5960754c7f5b03408ab31a13a7a8f..b8c946cabb88ca36e794a567ff15c9ad3ebde48d 100644
+--- a/lib/interaction/drillDown.js
++++ b/lib/interaction/drillDown.js
+@@ -206,4 +206,3 @@ function DrillDown(drillDownOptions = {}) {
+         };
+     };
+ }
+\ No newline at end of file
+-//# sourceMappingURL=drillDown.js.map
+\ No newline at end of file
+diff --git a/lib/interaction/index.js b/lib/interaction/index.js
+index d685647ffacf537f15601fee2b991eed39850619..19ee6db3501d452c49b3109f04cdc3cc16b440db 100644
+--- a/lib/interaction/index.js
++++ b/lib/interaction/index.js
+@@ -3,4 +3,3 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.DrillDown = void 0;
+ var drillDown_1 = require("./drillDown");
+ Object.defineProperty(exports, "DrillDown", { enumerable: true, get: function () { return drillDown_1.DrillDown; } });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/lib.js b/lib/lib.js
+index 60b6603dee69fabc87b9d783bc61163a25212738..32cd83e64b110d3b0ce1c9476b0481cfa0f47ad9 100644
+--- a/lib/lib.js
++++ b/lib/lib.js
+@@ -9,4 +9,3 @@ function plotlib() {
+         "mark.sunburst": sunburst_1.Sunburst,
+     };
+ }
+\ No newline at end of file
+-//# sourceMappingURL=lib.js.map
+\ No newline at end of file
+diff --git a/lib/mark/index.js b/lib/mark/index.js
+index 8dc16f320edc999e29c9abc44e2cde26e5615a27..4cb925f50e0cf6d21e6fbb07f44a9689a67224c6 100644
+--- a/lib/mark/index.js
++++ b/lib/mark/index.js
+@@ -3,4 +3,3 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.Sunburst = void 0;
+ var sunburst_1 = require("./sunburst");
+ Object.defineProperty(exports, "Sunburst", { enumerable: true, get: function () { return sunburst_1.Sunburst; } });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/mark/sunburst.js b/lib/mark/sunburst.js
+index 7686e90593c2d655a20554efd4f8fe7719f4548f..3c354d1db256e2eb8ac56d0e6451b43b1ec6afd8 100644
+--- a/lib/mark/sunburst.js
++++ b/lib/mark/sunburst.js
+@@ -118,4 +118,3 @@ const Sunburst = (options) => {
+ };
+ exports.Sunburst = Sunburst;
+ exports.Sunburst.props = {};
+\ No newline at end of file
+-//# sourceMappingURL=sunburst.js.map
+\ No newline at end of file
+diff --git a/lib/mark/types.js b/lib/mark/types.js
+index 11e638d1ee44ae0dcb1feb5aef676ea74a7d4df3..31785ed88aa4491a3b7b81fd50f1dbcc1046133c 100644
+--- a/lib/mark/types.js
++++ b/lib/mark/types.js
+@@ -1,3 +1,2 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/spec/interaction.js b/lib/spec/interaction.js
+index b0d01d8724d59634689663d814c8768ac2f9347e..31785ed88aa4491a3b7b81fd50f1dbcc1046133c 100644
+--- a/lib/spec/interaction.js
++++ b/lib/spec/interaction.js
+@@ -1,3 +1,2 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+\ No newline at end of file
+-//# sourceMappingURL=interaction.js.map
+\ No newline at end of file
+diff --git a/lib/spec/mark.js b/lib/spec/mark.js
+index 4d15516952c1c2693d7eddbad642b775fbb0b4f5..31785ed88aa4491a3b7b81fd50f1dbcc1046133c 100644
+--- a/lib/spec/mark.js
++++ b/lib/spec/mark.js
+@@ -1,3 +1,2 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+\ No newline at end of file
+-//# sourceMappingURL=mark.js.map
+\ No newline at end of file
+diff --git a/lib/spec/utils.js b/lib/spec/utils.js
+index ee02fa63aae438473e3a40af76b9a31b520d9269..31785ed88aa4491a3b7b81fd50f1dbcc1046133c 100644
+--- a/lib/spec/utils.js
++++ b/lib/spec/utils.js
+@@ -1,3 +1,2 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+\ No newline at end of file
+-//# sourceMappingURL=utils.js.map
+\ No newline at end of file
+diff --git a/lib/utils/hierarchy/partition.js b/lib/utils/hierarchy/partition.js
+index 01530ba84498706fb38d1d8d49e3a9dbfd5a1719..7aa97c4d9f47f23334ea9b25d9d12a534201fd51 100644
+--- a/lib/utils/hierarchy/partition.js
++++ b/lib/utils/hierarchy/partition.js
+@@ -164,4 +164,3 @@ function partition(data, options) {
+     });
+     return getAllNodes(root);
+ }
+\ No newline at end of file
+-//# sourceMappingURL=partition.js.map
+\ No newline at end of file
+diff --git a/lib/utils/hierarchy/types.js b/lib/utils/hierarchy/types.js
+index 11e638d1ee44ae0dcb1feb5aef676ea74a7d4df3..31785ed88aa4491a3b7b81fd50f1dbcc1046133c 100644
+--- a/lib/utils/hierarchy/types.js
++++ b/lib/utils/hierarchy/types.js
+@@ -1,3 +1,2 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map

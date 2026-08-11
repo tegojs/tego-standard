@@ -1,0 +1,150 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import sqlCollectionResource, { isReadOnlyPreviewSql, runReadOnlyPreviewQuery } from '../resourcers/sql';
+
+describe('sqlCollection preview SQL safety', () => {
+  it('does not let string literal comment markers hide writable CTE keywords', () => {
+    const sql = `
+      WITH marker AS (
+        SELECT '/*' AS text
+      ),
+      updated AS (
+        UPDATE accounts SET name = 'x' RETURNING *
+      ),
+      tail AS (
+        SELECT '*/' AS text
+      )
+      SELECT * FROM updated
+    `;
+
+    expect(isReadOnlyPreviewSql(sql)).toBe(false);
+  });
+
+  it('allows read-only SQL with comment markers and writable words inside literals', () => {
+    const sql = `
+      SELECT
+        '/* update accounts set name = ''x'' */' AS text,
+        '-- drop table accounts' AS line_text,
+        "delete" AS quoted_identifier
+    `;
+
+    expect(isReadOnlyPreviewSql(sql)).toBe(true);
+  });
+
+  it('allows replace as a read-only function call', () => {
+    const sql = `
+      SELECT replace(name, 'old', 'new') AS normalized_name
+      FROM accounts
+    `;
+
+    expect(isReadOnlyPreviewSql(sql)).toBe(true);
+  });
+
+  it('rejects additional statements after a read-only query', () => {
+    expect(isReadOnlyPreviewSql('SELECT 1; DELETE FROM accounts')).toBe(false);
+  });
+
+  it('rejects additional statements in the execute action before creating a SQL collection', async () => {
+    const next = vi.fn();
+    const ctx = {
+      action: {
+        params: {
+          values: {
+            sql: 'SELECT 1; DELETE FROM accounts',
+          },
+        },
+      },
+      t: (message: string) => message,
+      throw(status: number, message: string) {
+        const error = new Error(message) as Error & { status?: number };
+        error.status = status;
+        throw error;
+      },
+    } as any;
+
+    await expect(sqlCollectionResource.actions.execute(ctx, next)).rejects.toMatchObject({
+      status: 400,
+      message: 'Only select query allowed',
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('rejects select into because it creates data', () => {
+    expect(isReadOnlyPreviewSql('SELECT * INTO copied_accounts FROM accounts')).toBe(false);
+  });
+
+  it('runs preview query in a database read-only transaction', async () => {
+    const transaction = { id: 'preview-readonly-tx' };
+    const calls: string[] = [];
+    const query = vi.fn(async () => {
+      calls.push('set-readonly');
+    });
+    const transactionFn = vi.fn(async (options, callback) => {
+      calls.push('transaction');
+      expect(options).toMatchObject({ readOnly: true });
+      return callback(transaction);
+    });
+    const findAll = vi.fn(async (options) => {
+      calls.push('find');
+      expect(options).toMatchObject({
+        limit: 5,
+        raw: true,
+        transaction,
+      });
+      expect(options.attributes).toHaveLength(1);
+      expect(options.attributes).not.toContain('*');
+      return [{ id: 1 }];
+    });
+
+    const result = await runReadOnlyPreviewQuery(
+      {
+        db: {
+          options: { dialect: 'postgres' },
+          sequelize: {
+            getDialect: () => 'postgres',
+            query,
+            transaction: transactionFn,
+          },
+        },
+      } as any,
+      { findAll } as any,
+    );
+
+    expect(result).toEqual([{ id: 1 }]);
+    expect(query).toHaveBeenCalledWith('SET TRANSACTION READ ONLY', { transaction });
+    expect(calls).toEqual(['transaction', 'set-readonly', 'find']);
+  });
+
+  it('does not start sqlite transactions for preview queries', async () => {
+    const transaction = { id: 'preview-readonly-tx' };
+    const query = vi.fn();
+    const transactionFn = vi.fn(async (options, callback) => callback(transaction));
+    const findAll = vi.fn(async (options) => {
+      expect(options).toMatchObject({
+        limit: 5,
+        raw: true,
+      });
+      expect(options.attributes).toHaveLength(1);
+      expect(options.attributes).not.toContain('*');
+      expect(options.transaction).toBeUndefined();
+      return [{ id: 1 }];
+    });
+
+    await runReadOnlyPreviewQuery(
+      {
+        db: {
+          options: { dialect: 'sqlite' },
+          sequelize: {
+            getDialect: () => 'sqlite',
+            query,
+            transaction: transactionFn,
+          },
+        },
+      } as any,
+      { findAll } as any,
+    );
+
+    expect(query).not.toHaveBeenCalled();
+    expect(transactionFn).not.toHaveBeenCalled();
+  });
+});

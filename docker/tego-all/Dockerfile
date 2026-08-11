@@ -16,6 +16,7 @@ RUN --mount=type=bind,source=.,target=/context,readonly \
     cp /context/package.json /app/package.json && \
     cp /context/pnpm-lock.yaml /app/pnpm-lock.yaml && \
     cp /context/pnpm-workspace.yaml /app/pnpm-workspace.yaml && \
+    if [ -d /context/patches ]; then cp -R /context/patches /app/patches; fi && \
     for dir in /context/apps/*; do \
       [ -d "$dir" ] || continue; \
       name=$(basename "$dir"); \

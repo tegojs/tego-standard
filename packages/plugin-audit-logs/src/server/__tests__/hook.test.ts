@@ -1,6 +1,8 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 import Database from '@tego/server';
 
+import { auditLogsTestPlugin } from './helpers';
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -30,7 +32,7 @@ describe('hook', () => {
 
   beforeEach(async () => {
     api = await createMockServer({
-      plugins: ['audit-logs'],
+      plugins: [auditLogsTestPlugin()],
     });
     db = api.db;
     db.collection({
@@ -93,6 +95,11 @@ describe('hook', () => {
       context: {
         state: {
           currentUser: user,
+          currentTenantId: 'tenant-a',
+          actorUserId: user.get('id'),
+          impersonatedTenantId: null,
+          tenantContextSource: 'membership',
+          isTenantImpersonation: false,
         },
       },
     });
@@ -105,6 +112,10 @@ describe('hook', () => {
       collectionName: 'posts',
       type: 'create',
       userId: 1,
+      tenantId: 'tenant-a',
+      actorUserId: '1',
+      tenantContextSource: 'membership',
+      isTenantImpersonation: false,
       recordId: `${post.get('id')}`,
       changes: [
         {

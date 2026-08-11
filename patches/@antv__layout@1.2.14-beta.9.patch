@@ -1,0 +1,713 @@
+diff --git a/lib/antv-dagre/acyclic.js b/lib/antv-dagre/acyclic.js
+index e68f51720485ea54452f7b0e5651c748cda52579..dec711d86a881f435420d9a45b5808d59f76df9a 100644
+--- a/lib/antv-dagre/acyclic.js
++++ b/lib/antv-dagre/acyclic.js
+@@ -58,4 +58,3 @@ const undo = (g) => {
+     });
+ };
+ export { run, undo };
+\ No newline at end of file
+-//# sourceMappingURL=acyclic.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/add-border-segments.js b/lib/antv-dagre/add-border-segments.js
+index d6dd94d26e34d3692c952ece4c9e9a0c19c3655a..ce85e319b13a8231680bb2cbdf86787a28a7aa2f 100644
+--- a/lib/antv-dagre/add-border-segments.js
++++ b/lib/antv-dagre/add-border-segments.js
+@@ -34,4 +34,3 @@ const addBorderNode = (g, prop, prefix, sg, sgNode, rank) => {
+         });
+     }
+ };
+\ No newline at end of file
+-//# sourceMappingURL=add-border-segments.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/coordinate-system.js b/lib/antv-dagre/coordinate-system.js
+index 5b57dff8b05587bfa1051f20b4c9371a784dafff..73c7aa377ee793efc0711160322d8d375e56173d 100644
+--- a/lib/antv-dagre/coordinate-system.js
++++ b/lib/antv-dagre/coordinate-system.js
+@@ -62,4 +62,3 @@ const swapXYOne = (node) => {
+     node.y = x;
+ };
+ export { adjust, undo };
+\ No newline at end of file
+-//# sourceMappingURL=coordinate-system.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/data/list.js b/lib/antv-dagre/data/list.js
+index 877f791a7bd5f85a0cc48b7eec642c5c340b7577..970a1db85cfff719e42396575f1c322dcc9148fd 100644
+--- a/lib/antv-dagre/data/list.js
++++ b/lib/antv-dagre/data/list.js
+@@ -45,4 +45,3 @@ export default class List {
+         return `[${strs.join(', ')}]`;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=list.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/greedy-fas.js b/lib/antv-dagre/greedy-fas.js
+index bc0d11d36b5b9ac004c20057416e1c587b1696d7..8962d092f9cbaca36ed17ec8bcfc3f9df89ba8b3 100644
+--- a/lib/antv-dagre/greedy-fas.js
++++ b/lib/antv-dagre/greedy-fas.js
+@@ -133,4 +133,3 @@ const assignBucket = (buckets, zeroIdx, entry) => {
+         buckets[entry.out - entry['in'] + zeroIdx].enqueue(entry);
+     }
+ };
+\ No newline at end of file
+-//# sourceMappingURL=greedy-fas.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/layout.js b/lib/antv-dagre/layout.js
+index afda0f107334c5de1adf1f91020eb05c9b0732d8..d7871d1461c0a59e7176829f4157b84c93375f89 100644
+--- a/lib/antv-dagre/layout.js
++++ b/lib/antv-dagre/layout.js
+@@ -465,4 +465,3 @@ const canonicalize = (attrs = {}) => {
+     });
+     return newAttrs;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=layout.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/nesting-graph.js b/lib/antv-dagre/nesting-graph.js
+index 4bda5fe78cc4030e3cf7f55850129b04befeddbb..6ecb3cd4dfff3a3a709e2a30d5ecdbb8a5323799 100644
+--- a/lib/antv-dagre/nesting-graph.js
++++ b/lib/antv-dagre/nesting-graph.js
+@@ -149,4 +149,3 @@ const cleanup = (g, nestingRoot) => {
+     });
+ };
+ export { run, cleanup };
+\ No newline at end of file
+-//# sourceMappingURL=nesting-graph.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/normalize.js b/lib/antv-dagre/normalize.js
+index ec28fd9ad516851d11ee2759e2581dc3cbc80e98..c64b1cb04cb547ee6cc55f344915573915498a41 100644
+--- a/lib/antv-dagre/normalize.js
++++ b/lib/antv-dagre/normalize.js
+@@ -95,4 +95,3 @@ const undo = (g, dummyChains) => {
+     });
+ };
+ export { run, undo };
+\ No newline at end of file
+-//# sourceMappingURL=normalize.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/add-subgraph-constraints.js b/lib/antv-dagre/order/add-subgraph-constraints.js
+index 8a891cab2e627aab5d8af87c26ada5332252526d..ebe4f2e5eb08dff78f0d822c8760e1e2a9104fcb 100644
+--- a/lib/antv-dagre/order/add-subgraph-constraints.js
++++ b/lib/antv-dagre/order/add-subgraph-constraints.js
+@@ -42,4 +42,3 @@ export const addSubgraphConstraints = (g, cg, vs) => {
+         }
+     });
+ };
+\ No newline at end of file
+-//# sourceMappingURL=add-subgraph-constraints.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/barycenter.js b/lib/antv-dagre/order/barycenter.js
+index 8c3cde222fd8e7969c70d816d0c33303ddc58212..13609eab9f2453a21e10050ca28bdb9dd0b88df0 100644
+--- a/lib/antv-dagre/order/barycenter.js
++++ b/lib/antv-dagre/order/barycenter.js
+@@ -20,4 +20,3 @@ export const barycenter = (g, movable) => {
+         };
+     });
+ };
+\ No newline at end of file
+-//# sourceMappingURL=barycenter.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/build-layer-graph.js b/lib/antv-dagre/order/build-layer-graph.js
+index 591b70195ea01bc72850da1b3a8aec6bae9e4a0e..2b8235299ffaf13d5a129e02f29838862971b27d 100644
+--- a/lib/antv-dagre/order/build-layer-graph.js
++++ b/lib/antv-dagre/order/build-layer-graph.js
+@@ -89,4 +89,3 @@ const createRootNode = (g) => {
+         ;
+     return v;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=build-layer-graph.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/cross-count.js b/lib/antv-dagre/order/cross-count.js
+index 0948f18ae0becc67819ef7d33b0f9b600080d796..aedc369d105eee39ff16234055e20b19ea5d6b5b 100644
+--- a/lib/antv-dagre/order/cross-count.js
++++ b/lib/antv-dagre/order/cross-count.js
+@@ -60,4 +60,3 @@ export const crossCount = (g, layering) => {
+     }
+     return cc;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=cross-count.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/index.js b/lib/antv-dagre/order/index.js
+index f062dda379b7c8a6a9f4bfcff789a12d83d8dbaa..5a85650880fd7684e38a68829041d65bf1aa038b 100644
+--- a/lib/antv-dagre/order/index.js
++++ b/lib/antv-dagre/order/index.js
+@@ -88,4 +88,3 @@ const assignOrder = (g, layering) => {
+         });
+     });
+ };
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/init-data-order.js b/lib/antv-dagre/order/init-data-order.js
+index 4ca3499685ad1f00d8cfcec70da68b15af581397..a5ccbf037b0e1f09bd863bd55f014b5c508c812f 100644
+--- a/lib/antv-dagre/order/init-data-order.js
++++ b/lib/antv-dagre/order/init-data-order.js
+@@ -24,4 +24,3 @@ export const initDataOrder = (g, nodeOrder) => {
+         }
+     });
+ };
+\ No newline at end of file
+-//# sourceMappingURL=init-data-order.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/init-order.js b/lib/antv-dagre/order/init-order.js
+index 3ef8cbad7151c759bf72b2fabb47c65af5d53299..af212e55b78f9de65973200204c9dfc43bc9eeca 100644
+--- a/lib/antv-dagre/order/init-order.js
++++ b/lib/antv-dagre/order/init-order.js
+@@ -44,4 +44,3 @@ export const initOrder = (g) => {
+     }));
+     return layers;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=init-order.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/resolve-conflicts.js b/lib/antv-dagre/order/resolve-conflicts.js
+index 60833ddf999bd0a4d328a6630f504ec8d841e138..f205100ebd19b491b077109ef8974d2824c0e903 100644
+--- a/lib/antv-dagre/order/resolve-conflicts.js
++++ b/lib/antv-dagre/order/resolve-conflicts.js
+@@ -115,4 +115,3 @@ const mergeEntries = (target, source) => {
+     source.merged = true;
+ };
+ export default resolveConflicts;
+\ No newline at end of file
+-//# sourceMappingURL=resolve-conflicts.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/sort-subgraph.js b/lib/antv-dagre/order/sort-subgraph.js
+index 51f27a2f5e26584bc3514f0212aa0ad5123ff0bb..1a91aaccf4502b35fc1891609348521b8ef44bcc 100644
+--- a/lib/antv-dagre/order/sort-subgraph.js
++++ b/lib/antv-dagre/order/sort-subgraph.js
+@@ -81,4 +81,3 @@ const mergeBarycenters = (target, other) => {
+         target.weight = other.weight;
+     }
+ };
+\ No newline at end of file
+-//# sourceMappingURL=sort-subgraph.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/order/sort.js b/lib/antv-dagre/order/sort.js
+index 4897a7b1bf37a469a7540734136b93cda26f84ba..880159efd21953d90a079dbb383420a5ce493471 100644
+--- a/lib/antv-dagre/order/sort.js
++++ b/lib/antv-dagre/order/sort.js
+@@ -71,4 +71,3 @@ const compareWithBias = (bias, usePrev) => {
+         return !bias ? entryV.i - entryW.i : entryW.i - entryV.i;
+     };
+ };
+\ No newline at end of file
+-//# sourceMappingURL=sort.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/parent-dummy-chains.js b/lib/antv-dagre/parent-dummy-chains.js
+index dff44b5fb838aa3eb762a1b0a2ac189b2d0ea212..e8f0fa773b6538c444f4d36861829562b3f731d9 100644
+--- a/lib/antv-dagre/parent-dummy-chains.js
++++ b/lib/antv-dagre/parent-dummy-chains.js
+@@ -77,4 +77,3 @@ export const parentDummyChains = (g, dummyChains) => {
+         }
+     });
+ };
+\ No newline at end of file
+-//# sourceMappingURL=parent-dummy-chains.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/position/bk.js b/lib/antv-dagre/position/bk.js
+index 222251491b8fcf42f69526c457c379ed408fbf2a..07239172f5f3fea45a89c9837be6eb54e17ffee7 100644
+--- a/lib/antv-dagre/position/bk.js
++++ b/lib/antv-dagre/position/bk.js
+@@ -392,4 +392,3 @@ export const sep = (nodeSep, edgeSep, reverseSep) => {
+     };
+ };
+ export const width = (g, v) => g.getNode(v).data.width || 0;
+\ No newline at end of file
+-//# sourceMappingURL=bk.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/position/index.js b/lib/antv-dagre/position/index.js
+index bb7c776db4ab969e34f0290890b0effff382c2b4..adf95441b441bca9ba2037f098d489d3a5a4f92c 100644
+--- a/lib/antv-dagre/position/index.js
++++ b/lib/antv-dagre/position/index.js
+@@ -48,4 +48,3 @@ export const position = (g, options) => {
+         ng.getNode(key).data.x = xs[key];
+     });
+ };
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/rank/feasible-tree.js b/lib/antv-dagre/rank/feasible-tree.js
+index e4e89a23b60820d745b9bf887845d0feed9295f5..432a96ea68003a05b84cefed4f48cc7a5799fc5b 100644
+--- a/lib/antv-dagre/rank/feasible-tree.js
++++ b/lib/antv-dagre/rank/feasible-tree.js
+@@ -161,4 +161,3 @@ const shiftRanks = (t, g, delta) => {
+     });
+ };
+ export { feasibleTree, feasibleTreeWithLayer };
+\ No newline at end of file
+-//# sourceMappingURL=feasible-tree.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/rank/index.js b/lib/antv-dagre/rank/index.js
+index 2168c8fafe8ed96db93907029301e5fc55d2c95f..a4dd9299e35a0bb82d923aabb21d3c60be881cab 100644
+--- a/lib/antv-dagre/rank/index.js
++++ b/lib/antv-dagre/rank/index.js
+@@ -45,4 +45,3 @@ const tightTreeRanker = (g) => {
+ const networkSimplexRanker = (g) => {
+     networkSimplex(g);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/rank/network-simplex.js b/lib/antv-dagre/rank/network-simplex.js
+index 5c45302e787cc7c9c2c26199babfe74a7e87c499..7ceba277892a1f2674b743850bba0ed56d87dbad 100644
+--- a/lib/antv-dagre/rank/network-simplex.js
++++ b/lib/antv-dagre/rank/network-simplex.js
+@@ -228,4 +228,3 @@ const isDescendant = (vLabel, rootLabel) => {
+     return (rootLabel.data.low <= vLabel.data.lim &&
+         vLabel.data.lim <= rootLabel.data.lim);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=network-simplex.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/rank/util.js b/lib/antv-dagre/rank/util.js
+index bf9e75d726cb3fe5e5e59709566e0ea99d463544..3d4e4e52b42401bedc2d01094632e2463c96d1a5 100644
+--- a/lib/antv-dagre/rank/util.js
++++ b/lib/antv-dagre/rank/util.js
+@@ -135,4 +135,3 @@ const slack = (g, e) => {
+         e.data.minlen);
+ };
+ export { longestPath, longestPathWithLayer, slack };
+\ No newline at end of file
+-//# sourceMappingURL=util.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/types.js b/lib/antv-dagre/types.js
+index 718fd38ae40c67ea23b242517cf9919f602c5a3e..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/lib/antv-dagre/types.js
++++ b/lib/antv-dagre/types.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre/util.js b/lib/antv-dagre/util.js
+index d3eb55c8f652b70d45e869e7ad5f17ba9f49a8ea..7293c0f429902a794e0f32b0558a178de23f96a8 100644
+--- a/lib/antv-dagre/util.js
++++ b/lib/antv-dagre/util.js
+@@ -278,4 +278,3 @@ export const dfs = (graph, node, order, isDirected) => {
+     });
+     return results;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=util.js.map
+\ No newline at end of file
+diff --git a/lib/antv-dagre.js b/lib/antv-dagre.js
+index c20d3f7988e557405ae5e1e2f429e68c750e1347..03cbbd17bc0a2b7c627f5fb3cd05c66bdf3cb63d 100644
+--- a/lib/antv-dagre.js
++++ b/lib/antv-dagre.js
+@@ -523,4 +523,3 @@ const getControlPoints = (points, sourceNode, targetNode, layerCoordsArr, isHori
+     }
+     return controlPoints;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=antv-dagre.js.map
+\ No newline at end of file
+diff --git a/lib/bundle-entry.js b/lib/bundle-entry.js
+index 42fc67477a907ff571f0ee6ce7d7349277a5af62..33a94db6479ab1c2c426185139f54ecd1a039727 100644
+--- a/lib/bundle-entry.js
++++ b/lib/bundle-entry.js
+@@ -1,3 +1,2 @@
+ export * from './bundle-supervisor';
+ export * from './exports';
+\ No newline at end of file
+-//# sourceMappingURL=bundle-entry.js.map
+\ No newline at end of file
+diff --git a/lib/bundle-supervisor.js b/lib/bundle-supervisor.js
+index 79cb8ebd2c1c9b850b10c6656f171ba1425cb5a4..50cea5f088fbd4ae8d9f2d68e4db340e1d739ee4 100644
+--- a/lib/bundle-supervisor.js
++++ b/lib/bundle-supervisor.js
+@@ -92,4 +92,3 @@ export class Supervisor extends EventEmitter {
+         return this.running;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=bundle-supervisor.js.map
+\ No newline at end of file
+diff --git a/lib/bundle-worker.js b/lib/bundle-worker.js
+index 6603c17eec6d6a8d77688fbb7303ccdfd2a3defe..bd0e37ea299944661a585c98115dfecd5199d4e8 100644
+--- a/lib/bundle-worker.js
++++ b/lib/bundle-worker.js
+@@ -48,4 +48,3 @@ export function calculateLayout(payload, transferables) {
+         return [positions, transferables];
+     });
+ }
+\ No newline at end of file
+-//# sourceMappingURL=bundle-worker.js.map
+\ No newline at end of file
+diff --git a/lib/circular.js b/lib/circular.js
+index 25979113500365efe0aa211e6506ebfd971397a4..77a333553eeaa4ab0a2ef8343688e8a6755c0c99 100644
+--- a/lib/circular.js
++++ b/lib/circular.js
+@@ -229,4 +229,3 @@ const calculateCenter = (width, height, center) => {
+     }
+     return [calculatedWidth, calculatedHeight, calculatedCenter];
+ };
+\ No newline at end of file
+-//# sourceMappingURL=circular.js.map
+\ No newline at end of file
+diff --git a/lib/combo-combined.js b/lib/combo-combined.js
+index edd639d53f5422bd064b1ce5b19d2b32e284024d..d2a97348498f51fb944df1abc99bb4d6eeb199ce 100644
+--- a/lib/combo-combined.js
++++ b/lib/combo-combined.js
+@@ -412,4 +412,3 @@ function executeLayout(layout, graph, options, assign) {
+         return yield layout.execute(graph, options);
+     });
+ }
+\ No newline at end of file
+-//# sourceMappingURL=combo-combined.js.map
+\ No newline at end of file
+diff --git a/lib/concentric.js b/lib/concentric.js
+index b04f44fcc9c0fd3ece95611dc29573431ef001c0..5a10ad399e61b881af7439bb1064d8fda6db222e 100644
+--- a/lib/concentric.js
++++ b/lib/concentric.js
+@@ -207,4 +207,3 @@ export class ConcentricLayout {
+         });
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=concentric.js.map
+\ No newline at end of file
+diff --git a/lib/d3-force/index.js b/lib/d3-force/index.js
+index 86bef9a2311e04f58bf1fa4720f387c561d38db0..734dd558cfb3b46f8c21c095f426f3812eff43f1 100644
+--- a/lib/d3-force/index.js
++++ b/lib/d3-force/index.js
+@@ -170,4 +170,3 @@ const apply = (target, params) => {
+         return acc[method].call(target, param);
+     }, target);
+ };
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/d3-force/types.js b/lib/d3-force/types.js
+index 718fd38ae40c67ea23b242517cf9919f602c5a3e..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/lib/d3-force/types.js
++++ b/lib/d3-force/types.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/d3-force-3d/index.js b/lib/d3-force-3d/index.js
+index 6c5f60a1c5ad778b839c96db5673410a3ed66b5a..3e92eb54e648395ef48260a8925a21662ca93b4f 100644
+--- a/lib/d3-force-3d/index.js
++++ b/lib/d3-force-3d/index.js
+@@ -44,4 +44,3 @@ export class D3Force3DLayout extends D3ForceLayout {
+         return forceSimulation();
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/d3-force-3d/types.js b/lib/d3-force-3d/types.js
+index 718fd38ae40c67ea23b242517cf9919f602c5a3e..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/lib/d3-force-3d/types.js
++++ b/lib/d3-force-3d/types.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/dagre.js b/lib/dagre.js
+index 621110c481f01cc3911ee1a135634067c1350c29..67b7baf0c2a4685715e6e8d09236fb9e16b2a060 100644
+--- a/lib/dagre.js
++++ b/lib/dagre.js
+@@ -66,4 +66,3 @@ export class DagreLayout {
+     }
+ }
+ DagreLayout.defaultOptions = {};
+\ No newline at end of file
+-//# sourceMappingURL=dagre.js.map
+\ No newline at end of file
+diff --git a/lib/exports.js b/lib/exports.js
+index 5e795e689453ed68b17094021829845a59d69171..c5e07adfc38789efd8fbdbb6f109c44266a69dc9 100644
+--- a/lib/exports.js
++++ b/lib/exports.js
+@@ -15,4 +15,3 @@ export * from './random';
+ export * from './registry';
+ export * from './types';
+ export * from './util';
+\ No newline at end of file
+-//# sourceMappingURL=exports.js.map
+\ No newline at end of file
+diff --git a/lib/force/force-n-body.js b/lib/force/force-n-body.js
+index 3f237fd8448f9287e8469f71e672a5d43c51fb22..407490b8190a8356460b9aede5418e6ff2d60352 100644
+--- a/lib/force/force-n-body.js
++++ b/lib/force/force-n-body.js
+@@ -117,4 +117,3 @@ function computeForce(node, tree, dimensions) {
+     // @ts-ignore
+     tree.visit((treeNode, x1, y1, x2, y2) => apply(treeNode, x1, y1, x2, y2, node, dimensions));
+ }
+\ No newline at end of file
+-//# sourceMappingURL=force-n-body.js.map
+\ No newline at end of file
+diff --git a/lib/force/index.js b/lib/force/index.js
+index 3d3b846078eccb0e0fa39678dd50b48b8fa224fc..e4744f72252a5164d91a23185557d5fbee271084 100644
+--- a/lib/force/index.js
++++ b/lib/force/index.js
+@@ -736,4 +736,3 @@ const formatOutNodes = (graph, layoutNodes) => layoutNodes.map((calcNode) => {
+     const node = graph.getNode(id);
+     return Object.assign(Object.assign({}, node), { data: Object.assign(Object.assign({}, node.data), { x: data.x, y: data.y, z: data.z }) });
+ });
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/force/types.js b/lib/force/types.js
+index 718fd38ae40c67ea23b242517cf9919f602c5a3e..8cec2e9ced0d3575a0f7b97c7396d5bcefe0ea5e 100644
+--- a/lib/force/types.js
++++ b/lib/force/types.js
+@@ -1,2 +1 @@
+ export {};
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/force-atlas2/body.js b/lib/force-atlas2/body.js
+index 14b02433189b4f20e74aaa8c543686446668316c..8331eee1cd64047eae4d898886b9da4fe24e602a 100644
+--- a/lib/force-atlas2/body.js
++++ b/lib/force-atlas2/body.js
+@@ -86,4 +86,3 @@ export default class Body {
+         return new Body(params);
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=body.js.map
+\ No newline at end of file
+diff --git a/lib/force-atlas2/index.js b/lib/force-atlas2/index.js
+index 7f2830e5cc48444231ae99836994e41795a0c00d..f21e6c6bba94a64804c5c4547712ffb50eafd7c6 100644
+--- a/lib/force-atlas2/index.js
++++ b/lib/force-atlas2/index.js
+@@ -507,4 +507,3 @@ export class ForceAtlas2Layout {
+         return usingSg;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/force-atlas2/quad-tree.js b/lib/force-atlas2/quad-tree.js
+index 3a23f8b3ab0660fbe9b8e02950ef03d87cf0d8f6..685d553bd5d91aec8e2a503f3daa7293f485486f 100644
+--- a/lib/force-atlas2/quad-tree.js
++++ b/lib/force-atlas2/quad-tree.js
+@@ -101,4 +101,3 @@ export default class QuadTree {
+         }
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=quad-tree.js.map
+\ No newline at end of file
+diff --git a/lib/force-atlas2/quad.js b/lib/force-atlas2/quad.js
+index fb14bf4086f61f3a8798644c7c9934aebaacc354..28cfcc163d0585ee879e08c48e018c1f24eb67ca 100644
+--- a/lib/force-atlas2/quad.js
++++ b/lib/force-atlas2/quad.js
+@@ -93,4 +93,3 @@ export default class Quad {
+         return SE;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=quad.js.map
+\ No newline at end of file
+diff --git a/lib/fruchterman.js b/lib/fruchterman.js
+index 52761d02bdb9c437e7245ed550991b57ca291753..aed11a800997c3a3934bf6a5f698b1d866601cf6 100644
+--- a/lib/fruchterman.js
++++ b/lib/fruchterman.js
+@@ -343,4 +343,3 @@ export class FruchtermanLayout {
+         });
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=fruchterman.js.map
+\ No newline at end of file
+diff --git a/lib/grid.js b/lib/grid.js
+index 1fd012368e27ddbd4a6c4a160451dd7a44ad9b2c..f452e6ee35b6c0a3c6faf5fbf670038688aa7fa1 100644
+--- a/lib/grid.js
++++ b/lib/grid.js
+@@ -276,4 +276,3 @@ const getPos = (node, begin, cellWidth, cellHeight, id2manPos, rcs, rc, cellUsed
+     node.data.x = x;
+     node.data.y = y;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=grid.js.map
+\ No newline at end of file
+diff --git a/lib/index.js b/lib/index.js
+index 1bfb49d7baffce274eeaa96b52704ebf83df2f49..aec23c6f761a9dada2637068b0b10e12a8b40381 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -1,3 +1,2 @@
+ export * from './exports';
+ export * from './supervisor';
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/mds.js b/lib/mds.js
+index e3ffdbabf9dfd121d48eedbe9b1c81ae9aacf21a..ea6b878989cee52cbeef8dad4c1bd18525c44347 100644
+--- a/lib/mds.js
++++ b/lib/mds.js
+@@ -114,4 +114,3 @@ const runMDS = (distances) => {
+             .splice(0, dimension);
+     });
+ };
+\ No newline at end of file
+-//# sourceMappingURL=mds.js.map
+\ No newline at end of file
+diff --git a/lib/radial/index.js b/lib/radial/index.js
+index 55b0dfa9c07c65650a219037f37078cc47c70ed4..f1578a96a24d8d1500ab1c9e5bc28388bbffb167 100644
+--- a/lib/radial/index.js
++++ b/lib/radial/index.js
+@@ -335,4 +335,3 @@ const maxToFocus = (matrix, focusIndex) => {
+     }
+     return max;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/radial/mds.js b/lib/radial/mds.js
+index 334a2e344bb7fd36487ea1829f0b40639b0f8532..fb2aa23993ae1613597848badf277c9f52338047 100644
+--- a/lib/radial/mds.js
++++ b/lib/radial/mds.js
+@@ -28,4 +28,3 @@ export const mds = (dimension, distances, linkDistance) => {
+         return res;
+     }
+ };
+\ No newline at end of file
+-//# sourceMappingURL=mds.js.map
+\ No newline at end of file
+diff --git a/lib/radial/radial-nonoverlap-force.js b/lib/radial/radial-nonoverlap-force.js
+index ee18f8571fb0805d184a350398fcaf7857dbe519..935e0f9e5744094ee688da6c317e919cf8c38345 100644
+--- a/lib/radial/radial-nonoverlap-force.js
++++ b/lib/radial/radial-nonoverlap-force.js
+@@ -96,4 +96,3 @@ const updatePositions = (positions, disp, speed, strictRadial, focusIdx, maxDisp
+     });
+     return positions;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=radial-nonoverlap-force.js.map
+\ No newline at end of file
+diff --git a/lib/random.js b/lib/random.js
+index 072602238da5e48d6417529b4eb3eb896069b614..9def3ff867db83fcb992304daf1465175e316ce4 100644
+--- a/lib/random.js
++++ b/lib/random.js
+@@ -72,4 +72,3 @@ export class RandomLayout {
+         });
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=random.js.map
+\ No newline at end of file
+diff --git a/lib/registry.js b/lib/registry.js
+index 7c3f59501c23d2bb0cb170e585ad689ba1464ad9..4f4f1927bb0840f11f538cde8bc4257da81ced17 100644
+--- a/lib/registry.js
++++ b/lib/registry.js
+@@ -28,4 +28,3 @@ export const registry = {
+     antvDagre: AntVDagreLayout,
+     comboCombined: ComboCombinedLayout,
+ };
+\ No newline at end of file
+-//# sourceMappingURL=registry.js.map
+\ No newline at end of file
+diff --git a/lib/supervisor.js b/lib/supervisor.js
+index 57f82605d04c578632ecda15113169ea26abd5a4..8042a7cc35797184915d517e93b737340c11fef2 100644
+--- a/lib/supervisor.js
++++ b/lib/supervisor.js
+@@ -88,4 +88,3 @@ export class Supervisor extends EventEmitter {
+         return this.running;
+     }
+ }
+\ No newline at end of file
+-//# sourceMappingURL=supervisor.js.map
+\ No newline at end of file
+diff --git a/lib/types.js b/lib/types.js
+index 5ca53374468bee85b5d08058bcc6ad99bcd32ebb..b44d242520b15b17c8ceab68f3b3784ea3cb584a 100644
+--- a/lib/types.js
++++ b/lib/types.js
+@@ -1,4 +1,3 @@
+ export function isLayoutWithIterations(layout) {
+     return !!layout.tick && !!layout.stop;
+ }
+\ No newline at end of file
+-//# sourceMappingURL=types.js.map
+\ No newline at end of file
+diff --git a/lib/util/array.js b/lib/util/array.js
+index f51beb342da6b611a29bde657433f04752c66ad9..277facdd021af68289898a87d5255129126fd5b0 100644
+--- a/lib/util/array.js
++++ b/lib/util/array.js
+@@ -1,2 +1 @@
+ export const isArray = Array.isArray;
+\ No newline at end of file
+-//# sourceMappingURL=array.js.map
+\ No newline at end of file
+diff --git a/lib/util/common.js b/lib/util/common.js
+index 1bae1807ff3fcab3ce02cfa3dca5a2c09e21d3c6..65b4480d502cea2a53761760920087717d05d0e0 100644
+--- a/lib/util/common.js
++++ b/lib/util/common.js
+@@ -28,4 +28,3 @@ export const handleSingleNodeGraph = (graph, assign, center) => {
+         return result;
+     }
+ };
+\ No newline at end of file
+-//# sourceMappingURL=common.js.map
+\ No newline at end of file
+diff --git a/lib/util/function.js b/lib/util/function.js
+index 57898a684010191ab015c9f3f99cb65ca4b6e8e0..f0ea9c0b51e6c0d24054da0532d34990b13d832d 100644
+--- a/lib/util/function.js
++++ b/lib/util/function.js
+@@ -108,4 +108,3 @@ export const formatNodeSizeToNumber = (nodeSize, nodeSpacing, defaultNodeSize =
+     };
+     return func;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=function.js.map
+\ No newline at end of file
+diff --git a/lib/util/index.js b/lib/util/index.js
+index 1748a16d4eed60b450f36133ad261724555b978f..dc6c7493f7346498137224f89a8a698a0ee9b3a8 100644
+--- a/lib/util/index.js
++++ b/lib/util/index.js
+@@ -2,4 +2,3 @@ export * from "./array";
+ export * from "./math";
+ export * from "./object";
+ export * from "./function";
+\ No newline at end of file
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/util/math.js b/lib/util/math.js
+index c0cc24f956015c82233b64f3ebc97834f49cc2a2..ee70f4735100cb94ecbf8442fb0e1ba13dec97fe 100644
+--- a/lib/util/math.js
++++ b/lib/util/math.js
+@@ -146,4 +146,3 @@ export const graphTreeDfs = (graph, nodes, fn, mode = 'TB', treeKey, stopFns = {
+             fn(node); // Traverse from bottom to top
+     }
+ };
+\ No newline at end of file
+-//# sourceMappingURL=math.js.map
+\ No newline at end of file
+diff --git a/lib/util/object.js b/lib/util/object.js
+index 50c9e965df135208f4a9a390029b6308dab0a65b..661d41ed32b0e11c512636784783e04a16a1bf81 100644
+--- a/lib/util/object.js
++++ b/lib/util/object.js
+@@ -39,4 +39,3 @@ export const cloneFormatData = (target, initRange) => {
+     }
+     return cloned;
+ };
+\ No newline at end of file
+-//# sourceMappingURL=object.js.map
+\ No newline at end of file
+diff --git a/lib/util/size.js b/lib/util/size.js
+index 45a528c8f46c1ec8d0f1e0bd962b4bf42671635d..2a8555b257fa90f860e3652f9ba222782f4673b3 100644
+--- a/lib/util/size.js
++++ b/lib/util/size.js
+@@ -9,4 +9,3 @@ export function parseSize(size) {
+     const [x, y = x, z = x] = size;
+     return [x, y, z];
+ }
+\ No newline at end of file
+-//# sourceMappingURL=size.js.map
+\ No newline at end of file
+diff --git a/lib/worker.js b/lib/worker.js
+index 3ea94b1927ce96af4d0cc8e13cecf4dfcaa05d75..6588ca3772f6d1b679316edda8f42075ac1a5786 100644
+--- a/lib/worker.js
++++ b/lib/worker.js
+@@ -41,4 +41,3 @@ const obj = {
+     },
+ };
+ Comlink.expose(obj);
+\ No newline at end of file
+-//# sourceMappingURL=worker.js.map

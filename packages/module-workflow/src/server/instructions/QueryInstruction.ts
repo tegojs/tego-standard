@@ -2,10 +2,14 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, parseCollectionName, utils } from '@teg
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 
+/**
+ * Runs the query instruction workflow instruction.
+ */
 export class QueryInstruction extends Instruction {
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, multiple, isTree, params = {}, failOnEmpty = false } = node.config;
@@ -18,9 +22,17 @@ export class QueryInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    if (!dataSource) {
+      throw new Error(`data source ${dataSourceName} for query data on query node not found`);
+    }
+
+    const targetCollection = dataSource.collectionManager.getCollection(collectionName);
+    if (!targetCollection?.repository) {
+      throw new Error(`collection ${collectionName} repository for query data on query node not found`);
+    }
+
+    const { repository } = targetCollection;
     const { page, pageSize, sort = [], paginate = true, ...options } = processor.getParsedValue(params, node.id);
 
     const appends = options.appends
@@ -34,7 +46,8 @@ export class QueryInstruction extends Instruction {
       : options.appends;
 
     let pageArgs = paginate ? utils.pageArgsToLimitArgs(page || DEFAULT_PAGE, pageSize || DEFAULT_PER_PAGE) : {};
-    const result = await (multiple ? repository.find : repository.findOne).call(repository, {
+    const repositoryContext = processor.getRepositoryContext();
+    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'list', {
       ...options,
       ...otherOptions,
       ...pageArgs,
@@ -42,6 +55,10 @@ export class QueryInstruction extends Instruction {
         .filter((item) => item.field)
         .map((item) => `${item.direction?.toLowerCase() === 'desc' ? '-' : ''}${item.field}`),
       appends,
+    });
+    const result = await (multiple ? repository.find : repository.findOne).call(repository, {
+      ...repositoryOptions,
+      context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
 

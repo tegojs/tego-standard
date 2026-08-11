@@ -43,6 +43,11 @@ This document provides comprehensive security guidelines for the Tego project.
    - Validate and sanitize all input / 验证和清理所有输入
    - Use parameterized queries / 使用参数化查询
 
+5. **Never Trust Client-Supplied Context / 永远不要信任客户端传入的上下文**
+   - Treat headers and action params that select scope, role, data boundary, workspace, or impersonation context as untrusted input / 将用于选择范围、角色、数据边界、工作区或代入上下文的请求头和 action 参数视为不可信输入
+   - Resolve privileged context from authenticated server-side state, memberships, ACL, and explicit allowlists / 必须通过服务端认证态、成员关系、ACL 和明确白名单解析特权上下文
+   - Log or emit security events when forged privileged context is rejected or stripped / 拒绝或清理伪造特权上下文时，应记录日志或发出安全事件
+
 ## Data Protection / 数据保护
 
 ### Sensitive Data / 敏感数据
@@ -94,6 +99,33 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 ```
+
+### Privileged Context Headers / 特权上下文请求头
+
+```typescript
+// ✅ Good / 好的 - Resolve against server-side permissions / 基于服务端权限解析
+const requestedScope = ctx.get('x-context-scope');
+const allowedScopes = await getAllowedScopes(ctx.state.currentUser.id);
+
+if (requestedScope && !allowedScopes.includes(requestedScope)) {
+  ctx.app.emit('security:violation', {
+    type: 'invalid_context_attempt',
+    userId: ctx.state.currentUser.id,
+    requestedScope,
+    path: ctx.path,
+  });
+  ctx.throw(403);
+}
+```
+
+### Raw SQL and Preview Guards / 原始 SQL 与预览守卫
+
+- For security-sensitive SQL read-only checks, prefer a parser or AST-based validation over regex or hand-written quote/comment scanners.
+- 对安全敏感的 SQL 只读校验，优先使用 parser 或 AST 校验，不要依赖正则或手写引号/注释扫描。
+- Reject multi-statement input and write-capable statement types. Do not treat function names such as `replace()` as write operations unless the parser identifies a write statement.
+- 拒绝多语句输入和可写语句类型。不要因为函数名（如 `replace()`）与写入关键字同名就误判，除非 parser 识别为写入语句。
+- Permission checks for raw SQL, views, and other bypass-style data paths must be explicit and audited because framework-level filters may not apply.
+- 原始 SQL、视图和其他旁路式数据路径的权限检查必须显式且可审计，因为框架级过滤不一定会生效。
 
 ### CORS Configuration / CORS 配置
 

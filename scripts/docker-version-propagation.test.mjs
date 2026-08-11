@@ -29,4 +29,17 @@ describe('docker version propagation', () => {
     expect(dockerfile).toContain('RUN pnpm build:p');
     expect(dockerfile).toContain('RUN rm -rf /app/.git');
   });
+
+  test.each([
+    ['docker', 'tego-nightly', 'Dockerfile'],
+    ['docker', 'tego-all', 'Dockerfile'],
+  ])('%s/%s/%s copies pnpm patches before dependency install', (...segments) => {
+    const dockerfile = readRepoFile(...segments);
+    const copyPatchesIndex = dockerfile.indexOf('cp -R /context/patches /app/patches');
+    const installIndex = dockerfile.indexOf('pnpm install --shamefully-hoist');
+
+    expect(copyPatchesIndex).toBeGreaterThanOrEqual(0);
+    expect(installIndex).toBeGreaterThanOrEqual(0);
+    expect(copyPatchesIndex).toBeLessThan(installIndex);
+  });
 });

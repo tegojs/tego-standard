@@ -1,4 +1,5 @@
 import { Processor } from '../../..';
+import { applyTenantFilterToContext } from '../../../helpers/tenant-context';
 import ManualInstruction from '../ManualInstruction';
 
 export default async function (
@@ -7,24 +8,35 @@ export default async function (
   { dataSource = 'main', collection },
   processor: Processor,
 ) {
-  const repo = this.workflow.app.dataSourceManager.dataSources
-    .get(dataSource)
-    .collectionManager.getRepository(collection);
-  if (!repo) {
+  const ds = this.workflow.app.dataSourceManager.dataSources.get(dataSource);
+  if (!ds) {
+    throw new Error(`data source ${dataSource} for create data on manual node not found`);
+  }
+  const c = ds.collectionManager.getCollection(collection);
+  if (!c) {
     throw new Error(`collection ${collection} for create data on manual node not found`);
+  }
+  const repo = c.repository;
+  if (!repo) {
+    throw new Error(`repository for collection ${collection} on manual node not found`);
   }
 
   const { _, ...form } = instance.result;
   const [values] = Object.values(form);
-  await repo.create({
+  const repositoryContext = {
+    ...processor.getRepositoryContext(),
+    executionId: processor.execution.id,
+  };
+  const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'create', {
     values: {
-      ...((values as { [key: string]: any }) ?? {}),
+      ...(values as { [key: string]: any }),
       createdBy: instance.userId,
       updatedBy: instance.userId,
     },
-    context: {
-      executionId: processor.execution.id,
-    },
+  });
+  await repo.create({
+    ...repositoryOptions,
+    context: repositoryContext,
     transaction: processor.transaction,
   });
 }

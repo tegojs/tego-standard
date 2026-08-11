@@ -22,6 +22,73 @@ function readErrorProperty(error: object, property: 'name' | 'message' | 'stack'
   }
 }
 
+const USER_FILTER_ARRAY_OPERATORS = new Set([
+  '$match',
+  '$notMatch',
+  '$anyOf',
+  '$noneOf',
+  '$childIn',
+  '$childNotIn',
+  '$dateBetween',
+  '$in',
+  '$notIn',
+]);
+
+function getNoMatchUserFilter() {
+  return { id: { $in: [] } };
+}
+
+function hasInvalidUserFilterValue(value: unknown): boolean {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => item == null || hasInvalidUserFilterValue(item));
+  }
+
+  if (!value || typeof value !== 'object' || value instanceof Date) {
+    return false;
+  }
+
+  return Object.entries(value).some(([key, nestedValue]) => {
+    if (nestedValue === undefined) {
+      return true;
+    }
+
+    if (USER_FILTER_ARRAY_OPERATORS.has(key)) {
+      return !Array.isArray(nestedValue) || nestedValue.some((item) => item == null || hasInvalidUserFilterValue(item));
+    }
+
+    return hasInvalidUserFilterValue(nestedValue);
+  });
+}
+
+/**
+ * Query assignees only support a user filter. Keep persisted UI values from
+ * leaking repository options such as stale appends, sort, or fields into the
+ * users query, and reject unresolved filter values without broadening the
+ * query to all users.
+ */
+export function getUserQueryOptions(value: unknown): { filter: Record<string, any> } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const filter = (value as { filter?: unknown }).filter;
+  if (filter == null) {
+    return { filter: {} };
+  }
+
+  if (typeof filter !== 'object' || Array.isArray(filter) || hasInvalidUserFilterValue(filter)) {
+    return { filter: getNoMatchUserFilter() };
+  }
+
+  return {
+    filter: filter as Record<string, any>,
+  };
+}
+
 export function serializeError(error: unknown) {
   if (error && typeof error === 'object') {
     const name = readErrorProperty(error, 'name');
@@ -50,14 +117,15 @@ async function parsePerson({ node, processor, keyName }) {
   const targetPerson = new Set();
   const UserRepo = processor.options.plugin.app.db.getRepository('users');
   for (const item of configPerson) {
-    if (typeof item === 'object') {
+    const queryOptions = getUserQueryOptions(item);
+    if (queryOptions) {
       const users = await UserRepo.find({
-        ...item,
+        ...queryOptions,
         fields: ['id'],
         transaction: processor.transaction,
       });
       users.forEach((userData) => targetPerson.add(userData.id));
-    } else {
+    } else if (typeof item !== 'object') {
       targetPerson.add(item);
     }
   }

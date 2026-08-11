@@ -1,6 +1,7 @@
 import { JOB_STATUS } from '@tachybase/module-workflow';
 
 import { APPROVAL_ACTION_STATUS } from '../constants/status';
+import { getUserQueryOptions } from '../tools';
 
 const NEGOTIATION_MODE = {
   SINGLE: Symbol('single'),
@@ -99,14 +100,15 @@ export async function parseAssignees(node, processor) {
   const assignees = new Set();
   const UserRepo = processor.options.plugin.app.db.getRepository('users');
   for (const item of configAssignees) {
-    if (typeof item === 'object') {
+    const queryOptions = getUserQueryOptions(item);
+    if (queryOptions) {
       const result = await UserRepo.find({
-        ...item,
+        ...queryOptions,
         fields: ['id'],
         transaction: processor.transaction,
       });
       result.forEach((item2) => assignees.add(item2.id));
-    } else {
+    } else if (typeof item !== 'object') {
       assignees.add(item);
     }
   }

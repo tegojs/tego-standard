@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.28] - 2026-08-11
+
+### 🐛 Fixed
+
+- **workflow-approval**: guard invalid assignee query filters (@TomyJan)
+
 ## [1.6.27] - 2026-08-11
 
 ### 🐛 Fixed
@@ -3086,7 +3092,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.27...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.28...HEAD
+[1.6.28]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.28
 [1.6.27]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.27
 [1.6.26]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.26
 [1.6.25]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.25

@@ -135,9 +135,20 @@ async function parsePerson({ node, processor, keyName }) {
 function getSummary(params: ParamsType): object {
   const { summaryConfig = [], data, collection, app } = params;
 
-  const summaryDataSource = getSummaryDataSource({ summaryConfig, data, collection, app });
+  const summaryDataSource = getSummaryDataSource({
+    summaryConfig: normalizeSummaryConfig(summaryConfig),
+    data,
+    collection,
+    app,
+  });
 
   return summaryDataSource;
+}
+
+function normalizeSummaryConfig(summaryConfig: unknown): string[] {
+  return Array.isArray(summaryConfig)
+    ? summaryConfig.filter((key): key is string => typeof key === 'string' && key.length > 0)
+    : [];
 }
 
 /**
@@ -152,7 +163,7 @@ function getSummaryAssociationAppends(
 ): string[] {
   const associationPaths = new Set<string>();
 
-  for (const key of summaryConfig) {
+  for (const key of normalizeSummaryConfig(summaryConfig)) {
     const segments = key.split('.').filter(Boolean);
     let currentCollection = collection;
     const path: string[] = [];
@@ -160,6 +171,11 @@ function getSummaryAssociationAppends(
     for (const segment of segments) {
       const field = currentCollection?.getField(segment);
       if (!field?.target) {
+        break;
+      }
+
+      const associations = (currentCollection as any)?.model?.associations;
+      if (associations && !associations[segment]) {
         break;
       }
 
@@ -182,11 +198,12 @@ function getWorkflowAppends(
   app?: Application,
 ): string[] {
   const config = workflowConfig ?? {};
+  const summary = normalizeSummaryConfig(config.summary);
   const explicitAppends = (Array.isArray(config.appends) ? config.appends : []).filter(
     (append): append is string =>
       typeof append === 'string' && getSummaryAssociationAppends([append], collection, app).includes(append),
   );
-  const summaryAppends = getSummaryAssociationAppends(config.summary ?? [], collection, app);
+  const summaryAppends = getSummaryAssociationAppends(summary, collection, app);
   return [...new Set([...explicitAppends, ...summaryAppends])];
 }
 

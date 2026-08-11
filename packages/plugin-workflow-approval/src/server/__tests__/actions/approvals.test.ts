@@ -10,6 +10,7 @@ import approvalRecordsCollection from '../../collections/approvalRecords';
 import approvalsCollection from '../../collections/approvals';
 import workflowsCollection from '../../collections/workflows';
 import { APPROVAL_STATUS } from '../../constants/status';
+import ApprovalInstruction from '../../instructions/Approval';
 import PluginWorkflowApproval from '../../plugin';
 import ApprovalTrigger from '../../triggers/Approval';
 
@@ -234,6 +235,52 @@ describe('workflow approval actions', () => {
     const approval = await db.getRepository('approvals').findOne({ filterByTk: approvalId });
     return approval;
   }
+
+  it('initiates an approval through a real approval instruction node', async () => {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: collectionName,
+        summary: ['amountA'],
+        appends: [],
+      },
+    });
+    const workflowPlugin = app.pm.get('workflow');
+    if (!workflowPlugin.instructions.get('approval')) {
+      workflowPlugin.instructions.register('approval', new ApprovalInstruction(workflowPlugin));
+    }
+    const node = await workflow.createNode({
+      type: 'approval',
+      config: {
+        assignees: [{ filter: { id: { $in: '{{$context.data.missingUserIds}}' } } }],
+        negotiation: 0,
+        order: false,
+        branchMode: false,
+        applyDetail: 'approval-detail',
+      },
+    });
+
+    const response = await agent.resource('approvals').create({
+      values: {
+        collectionName,
+        data: { amountA: 17, amountB: 0 },
+        status: APPROVAL_STATUS.SUBMITTED,
+        workflowId: workflow.id,
+        workflowKey: workflow.key,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await waitForFastAssertion(async () => {
+      const [execution] = await workflow.getExecutions();
+      expect(execution).toBeTruthy();
+      const jobs = await execution.getJobs({ filter: { nodeId: node.id } });
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].status).toBe(0);
+    });
+    await waitForWorkflowIdle(app);
+  });
 
   async function createApprovalInTransaction(
     transaction,

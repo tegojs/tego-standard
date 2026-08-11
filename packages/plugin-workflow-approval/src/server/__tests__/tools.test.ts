@@ -3,12 +3,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { parseAssignees } from '../instructions/tools';
 import { getSummaryAssociationAppends, getWorkflowAppends, parsePerson, serializeError } from '../tools';
 
-function createCollection(fields: Record<string, any>, targets: Record<string, any> = {}) {
+function createCollection(
+  fields: Record<string, any>,
+  targets: Record<string, any> = {},
+  associations?: Record<string, any>,
+) {
   return {
     getField: (name: string) => fields[name],
     db: {
       getCollection: (name: string) => targets[name],
     },
+    ...(associations ? { model: { associations } } : {}),
   } as any;
 }
 
@@ -122,6 +127,48 @@ describe('workflow appends', () => {
         {
           appends: ['owner.positions', 'owner', 'missing'],
           summary: [],
+        },
+        collection,
+      ),
+    ).toEqual(['owner']);
+  });
+
+  it('drops association paths missing from the current model even when metadata is stale', () => {
+    const positions = createCollection({ name: { type: 'string' } });
+    const users = createCollection(
+      {
+        positions: { type: 'belongsToMany', target: 'positions' },
+      },
+      { positions },
+      {},
+    );
+    const root = createCollection(
+      {
+        owner: { type: 'belongsTo', target: 'users' },
+      },
+      { users },
+      { owner: {} },
+    );
+
+    expect(
+      getWorkflowAppends(
+        {
+          appends: ['owner.positions'],
+          summary: ['owner.positions.name'],
+        },
+        root,
+      ),
+    ).toEqual(['owner']);
+  });
+
+  it('ignores malformed summary entries from persisted workflow configuration', () => {
+    const collection = createSummaryCollections();
+
+    expect(
+      getWorkflowAppends(
+        {
+          appends: [undefined, null, 'owner'] as any,
+          summary: [undefined, null, 'owner.name'] as any,
         },
         collection,
       ),

@@ -14,7 +14,7 @@ import { getRemoteCodeFetcher } from '../../utils/get-remote-code-fetcher';
 export class ScriptInstruction extends Instruction {
   async run(node: FlowNodeModel, input: any, processor: Processor) {
     const {
-      sourceArray,
+      sourceArray = [],
       type,
       code = '',
       model,

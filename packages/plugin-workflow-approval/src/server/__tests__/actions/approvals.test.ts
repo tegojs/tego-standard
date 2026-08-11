@@ -237,6 +237,7 @@ describe('workflow approval actions', () => {
   }
 
   it('initiates an approval through a real approval instruction node', async () => {
+    (app as any).messageManager = { sendMessage: vi.fn() };
     const workflow = await workflowModel.create({
       enabled: true,
       type: 'approval',
@@ -250,16 +251,25 @@ describe('workflow approval actions', () => {
     if (!workflowPlugin.instructions.get('approval')) {
       workflowPlugin.instructions.register('approval', new ApprovalInstruction(workflowPlugin));
     }
+    const mappingNode = await workflow.createNode({
+      type: 'data-mapping',
+      config: {
+        type: 'js',
+        code: 'ctx.body = { ok: true };',
+      },
+    });
     const node = await workflow.createNode({
       type: 'approval',
       config: {
-        assignees: [{ filter: { id: { $in: '{{$context.data.missingUserIds}}' } } }],
+        assignees: [currentUser.id],
         negotiation: 0,
         order: false,
         branchMode: false,
         applyDetail: 'approval-detail',
       },
+      upstreamId: mappingNode.id,
     });
+    await mappingNode.setDownstream(node);
 
     const response = await agent.resource('approvals').create({
       values: {
@@ -275,9 +285,23 @@ describe('workflow approval actions', () => {
     await waitForFastAssertion(async () => {
       const [execution] = await workflow.getExecutions();
       expect(execution).toBeTruthy();
-      const jobs = await execution.getJobs({ filter: { nodeId: node.id } });
-      expect(jobs).toHaveLength(1);
-      expect(jobs[0].status).toBe(0);
+      const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
+      expect(jobs).toHaveLength(2);
+      const mappingJob = jobs.find((job) => job.nodeId === mappingNode.id);
+      if (!mappingJob) {
+        throw new Error('data mapping job was not created');
+      }
+      expect(mappingJob.status).toBe(1);
+      const approvalJob = jobs.find((job) => job.nodeId === node.id);
+      if (!approvalJob) {
+        throw new Error('approval job was not created');
+      }
+      expect(approvalJob.status).toBe(0);
+      const approvalRecords = await db.getRepository('approvalRecords').find({
+        filter: { jobId: approvalJob.id },
+      });
+      expect(approvalRecords).toHaveLength(1);
+      expect(approvalRecords[0].userId).toBe(currentUser.id);
     });
     await waitForWorkflowIdle(app);
   });

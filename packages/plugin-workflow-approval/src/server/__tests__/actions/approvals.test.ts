@@ -1387,6 +1387,86 @@ describe('workflow approval actions', () => {
     expect(businessUpdate).not.toHaveBeenCalled();
   });
 
+  it('does not pass an external business transaction to the approval repository', async () => {
+    const approvalSequelize = {};
+    const businessSequelize = {};
+    const businessTransaction = { id: 'business-transaction', sequelize: businessSequelize };
+    const businessUpdate = vi.fn().mockResolvedValue([{ id: 'business-a', amountA: 18 }]);
+    const approvalUpdate = vi.fn().mockResolvedValue([{ id: 'approval-a' }]);
+    const approvalRepository = {
+      findOne: vi.fn().mockResolvedValue({
+        id: 'approval-a',
+        collectionName: `main:${collectionName}`,
+        dataKey: 'business-a',
+        data: { id: 'business-a', amountA: 9 },
+      }),
+      update: approvalUpdate,
+    };
+    const ctx: any = {
+      action: {
+        resourceName: 'approvals',
+        params: {
+          filterByTk: 'approval-a',
+          values: {
+            collectionName: `main:${collectionName}`,
+            data: { id: 'business-a', amountA: 18 },
+            status: APPROVAL_STATUS.SUBMITTED,
+          },
+        },
+        mergeParams(params) {
+          this.params = {
+            ...this.params,
+            ...params,
+            values: {
+              ...this.params.values,
+              ...params.values,
+            },
+          };
+        },
+      },
+      db: {
+        sequelize: approvalSequelize,
+        getRepository: vi.fn(() => approvalRepository),
+      },
+      tego: {
+        dataSourceManager: {
+          dataSources: new Map([
+            [
+              'main',
+              {
+                collectionManager: {
+                  getCollection: () => ({
+                    filterTargetKey: 'id',
+                    options: { tenancy: 'tenantScoped' },
+                    repository: { update: businessUpdate },
+                    model: { associations: {}, sequelize: businessSequelize },
+                    fields: [],
+                  }),
+                },
+              },
+            ],
+          ]),
+        },
+      },
+      state: {
+        currentTenant: { id: 'tenant-a' },
+        currentTenantId: 'tenant-a',
+        currentRole: 'root',
+      },
+      transaction: businessTransaction,
+      throw(errorStatus: number) {
+        const error: any = new Error(`HTTP ${errorStatus}`);
+        error.status = errorStatus;
+        throw error;
+      },
+    };
+
+    await approvalActions.update(ctx, vi.fn());
+
+    expect(businessUpdate).toHaveBeenCalledWith(expect.objectContaining({ transaction: businessTransaction }));
+    expect(approvalUpdate).toHaveBeenCalledWith(expect.objectContaining({ transaction: undefined }));
+  });
+
   it.each(['collection', 'record'])(
     'rejects an approval update that retargets the persisted business %s',
     async (retargetedPart) => {

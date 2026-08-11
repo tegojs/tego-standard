@@ -641,7 +641,7 @@ export const approvals = {
     const businessTransaction = ctx.transaction?.sequelize === businessSequelize ? ctx.transaction : undefined;
     await updateBusinessRecord(businessTransaction);
     prepareApprovalUpdate();
-    const updatedApproval = requireUpdatedRecord(ctx, await updateApprovalRecord(ctx, businessTransaction));
+    const updatedApproval = requireUpdatedRecord(ctx, await updateApprovalRecord(ctx, approvalTransaction));
     ctx.body = updatedApproval;
     ctx.status = 200;
     await next();

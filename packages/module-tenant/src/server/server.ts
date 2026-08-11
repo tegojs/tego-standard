@@ -21,6 +21,7 @@ export interface TenantPluginConfig {
 }
 
 const ASSOCIATION_TARGET_WRITE_ACTIONS = new Set(['add', 'remove', 'set', 'toggle', 'move']);
+const ROOT_ASSOCIATION_VALUE_ACTIONS = new Set(['create', 'update']);
 
 function getAssociationCollections(db: any, resourceName?: string) {
   const [sourceName, associationName] = resourceName?.split('.') || [];
@@ -50,15 +51,154 @@ function getAssociationTargetKeys(actionName: string, params: Record<string, any
     .filter((value) => value !== undefined && value !== null && value !== '');
 }
 
-async function assertTenantRecordAccess(ctx: any, collection: any, filterByTk: any, actionName: 'get' | 'update') {
+async function findTenantRecord(
+  ctx: any,
+  collection: any,
+  filterByTk: any,
+  actionName: 'get' | 'update',
+  filterKey?: string,
+) {
   const options = applyTenantFilterToContext(ctx, collection, actionName, {
-    filterByTk,
+    ...(filterKey ? { filter: { [filterKey]: filterByTk } } : { filterByTk }),
     context: ctx,
   });
-  const record = await collection.repository.findOne(options);
+  return collection.repository.findOne(options);
+}
+
+async function assertTenantRecordAccess(
+  ctx: any,
+  collection: any,
+  filterByTk: any,
+  actionName: 'get' | 'update',
+  filterKey?: string,
+) {
+  const record = await findTenantRecord(ctx, collection, filterByTk, actionName, filterKey);
   if (!record) {
     ctx.throw(404, 'Record not found in the current tenant');
   }
+}
+
+function hasTargetKey(value: any) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function getAssociationTargetCollection(db: any, association: any) {
+  return db.modelCollection?.get?.(association.target) || db.getCollection(association.target?.name);
+}
+
+function requireTenantContext(ctx: any) {
+  if (!hasTargetKey(ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId)) {
+    ctx.throw(403, 'Tenant context is required');
+  }
+}
+
+async function guardTenantAssociationValues(ctx: any, db: any, collection: any, values: any): Promise<any> {
+  if (!values || !collection?.model?.associations) {
+    return values;
+  }
+
+  if (Array.isArray(values)) {
+    const guardedValues = [];
+    for (const value of values) {
+      guardedValues.push(await guardTenantAssociationValues(ctx, db, collection, value));
+    }
+    return guardedValues;
+  }
+
+  if (typeof values !== 'object') {
+    return values;
+  }
+
+  for (const [associationName, association] of Object.entries<any>(collection.model.associations)) {
+    const associationForeignKey = association.associationType === 'BelongsTo' ? association.foreignKey : null;
+    const hasAssociationValue = associationName in values;
+    const hasForeignKeyValue = typeof associationForeignKey === 'string' && associationForeignKey in values;
+    if (!hasAssociationValue && !hasForeignKeyValue) {
+      continue;
+    }
+
+    const targetCollection = getAssociationTargetCollection(db, association);
+    if (!targetCollection) {
+      continue;
+    }
+
+    const targetKey = collection.getField?.(associationName)?.targetKey || association.targetKey || 'id';
+    const targetTenancyMode = getCollectionTenancyMode(targetCollection);
+    const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
+
+    const guardValue = async (value: any): Promise<any> => {
+      if (value === undefined || value === null) {
+        return value;
+      }
+
+      if (typeof value === 'string' || typeof value === 'number') {
+        if (tenantAwareTarget) {
+          requireTenantContext(ctx);
+          await assertTenantRecordAccess(ctx, targetCollection, value, 'update', targetKey);
+        }
+        return value;
+      }
+
+      if (typeof value !== 'object') {
+        return value;
+      }
+
+      const targetKeyValue =
+        (typeof value.get === 'function' ? value.get(targetKey) : value[targetKey]) ?? value[targetKey];
+      let guardedValue = value;
+
+      if (tenantAwareTarget) {
+        requireTenantContext(ctx);
+
+        if (hasTargetKey(targetKeyValue)) {
+          const currentTenantRecord = await findTenantRecord(
+            ctx,
+            targetCollection,
+            targetKeyValue,
+            'update',
+            targetKey,
+          );
+
+          if (!currentTenantRecord) {
+            const existingRecord = await targetCollection.repository.findOne({
+              filter: { [targetKey]: targetKeyValue },
+              context: ctx,
+            });
+            if (existingRecord) {
+              ctx.throw(404, 'Record not found in the current tenant');
+            }
+          }
+
+          guardedValue = applyTenantFilterToContext(ctx, targetCollection, currentTenantRecord ? 'update' : 'create', {
+            values: value,
+          }).values;
+        } else {
+          guardedValue = applyTenantFilterToContext(ctx, targetCollection, 'create', { values: value }).values;
+        }
+      }
+
+      return guardTenantAssociationValues(ctx, db, targetCollection, guardedValue);
+    };
+
+    if (hasAssociationValue) {
+      const associationValue = values[associationName];
+      if (Array.isArray(associationValue)) {
+        const guardedAssociationValues = [];
+        for (const value of associationValue) {
+          guardedAssociationValues.push(await guardValue(value));
+        }
+        values[associationName] = guardedAssociationValues;
+      } else {
+        values[associationName] = await guardValue(associationValue);
+      }
+    }
+
+    if (hasForeignKeyValue) {
+      values[associationForeignKey] = await guardValue(values[associationForeignKey]);
+    }
+  }
+
+  return values;
 }
 
 async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: string) {
@@ -336,6 +476,10 @@ export class PluginTenantServer extends Plugin {
         ctx.state.currentTenancyMode = tenancyMode;
         ctx.state.currentLegacyDataTenantIds = collection.options?.legacyDataTenantIds || [];
         applyTenantFilter(ctx);
+      }
+
+      if (ROOT_ASSOCIATION_VALUE_ACTIONS.has(ctx.action.actionName)) {
+        ctx.action.params.values = await guardTenantAssociationValues(ctx, db, collection, ctx.action.params.values);
       }
 
       const tenantAwareMove = [collection, association?.sourceCollection, association?.targetCollection].some((item) =>

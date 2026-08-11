@@ -629,6 +629,114 @@ describe('tenant resource guard', () => {
     },
   );
 
+  it('should reject cross-tenant association values in root create and update actions', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_root_association_guard',
+        email: 'tenant-root-association-guard@example.com',
+        phone: '10000000019',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_root_assoc_tags',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_root_assoc_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'belongsToMany', name: 'tags', target: 'tenant_root_assoc_tags' },
+          { type: 'belongsTo', name: 'primaryTag', target: 'tenant_root_assoc_tags' },
+        ],
+      },
+      context: {},
+    });
+
+    const postA = await app.db.getRepository('tenant_root_assoc_posts').create({
+      values: { title: 'Post A' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    const tagA = await app.db.getRepository('tenant_root_assoc_tags').create({
+      values: { name: 'Tag A' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    const tagB = await app.db.getRepository('tenant_root_assoc_tags').create({
+      values: { name: 'Tag B' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+
+    const agent = app.agent().login(user);
+    const allowedCreate = await agent.resource('tenant_root_assoc_posts').create({
+      values: {
+        title: 'Allowed create',
+        tags: [tagA.get('id')],
+      },
+    });
+    expect(allowedCreate.status).toBe(200);
+
+    const forbiddenCreate = await agent.resource('tenant_root_assoc_posts').create({
+      values: {
+        title: 'Forbidden create',
+        tags: [{ id: tagB.get('id') }],
+      },
+    });
+
+    const allowedUpdate = await agent.resource('tenant_root_assoc_posts').update({
+      filterByTk: postA.get('id'),
+      values: { tags: [tagA.get('id')] },
+    });
+    expect(allowedUpdate.status).toBe(200);
+
+    const forbiddenUpdate = await agent.resource('tenant_root_assoc_posts').update({
+      filterByTk: postA.get('id'),
+      values: { tags: [tagB.get('id')] },
+    });
+
+    const primaryTagForeignKey = (app.db.getCollection('tenant_root_assoc_posts').model.associations.primaryTag as any)
+      .foreignKey;
+    const forbiddenForeignKeyUpdate = await agent.resource('tenant_root_assoc_posts').update({
+      filterByTk: postA.get('id'),
+      values: { [primaryTagForeignKey]: tagB.get('id') },
+    });
+
+    expect(forbiddenCreate.status).toBeGreaterThanOrEqual(400);
+    expect(forbiddenUpdate.status).toBeGreaterThanOrEqual(400);
+    expect(forbiddenForeignKeyUpdate.status).toBeGreaterThanOrEqual(400);
+
+    const forbiddenPost = await app.db.getRepository('tenant_root_assoc_posts').findOne({
+      filter: { title: 'Forbidden create' },
+    });
+    expect(forbiddenPost).toBeNull();
+
+    const postResponse = await agent.resource('tenant_root_assoc_posts').get({
+      filterByTk: postA.get('id'),
+      appends: ['tags'],
+    });
+    expect(postResponse.status).toBe(200);
+    expect(postResponse.body.data.tags).toHaveLength(1);
+    expect(postResponse.body.data.tags[0].id).toBe(tagA.get('id'));
+  });
+
   async function prepareMoveGuardUser() {
     await app.db.getRepository('tenants').create({
       values: [

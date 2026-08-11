@@ -237,6 +237,56 @@ describe('workflow approval actions', () => {
     return approval;
   }
 
+  it('uses plain persisted data when an association model cannot be serialized with toJSON', async () => {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: { collection: collectionName, summary: ['amountA'], appends: [] },
+    });
+    const persistedData = { id: 901, amountA: 31, amountB: 0 };
+    const persistedRecord = {
+      get: vi.fn().mockReturnValue(persistedData),
+      toJSON: vi.fn(() => {
+        throw new TypeError("Cannot read properties of undefined (reading 'length')");
+      }),
+    };
+    const createSpy = vi.spyOn(mainRepo, 'create').mockResolvedValue({
+      get: vi.fn().mockReturnValue(persistedData.id),
+    } as any);
+    const findSpy = vi
+      .spyOn(mainRepo, 'findOne')
+      .mockResolvedValueOnce(persistedRecord as any)
+      .mockResolvedValue({
+        id: persistedData.id,
+        amountA: persistedData.amountA,
+        amountB: persistedData.amountB,
+      } as any);
+    const workflowTriggerSpy = vi.spyOn(app.pm.get('workflow'), 'trigger').mockResolvedValue(undefined);
+
+    try {
+      const response = await agent.resource('approvals').create({
+        values: {
+          collectionName,
+          data: {
+            amountA: 31,
+            amountB: 0,
+            approver_list: [{ id: currentUser.id, nickname: currentUser.nickname, positions: [] }],
+          },
+          status: APPROVAL_STATUS.DRAFT,
+          workflowId: workflow.id,
+          workflowKey: workflow.key,
+        },
+      });
+
+      expect(response.status).toBe(200);
+      expect(persistedRecord.get).toHaveBeenCalledWith({ plain: true });
+    } finally {
+      createSpy.mockRestore();
+      findSpy.mockRestore();
+      workflowTriggerSpy.mockRestore();
+    }
+  });
+
   it('initiates an approval through a real approval instruction node', async () => {
     (app as any).messageManager = { sendMessage: vi.fn() };
     const workflow = await workflowModel.create({

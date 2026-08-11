@@ -472,7 +472,9 @@ export const approvals = {
       if (!persistedRecord) {
         return ctx.throw(500, 'Created approval data could not be reloaded');
       }
-      const persistedData = { ...(persistedRecord.toJSON?.() ?? persistedRecord) };
+      const persistedData = {
+        ...(persistedRecord.get?.({ plain: true }) ?? persistedRecord.toJSON?.() ?? persistedRecord),
+      };
       const dataKey = persistedData[collection.filterTargetKey];
       if (dataKey == null) {
         return ctx.throw(500, 'Reloaded approval data is missing its target key');

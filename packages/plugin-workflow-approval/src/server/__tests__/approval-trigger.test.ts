@@ -227,6 +227,8 @@ function createTriggerContext(
   options: {
     collectionSequelize?: unknown;
     trigger?: ReturnType<typeof vi.fn>;
+    tenantContext?: Record<string, any>;
+    tenantId?: string;
   } = {},
 ) {
   const fallbackTransaction = { id: 'fallback' };
@@ -267,6 +269,8 @@ function createTriggerContext(
   };
   const approvalValues = {
     dataKey: 42,
+    tenantContext: options.tenantContext,
+    tenantId: options.tenantId,
     workflowId: 1,
     workflowKey: 'approval-workflow',
   };
@@ -327,6 +331,38 @@ describe('ApprovalTrigger', () => {
 
     expect(deferAfterCommit).toHaveBeenCalledWith(expect.any(Function));
     expect(triggerWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('passes the approval tenant context to the workflow execution', async () => {
+    const triggerWorkflow = vi.fn();
+    const { approval, trigger } = createTriggerContext({
+      tenantContext: {
+        currentTenantDescendantIds: ['tenant-child'],
+        currentTenancyMode: 'tenantScoped',
+      },
+      tenantId: 'tenant-a',
+      trigger: triggerWorkflow,
+    });
+
+    await trigger.triggerHandler(approval);
+
+    await vi.waitFor(() => {
+      expect(triggerWorkflow).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({
+          context: {
+            state: {
+              currentTenant: { id: 'tenant-a' },
+              currentTenantDescendantIds: ['tenant-child'],
+              currentTenantId: 'tenant-a',
+              currentTenancyMode: 'tenantScoped',
+              currentLegacyDataTenantIds: [],
+            },
+          },
+        }),
+      );
+    });
   });
 
   it('wraps transaction commit and triggers the workflow after a successful commit', async () => {

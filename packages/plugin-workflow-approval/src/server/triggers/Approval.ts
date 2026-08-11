@@ -10,7 +10,11 @@ import {
   deferUntilTransactionCommitSucceeds,
   type DeferredAfterCommit as DeferredCallback,
 } from '../defer-after-commit';
-import { getTenantValuesFromContext, getTenantValuesFromExecution } from '../helpers/tenant-filter';
+import {
+  getTenantValuesFromContext,
+  getTenantValuesFromExecution,
+  getTenantWorkflowOptionsFromApproval,
+} from '../helpers/tenant-filter';
 import { getSummary, getWorkflowAppends, serializeError } from '../tools';
 import { ApprovalJobStatusMap, ExecutionStatusMap } from './tools';
 
@@ -103,7 +107,8 @@ export default class ApprovalTrigger extends Trigger {
       }),
       collectionName: approval.collectionName,
     };
-    const triggerWorkflow = () => this.workflow.trigger(workflow, context);
+    const triggerWorkflow = () =>
+      this.workflow.trigger(workflow, context, getTenantWorkflowOptionsFromApproval(approval));
     const reportTriggerError = (error: unknown) => {
       this.workflow.app.logger?.error?.(TRIGGER_ERROR, {
         approvalId: approval.id,

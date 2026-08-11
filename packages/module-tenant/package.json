@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-tenant",
   "displayName": "Tenant",
-  "version": "1.6.26",
+  "version": "1.6.27",
   "description": "Provides tenant context and server-side tenant isolation for shared-schema multi-tenant applications.",
   "keywords": [
     "Users & permissions"

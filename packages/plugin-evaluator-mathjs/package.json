@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-evaluator-mathjs",
   "displayName": "MathJS Evaluator",
-  "version": "1.6.26",
+  "version": "1.6.27",
   "description": "MathJS evaluator, providing mathematical expression evaluation",
   "keywords": [
     "MathJS"

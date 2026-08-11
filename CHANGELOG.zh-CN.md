@@ -9,6 +9,12 @@
 
 
 
+## [1.6.27] - 2026-08-11
+
+### 🐛 修复
+
+- **workflow-approval**: 忽略陈旧的关联附加 (@TomyJan)
+
 ## [1.6.26] - 2026-08-11
 
 ### ✨ 新增
@@ -3080,7 +3086,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.26...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.27...HEAD
+[1.6.27]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.27
 [1.6.26]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.26
 [1.6.25]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.25
 [1.6.24]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.24

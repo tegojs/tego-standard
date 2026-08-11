@@ -351,7 +351,7 @@ export default class ApprovalTrigger extends Trigger {
           // XXX: 丑陋的实现, 应该从 data 直接获取的就是有值的 data, 走通优先.
           dataCurrent = await collection.repository.findOne({
             filterByTk: rowFilterByTk,
-            appends: [...(workflow.config.appends || [])],
+            appends: getWorkflowAppends(workflow.config, collection, ctx.tego),
             context: ctx,
             transaction: this.workflow.useDataSourceTransaction(dataSourceName, ctx.transaction),
           });

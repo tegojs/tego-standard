@@ -4,6 +4,7 @@ import { parseCollectionName, uid } from '@tego/server';
 
 import { APPROVAL_ACTION_STATUS, APPROVAL_STATUS } from '../constants/status';
 import { getTenantValuesFromExecution } from '../helpers/tenant-filter';
+import { getWorkflowAppends } from '../tools';
 import ApprovalTrigger from '../triggers/Approval';
 import { ApprovalJobStatusMap, getNegotiationMode, parseAssignees } from './tools';
 
@@ -157,9 +158,10 @@ export default class ApprovalInstruction extends Instruction {
     try {
       const approval = records[0].approval;
       const [dataSourceName, collectionName] = parseCollectionName(approval.collectionName);
-      const { repository } = this.workflow.app.dataSourceManager.dataSources
+      const collection = this.workflow.app.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
+      const { repository } = collection;
 
       const workflow = await approval.getWorkflow({
         where: {
@@ -173,7 +175,7 @@ export default class ApprovalInstruction extends Instruction {
 
       const data = await repository.findOne({
         filterByTk: approval.get('dataKey'),
-        appends: workflow.config.appends,
+        appends: getWorkflowAppends(workflow.config, collection as any, this.workflow.app),
         transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
       });
 

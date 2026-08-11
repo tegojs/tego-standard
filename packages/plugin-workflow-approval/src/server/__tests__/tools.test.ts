@@ -96,4 +96,18 @@ describe('workflow appends', () => {
       ),
     ).toEqual(['owner', 'items', 'items.product']);
   });
+
+  it('drops explicit appends whose association path is no longer available', () => {
+    const collection = createSummaryCollections();
+
+    expect(
+      getWorkflowAppends(
+        {
+          appends: ['owner.positions', 'owner', 'missing'],
+          summary: [],
+        },
+        collection,
+      ),
+    ).toEqual(['owner']);
+  });
 });

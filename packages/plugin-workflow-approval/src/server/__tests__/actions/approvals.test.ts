@@ -1,3 +1,4 @@
+import { JOB_STATUS } from '@tachybase/module-workflow';
 import { getApp, waitForFastAssertion, waitForWorkflowIdle } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
 import Database, { mockDatabase, SequelizeDataSource } from '@tego/server';
@@ -302,6 +303,89 @@ describe('workflow approval actions', () => {
       });
       expect(approvalRecords).toHaveLength(1);
       expect(approvalRecords[0].userId).toBe(currentUser.id);
+    });
+    await waitForWorkflowIdle(app);
+  });
+
+  it('keeps approval initiation alive when a mapping source has no query result', async () => {
+    (app as any).messageManager = { sendMessage: vi.fn() };
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: collectionName,
+        summary: ['amountA'],
+        appends: [],
+      },
+    });
+    const workflowPlugin = app.pm.get('workflow');
+    if (!workflowPlugin.instructions.get('approval')) {
+      workflowPlugin.instructions.register('approval', new ApprovalInstruction(workflowPlugin));
+    }
+    const queryNode = await workflow.createNode({
+      type: 'query',
+      config: {
+        collection: collectionName,
+        params: {
+          filter: { id: { $eq: -1 } },
+        },
+        multiple: false,
+      },
+    });
+    const mappingNode = await workflow.createNode({
+      type: 'data-mapping',
+      config: {
+        sourceArray: [
+          {
+            keyName: 'firstPersonArray',
+            sourcePath: `{{$jobsMapByNodeKey.${queryNode.key}}}`,
+          },
+        ],
+        type: 'js',
+        code: `const { firstPersonArray } = ctx.data;
+ctx.body = [firstPersonArray].filter((subArr) => subArr.length > 0);`,
+      },
+      upstreamId: queryNode.id,
+    });
+    await queryNode.setDownstream(mappingNode);
+    const approvalNode = await workflow.createNode({
+      type: 'approval',
+      config: {
+        assignees: [currentUser.id],
+        negotiation: 0,
+        order: false,
+        branchMode: false,
+        applyDetail: 'approval-detail',
+      },
+      upstreamId: mappingNode.id,
+    });
+    await mappingNode.setDownstream(approvalNode);
+
+    const response = await agent.resource('approvals').create({
+      values: {
+        collectionName,
+        data: { amountA: 23, amountB: 0 },
+        status: APPROVAL_STATUS.SUBMITTED,
+        workflowId: workflow.id,
+        workflowKey: workflow.key,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await waitForFastAssertion(async () => {
+      const [execution] = await workflow.getExecutions();
+      expect(execution).toBeTruthy();
+      const jobs = await execution.getJobs();
+      const queryJob = jobs.find((job) => job.nodeId === queryNode.id);
+      const mappingJob = jobs.find((job) => job.nodeId === mappingNode.id);
+      const approvalJob = jobs.find((job) => job.nodeId === approvalNode.id);
+      expect(queryJob?.status).toBe(JOB_STATUS.RESOLVED);
+      expect(mappingJob?.status).toBe(JOB_STATUS.RESOLVED);
+      expect(approvalJob?.status).toBe(JOB_STATUS.PENDING);
+      const approvalRecords = await db.getRepository('approvalRecords').find({
+        filter: { jobId: approvalJob?.id },
+      });
+      expect(approvalRecords).toHaveLength(1);
     });
     await waitForWorkflowIdle(app);
   });

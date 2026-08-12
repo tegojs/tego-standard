@@ -9,6 +9,12 @@
 
 
 
+## [1.6.30] - 2026-08-12
+
+### 🐛 修复
+
+- **workflow-approval**: 处理批准序列化上下文 (@TomyJan)
+
 ## [1.6.29] - 2026-08-11
 
 ### 🐛 修复
@@ -3100,7 +3106,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.29...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.30...HEAD
+[1.6.30]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.30
 [1.6.29]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.29
 [1.6.28]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.28
 [1.6.27]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.27

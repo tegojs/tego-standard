@@ -397,13 +397,16 @@ describe('PluginTenantClient', () => {
     const collections = await loadTenantCollectionRecords(api, () => false, 2);
 
     expect(list).toHaveBeenCalledTimes(2);
-    expect(list).toHaveBeenCalledWith(
-      expect.objectContaining({
-        page: 1,
-        pageSize: 2,
-        filter: expect.objectContaining({ $or: expect.any(Array) }),
-      }),
-    );
+    expect(list).toHaveBeenNthCalledWith(1, {
+      page: 1,
+      pageSize: 2,
+      filter: {
+        $or: [
+          { 'options.template': { $in: ['general', 'expression', 'tree'] } },
+          { 'options.tenancy': { $in: ['shared', 'tenantScoped', 'tenantInherited'] } },
+        ],
+      },
+    });
     expect(collections.map((item) => item.name)).toEqual(['approvalRecords', 'approvals', 'posts']);
   });
 

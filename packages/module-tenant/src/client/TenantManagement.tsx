@@ -100,8 +100,7 @@ export async function loadTenantCollectionRecords(
       pageSize,
       filter: {
         $or: [
-          { template: { $in: TENANT_CAPABLE_COLLECTION_TEMPLATES } },
-          { tenancy: { $in: TENANCY_MODES } },
+          { 'options.template': { $in: TENANT_CAPABLE_COLLECTION_TEMPLATES } },
           { 'options.tenancy': { $in: TENANCY_MODES } },
         ],
       },

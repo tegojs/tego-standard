@@ -9,14 +9,14 @@ allowedDeprecatedVersions:
 catalog:
   '@ant-design/plots': ^2.6.8
   '@antv/g2': ^5.4.8
-  '@tachybase/globals': 1.6.16
-  '@tachybase/loader': 1.6.16
-  '@tachybase/schema': 1.6.16
-  '@tachybase/test': 1.6.16
-  '@tachybase/utils': 1.6.16
-  '@tego/client': 1.6.16
-  '@tego/devkit': 1.6.16
-  '@tego/server': 1.6.16
+  '@tachybase/globals': 1.6.17
+  '@tachybase/loader': 1.6.17
+  '@tachybase/schema': 1.6.17
+  '@tachybase/test': 1.6.17
+  '@tachybase/utils': 1.6.17
+  '@tego/client': 1.6.17
+  '@tego/devkit': 1.6.17
+  '@tego/server': 1.6.17
   '@types/express': 5.0.2
   '@types/node': 20.17.10
   '@types/react': 18.3.23
@@ -33,7 +33,7 @@ catalog:
   sequelize: 6.37.5
   string-width: 4.2.3
   strip-ansi: 6.0.1
-  tego: 1.6.16
+  tego: 1.6.17
   wrap-ansi: 7.0.0
 
 catalogMode: strict

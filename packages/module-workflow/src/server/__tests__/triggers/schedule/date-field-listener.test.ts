@@ -142,6 +142,91 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     );
   });
 
+  it('should calculate a tenant record schedule from the save event time', async () => {
+    vi.useFakeTimers();
+    try {
+      const createdAt = new Date('2026-08-12T10:00:00.000Z');
+      const updatedAt = new Date('2026-08-12T10:00:00.900Z');
+      const record = {
+        get: vi.fn((key: string) => {
+          if (key === 'id') {
+            return 7;
+          }
+          if (key === 'tenantId') {
+            return 'tenant-a';
+          }
+          if (key === 'createdAt') {
+            return createdAt;
+          }
+          if (key === 'updatedAt') {
+            return updatedAt;
+          }
+          return undefined;
+        }),
+      };
+      const tenant = {
+        get: vi.fn((key: string) => (key === 'id' ? 'tenant-a' : undefined)),
+        toJSON: vi.fn(() => ({ id: 'tenant-a' })),
+      };
+      const tenantRepo = {
+        findOne: vi.fn(async () => {
+          vi.setSystemTime(new Date('2026-08-12T10:00:02.100Z'));
+          return tenant;
+        }),
+      };
+      const db = {
+        on: vi.fn(),
+        off: vi.fn(),
+        getRepository: vi.fn((name: string) => (name === 'tenants' ? tenantRepo : undefined)),
+      };
+      const collectionManager = {
+        db,
+        getCollection: vi.fn().mockReturnValue({
+          options: { tenancy: 'tenantScoped' },
+          filterTargetKey: 'id',
+        }),
+      };
+      const workflowPlugin = {
+        app: {
+          on: vi.fn(),
+          db,
+          dataSourceManager: {
+            dataSources: new Map([
+              [
+                'main',
+                {
+                  collectionManager,
+                },
+              ],
+            ]),
+          },
+        },
+      } as any;
+      const trigger = new DateFieldScheduleTrigger(workflowPlugin);
+      vi.spyOn(trigger, 'inspect').mockImplementation(() => undefined);
+      const schedule = vi.spyOn(trigger, 'schedule').mockImplementation(() => undefined);
+      const workflow = {
+        id: 42,
+        allExecuted: 0,
+        config: {
+          collection: 'posts',
+          startsOn: { field: 'createdAt' },
+        },
+      } as any;
+
+      vi.setSystemTime(new Date('2026-08-12T10:00:01.100Z'));
+      trigger.on(workflow);
+      const listener = db.on.mock.calls[0][1];
+      await listener(record, { transaction: undefined, context: undefined });
+
+      expect(schedule).toHaveBeenCalledWith(workflow, record, createdAt.getTime(), true, {
+        transaction: undefined,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('should preserve numeric zero tenant ids when loading records to schedule', async () => {
     const record = {
       get: vi.fn((key: string) => {

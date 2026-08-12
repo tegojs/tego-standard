@@ -210,7 +210,7 @@ export default class ScheduleTrigger {
     workflows.forEach(async (workflow) => {
       const records = await this.loadRecordsToSchedule(workflow, now);
       records.forEach((record) => {
-        const nextTime = this.getRecordNextTime(workflow, record);
+        const nextTime = this.getRecordNextTime(workflow, record, false, now);
         this.schedule(workflow, record, nextTime, Boolean(nextTime));
       });
     });
@@ -353,7 +353,7 @@ export default class ScheduleTrigger {
     return recordsWithTenantContext.filter((record) => record && getBoundTenantContext(record));
   }
 
-  getRecordNextTime(workflow: WorkflowModel, record, nextSecond = false) {
+  getRecordNextTime(workflow: WorkflowModel, record, nextSecond = false, currentDate = new Date(), savedAt?: Date) {
     const {
       config: { startsOn, endsOn, repeat, limit },
       allExecuted,
@@ -362,7 +362,7 @@ export default class ScheduleTrigger {
       return null;
     }
     const range = this.cacheCycle;
-    const now = new Date();
+    const now = new Date(currentDate);
     now.setMilliseconds(nextSecond ? 1000 : 0);
     const timestamp = now.getTime();
     const startTime = getDataOptionTime(record, startsOn);
@@ -377,6 +377,9 @@ export default class ScheduleTrigger {
     if (startTime >= timestamp) {
       return !endTime || (endTime >= startTime && endTime < timestamp + range) ? startTime : null;
     } else {
+      if (savedAt && startTime >= new Date(savedAt).setMilliseconds(0)) {
+        return startTime;
+      }
       if (!repeat) {
         return null;
       }
@@ -503,6 +506,8 @@ export default class ScheduleTrigger {
     }
 
     const listener = async (data, { transaction, context }) => {
+      const eventTime = new Date();
+      const savedAt = data.get?.('updatedAt') ?? data.updatedAt ?? eventTime;
       const collection = this.workflow.app.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
@@ -511,7 +516,7 @@ export default class ScheduleTrigger {
         return;
       }
       bindTenantContext(data, tenantContext);
-      const nextTime = this.getRecordNextTime(workflow, data);
+      const nextTime = this.getRecordNextTime(workflow, data, false, eventTime, savedAt);
       return this.schedule(workflow, data, nextTime, Boolean(nextTime), { transaction });
     };
 

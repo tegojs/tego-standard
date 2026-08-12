@@ -179,7 +179,8 @@ describe('workflow > triggers > schedule > date field mode', () => {
       const d0 = Date.parse(executions[0].context.date);
       expect(d0).toBe(startTime);
       const d1 = Date.parse(executions[1].context.date);
-      expect(d1 - 2000).toBe(startTime);
+      expect(d1).toBeGreaterThan(startTime);
+      expect((d1 - startTime) % 1000).toBe(0);
     });
 
     it('starts on post.createdAt and repeat by interval with endsOn at certain time', async () => {

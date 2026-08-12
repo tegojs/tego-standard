@@ -287,6 +287,46 @@ describe('workflow approval actions', () => {
     }
   });
 
+  it('submits successfully when a configured nested append is stale at runtime', async () => {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: collectionName,
+        summary: ['amountA'],
+        appends: ['details.root'],
+      },
+    });
+    await workflow.createNode({ type: 'echo' });
+
+    const detailsModel = db.getCollection(detailsCollectionName).model;
+    const staleAssociation = detailsModel.associations.root;
+    delete detailsModel.associations.root;
+
+    try {
+      const response = await agent.resource('approvals').create({
+        values: {
+          collectionName,
+          data: { amountA: 29, amountB: 11 },
+          status: APPROVAL_STATUS.SUBMITTED,
+          workflowId: workflow.id,
+          workflowKey: workflow.key,
+        },
+      });
+
+      expect(response.status).toBe(200);
+      const approvalId = response.body.data?.id ?? response.body.id;
+      const approval = await db.getRepository('approvals').findOne({ filterByTk: approvalId });
+      expect(approval).toBeTruthy();
+
+      await waitForFastAssertion(async () => {
+        expect(await workflow.getExecutions()).toHaveLength(1);
+      });
+    } finally {
+      detailsModel.associations.root = staleAssociation;
+    }
+  });
+
   it('initiates an approval through a real approval instruction node', async () => {
     (app as any).messageManager = { sendMessage: vi.fn() };
     const workflow = await workflowModel.create({

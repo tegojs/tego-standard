@@ -464,6 +464,22 @@ describe('tenant impersonation – audit context unit tests', () => {
     expect(ctx.impersonatedTenantId).toBeUndefined();
   });
 
+  it('should prefer the resolved current tenant object over the legacy tenant id', async () => {
+    const { getAuditContext } = await import('../hooks/audit-context');
+
+    const ctx = getAuditContext({
+      context: {
+        state: {
+          currentUser: { id: 99 },
+          currentTenant: { id: 'tenant-resolved' },
+          currentTenantId: 'tenant-legacy',
+        },
+      },
+    });
+
+    expect(ctx.tenantId).toBe('tenant-resolved');
+  });
+
   it('should preserve explicit zero actorUserId', async () => {
     const { getAuditContext } = await import('../hooks/audit-context');
 

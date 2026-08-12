@@ -229,6 +229,10 @@ function createTriggerContext(
     trigger?: ReturnType<typeof vi.fn>;
     tenantContext?: Record<string, any>;
     tenantId?: string;
+    workflowConfig?: Record<string, any>;
+    collectionFields?: Record<string, any>;
+    collectionAssociations?: Record<string, any>;
+    targetCollections?: Record<string, any>;
   } = {},
 ) {
   const fallbackTransaction = { id: 'fallback' };
@@ -236,7 +240,9 @@ function createTriggerContext(
     findOne: vi.fn().mockResolvedValue({ id: 42 }),
   };
   const collection = {
-    model: { sequelize: options.collectionSequelize },
+    model: { sequelize: options.collectionSequelize, associations: options.collectionAssociations ?? {} },
+    getField: vi.fn((name: string) => options.collectionFields?.[name]),
+    db: { getCollection: vi.fn((name: string) => options.targetCollections?.[name]) },
     repository,
   };
   const useDataSourceTransaction = vi.fn().mockReturnValue(fallbackTransaction);
@@ -265,6 +271,7 @@ function createTriggerContext(
       appends: [],
       collection: 'orders',
       summary: [],
+      ...options.workflowConfig,
     },
   };
   const approvalValues = {
@@ -363,6 +370,35 @@ describe('ApprovalTrigger', () => {
         }),
       );
     });
+  });
+
+  it('filters stale nested association appends on the approval submission path', async () => {
+    const positions = {
+      getField: vi.fn((name: string) => (name === 'positionName' ? { type: 'string' } : undefined)),
+    };
+    const users = {
+      getField: vi.fn((name: string) =>
+        name === 'positions' ? { type: 'belongsToMany', target: 'positions' } : undefined,
+      ),
+      db: { getCollection: vi.fn(() => positions) },
+      model: { associations: {} },
+    };
+    const triggerWorkflow = vi.fn();
+    const { approval, repository, trigger } = createTriggerContext({
+      trigger: triggerWorkflow,
+      collectionFields: { owner: { type: 'belongsTo', target: 'users' } },
+      collectionAssociations: { owner: {} },
+      targetCollections: { users },
+      workflowConfig: { appends: ['owner.positions', 'owner'], summary: [] },
+    });
+
+    await trigger.triggerHandler(approval);
+
+    expect(repository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appends: ['owner'],
+      }),
+    );
   });
 
   it('wraps transaction commit and triggers the workflow after a successful commit', async () => {

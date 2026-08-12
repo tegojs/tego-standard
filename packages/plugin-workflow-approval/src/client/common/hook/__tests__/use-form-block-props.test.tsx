@@ -42,6 +42,11 @@ vi.mock('../../contexts', () => ({
 }));
 
 describe('useFormBlockProps', () => {
+  beforeEach(() => {
+    mocks.approvalExecution = { id: 3540 };
+    mocks.form = null;
+  });
+
   it('prefills a copied approval when the execution context has no nested approval', async () => {
     mocks.form = createForm();
 
@@ -53,6 +58,23 @@ describe('useFormBlockProps', () => {
         leaveDuration: 8,
       });
       expect(mocks.form.pattern).toBe('editable');
+    });
+  });
+
+  it('prefers copied execution data over the original approval data', async () => {
+    mocks.form = createForm();
+    mocks.approvalExecution = {
+      id: 3540,
+      approval: { data: { reason: 'copied reason', leaveDuration: 12 } },
+    };
+
+    renderHook(() => useFormBlockProps());
+
+    await waitFor(() => {
+      expect(mocks.form.values).toMatchObject({
+        reason: 'copied reason',
+        leaveDuration: 12,
+      });
     });
   });
 });

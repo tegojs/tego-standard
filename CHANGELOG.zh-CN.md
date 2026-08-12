@@ -9,6 +9,12 @@
 
 
 
+## [1.6.31] - 2026-08-12
+
+### 🐛 修复
+
+- **workflow**: 在保存延迟期间保留日期安排 (@TomyJan)
+
 ## [1.6.30] - 2026-08-12
 
 ### 🐛 修复
@@ -3106,7 +3112,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.30...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.31...HEAD
+[1.6.31]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.31
 [1.6.30]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.30
 [1.6.29]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.29
 [1.6.28]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.28

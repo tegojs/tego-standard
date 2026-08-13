@@ -13,6 +13,27 @@ describe('audit log tenant read boundary', () => {
     await app.destroy();
   });
 
+  it.each(['root', 'member'])('allows %s to read legacy logs when tenancy has not been configured', async (role) => {
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: `audit-legacy-${role}`,
+        email: `audit-legacy-${role}@example.com`,
+        phone: role === 'root' ? '10000000011' : '10000000012',
+        password: '123456',
+        roles: [role],
+      },
+    });
+    const legacyLog = await app.db.getRepository('auditLogs').create({
+      values: { type: 'create', collectionName: 'posts' },
+    });
+
+    const response = await app.agent().login(user).resource('auditLogs').list({ paginate: false });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map((item) => item.id)).toContain(legacyLog.get('id'));
+    expect(response.body.data.every((item) => item.tenantId == null)).toBe(true);
+  });
+
   it('restricts audit log and change reads to the current tenant', async () => {
     await app.db.getRepository('tenants').create({
       values: [

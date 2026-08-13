@@ -91,6 +91,21 @@ function appendTenantFilter(original: any, tenantFilter: any) {
   };
 }
 
+export function isTenantReadAction(actionName: string) {
+  return READ_ACTIONS.includes(actionName);
+}
+
+export function applyUnassignedTenantReadFilter(ctx: TenantFilterContext) {
+  if (!ctx.action || !isTenantReadAction(ctx.action.actionName)) {
+    return;
+  }
+  const tenantParams = {
+    filter: appendTenantFilter(ctx.action.params?.filter, { tenantId: null }),
+  };
+  ctx.action.mergeParams(tenantParams);
+  ctx.action.params.filter = tenantParams.filter;
+}
+
 function appendFilter(original: any, tenantId: string | number, includeLegacyData = false) {
   return appendTenantFilter(original, buildTenantFilter(tenantId, includeLegacyData));
 }

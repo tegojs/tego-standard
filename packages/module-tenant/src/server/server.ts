@@ -10,7 +10,11 @@ import usersCollection from './collections/users';
 import { TENANT_ENABLED_MODES } from './constants';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
-import applyTenantFilter, { applyTenantFilterToContext } from './helpers/tenant-filter';
+import applyTenantFilter, {
+  applyTenantFilterToContext,
+  applyUnassignedTenantReadFilter,
+  isTenantReadAction,
+} from './helpers/tenant-filter';
 import { moveTenantRecords } from './helpers/tenant-move';
 import { buildPath, getDescendantIds, getDescendantTenants, wouldCreateCycle } from './helpers/tenant-tree';
 import { enUS, zhCN } from './locale';
@@ -458,11 +462,20 @@ export class PluginTenantServer extends Plugin {
       const tenancyMode = getCollectionTenancyMode(collection);
 
       if (TENANT_ENABLED_MODES.includes(tenancyMode as any)) {
+        let unassignedTenantRead = false;
         if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
+          const configuredTenant = await this.db.getRepository('tenants').findOne({ fields: ['id'] });
+          if (!configuredTenant && isTenantReadAction(ctx.action.actionName)) {
+            unassignedTenantRead = true;
+            applyUnassignedTenantReadFilter(ctx);
+          }
+        }
+
+        if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId && !unassignedTenantRead) {
           await setCurrentTenant(ctx, async () => undefined);
         }
 
-        if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
+        if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId && !unassignedTenantRead) {
           emitTenantSecurityViolation(ctx, {
             type: 'tenant_access_denied',
             userId: ctx.state.currentUser?.id,
@@ -475,7 +488,9 @@ export class PluginTenantServer extends Plugin {
 
         ctx.state.currentTenancyMode = tenancyMode;
         ctx.state.currentLegacyDataTenantIds = collection.options?.legacyDataTenantIds || [];
-        applyTenantFilter(ctx);
+        if (!unassignedTenantRead) {
+          applyTenantFilter(ctx);
+        }
       }
 
       if (ROOT_ASSOCIATION_VALUE_ACTIONS.has(ctx.action.actionName)) {

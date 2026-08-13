@@ -10,6 +10,52 @@ describe('tenant resource guard', () => {
     await app.destroy();
   });
 
+  it('allows only unassigned reads before the first tenant is configured', async () => {
+    app = await createTenantApp();
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_unconfigured_user',
+        email: 'tenant-unconfigured-user@example.com',
+        phone: '10000000024',
+        password: '123456',
+        roles: ['admin'],
+      },
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_unconfigured_posts',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+    const legacyRecord = await app.db.getRepository('tenant_unconfigured_posts').create({
+      values: { title: 'Legacy' },
+    });
+    const agent = app.agent().login(user);
+
+    const listResponse = await agent.resource('tenant_unconfigured_posts').list({ paginate: false });
+    const createResponse = await agent.resource('tenant_unconfigured_posts').create({
+      values: { title: 'Forbidden' },
+    });
+    const updateResponse = await agent.resource('tenant_unconfigured_posts').update({
+      filterByTk: legacyRecord.get('id'),
+      values: { title: 'Forbidden' },
+    });
+    const destroyResponse = await agent.resource('tenant_unconfigured_posts').destroy({
+      filterByTk: legacyRecord.get('id'),
+    });
+
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.data).toHaveLength(1);
+    expect(listResponse.body.data[0].tenantId).toBeNull();
+    expect(createResponse.status).toBe(403);
+    expect(updateResponse.status).toBe(403);
+    expect(destroyResponse.status).toBe(403);
+    expect(await app.db.getRepository('tenant_unconfigured_posts').count()).toBe(1);
+  });
+
   it('should inject tenantId on create and restrict list/get/update/destroy to current tenant', async () => {
     app = await createTenantApp();
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAPIClient, useCurrentUserContext, useRequest } from '@tachybase/client';
 
 import { CURRENT_TENANT_ID_STORAGE_KEY } from './constants';
@@ -53,6 +53,7 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
   const currentUserContext = useCurrentUserContext();
   const currentUser = currentUserProp || currentUserContext;
   const currentUserId = currentUser?.data?.data?.id;
+  const [synchronizedTenantKey, setSynchronizedTenantKey] = useState<string | null>(null);
   const result = useRequest<AvailableTenantsResult>(
     () =>
       api
@@ -84,6 +85,10 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     return result;
   }, [currentUserId, noUserFallback, result]);
 
+  const tenants = value?.data?.data || [];
+  const currentTenant = tenants.find((item) => item.current) || tenants.find((item) => item.enabled !== false);
+  const tenantKey = currentUserId ? `${currentUserId}:${currentTenant?.id || ''}` : null;
+
   useEffect(() => {
     // Guard: only act after the API response has actually arrived.
     // During refreshDeps reloads, useRequest may keep stale data while loading.
@@ -95,22 +100,28 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
       return;
     }
 
-    const tenants = value?.data?.data || [];
     if (!tenants.length) {
       api.storage?.removeItem?.(CURRENT_TENANT_ID_STORAGE_KEY);
+      setSynchronizedTenantKey(tenantKey);
       return;
     }
 
-    const currentTenant = tenants.find((item) => item.current) || tenants.find((item) => item.enabled !== false);
     if (currentTenant?.id) {
       api.storage?.setItem?.(CURRENT_TENANT_ID_STORAGE_KEY, currentTenant.id);
+      setSynchronizedTenantKey(tenantKey);
       return;
     }
 
     api.storage?.removeItem?.(CURRENT_TENANT_ID_STORAGE_KEY);
-  }, [api.storage, currentUserId, value?.data, value?.data?.data, value?.loading]);
+    setSynchronizedTenantKey(tenantKey);
+  }, [api.storage, currentTenant?.id, currentUserId, tenantKey, tenants, value?.data?.userId, value?.loading]);
 
-  return <CurrentTenantContext.Provider value={value}>{children}</CurrentTenantContext.Provider>;
+  const tenantContextReady =
+    !currentUserId || (!value.loading && value.data?.userId === currentUserId && synchronizedTenantKey === tenantKey);
+
+  return (
+    <CurrentTenantContext.Provider value={value}>{tenantContextReady ? children : null}</CurrentTenantContext.Provider>
+  );
 };
 
 export default CurrentTenantProvider;

@@ -7,7 +7,7 @@
  * corresponding id must be persisted to storage so that subsequent API
  * requests carry the correct `X-Tenant-Id` header.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { APIClientProvider, Application, mockAPIClient } from '@tachybase/client';
 import { act, render, renderHook, waitFor } from '@tachybase/test/client';
 
@@ -35,6 +35,44 @@ const fakeCurrentUser = {
 };
 
 describe('CurrentTenantProvider – localStorage restore', () => {
+  it('should defer tenant-aware children until stale storage is reconciled', async () => {
+    let resolveRequest: (value: any) => void;
+    const requestPromise = new Promise((resolve) => {
+      resolveRequest = resolve;
+    });
+    mockRequest.onPost('/tenants:available').reply(async () => {
+      await requestPromise;
+      return [200, { data: [{ id: 'tenant-a', current: true }] }];
+    });
+
+    apiClient.storage.setItem('current_tenant_id', 'stale-tenant');
+    const renderedTenantIds: Array<string | null> = [];
+    const TenantAwareChild = () => {
+      useEffect(() => {
+        renderedTenantIds.push(apiClient.storage.getItem('current_tenant_id'));
+      }, []);
+      return <span>tenant-aware child</span>;
+    };
+
+    render(
+      <APIClientProvider apiClient={apiClient}>
+        <CurrentTenantProvider currentUser={fakeCurrentUser}>
+          <TenantAwareChild />
+        </CurrentTenantProvider>
+      </APIClientProvider>,
+    );
+
+    expect(renderedTenantIds).toEqual([]);
+
+    act(() => {
+      resolveRequest!(null);
+    });
+
+    await waitFor(() => {
+      expect(renderedTenantIds).toEqual(['tenant-a']);
+    });
+  });
+
   it('should persist current_tenant_id to storage when restored from tenants:available', async () => {
     mockRequest.onPost('/tenants:available').reply(() => {
       return [

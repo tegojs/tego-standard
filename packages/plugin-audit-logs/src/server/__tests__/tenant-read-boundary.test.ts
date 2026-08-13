@@ -35,7 +35,7 @@ describe('audit log tenant read boundary', () => {
 
     const auditLogRepo = app.db.getRepository('auditLogs');
     const currentTenantLog = await auditLogRepo.create({
-      values: { type: 'create', collectionName: 'posts' },
+      values: { type: 'create', collectionName: 'posts', userId: user.get('id') },
       context: {
         state: {
           currentTenant: { id: 'tenant-a' },
@@ -61,8 +61,24 @@ describe('audit log tenant read boundary', () => {
       },
     });
 
-    const agent = app.agent().login(user).set('X-Tenant-Id', 'tenant-a');
+    const agent = app.agent().login(user);
     const listResponse = await agent.resource('auditLogs').list({ paginate: false });
+    const filteredListResponse = await agent.resource('auditLogs').list({
+      pageSize: 20,
+      sort: ['-id'],
+      appends: ['collection', 'user'],
+      filter: {
+        $and: [
+          {
+            user: {
+              id: {
+                $eq: '{{$user.id}}',
+              },
+            },
+          },
+        ],
+      },
+    });
     const currentLogResponse = await agent.resource('auditLogs').get({
       filterByTk: currentTenantLog.get('id'),
       appends: ['changes'],
@@ -77,6 +93,10 @@ describe('audit log tenant read boundary', () => {
     expect(listResponse.status).toBe(200);
     expect(listResponse.body.data).toHaveLength(1);
     expect(listResponse.body.data[0].id).toBe(currentTenantLog.get('id'));
+    expect(filteredListResponse.status).toBe(200);
+    expect(filteredListResponse.body.data).toHaveLength(1);
+    expect(filteredListResponse.body.data[0].id).toBe(currentTenantLog.get('id'));
+    expect(filteredListResponse.body.data[0].user.id).toBe(user.get('id'));
     expect(currentLogResponse.status).toBe(200);
     expect(currentLogResponse.body.data.id).toBe(currentTenantLog.get('id'));
     expect(foreignLogResponse.status).toBe(200);

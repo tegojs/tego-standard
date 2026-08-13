@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.33] - 2026-08-13
+
+### 🐛 Fixed
+
+- **event-source**: preserve trusted workflow execution (@TomyJan)
+- **collection**: load missing db2cm associations (@TomyJan)
+- **tenant**: preserve dynamic associations when disabling tenancy (@TomyJan)
+- **tenant**: wait for tenant context before mounting app (@TomyJan)
+- **hera**: restore legacy print style association (@TomyJan)
+
 ## [1.6.32] - 2026-08-12
 
 ### 🐛 Fixed
@@ -3118,7 +3128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.32...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.33...HEAD
+[1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33
 [1.6.32]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.32
 [1.6.31]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.31
 [1.6.30]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.30

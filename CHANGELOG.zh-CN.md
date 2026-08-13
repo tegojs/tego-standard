@@ -9,6 +9,16 @@
 
 
 
+## [1.6.33] - 2026-08-13
+
+### 🐛 修复
+
+- **event-source**: 保留可信的工作流程执行 (@TomyJan)
+- **collection**: 加载缺少的 db2cm 关联 (@TomyJan)
+- **tenant**: 禁用租赁时保留动态关联 (@TomyJan)
+- **tenant**: 安装应用程序之前等待租户上下文 (@TomyJan)
+- **hera**: 恢复传统印刷风格关联 (@TomyJan)
+
 ## [1.6.32] - 2026-08-12
 
 ### 🐛 修复
@@ -3118,7 +3128,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.32...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.33...HEAD
+[1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33
 [1.6.32]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.32
 [1.6.31]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.31
 [1.6.30]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.30

@@ -1,3 +1,4 @@
+import { isAuthenticationSecretKey, redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import type { Application, Collection } from '@tego/server';
 
 import _ from 'lodash';
@@ -108,6 +109,17 @@ export function serializeError(error: unknown) {
   return { message: stringifyError(error) };
 }
 
+export function sendApprovalMessage(messageManager: any, userId: unknown, message: Record<string, any>) {
+  if ((typeof userId !== 'string' && typeof userId !== 'number') || userId === '') {
+    return;
+  }
+  const recipientId = Number(userId);
+  if (!Number.isFinite(recipientId)) {
+    return;
+  }
+  return messageManager.sendMessage(recipientId, redactSensitiveAuthenticationData(message));
+}
+
 async function parsePerson({ node, processor, keyName }) {
   const configPerson = processor
     .getParsedValue(node.config?.[keyName] ?? [], node.id)
@@ -137,7 +149,7 @@ function getSummary(params: ParamsType): object {
 
   const summaryDataSource = getSummaryDataSource({
     summaryConfig: normalizeSummaryConfig(summaryConfig),
-    data,
+    data: redactSensitiveAuthenticationData(data),
     collection,
     app,
   });
@@ -147,7 +159,10 @@ function getSummary(params: ParamsType): object {
 
 function normalizeSummaryConfig(summaryConfig: unknown): string[] {
   return Array.isArray(summaryConfig)
-    ? summaryConfig.filter((key): key is string => typeof key === 'string' && key.length > 0)
+    ? summaryConfig.filter(
+        (key): key is string =>
+          typeof key === 'string' && key.length > 0 && !key.split('.').filter(Boolean).some(isAuthenticationSecretKey),
+      )
     : [];
 }
 

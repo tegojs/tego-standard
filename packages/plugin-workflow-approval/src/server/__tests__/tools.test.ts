@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { parseAssignees } from '../instructions/tools';
-import { getSummaryAssociationAppends, getWorkflowAppends, parsePerson, serializeError } from '../tools';
+import {
+  getSummary,
+  getSummaryAssociationAppends,
+  getWorkflowAppends,
+  parsePerson,
+  sendApprovalMessage,
+  serializeError,
+} from '../tools';
 
 function createCollection(
   fields: Record<string, any>,
@@ -173,6 +180,64 @@ describe('workflow appends', () => {
         collection,
       ),
     ).toEqual(['owner']);
+  });
+
+  it('excludes authentication secrets from association summaries', () => {
+    const users = createCollection({
+      nickname: { type: 'string' },
+      password: { type: 'password' },
+      resetToken: { type: 'string' },
+    });
+    const collection = createCollection({ reviewers: { type: 'hasMany', target: 'users' } }, { users });
+
+    const summary = getSummary({
+      summaryConfig: ['reviewers', 'reviewers.nickname', 'reviewers.password', 'reviewers.resetToken'],
+      data: {
+        reviewers: [
+          {
+            nickname: 'Reviewer',
+            password: 'password-hash',
+            resetToken: 'reset-token',
+          },
+        ],
+      },
+      collection,
+    } as any);
+
+    expect(JSON.stringify(summary)).toContain('Reviewer');
+    expect(JSON.stringify(summary)).not.toContain('password');
+    expect(JSON.stringify(summary)).not.toContain('resetToken');
+    expect(JSON.stringify(summary)).not.toContain('password-hash');
+    expect(JSON.stringify(summary)).not.toContain('reset-token');
+  });
+});
+
+describe('approval messages', () => {
+  it('redacts authentication secrets at the outbound message boundary', () => {
+    const sendMessage = vi.fn();
+
+    sendApprovalMessage({ sendMessage }, 7, {
+      title: 'Approval',
+      jsonContent: [
+        { key: 'nickname', value: 'Reviewer' },
+        { key: 'password', value: 'password-hash' },
+        { key: 'createdBy.resetToken', value: 'reset-token' },
+      ],
+    });
+
+    expect(sendMessage).toHaveBeenCalledOnce();
+    const payload = sendMessage.mock.calls[0][1];
+    expect(payload.jsonContent).toEqual([{ key: 'nickname', value: 'Reviewer' }]);
+    expect(JSON.stringify(payload)).not.toContain('password-hash');
+    expect(JSON.stringify(payload)).not.toContain('reset-token');
+  });
+
+  it('does not send a message for an invalid recipient id', () => {
+    const sendMessage = vi.fn();
+
+    sendApprovalMessage({ sendMessage }, { id: 7 }, { title: 'Approval' });
+
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });
 

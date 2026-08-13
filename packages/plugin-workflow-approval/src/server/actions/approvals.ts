@@ -1,3 +1,4 @@
+import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
 import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
@@ -11,7 +12,7 @@ import {
   type DeferredAfterCommit,
 } from '../defer-after-commit';
 import { withCurrentTenantFilter } from '../helpers/tenant-filter';
-import { getSummary, getWorkflowAppends, serializeError } from '../tools';
+import { getSummary, getWorkflowAppends, sendApprovalMessage, serializeError } from '../tools';
 
 const APPROVAL_COMMIT_UNCERTAIN_MESSAGE =
   'Approval commit outcome is uncertain; the external business record was retained';
@@ -113,7 +114,7 @@ async function createApprovalRecord(ctx, options) {
   const { values, transaction, dataSourceTransaction, deferAfterCommit } = options;
   const { whitelist, blacklist, updateAssociationValues } = ctx.action.params;
   return ctx.db.getRepository('approvals').create({
-    values,
+    values: redactSensitiveAuthenticationData(values),
     whitelist,
     blacklist,
     updateAssociationValues,
@@ -129,7 +130,7 @@ async function updateApprovalRecord(ctx, transaction) {
     ctx.action.params;
   return utils.getRepositoryFromParams(ctx).update({
     filterByTk,
-    values,
+    values: redactSensitiveAuthenticationData(values),
     whitelist,
     blacklist,
     filter,
@@ -472,9 +473,7 @@ export const approvals = {
       if (!persistedRecord) {
         return ctx.throw(500, 'Created approval data could not be reloaded');
       }
-      const persistedData = {
-        ...(persistedRecord.get?.({ plain: true }) ?? persistedRecord.toJSON?.() ?? persistedRecord),
-      };
+      const persistedData = redactSensitiveAuthenticationData(persistedRecord);
       const dataKey = persistedData[collection.filterTargetKey];
       if (dataKey == null) {
         return ctx.throw(500, 'Reloaded approval data is missing its target key');
@@ -819,7 +818,7 @@ export const approvals = {
         dataKey: approval.data[collection.filterTargetKey],
       };
 
-      ctx.tego.messageManager.sendMessage(+userId, message);
+      sendApprovalMessage(ctx.tego.messageManager, userId, message);
     }
 
     await next();

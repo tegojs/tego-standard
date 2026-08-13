@@ -1,3 +1,4 @@
+import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
 import { Instruction, JOB_STATUS } from '@tachybase/module-workflow';
 import { parseCollectionName } from '@tego/server';
@@ -5,7 +6,7 @@ import { parseCollectionName } from '@tego/server';
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../../common/constants';
 import { APPROVAL_STATUS } from '../constants/status';
 import { getTenantValuesFromExecution } from '../helpers/tenant-filter';
-import { parsePerson } from '../tools';
+import { parsePerson, sendApprovalMessage } from '../tools';
 
 /** 工作流节点: 审批抄送节点 */
 export default class ApprovalCarbonCopyInstruction extends Instruction {
@@ -32,22 +33,24 @@ export default class ApprovalCarbonCopyInstruction extends Instruction {
       // error是为了发生错误的时候，重试恢复正常也需要生成抄送
       if ([APPROVAL_STATUS.SUBMITTED, APPROVAL_STATUS.ERROR].includes(approval.status)) {
         const CarbonCopyModel = db.getModel(COLLECTION_NAME_APPROVAL_CARBON_COPY);
-        const notifiedPersonDataMap = targetPersonList.map((userId, index) => ({
-          userId,
-          jobId: job.id,
-          nodeId: node.id,
-          executionId: job.executionId,
-          workflowId: node.workflowId,
-          ...getTenantValuesFromExecution(processor.execution, COLLECTION_NAME_APPROVAL_CARBON_COPY),
-          index,
-          createdById: approval.createdBy?.id,
-          approvalId: approval.id,
-          status: approval.status,
-          snapshot: approval.data,
-          summary: approval.summary,
-          collectionName: approval.collectionName,
-          dataKey: approval.dataKey,
-        }));
+        const notifiedPersonDataMap = targetPersonList.map((userId, index) =>
+          redactSensitiveAuthenticationData({
+            userId,
+            jobId: job.id,
+            nodeId: node.id,
+            executionId: job.executionId,
+            workflowId: node.workflowId,
+            ...getTenantValuesFromExecution(processor.execution, COLLECTION_NAME_APPROVAL_CARBON_COPY),
+            index,
+            createdById: approval.createdBy?.id,
+            approvalId: approval.id,
+            status: approval.status,
+            snapshot: approval.data,
+            summary: approval.summary,
+            collectionName: approval.collectionName,
+            dataKey: approval.dataKey,
+          }),
+        );
 
         await CarbonCopyModel.bulkCreate(notifiedPersonDataMap, {
           transaction: processor.transaction,
@@ -68,7 +71,7 @@ export default class ApprovalCarbonCopyInstruction extends Instruction {
             schemaName: node.config.showCarbonCopyDetail,
             dataKey: approval.data[collection.filterTargetKey],
           };
-          this.workflow.app.messageManager.sendMessage(+userId, message);
+          sendApprovalMessage(this.workflow.app.messageManager, userId, message);
         }
       }
     }

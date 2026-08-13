@@ -3989,6 +3989,9 @@ importers:
       '@tachybase/client':
         specifier: workspace:*
         version: link:../client
+      '@tachybase/module-auth':
+        specifier: workspace:*
+        version: link:../module-auth
       '@tachybase/module-tenant':
         specifier: workspace:*
         version: link:../module-tenant

@@ -1,5 +1,6 @@
+import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
-import { EXECUTION_STATUS, JOB_STATUS, toJSON, Trigger } from '@tachybase/module-workflow';
+import { EXECUTION_STATUS, JOB_STATUS, Trigger } from '@tachybase/module-workflow';
 import { modelAssociationByKey, parseCollectionName } from '@tego/server';
 
 import { get } from 'lodash';
@@ -96,7 +97,7 @@ export default class ApprovalTrigger extends Trigger {
           : this.workflow.useDataSourceTransaction(dataSourceName, transaction),
     });
     const context = {
-      data: toJSON(data),
+      data: redactSensitiveAuthenticationData(data),
       approvalId: approval.id,
       applicantRoleName: approval.applicantRoleName,
       summary: getSummary({
@@ -139,7 +140,7 @@ export default class ApprovalTrigger extends Trigger {
     const ApprovalExecutionRepo = this.workflow.db.getRepository('approvalExecutions');
 
     const approvalExecution = await ApprovalExecutionRepo.create({
-      values: {
+      values: redactSensitiveAuthenticationData({
         approvalId,
         executionId: execution.id,
         status: execution.status,
@@ -147,7 +148,7 @@ export default class ApprovalTrigger extends Trigger {
         snapshot: data,
         summary,
         collectionName,
-      },
+      }),
       transaction,
     });
 
@@ -298,7 +299,7 @@ export default class ApprovalTrigger extends Trigger {
       await approvalRepo.create({
         values: {
           collectionName: workflow.config.collection,
-          data: toJSON(data),
+          data: redactSensitiveAuthenticationData(data),
           dataKey: data.get(collecton.filterTargetKey),
           status: APPROVAL_STATUS.SUBMITTED,
           ...getTenantValuesFromContext(ctx, 'approvals'),
@@ -376,7 +377,7 @@ export default class ApprovalTrigger extends Trigger {
         await approvalRepo.create({
           values: {
             collectionName: workflow.config.collection,
-            data: toJSON(payload),
+            data: redactSensitiveAuthenticationData(payload),
             dataKey: payload.get(collection.filterTargetKey),
             status: APPROVAL_STATUS.SUBMITTED,
             ...getTenantValuesFromContext(ctx, 'approvals'),

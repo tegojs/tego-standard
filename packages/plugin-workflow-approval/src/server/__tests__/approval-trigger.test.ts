@@ -1,3 +1,5 @@
+import { Model } from '@tego/server';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { APPROVAL_STATUS } from '../constants/status';
@@ -13,28 +15,52 @@ class TriggerRecord {
   }
 }
 
+const brokenAssociationData = { id: 42, title: 'approval summary' };
+
+class BrokenAssociationRecord extends Model {
+  static associations = {};
+
+  get(keyOrOptions?: string | { plain?: boolean }) {
+    if (typeof keyOrOptions === 'string') {
+      return brokenAssociationData[keyOrOptions];
+    }
+    if (keyOrOptions?.plain) {
+      return brokenAssociationData;
+    }
+    throw new TypeError("Cannot read properties of undefined (reading 'length')");
+  }
+}
+
+function createBrokenAssociationRecord() {
+  const record = Object.create(BrokenAssociationRecord.prototype);
+  record.dataValues = brokenAssociationData;
+  return record;
+}
+
 function createTriggerHarness({
   rows,
   state = {},
   transaction,
   dataSourceTransaction = transaction,
+  collectionModel = TriggerRecord,
   findOne = vi.fn(async ({ filterByTk }) => ({
     id: filterByTk,
     title: `summary-${filterByTk}`,
   })),
   approvalCreate = vi.fn(async () => undefined),
 }: {
-  rows: TriggerRecord | TriggerRecord[];
+  rows: TriggerRecord | Model | Array<TriggerRecord | Model>;
   state?: Record<string, any>;
   transaction?: any;
   dataSourceTransaction?: any;
+  collectionModel?: any;
   findOne?: ReturnType<typeof vi.fn>;
   approvalCreate?: ReturnType<typeof vi.fn>;
 }) {
   const collection = {
     filterTargetKey: 'id',
     getField: vi.fn(() => undefined),
-    model: TriggerRecord,
+    model: collectionModel,
     repository: {
       findOne,
     },
@@ -221,6 +247,76 @@ describe('ApprovalTrigger.collectionTriggerAction', () => {
 
     expect(settled).toBe(true);
   });
+
+  it('uses plain persisted data when a collection-triggered record cannot be serialized through get()', async () => {
+    const record = createBrokenAssociationRecord();
+    const { approvalCreate, ctx, trigger } = createTriggerHarness({
+      collectionModel: BrokenAssociationRecord,
+      rows: record,
+    });
+
+    await trigger.collectionTriggerAction(ctx, 'approval-key');
+
+    expect(approvalCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({ data: brokenAssociationData }),
+      }),
+    );
+  });
+});
+
+describe('ApprovalTrigger.workflowTriggerAction', () => {
+  it('uses plain persisted data when a directly triggered record cannot be serialized through get()', async () => {
+    const record = createBrokenAssociationRecord();
+    const approvalCreate = vi.fn();
+    const workflow = {
+      id: 1,
+      key: 'approval-key',
+      config: { collection: 'orders', summary: [] },
+    };
+    const collection = {
+      filterTargetKey: 'id',
+      getField: vi.fn(() => undefined),
+      repository: { create: vi.fn().mockResolvedValue(record) },
+    };
+    const workflowPlugin = {
+      app: {
+        dataSourceManager: {
+          dataSources: new Map([['main', { collectionManager: { getCollection: vi.fn(() => collection) } }]]),
+        },
+      },
+      db: {
+        getRepository: vi.fn((name: string) => {
+          if (name === 'workflows') {
+            return { find: vi.fn().mockResolvedValue([workflow]) };
+          }
+          if (name === 'approvals') {
+            return { create: approvalCreate };
+          }
+          throw new Error(`Unexpected repository ${name}`);
+        }),
+      },
+    };
+    const trigger = Object.create(ApprovalTrigger.prototype) as ApprovalTrigger;
+    (trigger as any).workflow = workflowPlugin;
+    const ctx = {
+      action: { params: { triggerWorkflows: 'approval-key', values: { title: 'request' } } },
+      state: {},
+      status: 0,
+      throw(status: number) {
+        throw Object.assign(new Error(String(status)), { status });
+      },
+    };
+
+    await trigger.workflowTriggerAction(ctx, vi.fn());
+    await vi.waitFor(() => expect(approvalCreate).toHaveBeenCalledOnce());
+
+    expect(approvalCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({ data: brokenAssociationData }),
+      }),
+    );
+  });
 });
 
 function createTriggerContext(
@@ -303,6 +399,23 @@ function createTriggerContext(
 }
 
 describe('ApprovalTrigger', () => {
+  it('uses plain persisted data when a workflow record cannot be serialized through get()', async () => {
+    const record = createBrokenAssociationRecord();
+    const triggerWorkflow = vi.fn();
+    const { approval, repository, trigger } = createTriggerContext({ trigger: triggerWorkflow });
+    repository.findOne.mockResolvedValue(record);
+
+    await trigger.triggerHandler(approval);
+
+    await vi.waitFor(() => {
+      expect(triggerWorkflow).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ data: brokenAssociationData }),
+        expect.anything(),
+      );
+    });
+  });
+
   it('uses the workflow transaction when no data source transaction is provided', async () => {
     const context = createTriggerContext();
     const { approval, fallbackTransaction, repository } = context;

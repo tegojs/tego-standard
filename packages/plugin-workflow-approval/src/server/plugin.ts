@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { PluginWorkflow } from '@tachybase/module-workflow';
 import { Plugin } from '@tego/server';
 
@@ -7,6 +8,34 @@ import { init } from './actions';
 import ApprovalInstruction from './instructions/Approval';
 import ApprovalCarbonCopyInstruction from './instructions/ApprovalCarbonCopy';
 import ApprovalTrigger from './triggers/Approval';
+
+const SENSITIVE_APPROVAL_RESOURCES = new Set([
+  'approvals',
+  'approvalExecutions',
+  'approvalRecords',
+  COLLECTION_NAME_APPROVAL_CARBON_COPY,
+]);
+const WORKFLOW_RESULT_RESOURCES = new Set(['executions', 'jobs']);
+
+function isSensitiveApprovalResource(resourceName: unknown) {
+  return (
+    typeof resourceName === 'string' &&
+    resourceName
+      .replace(/^api\//, '')
+      .split('.')
+      .some((name) => SENSITIVE_APPROVAL_RESOURCES.has(name))
+  );
+}
+
+function isWorkflowResultResource(resourceName: unknown) {
+  return (
+    typeof resourceName === 'string' &&
+    resourceName
+      .replace(/^api\//, '')
+      .split('.')
+      .some((name) => WORKFLOW_RESULT_RESOURCES.has(name))
+  );
+}
 
 export class PluginWorkflowApproval extends Plugin {
   workflow;
@@ -32,6 +61,15 @@ export class PluginWorkflowApproval extends Plugin {
       },
     });
     init(this);
+    this.app.resourcer.use(async (ctx, next) => {
+      await next();
+      if (
+        ctx.body !== undefined &&
+        (isSensitiveApprovalResource(ctx.action?.resourceName) || isWorkflowResultResource(ctx.action?.resourceName))
+      ) {
+        ctx.body = redactSensitiveAuthenticationData(ctx.body);
+      }
+    });
     this.app.acl.allow('workflows', ['listApprovalFlows'], 'loggedIn');
     this.app.acl.allow('approvals', '*', 'loggedIn');
     this.app.acl.allow('approvalExecutions', ['get'], 'loggedIn');

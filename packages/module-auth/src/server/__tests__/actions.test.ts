@@ -112,9 +112,15 @@ describe('actions', () => {
       const data = res.body.data;
       const token = data.token;
       expect(token).toBeDefined();
+      expect(data.user.hasPassword).toBe(true);
+      expect(data.user.password).toBeUndefined();
+      expect(data.user.resetToken).toBeUndefined();
 
       res = await agent.get('/auth:check').set({ Authorization: `Bearer ${token}`, 'X-Authenticator': 'basic' });
       expect(res.body.data.id).toBeDefined();
+      expect(res.body.data.hasPassword).toBe(true);
+      expect(res.body.data.password).toBeUndefined();
+      expect(res.body.data.resetToken).toBeUndefined();
     });
 
     it('should disable sign up', async () => {
@@ -124,6 +130,8 @@ describe('actions', () => {
         confirm_password: 'new',
       });
       expect(res.statusCode).toEqual(200);
+      expect(JSON.stringify(res.body)).not.toContain('"password"');
+      expect(JSON.stringify(res.body)).not.toContain('"resetToken"');
 
       const repo = db.getRepository('authenticators');
       await repo.update({
@@ -181,6 +189,8 @@ describe('actions', () => {
         confirmPassword: '123456',
       });
       expect(res.statusCode).toEqual(200);
+      expect(res.body.data.password).toBeUndefined();
+      expect(res.body.data.resetToken).toBeUndefined();
 
       // Create a user without username
       const user1 = await userRepo.create({
@@ -195,6 +205,47 @@ describe('actions', () => {
         confirmPassword: '123456',
       });
       expect(res2.statusCode).toEqual(200);
+      expect(res2.body.data.password).toBeUndefined();
+      expect(res2.body.data.resetToken).toBeUndefined();
+    });
+
+    it('does not expose authentication secrets from password recovery actions', async () => {
+      const user = await db.getRepository('users').findOne({
+        filter: { email: process.env.INIT_ROOT_EMAIL },
+      });
+      const lostPasswordResponse = await agent
+        .post('/auth:lostPassword')
+        .set({ 'X-Authenticator': 'basic' })
+        .send({ email: process.env.INIT_ROOT_EMAIL });
+
+      expect(lostPasswordResponse.statusCode).toBe(200);
+      expect(lostPasswordResponse.body.data.password).toBeUndefined();
+      expect(lostPasswordResponse.body.data.resetToken).toBeUndefined();
+
+      await user.reload();
+      const getUserResponse = await app
+        .agent()
+        .login(user)
+        .get('/auth:getUserByResetToken')
+        .set({ 'X-Authenticator': 'basic' })
+        .query({ token: user.get('resetToken') });
+
+      expect(getUserResponse.statusCode).toBe(200);
+      expect(getUserResponse.body.data.password).toBeUndefined();
+      expect(getUserResponse.body.data.resetToken).toBeUndefined();
+
+      const resetPasswordResponse = await agent
+        .post('/auth:resetPassword')
+        .set({ 'X-Authenticator': 'basic' })
+        .send({
+          email: process.env.INIT_ROOT_EMAIL,
+          password: 'reset-password',
+          resetToken: user.get('resetToken'),
+        });
+
+      expect(resetPasswordResponse.statusCode).toBe(200);
+      expect(resetPasswordResponse.body.data.password).toBeUndefined();
+      expect(resetPasswordResponse.body.data.resetToken).toBeUndefined();
     });
 
     it('should check confirm password', async () => {

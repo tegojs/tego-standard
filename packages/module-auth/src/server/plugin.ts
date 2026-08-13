@@ -8,6 +8,7 @@ import authenticatorsActions from './actions/authenticators';
 import { BasicAuth } from './basic-auth';
 import { enUS, zhCN } from './locale';
 import { AuthModel } from './model/authenticator';
+import { redactSensitiveAuthenticationData, serializeAuthenticatedUser } from './sensitive-data';
 import { Storer } from './storer';
 import { TokenBlacklistService } from './token-blacklist';
 import { TokenController } from './token-controller';
@@ -115,6 +116,41 @@ export class PluginAuthServer extends Plugin {
     );
     Object.entries(authenticatorsActions).forEach(([action, handler]) =>
       this.app.resourcer.registerAction(`authenticators:${action}`, handler),
+    );
+    this.app.resourcer.use(
+      async (ctx, next) => {
+        await next();
+        if (ctx.action?.resourceName !== 'auth') {
+          return;
+        }
+        if (ctx.action.actionName === 'check') {
+          const responseUser = serializeAuthenticatedUser(ctx.body);
+          const userWithPassword = responseUser.id
+            ? await ctx.db.getRepository('users').findOne({
+                filterByTk: responseUser.id,
+                fields: ['id', 'password'],
+                raw: true,
+              })
+            : null;
+          ctx.body = {
+            ...responseUser,
+            hasPassword: serializeAuthenticatedUser(userWithPassword).hasPassword,
+          };
+          return;
+        }
+        if (ctx.action.actionName === 'signIn' && ctx.body?.user) {
+          const response = redactSensitiveAuthenticationData(ctx.body);
+          ctx.body = {
+            ...response,
+            user: serializeAuthenticatedUser(ctx.body.user),
+          };
+          return;
+        }
+        if (ctx.body !== undefined) {
+          ctx.body = redactSensitiveAuthenticationData(ctx.body);
+        }
+      },
+      { tag: 'redactAuthenticationSecrets' },
     );
     // Set up ACL
     ['signIn', 'signUp'].forEach((action) => this.app.acl.allow('auth', action));

@@ -1,16 +1,17 @@
-import { JOB_STATUS } from '@tachybase/module-workflow';
+import { JOB_STATUS, PluginWorkflow } from '@tachybase/module-workflow';
 import { getApp, waitForFastAssertion, waitForWorkflowIdle } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-import Database, { mockDatabase, SequelizeDataSource } from '@tego/server';
+import Database, { mockDatabase, Model, SequelizeDataSource } from '@tego/server';
 
 import { vi } from 'vitest';
 
 import { approvals as approvalActions } from '../../actions/approvals';
+import approvalCarbonCopyCollection from '../../collections/approvalCarbonCopy';
 import approvalExecutionsCollection from '../../collections/approvalExecutions';
 import approvalRecordsCollection from '../../collections/approvalRecords';
 import approvalsCollection from '../../collections/approvals';
 import workflowsCollection from '../../collections/workflows';
-import { APPROVAL_STATUS } from '../../constants/status';
+import { APPROVAL_ACTION_STATUS, APPROVAL_STATUS } from '../../constants/status';
 import ApprovalInstruction from '../../instructions/Approval';
 import PluginWorkflowApproval from '../../plugin';
 import ApprovalTrigger from '../../triggers/Approval';
@@ -71,6 +72,7 @@ describe('workflow approval actions', () => {
     db.collection(approvalExecutionsCollection);
     db.collection(approvalRecordsCollection);
     db.collection(approvalsCollection);
+    db.collection(approvalCarbonCopyCollection);
     db.extendCollection(workflowsCollection.collectionOptions, workflowsCollection.mergeOptions);
     const workflowPlugin = app.pm.get('workflow');
     if (!workflowPlugin.triggers.get('approval')) {
@@ -117,6 +119,8 @@ describe('workflow approval actions', () => {
     });
     db.collection({
       name: collectionName,
+      createdBy: true,
+      updatedBy: true,
       fields: [
         { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
         { type: 'integer', name: 'amountA' },
@@ -191,7 +195,7 @@ describe('workflow approval actions', () => {
   async function createApproval(
     data: object,
     copyOptions: { isCopy?: boolean; copyAssociationValues?: string[] } = {},
-    workflowConfig: { summary?: string[]; appends?: string[] } = {},
+    workflowConfig: { summary?: string[]; appends?: string[]; centralized?: boolean } = {},
   ) {
     const workflow = await workflowModel.create({
       enabled: true,
@@ -237,19 +241,132 @@ describe('workflow approval actions', () => {
     return approval;
   }
 
-  it('uses plain persisted data when an association model cannot be serialized with toJSON', async () => {
+  it('does not persist or return password hashes from appended user associations', async () => {
+    await currentUser.update({ password: 'approval-secret' });
+
+    const approval = await createApproval({ amountA: 10, amountB: 20 }, {}, { appends: ['createdBy', 'updatedBy'] });
+    const approvalExecution = await db.getRepository('approvalExecutions').findOne({
+      filter: { approvalId: approval.get('id') },
+      appends: ['execution', 'execution.jobs'],
+    });
+    const response = await agent.resource('approvalExecutions').get({
+      filterByTk: approvalExecution.get('id'),
+      appends: ['execution', 'execution.jobs', 'approval'],
+    });
+
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(approval.get('data'))).not.toContain('"password"');
+    expect(JSON.stringify(approvalExecution.get('snapshot'))).not.toContain('"password"');
+    expect(JSON.stringify(approvalExecution.get('execution')?.get('context'))).not.toContain('"password"');
+    expect(JSON.stringify(approvalExecution.get('execution')?.get('jobs'))).not.toContain('"password"');
+    expect(JSON.stringify(response.body)).not.toContain('"password"');
+    expect(JSON.stringify(response.body)).not.toContain('"resetToken"');
+  });
+
+  it('redacts authentication secrets from historical approval resource responses', async () => {
+    const approval = await createApproval({ amountA: 10, amountB: 20 }, {}, { centralized: true });
+    const approvalExecution = await db.getRepository('approvalExecutions').findOne({
+      filter: { approvalId: approval.get('id') },
+      appends: ['execution'],
+    });
+    const execution = approvalExecution.get('execution');
+
+    await approval.update({
+      data: { marker: 'historical-approval-visible', createdBy: { password: 'historical-approval-password' } },
+      summary: [{ key: 'password', value: 'historical-summary-password' }],
+    });
+    await approvalExecution.update({
+      snapshot: {
+        marker: 'historical-execution-visible',
+        createdBy: { id: currentUser.get('id'), password: 'historical-execution-password' },
+      },
+    });
+    await execution.update({
+      context: {
+        ...execution.get('context'),
+        data: {
+          marker: 'historical-execution-context-visible',
+          updatedBy: { resetToken: 'historical-token' },
+        },
+      },
+    });
+    const historicalJob = await db.getRepository('jobs').create({
+      values: {
+        executionId: execution.get('id'),
+        result: { marker: 'historical-job-visible', reviewer: { password: 'historical-job-password' } },
+      },
+    });
+    await db.getRepository('approvalRecords').create({
+      values: {
+        approvalId: approval.get('id'),
+        approvalExecutionId: approvalExecution.get('id'),
+        executionId: execution.get('id'),
+        workflowId: approval.get('workflowId'),
+        userId: currentUser.get('id'),
+        status: 0,
+        snapshot: { marker: 'historical-record-visible', reviewer: { password: 'historical-record-password' } },
+        summary: [{ key: 'createdBy.resetToken', value: 'historical-record-token' }],
+      },
+    });
+    await db.getRepository('approvalCarbonCopy').create({
+      values: {
+        approvalId: approval.get('id'),
+        executionId: execution.get('id'),
+        workflowId: approval.get('workflowId'),
+        userId: currentUser.get('id'),
+        status: APPROVAL_STATUS.SUBMITTED,
+        snapshot: { marker: 'historical-carbon-copy-visible', reviewer: { password: 'historical-copy-password' } },
+        summary: [{ key: 'resetToken', value: 'historical-copy-token' }],
+      },
+    });
+
+    const responses = await Promise.all([
+      agent.resource('approvals').listCentralized({ paginate: false }),
+      agent.resource('approvalRecords').listCentralized({ paginate: false }),
+      agent.resource('approvalCarbonCopy').listCentralized({ paginate: false }),
+      agent.resource('approvalExecutions').get({
+        filterByTk: approvalExecution.get('id'),
+        appends: ['execution', 'execution.jobs'],
+      }),
+      agent.resource('executions').get({
+        filterByTk: execution.get('id'),
+        appends: ['jobs'],
+      }),
+      agent.resource('jobs').get({ filterByTk: historicalJob.get('id') }),
+    ]);
+
+    const visibleMarkers = [
+      'historical-approval-visible',
+      'historical-record-visible',
+      'historical-carbon-copy-visible',
+      'historical-execution-visible',
+      'historical-execution-context-visible',
+      'historical-job-visible',
+    ];
+    responses.forEach((response, index) => {
+      const body = JSON.stringify(response.body);
+      expect(response.status).toBe(200);
+      expect(body).toContain(visibleMarkers[index]);
+      expect(body).not.toContain('"password"');
+      expect(body).not.toContain('"resetToken"');
+      expect(body).not.toContain('historical-summary-password');
+      expect(body).not.toContain('historical-token');
+    });
+  });
+
+  it('uses model dataValues when plain serialization fails for an association model', async () => {
     const workflow = await workflowModel.create({
       enabled: true,
       type: 'approval',
       config: { collection: collectionName, summary: ['amountA'], appends: [] },
     });
     const persistedData = { id: 901, amountA: 31, amountB: 0 };
-    const persistedRecord = {
-      get: vi.fn().mockReturnValue(persistedData),
-      toJSON: vi.fn(() => {
-        throw new TypeError("Cannot read properties of undefined (reading 'length')");
-      }),
-    };
+    const getPersistedRecord = vi.fn(() => {
+      throw new TypeError("Cannot read properties of undefined (reading 'length')");
+    });
+    const persistedRecord = Object.create(Model.prototype);
+    persistedRecord.dataValues = persistedData;
+    persistedRecord.get = getPersistedRecord;
     const createSpy = vi.spyOn(mainRepo, 'create').mockResolvedValue({
       get: vi.fn().mockReturnValue(persistedData.id),
     } as any);
@@ -279,7 +396,7 @@ describe('workflow approval actions', () => {
       });
 
       expect(response.status).toBe(200);
-      expect(persistedRecord.get).toHaveBeenCalledWith({ plain: true });
+      expect(getPersistedRecord).toHaveBeenCalledWith({ plain: true });
     } finally {
       createSpy.mockRestore();
       findSpy.mockRestore();
@@ -329,13 +446,14 @@ describe('workflow approval actions', () => {
 
   it('initiates an approval through a real approval instruction node', async () => {
     (app as any).messageManager = { sendMessage: vi.fn() };
+    await currentUser.update({ password: 'approval-instruction-secret' });
     const workflow = await workflowModel.create({
       enabled: true,
       type: 'approval',
       config: {
         collection: collectionName,
         summary: ['amountA'],
-        appends: [],
+        appends: ['createdBy'],
       },
     });
     const workflowPlugin = app.pm.get('workflow');
@@ -357,6 +475,7 @@ describe('workflow approval actions', () => {
         order: false,
         branchMode: false,
         applyDetail: 'approval-detail',
+        actions: [APPROVAL_ACTION_STATUS.APPROVED],
       },
       upstreamId: mappingNode.id,
     });
@@ -395,6 +514,31 @@ describe('workflow approval actions', () => {
       expect(approvalRecords[0].userId).toBe(currentUser.id);
     });
     await waitForWorkflowIdle(app);
+
+    const approvalRecord = await db.getRepository('approvalRecords').findOne({
+      filter: { userId: currentUser.id },
+    });
+    const originalGetPlugin = app.pm.get.bind(app.pm);
+    const getPluginSpy = vi
+      .spyOn(app.pm, 'get')
+      .mockImplementation((plugin) => (plugin === PluginWorkflow ? workflowPlugin : originalGetPlugin(plugin)));
+    try {
+      const submitResponse = await agent.resource('approvalRecords').submit({
+        filterByTk: approvalRecord.id,
+        values: {
+          status: APPROVAL_ACTION_STATUS.APPROVED,
+          data: {},
+        },
+      });
+      expect(submitResponse.status).toBe(202);
+      await waitForWorkflowIdle(app);
+    } finally {
+      getPluginSpy.mockRestore();
+    }
+
+    await approvalRecord.reload();
+    expect(JSON.stringify(approvalRecord.get('snapshot'))).not.toContain('"password"');
+    expect(JSON.stringify(approvalRecord.get('snapshot'))).not.toContain('"resetToken"');
   });
 
   it('keeps approval initiation alive when a mapping source has no query result', async () => {
@@ -1804,7 +1948,7 @@ ctx.body = [firstPersonArray].filter((subArr) => subArr.length > 0);`,
           values: {
             collectionName: persistedCollectionName,
             dataKey: 'forged-target',
-            data: { id: 17, amountA: 18 },
+            data: { id: 17, amountA: 18, createdBy: { id: 2, password: 'approval-update-secret' } },
             status: APPROVAL_STATUS.DRAFT,
           },
         },
@@ -1854,12 +1998,20 @@ ctx.body = [firstPersonArray].filter((subArr) => subArr.length > 0);`,
 
     await approvalActions.update(ctx, vi.fn());
 
-    expect(businessUpdate).toHaveBeenCalledWith(expect.objectContaining({ filterByTk: 17 }));
+    expect(businessUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filterByTk: 17,
+        values: expect.objectContaining({
+          createdBy: expect.objectContaining({ password: 'approval-update-secret' }),
+        }),
+      }),
+    );
     expect(approvalUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         values: expect.objectContaining({
           collectionName: persistedCollectionName,
           dataKey: '17',
+          data: expect.objectContaining({ createdBy: { id: 2 } }),
         }),
       }),
     );

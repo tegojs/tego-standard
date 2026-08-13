@@ -8,8 +8,8 @@ import {
   VerificationCode,
 } from '@tachybase/client';
 import { ISchema, useForm } from '@tachybase/schema';
-
 import { uid } from '@tego/client';
+
 import { App } from 'antd';
 
 export const ChangePassword = () => {
@@ -18,7 +18,7 @@ export const ChangePassword = () => {
   const otp = pm.get('@tachybase/plugin-otp');
   const sms = pm.get('@tachybase/plugin-auth-sms');
   const smsVerifyEnabled = !!otp && !!sms;
-  const oldPassword = currentUser?.data?.data?.password !== null;
+  const oldPassword = currentUser?.data?.data?.hasPassword === true;
   const phoneNumber = currentUser?.data?.data?.phone;
   // const codeDescription = phoneNumber ? `将发送验证码给手机${phoneNumber}` : '请先在个人资料填写手机号';
   const { t } = useTranslation();
@@ -40,7 +40,7 @@ const useSaveCurrentUserValues = () => {
   const { message } = App.useApp();
   const { t } = useTranslation();
   const currentUser = useCurrentUserContext();
-  const hideOldPassword = currentUser?.data?.data?.password === null;
+  const hideOldPassword = currentUser?.data?.data?.hasPassword !== true;
   return {
     async run() {
       await form.submit();
@@ -53,7 +53,7 @@ const useSaveCurrentUserValues = () => {
           currentUser.mutate({
             data: {
               ...currentUser.data.data,
-              password: '',
+              hasPassword: true,
             },
           });
         }

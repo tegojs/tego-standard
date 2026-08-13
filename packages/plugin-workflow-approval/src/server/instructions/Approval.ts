@@ -1,10 +1,11 @@
+import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
-import { Instruction, JOB_STATUS, toJSON } from '@tachybase/module-workflow';
+import { Instruction, JOB_STATUS } from '@tachybase/module-workflow';
 import { parseCollectionName, uid } from '@tego/server';
 
 import { APPROVAL_ACTION_STATUS, APPROVAL_STATUS } from '../constants/status';
 import { getTenantValuesFromExecution } from '../helpers/tenant-filter';
-import { getWorkflowAppends } from '../tools';
+import { getWorkflowAppends, sendApprovalMessage } from '../tools';
 import ApprovalTrigger from '../triggers/Approval';
 import { ApprovalJobStatusMap, getNegotiationMode, parseAssignees } from './tools';
 
@@ -35,22 +36,24 @@ export default class ApprovalInstruction extends Instruction {
     }
     const RecordModel = db.getModel('approvalRecords');
     await RecordModel.bulkCreate(
-      assignees.map((userId, index) => ({
-        approvalId: approval.id,
-        approvalExecutionId: approvalExecution.id,
-        createdById: approval.createdBy?.id,
-        userId,
-        jobId: job.id,
-        nodeId: node.id,
-        executionId: job.executionId,
-        workflowId: node.workflowId,
-        ...getTenantValuesFromExecution(processor.execution, 'approvalRecords'),
-        index,
-        status: node.config.order && index ? APPROVAL_ACTION_STATUS.ASSIGNED : APPROVAL_ACTION_STATUS.PENDING,
-        snapshot: approvalExecution.snapshot,
-        summary: approval.summary,
-        collectionName: approval.collectionName,
-      })),
+      assignees.map((userId, index) =>
+        redactSensitiveAuthenticationData({
+          approvalId: approval.id,
+          approvalExecutionId: approvalExecution.id,
+          createdById: approval.createdBy?.id,
+          userId,
+          jobId: job.id,
+          nodeId: node.id,
+          executionId: job.executionId,
+          workflowId: node.workflowId,
+          ...getTenantValuesFromExecution(processor.execution, 'approvalRecords'),
+          index,
+          status: node.config.order && index ? APPROVAL_ACTION_STATUS.ASSIGNED : APPROVAL_ACTION_STATUS.PENDING,
+          snapshot: approvalExecution.snapshot,
+          summary: approval.summary,
+          collectionName: approval.collectionName,
+        }),
+      ),
       {
         transaction: processor.transaction,
       },
@@ -71,7 +74,7 @@ export default class ApprovalInstruction extends Instruction {
         schemaName: node.config.applyDetail,
         dataKey: approval.data[collection.filterTargetKey],
       };
-      this.workflow.app.messageManager.sendMessage(+userId, message);
+      sendApprovalMessage(this.workflow.app.messageManager, userId, message);
     }
 
     return job;
@@ -181,7 +184,7 @@ export default class ApprovalInstruction extends Instruction {
 
       await RecordRepo.update({
         values: {
-          snapshot: toJSON(data),
+          snapshot: redactSensitiveAuthenticationData(data),
         },
         filter: {
           jobId: job.id,

@@ -1,3 +1,4 @@
+import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { PluginWorkflow } from '@tachybase/module-workflow';
 import { actions, utils } from '@tego/server';
 
@@ -62,13 +63,15 @@ export const approvalRecords = {
         break;
     }
 
-    await approvalRecord.update({
-      status: status,
-      comment: data.comment,
-      snapshot: approvalRecord.approval.data,
-      summary: approvalRecord.approval.summary,
-      collectionName: approvalRecord.approval.collectionName,
-    });
+    await approvalRecord.update(
+      redactSensitiveAuthenticationData({
+        status: status,
+        comment: data.comment,
+        snapshot: approvalRecord.approval.data,
+        summary: approvalRecord.approval.summary,
+        collectionName: approvalRecord.approval.collectionName,
+      }),
+    );
     ctx.body = approvalRecord.get();
     ctx.status = 202;
     await next();

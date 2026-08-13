@@ -577,6 +577,53 @@ describe('collections repository', () => {
     expect(loadedFieldNames).not.toContain('approvalExecutions');
   });
 
+  it('should load associations from db2cm fields for existing collections', async () => {
+    const usersName = 'db2cmUsersWithPositions';
+    const positionsName = 'db2cmPositions';
+
+    db.collection({
+      name: usersName,
+      fields: [
+        {
+          type: 'string',
+          name: 'username',
+        },
+      ],
+    });
+    db.collection({
+      name: positionsName,
+      fields: [
+        {
+          type: 'string',
+          name: 'name',
+        },
+      ],
+    });
+
+    await Collection.repository.create({
+      values: {
+        name: usersName,
+        from: 'db2cm',
+        fields: [
+          {
+            type: 'belongsToMany',
+            name: 'positions',
+            target: positionsName,
+            through: `${usersName}_positions`,
+            foreignKey: 'userId',
+            otherKey: 'positionId',
+            sourceKey: 'id',
+            targetKey: 'id',
+          },
+        ],
+      },
+    });
+
+    await Collection.repository.load({ filter: { name: usersName } });
+
+    expect(db.getCollection(usersName).model.associations.positions).toBeDefined();
+  });
+
   it('case 4', async () => {
     await Collection.repository.create({
       values: {

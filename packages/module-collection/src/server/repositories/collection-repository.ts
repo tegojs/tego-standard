@@ -32,7 +32,7 @@ export class CollectionRepository extends Repository {
     } = {};
 
     const viewCollections = [];
-    const db2cmCollections = [];
+    const db2cmCollectionFields = new Map<string, Array<string>>();
 
     const customCollections = [];
 
@@ -84,6 +84,14 @@ export class CollectionRepository extends Repository {
 
         const collectionSource = nameMap[instanceName].get('from') ?? nameMap[instanceName].get('options')?.from;
         if (collectionSource === 'db2cm' && this.database.hasCollection(instanceName)) {
+          const collection = this.database.getCollection(instanceName);
+          const missingFields = (nameMap[instanceName].get('fields') || [])
+            .filter((field) => !collection.hasField(field.get('name')))
+            .map((field) => field.get('name'));
+
+          if (missingFields.length) {
+            db2cmCollectionFields.set(instanceName, missingFields);
+          }
           return true;
         }
 
@@ -110,7 +118,7 @@ export class CollectionRepository extends Repository {
     }
 
     // load fields that were skipped during the collection load pass
-    for (const viewCollectionName of new Set([...viewCollections, ...db2cmCollections])) {
+    for (const viewCollectionName of viewCollections) {
       process.env.DEBUG_LOAD_COLLECTION_FIELDS &&
         this.database.logger.debug(`load collection fields`, {
           submodule: 'CollectionRepository',
@@ -119,6 +127,18 @@ export class CollectionRepository extends Repository {
         });
       this.app?.setMaintainingMessage(`load ${viewCollectionName} collection fields`);
       await nameMap[viewCollectionName].loadFields({});
+    }
+
+    for (const [collectionName, includeFields] of db2cmCollectionFields) {
+      process.env.DEBUG_LOAD_COLLECTION_FIELDS &&
+        this.database.logger.debug(`load collection fields`, {
+          submodule: 'CollectionRepository',
+          method: 'load',
+          collectionName,
+          includeFields,
+        });
+      this.app?.setMaintainingMessage(`load ${collectionName} collection fields`);
+      await nameMap[collectionName].loadFields({ includeFields });
     }
 
     // load lazy collection field

@@ -45,7 +45,7 @@ export async function ensureTenantIdField(model: any, options: Transactionable =
         },
         transaction: options.transaction,
       });
-      await model.load({ transaction: options.transaction, resetFields: true });
+      await model.load({ transaction: options.transaction });
     }
     return;
   }

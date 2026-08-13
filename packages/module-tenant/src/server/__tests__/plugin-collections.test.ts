@@ -131,6 +131,8 @@ describe('tenant plugin collections', () => {
       values: {
         name: 'tenant_meta_disable_posts',
         tenancy: 'tenantScoped',
+        createdBy: true,
+        updatedBy: true,
         fields: [
           {
             type: 'string',
@@ -141,7 +143,21 @@ describe('tenant plugin collections', () => {
       context: {},
     });
 
-    expect(app.db.getCollection('tenant_meta_disable_posts').getField('tenantId')).toBeTruthy();
+    const collection = app.db.getCollection('tenant_meta_disable_posts');
+    expect(collection.getField('tenantId')).toBeTruthy();
+    expect(collection.getField('createdBy')).toBeTruthy();
+    expect(collection.getField('updatedBy')).toBeTruthy();
+
+    const currentUser = await app.db.getCollection('users').model.create();
+    await collection.repository.create({
+      values: { title: 'Owned post' },
+      context: {
+        state: {
+          currentUser,
+          currentTenant: { id: 'tenant-a' },
+        },
+      },
+    });
 
     await app.db.getRepository('collections').update({
       filterByTk: 'tenant_meta_disable_posts',
@@ -159,7 +175,20 @@ describe('tenant plugin collections', () => {
     });
 
     expect(field).toBeNull();
-    expect(app.db.getCollection('tenant_meta_disable_posts').getField('tenantId')).toBeFalsy();
+    expect(collection.getField('tenantId')).toBeFalsy();
+    expect(collection.getField('createdBy')).toBeTruthy();
+    expect(collection.getField('updatedBy')).toBeTruthy();
+
+    const ownedPost = await collection.repository.findOne({
+      filter: {
+        createdBy: {
+          id: { $eq: currentUser.id },
+        },
+      },
+      appends: ['createdBy'],
+    });
+    expect(ownedPost?.get('createdBy')?.id).toBe(currentUser.id);
+
     const table = await app.db.sequelize.getQueryInterface().describeTable('tenant_meta_disable_posts');
     expect(table.tenantId).toBeUndefined();
   });

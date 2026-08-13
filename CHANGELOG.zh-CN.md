@@ -9,6 +9,14 @@
 
 
 
+## [1.6.34] - 2026-08-13
+
+### 🐛 修复
+
+- **auth**: 从源条目公开安全实用程序 (@TomyJan)
+- **tenant**: 在租户设置之前允许旧读取 (@TomyJan)
+- **security**: 防止身份验证秘密泄露 (@TomyJan)
+
 ## [1.6.33] - 2026-08-13
 
 ### 🐛 修复
@@ -3128,7 +3136,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.33...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.34...HEAD
+[1.6.34]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.34
 [1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33
 [1.6.32]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.32
 [1.6.31]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.31

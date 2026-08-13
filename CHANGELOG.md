@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.34] - 2026-08-13
+
+### 🐛 Fixed
+
+- **auth**: expose security utilities from source entry (@TomyJan)
+- **tenant**: allow legacy reads before tenant setup (@TomyJan)
+- **security**: prevent authentication secret exposure (@TomyJan)
+
 ## [1.6.33] - 2026-08-13
 
 ### 🐛 Fixed
@@ -3128,7 +3136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.33...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.34...HEAD
+[1.6.34]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.34
 [1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33
 [1.6.32]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.32
 [1.6.31]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.31

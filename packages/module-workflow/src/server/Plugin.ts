@@ -15,6 +15,11 @@ import { LRUCache } from 'lru-cache';
 
 import initActions from './actions';
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
+import {
+  getWorkflowExecutionOrigin,
+  markEventSourceWorkflowExecution,
+  restoreWorkflowExecutionProvenance,
+} from './execution-provenance';
 import PluginWorkflowJSParseServer from './features/_deprecated-js-parse/plugin';
 import PluginWorkflowJSONParseServer from './features/_deprecated-json-parse/plugin';
 import { PluginAggregate } from './features/aggregate/Plugin';
@@ -403,6 +408,14 @@ export default class PluginWorkflowServer extends Plugin {
     setTimeout(this.prepare);
   }
 
+  public triggerFromEventSource(
+    workflow: WorkflowModel,
+    context: object,
+    options: { [key: string]: any } & Transactionable = {},
+  ): void | Promise<Processor | null> {
+    return this.trigger(workflow, context, markEventSourceWorkflowExecution(options));
+  }
+
   private async triggerSync(
     workflow: WorkflowModel,
     context: object,
@@ -436,7 +449,8 @@ export default class PluginWorkflowServer extends Plugin {
   }
 
   public createProcessor(execution: ExecutionModel, options = {}): Processor {
-    return new Processor(execution, { ...options, plugin: this });
+    const executionOptions = restoreWorkflowExecutionProvenance(execution, options);
+    return new Processor(execution, { ...executionOptions, plugin: this });
   }
 
   private async createExecution(workflow: WorkflowModel, context, options): Promise<ExecutionModel | null> {
@@ -455,6 +469,7 @@ export default class PluginWorkflowServer extends Plugin {
     try {
       const tenantContext = extractTenantContext(context, options);
       const authContext = extractAuthContext(context, options);
+      const executionOrigin = getWorkflowExecutionOrigin(options);
       execution = await workflow.createExecution(
         {
           context,
@@ -463,6 +478,7 @@ export default class PluginWorkflowServer extends Plugin {
           tenantId: tenantContext?.currentTenantId,
           tenantContext,
           authContext,
+          executionOrigin,
           parentNode: options.parentNode || null,
           parentId: options.parent ? options.parent.id : null,
         },

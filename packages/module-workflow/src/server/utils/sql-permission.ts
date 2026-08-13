@@ -1,3 +1,4 @@
+import { EVENT_SOURCE_EXECUTION_ORIGIN } from '../execution-provenance';
 import type Processor from '../Processor';
 import { getExecutionField } from '../Processor';
 
@@ -72,6 +73,16 @@ function resolveAcl(httpContext: any): any | null {
  *   was already gated at creation time by the API-level check in nodes.ts.
  */
 export function checkSqlExecutionPermission(processor: Processor): void {
+  // Event-source handlers are registered by an authorized workflow owner and
+  // execute through a server-side action. They may retain the request context
+  // for tenant/user templates without being treated as an arbitrary workflow
+  // API invocation.
+  if (
+    getExecutionField<string | null>(processor.execution, 'executionOrigin', null) === EVENT_SOURCE_EXECUTION_ORIGIN
+  ) {
+    return;
+  }
+
   const authContext = getExecutionField<AuthContext>(processor.execution, 'authContext', {});
   const httpContext =
     processor.options?.httpContext ||

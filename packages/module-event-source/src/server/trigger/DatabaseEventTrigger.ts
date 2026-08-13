@@ -49,7 +49,7 @@ export class DatabaseEventTrigger extends EventSourceTrigger {
       const pluginWorkflow = this.app.pm.get(PluginWorkflow) as PluginWorkflow;
       const wfRepo = this.app.db.getRepository('workflows');
       const wf = await wfRepo.findOne({ filter: { key: workflowKey, enabled: true } });
-      const result = (await pluginWorkflow.trigger(
+      const result = (await pluginWorkflow.triggerFromEventSource(
         wf,
         { data: webhookCtx.body },
         { dbModel: model, dbOptions: options, ...options },

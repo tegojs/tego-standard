@@ -3,6 +3,7 @@ import { Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
 import { EventSourceQueueWorker } from '../queue/EventSourceQueueWorker';
+import { formatWorkflowError } from '../utils/workflow-error';
 import { WebhookController } from '../webhooks/webhooks';
 import { EventSourceTrigger } from './Trigger';
 
@@ -124,7 +125,7 @@ export class CustomActionTrigger extends EventSourceTrigger {
         );
         const lastSavedJob = (<Processor>res)?.lastSavedJob;
         if (lastSavedJob?.get('status') < 0) {
-          throw new Error(`${lastSavedJob.get('result')}`);
+          throw new Error(formatWorkflowError(lastSavedJob.get('result')));
         }
       } catch (error) {
         app.logger.error(

@@ -198,7 +198,11 @@ export class WebhookController {
     if (webhook?.workflowKey) {
       const wfRepo = ctx.db.getRepository('workflows');
       const wf = await wfRepo.findOne({ filter: { key: webhook.workflowKey, enabled: true } });
-      const processor = await pluginWorkflow.trigger(wf, { data: webhookCtx.body, ...userInfo }, { httpContext: ctx });
+      const processor = await pluginWorkflow.triggerFromEventSource(
+        wf,
+        { data: webhookCtx.body, ...userInfo },
+        { httpContext: ctx },
+      );
       if (!processor) {
         return ctx.throw('Workflow should be sync.', 500);
       }
@@ -270,7 +274,7 @@ export class WebhookController {
     const wf = await wfRepo.findOne({ filter: { key: action.workflowKey, enabled: true } });
     // 与历史行为一致：未配置时默认透传 httpContext；仅显式 useHttpContext=false 时关闭
     const useHttpContext = action?.options?.useHttpContext !== false;
-    const triggerOptions = useHttpContext ? { httpContext: ctx } : undefined;
-    return await pluginWorkflow.trigger(wf, { data: body, ...userInfo }, triggerOptions);
+    const triggerOptions = useHttpContext ? { httpContext: ctx } : {};
+    return await pluginWorkflow.triggerFromEventSource(wf, { data: body, ...userInfo }, triggerOptions);
   }
 }

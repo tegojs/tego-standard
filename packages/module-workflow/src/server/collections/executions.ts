@@ -52,6 +52,10 @@ export default {
       name: 'authContext',
     },
     {
+      type: 'string',
+      name: 'executionOrigin',
+    },
+    {
       type: 'integer',
       name: 'status',
     },

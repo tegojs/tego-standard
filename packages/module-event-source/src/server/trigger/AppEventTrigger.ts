@@ -74,7 +74,7 @@ export class AppEventTrigger extends EventSourceTrigger {
       const pluginWorkflow = this.app.pm.get(PluginWorkflow) as PluginWorkflow;
       const wfRepo = this.app.db.getRepository('workflows');
       const wf = await wfRepo.findOne({ filter: { key: workflowKey, enabled: true } });
-      await pluginWorkflow.trigger(wf, { data: webhookCtx.body }, {});
+      await pluginWorkflow.triggerFromEventSource(wf, { data: webhookCtx.body });
     };
   }
 }

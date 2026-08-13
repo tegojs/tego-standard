@@ -1,6 +1,7 @@
 import { Application } from '@tego/server';
 
 import { EVENT_SOURCE_QUEUE_COLLECTION, EVENT_SOURCE_QUEUE_STATUS } from '../constants';
+import { formatWorkflowError } from '../utils/workflow-error';
 import { WebhookController } from '../webhooks/webhooks';
 
 type QueueStage = 'beforeResource' | 'afterResource' | 'customAction';
@@ -111,7 +112,7 @@ export class EventSourceQueueWorker {
 
       const pseudoCtx = await this.createPseudoContext(job.contextLite);
       const controller = new WebhookController();
-      await controller.triggerWorkflow(
+      const processor = await controller.triggerWorkflow(
         pseudoCtx as any,
         {
           workflowKey: job.workflowKey,
@@ -121,6 +122,10 @@ export class EventSourceQueueWorker {
         },
         job.payload,
       );
+      const lastSavedJob = processor ? processor.lastSavedJob : null;
+      if (lastSavedJob?.get('status') < 0) {
+        throw new Error(formatWorkflowError(lastSavedJob.get('result')));
+      }
 
       await repo.update({
         filter: { id: job.id },
@@ -138,7 +143,7 @@ export class EventSourceQueueWorker {
         values: {
           status: dead ? EVENT_SOURCE_QUEUE_STATUS.DEAD : EVENT_SOURCE_QUEUE_STATUS.FAILED,
           nextRunAt: dead ? null : new Date(Date.now() + retryBackoffMs),
-          lastError: error?.stack || `${error}`,
+          lastError: error?.stack || formatWorkflowError(error),
         },
       });
       this.app.logger.error(

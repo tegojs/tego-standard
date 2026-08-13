@@ -3,6 +3,7 @@ import { Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
 import { EventSourceQueueWorker } from '../queue/EventSourceQueueWorker';
+import { formatWorkflowError } from '../utils/workflow-error';
 import { WebhookController } from '../webhooks/webhooks';
 import { EventSourceTrigger } from './Trigger';
 
@@ -142,11 +143,11 @@ export class ResourceEventTrigger extends EventSourceTrigger {
           return;
         }
         if (failurePolicy === 'block') {
-          throw new Error(`${result.lastSavedJob.result}`);
+          throw new Error(formatWorkflowError(result.lastSavedJob.result));
         }
         // legacy：仅 beforeResource 与工作流 main 一致，返回 400
         if (stage === 'beforeResource') {
-          ctx.throw(400, result.lastSavedJob.result);
+          ctx.throw(400, formatWorkflowError(result.lastSavedJob.result));
         }
         return;
       }

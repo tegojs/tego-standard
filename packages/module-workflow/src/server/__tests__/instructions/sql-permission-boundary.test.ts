@@ -17,8 +17,10 @@ import { Database, Plugin } from '@tego/server';
 
 import { assertSqlNodePermission } from '../../actions/nodes';
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
+import { EVENT_SOURCE_EXECUTION_ORIGIN } from '../../execution-provenance';
 import type WorkflowPlugin from '../../Plugin';
 import { triggerWorkflowAndGetExecution } from '../../utils';
+import { checkSqlExecutionPermission } from '../../utils/sql-permission';
 
 /** Poll until assertion passes or timeout (borrowed from __tests__/utils pattern) */
 async function waitForAssertion(assertion: () => Promise<void> | void, timeout = 10000, interval = 200) {
@@ -164,6 +166,55 @@ class TestAuthStatusPlugin extends Plugin {
 }
 
 describe('workflow > sql instruction permission boundary', () => {
+  it('should allow a persisted event-source execution with an HTTP context', () => {
+    const processor = {
+      execution: {
+        get: (key: string) => (key === 'executionOrigin' ? EVENT_SOURCE_EXECUTION_ORIGIN : { currentRole: 'member' }),
+      },
+      options: {
+        httpContext: {
+          state: { currentRole: 'member' },
+        },
+      },
+    } as any;
+
+    expect(() => checkSqlExecutionPermission(processor)).not.toThrow();
+  });
+
+  it('should reject forged provenance in ordinary workflow options', () => {
+    const processor = {
+      execution: {
+        get: (key: string) => (key === 'authContext' ? { currentRole: 'member' } : null),
+      },
+      options: {
+        trustedWorkflowExecution: true,
+        executionOrigin: EVENT_SOURCE_EXECUTION_ORIGIN,
+        httpContext: {
+          state: { currentRole: 'member' },
+          app: { acl: { getRole: () => ({ effectiveSnippets: () => ({ allowed: [] }) }) } },
+        },
+      },
+    } as any;
+
+    expect(() => checkSqlExecutionPermission(processor)).toThrow(/pm\.workflow\.sql/);
+  });
+
+  it('should still enforce SQL permission for an ordinary HTTP workflow execution', () => {
+    const processor = {
+      execution: {
+        get: () => ({ currentRole: 'member' }),
+      },
+      options: {
+        httpContext: {
+          state: { currentRole: 'member' },
+          app: { acl: { getRole: () => ({ effectiveSnippets: () => ({ allowed: [] }) }) } },
+        },
+      },
+    } as any;
+
+    expect(() => checkSqlExecutionPermission(processor)).toThrow(/pm\.workflow\.sql/);
+  });
+
   let app: MockServer;
   let db: Database;
   let WorkflowModel;

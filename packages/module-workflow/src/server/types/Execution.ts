@@ -15,6 +15,7 @@ export default class ExecutionModel extends Model {
   declare updatedAt: Date;
 
   declare key: string;
+  declare executionOrigin?: string | null;
 
   declare workflow?: WorkflowModel;
   declare getWorkflow: BelongsToGetAssociationMixin<WorkflowModel>;

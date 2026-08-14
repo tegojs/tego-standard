@@ -2,9 +2,9 @@
  * ACL permission boundary tests for SQL instruction nodes in workflows.
  *
  * Verifies that:
- * - Member role (regular tenant user) cannot create SQL nodes via the API (403)
+ * - A workflow editor without SQL permission cannot create SQL nodes via the API (403)
  * - Admin role can create SQL nodes via the API
- * - Non-SQL node types can still be created by any role with workflow access
+ * - Non-SQL node types can still be created by roles with workflow access
  * - The pm.workflow.sql snippet is registered and covered by pm.* for admin/root
  * - Member role cannot execute SQL instructions at runtime (execution-level guard)
  * - Admin role can execute SQL instructions at runtime
@@ -91,6 +91,24 @@ class TestAuthStatusPlugin extends Plugin {
       });
     }
 
+    // Create a workflow editor without SQL execution permission.
+    const existingWorkflowEditor = await rolesRepository.findOne({ filter: { name: 'workflow_editor' } });
+    if (existingWorkflowEditor) {
+      await existingWorkflowEditor.update({
+        strategy: { actions: ['view', 'create'] },
+        snippets: ['pm.workflow.workflows'],
+      });
+    } else {
+      await rolesRepository.create({
+        values: {
+          name: 'workflow_editor',
+          title: 'Workflow editor',
+          strategy: { actions: ['view', 'create'] },
+          snippets: ['pm.workflow.workflows'],
+        },
+      });
+    }
+
     // Create a custom role with explicit pm.workflow.sql snippet
     const existingCustom = await rolesRepository.findOne({ filter: { name: 'custom_sql_exec' } });
     if (existingCustom) {
@@ -144,6 +162,18 @@ class TestAuthStatusPlugin extends Plugin {
           phone: '30000000003',
           password: '123456',
           roles: ['custom_sql_exec'],
+        },
+      });
+    }
+    const existingWorkflowEditorUser = await usersRepository.findOne({ filter: { username: 'wf_editor' } });
+    if (!existingWorkflowEditorUser) {
+      await usersRepository.create({
+        values: {
+          username: 'wf_editor',
+          email: 'wf-editor@example.com',
+          phone: '30000000004',
+          password: '123456',
+          roles: ['workflow_editor'],
         },
       });
     }
@@ -307,11 +337,11 @@ describe('workflow > sql instruction permission boundary', () => {
       });
     });
 
-    it('should deny member role creating SQL nodes (403)', async () => {
-      const memberUser = await db.getRepository('users').findOne({
-        filter: { username: 'wf_member' },
+    it('should deny a workflow editor creating SQL nodes (403)', async () => {
+      const workflowEditor = await db.getRepository('users').findOne({
+        filter: { username: 'wf_editor' },
       });
-      const agent = app.agent().login(memberUser);
+      const agent = app.agent().login(workflowEditor);
 
       const workflow = await WorkflowModel.create({
         enabled: false,
@@ -329,6 +359,7 @@ describe('workflow > sql instruction permission boundary', () => {
       });
 
       expect(response.status).toBe(403);
+      expect(response.body.errors[0].message).toMatch(/pm\.workflow\.sql/);
     });
 
     it('should allow admin role creating SQL nodes', async () => {
@@ -357,7 +388,7 @@ describe('workflow > sql instruction permission boundary', () => {
   });
 
   describe('SQL node update via API', () => {
-    it('should deny member role updating SQL node config (403)', async () => {
+    it('should deny a workflow editor updating SQL node config (403)', async () => {
       const adminUser = await db.getRepository('users').findOne({
         filter: { username: 'wf_admin' },
       });
@@ -375,10 +406,10 @@ describe('workflow > sql instruction permission boundary', () => {
       });
       const nodeId = createRes.body.data.id;
 
-      const memberUser = await db.getRepository('users').findOne({
-        filter: { username: 'wf_member' },
+      const workflowEditor = await db.getRepository('users').findOne({
+        filter: { username: 'wf_editor' },
       });
-      const agent = app.agent().login(memberUser);
+      const agent = app.agent().login(workflowEditor);
 
       const response = await agent.resource('flow_nodes').update({
         filterByTk: nodeId,
@@ -388,6 +419,7 @@ describe('workflow > sql instruction permission boundary', () => {
       });
 
       expect(response.status).toBe(403);
+      expect(response.body.errors[0].message).toMatch(/pm\.workflow\.sql/);
     });
   });
 
@@ -485,11 +517,11 @@ describe('workflow > sql instruction permission boundary', () => {
   });
 
   describe('non-SQL node types', () => {
-    it('should not be blocked by SQL permission guard for member role', async () => {
-      const memberUser = await db.getRepository('users').findOne({
-        filter: { username: 'wf_member' },
+    it('should allow a workflow editor without SQL permission', async () => {
+      const workflowEditor = await db.getRepository('users').findOne({
+        filter: { username: 'wf_editor' },
       });
-      const agent = app.agent().login(memberUser);
+      const agent = app.agent().login(workflowEditor);
 
       const workflow = await WorkflowModel.create({
         enabled: false,
@@ -506,8 +538,7 @@ describe('workflow > sql instruction permission boundary', () => {
         },
       });
 
-      // Should not be blocked by SQL permission guard
-      expect(response.status).not.toBe(403);
+      expect(response.status).toBe(200);
     });
   });
 

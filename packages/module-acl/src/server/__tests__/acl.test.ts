@@ -340,8 +340,8 @@ describe('acl', () => {
     expect(rolesCollection.body.data).toBeDefined();
   });
 
-  it('should works with universal actions', async () => {
-    const roleName = 'acl-universal-actions-role';
+  it('should apply strategy actions only to registered strategy resources', async () => {
+    const roleName = 'acl-strategy-resource-role';
     const resourceName = 'aclUniversalPosts';
     await db.getRepository('roles').create({
       values: {
@@ -374,11 +374,25 @@ describe('acl', () => {
         resource: resourceName,
         action: 'create',
       }),
-    ).toMatchObject({
-      role: roleName,
-      resource: resourceName,
-      action: 'create',
-    });
+    ).toBeNull();
+
+    acl.appendStrategyResource(resourceName);
+
+    try {
+      expect(
+        acl.can({
+          role: roleName,
+          resource: resourceName,
+          action: 'create',
+        }),
+      ).toMatchObject({
+        role: roleName,
+        resource: resourceName,
+        action: 'create',
+      });
+    } finally {
+      acl.removeStrategyResource(resourceName);
+    }
   });
 
   it('should deny when resource action has no resource', async () => {

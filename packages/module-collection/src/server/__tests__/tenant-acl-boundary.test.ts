@@ -5,17 +5,15 @@
  * - Member role (regular tenant user) gets 403 on data-execution actions
  *   (sqlCollection:execute, dbViews:query)
  * - Member role gets 403 on configuration actions (sqlCollection:setFields, sqlCollection:update)
- * - Metadata actions (dbViews:list, dbViews:get) follow the standard strategy
+ * - Metadata actions (dbViews:list, dbViews:get) stay denied for regular members
  * - Admin role can access these resources via the pm.database-connections.collections snippet
  * - Root role has unrestricted access to all resources
  * - Custom role needs explicit snippets for collection config and raw SQL execution
  * - When tenant module is not enabled, original permission behavior is preserved
  *
- * Note: `dbViews:list` and `dbViews:get` are metadata-only actions (list view names,
- * infer fields) and are aliased to `view` in the ACL available actions. The member
- * role's strategy includes `view`, so these actions pass the strategy check. This is
- * by design — `dbViews:query` (which actually executes SQL and returns data) is
- * properly blocked.
+ * Note: `dbViews` is intentionally not a strategy resource. Even though `list` and
+ * `get` are aliases of `view`, a regular role's collection strategy must not grant
+ * access to this unbound system resource.
  */
 import { createMockServer, MockServer } from '@tachybase/test';
 import { Database, Plugin, uid } from '@tego/server';
@@ -364,7 +362,7 @@ describe('SQL/View ACL permission boundary', () => {
       await db.sequelize.query(`DROP VIEW IF EXISTS ${viewName}`);
     });
 
-    it('should allow member role access (metadata-only, maps to view strategy)', async () => {
+    it('should deny member role access to the unbound metadata resource', async () => {
       const memberUser = await db.getRepository('users').findOne({
         filter: { username: 'member_user' },
       });
@@ -374,11 +372,7 @@ describe('SQL/View ACL permission boundary', () => {
         filterByTk: viewName,
       });
 
-      // get is a metadata action that maps to 'view' in strategy
-      // member role has 'view' in their strategy, so this should pass
-      expect(response.status).toBe(200);
-      expect(response.body.data).toBeDefined();
-      expect(response.body.data.fields).toBeDefined();
+      expect(response.status).toBe(403);
     });
 
     it('should allow admin role access', async () => {

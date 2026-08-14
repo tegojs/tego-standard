@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- add without context  pop-up window ([#402](https://github.com/tegojs/tego-standard/pull/402)) [0833954](https://github.com/tegojs/tego-standard/commit/083395403961d44734ef655b3a7fa3bd8fe19a2a) (@dududuna)
+
 
 
 ## [1.6.34] - 2026-08-13

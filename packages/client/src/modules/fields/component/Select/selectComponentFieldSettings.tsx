@@ -191,10 +191,11 @@ export const quickCreate: any = {
         { label: t('None'), value: 'none' },
         { label: t('Dropdown'), value: 'quickAdd' },
         { label: t('Pop-up'), value: 'modalAdd' },
+        { label: t('Pop-up(without context)'), value: 'modalAdd(without context)' },
       ],
       value: field.componentProps?.addMode || 'none',
       onChange(mode) {
-        if (mode === 'modalAdd') {
+        if (mode === 'modalAdd' || mode === 'modalAdd(without context)') {
           const hasAddNew = fieldSchema.reduceProperties((buf, schema) => {
             if (schema['x-component'] === 'Action') {
               return schema;
@@ -216,6 +217,7 @@ export const quickCreate: any = {
                 openMode: 'drawer',
                 type: 'default',
                 component: 'CreateRecordAction',
+                newRecord: mode === 'modalAdd(without context)' ? true : false,
               },
             };
             insertAdjacent('afterBegin', addNewActionschema);
@@ -225,7 +227,8 @@ export const quickCreate: any = {
           ['x-uid']: fieldSchema['x-uid'],
         };
         fieldSchema['x-component-props'] = fieldSchema['x-component-props'] || {};
-        fieldSchema['x-component-props']['addMode'] = mode;
+        fieldSchema['x-component-props']['addMode'] = mode === 'modalAdd(without context)' ? 'modalAdd' : mode;
+        fieldSchema['x-component-props']['newRecord'] = mode === 'modalAdd(without context)' ? true : false;
         schema['x-component-props'] = fieldSchema['x-component-props'];
         field.componentProps = field.componentProps || {};
         field.componentProps.addMode = mode;

@@ -20,6 +20,7 @@ export const FormBlockInitializer = ({
   hideOtherRecordsInPopup,
   currentText,
   otherText,
+  newRecord,
 }: {
   filterCollections: (options: { collection?: Collection; associationField?: CollectionFieldOptions }) => boolean;
   onlyCurrentDataSource: boolean;
@@ -47,9 +48,10 @@ export const FormBlockInitializer = ({
   currentText?: string;
   /** 用于更改 Other records 的文案 */
   otherText?: string;
+  newRecord?: boolean;
 }) => {
   const itemConfig = useSchemaInitializerItem();
-  const { createFormBlock, templateWrap } = useCreateFormBlock();
+  const { createFormBlock, templateWrap } = useCreateFormBlock(newRecord);
   const onCreateFormBlockSchema = useCallback(
     (options) => {
       if (createBlockSchema) {
@@ -86,9 +88,9 @@ export const FormBlockInitializer = ({
   );
 };
 
-export const useCreateFormBlock = () => {
+export const useCreateFormBlock = (newRecord?: boolean) => {
   const { insert } = useSchemaInitializer();
-  const association = useAssociationName();
+  const association = !newRecord ? useAssociationName() : undefined;
   const { isCusomeizeCreate: isCustomizeCreate } = useSchemaInitializerItem();
 
   const createFormBlock = useCallback(

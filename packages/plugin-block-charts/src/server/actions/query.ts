@@ -1,4 +1,4 @@
-import { Cache, Context, Field, FilterParser, getDateVars, Next, parseFilter, snakeCase } from '@tego/server';
+import { Cache, Context, Field, FilterParser, getDateVars, Next, Op, parseFilter, snakeCase } from '@tego/server';
 
 import compose from 'koa-compose';
 
@@ -472,10 +472,16 @@ function scopeChartIncludes(ctx: Context, db: any, collection: any, includes: an
     const associationField = associationName ? collection?.fields?.get?.(associationName) : undefined;
     const targetCollection = associationField?.target ? db.getCollection(associationField.target) : undefined;
     const tenantFilter = getTenantFilter(ctx, targetCollection, false);
+    const tenantWhere = tenantFilter
+      ? new FilterParser(tenantFilter, { collection: targetCollection }).toSequelizeParams().where
+      : undefined;
     const scopedInclude = tenantFilter
       ? {
           ...include,
-          where: appendTenantFilter(include.where, tenantFilter),
+          where:
+            include.where && Reflect.ownKeys(include.where).length > 0
+              ? { [Op.and]: [include.where, tenantWhere] }
+              : tenantWhere,
         }
       : { ...include };
 

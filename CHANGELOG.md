@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.35] - 2026-08-19
+
 ### ✨ Added
 
-- add without context  pop-up window ([#402](https://github.com/tegojs/tego-standard/pull/402)) [0833954](https://github.com/tegojs/tego-standard/commit/083395403961d44734ef655b3a7fa3bd8fe19a2a) (@dududuna)
+- add without context  pop-up window ([#402](https://github.com/tegojs/tego-standard/pull/402)) (@dududuna)
 
+### 🐛 Fixed
 
+- modify the prompt content ([#406](https://github.com/tegojs/tego-standard/pull/406)) (@dududuna)
 
 ## [1.6.34] - 2026-08-13
 
@@ -3140,7 +3146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.34...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.35...HEAD
+[1.6.35]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.35
 [1.6.34]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.34
 [1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33
 [1.6.32]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.32

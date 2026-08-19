@@ -7,11 +7,17 @@
 
 ## [未发布]
 
+
+
+## [1.6.35] - 2026-08-19
+
 ### ✨ 新增
 
-- 添加无上下文弹出窗口 ([#402](https://github.com/tegojs/tego-standard/pull/402)) [0833954](https://github.com/tegojs/tego-standard/commit/083395403961d44734ef655b3a7fa3bd8fe19a2a) (@dududuna)
+- 添加无上下文弹出窗口 ([#402](https://github.com/tegojs/tego-standard/pull/402)) (@dududuna)
 
+### 🐛 修复
 
+- 修改提示内容([#406](https://github.com/tegojs/tego-standard/pull/406)) (@dududuna)
 
 ## [1.6.34] - 2026-08-13
 
@@ -3140,7 +3146,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.34...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.35...HEAD
+[1.6.35]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.35
 [1.6.34]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.34
 [1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33
 [1.6.32]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.32

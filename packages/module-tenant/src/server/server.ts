@@ -130,7 +130,7 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
     const targetKey = collection.getField?.(associationName)?.targetKey || association.targetKey || 'id';
     const targetTenancyMode = getCollectionTenancyMode(targetCollection);
     const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
-    const existingTargetAction = isBelongsTo ? 'get' : 'update';
+    const existingTargetAction = ctx.action?.actionName === 'create' || isBelongsTo ? 'get' : 'update';
 
     const guardValue = async (value: any): Promise<any> => {
       if (value === undefined || value === null) {
@@ -175,7 +175,7 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
             }
           }
 
-          if (!isBelongsTo) {
+          if (existingTargetAction === 'update') {
             guardedValue = applyTenantFilterToContext(
               ctx,
               targetCollection,

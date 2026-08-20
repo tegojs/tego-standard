@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.36] - 2026-08-20
+
+### 🐛 Fixed
+
+- **charts**: normalize tenant filters for association queries ([#407](https://github.com/tegojs/tego-standard/pull/407)) (@TomyJan)
+- **tenant**: allow references to readable legacy records (@TomyJan)
+
 ## [1.6.35] - 2026-08-19
 
 ### ✨ Added
@@ -3146,7 +3153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.35...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.36...HEAD
+[1.6.36]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.36
 [1.6.35]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.35
 [1.6.34]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.34
 [1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33

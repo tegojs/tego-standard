@@ -9,6 +9,13 @@
 
 
 
+## [1.6.36] - 2026-08-20
+
+### 🐛 修复
+
+- **charts**: 标准化关联查询的租户过滤器 ([#407](https://github.com/tegojs/tego-standard/pull/407)) (@TomyJan)
+- **tenant**: 允许引用可读的遗留记录 (@TomyJan)
+
 ## [1.6.35] - 2026-08-19
 
 ### ✨ 新增
@@ -3146,7 +3153,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.35...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.36...HEAD
+[1.6.36]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.36
 [1.6.35]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.35
 [1.6.34]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.34
 [1.6.33]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.33

@@ -96,7 +96,19 @@ function requireTenantContext(ctx: any) {
   }
 }
 
-async function guardTenantAssociationValues(ctx: any, db: any, collection: any, values: any): Promise<any> {
+function getAssociationValueUpdatePaths(ctx: any) {
+  const paths = ctx.action?.params?.updateAssociationValues;
+  return new Set<string>((Array.isArray(paths) ? paths : [paths]).filter((path) => typeof path === 'string' && path));
+}
+
+async function guardTenantAssociationValues(
+  ctx: any,
+  db: any,
+  collection: any,
+  values: any,
+  pathPrefix = '',
+  valueUpdatePaths = getAssociationValueUpdatePaths(ctx),
+): Promise<any> {
   if (!values || !collection?.model?.associations) {
     return values;
   }
@@ -104,7 +116,7 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
   if (Array.isArray(values)) {
     const guardedValues = [];
     for (const value of values) {
-      guardedValues.push(await guardTenantAssociationValues(ctx, db, collection, value));
+      guardedValues.push(await guardTenantAssociationValues(ctx, db, collection, value, pathPrefix, valueUpdatePaths));
     }
     return guardedValues;
   }
@@ -130,7 +142,8 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
     const targetKey = collection.getField?.(associationName)?.targetKey || association.targetKey || 'id';
     const targetTenancyMode = getCollectionTenancyMode(targetCollection);
     const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
-    const existingTargetAction = ctx.action?.actionName === 'create' || isBelongsTo ? 'get' : 'update';
+    const associationPath = pathPrefix ? `${pathPrefix}.${associationName}` : associationName;
+    const existingTargetAction = valueUpdatePaths.has(associationPath) ? 'update' : 'get';
 
     const guardValue = async (value: any): Promise<any> => {
       if (value === undefined || value === null) {
@@ -190,7 +203,7 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
         }
       }
 
-      return guardTenantAssociationValues(ctx, db, targetCollection, guardedValue);
+      return guardTenantAssociationValues(ctx, db, targetCollection, guardedValue, associationPath, valueUpdatePaths);
     };
 
     if (hasAssociationValue) {

@@ -906,6 +906,104 @@ describe('tenant resource guard', () => {
     expect(response.status).toBe(200);
   });
 
+  it('should allow root updates to relink readable legacy associations without updating their values', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_legacy_update_reference',
+        email: 'tenant-legacy-update-reference@example.com',
+        phone: '10000000027',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_update_contacts',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a'],
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_update_projects',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_update_companies',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'name' },
+          { type: 'belongsToMany', name: 'contacts', target: 'tenant_legacy_update_contacts' },
+          { type: 'belongsToMany', name: 'projects', target: 'tenant_legacy_update_projects' },
+        ],
+      },
+      context: {},
+    });
+
+    const contact = await app.db.getRepository('tenant_legacy_update_contacts').create({
+      values: { name: 'Legacy contact' },
+    });
+    const company = await app.db.getRepository('tenant_legacy_update_companies').create({
+      values: { name: 'Company' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_legacy_update_companies')
+      .update({
+        filterByTk: company.get('id'),
+        updateAssociationValues: ['projects'],
+        values: {
+          name: 'Updated company',
+          contacts: [{ id: contact.get('id'), name: 'Must not update' }],
+          projects: [],
+        },
+      });
+
+    expect(response.status).toBe(200);
+
+    const updatedCompany = await app.db.getRepository('tenant_legacy_update_companies').findOne({
+      filterByTk: company.get('id'),
+      appends: ['contacts'],
+    });
+    expect(updatedCompany.get('name')).toBe('Updated company');
+    expect(updatedCompany.get('contacts')).toHaveLength(1);
+    expect(updatedCompany.get('contacts')[0].get('id')).toBe(contact.get('id'));
+
+    const forbiddenResponse = await app
+      .agent()
+      .login(user)
+      .resource('tenant_legacy_update_companies')
+      .update({
+        filterByTk: company.get('id'),
+        updateAssociationValues: ['contacts'],
+        values: {
+          contacts: [{ id: contact.get('id'), name: 'Must not update' }],
+        },
+      });
+    expect(forbiddenResponse.status).toBeGreaterThanOrEqual(400);
+
+    await contact.reload();
+    expect(contact.get('name')).toBe('Legacy contact');
+  });
+
   async function prepareMoveGuardUser() {
     await app.db.getRepository('tenants').create({
       values: [

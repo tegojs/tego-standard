@@ -783,6 +783,75 @@ describe('tenant resource guard', () => {
     expect(postResponse.body.data.tags[0].id).toBe(tagA.get('id'));
   });
 
+  it('should allow root creates to reference readable legacy belongs-to records', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_legacy_belongs_to_reference',
+        email: 'tenant-legacy-belongs-to-reference@example.com',
+        phone: '10000000025',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_reference_targets',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a'],
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_reference_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'belongsTo', name: 'target', target: 'tenant_legacy_reference_targets' },
+        ],
+      },
+      context: {},
+    });
+
+    const targetRepository = app.db.getRepository('tenant_legacy_reference_targets');
+    const legacyTarget = await targetRepository.create({ values: { title: 'Legacy target' } });
+    const tenantBTarget = await targetRepository.create({
+      values: { title: 'Tenant B target' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+
+    const agent = app.agent().login(user);
+    const allowedResponse = await agent.resource('tenant_legacy_reference_posts').create({
+      values: { title: 'References legacy target', target: { id: legacyTarget.get('id') } },
+    });
+    const forbiddenResponse = await agent.resource('tenant_legacy_reference_posts').create({
+      values: { title: 'References tenant B target', target: { id: tenantBTarget.get('id') } },
+    });
+
+    expect(allowedResponse.status).toBe(200);
+    expect(forbiddenResponse.status).toBeGreaterThanOrEqual(400);
+
+    const foreignKey = (app.db.getCollection('tenant_legacy_reference_posts').model.associations.target as any)
+      .foreignKey;
+    const created = await app.db.getRepository('tenant_legacy_reference_posts').findOne({
+      filter: { title: 'References legacy target' },
+    });
+    expect(created.get(foreignKey)).toBe(legacyTarget.get('id'));
+  });
+
   async function prepareMoveGuardUser() {
     await app.db.getRepository('tenants').create({
       values: [

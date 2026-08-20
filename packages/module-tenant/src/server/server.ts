@@ -114,7 +114,8 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
   }
 
   for (const [associationName, association] of Object.entries<any>(collection.model.associations)) {
-    const associationForeignKey = association.associationType === 'BelongsTo' ? association.foreignKey : null;
+    const isBelongsTo = association.associationType === 'BelongsTo';
+    const associationForeignKey = isBelongsTo ? association.foreignKey : null;
     const hasAssociationValue = associationName in values;
     const hasForeignKeyValue = typeof associationForeignKey === 'string' && associationForeignKey in values;
     if (!hasAssociationValue && !hasForeignKeyValue) {
@@ -129,6 +130,7 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
     const targetKey = collection.getField?.(associationName)?.targetKey || association.targetKey || 'id';
     const targetTenancyMode = getCollectionTenancyMode(targetCollection);
     const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
+    const existingTargetAction = isBelongsTo ? 'get' : 'update';
 
     const guardValue = async (value: any): Promise<any> => {
       if (value === undefined || value === null) {
@@ -138,7 +140,7 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
       if (typeof value === 'string' || typeof value === 'number') {
         if (tenantAwareTarget) {
           requireTenantContext(ctx);
-          await assertTenantRecordAccess(ctx, targetCollection, value, 'update', targetKey);
+          await assertTenantRecordAccess(ctx, targetCollection, value, existingTargetAction, targetKey);
         }
         return value;
       }
@@ -159,7 +161,7 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
             ctx,
             targetCollection,
             targetKeyValue,
-            'update',
+            existingTargetAction,
             targetKey,
           );
 
@@ -173,9 +175,16 @@ async function guardTenantAssociationValues(ctx: any, db: any, collection: any, 
             }
           }
 
-          guardedValue = applyTenantFilterToContext(ctx, targetCollection, currentTenantRecord ? 'update' : 'create', {
-            values: value,
-          }).values;
+          if (!isBelongsTo) {
+            guardedValue = applyTenantFilterToContext(
+              ctx,
+              targetCollection,
+              currentTenantRecord ? 'update' : 'create',
+              {
+                values: value,
+              },
+            ).values;
+          }
         } else {
           guardedValue = applyTenantFilterToContext(ctx, targetCollection, 'create', { values: value }).values;
         }

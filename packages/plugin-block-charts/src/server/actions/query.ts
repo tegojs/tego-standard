@@ -1,4 +1,4 @@
-import { Cache, Context, Field, FilterParser, getDateVars, Next, parseFilter, snakeCase } from '@tego/server';
+import { Cache, Context, Field, FilterParser, getDateVars, Next, Op, parseFilter, snakeCase } from '@tego/server';
 
 import compose from 'koa-compose';
 
@@ -110,6 +110,23 @@ function appendTenantFilter(original: any, tenantFilter: any) {
   return {
     $and: [sanitizedOriginal, tenantFilter],
   };
+}
+
+function toSequelizeTenantFilter(filter: any): any {
+  if (Array.isArray(filter)) {
+    return filter.map(toSequelizeTenantFilter);
+  }
+
+  if (!filter || typeof filter !== 'object') {
+    return filter;
+  }
+
+  const normalized: Record<PropertyKey, any> = {};
+  for (const key of Reflect.ownKeys(filter)) {
+    const normalizedKey = key === '$in' ? Op.in : key === '$or' ? Op.or : key === '$and' ? Op.and : key;
+    normalized[normalizedKey] = toSequelizeTenantFilter(filter[key]);
+  }
+  return normalized;
 }
 
 function appendFilter(original: any, filter: any) {
@@ -472,10 +489,14 @@ function scopeChartIncludes(ctx: Context, db: any, collection: any, includes: an
     const associationField = associationName ? collection?.fields?.get?.(associationName) : undefined;
     const targetCollection = associationField?.target ? db.getCollection(associationField.target) : undefined;
     const tenantFilter = getTenantFilter(ctx, targetCollection, false);
+    const tenantWhere = tenantFilter ? toSequelizeTenantFilter(tenantFilter) : undefined;
     const scopedInclude = tenantFilter
       ? {
           ...include,
-          where: appendTenantFilter(include.where, tenantFilter),
+          where:
+            include.where && Reflect.ownKeys(include.where).length > 0
+              ? { [Op.and]: [include.where, tenantWhere] }
+              : tenantWhere,
         }
       : { ...include };
 

@@ -1,4 +1,5 @@
 import { createMockServer, MockServer } from '@tachybase/test';
+import { Op } from '@tego/server';
 
 import compose from 'koa-compose';
 import { vi } from 'vitest';
@@ -1180,6 +1181,10 @@ describe('query', () => {
       tenantPluginEnabled = false,
       targetTenancy: 'tenantScoped' | null = 'tenantScoped',
       targetLegacyDataTenantIds: string[] = [],
+      targetOperators = new Map([
+        ['$in', Op.in],
+        ['$or', Op.or],
+      ]),
     ) => {
       const targetCollection = {
         name: 'profiles',
@@ -1188,6 +1193,17 @@ describe('query', () => {
           legacyDataTenantIds: targetLegacyDataTenantIds,
         },
         fields: new Map([['name', { type: 'string' }]]),
+        model: {
+          associations: {},
+          rawAttributes: {
+            tenantId: { field: 'tenantId' },
+          },
+        },
+        context: {
+          database: {
+            operators: targetOperators,
+          },
+        },
       };
       const sourceCollection = {
         name: 'orders',
@@ -1287,6 +1303,36 @@ describe('query', () => {
           where: { tenantId: 'tenant-a' },
         },
       ]);
+    });
+
+    it('converts inherited tenant filters on association includes to Sequelize operators', async () => {
+      const context: any = buildContext(
+        { currentTenantId: 'tenant-a', currentTenantDescendantIds: ['tenant-a-child'] },
+        false,
+        'tenantInherited',
+      );
+
+      await parseFieldAndAssociations(context, async () => {});
+
+      expect(context.action.params.values.include[0].where).toEqual({
+        tenantId: { [Op.in]: ['tenant-a', 'tenant-a-child'] },
+      });
+    });
+
+    it('normalizes inherited tenant filters without relying on target operator registration', async () => {
+      const context: any = buildContext(
+        { currentTenantId: 'tenant-a', currentTenantDescendantIds: ['tenant-a-child'] },
+        false,
+        'tenantInherited',
+        [],
+        new Map(),
+      );
+
+      await parseFieldAndAssociations(context, async () => {});
+
+      expect(context.action.params.values.include[0].where).toEqual({
+        tenantId: { [Op.in]: ['tenant-a', 'tenant-a-child'] },
+      });
     });
   });
 });

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.38] - 2026-08-20
+
+### 🐛 Fixed
+
+- **tenant**: distinguish association relinks from value updates (@TomyJan)
+
 ## [1.6.37] - 2026-08-20
 
 ### 🐛 Fixed
@@ -3159,7 +3165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.37...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.38...HEAD
+[1.6.38]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.38
 [1.6.37]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.37
 [1.6.36]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.36
 [1.6.35]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.35

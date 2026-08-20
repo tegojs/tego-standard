@@ -9,6 +9,12 @@
 
 
 
+## [1.6.38] - 2026-08-20
+
+### 🐛 修复
+
+- **tenant**: 区分关联重新链接和值更新 (@TomyJan)
+
 ## [1.6.37] - 2026-08-20
 
 ### 🐛 修复
@@ -3159,7 +3165,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.37...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.38...HEAD
+[1.6.38]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.38
 [1.6.37]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.37
 [1.6.36]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.36
 [1.6.35]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.35

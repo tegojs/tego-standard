@@ -9,6 +9,12 @@
 
 
 
+## [1.6.37] - 2026-08-20
+
+### 🐛 修复
+
+- **tenant**: 允许在根目录中创建可读的旧链接 ([#408](https://github.com/tegojs/tego-standard/pull/408)) (@TomyJan)
+
 ## [1.6.36] - 2026-08-20
 
 ### 🐛 修复
@@ -3153,7 +3159,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.36...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.37...HEAD
+[1.6.37]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.37
 [1.6.36]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.36
 [1.6.35]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.35
 [1.6.34]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.34

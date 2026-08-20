@@ -852,6 +852,60 @@ describe('tenant resource guard', () => {
     expect(created.get(foreignKey)).toBe(legacyTarget.get('id'));
   });
 
+  it('should allow root creates to link readable legacy belongs-to-many records', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_legacy_belongs_to_many_reference',
+        email: 'tenant-legacy-belongs-to-many-reference@example.com',
+        phone: '10000000026',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_many_reference_targets',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a'],
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_many_reference_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'belongsToMany', name: 'targets', target: 'tenant_legacy_many_reference_targets' },
+        ],
+      },
+      context: {},
+    });
+
+    const target = await app.db.getRepository('tenant_legacy_many_reference_targets').create({
+      values: { title: 'Legacy target' },
+    });
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_legacy_many_reference_posts')
+      .create({
+        values: { title: 'Links legacy target', targets: [{ id: target.get('id') }] },
+      });
+
+    expect(response.status).toBe(200);
+  });
+
   async function prepareMoveGuardUser() {
     await app.db.getRepository('tenants').create({
       values: [

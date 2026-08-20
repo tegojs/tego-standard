@@ -112,6 +112,23 @@ function appendTenantFilter(original: any, tenantFilter: any) {
   };
 }
 
+function toSequelizeTenantFilter(filter: any): any {
+  if (Array.isArray(filter)) {
+    return filter.map(toSequelizeTenantFilter);
+  }
+
+  if (!filter || typeof filter !== 'object') {
+    return filter;
+  }
+
+  const normalized: Record<PropertyKey, any> = {};
+  for (const key of Reflect.ownKeys(filter)) {
+    const normalizedKey = key === '$in' ? Op.in : key === '$or' ? Op.or : key === '$and' ? Op.and : key;
+    normalized[normalizedKey] = toSequelizeTenantFilter(filter[key]);
+  }
+  return normalized;
+}
+
 function appendFilter(original: any, filter: any) {
   if (!filter || Object.keys(filter).length === 0) {
     return original;
@@ -472,9 +489,7 @@ function scopeChartIncludes(ctx: Context, db: any, collection: any, includes: an
     const associationField = associationName ? collection?.fields?.get?.(associationName) : undefined;
     const targetCollection = associationField?.target ? db.getCollection(associationField.target) : undefined;
     const tenantFilter = getTenantFilter(ctx, targetCollection, false);
-    const tenantWhere = tenantFilter
-      ? new FilterParser(tenantFilter, { collection: targetCollection }).toSequelizeParams().where
-      : undefined;
+    const tenantWhere = tenantFilter ? toSequelizeTenantFilter(tenantFilter) : undefined;
     const scopedInclude = tenantFilter
       ? {
           ...include,

@@ -1181,6 +1181,10 @@ describe('query', () => {
       tenantPluginEnabled = false,
       targetTenancy: 'tenantScoped' | null = 'tenantScoped',
       targetLegacyDataTenantIds: string[] = [],
+      targetOperators = new Map([
+        ['$in', Op.in],
+        ['$or', Op.or],
+      ]),
     ) => {
       const targetCollection = {
         name: 'profiles',
@@ -1197,10 +1201,7 @@ describe('query', () => {
         },
         context: {
           database: {
-            operators: new Map([
-              ['$in', Op.in],
-              ['$or', Op.or],
-            ]),
+            operators: targetOperators,
           },
         },
       };
@@ -1309,6 +1310,22 @@ describe('query', () => {
         { currentTenantId: 'tenant-a', currentTenantDescendantIds: ['tenant-a-child'] },
         false,
         'tenantInherited',
+      );
+
+      await parseFieldAndAssociations(context, async () => {});
+
+      expect(context.action.params.values.include[0].where).toEqual({
+        tenantId: { [Op.in]: ['tenant-a', 'tenant-a-child'] },
+      });
+    });
+
+    it('normalizes inherited tenant filters without relying on target operator registration', async () => {
+      const context: any = buildContext(
+        { currentTenantId: 'tenant-a', currentTenantDescendantIds: ['tenant-a-child'] },
+        false,
+        'tenantInherited',
+        [],
+        new Map(),
       );
 
       await parseFieldAndAssociations(context, async () => {});

@@ -101,6 +101,155 @@ function getAssociationValueUpdatePaths(ctx: any) {
   return new Set<string>((Array.isArray(paths) ? paths : [paths]).filter((path) => typeof path === 'string' && path));
 }
 
+function getRecordValue(record: any, key: string) {
+  return typeof record?.get === 'function' ? record.get(key) : record?.[key];
+}
+
+function getAssociationValueTargetKeys(value: any, targetKey: string) {
+  const targetKeys = [];
+  for (const item of Array.isArray(value) ? value : value === null || value === undefined ? [] : [value]) {
+    const targetKeyValue =
+      typeof item === 'string' || typeof item === 'number' ? item : getRecordValue(item, targetKey);
+    if (!hasTargetKey(targetKeyValue)) {
+      return null;
+    }
+    targetKeys.push(`${targetKeyValue}`);
+  }
+  return targetKeys.sort();
+}
+
+function normalizeComparableValue(value: any): any {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Buffer.isBuffer(value)) {
+    return value.toString('base64');
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeComparableValue);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, normalizeComparableValue(item)]),
+    );
+  }
+  return value;
+}
+
+function hasSameValue(left: any, right: any) {
+  if (left instanceof Date || right instanceof Date) {
+    const leftTimestamp = new Date(left).getTime();
+    const rightTimestamp = new Date(right).getTime();
+    return !Number.isNaN(leftTimestamp) && leftTimestamp === rightTimestamp;
+  }
+  return JSON.stringify(normalizeComparableValue(left)) === JSON.stringify(normalizeComparableValue(right));
+}
+
+// Expanded form values can contain already-persisted relations. Remove only the exact no-op graph before tenant checks.
+async function hasUnchangedAssociationValues(
+  db: any,
+  sourceRecord: any,
+  association: any,
+  associationValue: any,
+  associationPath: string,
+  valueUpdatePaths: Set<string>,
+  transaction?: any,
+) {
+  if (!sourceRecord) {
+    return false;
+  }
+
+  const targetCollection = getAssociationTargetCollection(db, association);
+  if (!targetCollection) {
+    return false;
+  }
+  const targetKey = association.targetKey || 'id';
+  const throughModelName = association.through?.model?.name;
+  const requestedValues = Array.isArray(associationValue) ? associationValue : [associationValue];
+  if (
+    throughModelName &&
+    requestedValues.some(
+      (value) => value && typeof value === 'object' && getRecordValue(value, throughModelName) != null,
+    )
+  ) {
+    return false;
+  }
+
+  const requestedTargetKeys = getAssociationValueTargetKeys(associationValue, targetKey);
+  if (!requestedTargetKeys) {
+    return false;
+  }
+
+  const getAccessor = association.accessors?.get;
+  if (!getAccessor || typeof sourceRecord[getAccessor] !== 'function') {
+    return false;
+  }
+  const existingAssociationValue = await sourceRecord[getAccessor]({ transaction });
+
+  const existingTargetKeys = getAssociationValueTargetKeys(existingAssociationValue, targetKey);
+  if (
+    existingTargetKeys === null ||
+    requestedTargetKeys.length !== existingTargetKeys.length ||
+    requestedTargetKeys.some((targetKeyValue, index) => targetKeyValue !== existingTargetKeys[index])
+  ) {
+    return false;
+  }
+
+  const existingRecords = Array.isArray(existingAssociationValue)
+    ? existingAssociationValue
+    : existingAssociationValue == null
+      ? []
+      : [existingAssociationValue];
+  const existingRecordsByTargetKey = new Map(
+    existingRecords.map((record) => [`${getRecordValue(record, targetKey)}`, record]),
+  );
+
+  for (const requestedValue of requestedValues) {
+    if (requestedValue == null || typeof requestedValue === 'string' || typeof requestedValue === 'number') {
+      continue;
+    }
+    const existingRecord = existingRecordsByTargetKey.get(`${getRecordValue(requestedValue, targetKey)}`);
+    if (!existingRecord) {
+      return false;
+    }
+
+    if (valueUpdatePaths.has(associationPath)) {
+      for (const [key, requestedFieldValue] of Object.entries(requestedValue)) {
+        if (key in targetCollection.model.associations || key === throughModelName) {
+          continue;
+        }
+        if (!hasSameValue(getRecordValue(existingRecord, key), requestedFieldValue)) {
+          return false;
+        }
+      }
+    }
+
+    for (const [nestedAssociationName, nestedAssociation] of Object.entries<any>(targetCollection.model.associations)) {
+      if (!(nestedAssociationName in requestedValue)) {
+        continue;
+      }
+      const nestedAssociationPath = `${associationPath}.${nestedAssociationName}`;
+      if (
+        !(await hasUnchangedAssociationValues(
+          db,
+          existingRecord,
+          nestedAssociation,
+          requestedValue[nestedAssociationName],
+          nestedAssociationPath,
+          valueUpdatePaths,
+          transaction,
+        ))
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 async function guardTenantAssociationValues(
   ctx: any,
   db: any,
@@ -108,6 +257,7 @@ async function guardTenantAssociationValues(
   values: any,
   pathPrefix = '',
   valueUpdatePaths = getAssociationValueUpdatePaths(ctx),
+  sourceRecord?: any,
 ): Promise<any> {
   if (!values || !collection?.model?.associations) {
     return values;
@@ -139,24 +289,40 @@ async function guardTenantAssociationValues(
   for (const [associationName, association] of Object.entries<any>(collection.model.associations)) {
     const isBelongsTo = association.associationType === 'BelongsTo';
     const associationForeignKey = isBelongsTo ? association.foreignKey : null;
-    const hasAssociationValue = associationName in values;
-    const hasForeignKeyValue =
-      typeof associationForeignKey === 'string' &&
-      associationForeignKey in values &&
-      (hasAssociationValue || !explicitBelongsToForeignKeys.has(associationForeignKey));
-    if (!hasAssociationValue && !hasForeignKeyValue) {
-      continue;
-    }
-
+    const associationPath = pathPrefix ? `${pathPrefix}.${associationName}` : associationName;
+    const targetKey = collection.getField?.(associationName)?.targetKey || association.targetKey || 'id';
     const targetCollection = getAssociationTargetCollection(db, association);
     if (!targetCollection) {
       continue;
     }
-
-    const targetKey = collection.getField?.(associationName)?.targetKey || association.targetKey || 'id';
     const targetTenancyMode = getCollectionTenancyMode(targetCollection);
     const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
-    const associationPath = pathPrefix ? `${pathPrefix}.${associationName}` : associationName;
+    const hadAssociationValue = associationName in values;
+    let hasAssociationValue = hadAssociationValue;
+    if (
+      hasAssociationValue &&
+      tenantAwareTarget &&
+      (await hasUnchangedAssociationValues(
+        db,
+        sourceRecord,
+        association,
+        values[associationName],
+        associationPath,
+        valueUpdatePaths,
+        ctx.transaction,
+      ))
+    ) {
+      delete values[associationName];
+      hasAssociationValue = false;
+    }
+    const hasForeignKeyValue =
+      typeof associationForeignKey === 'string' &&
+      associationForeignKey in values &&
+      (hadAssociationValue || !explicitBelongsToForeignKeys.has(associationForeignKey));
+    if (!hasAssociationValue && !hasForeignKeyValue) {
+      continue;
+    }
+
     const existingTargetAction = valueUpdatePaths.has(associationPath) ? 'update' : 'get';
 
     const guardValue = async (value: any): Promise<any> => {
@@ -179,6 +345,7 @@ async function guardTenantAssociationValues(
       const targetKeyValue =
         (typeof value.get === 'function' ? value.get(targetKey) : value[targetKey]) ?? value[targetKey];
       let guardedValue = value;
+      let targetRecord;
 
       if (tenantAwareTarget) {
         requireTenantContext(ctx);
@@ -191,12 +358,14 @@ async function guardTenantAssociationValues(
             existingTargetAction,
             targetKey,
           );
+          targetRecord = currentTenantRecord;
 
           if (!currentTenantRecord) {
             const existingRecord = await targetCollection.repository.findOne({
               filter: { [targetKey]: targetKeyValue },
               context: ctx,
             });
+            targetRecord = existingRecord;
             if (existingRecord) {
               ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
             }
@@ -215,9 +384,22 @@ async function guardTenantAssociationValues(
         } else {
           guardedValue = applyTenantFilterToContext(ctx, targetCollection, 'create', { values: value }).values;
         }
+      } else if (hasTargetKey(targetKeyValue)) {
+        targetRecord = await targetCollection.repository.findOne({
+          filter: { [targetKey]: targetKeyValue },
+          context: ctx,
+        });
       }
 
-      return guardTenantAssociationValues(ctx, db, targetCollection, guardedValue, associationPath, valueUpdatePaths);
+      return guardTenantAssociationValues(
+        ctx,
+        db,
+        targetCollection,
+        guardedValue,
+        associationPath,
+        valueUpdatePaths,
+        targetRecord,
+      );
     };
 
     if (hasAssociationValue) {
@@ -233,7 +415,10 @@ async function guardTenantAssociationValues(
       }
     }
 
-    if (hasForeignKeyValue) {
+    const foreignKeyUnchanged =
+      hasForeignKeyValue &&
+      `${getRecordValue(sourceRecord, associationForeignKey)}` === `${values[associationForeignKey]}`;
+    if (hasForeignKeyValue && !foreignKeyUnchanged) {
       values[associationForeignKey] = await guardValue(values[associationForeignKey]);
     }
   }
@@ -530,7 +715,19 @@ export class PluginTenantServer extends Plugin {
       }
 
       if (ROOT_ASSOCIATION_VALUE_ACTIONS.has(ctx.action.actionName)) {
-        ctx.action.params.values = await guardTenantAssociationValues(ctx, db, collection, ctx.action.params.values);
+        const sourceRecord =
+          ctx.action.actionName === 'update' && hasTargetKey(ctx.action.params.filterByTk)
+            ? await findTenantRecord(ctx, collection, ctx.action.params.filterByTk, 'update')
+            : undefined;
+        ctx.action.params.values = await guardTenantAssociationValues(
+          ctx,
+          db,
+          collection,
+          ctx.action.params.values,
+          '',
+          getAssociationValueUpdatePaths(ctx),
+          sourceRecord,
+        );
       }
 
       const tenantAwareMove = [collection, association?.sourceCollection, association?.targetCollection].some((item) =>

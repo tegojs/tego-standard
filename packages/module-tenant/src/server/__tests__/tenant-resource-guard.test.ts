@@ -902,6 +902,160 @@ describe('tenant resource guard', () => {
     expect(item.get('productId')).toBe(legacyProduct.get('id'));
   });
 
+  it('should allow unchanged nested association values and reject cross-tenant relinks', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_nested_display_association_guard',
+        email: 'tenant-nested-display-association-guard@example.com',
+        phone: '10000000029',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_nested_display_targets',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_nested_display_fees',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_nested_display_items',
+        tenancy: 'shared',
+        fields: [
+          { type: 'string', name: 'name' },
+          {
+            type: 'belongsToMany',
+            name: 'displayTargets',
+            target: 'tenant_nested_display_targets',
+          },
+          {
+            type: 'belongsTo',
+            name: 'displayTarget',
+            target: 'tenant_nested_display_targets',
+          },
+          {
+            type: 'hasMany',
+            name: 'feeItems',
+            target: 'tenant_nested_display_fees',
+          },
+        ],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_nested_display_orders',
+        tenancy: 'shared',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'hasMany', name: 'items', target: 'tenant_nested_display_items' },
+        ],
+      },
+      context: {},
+    });
+
+    const targetB = await app.db.getRepository('tenant_nested_display_targets').create({
+      values: { name: 'Existing tenant B target' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+    const newTargetB = await app.db.getRepository('tenant_nested_display_targets').create({
+      values: { name: 'New tenant B target' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+    const order = await app.db.getRepository('tenant_nested_display_orders').create({
+      values: { title: 'Order' },
+    });
+    const orderIdForeignKey = (app.db.getCollection('tenant_nested_display_orders').model.associations.items as any)
+      .foreignKey;
+    const itemCollection = app.db.getCollection('tenant_nested_display_items');
+    const displayTargetAssociation = itemCollection.model.associations.displayTarget as any;
+    const displayTargetsAssociation = itemCollection.model.associations.displayTargets as any;
+    const feeItemsAssociation = itemCollection.model.associations.feeItems as any;
+    const item = await app.db.getRepository('tenant_nested_display_items').create({
+      values: {
+        name: 'Original item',
+        [orderIdForeignKey]: order.get('id'),
+        [displayTargetAssociation.foreignKey]: targetB.get('id'),
+      },
+    });
+    await item[displayTargetsAssociation.accessors.set]([targetB.get('id')]);
+    const feeItem = await app.db.getRepository('tenant_nested_display_fees').create({
+      values: {
+        name: 'Existing fee',
+        createdAt: new Date('2026-08-21T04:17:48.420Z'),
+        [feeItemsAssociation.foreignKey]: item.get('id'),
+      },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+    const equivalentCreatedAt = '2026-08-21T04:17:48.42Z';
+    const agent = app.agent().login(user);
+
+    const allowedResponse = await agent.resource('tenant_nested_display_orders').update({
+      filterByTk: order.get('id'),
+      updateAssociationValues: ['items', 'items.feeItems'],
+      values: {
+        items: [
+          {
+            id: item.get('id'),
+            name: 'Updated item',
+            [displayTargetAssociation.foreignKey]: targetB.get('id'),
+            displayTarget: { id: targetB.get('id'), name: 'Display only' },
+            displayTargets: [{ id: targetB.get('id'), name: 'Display only' }],
+            feeItems: [{ id: feeItem.get('id'), name: 'Existing fee', createdAt: equivalentCreatedAt }],
+          },
+        ],
+      },
+    });
+
+    expect(allowedResponse.status).toBe(200);
+    await item.reload();
+    expect(item.get('name')).toBe('Updated item');
+
+    const forbiddenResponse = await agent.resource('tenant_nested_display_orders').update({
+      filterByTk: order.get('id'),
+      updateAssociationValues: ['items'],
+      values: {
+        items: [
+          {
+            id: item.get('id'),
+            [displayTargetAssociation.foreignKey]: newTargetB.get('id'),
+            displayTarget: { id: newTargetB.get('id') },
+            displayTargets: [{ id: newTargetB.get('id') }],
+          },
+        ],
+      },
+    });
+    expect(forbiddenResponse.status).toBeGreaterThanOrEqual(400);
+
+    await item.reload();
+    expect(item.get(displayTargetAssociation.foreignKey)).toBe(targetB.get('id'));
+    const displayTargets = await item[displayTargetsAssociation.accessors.get]();
+    expect(displayTargets.map((target) => target.get('id'))).toEqual([targetB.get('id')]);
+  });
+
   it('should allow root creates to reference readable legacy belongs-to records', async () => {
     app = await createTenantApp();
 

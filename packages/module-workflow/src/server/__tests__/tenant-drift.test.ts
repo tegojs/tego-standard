@@ -265,12 +265,12 @@ describe('workflow > tenant helper drift', () => {
     expect(authResult).toEqual(localResult);
   });
 
-  it('both implementations are no-op for non-tenant collections', () => {
+  it('both implementations are no-op for collections without tenant isolation', () => {
     const options = { filter: { title: 'shared' } };
-    const context = { state: { currentTenantId: 'tenant-a' } };
+    const context = { state: { currentTenantId: 'tenant-a', currentTenancyMode: 'tenantScoped' } };
 
-    const localResult = localApply(context, { options: { tenancy: 'shared' } }, 'list', options);
-    const authResult = authoritativeApply(context, { options: { tenancy: 'shared' } }, 'list', options);
+    const localResult = localApply(context, { options: {} }, 'list', options);
+    const authResult = authoritativeApply(context, { options: {} }, 'list', options);
 
     expect(localResult).toBe(options);
     expect(authResult).toBe(options);

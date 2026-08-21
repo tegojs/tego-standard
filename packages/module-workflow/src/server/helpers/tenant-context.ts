@@ -282,7 +282,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
   actionName: string,
   options: TOptions,
 ) {
-  const tenancyMode = collection?.options?.tenancy || context?.state?.currentTenancyMode;
+  const tenancyMode = collection?.options?.tenancy;
   if (!TENANT_ENABLED_MODES.includes(tenancyMode)) {
     return options;
   }

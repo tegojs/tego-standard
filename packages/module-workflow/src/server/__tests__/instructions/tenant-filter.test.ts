@@ -105,6 +105,28 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.tenantId).toBe('tenant-a');
   });
 
+  it('query should not apply the execution tenancy mode to a shared collection', async () => {
+    const user = await db.getRepository('users').create({
+      values: {
+        nickname: 'shared-workflow-user',
+        username: 'shared-workflow-user',
+      },
+    });
+    const workflow = await createWorkflowWithNode('query', {
+      collection: 'users',
+      params: {
+        filter: {
+          id: user.get('id'),
+        },
+      },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(job.result.id).toBe(user.get('id'));
+  });
+
   it('select should only read records from the execution tenant', async () => {
     const workflow = await createWorkflowWithNode('select', {
       params: {

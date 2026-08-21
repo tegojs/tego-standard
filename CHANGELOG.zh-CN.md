@@ -9,6 +9,13 @@
 
 
 
+## [1.6.39] - 2026-08-21
+
+### 🐛 修复
+
+- **tenant**: 处理共享外键的关联 ([#410](https://github.com/tegojs/tego-standard/pull/410)) (@TomyJan)
+- **tenant**: 澄清数据隔离标签([#409](https://github.com/tegojs/tego-standard/pull/409)) (@TomyJan)
+
 ## [1.6.38] - 2026-08-20
 
 ### 🐛 修复
@@ -3165,7 +3172,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.38...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.39...HEAD
+[1.6.39]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.39
 [1.6.38]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.38
 [1.6.37]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.37
 [1.6.36]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.36

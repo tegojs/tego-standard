@@ -90,10 +90,10 @@ describe('tenant plugin collections', () => {
     }
     expect(
       app.i18n.t(
-        'This record is not available in the current tenant. It may belong to another tenant or have been removed.',
+        'This record or a related record is not available in the current tenant. It may belong to another tenant or have been removed.',
         { lng: 'zh-CN', ns: NAMESPACE },
       ),
-    ).toBe('当前租户中无法访问此记录。该记录可能属于其他租户，或已被删除。');
+    ).toBe('当前租户中无法访问此记录。该记录或关联记录可能属于其他租户，或已被删除。');
     expect(app.i18n.t('Please select a tenant before continuing.', { lng: 'en-US', ns: NAMESPACE })).toBe(
       'Please select a tenant before continuing.',
     );

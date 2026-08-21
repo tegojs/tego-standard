@@ -61,7 +61,7 @@
   "The selected tenant is unavailable or disabled. Select another tenant or contact an administrator.": "The selected tenant is unavailable or disabled. Select another tenant or contact an administrator.",
   "The tenant hierarchy is too deep. Select a higher-level parent tenant.": "The tenant hierarchy is too deep. Select a higher-level parent tenant.",
   "This association cannot be sorted. Enable sorting for it and try again.": "This association cannot be sorted. Enable sorting for it and try again.",
-  "This record is not available in the current tenant. It may belong to another tenant or have been removed.": "This record is not available in the current tenant. It may belong to another tenant or have been removed.",
+  "This record or a related record is not available in the current tenant. It may belong to another tenant or have been removed.": "This record or a related record is not available in the current tenant. It may belong to another tenant or have been removed.",
   "This tenant cannot be moved under itself or one of its descendants.": "This tenant cannot be moved under itself or one of its descendants.",
   "This tenant has child tenants. Move or delete them before deleting this tenant.": "This tenant has child tenants. Move or delete them before deleting this tenant.",
   "This tenant is set as a user's default tenant. Reassign those users before deleting it.": "This tenant is set as a user's default tenant. Reassign those users before deleting it.",

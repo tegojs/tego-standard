@@ -1,15 +1,15 @@
 /** Tenant-specific configurable properties injected by module-tenant. */
 export const TENANCY_MODE_OPTIONS = [
-  { label: 'Shared collection', value: 'shared' },
-  { label: 'Tenant scoped', value: 'tenantScoped' },
-  { label: 'Tenant inherited', value: 'tenantInherited' },
+  { label: 'No isolation (shared by all tenants)', value: 'shared' },
+  { label: 'Isolated by tenant (current tenant data only)', value: 'tenantScoped' },
+  { label: 'Isolated by hierarchy (current and descendant tenant data)', value: 'tenantInherited' },
 ] as const;
 
 export type TenancyMode = (typeof TENANCY_MODE_OPTIONS)[number]['value'];
 
 export const tenantConfigurableProperties = {
   tenancy: {
-    title: '{{t("Tenancy mode")}}',
+    title: '{{t("Data isolation mode")}}',
     type: 'string',
     name: 'tenancy',
     default: 'shared',
@@ -19,10 +19,10 @@ export const tenantConfigurableProperties = {
     })),
     'x-decorator': 'FormItem',
     'x-component': 'Select',
-    description: '{{t("Controls whether records are isolated by the current tenant.")}}',
+    description: '{{t("Controls data access across tenants.")}}',
   },
   legacyDataTenantIds: {
-    title: '{{t("Legacy data visible to tenants")}}',
+    title: '{{t("Tenants with access to legacy data")}}',
     type: 'array',
     name: 'legacyDataTenantIds',
     'x-decorator': 'FormItem',
@@ -30,7 +30,7 @@ export const tenantConfigurableProperties = {
     'x-component-props': {
       mode: 'multiple',
     },
-    description: '{{t("Allows selected tenants to read records that do not have a tenant marker.")}}',
+    description: '{{t("Selected tenants can access legacy records that have no tenant assignment.")}}',
     'x-reactions': {
       dependencies: ['tenancy'],
       when: "{{$deps[0] === 'tenantScoped' || $deps[0] === 'tenantInherited'}}",

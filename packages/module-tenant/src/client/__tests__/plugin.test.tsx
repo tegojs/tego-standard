@@ -13,6 +13,7 @@ import { fireEvent, render, waitFor } from '@tachybase/test/client';
 import { vi } from 'vitest';
 
 import PluginTenantClient from '..';
+import enUS from '../../locale/en-US.json';
 import zhCN from '../../locale/zh-CN.json';
 import CurrentTenantProvider, { CurrentTenantContext } from '../CurrentTenantProvider';
 import { loadLegacyDataTenantOptions } from '../LegacyDataTenantSelect';
@@ -589,6 +590,28 @@ describe('PluginTenantClient', () => {
     }
   });
 
+  it('should provide clear tenant isolation labels in every locale', () => {
+    expect(enUS).toMatchObject({
+      'Data isolation mode': 'Data isolation mode',
+      'No isolation (shared by all tenants)': 'No isolation (shared by all tenants)',
+      'Isolated by tenant (current tenant data only)': 'Isolated by tenant (current tenant data only)',
+      'Isolated by hierarchy (current and descendant tenant data)':
+        'Isolated by hierarchy (current and descendant tenant data)',
+      'Tenants with access to legacy data': 'Tenants with access to legacy data',
+      'Selected tenants can access legacy records that have no tenant assignment.':
+        'Selected tenants can access legacy records that have no tenant assignment.',
+    });
+    expect(zhCN).toMatchObject({
+      'Data isolation mode': '数据隔离方式',
+      'No isolation (shared by all tenants)': '不隔离（所有租户共享）',
+      'Isolated by tenant (current tenant data only)': '按租户隔离（仅访问本租户数据）',
+      'Isolated by hierarchy (current and descendant tenant data)': '按层级隔离（可访问本租户及下级租户数据）',
+      'Tenants with access to legacy data': '可见历史数据的租户',
+      'Selected tenants can access legacy records that have no tenant assignment.':
+        '所选租户可访问尚未标记租户归属的历史数据',
+    });
+  });
+
   it('should inject tenancy fields into standard collection templates on load', async () => {
     const app = createAppWithTemplates();
 
@@ -598,18 +621,25 @@ describe('PluginTenantClient', () => {
     for (const name of ['general', 'expression', 'tree']) {
       const tpl = ctm.getCollectionTemplate(name);
       expect(tpl.configurableProperties.tenancy).toMatchObject({
+        title: '{{t("Data isolation mode")}}',
         type: 'string',
         'x-component': 'Select',
+        description: '{{t("Controls data access across tenants.")}}',
       });
       expect(tpl.configurableProperties.tenancy.enum).toEqual([
-        { label: '{{t("Shared collection")}}', value: 'shared' },
-        { label: '{{t("Tenant scoped")}}', value: 'tenantScoped' },
-        { label: '{{t("Tenant inherited")}}', value: 'tenantInherited' },
+        { label: '{{t("No isolation (shared by all tenants)")}}', value: 'shared' },
+        { label: '{{t("Isolated by tenant (current tenant data only)")}}', value: 'tenantScoped' },
+        {
+          label: '{{t("Isolated by hierarchy (current and descendant tenant data)")}}',
+          value: 'tenantInherited',
+        },
       ]);
       expect(tpl.configurableProperties.legacyDataTenantIds).toMatchObject({
+        title: '{{t("Tenants with access to legacy data")}}',
         type: 'array',
         name: 'legacyDataTenantIds',
         'x-component': 'LegacyDataTenantSelect',
+        description: '{{t("Selected tenants can access legacy records that have no tenant assignment.")}}',
         'x-component-props': {
           mode: 'multiple',
         },

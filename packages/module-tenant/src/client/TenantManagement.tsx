@@ -766,7 +766,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
             ),
           },
           {
-            title: t('Tenancy mode'),
+            title: t('Data isolation mode'),
             dataIndex: 'tenancy',
             key: 'tenancy',
             width: 220,
@@ -782,7 +782,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
             ),
           },
           {
-            title: t('Legacy data visible to tenants'),
+            title: t('Tenants with access to legacy data'),
             dataIndex: 'legacyDataTenantIds',
             key: 'legacyDataTenantIds',
             render: (_, record) => (

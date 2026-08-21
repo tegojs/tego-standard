@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **tenant**: refresh plugin metadata [278cef2](https://github.com/tegojs/tego-standard/commit/278cef2b550db11336e9ccfd80d12820c42b5dc4) (@TomyJan)
+
 
 
 ## [1.6.41] - 2026-08-21

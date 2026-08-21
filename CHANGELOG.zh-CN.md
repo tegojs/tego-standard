@@ -7,6 +7,10 @@
 
 ## [未发布]
 
+### 🐛 修复
+
+- **tenant**: 刷新插件元数据 [278cef2](https://github.com/tegojs/tego-standard/commit/278cef2b550db11336e9ccfd80d12820c42b5dc4) (@TomyJan)
+
 
 
 ## [1.6.41] - 2026-08-21

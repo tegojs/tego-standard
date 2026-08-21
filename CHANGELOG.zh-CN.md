@@ -9,6 +9,19 @@
 
 
 
+## [1.6.41] - 2026-08-21
+
+### ✨ 新增
+
+- **tenant**: 允许声明可编辑的遗留数据 ([#411](https://github.com/tegojs/tego-standard/pull/411)) (@TomyJan)
+- **tenant**: 简化租户身份字段 (@TomyJan)
+
+### 🐛 修复
+
+- **client**: 避免空系统设置子菜单 (@TomyJan)
+- **tenant**: 澄清数据可见性标签 (@TomyJan)
+- **tenant**: 澄清只读遗留记录错误 (@TomyJan)
+
 ## [1.6.40] - 2026-08-21
 
 ### 🐛 修复
@@ -3182,7 +3195,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.40...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.41...HEAD
+[1.6.41]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.41
 [1.6.40]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.40
 [1.6.39]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.39
 [1.6.38]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.38

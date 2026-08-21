@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.41] - 2026-08-21
+
+### ✨ Added
+
+- **tenant**: allow claiming editable legacy data ([#411](https://github.com/tegojs/tego-standard/pull/411)) (@TomyJan)
+- **tenant**: simplify tenant identity fields (@TomyJan)
+
+### 🐛 Fixed
+
+- **client**: avoid empty system settings submenus (@TomyJan)
+- **tenant**: clarify data visibility labels (@TomyJan)
+- **tenant**: clarify read-only legacy record errors (@TomyJan)
+
 ## [1.6.40] - 2026-08-21
 
 ### 🐛 Fixed
@@ -3182,7 +3195,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.40...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.41...HEAD
+[1.6.41]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.41
 [1.6.40]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.40
 [1.6.39]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.39
 [1.6.38]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.38

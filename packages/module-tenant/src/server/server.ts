@@ -125,11 +125,25 @@ async function guardTenantAssociationValues(
     return values;
   }
 
+  const explicitBelongsToForeignKeys = new Set<string>();
+  for (const [associationName, association] of Object.entries<any>(collection.model.associations)) {
+    if (
+      association.associationType === 'BelongsTo' &&
+      typeof association.foreignKey === 'string' &&
+      associationName in values
+    ) {
+      explicitBelongsToForeignKeys.add(association.foreignKey);
+    }
+  }
+
   for (const [associationName, association] of Object.entries<any>(collection.model.associations)) {
     const isBelongsTo = association.associationType === 'BelongsTo';
     const associationForeignKey = isBelongsTo ? association.foreignKey : null;
     const hasAssociationValue = associationName in values;
-    const hasForeignKeyValue = typeof associationForeignKey === 'string' && associationForeignKey in values;
+    const hasForeignKeyValue =
+      typeof associationForeignKey === 'string' &&
+      associationForeignKey in values &&
+      (hasAssociationValue || !explicitBelongsToForeignKeys.has(associationForeignKey));
     if (!hasAssociationValue && !hasForeignKeyValue) {
       continue;
     }

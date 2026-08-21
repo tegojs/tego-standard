@@ -521,6 +521,83 @@ describe('PluginTenantClient', () => {
     });
   });
 
+  it('should disable all collection settings controls while the row is saving', async () => {
+    const listTenants = vi.fn().mockResolvedValue({
+      data: {
+        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+      },
+    });
+    const listCollections = vi.fn().mockResolvedValue({
+      data: {
+        data: [
+          {
+            name: 'approvals',
+            title: 'Approvals',
+            tenancy: 'tenantScoped',
+            legacyDataTenantIds: ['tenant-a'],
+          },
+        ],
+      },
+    });
+    let resolveUpdate = () => {};
+    const updateCollection = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+    const api = {
+      resource: vi.fn((name: string) => {
+        if (name === 'tenants') {
+          return { list: listTenants };
+        }
+
+        if (name === 'collections') {
+          return { list: listCollections, update: updateCollection };
+        }
+
+        return { list: vi.fn() };
+      }),
+    };
+
+    const { getByText } = render(
+      <AntdApp>
+        <APIClientProvider apiClient={api as any}>
+          <TenantManagement />
+        </APIClientProvider>
+      </AntdApp>,
+    );
+
+    const collectionRow = await waitFor(() => getByText('Approvals').closest('tr'));
+    const legacyEditingSwitch = collectionRow?.querySelector('button[role="switch"]');
+    expect(legacyEditingSwitch).toBeTruthy();
+
+    fireEvent.click(legacyEditingSwitch!);
+    await waitFor(() => expect(updateCollection).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => {
+      const savingRow = getByText('Approvals').closest('tr');
+      const selectors = savingRow?.querySelectorAll('[role="combobox"]');
+      const editingSwitch = savingRow?.querySelector('button[role="switch"]');
+
+      expect(selectors).toHaveLength(2);
+      expect(selectors?.[0]).toBeDisabled();
+      expect(selectors?.[1]).toBeDisabled();
+      expect(editingSwitch).toBeDisabled();
+    });
+
+    resolveUpdate();
+    await waitFor(() => {
+      const savedRow = getByText('Approvals').closest('tr');
+      const selectors = savedRow?.querySelectorAll('[role="combobox"]');
+      const editingSwitch = savedRow?.querySelector('button[role="switch"]');
+
+      expect(selectors?.[0]).not.toBeDisabled();
+      expect(selectors?.[1]).not.toBeDisabled();
+      expect(editingSwitch).not.toBeDisabled();
+    });
+  });
+
   it('should clear legacy data settings when a collection becomes shared', async () => {
     const listTenants = vi.fn().mockResolvedValue({
       data: {

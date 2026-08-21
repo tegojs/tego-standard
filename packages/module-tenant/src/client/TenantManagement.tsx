@@ -658,7 +658,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
   const api = useAPIClient();
   const { message } = App.useApp();
   const { t } = useTenantTranslation();
-  const [savingCollectionName, setSavingCollectionName] = useState<string | null>(null);
+  const [savingCollectionNames, setSavingCollectionNames] = useState<Set<string>>(() => new Set());
   const [collectionKeyword, setCollectionKeyword] = useState('');
   const [collectionPagination, setCollectionPagination] = useState({ current: 1, pageSize: 10 });
   const requestCanceledRef = useRef(false);
@@ -712,7 +712,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
         nextTenancy === 'shared' ? false : (values.allowEditingLegacyData ?? record.allowEditingLegacyData ?? false),
     };
 
-    setSavingCollectionName(record.name);
+    setSavingCollectionNames((names) => new Set(names).add(record.name));
     try {
       await api.resource('collections').update({
         filterByTk: record.name,
@@ -723,7 +723,11 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
     } catch {
       message.error(t('Save failed'));
     } finally {
-      setSavingCollectionName(null);
+      setSavingCollectionNames((names) => {
+        const nextNames = new Set(names);
+        nextNames.delete(record.name);
+        return nextNames;
+      });
     }
   };
 
@@ -780,6 +784,8 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
             width: 220,
             render: (_, record) => (
               <Select
+                disabled={savingCollectionNames.has(record.name)}
+                loading={savingCollectionNames.has(record.name)}
                 options={TENANCY_MODE_OPTIONS.map((option) => ({ ...option, label: t(option.label) }))}
                 style={{ width: '100%' }}
                 value={record.tenancy}
@@ -796,8 +802,8 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
             render: (_, record) => (
               <Select
                 allowClear
-                disabled={record.tenancy === 'shared'}
-                loading={collectionsRequest.loading || savingCollectionName === record.name}
+                disabled={record.tenancy === 'shared' || savingCollectionNames.has(record.name)}
+                loading={collectionsRequest.loading || savingCollectionNames.has(record.name)}
                 mode="multiple"
                 options={tenantOptions}
                 showSearch
@@ -817,8 +823,8 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
             render: (_, record) => (
               <Switch
                 checked={record.tenancy !== 'shared' && record.allowEditingLegacyData === true}
-                disabled={record.tenancy === 'shared'}
-                loading={savingCollectionName === record.name}
+                disabled={record.tenancy === 'shared' || savingCollectionNames.has(record.name)}
+                loading={savingCollectionNames.has(record.name)}
                 onChange={(checked) => {
                   void saveCollection(record, { allowEditingLegacyData: checked });
                 }}

@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { PluginSettingsPageType, useApp } from '../../application';
 import { useCompile } from '../../schema-component';
 import { useToken } from '../../style';
+import { getVisibleSystemSettingsItems } from './systemSettingsMenu';
 
 /**
  * Renders or configures the settings center dropdown client entry point.
@@ -30,31 +31,26 @@ export const SettingsCenterDropdown = () => {
     type: 'divider',
   });
   const menuItems = useMemo(() => {
-    const list = app.systemSettingsManager.getList();
+    const list = getVisibleSystemSettingsItems(app.systemSettingsManager.getList());
     // compile title
     function traverse(settings: Partial<PluginSettingsPageType>[]) {
-      return settings
-        .filter((item) => !item.hideInMenu && !item.path.includes(':'))
-        .map((item) => {
-          const title = compile(item.title);
-          item.label = (
+      return settings.map((item) => {
+        const title = compile(item.title);
+        const children = item.children?.length ? traverse(item.children) : undefined;
+        return {
+          key: item.key,
+          label: children?.length ? (
+            title
+          ) : (
             <Link key={item.key ?? item.path} to={item.path}>
               {title}
             </Link>
-          );
-          if (item.children?.length) {
-            item.children = traverse(item.children) as any;
-            // No link should be set if there are children.
-            item.label = title;
-          }
-          return {
-            key: item.key,
-            label: item.label,
-            path: item.path,
-            children: item.children,
-            name: title as string,
-          };
-        });
+          ),
+          path: item.path,
+          ...(children?.length ? { children } : {}),
+          name: title as string,
+        };
+      });
     }
     return traverse(list);
   }, [app.systemSettingsManager, compile]);

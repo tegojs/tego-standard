@@ -7,6 +7,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ADMIN_SETTINGS_PATH, PluginSettingsPageType, useApp } from '../../application';
 import { useCompile } from '../../schema-component';
 import { SettingLayout } from './SettingLayout';
+import { getVisibleSystemSettingsItems } from './systemSettingsMenu';
 
 export const SettingsCenterContext = createContext<any>({});
 SettingsCenterContext.displayName = 'SettingsCenterContext';
@@ -49,21 +50,18 @@ export const AdminSettingsLayout = () => {
     return list;
   }, [app.systemSettingsManager, compile]);
   const routeChildren = useMemo(() => {
-    const list = app.systemSettingsManager.getList();
+    const list = getVisibleSystemSettingsItems(app.systemSettingsManager.getList()) as PluginSettingsPageType[];
     // compile title
     function traverse(settings: PluginSettingsPageType[]) {
       return settings.map((item) => {
-        if (item.path.includes(':')) {
-          item.hideInMenu = true;
-        }
-        item.title = compile(item.title);
-        item.label = compile(item.title);
-        if (item.children?.length) {
-          item.children = traverse(item.children);
-        }
+        const title = compile(item.title);
+        const children = item.children?.length ? traverse(item.children) : undefined;
         return {
           ...item,
-          name: item.label as string,
+          ...(children?.length ? { children } : {}),
+          title,
+          label: title,
+          name: title as string,
         };
       });
     }

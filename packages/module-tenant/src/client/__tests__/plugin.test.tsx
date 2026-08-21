@@ -10,6 +10,7 @@ import {
 } from '@tachybase/client';
 import { fireEvent, render, waitFor } from '@tachybase/test/client';
 
+import { App as AntdApp } from 'antd';
 import { vi } from 'vitest';
 
 import PluginTenantClient from '..';
@@ -358,7 +359,13 @@ describe('PluginTenantClient', () => {
 
   it('should include code-defined tenant collections such as approvals in tenant configuration', async () => {
     const collections = getTenantConfigurableCollections([
-      { name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped', from: 'db2cm' },
+      {
+        name: 'approvals',
+        title: 'Approvals',
+        tenancy: 'tenantScoped',
+        from: 'db2cm',
+        options: { allowEditingLegacyData: true },
+      },
       { name: 'approvalRecords', tenancy: 'tenantScoped', from: 'db2cm' },
       { name: 'posts', template: 'general' },
       { name: 'sqlReports', template: 'sql' },
@@ -369,6 +376,7 @@ describe('PluginTenantClient', () => {
     expect(collections.find((item) => item.name === 'approvals')).toMatchObject({
       title: 'Approvals',
       tenancy: 'tenantScoped',
+      allowEditingLegacyData: true,
     });
     expect(collections.find((item) => item.name === 'posts')).toMatchObject({
       tenancy: 'shared',
@@ -449,6 +457,209 @@ describe('PluginTenantClient', () => {
       expect(queryByText('Tenant key')).not.toBeInTheDocument();
       expect(getByText('Collection tenant isolation')).toBeInTheDocument();
       expect(getByText('Approvals')).toBeInTheDocument();
+      expect(getByText('Allow editing legacy data')).toBeInTheDocument();
+      expect(
+        getByText(
+          "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('should persist the legacy data editing switch for a tenant-isolated collection', async () => {
+    const listTenants = vi.fn().mockResolvedValue({
+      data: {
+        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+      },
+    });
+    const listCollections = vi.fn().mockResolvedValue({
+      data: {
+        data: [
+          {
+            name: 'approvals',
+            title: 'Approvals',
+            tenancy: 'tenantScoped',
+            legacyDataTenantIds: ['tenant-a'],
+          },
+        ],
+      },
+    });
+    const updateCollection = vi.fn().mockResolvedValue({ data: {} });
+    const api = {
+      resource: vi.fn((name: string) => {
+        if (name === 'tenants') {
+          return { list: listTenants };
+        }
+
+        if (name === 'collections') {
+          return { list: listCollections, update: updateCollection };
+        }
+
+        return { list: vi.fn() };
+      }),
+    };
+
+    const { getByText } = render(
+      <AntdApp>
+        <APIClientProvider apiClient={api as any}>
+          <TenantManagement />
+        </APIClientProvider>
+      </AntdApp>,
+    );
+
+    const collectionRow = await waitFor(() => getByText('Approvals').closest('tr'));
+    const legacyEditingSwitch = collectionRow?.querySelector('button[role="switch"]');
+    expect(legacyEditingSwitch).toBeTruthy();
+
+    fireEvent.click(legacyEditingSwitch!);
+
+    await waitFor(() => {
+      expect(updateCollection).toHaveBeenCalledWith({
+        filterByTk: 'approvals',
+        values: {
+          tenancy: 'tenantScoped',
+          legacyDataTenantIds: ['tenant-a'],
+          allowEditingLegacyData: true,
+        },
+      });
+    });
+  });
+
+  it('should disable all collection settings controls while the row is saving', async () => {
+    const listTenants = vi.fn().mockResolvedValue({
+      data: {
+        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+      },
+    });
+    const listCollections = vi.fn().mockResolvedValue({
+      data: {
+        data: [
+          {
+            name: 'approvals',
+            title: 'Approvals',
+            tenancy: 'tenantScoped',
+            legacyDataTenantIds: ['tenant-a'],
+          },
+        ],
+      },
+    });
+    let resolveUpdate = () => {};
+    const updateCollection = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+    const api = {
+      resource: vi.fn((name: string) => {
+        if (name === 'tenants') {
+          return { list: listTenants };
+        }
+
+        if (name === 'collections') {
+          return { list: listCollections, update: updateCollection };
+        }
+
+        return { list: vi.fn() };
+      }),
+    };
+
+    const { getByText } = render(
+      <AntdApp>
+        <APIClientProvider apiClient={api as any}>
+          <TenantManagement />
+        </APIClientProvider>
+      </AntdApp>,
+    );
+
+    const collectionRow = await waitFor(() => getByText('Approvals').closest('tr'));
+    const legacyEditingSwitch = collectionRow?.querySelector('button[role="switch"]');
+    expect(legacyEditingSwitch).toBeTruthy();
+
+    fireEvent.click(legacyEditingSwitch!);
+    await waitFor(() => expect(updateCollection).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => {
+      const savingRow = getByText('Approvals').closest('tr');
+      const selectors = savingRow?.querySelectorAll('[role="combobox"]');
+      const editingSwitch = savingRow?.querySelector('button[role="switch"]');
+
+      expect(selectors).toHaveLength(2);
+      expect(selectors?.[0]).toBeDisabled();
+      expect(selectors?.[1]).toBeDisabled();
+      expect(editingSwitch).toBeDisabled();
+    });
+
+    resolveUpdate();
+    await waitFor(() => {
+      const savedRow = getByText('Approvals').closest('tr');
+      const selectors = savedRow?.querySelectorAll('[role="combobox"]');
+      const editingSwitch = savedRow?.querySelector('button[role="switch"]');
+
+      expect(selectors?.[0]).not.toBeDisabled();
+      expect(selectors?.[1]).not.toBeDisabled();
+      expect(editingSwitch).not.toBeDisabled();
+    });
+  });
+
+  it('should clear legacy data settings when a collection becomes shared', async () => {
+    const listTenants = vi.fn().mockResolvedValue({
+      data: {
+        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+      },
+    });
+    const listCollections = vi.fn().mockResolvedValue({
+      data: {
+        data: [
+          {
+            name: 'approvals',
+            title: 'Approvals',
+            tenancy: 'tenantScoped',
+            legacyDataTenantIds: ['tenant-a'],
+            allowEditingLegacyData: true,
+          },
+        ],
+      },
+    });
+    const updateCollection = vi.fn().mockResolvedValue({ data: {} });
+    const api = {
+      resource: vi.fn((name: string) => {
+        if (name === 'tenants') {
+          return { list: listTenants };
+        }
+
+        if (name === 'collections') {
+          return { list: listCollections, update: updateCollection };
+        }
+
+        return { list: vi.fn() };
+      }),
+    };
+
+    const { getByText } = render(
+      <AntdApp>
+        <APIClientProvider apiClient={api as any}>
+          <TenantManagement />
+        </APIClientProvider>
+      </AntdApp>,
+    );
+
+    const collectionRow = await waitFor(() => getByText('Approvals').closest('tr'));
+    const visibilitySelect = collectionRow?.querySelectorAll('[role="combobox"]')[0];
+    expect(visibilitySelect).toBeTruthy();
+
+    fireEvent.mouseDown(visibilitySelect!);
+    fireEvent.click(await waitFor(() => getByText('Visible to all tenants')));
+
+    await waitFor(() => {
+      expect(updateCollection).toHaveBeenCalledWith({
+        filterByTk: 'approvals',
+        values: {
+          tenancy: 'shared',
+          legacyDataTenantIds: [],
+          allowEditingLegacyData: false,
+        },
+      });
     });
   });
 
@@ -602,6 +813,9 @@ describe('PluginTenantClient', () => {
       'Visible to all tenants': 'Visible to all tenants',
       'Visible only to current tenant': 'Visible only to current tenant',
       'Visible to current tenant and its parent tenants': 'Visible to current tenant and its parent tenants',
+      'Allow editing legacy data': 'Allow editing legacy data',
+      "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.":
+        "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
       'Tenants with access to legacy data': 'Tenants with access to legacy data',
       'Selected tenants can access legacy records that have no tenant assignment.':
         'Selected tenants can access legacy records that have no tenant assignment.',
@@ -613,6 +827,9 @@ describe('PluginTenantClient', () => {
       'Visible to all tenants': '所有租户可见',
       'Visible only to current tenant': '仅当前租户可见',
       'Visible to current tenant and its parent tenants': '当前租户及其父级租户可见',
+      'Allow editing legacy data': '允许编辑历史数据',
+      "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.":
+        '在这里配置内置和自定义租户数据表的租户隔离模式。开启 允许编辑历史数据 后, 历史数据将被挂到首次编辑者租户下。',
       'Tenants with access to legacy data': '可见历史数据的租户',
       'Selected tenants can access legacy records that have no tenant assignment.':
         '所选租户可访问尚未标记租户归属的历史数据',
@@ -653,6 +870,13 @@ describe('PluginTenantClient', () => {
           mode: 'multiple',
         },
       });
+      expect(tpl.configurableProperties.allowEditingLegacyData).toMatchObject({
+        title: '{{t("Allow editing legacy data")}}',
+        type: 'boolean',
+        name: 'allowEditingLegacyData',
+        default: false,
+        'x-component': 'Checkbox',
+      });
     }
   });
 
@@ -666,6 +890,7 @@ describe('PluginTenantClient', () => {
       const tpl = ctm.getCollectionTemplate(name);
       expect(tpl.configurableProperties.tenancy).toBeUndefined();
       expect(tpl.configurableProperties.legacyDataTenantIds).toBeUndefined();
+      expect(tpl.configurableProperties.allowEditingLegacyData).toBeUndefined();
     }
   });
 

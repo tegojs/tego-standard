@@ -1,5 +1,5 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
-import { CollectionManager, DataSource } from '@tego/server';
+import { CollectionManager, DataSource, mockDatabase, SequelizeDataSource, type Database } from '@tego/server';
 
 import { createTenantApp } from './utils';
 
@@ -150,12 +150,14 @@ async function setupTenantData(app: MockServer) {
 
 describe('tenant guard on external data sources', () => {
   let app: MockServer;
+  const externalDatabases: Database[] = [];
   const mocks = createMockDsClasses();
 
   afterEach(async () => {
     if (app) {
       await app.destroy();
     }
+    await Promise.all(externalDatabases.splice(0).map((database) => database.close()));
   });
 
   it('existing external data source: resource requests are filtered by current tenant (list, create, update, destroy)', async () => {
@@ -341,6 +343,74 @@ describe('tenant guard on external data sources', () => {
 
     expect(createRes.status).toBe(200);
     expect(mocks.lastCreateValues.tenantId).toBe('tenant-a');
+  });
+
+  it('registers the atomic legacy claim guard on added and replaced Sequelize data sources', async () => {
+    app = await createTenantApp();
+
+    const createDataSource = async () => {
+      const database = mockDatabase({ storage: ':memory:' });
+      externalDatabases.push(database);
+      database.collection({
+        name: 'externalLegacyPosts',
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a'],
+        allowEditingLegacyData: true,
+        fields: [
+          { name: 'id', type: 'bigInt', primaryKey: true, autoIncrement: true },
+          { name: 'title', type: 'string' },
+          { name: 'tenantId', type: 'string', allowNull: true },
+        ],
+      });
+      await database.sync();
+
+      const dataSource = new SequelizeDataSource({
+        name: 'externalLegacyClaims',
+        collectionManager: { database },
+        resourceManager: {},
+      });
+      await app.dataSourceManager.add(dataSource);
+      return { database, dataSource };
+    };
+
+    const assertStaleClaimRejected = async (database: Database) => {
+      const collection = database.getCollection('externalLegacyPosts');
+      const record = await collection.repository.create({ values: { title: 'Legacy', tenantId: null } });
+      await collection.model.update(
+        { tenantId: 'tenant-b' },
+        {
+          where: { id: record.get('id') },
+          hooks: false,
+        },
+      );
+      record.set('tenantId', 'tenant-a');
+
+      const context = {
+        state: {
+          currentTenant: { id: 'tenant-a' },
+          currentTenantId: 'tenant-a',
+        },
+        throw(status: number, message: string) {
+          const error = new Error(message) as Error & { status?: number };
+          error.status = status;
+          throw error;
+        },
+      };
+
+      await expect(
+        database.sequelize.transaction((transaction) => record.save({ context, transaction })),
+      ).rejects.toMatchObject({ status: 404 });
+    };
+
+    const first = await createDataSource();
+    await assertStaleClaimRejected(first.database);
+
+    const listenerCount = first.database.listenerCount('beforeUpdate');
+    await app.dataSourceManager.add(first.dataSource);
+    expect(first.database.listenerCount('beforeUpdate')).toBe(listenerCount);
+
+    const replacement = await createDataSource();
+    await assertStaleClaimRejected(replacement.database);
   });
 
   it('middleware chain: auth and setCurrentTenant run for external data source requests', async () => {

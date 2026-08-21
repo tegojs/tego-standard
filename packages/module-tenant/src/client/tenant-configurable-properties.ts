@@ -47,4 +47,27 @@ export const tenantConfigurableProperties = {
       },
     },
   },
+  allowEditingLegacyData: {
+    title: '{{t("Allow editing legacy data")}}',
+    type: 'boolean',
+    name: 'allowEditingLegacyData',
+    default: false,
+    'x-decorator': 'FormItem',
+    'x-component': 'Checkbox',
+    'x-reactions': {
+      dependencies: ['tenancy'],
+      when: "{{$deps[0] === 'tenantScoped' || $deps[0] === 'tenantInherited'}}",
+      fulfill: {
+        state: {
+          visible: true,
+        },
+      },
+      otherwise: {
+        state: {
+          value: false,
+          visible: false,
+        },
+      },
+    },
+  },
 };

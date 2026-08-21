@@ -107,6 +107,24 @@ export function applyUnassignedTenantReadFilter(ctx: TenantFilterContext) {
   ctx.action.params.filter = tenantParams.filter;
 }
 
+export function applyLegacyTenantClaim(ctx: TenantFilterContext) {
+  const tenantId = getTenantId(ctx.state);
+  if (tenantId == null || !ctx.action) {
+    throw new Error(translateTenantError(ctx, 'tenantContextRequired'));
+  }
+
+  const tenantParams = {
+    filter: appendTenantFilter(ctx.action.params?.filter, { tenantId: null }),
+    values: {
+      ...ctx.action.params?.values,
+      tenantId,
+    },
+  };
+  ctx.action.mergeParams(tenantParams);
+  ctx.action.params.filter = tenantParams.filter;
+  ctx.action.params.values = tenantParams.values;
+}
+
 function appendFilter(original: any, tenantId: string | number, includeLegacyData = false) {
   return appendTenantFilter(original, buildTenantFilter(tenantId, includeLegacyData));
 }

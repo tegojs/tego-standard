@@ -11,6 +11,8 @@ export const TENANT_ERROR_MESSAGES = {
     'No tenant is selected. Select a tenant and try again. If no tenant is available, contact an administrator.',
   recordUnavailable:
     'This record or a related record is not available in the current tenant. It may belong to another tenant or have been removed.',
+  legacyRecordReadOnly:
+    'This record is unassigned legacy data and is read-only. Assign it to a tenant before editing or deleting it.',
   tenantOwnershipMove: 'Moving a record cannot change its tenant. Keep the record in the current tenant and try again.',
   parentTenantNotFound:
     'The selected parent tenant does not exist. Refresh the tenant list and select another parent tenant.',

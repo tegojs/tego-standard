@@ -61,6 +61,7 @@
   "The selected tenant is unavailable or disabled. Select another tenant or contact an administrator.": "所选租户不存在或已停用。请选择其他租户，或联系管理员。",
   "The tenant hierarchy is too deep. Select a higher-level parent tenant.": "租户层级过深。请选择层级更高的上级租户。",
   "This association cannot be sorted. Enable sorting for it and try again.": "当前关联未启用排序。请启用排序后重试。",
+  "This record is unassigned legacy data and is read-only. Assign it to a tenant before editing or deleting it.": "该记录属于未归属租户的历史数据，当前仅可查看，不能修改或删除。请先将其归属到租户后再操作。",
   "This record or a related record is not available in the current tenant. It may belong to another tenant or have been removed.": "当前租户中无法访问此记录。该记录或关联记录可能属于其他租户，或已被删除。",
   "This tenant cannot be moved under itself or one of its descendants.": "不能将租户移动到自身或其下级租户中。",
   "This tenant has child tenants. Move or delete them before deleting this tenant.": "该租户仍有下级租户。请先移动或删除下级租户。",

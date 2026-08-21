@@ -234,20 +234,31 @@ describe('tenant resource guard', () => {
     expect(getResponse.status).toBe(200);
     expect(getResponse.body.data.title).toBe('Legacy');
 
-    await tenantAAgent.resource('tenant_legacy_posts').update({
-      filterByTk: legacyRecord.get('id'),
-      values: {
-        title: 'should-not-update-legacy',
-      },
-    });
+    const updateResponse = await tenantAAgent
+      .set('X-Locale', 'zh-CN')
+      .resource('tenant_legacy_posts')
+      .update({
+        filterByTk: legacyRecord.get('id'),
+        values: {
+          title: 'should-not-update-legacy',
+        },
+      });
+    expect(updateResponse.status).toBe(403);
+    expect(updateResponse.body.errors?.[0]?.message || updateResponse.body.error?.message).toBe(
+      '该记录属于未归属租户的历史数据，当前仅可查看，不能修改或删除。请先将其归属到租户后再操作。',
+    );
     const legacyAfterUpdate = await app.db.getRepository('tenant_legacy_posts').findOne({
       filterByTk: legacyRecord.get('id'),
     });
     expect(legacyAfterUpdate.get('title')).toBe('Legacy');
 
-    await tenantAAgent.resource('tenant_legacy_posts').destroy({
+    const destroyResponse = await tenantAAgent.resource('tenant_legacy_posts').destroy({
       filterByTk: legacyRecord.get('id'),
     });
+    expect(destroyResponse.status).toBe(403);
+    expect(destroyResponse.body.errors?.[0]?.message || destroyResponse.body.error?.message).toBe(
+      '该记录属于未归属租户的历史数据，当前仅可查看，不能修改或删除。请先将其归属到租户后再操作。',
+    );
     const legacyAfterDestroy = await app.db.getRepository('tenant_legacy_posts').findOne({
       filterByTk: legacyRecord.get('id'),
     });

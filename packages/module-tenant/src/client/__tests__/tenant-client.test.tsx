@@ -429,8 +429,8 @@ describe('CurrentTenantProvider – localStorage restore', () => {
           value={{
             data: {
               data: [
-                { id: 'tenant-a', title: 'Tenant A', current: true },
-                { id: 'tenant-b', title: 'Tenant B' },
+                { id: 'tenant-a', name: 'Tenant A', current: true },
+                { id: 'tenant-b', name: 'Tenant B' },
               ],
             },
           }}
@@ -458,8 +458,8 @@ describe('CurrentTenantProvider – localStorage restore', () => {
           value={{
             data: {
               data: [
-                { id: 'tenant-a', title: 'Tenant A', current: true },
-                { id: 'tenant-b', title: 'Tenant B' },
+                { id: 'tenant-a', name: 'Tenant A', current: true },
+                { id: 'tenant-b', name: 'Tenant B' },
               ],
             },
           }}
@@ -488,8 +488,8 @@ describe('CurrentTenantProvider – localStorage restore', () => {
           value={{
             data: {
               data: [
-                { id: 'tenant-a', title: 'Tenant A', enabled: true, current: false },
-                { id: 'tenant-b', title: 'Tenant B', enabled: true, current: false },
+                { id: 'tenant-a', name: 'Tenant A', enabled: true, current: false },
+                { id: 'tenant-b', name: 'Tenant B', enabled: true, current: false },
               ],
             },
           }}
@@ -524,8 +524,8 @@ describe('CurrentTenantProvider – localStorage restore', () => {
           value={{
             data: {
               data: [
-                { id: 'tenant-a', title: 'Tenant A', current: true },
-                { id: 'tenant-b', title: 'Tenant B' },
+                { id: 'tenant-a', name: 'Tenant A', current: true },
+                { id: 'tenant-b', name: 'Tenant B' },
               ],
             },
           }}

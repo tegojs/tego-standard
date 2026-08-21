@@ -36,6 +36,12 @@ describe('tenant plugin collections', () => {
 
     expect(tenantsCollection.getField('tenantUsers')).toBeFalsy();
     expect(tenantsCollection.getField('id')).toBeTruthy();
+    expect(tenantsCollection.getField('name')?.options).toMatchObject({
+      unique: true,
+      allowNull: false,
+      required: true,
+    });
+    expect(tenantsCollection.getField('title')).toBeFalsy();
     expect(app.db.getCollection('users').getField('tenants')).toBeTruthy();
   });
 

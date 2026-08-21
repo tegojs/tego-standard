@@ -371,9 +371,9 @@ describe('setCurrentTenant middleware', () => {
 
     await app.db.getRepository('tenants').create({
       values: [
-        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
-        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
-        { id: 'tenant-c', name: 'tenant-c', title: 'Tenant C', enabled: false },
+        { id: 'tenant-a', name: 'Tenant A' },
+        { id: 'tenant-b', name: 'Tenant B' },
+        { id: 'tenant-c', name: 'Tenant C', enabled: false },
       ],
     });
 
@@ -400,15 +400,13 @@ describe('setCurrentTenant middleware', () => {
 
     expect(tenantA).toMatchObject({
       id: 'tenant-a',
-      name: 'tenant-a',
-      title: 'Tenant A',
+      name: 'Tenant A',
       enabled: true,
       current: false,
     });
     expect(tenantB).toMatchObject({
       id: 'tenant-b',
-      name: 'tenant-b',
-      title: 'Tenant B',
+      name: 'Tenant B',
       enabled: true,
       current: true,
     });
@@ -646,9 +644,7 @@ describe('setCurrentTenant middleware', () => {
     app = await createTenantApp({ extraPlugins: ['audit-logs'] });
 
     await app.db.getRepository('tenants').create({
-      values: [
-        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
-      ],
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
     });
 
     const memberUser = await app.db.getRepository('users').create({

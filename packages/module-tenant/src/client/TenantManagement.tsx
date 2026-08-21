@@ -242,7 +242,6 @@ export const resolveSelectedUserRecords = (selectedUserIds: number[], records: S
 
 type TenantFormValues = {
   name: string;
-  title?: string;
   enabled?: boolean;
   parentId?: string | null;
 };
@@ -278,11 +277,10 @@ export const TenantEditor = ({
 
     form.setFieldsValue({
       name: initialValues?.name || '',
-      title: initialValues?.title || '',
       enabled: initialValues?.enabled ?? true,
       parentId: initialValues?.parentId || null,
     });
-  }, [form, initialValues?.enabled, initialValues?.name, initialValues?.parentId, initialValues?.title, open]);
+  }, [form, initialValues?.enabled, initialValues?.name, initialValues?.parentId, open]);
 
   return (
     <Drawer
@@ -302,13 +300,10 @@ export const TenantEditor = ({
     >
       <Form form={form} layout="vertical" onFinish={onSubmit}>
         <Form.Item
-          label={t('Tenant key')}
+          label={t('Tenant name')}
           name="name"
-          rules={[{ required: true, message: t('Please enter tenant key') }]}
+          rules={[{ required: true, whitespace: true, message: t('Please enter tenant name') }]}
         >
-          <Input autoComplete="off" />
-        </Form.Item>
-        <Form.Item label={t('Tenant name')} name="title">
           <Input autoComplete="off" />
         </Form.Item>
         <Form.Item label={t('Parent tenant')} name="parentId">
@@ -527,7 +522,7 @@ const TenantMembers = ({
     <Drawer
       destroyOnClose
       open={open}
-      title={tenant ? `${t('Tenant members')} · ${tenant.title || tenant.name}` : t('Tenant members')}
+      title={tenant ? `${t('Tenant members')} · ${tenant.name}` : t('Tenant members')}
       width={760}
       onClose={onClose}
     >
@@ -603,7 +598,7 @@ const TenantMembers = ({
               width: 220,
               render: (_, record) => {
                 const options = (record.tenants || []).map((item) => ({
-                  label: item.title || item.name || item.id,
+                  label: item.name || item.id,
                   value: item.id,
                 }));
                 const nextTenantIds = (record.tenants || []).map((item) => item.id);
@@ -689,7 +684,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
   const tenantOptions = useMemo(
     () =>
       tenants.map((tenant) => ({
-        label: tenant.title || tenant.name || tenant.id,
+        label: tenant.name || tenant.id,
         value: tenant.id,
       })),
     [tenants],
@@ -841,6 +836,7 @@ export const TenantManagement = () => {
     try {
       const normalizedValues = {
         ...values,
+        name: values.name.trim(),
         parentId: values.parentId || null,
       };
 
@@ -894,14 +890,14 @@ export const TenantManagement = () => {
           rowKey="id"
           columns={[
             {
-              title: t('Tenant key'),
-              dataIndex: 'name',
-              key: 'name',
+              title: t('Tenant ID'),
+              dataIndex: 'id',
+              key: 'id',
             },
             {
               title: t('Tenant name'),
-              key: 'title',
-              render: (_, record) => record.title || <Typography.Text type="secondary">{t('Not set')}</Typography.Text>,
+              dataIndex: 'name',
+              key: 'name',
             },
             {
               title: t('Status'),

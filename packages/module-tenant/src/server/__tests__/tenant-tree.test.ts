@@ -62,11 +62,11 @@ describe('tenant tree structure', () => {
 
     await app.db.getRepository('tenants').create({
       values: [
-        { id: 'hq', name: 'hq', title: 'HQ' },
-        { id: 'branch-a', name: 'branch-a', title: 'Branch A', parentId: 'hq' },
-        { id: 'branch-b', name: 'branch-b', title: 'Branch B', parentId: 'hq' },
-        { id: 'dept-x', name: 'dept-x', title: 'Dept X', parentId: 'branch-a' },
-        { id: 'other', name: 'other', title: 'Other' },
+        { id: 'hq', name: 'HQ' },
+        { id: 'branch-a', name: 'Branch A', parentId: 'hq' },
+        { id: 'branch-b', name: 'Branch B', parentId: 'hq' },
+        { id: 'dept-x', name: 'Dept X', parentId: 'branch-a' },
+        { id: 'other', name: 'Other' },
       ],
     });
 
@@ -78,12 +78,12 @@ describe('tenant tree structure', () => {
 
     const tenants = await getDescendantTenants(app.db.getRepository('tenants'), 'hq');
     const tenantIds = tenants.map((tenant: any) => tenant.get('id')).sort();
-    const titles = tenants.map((tenant: any) => tenant.get('title'));
+    const names = tenants.map((tenant: any) => tenant.get('name'));
 
     expect(tenantIds).toEqual(['branch-a', 'branch-b', 'dept-x']);
-    expect(titles).toContain('Branch A');
-    expect(titles).not.toContain('HQ');
-    expect(titles).not.toContain('Other');
+    expect(names).toContain('Branch A');
+    expect(names).not.toContain('HQ');
+    expect(names).not.toContain('Other');
   });
 
   it('should exclude disabled descendants from descendant ids', async () => {

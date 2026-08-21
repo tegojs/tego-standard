@@ -44,7 +44,7 @@ describe('switchTenant action', () => {
     const next = vi.fn();
     const tenant = {
       get: vi.fn((key: string) => (key === 'id' ? 'tenant-b' : undefined)),
-      toJSON: vi.fn(() => ({ id: 'tenant-b', title: 'Tenant B' })),
+      toJSON: vi.fn(() => ({ id: 'tenant-b', name: 'Tenant B' })),
     };
     const tenantsRepo = {
       findOne: vi.fn().mockResolvedValue(tenant),
@@ -100,7 +100,7 @@ describe('switchTenant action', () => {
       },
     });
     expect(ctx.state.currentTenantId).toBe('tenant-b');
-    expect(ctx.body).toEqual({ id: 'tenant-b', title: 'Tenant B' });
+    expect(ctx.body).toEqual({ id: 'tenant-b', name: 'Tenant B' });
     expect(next).toHaveBeenCalled();
   });
 
@@ -108,7 +108,7 @@ describe('switchTenant action', () => {
     const next = vi.fn();
     const tenant = {
       get: vi.fn((key: string) => (key === 'id' ? 'tenant-b' : undefined)),
-      toJSON: vi.fn(() => ({ id: 'tenant-b', title: 'Tenant B' })),
+      toJSON: vi.fn(() => ({ id: 'tenant-b', name: 'Tenant B' })),
     };
     const tenantsRepo = {
       findOne: vi.fn().mockResolvedValue(tenant),
@@ -172,7 +172,7 @@ describe('switchTenant action', () => {
     const next = vi.fn();
     const tenant = {
       get: vi.fn((key: string) => (key === 'id' ? 'tenant-b' : undefined)),
-      toJSON: vi.fn(() => ({ id: 'tenant-b', title: 'Tenant B' })),
+      toJSON: vi.fn(() => ({ id: 'tenant-b', name: 'Tenant B' })),
     };
     const tenantsRepo = {
       findOne: vi.fn().mockResolvedValue(tenant),
@@ -231,7 +231,7 @@ describe('switchTenant action', () => {
     const next = vi.fn();
     const tenant = {
       get: vi.fn((key: string) => (key === 'id' ? 'tenant-b' : undefined)),
-      toJSON: vi.fn(() => ({ id: 'tenant-b', title: 'Tenant B' })),
+      toJSON: vi.fn(() => ({ id: 'tenant-b', name: 'Tenant B' })),
     };
     const tenantsRepo = {
       findOne: vi.fn().mockResolvedValue(tenant),
@@ -315,11 +315,11 @@ describe('availableTenants action', () => {
     const next = vi.fn();
     const tenantA = {
       get: vi.fn((key: string) => (key === 'id' ? 'tenant-a' : undefined)),
-      toJSON: vi.fn(() => ({ id: 'tenant-a', title: 'Tenant A' })),
+      toJSON: vi.fn(() => ({ id: 'tenant-a', name: 'Tenant A' })),
     };
     const tenantB = {
       get: vi.fn((key: string) => (key === 'id' ? 'tenant-b' : undefined)),
-      toJSON: vi.fn(() => ({ id: 'tenant-b', title: 'Tenant B' })),
+      toJSON: vi.fn(() => ({ id: 'tenant-b', name: 'Tenant B' })),
     };
     const tenantsRepo = {
       find: vi.fn().mockResolvedValue([tenantA, tenantB]),
@@ -364,8 +364,8 @@ describe('availableTenants action', () => {
       sort: ['path', 'id'],
     });
     expect(ctx.body).toEqual([
-      { id: 'tenant-a', title: 'Tenant A', current: false },
-      { id: 'tenant-b', title: 'Tenant B', current: true },
+      { id: 'tenant-a', name: 'Tenant A', current: false },
+      { id: 'tenant-b', name: 'Tenant B', current: true },
     ]);
     expect(next).toHaveBeenCalled();
   });

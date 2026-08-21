@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { Plugin, uid } from '@tego/server';
 
 import { NAMESPACE, TENANT_IMPERSONATION_SNIPPET } from '../constants';
@@ -603,6 +604,12 @@ export class PluginTenantServer extends Plugin {
   }
 
   async beforeLoad() {
+    this.db.addMigrations({
+      namespace: this.name,
+      directory: resolve(__dirname, 'migrations'),
+      context: { plugin: this },
+    });
+
     this.app.i18n.addResources('zh-CN', NAMESPACE, zhCN);
     this.app.i18n.addResources('en-US', NAMESPACE, enUS);
 

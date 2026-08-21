@@ -8,7 +8,6 @@ type AvailableTenantItem = {
   current?: boolean;
   enabled?: boolean;
   name?: string;
-  title?: string;
 };
 
 type AvailableTenantsResult = {
@@ -85,7 +84,7 @@ export const CurrentTenantProvider = ({ children, currentUser: currentUserProp }
     return result;
   }, [currentUserId, noUserFallback, result]);
 
-  const tenants = value?.data?.data || [];
+  const tenants = useMemo(() => value?.data?.data || [], [value?.data?.data]);
   const currentTenant = tenants.find((item) => item.current) || tenants.find((item) => item.enabled !== false);
   const tenantKey = currentUserId ? `${currentUserId}:${currentTenant?.id || ''}` : null;
 

@@ -9,8 +9,7 @@ describe('currentTenant action', () => {
       state: {
         currentTenant: {
           id: 'tenant-a',
-          name: 'tenant-a',
-          title: 'Tenant A',
+          name: 'Tenant A',
           enabled: true,
           path: '/tenant-a/',
           internalSecret: 'hidden',
@@ -22,8 +21,7 @@ describe('currentTenant action', () => {
 
     expect(ctx.body).toEqual({
       id: 'tenant-a',
-      name: 'tenant-a',
-      title: 'Tenant A',
+      name: 'Tenant A',
     });
     expect(next).toHaveBeenCalled();
   });

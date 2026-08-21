@@ -27,12 +27,12 @@ export const useSwitchTenant = () => {
       <div key={TENANT_MENU_KEY} className="tenant-nav-switcher">
         <Select
           fieldNames={{
-            label: 'title',
+            label: 'name',
             value: 'id',
           }}
           options={tenants.map((item) => ({
             ...item,
-            title: item.title || item.name || item.id,
+            name: item.name || item.id,
           }))}
           value={currentTenant?.id}
           disabled={switching}

@@ -1,7 +1,6 @@
 export type TenantRecord = {
   id: string;
   name: string;
-  title?: string;
   enabled?: boolean;
   parentId?: string | null;
   path?: string;
@@ -149,7 +148,7 @@ export function getTenantParentOptions(tenants: TenantRecord[], editingTenant?: 
       return !descendantPathPrefix || !tenant.path?.startsWith(descendantPathPrefix);
     })
     .map((tenant) => ({
-      label: tenant.title || tenant.name || tenant.id,
+      label: tenant.name || tenant.id,
       value: tenant.id,
     }));
 }

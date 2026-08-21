@@ -17,10 +17,6 @@ export default defineCollection({
       required: true,
     },
     {
-      type: 'string',
-      name: 'title',
-    },
-    {
       type: 'boolean',
       name: 'enabled',
       defaultValue: true,

@@ -3,7 +3,6 @@ import type { Context, Next } from '@tego/server';
 type PublicTenantSource = {
   id: string;
   name?: string;
-  title?: string;
 };
 
 function toPublicTenant(tenant: PublicTenantSource | null | undefined) {
@@ -14,7 +13,6 @@ function toPublicTenant(tenant: PublicTenantSource | null | undefined) {
   return {
     id: tenant.id,
     name: tenant.name,
-    title: tenant.title,
   };
 }
 

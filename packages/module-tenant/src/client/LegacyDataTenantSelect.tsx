@@ -23,7 +23,7 @@ export async function loadLegacyDataTenantOptions(
   const tenants = await loadTenantRecords(api, isCanceled, pageSize);
 
   return tenants.map((tenant: any) => ({
-    label: tenant.title || tenant.name || tenant.id,
+    label: tenant.name || tenant.id,
     value: tenant.id,
   }));
 }

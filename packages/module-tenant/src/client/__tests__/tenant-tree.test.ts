@@ -42,8 +42,8 @@ describe('tenant tree helpers', () => {
   it('should exclude the edited tenant and descendants from parent options', () => {
     const options = getTenantParentOptions(
       [
-        { id: 'root', name: 'root', title: 'Root', path: '/root/' },
-        { id: 'child', name: 'child', title: 'Child', parentId: 'root', path: '/root/child/' },
+        { id: 'root', name: 'Root', path: '/root/' },
+        { id: 'child', name: 'Child', parentId: 'root', path: '/root/child/' },
         { id: 'grandchild', name: 'grandchild', parentId: 'child', path: '/root/child/grandchild/' },
         { id: 'other', name: 'other', path: '/other/' },
       ],

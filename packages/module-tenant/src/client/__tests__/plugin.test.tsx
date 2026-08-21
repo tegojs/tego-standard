@@ -101,8 +101,8 @@ describe('PluginTenantClient', () => {
         value={{
           data: {
             data: [
-              { id: 'tenant_a', title: 'Tenant A', current: true },
-              { id: 'tenant_b', title: 'Tenant B' },
+              { id: 'tenant_a', name: 'Tenant A', current: true },
+              { id: 'tenant_b', name: 'Tenant B' },
             ],
           },
         }}
@@ -132,8 +132,8 @@ describe('PluginTenantClient', () => {
         value={{
           data: {
             data: [
-              { id: 'tenant_a', title: 'Tenant A', current: true },
-              { id: 'tenant_b', title: 'Tenant B' },
+              { id: 'tenant_a', name: 'Tenant A', current: true },
+              { id: 'tenant_b', name: 'Tenant B' },
             ],
           },
         }}
@@ -154,7 +154,7 @@ describe('PluginTenantClient', () => {
       <CurrentTenantContext.Provider
         value={{
           data: {
-            data: [{ id: 'tenant_a', title: 'Tenant A', current: true }],
+            data: [{ id: 'tenant_a', name: 'Tenant A', current: true }],
           },
         }}
       >
@@ -177,13 +177,13 @@ describe('PluginTenantClient', () => {
       return <>{getItems().map((item) => React.cloneElement(item, { key: item.key }))}</>;
     };
 
-    const renderTree = (title: string) => (
+    const renderTree = (name: string) => (
       <CurrentTenantContext.Provider
         value={{
           data: {
             data: [
-              { id: 'tenant_a', title, current: true },
-              { id: 'tenant_b', title: 'Tenant B' },
+              { id: 'tenant_a', name, current: true },
+              { id: 'tenant_b', name: 'Tenant B' },
             ],
           },
         }}
@@ -312,7 +312,7 @@ describe('PluginTenantClient', () => {
       })
       .mockResolvedValueOnce({
         data: {
-          data: [{ id: 'tenant-3', title: 'Tenant 3' }],
+          data: [{ id: 'tenant-3', name: 'Tenant 3' }],
         },
       });
     const api = {
@@ -414,7 +414,7 @@ describe('PluginTenantClient', () => {
   it('should render tenant collection isolation configuration in tenant management', async () => {
     const listTenants = vi.fn().mockResolvedValue({
       data: {
-        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+        data: [{ id: 'tenant-a', name: 'Tenant A' }],
       },
     });
     const listCollections = vi.fn().mockResolvedValue({
@@ -436,13 +436,17 @@ describe('PluginTenantClient', () => {
       }),
     };
 
-    const { getByText } = render(
+    const { getByText, queryByText } = render(
       <APIClientProvider apiClient={api as any}>
         <TenantManagement />
       </APIClientProvider>,
     );
 
     await waitFor(() => {
+      expect(getByText('Tenant ID')).toBeInTheDocument();
+      expect(getByText('tenant-a')).toBeInTheDocument();
+      expect(getByText('Tenant A')).toBeInTheDocument();
+      expect(queryByText('Tenant key')).not.toBeInTheDocument();
       expect(getByText('Collection tenant isolation')).toBeInTheDocument();
       expect(getByText('Approvals')).toBeInTheDocument();
     });
@@ -451,7 +455,7 @@ describe('PluginTenantClient', () => {
   it('should paginate and search tenant collection isolation configuration', async () => {
     const listTenants = vi.fn().mockResolvedValue({
       data: {
-        data: [{ id: 'tenant-a', name: 'tenant_a', title: 'Tenant A' }],
+        data: [{ id: 'tenant-a', name: 'Tenant A' }],
       },
     });
     const collectionRecords = [
@@ -506,13 +510,13 @@ describe('PluginTenantClient', () => {
         id: 1,
         username: 'current_user',
         email: 'current@example.com',
-        tenants: [{ id: 'tenant-a', title: 'Tenant A' }],
+        tenants: [{ id: 'tenant-a', name: 'Tenant A' }],
       },
       {
         id: 2,
         username: 'candidate_user',
         email: 'candidate@example.com',
-        tenants: [{ id: 'tenant-b', title: 'Tenant B' }],
+        tenants: [{ id: 'tenant-b', name: 'Tenant B' }],
       },
     ];
 
@@ -592,6 +596,8 @@ describe('PluginTenantClient', () => {
 
   it('should provide clear tenant isolation labels in every locale', () => {
     expect(enUS).toMatchObject({
+      'Tenant ID': 'Tenant ID',
+      'Please enter tenant name': 'Please enter tenant name',
       'Data visibility': 'Data visibility',
       'Visible to all tenants': 'Visible to all tenants',
       'Visible only to current tenant': 'Visible only to current tenant',
@@ -601,6 +607,8 @@ describe('PluginTenantClient', () => {
         'Selected tenants can access legacy records that have no tenant assignment.',
     });
     expect(zhCN).toMatchObject({
+      'Tenant ID': '租户 ID',
+      'Please enter tenant name': '请输入租户名称',
       'Data visibility': '数据可见性',
       'Visible to all tenants': '所有租户可见',
       'Visible only to current tenant': '仅当前租户可见',
@@ -609,6 +617,8 @@ describe('PluginTenantClient', () => {
       'Selected tenants can access legacy records that have no tenant assignment.':
         '所选租户可访问尚未标记租户归属的历史数据',
     });
+    expect(enUS).not.toHaveProperty('Tenant key');
+    expect(zhCN).not.toHaveProperty('Tenant key');
   });
 
   it('should inject tenancy fields into standard collection templates on load', async () => {
@@ -692,8 +702,7 @@ describe('PluginTenantClient', () => {
     const { rerender } = render(
       <TenantEditor
         initialValues={{
-          name: 'tenant_a',
-          title: 'Tenant A',
+          name: 'Tenant A',
           enabled: true,
           parentId: 'root',
         }}
@@ -707,15 +716,14 @@ describe('PluginTenantClient', () => {
     );
 
     await waitFor(() => {
-      expect(document.querySelector('input[id="name"]')).toHaveValue('tenant_a');
-      expect(document.querySelector('input[id="title"]')).toHaveValue('Tenant A');
+      expect(document.querySelector('input[id="name"]')).toHaveValue('Tenant A');
+      expect(document.querySelector('input[id="title"]')).not.toBeInTheDocument();
     });
 
     rerender(
       <TenantEditor
         initialValues={{
-          name: 'tenant_b',
-          title: 'Tenant B',
+          name: 'Tenant B',
           enabled: false,
           parentId: undefined,
         }}
@@ -729,8 +737,8 @@ describe('PluginTenantClient', () => {
     );
 
     await waitFor(() => {
-      expect(document.querySelector('input[id="name"]')).toHaveValue('tenant_b');
-      expect(document.querySelector('input[id="title"]')).toHaveValue('Tenant B');
+      expect(document.querySelector('input[id="name"]')).toHaveValue('Tenant B');
+      expect(document.querySelector('input[id="title"]')).not.toBeInTheDocument();
     });
   });
 });

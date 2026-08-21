@@ -411,7 +411,6 @@ async function guardTenantAssociationValues(
                 ? await findTenantRecord(ctx, targetCollection, targetKeyValue, 'get', targetKey)
                 : undefined;
             if (readableRecord && getRecordValue(readableRecord, 'tenantId') === null) {
-              targetRecord = readableRecord;
               if (targetCollection.options?.allowEditingLegacyData !== true) {
                 ctx.throw(403, translateTenantError(ctx, 'legacyRecordReadOnly'));
               }

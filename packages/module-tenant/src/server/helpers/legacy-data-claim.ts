@@ -38,16 +38,19 @@ export async function guardLegacyTenantClaimUpdate(db: any, model: any, options:
 
   const context = options.context;
   const currentTenantId = context?.state?.currentTenant?.id ?? context?.state?.currentTenantId;
-  if (currentTenantId === null || currentTenantId === undefined) {
-    return;
-  }
+  const hasCurrentTenant = currentTenantId !== null && currentTenantId !== undefined;
 
   const previousTenantId = model.previous('tenantId');
   const nextTenantId = model.get('tenantId');
   const canReadLegacyData = (collection.options?.legacyDataTenantIds || []).some((tenantId: string | number) =>
     hasSameTenantId(tenantId, currentTenantId),
   );
-  if (previousTenantId !== null || !hasSameTenantId(nextTenantId, currentTenantId) || !canReadLegacyData) {
+  if (
+    previousTenantId !== null ||
+    nextTenantId === null ||
+    nextTenantId === undefined ||
+    (hasCurrentTenant && (!hasSameTenantId(nextTenantId, currentTenantId) || !canReadLegacyData))
+  ) {
     throwRecordUnavailable(context);
   }
 

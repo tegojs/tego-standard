@@ -70,4 +70,25 @@ describe('guardLegacyTenantClaimUpdate', () => {
       }),
     ).rejects.toMatchObject({ status: 404 });
   });
+
+  it('should reject a stale tenant assignment without tenant context', async () => {
+    const { db, findOne, model, transaction } = createClaimFixture('tenant-b');
+
+    await expect(
+      guardLegacyTenantClaimUpdate(db as any, model as any, {
+        transaction,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(findOne).toHaveBeenCalledOnce();
+  });
+
+  it('should lock and allow an unassigned tenant assignment without tenant context', async () => {
+    const { db, findOne, model, transaction } = createClaimFixture(null);
+
+    await guardLegacyTenantClaimUpdate(db as any, model as any, {
+      transaction,
+    });
+
+    expect(findOne).toHaveBeenCalledOnce();
+  });
 });

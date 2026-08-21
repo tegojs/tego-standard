@@ -35,9 +35,11 @@ type TenantCollectionRecord = {
   from?: string;
   tenancy?: TenancyMode;
   legacyDataTenantIds?: string[];
+  allowEditingLegacyData?: boolean;
   options?: {
     tenancy?: TenancyMode;
     legacyDataTenantIds?: string[];
+    allowEditingLegacyData?: boolean;
   };
 };
 
@@ -77,6 +79,8 @@ export const getTenantConfigurableCollections = (collections: TenantCollectionRe
         ...collection,
         tenancy,
         legacyDataTenantIds: collection.legacyDataTenantIds ?? collection.options?.legacyDataTenantIds ?? [],
+        allowEditingLegacyData:
+          collection.allowEditingLegacyData ?? collection.options?.allowEditingLegacyData ?? false,
       };
     })
     .filter(Boolean)
@@ -697,13 +701,15 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
 
   const saveCollection = async (
     record: TenantCollectionRecord & { tenancy: TenancyMode },
-    values: Partial<Pick<TenantCollectionRecord, 'tenancy' | 'legacyDataTenantIds'>>,
+    values: Partial<Pick<TenantCollectionRecord, 'tenancy' | 'legacyDataTenantIds' | 'allowEditingLegacyData'>>,
   ) => {
     const nextTenancy = values.tenancy || record.tenancy;
     const nextValues = {
       tenancy: nextTenancy,
       legacyDataTenantIds:
         nextTenancy === 'shared' ? [] : (values.legacyDataTenantIds ?? record.legacyDataTenantIds ?? []),
+      allowEditingLegacyData:
+        nextTenancy === 'shared' ? false : (values.allowEditingLegacyData ?? record.allowEditingLegacyData ?? false),
     };
 
     setSavingCollectionName(record.name);
@@ -728,7 +734,9 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
           {t('Collection tenant isolation')}
         </Typography.Title>
         <Typography.Text type="secondary">
-          {t('Configure tenant isolation for built-in and custom tenant-aware collections here.')}
+          {t(
+            "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
+          )}
         </Typography.Text>
       </div>
       <Input.Search
@@ -797,6 +805,22 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
                 value={record.tenancy === 'shared' ? [] : record.legacyDataTenantIds || []}
                 onChange={(value) => {
                   void saveCollection(record, { legacyDataTenantIds: value as string[] });
+                }}
+              />
+            ),
+          },
+          {
+            title: t('Allow editing legacy data'),
+            dataIndex: 'allowEditingLegacyData',
+            key: 'allowEditingLegacyData',
+            width: 180,
+            render: (_, record) => (
+              <Switch
+                checked={record.tenancy !== 'shared' && record.allowEditingLegacyData === true}
+                disabled={record.tenancy === 'shared'}
+                loading={savingCollectionName === record.name}
+                onChange={(checked) => {
+                  void saveCollection(record, { allowEditingLegacyData: checked });
                 }}
               />
             ),

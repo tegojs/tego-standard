@@ -1,4 +1,4 @@
-import applyTenantFilter, { applyTenantFilterToContext } from '../helpers/tenant-filter';
+import applyTenantFilter, { applyLegacyTenantClaim, applyTenantFilterToContext } from '../helpers/tenant-filter';
 
 describe('applyTenantFilter', () => {
   it('should merge tenant filter for list actions', () => {
@@ -310,6 +310,59 @@ describe('applyTenantFilter', () => {
     });
     expect(ctx.action.params.values).toEqual({
       title: 'Post',
+    });
+  });
+
+  it('should claim only an unassigned legacy record for the current tenant', () => {
+    const mergeParams = vi.fn();
+    const ctx = {
+      state: {
+        currentTenantId: 'tenant-a',
+      },
+      action: {
+        actionName: 'update',
+        params: {
+          filter: {
+            $and: [{ title: 'Legacy' }, { tenantId: 'tenant-a' }],
+          },
+          values: {
+            title: 'Claimed',
+            tenantId: 'tenant-b',
+          },
+        },
+        mergeParams,
+      },
+    };
+
+    applyLegacyTenantClaim(ctx);
+
+    expect(mergeParams).toHaveBeenCalledWith({
+      filter: {
+        $and: [
+          {
+            $and: [{ title: 'Legacy' }],
+          },
+          { tenantId: null },
+        ],
+      },
+      values: {
+        title: 'Claimed',
+        tenantId: 'tenant-a',
+      },
+    });
+    expect(ctx.action.params).toMatchObject({
+      filter: {
+        $and: [
+          {
+            $and: [{ title: 'Legacy' }],
+          },
+          { tenantId: null },
+        ],
+      },
+      values: {
+        title: 'Claimed',
+        tenantId: 'tenant-a',
+      },
     });
   });
 

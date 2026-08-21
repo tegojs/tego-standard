@@ -245,7 +245,7 @@ describe('tenant resource guard', () => {
       });
     expect(updateResponse.status).toBe(403);
     expect(updateResponse.body.errors?.[0]?.message || updateResponse.body.error?.message).toBe(
-      '该记录属于未归属租户的历史数据，当前仅可查看，不能修改或删除。请先将其归属到租户后再操作。',
+      '该记录属于未归属租户的历史数据，当前仅可查看，不能修改或删除。请先联系管理员允许编辑本表历史数据后再操作。',
     );
     const legacyAfterUpdate = await app.db.getRepository('tenant_legacy_posts').findOne({
       filterByTk: legacyRecord.get('id'),
@@ -257,7 +257,7 @@ describe('tenant resource guard', () => {
     });
     expect(destroyResponse.status).toBe(403);
     expect(destroyResponse.body.errors?.[0]?.message || destroyResponse.body.error?.message).toBe(
-      '该记录属于未归属租户的历史数据，当前仅可查看，不能修改或删除。请先将其归属到租户后再操作。',
+      '该记录属于未归属租户的历史数据，当前仅可查看，不能修改或删除。请先联系管理员允许编辑本表历史数据后再操作。',
     );
     const legacyAfterDestroy = await app.db.getRepository('tenant_legacy_posts').findOne({
       filterByTk: legacyRecord.get('id'),
@@ -276,6 +276,144 @@ describe('tenant resource guard', () => {
     const tenantBListResponse = await app.agent().login(user).resource('tenant_legacy_posts').list({});
     expect(tenantBListResponse.status).toBe(200);
     expect(tenantBListResponse.body.data).toHaveLength(0);
+  });
+
+  it('should claim a visible legacy record on its first permitted single-record update', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_guard_legacy_claim_user',
+        email: 'tenant-guard-legacy-claim-user@example.com',
+        phone: '10000000031',
+        password: '123456',
+        roles: ['admin'],
+        tenants: ['tenant-a', 'tenant-b'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_claimable_legacy_posts',
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a', 'tenant-b'],
+        allowEditingLegacyData: true,
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+
+    const legacyRecord = await app.db.getRepository('tenant_claimable_legacy_posts').create({
+      values: { title: 'Legacy' },
+    });
+    const secondLegacyRecord = await app.db.getRepository('tenant_claimable_legacy_posts').create({
+      values: { title: 'Second legacy record' },
+    });
+    const tenantAAgent = app.agent().login(user).set('X-Locale', 'zh-CN');
+
+    const destroyResponse = await tenantAAgent.resource('tenant_claimable_legacy_posts').destroy({
+      filterByTk: legacyRecord.get('id'),
+    });
+    expect(destroyResponse.status).toBe(403);
+    expect(destroyResponse.body.errors?.[0]?.message || destroyResponse.body.error?.message).toBe(
+      '该记录属于未归属租户的历史数据，不能直接删除。请先编辑该记录，将其归属到当前租户后再删除。',
+    );
+
+    await tenantAAgent.resource('tenant_claimable_legacy_posts').update({
+      filter: { title: 'Legacy' },
+      values: { title: 'Must not be claimed in bulk' },
+    });
+    await legacyRecord.reload();
+    expect(legacyRecord.get('title')).toBe('Legacy');
+    expect(legacyRecord.get('tenantId')).toBeNull();
+
+    await tenantAAgent.resource('tenant_claimable_legacy_posts').update({
+      filterByTk: [legacyRecord.get('id'), secondLegacyRecord.get('id')],
+      values: { title: 'Must not be claimed by target key array' },
+    });
+    await legacyRecord.reload();
+    await secondLegacyRecord.reload();
+    expect(legacyRecord.get('title')).toBe('Legacy');
+    expect(legacyRecord.get('tenantId')).toBeNull();
+    expect(secondLegacyRecord.get('title')).toBe('Second legacy record');
+    expect(secondLegacyRecord.get('tenantId')).toBeNull();
+
+    await tenantAAgent.resource('tenant_claimable_legacy_posts').update({
+      filterByTk: { id: legacyRecord.get('id') },
+      values: { title: 'Must not be claimed by target key object' },
+    });
+    await legacyRecord.reload();
+    expect(legacyRecord.get('title')).toBe('Legacy');
+    expect(legacyRecord.get('tenantId')).toBeNull();
+
+    const updateResponse = await tenantAAgent.resource('tenant_claimable_legacy_posts').update({
+      filterByTk: legacyRecord.get('id'),
+      values: { title: 'Claimed by tenant A' },
+    });
+    expect(updateResponse.status).toBe(200);
+
+    await legacyRecord.reload();
+    expect(legacyRecord.get('title')).toBe('Claimed by tenant A');
+    expect(legacyRecord.get('tenantId')).toBe('tenant-a');
+
+    await app
+      .agent()
+      .login(user)
+      .resource('tenants')
+      .switch({ values: { tenantId: 'tenant-b' } });
+    const tenantBAgent = app.agent().login(user);
+    const tenantBResponse = await tenantBAgent.resource('tenant_claimable_legacy_posts').get({
+      filterByTk: legacyRecord.get('id'),
+    });
+    expect(tenantBResponse.status).toBe(200);
+    expect(tenantBResponse.body.data).toBeNull();
+
+    await tenantBAgent.resource('tenant_claimable_legacy_posts').update({
+      filterByTk: legacyRecord.get('id'),
+      values: { title: 'Must remain claimed by tenant A' },
+    });
+    await legacyRecord.reload();
+    expect(legacyRecord.get('title')).toBe('Claimed by tenant A');
+    expect(legacyRecord.get('tenantId')).toBe('tenant-a');
+  });
+
+  it('should clear legacy access and editing settings when a collection becomes shared', async () => {
+    app = await createTenantApp();
+
+    const collectionRecord = await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_shared_normalized_posts',
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a'],
+        allowEditingLegacyData: true,
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+
+    await app.db.getRepository('collections').update({
+      filterByTk: 'tenant_shared_normalized_posts',
+      values: { tenancy: 'shared' },
+      context: {},
+    });
+
+    await collectionRecord.reload();
+    expect(collectionRecord.get('tenancy')).toBe('shared');
+    expect(collectionRecord.get('legacyDataTenantIds')).toEqual([]);
+    expect(collectionRecord.get('allowEditingLegacyData')).toBe(false);
+    expect(app.db.getCollection('tenant_shared_normalized_posts').options).toMatchObject({
+      tenancy: 'shared',
+      legacyDataTenantIds: [],
+      allowEditingLegacyData: false,
+    });
   });
 
   it('should add tenantId field when creating tenant-enabled collections', async () => {
@@ -1190,7 +1328,7 @@ describe('tenant resource guard', () => {
     expect(response.status).toBe(200);
   });
 
-  it('should allow root updates to relink readable legacy associations without updating their values', async () => {
+  it("should enforce each target collection's legacy editing policy during root association updates", async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -1228,11 +1366,22 @@ describe('tenant resource guard', () => {
     });
     await app.db.getRepository('collections').create({
       values: {
+        name: 'tenant_claimable_update_contacts',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a'],
+        allowEditingLegacyData: true,
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
         name: 'tenant_legacy_update_companies',
         tenancy: 'tenantScoped',
         fields: [
           { type: 'string', name: 'name' },
           { type: 'belongsToMany', name: 'contacts', target: 'tenant_legacy_update_contacts' },
+          { type: 'belongsToMany', name: 'editableContacts', target: 'tenant_claimable_update_contacts' },
           { type: 'belongsToMany', name: 'projects', target: 'tenant_legacy_update_projects' },
         ],
       },
@@ -1241,6 +1390,9 @@ describe('tenant resource guard', () => {
 
     const contact = await app.db.getRepository('tenant_legacy_update_contacts').create({
       values: { name: 'Legacy contact' },
+    });
+    const editableContact = await app.db.getRepository('tenant_claimable_update_contacts').create({
+      values: { name: 'Editable legacy contact' },
     });
     const company = await app.db.getRepository('tenant_legacy_update_companies').create({
       values: { name: 'Company' },
@@ -1286,6 +1438,23 @@ describe('tenant resource guard', () => {
 
     await contact.reload();
     expect(contact.get('name')).toBe('Legacy contact');
+
+    const allowedResponse = await app
+      .agent()
+      .login(user)
+      .resource('tenant_legacy_update_companies')
+      .update({
+        filterByTk: company.get('id'),
+        updateAssociationValues: ['editableContacts'],
+        values: {
+          editableContacts: [{ id: editableContact.get('id'), name: 'Claimed contact' }],
+        },
+      });
+    expect(allowedResponse.status).toBe(200);
+
+    await editableContact.reload();
+    expect(editableContact.get('name')).toBe('Claimed contact');
+    expect(editableContact.get('tenantId')).toBe('tenant-a');
   });
 
   async function prepareMoveGuardUser() {

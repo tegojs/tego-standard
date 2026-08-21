@@ -10,7 +10,12 @@ import usersCollection from './collections/users';
 import { TENANT_ENABLED_MODES } from './constants';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
+import {
+  registerLegacyTenantClaimGuard,
+  registerLegacyTenantClaimGuardsForDataSources,
+} from './helpers/legacy-data-claim';
 import applyTenantFilter, {
+  applyLegacyTenantClaim,
   applyTenantFilterToContext,
   applyUnassignedTenantReadFilter,
   isTenantReadAction,
@@ -87,6 +92,10 @@ function hasTargetKey(value: any) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function isSingleTargetKey(value: any) {
+  return (typeof value === 'string' || typeof value === 'number') && hasTargetKey(value);
+}
+
 function getAssociationTargetCollection(db: any, association: any) {
   return db.modelCollection?.get?.(association.target) || db.getCollection(association.target?.name);
 }
@@ -109,7 +118,7 @@ function getRecordValue(record: any, key: string) {
 async function findWritableRootRecord(ctx: any, collection: any, repository: any) {
   const filterByTk = ctx.action?.params?.filterByTk;
   const actionName = ctx.action?.actionName;
-  if (!hasTargetKey(filterByTk) || !['update', 'destroy'].includes(actionName)) {
+  if (!isSingleTargetKey(filterByTk) || !['update', 'destroy'].includes(actionName)) {
     return undefined;
   }
 
@@ -128,6 +137,13 @@ async function findWritableRootRecord(ctx: any, collection: any, repository: any
 
   const readableRecord = await findTenantRecord(ctx, collection, filterByTk, 'get', undefined, repository);
   if (readableRecord && getRecordValue(readableRecord, 'tenantId') === null) {
+    if (actionName === 'update' && collection.options?.allowEditingLegacyData === true) {
+      applyLegacyTenantClaim(ctx);
+      return readableRecord;
+    }
+    if (actionName === 'destroy' && collection.options?.allowEditingLegacyData === true) {
+      ctx.throw(403, translateTenantError(ctx, 'legacyRecordDeleteRequiresClaim'));
+    }
     ctx.throw(403, translateTenantError(ctx, 'legacyRecordReadOnly'));
   }
 
@@ -390,12 +406,25 @@ async function guardTenantAssociationValues(
           targetRecord = currentTenantRecord;
 
           if (!currentTenantRecord) {
-            const existingRecord = await targetCollection.repository.findOne({
-              filter: { [targetKey]: targetKeyValue },
-              context: ctx,
-            });
+            const readableRecord =
+              existingTargetAction === 'update'
+                ? await findTenantRecord(ctx, targetCollection, targetKeyValue, 'get', targetKey)
+                : undefined;
+            if (readableRecord && getRecordValue(readableRecord, 'tenantId') === null) {
+              targetRecord = readableRecord;
+              if (targetCollection.options?.allowEditingLegacyData !== true) {
+                ctx.throw(403, translateTenantError(ctx, 'legacyRecordReadOnly'));
+              }
+            }
+
+            const existingRecord =
+              readableRecord ||
+              (await targetCollection.repository.findOne({
+                filter: { [targetKey]: targetKeyValue },
+                context: ctx,
+              }));
             targetRecord = existingRecord;
-            if (existingRecord) {
+            if (existingRecord && !readableRecord) {
               ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
             }
           }
@@ -624,6 +653,40 @@ export class PluginTenantServer extends Plugin {
     this.db.on('collections.afterCreateWithAssociations', ensureTenantIdField);
     this.db.on('collections.afterUpdateWithAssociations', ensureTenantIdField);
     this.db.on('collections.afterUpdate', ensureTenantIdField);
+    registerLegacyTenantClaimGuard(this.db);
+    registerLegacyTenantClaimGuardsForDataSources(this.app.dataSourceManager);
+
+    const normalizeSharedTenantCollection = (model: any) => {
+      const tenancyMode = model.get('tenancy') ?? model.get('options')?.tenancy;
+      if (tenancyMode !== 'shared') {
+        return;
+      }
+
+      model.set('legacyDataTenantIds', []);
+      model.set('allowEditingLegacyData', false);
+    };
+    const normalizeSharedTenantRuntimeCollection = (model: any) => {
+      const tenancyMode = model.get('tenancy') ?? model.get('options')?.tenancy;
+      if (tenancyMode !== 'shared') {
+        return;
+      }
+
+      model.db.getCollection(model.get('name'))?.updateOptions(
+        {
+          tenancy: 'shared',
+          legacyDataTenantIds: [],
+          allowEditingLegacyData: false,
+        },
+        {
+          arrayMerge: (_destination: any[], source: any[]) => source,
+        },
+      );
+    };
+    this.db.on('collections.beforeCreate', normalizeSharedTenantCollection);
+    this.db.on('collections.beforeUpdate', normalizeSharedTenantCollection);
+    this.db.on('collections.afterCreateWithAssociations', normalizeSharedTenantRuntimeCollection);
+    this.db.on('collections.afterUpdate', normalizeSharedTenantRuntimeCollection);
+    this.db.on('collections.afterUpdateWithAssociations', normalizeSharedTenantRuntimeCollection);
 
     this.app.on('beforeStart', async () => {
       await this.ensureTenantConfigurableCollectionRecords();

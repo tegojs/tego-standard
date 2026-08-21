@@ -1,15 +1,15 @@
 /** Tenant-specific configurable properties injected by module-tenant. */
 export const TENANCY_MODE_OPTIONS = [
-  { label: 'No isolation (shared by all tenants)', value: 'shared' },
-  { label: 'Isolated by tenant (current tenant data only)', value: 'tenantScoped' },
-  { label: 'Isolated by hierarchy (current and descendant tenant data)', value: 'tenantInherited' },
+  { label: 'Visible to all tenants', value: 'shared' },
+  { label: 'Visible only to current tenant', value: 'tenantScoped' },
+  { label: 'Visible to current tenant and its parent tenants', value: 'tenantInherited' },
 ] as const;
 
 export type TenancyMode = (typeof TENANCY_MODE_OPTIONS)[number]['value'];
 
 export const tenantConfigurableProperties = {
   tenancy: {
-    title: '{{t("Data isolation mode")}}',
+    title: '{{t("Data visibility")}}',
     type: 'string',
     name: 'tenancy',
     default: 'shared',

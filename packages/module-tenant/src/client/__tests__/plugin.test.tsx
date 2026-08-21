@@ -592,20 +592,19 @@ describe('PluginTenantClient', () => {
 
   it('should provide clear tenant isolation labels in every locale', () => {
     expect(enUS).toMatchObject({
-      'Data isolation mode': 'Data isolation mode',
-      'No isolation (shared by all tenants)': 'No isolation (shared by all tenants)',
-      'Isolated by tenant (current tenant data only)': 'Isolated by tenant (current tenant data only)',
-      'Isolated by hierarchy (current and descendant tenant data)':
-        'Isolated by hierarchy (current and descendant tenant data)',
+      'Data visibility': 'Data visibility',
+      'Visible to all tenants': 'Visible to all tenants',
+      'Visible only to current tenant': 'Visible only to current tenant',
+      'Visible to current tenant and its parent tenants': 'Visible to current tenant and its parent tenants',
       'Tenants with access to legacy data': 'Tenants with access to legacy data',
       'Selected tenants can access legacy records that have no tenant assignment.':
         'Selected tenants can access legacy records that have no tenant assignment.',
     });
     expect(zhCN).toMatchObject({
-      'Data isolation mode': '数据隔离方式',
-      'No isolation (shared by all tenants)': '不隔离（所有租户共享）',
-      'Isolated by tenant (current tenant data only)': '按租户隔离（仅访问本租户数据）',
-      'Isolated by hierarchy (current and descendant tenant data)': '按层级隔离（可访问本租户及下级租户数据）',
+      'Data visibility': '数据可见性',
+      'Visible to all tenants': '所有租户可见',
+      'Visible only to current tenant': '仅当前租户可见',
+      'Visible to current tenant and its parent tenants': '当前租户及其父级租户可见',
       'Tenants with access to legacy data': '可见历史数据的租户',
       'Selected tenants can access legacy records that have no tenant assignment.':
         '所选租户可访问尚未标记租户归属的历史数据',
@@ -621,16 +620,16 @@ describe('PluginTenantClient', () => {
     for (const name of ['general', 'expression', 'tree']) {
       const tpl = ctm.getCollectionTemplate(name);
       expect(tpl.configurableProperties.tenancy).toMatchObject({
-        title: '{{t("Data isolation mode")}}',
+        title: '{{t("Data visibility")}}',
         type: 'string',
         'x-component': 'Select',
         description: '{{t("Controls data access across tenants.")}}',
       });
       expect(tpl.configurableProperties.tenancy.enum).toEqual([
-        { label: '{{t("No isolation (shared by all tenants)")}}', value: 'shared' },
-        { label: '{{t("Isolated by tenant (current tenant data only)")}}', value: 'tenantScoped' },
+        { label: '{{t("Visible to all tenants")}}', value: 'shared' },
+        { label: '{{t("Visible only to current tenant")}}', value: 'tenantScoped' },
         {
-          label: '{{t("Isolated by hierarchy (current and descendant tenant data)")}}',
+          label: '{{t("Visible to current tenant and its parent tenants")}}',
           value: 'tenantInherited',
         },
       ]);

@@ -766,7 +766,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
             ),
           },
           {
-            title: t('Data isolation mode'),
+            title: t('Data visibility'),
             dataIndex: 'tenancy',
             key: 'tenancy',
             width: 220,

@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { Plugin, uid } from '@tego/server';
 
+import packageJson from '../../package.json';
 import { NAMESPACE, TENANT_IMPERSONATION_SNIPPET } from '../constants';
 import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
@@ -521,6 +522,33 @@ async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: st
  * Registers the plugin tenant server plugin integration.
  */
 export class PluginTenantServer extends Plugin {
+  async afterAdd() {
+    this.setOptions({
+      ...this.options,
+      packageJson,
+      version: packageJson.version,
+    });
+
+    const applicationPlugins = this.db.getCollection('applicationPlugins');
+    if (!applicationPlugins || !(await applicationPlugins.existsInDb())) {
+      return;
+    }
+
+    const repository = this.db.getRepository('applicationPlugins');
+    const pluginRecord = await repository.findOne({
+      filter: { name: this.name },
+      fields: ['version'],
+    });
+    if (!pluginRecord || pluginRecord.get('version') === packageJson.version) {
+      return;
+    }
+
+    await repository.update({
+      filter: { name: this.name },
+      values: { version: packageJson.version },
+    });
+  }
+
   async ensureTenantAclScope(options: any = {}) {
     const repo = this.db.getRepository('dataSourcesRolesResourcesScopes');
     if (!repo) {

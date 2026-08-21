@@ -1,8 +1,8 @@
 {
   "name": "@tachybase/module-tenant",
-  "displayName": "Tenant",
+  "displayName": "Tenant isolation",
   "version": "1.6.41",
-  "description": "Provides tenant context and server-side tenant isolation for shared-schema multi-tenant applications.",
+  "description": "Isolates business data by tenant, with tenant membership, hierarchy, data visibility, and legacy data policies.",
   "keywords": [
     "Users & permissions"
   ],
@@ -33,6 +33,6 @@
     "@tego/server": "catalog:",
     "antd": "catalog:"
   },
-  "description.zh-CN": "提供租户上下文与服务端租户隔离基础能力。",
-  "displayName.zh-CN": "租户"
+  "description.zh-CN": "按租户隔离业务数据，支持租户成员、层级关系、数据可见性和历史数据策略管理。",
+  "displayName.zh-CN": "租户隔离"
 }

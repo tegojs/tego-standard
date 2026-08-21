@@ -9,6 +9,16 @@
 
 
 
+## [1.6.40] - 2026-08-21
+
+### 🐛 修复
+
+- **tenant**: 解析外部数据源存储库 (@TomyJan)
+- **workflow**: 避免共享集合上的租户过滤器 (@TomyJan)
+- **tenant**: 澄清无法访问的记录错误 (@TomyJan)
+- **tenant**: 允许未更改的嵌套关联值 (@TomyJan)
+- **tenant**: 定位并澄清租户错误 (@TomyJan)
+
 ## [1.6.39] - 2026-08-21
 
 ### 🐛 修复
@@ -3172,7 +3182,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.39...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.40...HEAD
+[1.6.40]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.40
 [1.6.39]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.39
 [1.6.38]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.38
 [1.6.37]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.37

@@ -783,6 +783,118 @@ describe('tenant resource guard', () => {
     expect(postResponse.body.data.tags[0].id).toBe(tagA.get('id'));
   });
 
+  it('should not validate an unprovided belongs-to association that shares an explicit association foreign key', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_shared_foreign_key_guard',
+        email: 'tenant-shared-foreign-key-guard@example.com',
+        phone: '10000000028',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_shared_fk_legacy_products',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_shared_fk_new_products',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_shared_fk_items',
+        tenancy: 'shared',
+        fields: [
+          { type: 'string', name: 'name' },
+          {
+            type: 'belongsTo',
+            name: 'legacyProduct',
+            target: 'tenant_shared_fk_legacy_products',
+            foreignKey: 'productId',
+          },
+          {
+            type: 'belongsTo',
+            name: 'newProduct',
+            target: 'tenant_shared_fk_new_products',
+            foreignKey: 'productId',
+          },
+        ],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_shared_fk_orders',
+        tenancy: 'shared',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'hasMany', name: 'items', target: 'tenant_shared_fk_items' },
+        ],
+      },
+      context: {},
+    });
+
+    const legacyProduct = await app.db.getRepository('tenant_shared_fk_legacy_products').create({
+      values: { name: 'Legacy product' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    const order = await app.db.getRepository('tenant_shared_fk_orders').create({
+      values: { title: 'Order' },
+    });
+    const orderIdForeignKey = (app.db.getCollection('tenant_shared_fk_orders').model.associations.items as any)
+      .foreignKey;
+    const item = await app.db.getRepository('tenant_shared_fk_items').create({
+      values: {
+        name: 'Original item',
+        productId: legacyProduct.get('id'),
+        [orderIdForeignKey]: order.get('id'),
+      },
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_shared_fk_orders')
+      .update({
+        filterByTk: order.get('id'),
+        updateAssociationValues: ['items'],
+        values: {
+          title: 'Updated order',
+          items: [
+            {
+              id: item.get('id'),
+              name: 'Updated item',
+              productId: legacyProduct.get('id'),
+              legacyProduct: { id: legacyProduct.get('id') },
+            },
+          ],
+        },
+      });
+
+    expect(response.status).toBe(200);
+    await item.reload();
+    expect(item.get('name')).toBe('Updated item');
+    expect(item.get('productId')).toBe(legacyProduct.get('id'));
+  });
+
   it('should allow root creates to reference readable legacy belongs-to records', async () => {
     app = await createTenantApp();
 

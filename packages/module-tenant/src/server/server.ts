@@ -61,12 +61,13 @@ async function findTenantRecord(
   filterByTk: any,
   actionName: 'get' | 'update',
   filterKey?: string,
+  repository = collection?.repository,
 ) {
   const options = applyTenantFilterToContext(ctx, collection, actionName, {
     ...(filterKey ? { filter: { [filterKey]: filterByTk } } : { filterByTk }),
     context: ctx,
   });
-  return collection.repository.findOne(options);
+  return repository.findOne(options);
 }
 
 async function assertTenantRecordAccess(
@@ -715,9 +716,10 @@ export class PluginTenantServer extends Plugin {
       }
 
       if (ROOT_ASSOCIATION_VALUE_ACTIONS.has(ctx.action.actionName)) {
+        const repository = collection?.repository || dataSource?.collectionManager?.getRepository?.(collectionName);
         const sourceRecord =
           ctx.action.actionName === 'update' && hasTargetKey(ctx.action.params.filterByTk)
-            ? await findTenantRecord(ctx, collection, ctx.action.params.filterByTk, 'update')
+            ? await findTenantRecord(ctx, collection, ctx.action.params.filterByTk, 'update', undefined, repository)
             : undefined;
         ctx.action.params.values = await guardTenantAssociationValues(
           ctx,

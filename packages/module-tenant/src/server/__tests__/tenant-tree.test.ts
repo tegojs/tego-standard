@@ -54,7 +54,7 @@ describe('tenant tree structure', () => {
           title: 'Long Path Tenant',
         },
       }),
-    ).rejects.toThrow(/Tenant path exceeds maximum length of 500 characters/);
+    ).rejects.toThrow('The tenant hierarchy is too deep. Select a higher-level parent tenant.');
   });
 
   it('should find descendant ids and tenant records using path LIKE query', async () => {
@@ -136,7 +136,42 @@ describe('tenant tree structure', () => {
       app.db.getRepository('tenants').destroy({
         filterByTk: 'parent',
       }),
-    ).rejects.toThrow(/Cannot delete tenant with children/);
+    ).rejects.toThrow('This tenant has child tenants. Move or delete them before deleting this tenant.');
+  });
+
+  it('should localize tenant tree errors returned by the API', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: { id: 'localized-parent', name: 'localized-parent', title: 'Localized Parent' },
+    });
+    await app.db.getRepository('tenants').create({
+      values: {
+        id: 'localized-child',
+        name: 'localized-child',
+        title: 'Localized Child',
+        parentId: 'localized-parent',
+      },
+    });
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_tree_localized_user',
+        email: 'tenant-tree-localized-user@example.com',
+        phone: '3000000003',
+        password: '123456',
+        roles: ['root'],
+      },
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .set('X-Locale', 'zh-CN')
+      .resource('tenants')
+      .destroy({ filterByTk: 'localized-parent' });
+
+    expect(response.status).toBe(500);
+    expect(response.body.errors?.[0]?.message).toBe('该租户仍有下级租户。请先移动或删除下级租户。');
   });
 
   it('should declare tenant parent/children relations with tree delete semantics', async () => {
@@ -173,7 +208,7 @@ describe('tenant tree structure', () => {
       app.db.getRepository('tenants').destroy({
         filterByTk: 'member-tenant',
       }),
-    ).rejects.toThrow(/tenant members/);
+    ).rejects.toThrow('This tenant still has members. Remove all members before deleting it.');
 
     expect(user).toBeTruthy();
   });
@@ -199,7 +234,7 @@ describe('tenant tree structure', () => {
       app.db.getRepository('tenants').destroy({
         filterByTk: 'default-tenant',
       }),
-    ).rejects.toThrow(/default tenant/);
+    ).rejects.toThrow("This tenant is set as a user's default tenant. Reassign those users before deleting it.");
   });
 
   it('should allow deleting a leaf tenant', async () => {
@@ -243,7 +278,7 @@ describe('tenant tree structure', () => {
         filterByTk: 'a',
         values: { parentId: 'a' },
       }),
-    ).rejects.toThrow(/cycle/i);
+    ).rejects.toThrow('This tenant cannot be moved under itself or one of its descendants.');
   });
 
   it('should reject moving a tenant under a disabled parent', async () => {
@@ -285,7 +320,7 @@ describe('tenant tree structure', () => {
         filterByTk: 'root-cycle',
         values: { parentId: 'leaf-cycle' },
       }),
-    ).rejects.toThrow(/cycle/i);
+    ).rejects.toThrow('This tenant cannot be moved under itself or one of its descendants.');
   });
 
   it('should not walk ancestors when tenant paths are enough to rule out cycles', async () => {

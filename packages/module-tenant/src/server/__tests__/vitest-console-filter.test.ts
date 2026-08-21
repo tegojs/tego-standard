@@ -10,8 +10,18 @@ describe('shouldSuppressVitestConsoleOutput', () => {
         'stdout',
       ),
     ).toBe(true);
-    expect(shouldSuppressVitestConsoleOutput('[error] Tenant context is required meta={}', 'stdout')).toBe(true);
-    expect(shouldSuppressVitestConsoleOutput('[error] Invalid tenant access meta={}', 'stdout')).toBe(true);
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        '[error] No tenant is selected. Select a tenant and try again. If no tenant is available, contact an administrator. meta={}',
+        'stdout',
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        '[error] 未选择可用租户。请选择租户后重试；如无可选租户，请联系管理员。 meta={}',
+        'stdout',
+      ),
+    ).toBe(true);
     expect(shouldSuppressVitestConsoleOutput('[error] File too large meta={}', 'stdout')).toBe(true);
     expect(
       shouldSuppressVitestConsoleOutput(
@@ -37,14 +47,22 @@ describe('shouldSuppressVitestConsoleOutput', () => {
     ).toBe(true);
     expect(
       shouldSuppressVitestConsoleOutput(
-        'Error: Cannot delete tenant with children. Remove or reassign children first.',
+        'Error: This tenant has child tenants. Move or delete them before deleting this tenant.',
         'stderr',
       ),
     ).toBe(true);
-    expect(shouldSuppressVitestConsoleOutput('Error: Cannot move tenant: would create a cycle', 'stderr')).toBe(true);
-    expect(shouldSuppressVitestConsoleOutput('Error: Parent tenant "disabled-parent" is disabled', 'stderr')).toBe(
-      true,
-    );
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        'Error: This tenant cannot be moved under itself or one of its descendants.',
+        'stderr',
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressVitestConsoleOutput(
+        'Error: The selected parent tenant is disabled. Enable it or select another parent tenant.',
+        'stderr',
+      ),
+    ).toBe(true);
     expect(
       shouldSuppressVitestConsoleOutput(
         "ENOENT: no such file or directory, unlink 'C:/tmp/test-sqlite/storage/uploads/file.txt'",

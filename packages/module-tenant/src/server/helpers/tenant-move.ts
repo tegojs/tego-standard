@@ -1,6 +1,7 @@
 import { BelongsToManyRepository, HasManyRepository, Op, Repository } from '@tego/server';
 
 import { TENANT_ENABLED_MODES, TENANT_INHERITED_MODE } from '../constants';
+import { translateTenantError } from '../locale';
 import { getCollectionTenancyMode } from './isTenantScopedCollection';
 import { applyTenantFilterToContext } from './tenant-filter';
 
@@ -16,7 +17,7 @@ function buildSequelizeTenantWhere(ctx: any, collection: any) {
 
   const tenantId = getTenantId(ctx);
   if (tenantId === undefined || tenantId === null) {
-    ctx.throw(403, 'Tenant context is required');
+    ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
   }
 
   if (tenancyMode === TENANT_INHERITED_MODE) {
@@ -46,7 +47,7 @@ async function findTenantRecord(ctx: any, collection: any, filterByTk: any, tran
   );
 
   if (!record) {
-    ctx.throw(404, 'Record not found in the current tenant');
+    ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
   }
 
   return record;
@@ -76,11 +77,11 @@ class TenantSortableCollection {
   scopeKey?: string;
   scopeCollection?: any;
 
-  constructor(collection: any, fieldName = 'sort', scopeCollection?: any) {
+  constructor(ctx: any, collection: any, fieldName = 'sort', scopeCollection?: any) {
     this.collection = collection;
     this.field = collection.getField(fieldName);
     if (this.field?.type !== 'sort') {
-      throw new Error(`${fieldName} is not a sort field`);
+      throw new Error(translateTenantError(ctx, 'sortFieldUnavailable'));
     }
 
     this.fieldName = this.field.name;
@@ -96,7 +97,7 @@ class TenantSortableCollection {
 
     if (this.scopeKey && sourceScope !== targetScope) {
       if (this.scopeKey === 'tenantId') {
-        ctx.throw(400, 'Tenant ownership cannot be changed by move');
+        ctx.throw(400, translateTenantError(ctx, 'tenantOwnershipMove'));
       }
 
       let targetSort = target.get(this.fieldName);
@@ -178,7 +179,7 @@ class TenantSortableCollection {
       source.get(this.scopeKey) !== targetScopeValue
     ) {
       if (this.scopeKey === 'tenantId') {
-        ctx.throw(400, 'Tenant ownership cannot be changed by move');
+        ctx.throw(400, translateTenantError(ctx, 'tenantOwnershipMove'));
       }
 
       if (this.scopeCollection) {
@@ -213,15 +214,13 @@ export async function moveTenantRecords(ctx: any, db: any, resourceName: string)
     : db.getRepository(resourceName);
 
   if (repository instanceof BelongsToManyRepository) {
-    throw new Error("Sorting association as 'belongs-to-many' type is not supported.");
+    throw new Error(translateTenantError(ctx, 'manyToManySortUnsupported'));
   }
 
   if (repository instanceof HasManyRepository) {
     const associationField = repository.sourceCollection.getField(repository.associationName);
     if (!associationField.options.sortable) {
-      throw new Error(
-        `association ${associationField.options.name} in ${repository.sourceCollection.name} is not sortable`,
-      );
+      throw new Error(translateTenantError(ctx, 'associationNotSortable'));
     }
   }
 
@@ -234,7 +233,7 @@ export async function moveTenantRecords(ctx: any, db: any, resourceName: string)
       ? 'sort'
       : requestedSortField
     : `${repository.association.foreignKey}Sort`;
-  const sortableCollection = new TenantSortableCollection(collection, fieldName, scopeCollection);
+  const sortableCollection = new TenantSortableCollection(ctx, collection, fieldName, scopeCollection);
   const { sourceId, targetId, targetScope, sticky, method } = ctx.action.params;
 
   await collection.model.sequelize.transaction(async (transaction: any) => {

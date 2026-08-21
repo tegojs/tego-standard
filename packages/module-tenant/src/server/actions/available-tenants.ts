@@ -2,6 +2,7 @@ import type { Context, Next } from '@tego/server';
 
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant';
+import { translateTenantError } from '../locale';
 
 function setAvailableTenantsBody(ctx: Context, tenants: any[]) {
   const currentTenantId = ctx.state.currentTenant?.id ?? ctx.state.currentTenantId;
@@ -30,7 +31,7 @@ export async function availableTenants(ctx: Context, next: Next) {
 
   const currentUserId = ctx.state.currentUser?.id;
   if (currentUserId == null) {
-    ctx.throw(401, 'Authentication required');
+    ctx.throw(401, translateTenantError(ctx, 'authenticationRequired'));
   }
 
   const tenantUsers = await ctx.db.getRepository('tenantUsers').find({

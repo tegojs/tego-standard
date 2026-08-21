@@ -1,6 +1,7 @@
 import type { MockServer } from '@tachybase/test';
 
 import { NAMESPACE } from '../../constants';
+import { TENANT_ERROR_MESSAGES } from '../locale';
 import { createTenantApp } from './utils';
 
 function filterContainsTenantScopeGuard(filter: any): boolean {
@@ -84,6 +85,18 @@ describe('tenant plugin collections', () => {
 
   it('should register locale resources with tenant namespace', async () => {
     expect(app.i18n.t('Tenant management', { lng: 'zh-CN', ns: NAMESPACE })).toBe('租户管理');
+    for (const message of Object.values(TENANT_ERROR_MESSAGES)) {
+      expect(app.i18n.t(message, { lng: 'zh-CN', ns: NAMESPACE })).not.toBe(message);
+    }
+    expect(
+      app.i18n.t(
+        'This record is not available in the current tenant. It may belong to another tenant or have been removed.',
+        { lng: 'zh-CN', ns: NAMESPACE },
+      ),
+    ).toBe('当前租户中无法访问此记录。该记录可能属于其他租户，或已被删除。');
+    expect(app.i18n.t('Please select a tenant before continuing.', { lng: 'en-US', ns: NAMESPACE })).toBe(
+      'Please select a tenant before continuing.',
+    );
   });
 
   it('should not overwrite custom tenantId field metadata when collection tenancy is enabled', async () => {

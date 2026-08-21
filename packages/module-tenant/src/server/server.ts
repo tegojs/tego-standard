@@ -17,7 +17,7 @@ import applyTenantFilter, {
 } from './helpers/tenant-filter';
 import { moveTenantRecords } from './helpers/tenant-move';
 import { buildPath, getDescendantIds, getDescendantTenants, wouldCreateCycle } from './helpers/tenant-tree';
-import { enUS, zhCN } from './locale';
+import { enUS, translateTenantError, zhCN } from './locale';
 import setCurrentTenant from './middlewares/setCurrentTenant';
 
 export interface TenantPluginConfig {
@@ -78,7 +78,7 @@ async function assertTenantRecordAccess(
 ) {
   const record = await findTenantRecord(ctx, collection, filterByTk, actionName, filterKey);
   if (!record) {
-    ctx.throw(404, 'Record not found in the current tenant');
+    ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
   }
 }
 
@@ -92,7 +92,7 @@ function getAssociationTargetCollection(db: any, association: any) {
 
 function requireTenantContext(ctx: any) {
   if (!hasTargetKey(ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId)) {
-    ctx.throw(403, 'Tenant context is required');
+    ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
   }
 }
 
@@ -198,7 +198,7 @@ async function guardTenantAssociationValues(
               context: ctx,
             });
             if (existingRecord) {
-              ctx.throw(404, 'Record not found in the current tenant');
+              ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
             }
           }
 
@@ -257,7 +257,7 @@ async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: st
   }
 
   if (!ctx.state.currentTenant?.id && !ctx.state.currentTenantId) {
-    ctx.throw(403, 'Tenant context is required');
+    ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
   }
 
   await assertTenantRecordAccess(ctx, sourceCollection, ctx.action.sourceId, 'get');
@@ -519,7 +519,7 @@ export class PluginTenantServer extends Plugin {
             action: ctx.action?.actionName,
             details: { tenancyMode },
           });
-          ctx.throw(403, 'Tenant context is required');
+          ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
         }
 
         ctx.state.currentTenancyMode = tenancyMode;
@@ -630,11 +630,11 @@ export class PluginTenantServer extends Plugin {
         });
 
         if (!parent) {
-          throw new Error(`Parent tenant "${parentId}" not found`);
+          throw new Error(translateTenantError(options?.context, 'parentTenantNotFound'));
         }
 
         if (!parent.get('enabled')) {
-          throw new Error(`Parent tenant "${parentId}" is disabled`);
+          throw new Error(translateTenantError(options?.context, 'parentTenantDisabled'));
         }
 
         parentPath = parent.get('path') as string;
@@ -648,7 +648,7 @@ export class PluginTenantServer extends Plugin {
         id = uid();
         model.set('id', id);
       }
-      model.set('path', buildPath(parentPath, id));
+      model.set('path', buildPath(parentPath, id, translateTenantError(options?.context, 'tenantHierarchyTooDeep')));
     });
 
     this.db.on('tenants.beforeUpdate', async (model, options) => {
@@ -676,7 +676,7 @@ export class PluginTenantServer extends Plugin {
 
       if (newParentId) {
         if (await wouldCreateCycle(repo, tenantId, newParentId, { transaction })) {
-          throw new Error('Cannot move tenant: would create a cycle');
+          throw new Error(translateTenantError(options?.context, 'tenantCycle'));
         }
 
         const newParent = await repo.findOne({
@@ -685,11 +685,11 @@ export class PluginTenantServer extends Plugin {
         });
 
         if (!newParent) {
-          throw new Error(`Parent tenant "${newParentId}" not found`);
+          throw new Error(translateTenantError(options?.context, 'parentTenantNotFound'));
         }
 
         if (!newParent.get('enabled')) {
-          throw new Error(`Parent tenant "${newParentId}" is disabled`);
+          throw new Error(translateTenantError(options?.context, 'parentTenantDisabled'));
         }
 
         parentPath = newParent.get('path') as string;
@@ -697,7 +697,11 @@ export class PluginTenantServer extends Plugin {
 
       if (tenant) {
         const oldPath = tenant.get('path') as string;
-        const newPath = buildPath(parentPath, tenantId);
+        const newPath = buildPath(
+          parentPath,
+          tenantId,
+          translateTenantError(options?.context, 'tenantHierarchyTooDeep'),
+        );
 
         if (!oldPath) {
           model.set('path', newPath);
@@ -731,7 +735,7 @@ export class PluginTenantServer extends Plugin {
       });
 
       if (children.length > 0) {
-        throw new Error('Cannot delete tenant with children. Remove or reassign children first.');
+        throw new Error(translateTenantError(options?.context, 'tenantHasChildren'));
       }
 
       const defaultTenantUsers = await this.db.getRepository('users').count({
@@ -740,7 +744,7 @@ export class PluginTenantServer extends Plugin {
       });
 
       if (defaultTenantUsers > 0) {
-        throw new Error('Cannot delete tenant used as a user default tenant. Clear or reassign user defaults first.');
+        throw new Error(translateTenantError(options?.context, 'tenantIsUserDefault'));
       }
 
       const tenantMemberCount = await this.db.getRepository('tenantUsers').count({
@@ -749,7 +753,7 @@ export class PluginTenantServer extends Plugin {
       });
 
       if (tenantMemberCount > 0) {
-        throw new Error('Cannot delete tenant with tenant members. Remove tenant memberships first.');
+        throw new Error(translateTenantError(options?.context, 'tenantHasMembers'));
       }
     });
   }

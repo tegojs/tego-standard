@@ -3,6 +3,7 @@ import type { Context, Next } from '@tego/server';
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant';
 import { getDescendantIds } from '../helpers/tenant-tree';
+import { translateTenantError } from '../locale';
 
 /**
  * Emit a security violation event on the Application EventEmitter.
@@ -125,7 +126,7 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
       collectionName: ctx.action?.resourceName,
       details: { allowedTenantIds, requestedTenantId },
     });
-    ctx.throw(403, 'Invalid tenant access');
+    ctx.throw(403, translateTenantError(ctx, 'tenantAccessDenied'));
   }
 
   const currentTenant = await ctx.db.getRepository('tenants').findOne({
@@ -136,7 +137,7 @@ export async function setCurrentTenant(ctx: Context, next: Next) {
   });
 
   if (!currentTenant) {
-    ctx.throw(403, 'Tenant not found');
+    ctx.throw(403, translateTenantError(ctx, 'tenantUnavailable'));
   }
 
   ctx.state.currentTenant = currentTenant.toJSON();

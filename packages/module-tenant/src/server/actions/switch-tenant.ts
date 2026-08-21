@@ -2,6 +2,7 @@ import type { Context, Next } from '@tego/server';
 
 import { getAccessibleTenantIds } from '../helpers/accessible-tenants';
 import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant';
+import { translateTenantError } from '../locale';
 
 /**
  * Switches the current user's default tenant after validating access to the requested tenant.
@@ -9,12 +10,12 @@ import { isPlatformTenantImpersonatorContext } from '../helpers/platform-tenant'
 export async function switchTenant(ctx: Context, next: Next) {
   const tenantId = ctx.action.params?.values?.tenantId;
   if (tenantId == null) {
-    ctx.throw(400, 'tenantId is required');
+    ctx.throw(400, translateTenantError(ctx, 'tenantSelectionRequired'));
   }
 
   const currentUserId = ctx.state.currentUser?.id;
   if (currentUserId == null) {
-    ctx.throw(401, 'Authentication required');
+    ctx.throw(401, translateTenantError(ctx, 'authenticationRequired'));
   }
 
   const switchCurrentTenant = async (transaction?: any) => {
@@ -28,7 +29,7 @@ export async function switchTenant(ctx: Context, next: Next) {
     });
 
     if (!tenant) {
-      ctx.throw(403, 'Invalid tenant access');
+      ctx.throw(403, translateTenantError(ctx, 'tenantUnavailable'));
     }
 
     if (!isPlatformTenantImpersonatorContext(ctx)) {
@@ -45,7 +46,7 @@ export async function switchTenant(ctx: Context, next: Next) {
       );
 
       if (!accessibleTenantIds.includes(tenantId)) {
-        ctx.throw(403, 'Invalid tenant access');
+        ctx.throw(403, translateTenantError(ctx, 'tenantAccessDenied'));
       }
     }
 

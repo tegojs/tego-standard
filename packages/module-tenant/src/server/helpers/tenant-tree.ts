@@ -10,11 +10,11 @@ interface DescendantOptions {
 /**
  * Build the materialized path for a tenant node.
  */
-export function buildPath(parentPath: string | null | undefined, id: string): string {
+export function buildPath(parentPath: string | null | undefined, id: string, pathTooLongMessage?: string): string {
   const path = parentPath ? `${parentPath}${id}/` : `/${id}/`;
 
   if (path.length > TENANT_PATH_MAX_LENGTH) {
-    throw new Error(`Tenant path exceeds maximum length of ${TENANT_PATH_MAX_LENGTH} characters`);
+    throw new Error(pathTooLongMessage || `Tenant path exceeds maximum length of ${TENANT_PATH_MAX_LENGTH} characters`);
   }
 
   return path;

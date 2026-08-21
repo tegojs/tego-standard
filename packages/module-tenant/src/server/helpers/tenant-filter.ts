@@ -1,6 +1,7 @@
 import type { Context } from '@tego/server';
 
 import { TENANT_ENABLED_MODES, TENANT_INHERITED_MODE } from '../constants';
+import { translateTenantError } from '../locale';
 
 type TenantFilterContext = {
   state?: Context['state'];
@@ -145,7 +146,13 @@ function getTenantId(state: TenantFilterContext['state']) {
   return state?.currentTenant?.id ?? state?.currentTenantId;
 }
 
-function buildTenantParams(actionName: string, params: any, state: TenantFilterContext['state'], tenancyMode?: string) {
+function buildTenantParams(
+  actionName: string,
+  params: any,
+  state: TenantFilterContext['state'],
+  tenancyMode?: string,
+  context?: TenantFilterContext,
+) {
   const tenantId = getTenantId(state);
   if (tenantId == null) {
     if (READ_ACTIONS.includes(actionName) || WRITE_FILTER_ACTIONS.includes(actionName)) {
@@ -160,7 +167,7 @@ function buildTenantParams(actionName: string, params: any, state: TenantFilterC
     }
 
     if (actionName === 'create') {
-      throw new Error('Tenant context is required for tenant isolated create operations');
+      throw new Error(translateTenantError(context, 'tenantContextRequired'));
     }
 
     return {};
@@ -232,7 +239,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
     currentTenancyMode: tenancyMode,
     currentLegacyDataTenantIds: collection?.options?.legacyDataTenantIds ?? context?.state?.currentLegacyDataTenantIds,
   };
-  const tenantParams = buildTenantParams(actionName, options, state, tenancyMode);
+  const tenantParams = buildTenantParams(actionName, options, state, tenancyMode, context);
 
   if (!tenantParams) {
     return options;
@@ -259,7 +266,7 @@ export function applyTenantFilter(ctx: TenantFilterContext) {
 
   const { actionName, params } = ctx.action;
   const tenancyMode = ctx.state.currentTenancyMode;
-  const tenantParams = buildTenantParams(actionName, params, ctx.state, tenancyMode);
+  const tenantParams = buildTenantParams(actionName, params, ctx.state, tenancyMode, ctx);
 
   if (tenantParams) {
     ctx.action.mergeParams(tenantParams);

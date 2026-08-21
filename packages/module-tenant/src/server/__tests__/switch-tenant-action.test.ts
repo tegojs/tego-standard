@@ -7,6 +7,10 @@ describe('switchTenant action', () => {
   it('should reject unauthenticated requests before tenant repository access', async () => {
     const next = vi.fn();
     const findOne = vi.fn();
+    const t = vi.fn((key: string, options: { ns: string }) => {
+      expect(options).toEqual({ ns: 'tenant' });
+      return key === 'Please sign in to access tenant data.' ? '请先登录，再访问租户数据。' : key;
+    });
     const ctx: any = {
       action: {
         params: {
@@ -19,6 +23,7 @@ describe('switchTenant action', () => {
         getRepository: vi.fn(() => ({ findOne })),
       },
       state: {},
+      t,
       throw: vi.fn((status: number, message: string) => {
         const error: any = new Error(message);
         error.status = status;
@@ -28,8 +33,9 @@ describe('switchTenant action', () => {
 
     await expect(switchTenant(ctx, next)).rejects.toMatchObject({
       status: 401,
-      message: 'Authentication required',
+      message: '请先登录，再访问租户数据。',
     });
+    expect(t).toHaveBeenCalledWith('Please sign in to access tenant data.', { ns: 'tenant' });
     expect(ctx.db.getRepository).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
@@ -215,7 +221,7 @@ describe('switchTenant action', () => {
 
     await expect(switchTenant(ctx, next)).rejects.toMatchObject({
       status: 403,
-      message: 'Invalid tenant access',
+      message: 'You do not have access to the selected tenant. Select an available tenant or contact an administrator.',
     });
     expect(usersRepo.update).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
@@ -274,7 +280,7 @@ describe('switchTenant action', () => {
 
     await expect(switchTenant(ctx, next)).rejects.toMatchObject({
       status: 403,
-      message: 'Invalid tenant access',
+      message: 'You do not have access to the selected tenant. Select an available tenant or contact an administrator.',
     });
     expect(usersRepo.update).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
@@ -299,7 +305,7 @@ describe('availableTenants action', () => {
 
     await expect(availableTenants(ctx, next)).rejects.toMatchObject({
       status: 401,
-      message: 'Authentication required',
+      message: 'Please sign in to access tenant data.',
     });
     expect(ctx.db.getRepository).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();

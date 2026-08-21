@@ -472,10 +472,17 @@ describe('tenant resource guard', () => {
       context: {},
     });
 
-    const response = await app.agent().login(user).resource('tenant_posts_without_context').list({});
+    const response = await app
+      .agent()
+      .login(user)
+      .set('X-Locale', 'zh-CN')
+      .resource('tenant_posts_without_context')
+      .list({});
 
     expect(response.status).toBe(403);
-    expect(response.body.errors?.[0]?.message || response.body.error?.message).toContain('Tenant context is required');
+    expect(response.body.errors?.[0]?.message || response.body.error?.message).toBe(
+      '未选择可用租户。请选择租户后重试；如无可选租户，请联系管理员。',
+    );
   });
 
   it('should not bypass main data source tenant guard with an unresolved data source key', async () => {

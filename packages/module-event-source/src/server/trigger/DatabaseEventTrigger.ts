@@ -4,6 +4,32 @@ import { EventSourceModel } from '../model/EventSourceModel';
 import { evalSimulate } from '../utils/eval-simulate';
 import { EventSourceTrigger } from './Trigger';
 
+function getWorkflowDbOptions(app, model, options) {
+  const requestContext = options?.context;
+  const requestBody = requestContext?.request?.body;
+  const requestValues = requestContext?.action?.params?.values;
+  const requestResourceName = requestContext?.action?.resourceName;
+  const collection = app.db.modelCollection?.get(model?.constructor);
+
+  if (
+    !requestValues ||
+    typeof requestValues !== 'object' ||
+    Array.isArray(requestValues) ||
+    requestResourceName !== collection?.name
+  ) {
+    return options;
+  }
+
+  return {
+    ...options,
+    values: {
+      ...(requestBody && typeof requestBody === 'object' && !Array.isArray(requestBody) ? requestBody : {}),
+      ...requestValues,
+      ...options?.values,
+    },
+  };
+}
+
 export class DatabaseEventTrigger extends EventSourceTrigger {
   eventMap: Map<number, (...args: any[]) => void> = new Map();
 
@@ -52,7 +78,7 @@ export class DatabaseEventTrigger extends EventSourceTrigger {
       const result = (await pluginWorkflow.triggerFromEventSource(
         wf,
         { data: webhookCtx.body },
-        { dbModel: model, dbOptions: options, ...options },
+        { dbModel: model, dbOptions: getWorkflowDbOptions(this.app, model, options), ...options },
       )) as Processor;
       if (result?.lastSavedJob.status === JOB_STATUS.ERROR) {
         const errorResult = result.lastSavedJob?.result;

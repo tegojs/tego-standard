@@ -7,6 +7,22 @@ import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 
+function serializeQueryDates(value: any): any {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(serializeQueryDates);
+  }
+
+  if (value && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, serializeQueryDates(item)]));
+  }
+
+  return value;
+}
+
 /**
  * Runs the query instruction workflow instruction.
  */
@@ -33,7 +49,13 @@ export class QueryInstruction extends Instruction {
     }
 
     const { repository } = targetCollection;
-    const { page, pageSize, sort = [], paginate = true, ...options } = processor.getParsedValue(params, node.id);
+    const {
+      page,
+      pageSize,
+      sort = [],
+      paginate = true,
+      ...options
+    } = serializeQueryDates(processor.getParsedValue(params, node.id));
 
     const appends = options.appends
       ? Array.from(

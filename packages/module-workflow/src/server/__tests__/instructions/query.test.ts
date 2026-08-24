@@ -179,6 +179,29 @@ describe('workflow > instructions > query', () => {
       });
     });
 
+    it('params.filter: date operator accepts a Date resolved from the system scope', async () => {
+      await workflow.createNode({
+        type: 'query',
+        config: {
+          collection: 'posts',
+          params: {
+            filter: {
+              createdAt: {
+                $dateBefore: '{{$system.now}}',
+              },
+            },
+          },
+        },
+      });
+
+      const post = await PostRepo.create({ values: { title: 'created-before-now' } });
+
+      await waitForWorkflowJob(workflow, (execution, [job]) => {
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result.title).toBe(post.title);
+      });
+    });
+
     it('params.filter: value from job of node', async () => {
       const n1 = await workflow.createNode({
         type: 'echo',

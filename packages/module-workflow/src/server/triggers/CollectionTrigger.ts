@@ -35,8 +35,8 @@ function getFieldRawName(collection: ICollection, name: string) {
   return name;
 }
 
-function pickTenantState(state: Record<string, any> = {}) {
-  const currentTenantId = getCurrentTenantIdFromState(state);
+function pickTenantState(state: Record<string, any> = {}, fallbackTenantId?: string | number | null) {
+  const currentTenantId = getCurrentTenantIdFromState(state) ?? fallbackTenantId;
 
   if (currentTenantId === null || currentTenantId === undefined) {
     return undefined;
@@ -127,7 +127,8 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
 
   // TODO: `result.toJSON()` throws error
   const json = toJSON(result);
-  const state = pickTenantState(context?.state);
+  const fallbackTenantId = json && !Array.isArray(json) ? json.tenantId : undefined;
+  const state = pickTenantState(context?.state, fallbackTenantId);
   const triggerContext = state ? { data: json, stack: context?.stack, state } : { data: json, stack: context?.stack };
 
   if (workflow.sync) {

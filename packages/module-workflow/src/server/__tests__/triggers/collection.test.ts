@@ -522,6 +522,54 @@ describe('workflow > triggers > collection', () => {
         }
       });
     });
+
+    it('uses the trigger record tenant when no request tenant context is available', async () => {
+      const TenantTriggerRepo = await ensureTenantWorkflowCollection(
+        tenantWorkflowTriggerCollectionName,
+        'tenantScoped',
+      );
+      const TenantPostRepo = await ensureTenantWorkflowCollection(tenantScopedCollectionName, 'tenantScoped');
+      await TenantPostRepo.create({
+        values: { title: 'tenant-record-target', tenantId: 'tenant-record' },
+        hooks: false,
+      });
+
+      const workflow = await WorkflowModel.create({
+        enabled: true,
+        type: 'collection',
+        config: {
+          mode: 1,
+          collection: tenantWorkflowTriggerCollectionName,
+        },
+      });
+      await workflow.createNode({
+        type: 'query',
+        config: {
+          collection: tenantScopedCollectionName,
+          params: {
+            filter: {
+              title: 'tenant-record-target',
+            },
+          },
+        },
+      });
+
+      await TenantTriggerRepo.create({
+        values: { title: 'trigger-without-request-context', tenantId: 'tenant-record' },
+      });
+
+      await waitForAssertion(async () => {
+        const [execution] = await workflow.getExecutions();
+        expect(execution.tenantId).toBe('tenant-record');
+        expect(execution.tenantContext).toMatchObject({
+          currentTenantId: 'tenant-record',
+          currentTenantDescendantIds: [],
+        });
+
+        const [job] = await execution.getJobs();
+        expect(job.result).toMatchObject([{ tenantId: 'tenant-record', title: 'tenant-record-target' }]);
+      });
+    });
   });
 
   describe('config.changed', () => {

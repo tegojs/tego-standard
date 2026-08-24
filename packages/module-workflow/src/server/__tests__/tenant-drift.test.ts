@@ -276,6 +276,37 @@ describe('workflow > tenant helper drift', () => {
     expect(authResult).toBe(options);
   });
 
+  it('uses the queried collection legacy-data configuration instead of the triggering context', () => {
+    const options = { filter: { id: 1 } };
+    const collection = {
+      options: {
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a'],
+      },
+    };
+    const context = {
+      state: {
+        currentTenantId: 'tenant-a',
+        currentTenantDescendantIds: ['tenant-child'],
+        // This belongs to the collection that triggered the workflow, not the query target.
+        currentLegacyDataTenantIds: [],
+      },
+    };
+    const expected = {
+      filter: {
+        $and: [
+          { id: 1 },
+          {
+            $or: [{ tenantId: { $in: ['tenant-a', 'tenant-child'] } }, { tenantId: null }],
+          },
+        ],
+      },
+    };
+
+    expect(localApply(context, collection, 'list', options)).toEqual(expected);
+    expect(authoritativeApply(context, collection, 'list', options)).toEqual(expected);
+  });
+
   it('getDescendantTenantIds is exported as async function', () => {
     expect(typeof getDescendantTenantIds).toBe('function');
     // Verify it returns a promise when called

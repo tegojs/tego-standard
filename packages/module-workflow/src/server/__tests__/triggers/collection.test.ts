@@ -535,10 +535,10 @@ describe('workflow > triggers > collection', () => {
       });
 
       const workflow = await WorkflowModel.create({
-        enabled: true,
+        enabled: false,
         type: 'collection',
         config: {
-          mode: 1,
+          mode: 2,
           collection: tenantWorkflowTriggerCollectionName,
         },
       });
@@ -554,8 +554,16 @@ describe('workflow > triggers > collection', () => {
         },
       });
 
-      await TenantTriggerRepo.create({
+      const triggerRecord = await TenantTriggerRepo.create({
         values: { title: 'trigger-without-request-context', tenantId: 'tenant-record' },
+        context: {
+          state: tenantState('tenant-record'),
+        },
+      });
+      await workflow.update({ enabled: true });
+      await TenantTriggerRepo.update({
+        filterByTk: triggerRecord.id,
+        values: { title: 'trigger-without-request-context-updated' },
       });
 
       await waitForAssertion(async () => {

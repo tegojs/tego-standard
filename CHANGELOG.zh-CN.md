@@ -7,11 +7,14 @@
 
 ## [未发布]
 
+
+
+## [1.6.42] - 2026-08-24
+
 ### 🐛 修复
 
-- **tenant**: 刷新插件元数据 [278cef2](https://github.com/tegojs/tego-standard/commit/278cef2b550db11336e9ccfd80d12820c42b5dc4) (@TomyJan)
-
-
+- **tenant**: ignore empty association placeholders (@TomyJan)
+- **tenant**: refresh plugin metadata (@TomyJan)
 
 ## [1.6.41] - 2026-08-21
 
@@ -3199,7 +3202,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.41...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.42...HEAD
+[1.6.42]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.42
 [1.6.41]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.41
 [1.6.40]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.40
 [1.6.39]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.39

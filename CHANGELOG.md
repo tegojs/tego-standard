@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.42] - 2026-08-24
+
 ### 🐛 Fixed
 
-- **tenant**: refresh plugin metadata [278cef2](https://github.com/tegojs/tego-standard/commit/278cef2b550db11336e9ccfd80d12820c42b5dc4) (@TomyJan)
-
-
+- **tenant**: ignore empty association placeholders (@TomyJan)
+- **tenant**: refresh plugin metadata (@TomyJan)
 
 ## [1.6.41] - 2026-08-21
 
@@ -3199,7 +3202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.41...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.42...HEAD
+[1.6.42]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.42
 [1.6.41]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.41
 [1.6.40]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.40
 [1.6.39]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.39

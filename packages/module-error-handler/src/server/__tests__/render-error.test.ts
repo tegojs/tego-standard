@@ -1,12 +1,23 @@
 import { createMockServer, MockServer } from '@tachybase/test';
 import { Database } from '@tego/server';
 
+import PluginErrorHandler from '..';
+
 describe('create with exception', () => {
   let app: MockServer;
   beforeEach(async () => {
     app = await createMockServer({
       acl: false,
-      plugins: ['error-handler'],
+      plugins: [
+        [
+          PluginErrorHandler,
+          {
+            name: 'error-handler',
+            packageName: '@tachybase/module-error-handler',
+            workspaceSource: true,
+          },
+        ],
+      ],
     });
   });
 
@@ -166,5 +177,68 @@ describe('create with exception', () => {
 
     const body = response.body;
     expect(body['errors'][0]['message']).toBeDefined();
+  });
+
+  it('should preserve a custom forbidden error', async () => {
+    app.resourcer.define({
+      name: 'customForbidden',
+      actions: {
+        async test(ctx) {
+          ctx.throw(403, 'Legacy record is read-only');
+        },
+      },
+    });
+
+    const response = await app.agent().post('/customForbidden:test');
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          message: 'Legacy record is read-only',
+        },
+      ],
+    });
+  });
+
+  it('should still translate an explicit permission denial', async () => {
+    app.resourcer.define({
+      name: 'permissionDenied',
+      actions: {
+        async test(ctx) {
+          ctx.throw(403, 'No permissions');
+        },
+      },
+    });
+
+    const response = await app.agent().post('/permissionDenied:test').set('x-locale', 'zh-CN');
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          message: 'No permissions',
+          code: 'PERMISSION_DENIED',
+        },
+      ],
+    });
+  });
+
+  it('should treat a default forbidden error as a permission denial', async () => {
+    app.resourcer.define({
+      name: 'defaultForbidden',
+      actions: {
+        async test(ctx) {
+          ctx.throw(403);
+        },
+      },
+    });
+
+    const response = await app.agent().post('/defaultForbidden:test');
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body.errors[0]).toMatchObject({
+      code: 'PERMISSION_DENIED',
+    });
   });
 });

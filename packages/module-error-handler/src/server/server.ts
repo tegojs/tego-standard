@@ -100,10 +100,9 @@ export class PluginErrorHandler extends Plugin {
   registerPermissionDeniedErrorHandler() {
     this.errorHandler.register(
       (err) => {
-        // 检查是否是权限拒绝错误
-        // 1. HTTP 状态码是 403
-        // 2. 或者错误消息包含 "permission denied" 或 "no permissions"
-        const is403 = err.statusCode === 403 || err.status === 403;
+        // A 403 may carry a specific business error that must remain visible to the client.
+        const isExplicitPermissionCode = err.code === 'PERMISSION_DENIED';
+        const isDefaultForbidden = err.message === 'Forbidden';
         const permissionDeniedMessagesEn = ['permission denied', 'no permissions'];
         const permissionDeniedMessagesZh = ['没有权限', '无权限'];
         const hasPermissionMessage =
@@ -111,7 +110,7 @@ export class PluginErrorHandler extends Plugin {
           (permissionDeniedMessagesEn.some((msg) => err.message.toLowerCase().includes(msg.toLowerCase())) ||
             permissionDeniedMessagesZh.some((msg) => err.message.includes(msg)));
 
-        return is403 || hasPermissionMessage;
+        return isExplicitPermissionCode || isDefaultForbidden || hasPermissionMessage;
       },
       (err, ctx) => {
         let code = 'PERMISSION_DENIED';

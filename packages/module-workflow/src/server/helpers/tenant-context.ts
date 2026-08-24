@@ -2,6 +2,7 @@ import type { Context } from '@tego/server';
 
 type TenantFilterContext = {
   state?: Record<string, any>;
+  [key: string]: any;
 };
 
 type TenantFilterCollection = {
@@ -63,6 +64,649 @@ function stripTenantFilter(filter: any): any {
 
 function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
   return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
+}
+
+const LEGACY_RECORD_READ_ONLY =
+  'This record is unassigned legacy data and is read-only. Ask an administrator to allow editing legacy data for this collection before trying again.';
+const LEGACY_RECORD_DELETE_REQUIRES_CLAIM =
+  'This record is unassigned legacy data and cannot be deleted directly. Edit it first to assign it to the current tenant, then try deleting it again.';
+const RECORD_UNAVAILABLE =
+  'This record or a related record is not available in the current tenant. It may belong to another tenant or have been removed.';
+const TENANT_CONTEXT_REQUIRED =
+  'No tenant is selected. Select a tenant and try again. If no tenant is available, contact an administrator.';
+
+function tenantError(context: any, message: string) {
+  return new Error(typeof context?.t === 'function' ? context.t(message, { ns: 'tenant' }) : message);
+}
+
+function requireCurrentTenantId(context: TenantFilterContext) {
+  const tenantId = getCurrentTenantIdFromState(context?.state);
+  if (!hasTargetKey(tenantId)) {
+    throw tenantError(context, TENANT_CONTEXT_REQUIRED);
+  }
+  return tenantId;
+}
+
+export function workflowTenantRecordUnavailableError(context: any) {
+  return tenantError(context, RECORD_UNAVAILABLE);
+}
+
+function getRecordValue(record: any, key: string) {
+  return typeof record?.get === 'function' ? record.get(key) : record?.[key];
+}
+
+function hasTargetKey(value: any) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function isEmptyAssociationPlaceholder(value: any) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return (prototype === Object.prototype || prototype === null) && Reflect.ownKeys(value).length === 0;
+}
+
+function removeEmptyAssociationPlaceholders(value: any) {
+  if (isEmptyAssociationPlaceholder(value)) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    return value;
+  }
+  const values = value.filter((item) => !isEmptyAssociationPlaceholder(item));
+  return values.length === 0 && value.length > 0 ? undefined : values;
+}
+
+function getAssociationTargetCollection(db: any, association: any) {
+  return db?.modelCollection?.get?.(association.target) || db?.getCollection?.(association.target?.name);
+}
+
+function normalizeComparableValue(value: any): any {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Buffer.isBuffer(value)) {
+    return value.toString('base64');
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeComparableValue);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, normalizeComparableValue(item)]),
+    );
+  }
+  return value;
+}
+
+function hasSameValue(left: any, right: any) {
+  if (left instanceof Date || right instanceof Date) {
+    const leftTimestamp = new Date(left).getTime();
+    const rightTimestamp = new Date(right).getTime();
+    return !Number.isNaN(leftTimestamp) && leftTimestamp === rightTimestamp;
+  }
+  return JSON.stringify(normalizeComparableValue(left)) === JSON.stringify(normalizeComparableValue(right));
+}
+
+function hasSameTargetKey(left: any, right: any) {
+  return hasTargetKey(left) && hasTargetKey(right) && `${left}` === `${right}`;
+}
+
+function hasUnchangedTargetKeyValue(sourceRecord: any, key: string, value: any) {
+  const sourceRecords = Array.isArray(sourceRecord) ? sourceRecord : sourceRecord ? [sourceRecord] : [];
+  return (
+    sourceRecords.length > 0 && sourceRecords.every((record) => hasSameTargetKey(getRecordValue(record, key), value))
+  );
+}
+
+function getAssociationTargetKeys(value: any, targetKey: string) {
+  const targetKeys = [];
+  for (const item of Array.isArray(value) ? value : value == null ? [] : [value]) {
+    const targetKeyValue =
+      typeof item === 'string' || typeof item === 'number' ? item : getRecordValue(item, targetKey);
+    if (!hasTargetKey(targetKeyValue)) {
+      return null;
+    }
+    targetKeys.push(`${targetKeyValue}`);
+  }
+  return targetKeys.sort();
+}
+
+async function hasUnchangedAssociationValues(
+  db: any,
+  sourceRecord: any,
+  association: any,
+  associationValue: any,
+  associationPath: string,
+  updatePaths: Set<string>,
+  transaction?: any,
+) {
+  if (Array.isArray(sourceRecord)) {
+    if (sourceRecord.length === 0) {
+      return false;
+    }
+    for (const record of sourceRecord) {
+      if (
+        !(await hasUnchangedAssociationValues(
+          db,
+          record,
+          association,
+          associationValue,
+          associationPath,
+          updatePaths,
+          transaction,
+        ))
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (!sourceRecord) {
+    return false;
+  }
+  const targetCollection = getAssociationTargetCollection(db, association);
+  if (!targetCollection) {
+    return false;
+  }
+  const targetKey = association.targetKey || 'id';
+  const throughModelName = association.through?.model?.name;
+  const requestedValues = Array.isArray(associationValue) ? associationValue : [associationValue];
+  if (
+    throughModelName &&
+    requestedValues.some(
+      (value) => value && typeof value === 'object' && getRecordValue(value, throughModelName) != null,
+    )
+  ) {
+    return false;
+  }
+
+  const requestedTargetKeys = getAssociationTargetKeys(associationValue, targetKey);
+  const getAccessor = association.accessors?.get;
+  if (!requestedTargetKeys || !getAccessor || typeof sourceRecord[getAccessor] !== 'function') {
+    return false;
+  }
+  const existingAssociationValue = await sourceRecord[getAccessor]({ transaction });
+  const existingTargetKeys = getAssociationTargetKeys(existingAssociationValue, targetKey);
+  if (
+    existingTargetKeys === null ||
+    requestedTargetKeys.length !== existingTargetKeys.length ||
+    requestedTargetKeys.some((targetKeyValue, index) => targetKeyValue !== existingTargetKeys[index])
+  ) {
+    return false;
+  }
+
+  const existingRecords = Array.isArray(existingAssociationValue)
+    ? existingAssociationValue
+    : existingAssociationValue == null
+      ? []
+      : [existingAssociationValue];
+  const existingRecordsByTargetKey = new Map(
+    existingRecords.map((record) => [`${getRecordValue(record, targetKey)}`, record]),
+  );
+
+  for (const requestedValue of requestedValues) {
+    if (requestedValue == null || typeof requestedValue === 'string' || typeof requestedValue === 'number') {
+      continue;
+    }
+    const existingRecord = existingRecordsByTargetKey.get(`${getRecordValue(requestedValue, targetKey)}`);
+    if (!existingRecord) {
+      return false;
+    }
+    if (updatePaths.has(associationPath)) {
+      for (const [key, requestedFieldValue] of Object.entries(requestedValue)) {
+        if (key === targetKey || key in targetCollection.model.associations || key === throughModelName) {
+          continue;
+        }
+        if (!hasSameValue(getRecordValue(existingRecord, key), requestedFieldValue)) {
+          return false;
+        }
+      }
+    }
+    for (const [nestedAssociationName, nestedAssociation] of Object.entries<any>(targetCollection.model.associations)) {
+      if (!(nestedAssociationName in requestedValue)) {
+        continue;
+      }
+      if (
+        !(await hasUnchangedAssociationValues(
+          db,
+          existingRecord,
+          nestedAssociation,
+          requestedValue[nestedAssociationName],
+          `${associationPath}.${nestedAssociationName}`,
+          updatePaths,
+          transaction,
+        ))
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+async function hasAssociationTargetChanges(
+  db: any,
+  targetCollection: any,
+  targetRecord: any,
+  value: Record<string, any>,
+  targetKey: string,
+  associationPath: string,
+  updatePaths: Set<string>,
+  throughModelName?: string,
+  transaction?: any,
+) {
+  if (!updatePaths.has(associationPath)) {
+    return false;
+  }
+
+  for (const [key, requestedValue] of Object.entries(value)) {
+    if (key === targetKey || key === throughModelName) {
+      continue;
+    }
+    const nestedAssociation = targetCollection.model?.associations?.[key];
+    if (!nestedAssociation) {
+      if (!hasSameValue(getRecordValue(targetRecord, key), requestedValue)) {
+        return true;
+      }
+      continue;
+    }
+    const nestedAssociationPath = `${associationPath}.${key}`;
+    if (
+      updatePaths.has(nestedAssociationPath) &&
+      !(await hasUnchangedAssociationValues(
+        db,
+        targetRecord,
+        nestedAssociation,
+        requestedValue,
+        nestedAssociationPath,
+        updatePaths,
+        transaction,
+      ))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function findReferenceableRecord(
+  context: TenantFilterContext,
+  collection: TenantFilterCollection,
+  repository: any,
+  targetKey: string,
+  targetKeyValue: any,
+  transaction?: any,
+) {
+  const options = applyTenantFilterToContext(context, collection, 'get', {
+    filter: { [targetKey]: targetKeyValue },
+  });
+  const record = await repository.findOne({ ...options, context, transaction });
+  if (!record) {
+    throw workflowTenantRecordUnavailableError(context);
+  }
+
+  const currentTenantId = getCurrentTenantIdFromState(context?.state);
+  const recordTenantId = getRecordValue(record, 'tenantId');
+  if (recordTenantId !== null && `${recordTenantId}` !== `${currentTenantId}`) {
+    throw workflowTenantRecordUnavailableError(context);
+  }
+  return record;
+}
+
+/**
+ * Validates association graphs written by workflow nodes. Existing legacy
+ * targets may be referenced without ownership changes; actual target edits
+ * follow that target collection's legacy-editing policy.
+ */
+export async function guardWorkflowTenantAssociationValues(
+  context: TenantFilterContext,
+  db: any,
+  collection: TenantFilterCollection,
+  values: any,
+  options: Record<string, any> = {},
+  transaction?: any,
+  pathPrefix = '',
+  sourceRecord?: any,
+): Promise<any> {
+  if (!values || typeof values !== 'object' || !collection?.model?.associations) {
+    return values;
+  }
+  if (Array.isArray(values)) {
+    for (const value of values) {
+      await guardWorkflowTenantAssociationValues(context, db, collection, value, options, transaction, pathPrefix);
+    }
+    return values;
+  }
+
+  const configuredPaths = options.updateAssociationValues;
+  const updatePaths = new Set<string>(
+    (Array.isArray(configuredPaths) ? configuredPaths : configuredPaths ? [configuredPaths] : []).filter(Boolean),
+  );
+
+  for (const [associationName, association] of Object.entries<any>(collection.model.associations)) {
+    const associationPath = pathPrefix ? `${pathPrefix}.${associationName}` : associationName;
+    const targetCollection = getAssociationTargetCollection(db, association);
+    if (!targetCollection) {
+      continue;
+    }
+    const targetKey = collection.getField?.(associationName)?.targetKey || association.targetKey || 'id';
+    const throughModelName = association.through?.model?.name;
+    const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetCollection.options?.tenancy);
+    const associationForeignKey = association.associationType === 'BelongsTo' ? association.foreignKey : null;
+    if (associationName in values) {
+      const associationValue = removeEmptyAssociationPlaceholders(values[associationName]);
+      if (associationValue === undefined) {
+        delete values[associationName];
+      } else {
+        values[associationName] = associationValue;
+      }
+    }
+    if (
+      associationName in values &&
+      tenantAwareTarget &&
+      (await hasUnchangedAssociationValues(
+        db,
+        sourceRecord,
+        association,
+        values[associationName],
+        associationPath,
+        updatePaths,
+        transaction,
+      ))
+    ) {
+      delete values[associationName];
+    }
+    const associationValues =
+      associationName in values
+        ? Array.isArray(values[associationName])
+          ? values[associationName]
+          : [values[associationName]]
+        : [];
+
+    if (
+      tenantAwareTarget &&
+      typeof associationForeignKey === 'string' &&
+      associationForeignKey in values &&
+      hasTargetKey(values[associationForeignKey]) &&
+      !hasUnchangedTargetKeyValue(sourceRecord, associationForeignKey, values[associationForeignKey])
+    ) {
+      requireCurrentTenantId(context);
+      await findReferenceableRecord(
+        context,
+        targetCollection,
+        targetCollection.repository,
+        targetKey,
+        values[associationForeignKey],
+        transaction,
+      );
+    }
+
+    for (const associationValue of associationValues) {
+      if (associationValue === null || associationValue === undefined) {
+        continue;
+      }
+
+      if (typeof associationValue === 'string' || typeof associationValue === 'number') {
+        if (tenantAwareTarget) {
+          requireCurrentTenantId(context);
+          await findReferenceableRecord(
+            context,
+            targetCollection,
+            targetCollection.repository,
+            targetKey,
+            associationValue,
+            transaction,
+          );
+        }
+        continue;
+      }
+      if (typeof associationValue !== 'object') {
+        continue;
+      }
+
+      const targetKeyValue = getRecordValue(associationValue, targetKey);
+      let targetRecord;
+      if (tenantAwareTarget && hasTargetKey(targetKeyValue)) {
+        const tenantId = requireCurrentTenantId(context);
+        targetRecord = await findReferenceableRecord(
+          context,
+          targetCollection,
+          targetCollection.repository,
+          targetKey,
+          targetKeyValue,
+          transaction,
+        );
+        const targetHasChanges = await hasAssociationTargetChanges(
+          db,
+          targetCollection,
+          targetRecord,
+          associationValue,
+          targetKey,
+          associationPath,
+          updatePaths,
+          throughModelName,
+          transaction,
+        );
+        if (targetHasChanges) {
+          if (getRecordValue(targetRecord, 'tenantId') === null) {
+            if (targetCollection.options?.allowEditingLegacyData !== true) {
+              throw tenantError(context, LEGACY_RECORD_READ_ONLY);
+            }
+            associationValue.tenantId = tenantId;
+          } else {
+            delete associationValue.tenantId;
+          }
+        } else {
+          delete associationValue.tenantId;
+        }
+      } else if (tenantAwareTarget) {
+        associationValue.tenantId = requireCurrentTenantId(context);
+      } else if (hasTargetKey(targetKeyValue)) {
+        targetRecord = await targetCollection.repository.findOne({
+          filter: { [targetKey]: targetKeyValue },
+          context,
+          transaction,
+        });
+      }
+
+      await guardWorkflowTenantAssociationValues(
+        context,
+        db,
+        targetCollection,
+        associationValue,
+        options,
+        transaction,
+        associationPath,
+        targetRecord,
+      );
+    }
+  }
+  return values;
+}
+
+function appendExactTenantFilter(original: any, tenantId: string | number | null) {
+  const sanitizedOriginal = stripTenantFilter(original);
+  const tenantFilter = { tenantId };
+  if (!sanitizedOriginal || Reflect.ownKeys(sanitizedOriginal).length === 0) {
+    return tenantFilter;
+  }
+  return { $and: [sanitizedOriginal, tenantFilter] };
+}
+
+function hasAssociationSourceValues(collection: TenantFilterCollection, values: any): boolean {
+  if (Array.isArray(values)) {
+    return values.some((value) => hasAssociationSourceValues(collection, value));
+  }
+  if (!values || typeof values !== 'object') {
+    return false;
+  }
+
+  return Object.entries<any>(collection?.model?.associations || {}).some(([associationName, association]) => {
+    if (associationName in values) {
+      const associationValue = removeEmptyAssociationPlaceholders(values[associationName]);
+      if (associationValue != null && (!Array.isArray(associationValue) || associationValue.length > 0)) {
+        return true;
+      }
+    }
+    return (
+      association.associationType === 'BelongsTo' &&
+      typeof association.foreignKey === 'string' &&
+      association.foreignKey in values &&
+      hasTargetKey(values[association.foreignKey])
+    );
+  });
+}
+
+/** Finds the source records whose association graphs are about to be updated. */
+export async function findWorkflowTenantReadableRecords(
+  context: TenantFilterContext,
+  collection: TenantFilterCollection,
+  repository: any,
+  options: Record<string, any>,
+  transaction?: any,
+) {
+  if (!hasAssociationSourceValues(collection, options?.values)) {
+    return [];
+  }
+  const readableOptions = applyTenantFilterToContext(context, collection, 'get', options);
+  return repository.find({ ...readableOptions, context, transaction });
+}
+
+/**
+ * Resolves one or more tenant-safe update plans. Legacy records are claimed by
+ * the same update that modifies them, while records already owned by visible
+ * tenants keep their existing ownership.
+ */
+export async function resolveTenantUpdatePlans(
+  context: TenantFilterContext,
+  collection: TenantFilterCollection,
+  repository: any,
+  options: Record<string, any>,
+  transaction?: any,
+  config: { allowCreateWhenMissing?: boolean } = {},
+) {
+  const tenancyMode = collection?.options?.tenancy;
+  if (!TENANT_ENABLED_MODES.includes(tenancyMode)) {
+    if (config.allowCreateWhenMissing) {
+      const existingRecord = await repository.findOne({ ...options, context, transaction });
+      return existingRecord ? [options] : [];
+    }
+    return [options];
+  }
+
+  const tenantId = getCurrentTenantIdFromState(context?.state);
+  if (tenantId === null || tenantId === undefined) {
+    throw tenantError(context, TENANT_CONTEXT_REQUIRED);
+  }
+
+  const repositoryContext = context;
+  const writableOptions = applyTenantFilterToContext(context, collection, 'update', options);
+  const writableRecord = await repository.findOne({
+    ...writableOptions,
+    context: repositoryContext,
+    transaction,
+  });
+  const canReadLegacy = canReadLegacyData(tenantId, collection.options?.legacyDataTenantIds);
+  const legacyFilter = appendExactTenantFilter(options?.filter, null);
+  const legacyRecord = canReadLegacy
+    ? await repository.findOne({
+        ...options,
+        filter: legacyFilter,
+        context: repositoryContext,
+        transaction,
+      })
+    : null;
+
+  if (legacyRecord && collection.options?.allowEditingLegacyData !== true) {
+    throw tenantError(context, LEGACY_RECORD_READ_ONLY);
+  }
+
+  const plans = [];
+  if (writableRecord) {
+    plans.push(writableOptions);
+  }
+  if (legacyRecord) {
+    plans.push({
+      ...options,
+      filter: legacyFilter,
+      values: appendTenantValue(omitTenantValue(options?.values), tenantId),
+    });
+  }
+
+  if (plans.length === 0 && !config.allowCreateWhenMissing) {
+    throw workflowTenantRecordUnavailableError(context);
+  }
+  return plans;
+}
+
+/** Resolves a tenant-safe destroy and rejects direct deletion of legacy data. */
+export async function resolveTenantDestroyOptions(
+  context: TenantFilterContext,
+  collection: TenantFilterCollection,
+  repository: any,
+  options: Record<string, any>,
+  transaction?: any,
+) {
+  const tenancyMode = collection?.options?.tenancy;
+  if (!TENANT_ENABLED_MODES.includes(tenancyMode)) {
+    return options;
+  }
+
+  const tenantId = getCurrentTenantIdFromState(context?.state);
+  if (tenantId === null || tenantId === undefined) {
+    throw tenantError(context, TENANT_CONTEXT_REQUIRED);
+  }
+
+  const destroyOptions = applyTenantFilterToContext(context, collection, 'destroy', options);
+  const writableRecord = await repository.findOne({ ...destroyOptions, context, transaction });
+  const canReadLegacy = canReadLegacyData(tenantId, collection.options?.legacyDataTenantIds);
+  const legacyRecord = canReadLegacy
+    ? await repository.findOne({
+        ...options,
+        filter: appendExactTenantFilter(options?.filter, null),
+        context,
+        transaction,
+      })
+    : null;
+
+  if (legacyRecord) {
+    throw tenantError(context, LEGACY_RECORD_DELETE_REQUIRES_CLAIM);
+  }
+  if (!writableRecord) {
+    throw workflowTenantRecordUnavailableError(context);
+  }
+  return destroyOptions;
+}
+
+/** Uses the request transaction when possible, otherwise owns a node transaction. */
+export async function withWorkflowDataSourceTransaction<T>(
+  workflow: any,
+  dataSourceName: string,
+  processorTransaction: any,
+  callback: (transaction: any) => Promise<T>,
+): Promise<T> {
+  const inheritedTransaction = workflow.useDataSourceTransaction(dataSourceName, processorTransaction);
+  if (inheritedTransaction) {
+    return callback(inheritedTransaction);
+  }
+
+  const transaction = await workflow.useDataSourceTransaction(dataSourceName, undefined, true);
+  if (!transaction) {
+    return callback(undefined);
+  }
+
+  try {
+    const result = await callback(transaction);
+    await transaction.commit();
+    return result;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 }
 
 /**

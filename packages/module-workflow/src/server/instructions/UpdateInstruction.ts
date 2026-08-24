@@ -7,7 +7,13 @@ import mime from 'mime-types';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
-import { applyTenantFilterToContext } from '../helpers/tenant-context';
+import {
+  findWorkflowTenantReadableRecords,
+  guardWorkflowTenantAssociationValues,
+  resolveTenantUpdatePlans,
+  withWorkflowDataSourceTransaction,
+  workflowTenantRecordUnavailableError,
+} from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
@@ -22,14 +28,11 @@ export class UpdateInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const { repository } = dataSource.collectionManager.getCollection(collectionName);
     const options = processor.getParsedValue(params, node.id);
 
-    const c = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const c = dataSource.collectionManager.getCollection(collectionName);
     const fields = c.getFields();
     const fieldNames = Object.keys(params.values);
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
@@ -187,17 +190,54 @@ export class UpdateInstruction extends Instruction {
       }
     }
 
-    const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'update', options);
-    const result = await repository.update({
-      ...repositoryOptions,
-      context: repositoryContext,
-      transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
-    });
+    const result = await withWorkflowDataSourceTransaction(
+      this.workflow,
+      dataSourceName,
+      processor.transaction,
+      async (transaction) => {
+        const sourceRecords = await findWorkflowTenantReadableRecords(
+          repositoryContext,
+          c,
+          repository,
+          options,
+          transaction,
+        );
+        await guardWorkflowTenantAssociationValues(
+          repositoryContext,
+          dataSource.collectionManager.db,
+          c,
+          options.values,
+          options,
+          transaction,
+          '',
+          sourceRecords,
+        );
+        const plans = await resolveTenantUpdatePlans(repositoryContext, c, repository, options, transaction);
+        const updated = [];
+        let updatedCount = 0;
+        for (const repositoryOptions of plans) {
+          const records = await repository.update({
+            ...repositoryOptions,
+            context: repositoryContext,
+            transaction,
+          });
+          const count = records?.length ?? records;
+          if (count === 0) {
+            throw workflowTenantRecordUnavailableError(repositoryContext);
+          }
+          updatedCount += count;
+          if (Array.isArray(records)) {
+            updated.push(...records);
+          }
+        }
+        return { data: updated, length: updatedCount };
+      },
+    );
 
     return {
       result: {
-        length: result?.length ?? result,
-        data: toJSON(result) ?? [],
+        length: result.length,
+        data: toJSON(result.data) ?? [],
       },
       status: JOB_STATUS.RESOLVED,
     };

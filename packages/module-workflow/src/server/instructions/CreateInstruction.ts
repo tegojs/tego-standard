@@ -7,7 +7,11 @@ import mime from 'mime-types';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
-import { applyTenantFilterToContext } from '../helpers/tenant-context';
+import {
+  applyTenantFilterToContext,
+  guardWorkflowTenantAssociationValues,
+  withWorkflowDataSourceTransaction,
+} from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
@@ -21,15 +25,11 @@ export class CreateInstruction extends Instruction {
     const { collection, params: { appends = [], ...params } = {} } = node.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository, filterTargetKey } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const { repository, filterTargetKey } = dataSource.collectionManager.getCollection(collectionName);
     const options = processor.getParsedValue(params, node.id);
-    const transaction = this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction);
 
-    const c = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const c = dataSource.collectionManager.getCollection(collectionName);
     const fields = c.getFields();
     const fieldNames = Object.keys(params.values);
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
@@ -180,33 +180,48 @@ export class CreateInstruction extends Instruction {
       }
     }
 
-    const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
-    const created = await repository.create({
-      ...repositoryOptions,
-      context: repositoryContext,
-      transaction,
-    });
+    return withWorkflowDataSourceTransaction(
+      this.workflow,
+      dataSourceName,
+      processor.transaction,
+      async (transaction) => {
+        await guardWorkflowTenantAssociationValues(
+          repositoryContext,
+          dataSource.collectionManager.db,
+          c,
+          options.values,
+          options,
+          transaction,
+        );
+        const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
+        const created = await repository.create({
+          ...repositoryOptions,
+          context: repositoryContext,
+          transaction,
+        });
 
-    let result = created;
-    if (created && appends.length) {
-      const includeFields = appends.reduce((set, field) => {
-        set.add(field.split('.')[0]);
-        set.add(field);
-        return set;
-      }, new Set());
-      result = await repository.findOne({
-        filterByTk: created[filterTargetKey],
-        appends: Array.from(includeFields),
-        context: repositoryContext,
-        transaction,
-      });
-    }
+        let result = created;
+        if (created && appends.length) {
+          const includeFields = appends.reduce((set, field) => {
+            set.add(field.split('.')[0]);
+            set.add(field);
+            return set;
+          }, new Set());
+          result = await repository.findOne({
+            filterByTk: created[filterTargetKey],
+            appends: Array.from(includeFields),
+            context: repositoryContext,
+            transaction,
+          });
+        }
 
-    return {
-      // NOTE: get() for non-proxied instance (#380)
-      result: toJSON(result),
-      status: JOB_STATUS.RESOLVED,
-    };
+        return {
+          // NOTE: get() for non-proxied instance (#380)
+          result: toJSON(result),
+          status: JOB_STATUS.RESOLVED,
+        };
+      },
+    );
   }
 }
 

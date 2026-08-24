@@ -2,7 +2,11 @@ import { parseCollectionName } from '@tego/server';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
-import { applyTenantFilterToContext } from '../helpers/tenant-context';
+import {
+  resolveTenantDestroyOptions,
+  withWorkflowDataSourceTransaction,
+  workflowTenantRecordUnavailableError,
+} from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 
@@ -30,12 +34,29 @@ export class DestroyInstruction extends Instruction {
       },
       stack: Array.from(new Set([...(baseRepositoryContext.stack || []), ...(optionContext.stack || [])])),
     };
-    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'destroy', options);
-    const result = await repository.destroy({
-      ...repositoryOptions,
-      context: repositoryContext,
-      transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
-    });
+    const result = await withWorkflowDataSourceTransaction(
+      this.workflow,
+      dataSourceName,
+      processor.transaction,
+      async (transaction) => {
+        const repositoryOptions = await resolveTenantDestroyOptions(
+          repositoryContext,
+          targetCollection,
+          repository,
+          options,
+          transaction,
+        );
+        const destroyed = await repository.destroy({
+          ...repositoryOptions,
+          context: repositoryContext,
+          transaction,
+        });
+        if (destroyed === 0) {
+          throw workflowTenantRecordUnavailableError(repositoryContext);
+        }
+        return destroyed;
+      },
+    );
 
     return {
       result,

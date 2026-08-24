@@ -7,7 +7,14 @@ import mime from 'mime-types';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
-import { applyTenantFilterToContext } from '../helpers/tenant-context';
+import {
+  applyTenantFilterToContext,
+  findWorkflowTenantReadableRecords,
+  guardWorkflowTenantAssociationValues,
+  resolveTenantUpdatePlans,
+  withWorkflowDataSourceTransaction,
+  workflowTenantRecordUnavailableError,
+} from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
@@ -21,14 +28,10 @@ export class UpdateOrCreateInstruction extends Instruction {
     const { collection, params: { appends = [], ...params } = {} } = node.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const { repository, filterTargetKey } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const { repository, filterTargetKey } = dataSource.collectionManager.getCollection(collectionName);
     const options = processor.getParsedValue(params, node.id);
-    const transaction = this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction);
-    const c = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const c = dataSource.collectionManager.getCollection(collectionName);
     const fields = c.getFields();
     const fieldNames = Object.keys(params.values);
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
@@ -187,49 +190,74 @@ export class UpdateOrCreateInstruction extends Instruction {
     }
 
     const context = repositoryContext;
-    const updateOptions = applyTenantFilterToContext(repositoryContext, c, 'update', options);
-    const instance = await (repository as Repository).findOne({ ...updateOptions, context, transaction });
-
-    if (instance) {
-      const result = await (repository as Repository).update({
-        ...updateOptions,
-        context,
-        transaction,
-      });
-
-      return {
-        result: result.length ?? result,
-        status: JOB_STATUS.RESOLVED,
-      };
-    } else {
-      const createOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
-      const created = await (repository as Repository).create({
-        ...createOptions,
-        context,
-        transaction,
-      });
-
-      let result = created;
-      if (created && appends.length) {
-        const includeFields = appends.reduce((set, field) => {
-          set.add(field.split('.')[0]);
-          set.add(field);
-          return set;
-        }, new Set());
-        result = await repository.findOne({
-          filterByTk: created[filterTargetKey],
-          appends: Array.from(includeFields),
-          context,
+    return withWorkflowDataSourceTransaction(
+      this.workflow,
+      dataSourceName,
+      processor.transaction,
+      async (transaction) => {
+        const sourceRecords = await findWorkflowTenantReadableRecords(
+          repositoryContext,
+          c,
+          repository,
+          options,
           transaction,
+        );
+        await guardWorkflowTenantAssociationValues(
+          repositoryContext,
+          dataSource.collectionManager.db,
+          c,
+          options.values,
+          options,
+          transaction,
+          '',
+          sourceRecords,
+        );
+        const updatePlans = await resolveTenantUpdatePlans(context, c, repository, options, transaction, {
+          allowCreateWhenMissing: true,
         });
-      }
 
-      return {
-        // NOTE: get() for non-proxied instance (#380)
-        result: toJSON(result),
-        status: JOB_STATUS.RESOLVED,
-      };
-    }
+        if (updatePlans.length) {
+          let updatedCount = 0;
+          for (const updateOptions of updatePlans) {
+            const result = await (repository as Repository).update({
+              ...updateOptions,
+              context,
+              transaction,
+            });
+            const count = result?.length ?? result;
+            if (count === 0) {
+              throw workflowTenantRecordUnavailableError(repositoryContext);
+            }
+            updatedCount += count;
+          }
+          return { result: updatedCount, status: JOB_STATUS.RESOLVED };
+        }
+
+        const createOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
+        const created = await (repository as Repository).create({ ...createOptions, context, transaction });
+
+        let result = created;
+        if (created && appends.length) {
+          const includeFields = appends.reduce((set, field) => {
+            set.add(field.split('.')[0]);
+            set.add(field);
+            return set;
+          }, new Set());
+          result = await repository.findOne({
+            filterByTk: created[filterTargetKey],
+            appends: Array.from(includeFields),
+            context,
+            transaction,
+          });
+        }
+
+        return {
+          // NOTE: get() for non-proxied instance (#380)
+          result: toJSON(result),
+          status: JOB_STATUS.RESOLVED,
+        };
+      },
+    );
   }
 }
 

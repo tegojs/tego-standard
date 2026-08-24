@@ -24,7 +24,7 @@ describe('ScriptInstruction', () => {
     });
   });
 
-  it('uses empty arrays for nullish data sources while preserving values', async () => {
+  it('uses empty arrays for null data sources while preserving values', async () => {
     const instruction = new ScriptInstruction({} as any);
     const processor = {
       getParsedValue: vi.fn((sourcePath: string) => (sourcePath === 'empty' ? null : [{ id: 1 }])),
@@ -52,5 +52,32 @@ ctx.body = [emptyItems, items].filter((item) => item.length > 0);`,
     });
     expect(processor.getParsedValue).toHaveBeenNthCalledWith(1, 'empty', 1);
     expect(processor.getParsedValue).toHaveBeenNthCalledWith(2, 'items', 1);
+  });
+
+  it('preserves undefined sources so scripts can distinguish missing paths', async () => {
+    const instruction = new ScriptInstruction({} as any);
+    const processor = {
+      getParsedValue: vi.fn((sourcePath: string) => (sourcePath === 'missing' ? undefined : { id: 1 })),
+    } as any;
+    const result = await instruction.run(
+      {
+        id: 1,
+        config: {
+          sourceArray: [
+            { keyName: 'missing', sourcePath: 'missing' },
+            { keyName: 'fallback', sourcePath: 'fallback' },
+          ],
+          type: 'js',
+          code: 'ctx.body = ctx.data.missing ? ctx.data.missing : ctx.data.fallback;',
+        },
+      } as any,
+      undefined,
+      processor,
+    );
+
+    expect(result).toEqual({
+      result: { id: 1 },
+      status: JOB_STATUS.RESOLVED,
+    });
   });
 });

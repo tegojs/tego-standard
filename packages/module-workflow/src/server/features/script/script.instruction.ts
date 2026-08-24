@@ -177,7 +177,10 @@ export class ScriptInstruction extends Instruction {
     }
     // 1. 获取数据源
     let data = {};
-    const getSourceValue = (sourcePath) => processor.getParsedValue(sourcePath, node.id) ?? [];
+    const getSourceValue = (sourcePath) => {
+      const value = processor.getParsedValue(sourcePath, node.id);
+      return value === null ? [] : value;
+    };
 
     switch (sourceArray.length) {
       case 0: {

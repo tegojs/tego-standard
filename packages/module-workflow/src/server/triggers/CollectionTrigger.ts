@@ -130,14 +130,22 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
   const fallbackTenantId = json && !Array.isArray(json) ? json.tenantId : undefined;
   const state = pickTenantState(context?.state, fallbackTenantId);
   const triggerContext = state ? { data: json, stack: context?.stack, state } : { data: json, stack: context?.stack };
+  const triggerOptions = {
+    context: state
+      ? {
+          ...context,
+          state: { ...context?.state, ...state },
+        }
+      : context,
+  };
 
   if (workflow.sync) {
     await this.workflow.trigger(workflow, triggerContext, {
-      context,
+      ...triggerOptions,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
     });
   } else {
-    this.workflow.trigger(workflow, triggerContext, { context });
+    this.workflow.trigger(workflow, triggerContext, triggerOptions);
   }
 }
 

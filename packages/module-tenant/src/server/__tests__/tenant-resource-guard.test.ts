@@ -1212,7 +1212,7 @@ describe('tenant resource guard', () => {
     await app.db.getRepository('tenants').create({
       values: [
         { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
-        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B', parentId: 'tenant-a' },
       ],
     });
 
@@ -1329,6 +1329,69 @@ describe('tenant resource guard', () => {
     expect(response.status).toBe(200);
   });
 
+  it('should allow association actions to link readable legacy records without claiming them', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_legacy_association_reference',
+        email: 'tenant-legacy-association-reference@example.com',
+        phone: '10000000028',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_action_targets',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a'],
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_legacy_action_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'belongsToMany', name: 'targets', target: 'tenant_legacy_action_targets' },
+        ],
+      },
+      context: {},
+    });
+
+    const post = await app.db.getRepository('tenant_legacy_action_posts').create({
+      values: { title: 'Tenant post' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    const target = await app.db.getRepository('tenant_legacy_action_targets').create({
+      values: { title: 'Legacy target' },
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('tenant_legacy_action_posts.targets', post.get('id'))
+      .add({ values: [target.get('id')] });
+
+    expect(response.status).toBe(200);
+    await target.reload();
+    expect(target.get('tenantId')).toBeNull();
+    const targets = await app.db
+      .getRepository('tenant_legacy_action_posts.targets', post.get('id'))
+      .find({ filterByTk: target.get('id') });
+    expect(targets).toHaveLength(1);
+  });
+
   it("should enforce each target collection's legacy editing policy during root association updates", async () => {
     app = await createTenantApp();
 
@@ -1392,6 +1455,9 @@ describe('tenant resource guard', () => {
     const contact = await app.db.getRepository('tenant_legacy_update_contacts').create({
       values: { name: 'Legacy contact' },
     });
+    const referenceContact = await app.db.getRepository('tenant_legacy_update_contacts').create({
+      values: { name: 'Reference legacy contact' },
+    });
     const editableContact = await app.db.getRepository('tenant_claimable_update_contacts').create({
       values: { name: 'Editable legacy contact' },
     });
@@ -1423,6 +1489,22 @@ describe('tenant resource guard', () => {
     expect(updatedCompany.get('name')).toBe('Updated company');
     expect(updatedCompany.get('contacts')).toHaveLength(1);
     expect(updatedCompany.get('contacts')[0].get('id')).toBe(contact.get('id'));
+
+    const referenceResponse = await app
+      .agent()
+      .login(user)
+      .resource('tenant_legacy_update_companies')
+      .update({
+        filterByTk: company.get('id'),
+        updateAssociationValues: ['contacts'],
+        values: {
+          contacts: [{ id: referenceContact.get('id'), name: 'Reference legacy contact' }],
+        },
+      });
+    expect(referenceResponse.status).toBe(200);
+
+    await referenceContact.reload();
+    expect(referenceContact.get('tenantId')).toBeNull();
 
     const forbiddenResponse = await app
       .agent()

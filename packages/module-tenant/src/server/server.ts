@@ -88,6 +88,24 @@ async function assertTenantRecordAccess(
   if (!record) {
     ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
   }
+  return record;
+}
+
+function isReferenceableTenantRecord(ctx: any, record: any) {
+  const recordTenantId = getRecordValue(record, 'tenantId');
+  const currentTenantId = ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId;
+  return recordTenantId === null || `${recordTenantId}` === `${currentTenantId}`;
+}
+
+async function assertTenantReferenceAccess(ctx: any, collection: any, filterByTk: any, filterKey?: string) {
+  const record = await assertTenantRecordAccess(ctx, collection, filterByTk, 'get', filterKey);
+  if (
+    TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(collection) as any) &&
+    !isReferenceableTenantRecord(ctx, record)
+  ) {
+    ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
+  }
+  return record;
 }
 
 function hasTargetKey(value: any) {
@@ -214,6 +232,54 @@ function hasSameValue(left: any, right: any) {
     return !Number.isNaN(leftTimestamp) && leftTimestamp === rightTimestamp;
   }
   return JSON.stringify(normalizeComparableValue(left)) === JSON.stringify(normalizeComparableValue(right));
+}
+
+async function hasAssociationTargetChanges(
+  db: any,
+  targetCollection: any,
+  targetRecord: any,
+  value: any,
+  targetKey: string,
+  associationPath: string,
+  valueUpdatePaths: Set<string>,
+  throughModelName?: string,
+  transaction?: any,
+) {
+  if (!valueUpdatePaths.has(associationPath)) {
+    return false;
+  }
+
+  for (const [key, requestedValue] of Object.entries(value)) {
+    if (key === targetKey || key === throughModelName) {
+      continue;
+    }
+
+    const nestedAssociation = targetCollection.model.associations[key];
+    if (!nestedAssociation) {
+      if (!hasSameValue(getRecordValue(targetRecord, key), requestedValue)) {
+        return true;
+      }
+      continue;
+    }
+
+    const nestedAssociationPath = `${associationPath}.${key}`;
+    if (
+      valueUpdatePaths.has(nestedAssociationPath) &&
+      !(await hasUnchangedAssociationValues(
+        db,
+        targetRecord,
+        nestedAssociation,
+        requestedValue,
+        nestedAssociationPath,
+        valueUpdatePaths,
+        transaction,
+      ))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // Expanded form values can contain already-persisted relations. Remove only the exact no-op graph before tenant checks.
@@ -366,6 +432,7 @@ async function guardTenantAssociationValues(
     }
     const targetTenancyMode = getCollectionTenancyMode(targetCollection);
     const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
+    const throughModelName = association.through?.model?.name;
     let hadAssociationValue = associationName in values;
     if (hadAssociationValue) {
       const associationValue = removeEmptyAssociationPlaceholders(values[associationName]);
@@ -401,8 +468,6 @@ async function guardTenantAssociationValues(
       continue;
     }
 
-    const existingTargetAction = valueUpdatePaths.has(associationPath) ? 'update' : 'get';
-
     const guardValue = async (value: any): Promise<any> => {
       if (value === undefined || value === null) {
         return value;
@@ -411,7 +476,7 @@ async function guardTenantAssociationValues(
       if (typeof value === 'string' || typeof value === 'number') {
         if (tenantAwareTarget) {
           requireTenantContext(ctx);
-          await assertTenantRecordAccess(ctx, targetCollection, value, existingTargetAction, targetKey);
+          await assertTenantReferenceAccess(ctx, targetCollection, value, targetKey);
         }
         return value;
       }
@@ -429,39 +494,47 @@ async function guardTenantAssociationValues(
         requireTenantContext(ctx);
 
         if (hasTargetKey(targetKeyValue)) {
-          const currentTenantRecord = await findTenantRecord(
-            ctx,
-            targetCollection,
-            targetKeyValue,
-            existingTargetAction,
-            targetKey,
-          );
+          const readableRecord = await findTenantRecord(ctx, targetCollection, targetKeyValue, 'get', targetKey);
+          if (readableRecord && !isReferenceableTenantRecord(ctx, readableRecord)) {
+            ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
+          }
+          const targetHasChanges =
+            readableRecord &&
+            (await hasAssociationTargetChanges(
+              db,
+              targetCollection,
+              readableRecord,
+              value,
+              targetKey,
+              associationPath,
+              valueUpdatePaths,
+              throughModelName,
+              ctx.transaction,
+            ));
+          const currentTenantRecord = targetHasChanges
+            ? await findTenantRecord(ctx, targetCollection, targetKeyValue, 'update', targetKey)
+            : readableRecord;
           targetRecord = currentTenantRecord;
 
-          if (!currentTenantRecord) {
-            const readableRecord =
-              existingTargetAction === 'update'
-                ? await findTenantRecord(ctx, targetCollection, targetKeyValue, 'get', targetKey)
-                : undefined;
-            if (readableRecord && getRecordValue(readableRecord, 'tenantId') === null) {
-              if (targetCollection.options?.allowEditingLegacyData !== true) {
-                ctx.throw(403, translateTenantError(ctx, 'legacyRecordReadOnly'));
-              }
-            }
-
-            const existingRecord =
-              readableRecord ||
-              (await targetCollection.repository.findOne({
-                filter: { [targetKey]: targetKeyValue },
-                context: ctx,
-              }));
+          if (!readableRecord) {
+            const existingRecord = await targetCollection.repository.findOne({
+              filter: { [targetKey]: targetKeyValue },
+              context: ctx,
+            });
             targetRecord = existingRecord;
-            if (existingRecord && !readableRecord) {
+            if (existingRecord) {
               ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
+            }
+          } else if (targetHasChanges && !currentTenantRecord) {
+            if (
+              getRecordValue(readableRecord, 'tenantId') === null &&
+              targetCollection.options?.allowEditingLegacyData !== true
+            ) {
+              ctx.throw(403, translateTenantError(ctx, 'legacyRecordReadOnly'));
             }
           }
 
-          if (existingTargetAction === 'update') {
+          if (targetHasChanges) {
             guardedValue = applyTenantFilterToContext(
               ctx,
               targetCollection,
@@ -543,7 +616,11 @@ async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: st
   }
 
   for (const targetKey of getAssociationTargetKeys(actionName, ctx.action.params)) {
-    await assertTenantRecordAccess(ctx, targetCollection, targetKey, 'update');
+    if (actionName === 'move') {
+      await assertTenantRecordAccess(ctx, targetCollection, targetKey, 'update');
+    } else {
+      await assertTenantReferenceAccess(ctx, targetCollection, targetKey);
+    }
   }
 
   return association;

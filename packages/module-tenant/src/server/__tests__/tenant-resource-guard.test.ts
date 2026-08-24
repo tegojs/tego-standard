@@ -1051,7 +1051,7 @@ describe('tenant resource guard', () => {
     expect(item.get('productId')).toBe(legacyProduct.get('id'));
   });
 
-  it('should allow unchanged nested association values and reject cross-tenant relinks', async () => {
+  it('should ignore empty nested association placeholders and reject cross-tenant relinks', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -1173,7 +1173,7 @@ describe('tenant resource guard', () => {
             [displayTargetAssociation.foreignKey]: targetB.get('id'),
             displayTarget: { id: targetB.get('id'), name: 'Display only' },
             displayTargets: [{ id: targetB.get('id'), name: 'Display only' }],
-            feeItems: [{ id: feeItem.get('id'), name: 'Existing fee', createdAt: equivalentCreatedAt }],
+            feeItems: [{ id: feeItem.get('id'), name: 'Existing fee', createdAt: equivalentCreatedAt }, {}],
           },
         ],
       },
@@ -1182,6 +1182,7 @@ describe('tenant resource guard', () => {
     expect(allowedResponse.status).toBe(200);
     await item.reload();
     expect(item.get('name')).toBe('Updated item');
+    expect(await app.db.getRepository('tenant_nested_display_fees').count()).toBe(1);
 
     const forbiddenResponse = await agent.resource('tenant_nested_display_orders').update({
       filterByTk: order.get('id'),

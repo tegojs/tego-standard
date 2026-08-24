@@ -94,6 +94,28 @@ function hasTargetKey(value: any) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function isEmptyAssociationPlaceholder(value: any) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return (prototype === Object.prototype || prototype === null) && Reflect.ownKeys(value).length === 0;
+}
+
+function removeEmptyAssociationPlaceholders(value: any) {
+  if (isEmptyAssociationPlaceholder(value)) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    return value;
+  }
+
+  const values = value.filter((item) => !isEmptyAssociationPlaceholder(item));
+  return values.length === 0 && value.length > 0 ? undefined : values;
+}
+
 function isSingleTargetKey(value: any) {
   return (typeof value === 'string' || typeof value === 'number') && hasTargetKey(value);
 }
@@ -344,7 +366,16 @@ async function guardTenantAssociationValues(
     }
     const targetTenancyMode = getCollectionTenancyMode(targetCollection);
     const tenantAwareTarget = TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
-    const hadAssociationValue = associationName in values;
+    let hadAssociationValue = associationName in values;
+    if (hadAssociationValue) {
+      const associationValue = removeEmptyAssociationPlaceholders(values[associationName]);
+      if (associationValue === undefined) {
+        delete values[associationName];
+        hadAssociationValue = false;
+      } else {
+        values[associationName] = associationValue;
+      }
+    }
     let hasAssociationValue = hadAssociationValue;
     if (
       hasAssociationValue &&

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.43] - 2026-08-24
+
+### 🐛 Fixed
+
+- **workflow**: pass trigger tenant context to execution (@TomyJan)
+- **workflow**: preserve target legacy visibility (@TomyJan)
+- **workflow**: serialize query date template values (@TomyJan)
+- **workflow**: inherit tenant from collection trigger record (@TomyJan)
+
 ## [1.6.42] - 2026-08-24
 
 ### 🐛 Fixed
@@ -3202,7 +3211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.42...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.43...HEAD
+[1.6.43]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.43
 [1.6.42]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.42
 [1.6.41]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.41
 [1.6.40]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.40

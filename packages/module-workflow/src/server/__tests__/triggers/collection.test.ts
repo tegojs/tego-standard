@@ -575,7 +575,7 @@ describe('workflow > triggers > collection', () => {
         });
 
         const [job] = await execution.getJobs();
-        expect(job.result).toMatchObject([{ tenantId: 'tenant-record', title: 'tenant-record-target' }]);
+        expect(job.result).toMatchObject({ tenantId: 'tenant-record', title: 'tenant-record-target' });
       });
     });
   });

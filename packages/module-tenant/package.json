@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-tenant",
   "displayName": "Tenant isolation",
-  "version": "1.6.45",
+  "version": "1.6.46",
   "description": "Isolates business data by tenant, with tenant membership, hierarchy, data visibility, and legacy data policies.",
   "keywords": [
     "Users & permissions"

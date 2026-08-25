@@ -9,6 +9,12 @@
 
 
 
+## [1.6.46] - 2026-08-25
+
+### 🐛 修复
+
+- **workflow**: preserve tenant-aware event outcomes (@TomyJan)
+
 ## [1.6.45] - 2026-08-24
 
 ### 🐛 修复
@@ -3226,7 +3232,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.45...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.46...HEAD
+[1.6.46]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.46
 [1.6.45]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.45
 [1.6.44]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.44
 [1.6.43]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.43

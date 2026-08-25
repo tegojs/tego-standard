@@ -45,7 +45,7 @@ export class ResourceEventTrigger extends EventSourceTrigger {
           await this.executeByPolicy(ctx, model, 'afterResource');
         }
       },
-      { tag: 'event-source-resource' },
+      { tag: 'event-source-resource', after: 'setCurrentTenant' },
     );
   }
 

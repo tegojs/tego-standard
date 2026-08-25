@@ -1,9 +1,22 @@
 import { EVENT_SOURCE_QUEUE_STATUS } from '../../constants';
 import { EventSourceQueueWorker } from '../../queue/EventSourceQueueWorker';
+import { ResourceEventTrigger } from '../../trigger/ResourceEventTrigger';
 import { formatWorkflowError } from '../../utils/workflow-error';
 import { WebhookController } from '../../webhooks/webhooks';
 
 describe('event source workflow errors', () => {
+  it('registers resource triggers after the tenant context is resolved', () => {
+    const use = vi.fn();
+    const trigger = new ResourceEventTrigger({ resourcer: { use } } as any);
+
+    trigger.afterAllLoad();
+
+    expect(use).toHaveBeenCalledWith(expect.any(Function), {
+      tag: 'event-source-resource',
+      after: 'setCurrentTenant',
+    });
+  });
+
   it('should preserve structured workflow error messages', () => {
     expect(formatWorkflowError({ message: 'SQL instruction execution failed' })).toBe(
       'SQL instruction execution failed',

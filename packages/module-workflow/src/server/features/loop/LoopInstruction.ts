@@ -73,9 +73,14 @@ export default class extends Instruction {
     }
 
     // branchJob.status < JOB_STATUS.PENDING means branchJob is rejected, any rejection should cause loop rejected
-    job.set({
-      status: branchJob.status,
-    });
+    if (branchJob.status < JOB_STATUS.PENDING) {
+      job.set({
+        status: branchJob.status,
+        result: branchJob.result,
+      });
+    } else {
+      job.set({ status: branchJob.status });
+    }
 
     return job;
   }

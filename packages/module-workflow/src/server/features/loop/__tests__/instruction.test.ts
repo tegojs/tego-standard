@@ -101,8 +101,8 @@ describe('workflow > instructions > loop', () => {
         const jobs = await execution.getJobs({ order: [['id', 'ASC']] });
         expect(jobs.length).toBe(2);
         expect(jobs[0].status).toBe(JOB_STATUS.ERROR);
-        expect(jobs[0].result).toBe(0);
         expect(jobs[1].status).toBe(JOB_STATUS.ERROR);
+        expect(jobs[0].result).toEqual(jobs[1].result);
       });
     });
   });

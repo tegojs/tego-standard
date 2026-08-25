@@ -638,7 +638,15 @@ export async function resolveTenantUpdatePlans(
   }
 
   if (plans.length === 0 && !config.allowCreateWhenMissing) {
-    throw workflowTenantRecordUnavailableError(context);
+    const unscopedRecord = await repository.findOne({
+      ...options,
+      filter: stripTenantFilter(options?.filter),
+      context: repositoryContext,
+      transaction,
+    });
+    if (unscopedRecord) {
+      throw workflowTenantRecordUnavailableError(context);
+    }
   }
   return plans;
 }

@@ -339,7 +339,7 @@ describe('workflow > instructions > tenant filter', () => {
     expect(legacyPost.published).toBe(false);
   });
 
-  it('update should fail when no writable record matches', async () => {
+  it('update should resolve with zero rows when no record matches', async () => {
     const workflow = await createWorkflowWithNode('update', {
       params: {
         filter: { id: 999999 },
@@ -349,8 +349,28 @@ describe('workflow > instructions > tenant filter', () => {
 
     const job = await triggerWorkflow(workflow);
 
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(job.result).toMatchObject({ length: 0, data: [] });
+  });
+
+  it('update should reject a matching record owned by another tenant', async () => {
+    const foreignPost = await TenantPostRepo.create({
+      values: { title: 'foreign-only-update', tenantId: 'tenant-b' },
+      hooks: false,
+    });
+    const workflow = await createWorkflowWithNode('update', {
+      params: {
+        filter: { id: foreignPost.id },
+        values: { published: true },
+      },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
     expect(job.status).toBe(JOB_STATUS.ERROR);
     expect(job.result.message).toContain('not available');
+    await foreignPost.reload();
+    expect(foreignPost.published).toBe(false);
   });
 
   it('update with filterByTk should ignore unrelated legacy records', async () => {

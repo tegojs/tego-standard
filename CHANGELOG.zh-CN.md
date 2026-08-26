@@ -9,6 +9,14 @@
 
 
 
+## [1.6.47] - 2026-08-26
+
+### 🐛 修复
+
+- **collection**: type persisted runtime options (@TomyJan)
+- **cron**: run tenant workflows per enabled tenant (@TomyJan)
+- **collection**: sync persisted options to runtime (@TomyJan)
+
 ## [1.6.46] - 2026-08-25
 
 ### 🐛 修复
@@ -3232,7 +3240,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.46...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.47...HEAD
+[1.6.47]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.47
 [1.6.46]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.46
 [1.6.45]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.45
 [1.6.44]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.44

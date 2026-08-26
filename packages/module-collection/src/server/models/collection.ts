@@ -1,4 +1,11 @@
-import { Collection, Database, MagicAttributeModel, SyncOptions, Transactionable } from '@tego/server';
+import {
+  Collection,
+  CollectionOptions,
+  Database,
+  MagicAttributeModel,
+  SyncOptions,
+  Transactionable,
+} from '@tego/server';
 
 import lodash from 'lodash';
 import { QueryInterfaceDropTableOptions } from 'sequelize';
@@ -91,9 +98,10 @@ export class CollectionModel extends MagicAttributeModel {
       return;
     }
 
-    const collectionOptions = {
+    const collectionOptions: CollectionOptions = {
       origin: '@tachybase/module-collection',
       ...lodash.omit(this.get(), ['fields']),
+      name,
       loadedFromCollectionManager: true,
     };
 

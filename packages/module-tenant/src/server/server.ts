@@ -91,21 +91,8 @@ async function assertTenantRecordAccess(
   return record;
 }
 
-function isReferenceableTenantRecord(ctx: any, record: any) {
-  const recordTenantId = getRecordValue(record, 'tenantId');
-  const currentTenantId = ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId;
-  return recordTenantId === null || `${recordTenantId}` === `${currentTenantId}`;
-}
-
 async function assertTenantReferenceAccess(ctx: any, collection: any, filterByTk: any, filterKey?: string) {
-  const record = await assertTenantRecordAccess(ctx, collection, filterByTk, 'get', filterKey);
-  if (
-    TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(collection) as any) &&
-    !isReferenceableTenantRecord(ctx, record)
-  ) {
-    ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
-  }
-  return record;
+  return assertTenantRecordAccess(ctx, collection, filterByTk, 'get', filterKey);
 }
 
 function hasTargetKey(value: any) {
@@ -495,9 +482,6 @@ async function guardTenantAssociationValues(
 
         if (hasTargetKey(targetKeyValue)) {
           const readableRecord = await findTenantRecord(ctx, targetCollection, targetKeyValue, 'get', targetKey);
-          if (readableRecord && !isReferenceableTenantRecord(ctx, readableRecord)) {
-            ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
-          }
           const targetHasChanges =
             readableRecord &&
             (await hasAssociationTargetChanges(

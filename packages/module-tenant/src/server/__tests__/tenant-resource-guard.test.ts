@@ -1206,7 +1206,7 @@ describe('tenant resource guard', () => {
     expect(displayTargets.map((target) => target.get('id'))).toEqual([targetB.get('id')]);
   });
 
-  it('should allow root creates to reference readable legacy belongs-to records', async () => {
+  it('should allow root creates to reference readable legacy and descendant belongs-to records', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
@@ -1260,19 +1260,31 @@ describe('tenant resource guard', () => {
     const allowedResponse = await agent.resource('tenant_legacy_reference_posts').create({
       values: { title: 'References legacy target', target: { id: legacyTarget.get('id') } },
     });
-    const forbiddenResponse = await agent.resource('tenant_legacy_reference_posts').create({
+    const descendantResponse = await agent.resource('tenant_legacy_reference_posts').create({
       values: { title: 'References tenant B target', target: { id: tenantBTarget.get('id') } },
     });
 
     expect(allowedResponse.status).toBe(200);
-    expect(forbiddenResponse.status).toBeGreaterThanOrEqual(400);
+    expect(descendantResponse.status).toBe(200);
 
     const foreignKey = (app.db.getCollection('tenant_legacy_reference_posts').model.associations.target as any)
       .foreignKey;
-    const created = await app.db.getRepository('tenant_legacy_reference_posts').findOne({
-      filter: { title: 'References legacy target' },
+    const created = await app.db.getRepository('tenant_legacy_reference_posts').find({
+      filter: { title: { $in: ['References legacy target', 'References tenant B target'] } },
+      sort: ['title'],
     });
-    expect(created.get(foreignKey)).toBe(legacyTarget.get('id'));
+    expect(created.map((record) => record.get(foreignKey))).toEqual([legacyTarget.get('id'), tenantBTarget.get('id')]);
+
+    const updateResponse = await agent.resource('tenant_legacy_reference_posts').update({
+      filterByTk: created[1].get('id'),
+      updateAssociationValues: ['target'],
+      values: {
+        target: { id: tenantBTarget.get('id'), title: 'Updated by parent tenant' },
+      },
+    });
+    expect(updateResponse.status).toBe(200);
+    await tenantBTarget.reload();
+    expect(tenantBTarget.get('title')).toBe('Updated by parent tenant');
   });
 
   it('should allow root creates to link readable legacy belongs-to-many records', async () => {
@@ -1329,11 +1341,14 @@ describe('tenant resource guard', () => {
     expect(response.status).toBe(200);
   });
 
-  it('should allow association actions to link readable legacy records without claiming them', async () => {
+  it('should allow association actions to link readable legacy and descendant records without claiming them', async () => {
     app = await createTenantApp();
 
     await app.db.getRepository('tenants').create({
-      values: [{ id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' }],
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B', parentId: 'tenant-a' },
+      ],
     });
 
     const user = await app.db.getRepository('users').create({
@@ -1376,20 +1391,24 @@ describe('tenant resource guard', () => {
     const target = await app.db.getRepository('tenant_legacy_action_targets').create({
       values: { title: 'Legacy target' },
     });
+    const descendantTarget = await app.db.getRepository('tenant_legacy_action_targets').create({
+      values: { title: 'Descendant target' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
 
     const response = await app
       .agent()
       .login(user)
       .resource('tenant_legacy_action_posts.targets', post.get('id'))
-      .add({ values: [target.get('id')] });
+      .add({ values: [target.get('id'), descendantTarget.get('id')] });
 
     expect(response.status).toBe(200);
     await target.reload();
     expect(target.get('tenantId')).toBeNull();
     const targets = await app.db
       .getRepository('tenant_legacy_action_posts.targets', post.get('id'))
-      .find({ filterByTk: target.get('id') });
-    expect(targets).toHaveLength(1);
+      .find({ sort: ['title'] });
+    expect(targets.map((record) => record.get('id'))).toEqual([descendantTarget.get('id'), target.get('id')]);
   });
 
   it("should enforce each target collection's legacy editing policy during root association updates", async () => {

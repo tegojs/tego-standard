@@ -348,12 +348,6 @@ async function findReferenceableRecord(
   if (!record) {
     throw workflowTenantRecordUnavailableError(context);
   }
-
-  const currentTenantId = getCurrentTenantIdFromState(context?.state);
-  const recordTenantId = getRecordValue(record, 'tenantId');
-  if (recordTenantId !== null && `${recordTenantId}` !== `${currentTenantId}`) {
-    throw workflowTenantRecordUnavailableError(context);
-  }
   return record;
 }
 

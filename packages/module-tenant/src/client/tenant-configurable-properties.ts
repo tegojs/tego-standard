@@ -19,7 +19,7 @@ export const tenantConfigurableProperties = {
     })),
     'x-decorator': 'FormItem',
     'x-component': 'Select',
-    description: '{{t("Controls data access across tenants.")}}',
+    description: '{{t("Controls which tenants can view, edit, delete, and reference records.")}}',
   },
   legacyDataTenantIds: {
     title: '{{t("Tenants with access to legacy data")}}',

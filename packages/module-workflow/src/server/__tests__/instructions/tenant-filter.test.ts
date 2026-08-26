@@ -690,7 +690,7 @@ describe('workflow > instructions > tenant filter', () => {
     expect(await sourceRepository.findOne({ filter: { name: 'invalid-document' } })).toBeNull();
   });
 
-  it('create should reject descendant-owned associated data even when it is readable in inherited mode', async () => {
+  it('create should allow readable descendant associations to be referenced and updated in inherited mode', async () => {
     const { sourceCollectionName, sourceRepository, targetCollectionName, targetRepository } =
       await createAssociationCollections();
     db.getCollection(targetCollectionName).options.tenancy = 'tenantInherited';
@@ -701,9 +701,10 @@ describe('workflow > instructions > tenant filter', () => {
     const workflow = await createWorkflowWithNode('create', {
       collection: sourceCollectionName,
       params: {
+        updateAssociationValues: ['contact'],
         values: {
-          name: 'invalid-inherited-document',
-          contact: { id: descendantContact.id },
+          name: 'inherited-document',
+          contact: { id: descendantContact.id, name: 'updated-descendant-contact' },
         },
       },
     });
@@ -717,8 +718,15 @@ describe('workflow > instructions > tenant filter', () => {
     const [execution] = await workflow.getExecutions();
     const [job] = await execution.getJobs();
 
-    expect(job.status).toBe(JOB_STATUS.ERROR);
-    expect(await sourceRepository.findOne({ filter: { name: 'invalid-inherited-document' } })).toBeNull();
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    const document = await sourceRepository.findOne({
+      filter: { name: 'inherited-document' },
+      appends: ['contact'],
+    });
+    expect(document.contact.id).toBe(descendantContact.id);
+    await descendantContact.reload();
+    expect(descendantContact.name).toBe('updated-descendant-contact');
+    expect(descendantContact.tenantId).toBe('tenant-child');
   });
 
   it('update should claim legacy associated data only when that target is actually edited', async () => {

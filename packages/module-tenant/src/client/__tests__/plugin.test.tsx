@@ -460,7 +460,7 @@ describe('PluginTenantClient', () => {
       expect(getByText('Allow editing legacy data')).toBeInTheDocument();
       expect(
         getByText(
-          "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
+          "Configure data visibility for built-in and custom tenant-aware collections here. Data visibility controls viewing, editing, deleting, and referencing records. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
         ),
       ).toBeInTheDocument();
     });
@@ -814,8 +814,8 @@ describe('PluginTenantClient', () => {
       'Visible only to current tenant': 'Visible only to current tenant',
       'Visible to current tenant and its parent tenants': 'Visible to current tenant and its parent tenants',
       'Allow editing legacy data': 'Allow editing legacy data',
-      "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.":
-        "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
+      "Configure data visibility for built-in and custom tenant-aware collections here. Data visibility controls viewing, editing, deleting, and referencing records. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.":
+        "Configure data visibility for built-in and custom tenant-aware collections here. Data visibility controls viewing, editing, deleting, and referencing records. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
       'Tenants with access to legacy data': 'Tenants with access to legacy data',
       'Selected tenants can access legacy records that have no tenant assignment.':
         'Selected tenants can access legacy records that have no tenant assignment.',
@@ -828,8 +828,8 @@ describe('PluginTenantClient', () => {
       'Visible only to current tenant': '仅当前租户可见',
       'Visible to current tenant and its parent tenants': '当前租户及其父级租户可见',
       'Allow editing legacy data': '允许编辑历史数据',
-      "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.":
-        '在这里配置内置和自定义租户数据表的租户隔离模式。开启 允许编辑历史数据 后, 历史数据将被挂到首次编辑者租户下。',
+      "Configure data visibility for built-in and custom tenant-aware collections here. Data visibility controls viewing, editing, deleting, and referencing records. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.":
+        '在这里配置内置和自定义租户数据表的数据可见性。数据可见性同时控制记录的查看、编辑、删除和关联引用。开启 允许编辑历史数据 后，历史数据将被挂到首次编辑者租户下。',
       'Tenants with access to legacy data': '可见历史数据的租户',
       'Selected tenants can access legacy records that have no tenant assignment.':
         '所选租户可访问尚未标记租户归属的历史数据',
@@ -850,7 +850,7 @@ describe('PluginTenantClient', () => {
         title: '{{t("Data visibility")}}',
         type: 'string',
         'x-component': 'Select',
-        description: '{{t("Controls data access across tenants.")}}',
+        description: '{{t("Controls which tenants can view, edit, delete, and reference records.")}}',
       });
       expect(tpl.configurableProperties.tenancy.enum).toEqual([
         { label: '{{t("Visible to all tenants")}}', value: 'shared' },

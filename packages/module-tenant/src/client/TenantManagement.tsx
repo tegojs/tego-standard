@@ -734,7 +734,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
         </Typography.Title>
         <Typography.Text type="secondary">
           {t(
-            "Configure tenant isolation for built-in and custom tenant-aware collections here. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
+            "Configure data visibility for built-in and custom tenant-aware collections here. Data visibility controls viewing, editing, deleting, and referencing records. When Allow editing legacy data is enabled, legacy data is assigned to the first editor's tenant.",
           )}
         </Typography.Text>
       </div>

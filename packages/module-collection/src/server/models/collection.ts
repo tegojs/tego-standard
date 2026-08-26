@@ -12,6 +12,10 @@ interface LoadOptions extends Transactionable {
   resetFields?: boolean;
 }
 
+const collectionOptionsMerge = {
+  arrayMerge: (_destination: any[], source: any[]) => source,
+};
+
 export class CollectionModel extends MagicAttributeModel {
   get db(): Database {
     return (<any>this.constructor).database;
@@ -54,7 +58,7 @@ export class CollectionModel extends MagicAttributeModel {
         collection.resetFields();
       }
 
-      collection.updateOptions(collectionOptions);
+      collection.updateOptions(collectionOptions, collectionOptionsMerge);
     } else {
       if (!collectionOptions.dumpRules) {
         lodash.set(collectionOptions, 'dumpRules.group', 'custom');
@@ -75,6 +79,29 @@ export class CollectionModel extends MagicAttributeModel {
       collection,
       transaction,
     });
+
+    return collection;
+  }
+
+  loadRuntimeOptions() {
+    const name = this.get('name');
+    const collection = this.db.getCollection(name);
+
+    if (!collection) {
+      return;
+    }
+
+    const collectionOptions = {
+      origin: '@tachybase/module-collection',
+      ...lodash.omit(this.get(), ['fields']),
+      loadedFromCollectionManager: true,
+    };
+
+    if (!this.db.inDialect('postgres') && collectionOptions.schema) {
+      delete collectionOptions.schema;
+    }
+
+    collection.updateOptions(collectionOptions, collectionOptionsMerge);
 
     return collection;
   }

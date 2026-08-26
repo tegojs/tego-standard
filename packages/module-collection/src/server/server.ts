@@ -66,6 +66,17 @@ export class CollectionManagerPlugin extends Plugin {
 
     this.app.db.on('collections.beforeCreate', beforeCreateForViewCollection(this.db));
 
+    this.app.db.on('collections.afterUpdate', (model: CollectionModel, { transaction }) => {
+      if (transaction) {
+        transaction.afterCommit(() => {
+          model.loadRuntimeOptions();
+        });
+        return;
+      }
+
+      model.loadRuntimeOptions();
+    });
+
     this.app.db.on(
       'collections.afterCreateWithAssociations',
       async (model: CollectionModel, { context, transaction }) => {

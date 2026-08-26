@@ -536,6 +536,80 @@ describe('collections repository', () => {
     expect(db.getCollection('tenantScopedPosts').options.tenancy).toEqual('tenantScoped');
   });
 
+  it('should refresh runtime collection options after updating persisted options', async () => {
+    await Collection.repository.create({
+      values: {
+        name: 'runtimeOptionPosts',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a', 'tenant-b'],
+        allowEditingLegacyData: false,
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    await Collection.repository.update({
+      filterByTk: 'runtimeOptionPosts',
+      values: {
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a'],
+        allowEditingLegacyData: true,
+      },
+      context: {},
+    });
+
+    expect(db.getCollection('runtimeOptionPosts').options).toMatchObject({
+      tenancy: 'tenantScoped',
+      legacyDataTenantIds: ['tenant-a'],
+      allowEditingLegacyData: true,
+    });
+  });
+
+  it('should refresh runtime collection options only after the update transaction commits', async () => {
+    await Collection.repository.create({
+      values: {
+        name: 'transactionalRuntimeOptionPosts',
+        tenancy: 'tenantInherited',
+        legacyDataTenantIds: ['tenant-a', 'tenant-b'],
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+          },
+        ],
+      },
+      context: {},
+    });
+
+    const transaction = await db.sequelize.transaction();
+    await Collection.repository.update({
+      filterByTk: 'transactionalRuntimeOptionPosts',
+      values: {
+        tenancy: 'tenantScoped',
+        legacyDataTenantIds: ['tenant-a'],
+      },
+      context: {},
+      transaction,
+    });
+
+    expect(db.getCollection('transactionalRuntimeOptionPosts').options).toMatchObject({
+      tenancy: 'tenantInherited',
+      legacyDataTenantIds: ['tenant-a', 'tenant-b'],
+    });
+
+    await transaction.commit();
+
+    expect(db.getCollection('transactionalRuntimeOptionPosts').options).toMatchObject({
+      tenancy: 'tenantScoped',
+      legacyDataTenantIds: ['tenant-a'],
+    });
+  });
+
   it('should not reload stale db2cm fields for code-defined collections', async () => {
     const name = 'db2cmCodeDefinedPosts';
 

@@ -807,28 +807,8 @@ export class PluginTenantServer extends Plugin {
       model.set('legacyDataTenantIds', []);
       model.set('allowEditingLegacyData', false);
     };
-    const normalizeSharedTenantRuntimeCollection = (model: any) => {
-      const tenancyMode = model.get('tenancy') ?? model.get('options')?.tenancy;
-      if (tenancyMode !== 'shared') {
-        return;
-      }
-
-      model.db.getCollection(model.get('name'))?.updateOptions(
-        {
-          tenancy: 'shared',
-          legacyDataTenantIds: [],
-          allowEditingLegacyData: false,
-        },
-        {
-          arrayMerge: (_destination: any[], source: any[]) => source,
-        },
-      );
-    };
     this.db.on('collections.beforeCreate', normalizeSharedTenantCollection);
     this.db.on('collections.beforeUpdate', normalizeSharedTenantCollection);
-    this.db.on('collections.afterCreateWithAssociations', normalizeSharedTenantRuntimeCollection);
-    this.db.on('collections.afterUpdate', normalizeSharedTenantRuntimeCollection);
-    this.db.on('collections.afterUpdateWithAssociations', normalizeSharedTenantRuntimeCollection);
 
     this.app.on('beforeStart', async () => {
       await this.ensureTenantConfigurableCollectionRecords();

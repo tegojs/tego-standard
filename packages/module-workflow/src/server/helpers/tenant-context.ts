@@ -942,7 +942,10 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
   const state = {
     ...context?.state,
     currentTenancyMode: tenancyMode,
-    currentLegacyDataTenantIds: collection?.options?.legacyDataTenantIds ?? context?.state?.currentLegacyDataTenantIds,
+    currentLegacyDataTenantIds:
+      context?.state?.workflowExcludeLegacyData === true
+        ? []
+        : (collection?.options?.legacyDataTenantIds ?? context?.state?.currentLegacyDataTenantIds),
   };
   const tenantParams = buildTenantParams(actionName, options, state, tenancyMode);
 

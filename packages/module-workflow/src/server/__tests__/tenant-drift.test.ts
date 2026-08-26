@@ -307,6 +307,32 @@ describe('workflow > tenant helper drift', () => {
     expect(authoritativeApply(context, collection, 'list', options)).toEqual(expected);
   });
 
+  it('excludes legacy data from non-owner scheduled workflow shards', () => {
+    const result = localApply(
+      {
+        state: {
+          currentTenantId: 'tenant-b',
+          currentTenantDescendantIds: [],
+          workflowExcludeLegacyData: true,
+        },
+      },
+      {
+        options: {
+          tenancy: 'tenantInherited',
+          legacyDataTenantIds: ['tenant-b'],
+        },
+      },
+      'list',
+      { filter: { status: 'active' } },
+    );
+
+    expect(result).toEqual({
+      filter: {
+        $and: [{ status: 'active' }, { tenantId: { $in: ['tenant-b'] } }],
+      },
+    });
+  });
+
   it('getDescendantTenantIds is exported as async function', () => {
     expect(typeof getDescendantTenantIds).toBe('function');
     // Verify it returns a promise when called

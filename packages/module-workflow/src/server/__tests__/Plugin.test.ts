@@ -583,7 +583,7 @@ describe('workflow > Plugin', () => {
       expect(processor.execution.status).toBe(executions[0].status);
     });
 
-    it('should persist legacy visible tenant ids in tenant context', async () => {
+    it('should persist legacy data visibility in tenant context', async () => {
       const w1 = await WorkflowModel.create({
         enabled: true,
         type: 'syncTrigger',
@@ -600,6 +600,7 @@ describe('workflow > Plugin', () => {
               currentTenantDescendantIds: [],
               currentTenancyMode: 'tenantScoped',
               currentLegacyDataTenantIds: ['tenant-a'],
+              workflowExcludeLegacyData: true,
             },
           },
         },
@@ -609,6 +610,7 @@ describe('workflow > Plugin', () => {
       expect(execution.tenantContext).toMatchObject({
         currentTenantId: 'tenant-a',
         currentLegacyDataTenantIds: ['tenant-a'],
+        workflowExcludeLegacyData: true,
       });
     });
 

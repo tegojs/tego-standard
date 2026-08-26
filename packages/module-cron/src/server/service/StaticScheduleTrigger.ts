@@ -1,5 +1,5 @@
 import { EXECUTION_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
-import { App, Application, Database, Db, Inject, InjectLog, Logger, Service } from '@tego/server';
+import { App, Application, Database, Db, Inject, InjectLog, Logger, parseCollectionName, Service } from '@tego/server';
 
 import parser from 'cron-parser';
 
@@ -9,6 +9,15 @@ import { parseDateWithoutMs } from '../utils';
 import { CronJobLock } from './CronJobLock';
 
 const MAX_SAFE_INTERVAL = 2147483647;
+const TENANT_ENABLED_MODES = new Set(['tenantScoped', 'tenantInherited']);
+
+function isSuccessfulProcess(process: Processor | null | void) {
+  if (process === undefined || process === null) {
+    return false;
+  }
+  const processor = process as Processor;
+  return processor.execution?.status === EXECUTION_STATUS.QUEUEING || processor.execution?.status >= 0;
+}
 
 @Service()
 export class StaticScheduleTrigger {
@@ -26,6 +35,53 @@ export class StaticScheduleTrigger {
   private readonly cronJobLock: CronJobLock;
 
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
+
+  private async getTenantContexts(workflow) {
+    const nodes = await workflow.getNodes();
+    const collectionNames = new Set<string>();
+    if (workflow.config?.collection) {
+      collectionNames.add(workflow.config.collection);
+    }
+    for (const node of nodes) {
+      if (node.config?.collection) {
+        collectionNames.add(node.config.collection);
+      }
+    }
+
+    const tenantCollections = Array.from(collectionNames)
+      .map((name) => {
+        const [dataSourceName, collectionName] = parseCollectionName(name);
+        return this.app.dataSourceManager.dataSources
+          .get(dataSourceName)
+          ?.collectionManager.getCollection(collectionName);
+      })
+      .filter((collection) => TENANT_ENABLED_MODES.has(collection?.options?.tenancy));
+    if (!tenantCollections.length) {
+      return [null];
+    }
+
+    const tenants = await this.db.getRepository('tenants').find({
+      filter: { enabled: true },
+    });
+    tenants.sort((left, right) => `${left.get('id')}`.localeCompare(`${right.get('id')}`));
+    const legacyDataTenant = tenants.find((tenant) => tenant.get('parentId') == null) ?? tenants[0];
+    const legacyDataTenantId = legacyDataTenant?.get('id');
+
+    return tenants.map((tenant) => {
+      const tenantId = tenant.get('id');
+      return {
+        state: {
+          currentTenant: tenant.toJSON(),
+          currentTenantId: tenantId,
+          currentTenantDescendantIds: [],
+          currentLegacyDataTenantIds: tenantCollections.flatMap(
+            (collection) => collection.options?.legacyDataTenantIds ?? [],
+          ),
+          workflowExcludeLegacyData: `${tenantId}` !== `${legacyDataTenantId}`,
+        },
+      };
+    });
+  }
 
   async load() {
     this.app.on('afterStart', async (app) => {
@@ -217,14 +273,34 @@ export class StaticScheduleTrigger {
       }
 
       let error = null;
-      let process: Processor | null = null;
+      const processes: Array<Processor | null | void> = [];
       try {
-        process = (await pluginWorkflow.trigger(workflow, { date: new Date(time) }, { eventKey })) as Processor;
+        const tenantContexts = await this.getTenantContexts(workflow);
+        for (const context of tenantContexts) {
+          const tenantId = context?.state?.currentTenantId;
+          const tenantEventKey = tenantId == null ? eventKey : `${eventKey}@${tenantId}`;
+          try {
+            processes.push(
+              await pluginWorkflow.trigger(
+                workflow,
+                { date: new Date(time), state: context?.state },
+                { context, eventKey: tenantEventKey },
+              ),
+            );
+          } catch (e) {
+            error = error || e;
+            this.logger.error(
+              `cronJobs [${cronJob.id}] workflow [${cronJob.workflowKey}] tenant [${tenantId}] failed: ${e.message}`,
+            );
+          }
+        }
       } catch (e) {
         error = e;
         this.logger.error(`cronJobs [${cronJob.id}] workflow [${cronJob.workflowKey}] failed: ${e.message}`);
       } finally {
-        if (!error && (process?.execution?.status === EXECUTION_STATUS.QUEUEING || process?.execution?.status >= 0)) {
+        const allProcessesSucceeded =
+          processes.length > 0 && processes.every((process) => isSuccessfulProcess(process));
+        if (!error && allProcessesSucceeded) {
           await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
           await cronJob.update({
             lastTime: new Date(time),

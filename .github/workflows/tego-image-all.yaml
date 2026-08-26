@@ -11,7 +11,7 @@ on:
         required: false
         default: ''
 
-run-name: "Tego Image All - Tag: ${{ github.event.inputs.docker_tag || 'auto-calculated-tag' }}"
+run-name: "Tego Image All - Tag: ${{ github.event.inputs.docker_tag || (github.ref_type == 'tag' && github.ref_name) || 'auto-calculated-tag' }}"
 
 jobs:
   docker:

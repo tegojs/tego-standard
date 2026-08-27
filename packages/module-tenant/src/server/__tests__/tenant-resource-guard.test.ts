@@ -748,6 +748,67 @@ describe('tenant resource guard', () => {
     expect(response.status).toBe(401);
   });
 
+  it('should treat the association read placeholder as a direct target read', async () => {
+    app = await createTenantApp();
+
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
+        { id: 'tenant-b', name: 'tenant-b', title: 'Tenant B' },
+      ],
+    });
+
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_association_read_placeholder',
+        email: 'tenant-association-read-placeholder@example.com',
+        phone: '10000000031',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_placeholder_tags',
+        tenancy: 'tenantScoped',
+        fields: [{ type: 'string', name: 'name' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_placeholder_posts',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'belongsTo', name: 'tag', target: 'tenant_placeholder_tags' },
+        ],
+      },
+      context: {},
+    });
+
+    const tagA = await app.db.getRepository('tenant_placeholder_tags').create({
+      values: { name: 'Tag A' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    const tagB = await app.db.getRepository('tenant_placeholder_tags').create({
+      values: { name: 'Tag B' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+
+    const resource = app.agent().login(user).resource('tenant_placeholder_posts.tag', '_');
+    const currentTenantResponse = await resource.get({ filterByTk: tagA.get('id') });
+    const otherTenantResponse = await resource.get({ filterByTk: tagB.get('id') });
+
+    expect(currentTenantResponse.status).toBe(200);
+    expect(currentTenantResponse.body.data.id).toBe(tagA.get('id'));
+    expect(otherTenantResponse.status).toBe(200);
+    expect(otherTenantResponse.body.data).toBeNull();
+  });
+
   it.each(['set', 'add', 'remove', 'toggle'])(
     'should reject %s association actions across tenants',
     async (actionName) => {

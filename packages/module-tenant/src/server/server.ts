@@ -592,9 +592,14 @@ async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: st
     ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
   }
 
+  const actionName = ctx.action.actionName;
+  // The core uses `_` to read the target repository directly when an association source is not specified.
+  if (ctx.action.sourceId === '_' && ['get', 'list'].includes(actionName)) {
+    return association;
+  }
+
   await assertTenantRecordAccess(ctx, sourceCollection, ctx.action.sourceId, 'get');
 
-  const actionName = ctx.action.actionName;
   if (!ASSOCIATION_TARGET_WRITE_ACTIONS.has(actionName)) {
     return association;
   }

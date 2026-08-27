@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.49] - 2026-08-27
+
+### 🐛 Fixed
+
+- **tenant**: handle direct association read placeholders (@TomyJan)
+
 ## [1.6.48] - 2026-08-26
 
 ### 🐛 Fixed
@@ -3246,7 +3252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.48...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.49...HEAD
+[1.6.49]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.49
 [1.6.48]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.48
 [1.6.47]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.47
 [1.6.46]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.46

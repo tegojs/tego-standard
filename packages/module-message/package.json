@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-message",
   "displayName": "Message",
-  "version": "1.6.48",
+  "version": "1.6.49",
   "description": "Send messages to users.",
   "keywords": [
     "System management"

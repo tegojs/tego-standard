@@ -70,6 +70,17 @@ alwaysApply: true
 - Do not commit generated `dist` files, temporary screenshots, local runner scripts, or scratch design notes unless the user explicitly asks for those artifacts.
 - 不要提交生成的 `dist`、临时截图、本地 runner 脚本或临时设计草稿，除非用户明确要求提交这些产物。
 
+## Scope and Authorization / 范围与授权
+
+- Treat read-only investigation, implementation, commit, push, and production mutation as separate levels of authorization. Do not turn a diagnosis request into a fix, and do not commit or push unless the user requests it.
+- 将只读排查、实现、提交、推送和生产环境写操作视为不同级别的授权。不要把排查请求擅自扩大为修复，也不要在用户未要求时提交或推送。
+- Preserve unrelated working-tree changes. Stage only the files that belong to the requested atomic change, and inspect the staged diff before committing.
+- 保留工作区中与任务无关的改动。只暂存属于当前原子变更的文件，并在提交前检查暂存区 diff。
+- Prefer the smallest fix at the layer that owns the broken contract. Verify framework and SDK protocols before treating generated request shapes as page-configuration errors or adding compatibility workarounds.
+- 优先在拥有故障契约的层级做最小修复。把自动生成的请求结构判断为页面配置错误或增加兼容补丁前，先核实框架与 SDK 协议。
+- Do not create standalone specifications or scratch planning documents for narrow bug fixes, metadata changes, translation-only edits, or other small changes unless the user requests them or the design has meaningful alternatives.
+- 对窄范围 Bug 修复、元数据变更、纯翻译修改等小改动，不要自行创建独立规格或临时规划文档；仅在用户要求或设计确有重要分歧时创建。
+
 ## Troubleshooting / 问题排查
 - Check console errors and logs.
 - 查看控制台错误和日志

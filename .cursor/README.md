@@ -26,6 +26,7 @@ This directory contains all Cursor AI configuration files for the Tego/Tachybase
     ├── performance.md    # Performance optimization guidelines / 性能优化指南
     ├── security.md       # Security development guidelines / 安全开发指南
     ├── packages-client.md # Client package specific rules / Client 包特定规则
+    ├── packages-tenant.md # Tenant isolation rules / 租户隔离规则
     └── quick-reference.md # Quick reference card / 快速参考卡片
 ```
 

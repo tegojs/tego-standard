@@ -56,7 +56,8 @@ This project uses a modular rule file structure organized into folders, with eac
 │   ├── error-handling.md   # Error handling / 错误处理
 │   └── best-practices.md  # Backend best practices / 后端最佳实践
 ├── packages/              # Package-specific rules / 包特定规则
-│   └── client.md          # Client package rules / Client 包规则
+│   ├── packages-client.md # Client package rules / Client 包规则
+│   └── packages-tenant.md # Tenant isolation rules / 租户隔离规则
 ├── reference/             # Reference documents / 参考文档
 │   ├── database-patterns.md  # Database patterns / 数据库模式
 │   ├── performance.md        # Performance guide / 性能指南
@@ -149,6 +150,7 @@ The following rule files will be automatically loaded and applied:
 ### Packages / 包
 
 @file packages/packages-client.md
+@file packages/packages-tenant.md
 
 ### Reference / 参考
 

@@ -94,6 +94,8 @@ open coverage/index.html
 
 - Prefer the smallest targeted command that proves the touched behavior before running the full suite.
 - 优先运行能证明当前改动的最小聚焦命令，不要一开始就跑全量测试。
+- Do not run the full test suite or full monorepo build for a narrow change. Escalate to full validation only for shared-core or cross-package changes, release validation, unexplained broader regressions, or an explicit user request.
+- 窄范围改动不要运行全量测试或整个 monorepo 构建。仅在修改共享核心或跨包契约、执行发布验证、出现无法解释的广泛回归，或用户明确要求时升级为全量验证。
 - Use direct Vitest file runs for narrow server/client changes:
 - 对窄范围服务端或客户端改动，优先直接运行对应 Vitest 文件：
 
@@ -109,6 +111,21 @@ pnpm exec vitest run packages/<package>/src/**/__tests__/<test-file>.test.ts --r
 - 构建命令后检查 `git status --short`，不要把非预期生成产物带进提交。
 - When changing package dependencies or catalog entries, use `pnpm` and commit the updated lockfile together with the package change.
 - 修改 package 依赖或 catalog 条目时，使用 `pnpm`，并把 lockfile 与 package 变更一起提交。
+- Scale tests with behavioral risk. Metadata and translation-only changes normally need schema, syntax, formatting, and rendering checks rather than new unit tests; runtime behavior changes require focused regression coverage.
+- 测试投入应与行为风险匹配。元数据和纯翻译修改通常只需检查结构、语法、格式和渲染，无需新增单元测试；运行时行为变更必须补充聚焦的回归测试。
+
+## Real-Path Verification / 真实路径验证
+
+- For UI or API bugs that depend on schemas, authentication, roles, tenant selection, or persisted business data, reproduce the reported user path against the local development server when the required environment is available.
+- 对依赖页面 Schema、登录状态、角色、租户选择或真实业务数据的 UI/API Bug，在环境可用时应通过本地开发服务器复现用户报告的真实路径。
+- Explicitly verify the active user, role, and tenant before drawing conclusions. Capture the failing request and relevant server log or stack, then trace the value to the owning layer.
+- 下结论前必须确认当前用户、角色和租户。记录失败请求及相关服务端日志或堆栈，再沿数据流定位到真正负责的层级。
+- After the fix, repeat the original workflow end to end and verify persisted data and downstream status, not only the HTTP status. Add the smallest automated regression test that preserves the underlying contract.
+- 修复后应端到端重跑原始流程，并核对持久化数据与后续状态，不能只看 HTTP 状态码。同时增加能固定底层契约的最小自动化回归测试。
+- Production investigation is read-only unless the user explicitly authorizes a write. Prefer reproducing writes locally with restored data.
+- 除非用户明确授权写操作，生产环境排查必须保持只读。涉及写入的复现优先在已还原数据的本地环境完成。
+- If an environment failure prevents a required check, report the exact blocked command and error. Do not claim that check passed and do not modify dependencies merely to work around the local runner.
+- 如果环境故障阻止必要验证，应报告被阻塞的具体命令和错误；不得声称该检查已通过，也不要仅为绕过本地运行器问题而修改依赖。
 
 ## Common Test Patterns / 常见测试模式
 

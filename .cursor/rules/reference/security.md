@@ -48,6 +48,11 @@ This document provides comprehensive security guidelines for the Tego project.
    - Resolve privileged context from authenticated server-side state, memberships, ACL, and explicit allowlists / 必须通过服务端认证态、成员关系、ACL 和明确白名单解析特权上下文
    - Log or emit security events when forged privileged context is rejected or stripped / 拒绝或清理伪造特权上下文时，应记录日志或发出安全事件
 
+6. **Authentication Is Not Authorization / 认证不等于授权**
+   - API keys authenticate as their bound user and role; they must pass the same ACL checks as an interactive session and must not bypass resource or tenant boundaries / API Key 以其绑定用户和角色完成认证；后续必须执行与交互式登录相同的 ACL 校验，不得绕过资源或租户边界
+   - Custom event sources, webhooks, and callback endpoints must define and enforce an explicit resource/action permission. Do not use blanket `loggedIn` access unless the endpoint is intentionally public to every authenticated role / 自定义事件源、Webhook 和回调接口必须定义并执行明确的资源/操作权限。除非产品明确要求所有已登录角色均可访问，否则不得使用笼统的 `loggedIn` 放行
+   - ACL permission and tenant visibility are cumulative boundaries: satisfying one never grants or bypasses the other / ACL 权限与租户数据可见性是叠加边界；满足其中一项不能获得或绕过另一项
+
 ## Data Protection / 数据保护
 
 ### Sensitive Data / 敏感数据

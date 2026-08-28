@@ -9,6 +9,16 @@
 
 
 
+## [1.6.50] - 2026-08-28
+
+### 🐛 修复
+
+- **charts**: align summaries with tenant visibility (@TomyJan)
+
+### 📝 文档
+
+- **agent**: refine engineering guidance (@TomyJan)
+
 ## [1.6.49] - 2026-08-27
 
 ### 🐛 修复
@@ -3252,7 +3262,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.49...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.50...HEAD
+[1.6.50]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.50
 [1.6.49]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.49
 [1.6.48]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.48
 [1.6.47]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.47

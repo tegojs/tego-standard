@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.50] - 2026-08-28
+
+### 🐛 Fixed
+
+- **charts**: align summaries with tenant visibility (@TomyJan)
+
+### 📝 Documentation
+
+- **agent**: refine engineering guidance (@TomyJan)
+
 ## [1.6.49] - 2026-08-27
 
 ### 🐛 Fixed
@@ -3252,7 +3262,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.49...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.50...HEAD
+[1.6.50]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.50
 [1.6.49]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.49
 [1.6.48]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.48
 [1.6.47]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.47

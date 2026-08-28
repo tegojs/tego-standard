@@ -169,11 +169,15 @@ function normalizeTenantIds(ids?: Array<string | number>) {
 }
 
 function getLegacyDataTenantIds(ctx: Context, collection: any, useContextFallback = true) {
+  if (Array.isArray(collection?.options?.legacyDataTenantIds)) {
+    return collection.options.legacyDataTenantIds;
+  }
+
   if (useContextFallback && Array.isArray(ctx.state.currentLegacyDataTenantIds)) {
     return ctx.state.currentLegacyDataTenantIds;
   }
 
-  return collection?.options?.legacyDataTenantIds || [];
+  return [];
 }
 
 function getCollectionTenancyMode(ctx: Context, collection: any, useContextFallback = true) {

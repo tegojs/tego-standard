@@ -3,7 +3,7 @@ import { Database } from '@tego/server';
 
 import compose from 'koa-compose';
 
-import { parseBuilder, parseFieldAndAssociations, queryData } from '../actions/query';
+import { applyTenantScope, parseBuilder, parseFieldAndAssociations, queryData } from '../actions/query';
 
 describe('api', () => {
   let app: MockServer;
@@ -37,12 +37,33 @@ describe('api', () => {
         },
       ],
     });
+    db.collection({
+      name: 'tenant_chart_test',
+      tenancy: 'tenantScoped',
+      legacyDataTenantIds: ['tenant-a'],
+      fields: [
+        {
+          type: 'double',
+          name: 'amount',
+        },
+        {
+          type: 'string',
+          name: 'tenantId',
+        },
+      ],
+    });
     await db.sync();
     const repo = db.getRepository('chart_test');
     await repo.create({
       values: [
         { price: 1, count: 1, title: 'title1', createdAt: '2023-02-02' },
         { price: 2, count: 2, title: 'title2', createdAt: '2023-01-01' },
+      ],
+    });
+    await db.getRepository('tenant_chart_test').create({
+      values: [
+        { amount: 10, tenantId: null },
+        { amount: 90, tenantId: 'tenant-b' },
       ],
     });
   });
@@ -119,5 +140,39 @@ describe('api', () => {
     await compose([parseFieldAndAssociations, parseBuilder, queryData])(ctx, async () => {});
     expect(ctx.action.params.values.data).toBeDefined();
     expect(ctx.action.params.values.data).toMatchObject([{ createdAt: '2023-01' }, { createdAt: '2023-02' }]);
+  });
+
+  test('aggregate query uses the target collection legacy visibility instead of stale request context', async () => {
+    const ctx = {
+      app,
+      db,
+      tego: app,
+      state: {
+        currentTenantId: 'tenant-a',
+        currentLegacyDataTenantIds: [],
+      },
+      get: () => undefined,
+      action: {
+        params: {
+          values: {
+            collection: 'tenant_chart_test',
+            measures: [
+              {
+                field: ['amount'],
+                aggregation: 'sum',
+                alias: 'Amount',
+              },
+            ],
+            dimensions: [],
+            orders: [],
+            filter: {},
+          },
+        },
+      },
+    } as any;
+
+    await compose([applyTenantScope, parseFieldAndAssociations, parseBuilder, queryData])(ctx, async () => {});
+
+    expect(ctx.action.params.values.data).toMatchObject([{ Amount: 10 }]);
   });
 });

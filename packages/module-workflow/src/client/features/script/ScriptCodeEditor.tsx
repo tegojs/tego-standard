@@ -163,6 +163,8 @@ export const ScriptCodeEditor = connect(({ value: code, onChange: setCode, ...ot
   if (useFallback || editorError) {
     const height = others.height || '50vh';
     const heightValue = typeof height === 'string' ? height : `${height}px`;
+    // 只透传编辑器关心的 props，过滤掉 formily 注入的内部属性
+    const { height: _height, ...textareaProps } = others;
 
     return (
       <div
@@ -199,7 +201,7 @@ export const ScriptCodeEditor = connect(({ value: code, onChange: setCode, ...ot
             lineHeight: '1.5',
             resize: 'none',
           }}
-          {...others}
+          {...textareaProps}
         />
       </div>
     );
@@ -239,14 +241,18 @@ export const ScriptCodeEditor = connect(({ value: code, onChange: setCode, ...ot
     };
   }, []);
 
+  // 只透传编辑器关心的 props，过滤掉 formily 注入的内部属性（如 name/disabled/hidden 等），
+  // 避免与 Monaco Editor 及 FormItem 冲突导致改文字时崩溃
+  const { defaultLanguage, height, ...editorProps } = others;
+
   // 使用 Monaco Editor
   return (
     <CodeEditor
-      defaultLanguage="typescript"
-      value={code}
+      defaultLanguage={defaultLanguage || 'typescript'}
+      value={code || ''}
       onChange={handleChange}
       options={editorOptions}
-      height={others.height || '50vh'}
+      height={height || '50vh'}
       onMount={handleEditorMount}
       loading={
         <div
@@ -254,14 +260,14 @@ export const ScriptCodeEditor = connect(({ value: code, onChange: setCode, ...ot
             display: flex;
             align-items: center;
             justify-content: center;
-            height: ${typeof others.height === 'string' ? others.height : others.height || '50vh'};
+            height: ${typeof height === 'string' ? height : height || '50vh'};
             color: #999;
           `}
         >
           {tval('Loading editor...')}
         </div>
       }
-      {...others}
+      {...editorProps}
     />
   );
 });

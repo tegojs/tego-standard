@@ -9,6 +9,15 @@
 
 
 
+## [1.6.51] - 2026-09-07
+
+### 🐛 修复
+
+- **workflow-approval**: avoid resaving restored tenant ownership (@TomyJan)
+- **workflow**: persist tenant context when creating executions (@TomyJan)
+- **workflow-approval**: restore tenant context for legacy executions (@TomyJan)
+- **workflow**: preserve tenant context when triggering subworkflows (@TomyJan)
+
 ## [1.6.50] - 2026-08-28
 
 ### 🐛 修复
@@ -3262,7 +3271,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.50...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.51...HEAD
+[1.6.51]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.51
 [1.6.50]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.50
 [1.6.49]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.49
 [1.6.48]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.48

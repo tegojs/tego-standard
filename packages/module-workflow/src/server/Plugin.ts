@@ -1,6 +1,7 @@
 import path from 'node:path';
 import {
   Application,
+  CreateOptions,
   InjectedPlugin,
   Logger,
   LoggerOptions,
@@ -471,6 +472,22 @@ export default class PluginWorkflowServer extends Plugin {
       const tenantContext = extractTenantContext(context, options);
       const authContext = extractAuthContext(context, options);
       const executionOrigin = getWorkflowExecutionOrigin(options);
+      const executionOptions: CreateOptions = {
+        transaction,
+        // Context fields may replace explicit values during beforeCreate.
+        context: {
+          ...options.httpContext,
+          ...options.context,
+          state: {
+            ...options.httpContext?.state,
+            ...options.context?.state,
+            ...tenantContext,
+            currentTenant: tenantContext
+              ? { ...tenantContext.currentTenant, id: tenantContext.currentTenantId }
+              : undefined,
+          },
+        },
+      };
       execution = await workflow.createExecution(
         {
           context,
@@ -483,7 +500,7 @@ export default class PluginWorkflowServer extends Plugin {
           parentNode: options.parentNode || null,
           parentId: options.parent ? options.parent.id : null,
         },
-        { transaction },
+        executionOptions,
       );
     } catch (err) {
       if (!sameTransaction) {

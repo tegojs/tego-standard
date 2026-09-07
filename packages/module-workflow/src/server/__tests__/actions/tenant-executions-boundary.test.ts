@@ -98,6 +98,51 @@ describe('workflow > actions > tenant executions boundary', () => {
     expect(executionsCollection.tenancy).toBe('tenantScoped');
   });
 
+  describe('context-backed execution tenant field', () => {
+    beforeEach(() => {
+      db.getCollection('executions').setField('tenantId', {
+        type: 'context',
+        dataIndex: 'state.currentTenant.id',
+        createOnly: true,
+      });
+    });
+
+    afterEach(async () => {
+      await waitForWorkflowIdle(app);
+      db.getCollection('executions').setField('tenantId', { type: 'string' });
+    });
+
+    it.each([
+      { sync: false, idOnly: false },
+      { sync: false, idOnly: true },
+      { sync: true, idOnly: false },
+      { sync: true, idOnly: true },
+    ])('test action returns its persisted execution: sync=$sync, idOnly=$idOnly', async ({ sync, idOnly }) => {
+      const workflow = await WorkflowModel.create({ enabled: true, type: 'asyncTrigger', sync });
+      await workflow.createNode({ type: 'echo' });
+      const ctx = createContext(
+        'workflows',
+        'test',
+        { filterByTk: workflow.id, values: { data: { tenantId: 'untrusted-tenant', marker: 'test-action' } } },
+        'tenant-a',
+      );
+      if (idOnly) {
+        delete ctx.state.currentTenant;
+      }
+
+      await workflowActions.test(ctx, async () => {});
+      await waitForWorkflowIdle(app);
+
+      const [execution] = await workflow.getExecutions();
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(execution.tenantId).toBe('tenant-a');
+      expect(execution.tenantContext.currentTenantId).toBe('tenant-a');
+      expect(ctx.body.id).toBe(execution.id);
+      expect(ctx.body.tenantId).toBe('tenant-a');
+      expect(execution.context.data.marker).toBe('test-action');
+    });
+  });
+
   it('workflows.retry should use the latest execution from the current tenant only', async () => {
     const workflow = await createWorkflow();
     await workflow.createExecution({

@@ -70,8 +70,13 @@ export class TriggerInstruction extends Instruction {
         triggerData = data;
       }
 
+      const triggerOptions = {
+        ...processor.options,
+        context: processor.getRepositoryContext(),
+      };
+
       if (wf.sync) {
-        const p = await this.workflow.trigger(wf, triggerData, processor.options);
+        const p = await this.workflow.trigger(wf, triggerData, triggerOptions);
         if (!p) {
           return {
             status: JOB_STATUS.FAILED,
@@ -110,7 +115,7 @@ export class TriggerInstruction extends Instruction {
           upstreamId: input?.id ?? null,
         });
         this.workflow.trigger(wf, triggerData, {
-          ...processor.options,
+          ...triggerOptions,
           parentNode: node.id,
           parent: processor.execution,
         });

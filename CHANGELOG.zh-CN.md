@@ -9,6 +9,12 @@
 
 
 
+## [1.6.52] - 2026-09-07
+
+### 🐛 修复
+
+- **workflow**: stabilize variable option hooks (@TomyJan)
+
 ## [1.6.51] - 2026-09-07
 
 ### 🐛 修复
@@ -3271,7 +3277,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.51...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.52...HEAD
+[1.6.52]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.52
 [1.6.51]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.51
 [1.6.50]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.50
 [1.6.49]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.49

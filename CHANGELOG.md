@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.52] - 2026-09-07
+
+### 🐛 Fixed
+
+- **workflow**: stabilize variable option hooks (@TomyJan)
+
 ## [1.6.51] - 2026-09-07
 
 ### 🐛 Fixed
@@ -3271,7 +3277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.51...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.52...HEAD
+[1.6.52]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.52
 [1.6.51]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.51
 [1.6.50]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.50
 [1.6.49]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.49

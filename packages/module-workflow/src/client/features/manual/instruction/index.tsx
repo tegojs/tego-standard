@@ -1,4 +1,4 @@
-import { SchemaInitializerItemType, useCollectionManager_deprecated, useCompile } from '@tachybase/client';
+import { SchemaInitializerItemType, useCollectionManager_deprecated } from '@tachybase/client';
 
 import { CollectionBlockInitializer, defaultFieldNames, getCollectionFieldOptions } from '../../..';
 import { NAMESPACE } from '../../../locale';
@@ -73,17 +73,15 @@ export default class extends Instruction {
     ModeConfig,
     AssigneesSelect,
   };
-  useVariables({ key, title, config }, { types, fieldNames = defaultFieldNames }) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+  useVariables({ key, title, config }, options) {
+    const { types, fieldNames = defaultFieldNames } = options;
+    const { compile, getCollectionFields } = options.runtime;
     const formKeys = Object.keys(config.forms ?? {});
     if (!formKeys.length) {
       return null;
     }
 
-    const options = formKeys
+    const variableOptions = formKeys
       .map((formKey) => {
         const form = config.forms[formKey];
 
@@ -107,11 +105,11 @@ export default class extends Instruction {
       })
       .filter(Boolean);
 
-    return options.length
+    return variableOptions.length
       ? {
           [fieldNames.value]: key,
           [fieldNames.label]: title,
-          [fieldNames.children]: options,
+          [fieldNames.children]: variableOptions,
         }
       : null;
   }

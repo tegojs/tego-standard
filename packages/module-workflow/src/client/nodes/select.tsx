@@ -135,10 +135,7 @@ export default class extends Instruction {
     WorkflowVariableInput,
   };
   useVariables({ key: name, title, config }, options) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+    const { compile, getCollectionFields } = options.runtime;
     // const depth = config?.params?.appends?.length
     //   ? config?.params?.appends.reduce((max, item) => Math.max(max, item.split('.').length), 1)
     //   : 0;

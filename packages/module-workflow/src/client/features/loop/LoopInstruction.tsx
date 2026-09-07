@@ -1,5 +1,5 @@
 import React from 'react';
-import { css, cx, useCompile } from '@tachybase/client';
+import { css, cx } from '@tachybase/client';
 
 import { ArrowUpOutlined } from '@ant-design/icons';
 
@@ -117,13 +117,9 @@ export default class extends Instruction {
     );
   }
   useScopeVariables(node, options) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { compile } = options.runtime;
     const langLoopTarget = lang('Loop target');
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     const langLoopIndex = lang('Loop index');
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     const langLoopLength = lang('Loop length');
     const { target } = node.config;
     if (!target) {

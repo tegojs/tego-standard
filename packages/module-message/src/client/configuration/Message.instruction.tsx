@@ -1,4 +1,3 @@
-import { useCompile } from '@tachybase/client';
 import {
   AdditionNotifiedPerson,
   BuiltinGroupType,
@@ -8,7 +7,6 @@ import {
   VariableOption,
   WorkflowVariableCodeMirror,
 } from '@tachybase/module-workflow/client';
-
 import { ArrayItems } from '@tego/client';
 
 import { WORKFLOW_INSTRUCTION_NAME_MESSAGE } from '../../common/constants';
@@ -114,7 +112,7 @@ export class MessageInstruction extends Instruction {
   };
 
   useCurrentFormVariables(node, options): VariableOption[] {
-    const compile = useCompile();
+    const { compile } = options.runtime;
     const { key } = node;
     const { fieldNames } = options;
     const sourceVarList = Object.entries(this.fieldset);

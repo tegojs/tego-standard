@@ -1,4 +1,4 @@
-import { useCollectionDataSource, useCollectionManager_deprecated, useCompile } from '@tachybase/client';
+import { useCollectionDataSource } from '@tachybase/client';
 
 import { CheckboxGroupWithTooltip, CollectionBlockInitializer, FieldsSelect, RadioWithTooltip } from '../../components';
 import { lang, tval } from '../../locale';
@@ -12,9 +12,8 @@ enum ACTION_TYPES {
   DESTROY = 'destroy',
 }
 
-function useItems(item, options) {
-  const compile = useCompile();
-  const { getCollectionFields } = useCollectionManager_deprecated();
+function getItems(item, options) {
+  const { compile, getCollectionFields } = options.runtime;
   return [
     { label: lang('ID'), value: 'filterByTk' },
     ...(item.action !== ACTION_TYPES.DESTROY
@@ -101,10 +100,7 @@ export class WorkflowTriggerInterceptor extends Trigger {
   };
 
   useVariables(config, options) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+    const { compile, getCollectionFields } = options.runtime;
     const result = getCollectionFieldOptions({
       appends: ['user'],
       ...options,
@@ -120,8 +116,7 @@ export class WorkflowTriggerInterceptor extends Trigger {
       compile,
       getCollectionFields,
     });
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const parametersSchema = [{ label: lang('Parameters'), value: 'params', children: useItems(config, options) }];
+    const parametersSchema = [{ label: lang('Parameters'), value: 'params', children: getItems(config, options) }];
     return [...result, { label: lang('Role of user acted'), value: 'roleName' }, ...parametersSchema];
   }
   useInitializers(item) {

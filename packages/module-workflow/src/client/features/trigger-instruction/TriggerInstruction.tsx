@@ -1,4 +1,4 @@
-import { css, useCollectionManager_deprecated, useCompile } from '@tachybase/client';
+import { css } from '@tachybase/client';
 import { useForm } from '@tachybase/schema';
 import { ArrayTable } from '@tego/client';
 
@@ -273,10 +273,7 @@ export class TriggerInstruction extends Instruction {
     }
 
     // 否则，使用原有的集合字段逻辑
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+    const { compile, getCollectionFields } = options.runtime;
     const [result] = getCollectionFieldOptions({
       appends: [key, ...(config.appends?.map((item) => `${key}.${item}`) || [])],
       ...options,

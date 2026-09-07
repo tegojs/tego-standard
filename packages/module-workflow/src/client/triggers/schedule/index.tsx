@@ -1,9 +1,4 @@
-import {
-  SchemaInitializerItemType,
-  useCollectionDataSource,
-  useCollectionManager_deprecated,
-  useCompile,
-} from '@tachybase/client';
+import { SchemaInitializerItemType, useCollectionDataSource } from '@tachybase/client';
 
 import { Trigger } from '..';
 import { CollectionBlockInitializer } from '../../components/CollectionBlockInitializer';
@@ -30,10 +25,7 @@ export default class extends Trigger {
     ScheduleConfig,
   };
   useVariables(config, opts) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+    const { compile, getCollectionFields } = opts.runtime;
     const options: any[] = [];
     if (!opts?.types || opts.types.includes('date')) {
       options.push({ key: 'date', value: 'date', label: lang('Trigger time') });

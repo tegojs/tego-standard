@@ -1,4 +1,4 @@
-import { useCollectionDataSource, useCollectionManager_deprecated, useCompile } from '@tachybase/client';
+import { useCollectionDataSource } from '@tachybase/client';
 import { useForm } from '@tachybase/schema';
 
 import { CollectionBlockInitializer } from '../../components';
@@ -62,10 +62,7 @@ export class OmniActionTrigger extends Trigger {
     return isAvailable;
   };
   useVariables(config: Record<string, any>, options?: UseVariableOptions) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+    const { compile, getCollectionFields } = options.runtime;
     const fieldOptions = getCollectionFieldOptions({
       appends: ['user'],
       ...options,

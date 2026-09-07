@@ -196,10 +196,7 @@ export default class extends Trigger {
     FieldsSelect,
   };
   useVariables(config, options) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+    const { compile, getCollectionFields } = options.runtime;
     const rootFields = [
       {
         collectionName: config.collection,

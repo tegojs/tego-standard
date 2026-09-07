@@ -1,9 +1,4 @@
-import {
-  SchemaInitializerItemType,
-  useCollectionDataSource,
-  useCollectionManager_deprecated,
-  useCompile,
-} from '@tachybase/client';
+import { SchemaInitializerItemType, useCollectionDataSource } from '@tachybase/client';
 
 import { CollectionBlockInitializer } from '../components/CollectionBlockInitializer';
 import CollectionFieldset from '../components/CollectionFieldset';
@@ -61,10 +56,7 @@ export default class extends Instruction {
     CollectionFieldset,
   };
   useVariables({ key: name, title, config }, options) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
+    const { compile, getCollectionFields } = options.runtime;
     // const depth = config?.params?.appends?.length
     //   ? config?.params?.appends.reduce((max, item) => Math.max(max, item.split('.').length), 1)
     //   : 0;

@@ -1,4 +1,4 @@
-import { SchemaInitializerItemType, useCollectionManager_deprecated, useCompile } from '@tachybase/client';
+import { SchemaInitializerItemType } from '@tachybase/client';
 import {
   CollectionBlockInitializer,
   getCollectionFieldOptions,
@@ -10,7 +10,7 @@ import {
 import { useForm } from '@tachybase/schema';
 
 import { ConfigButton } from '../../common/components/ConfigButton';
-import { NAMESPACE, tval, useTranslation } from '../../locale';
+import { NAMESPACE, tval } from '../../locale';
 import { ViewApplyFormWrapper } from './components/ApplyFormWrapper.view';
 
 // 工作流节点-审批触发器节点
@@ -150,12 +150,7 @@ export class ApprovalTrigger extends Trigger {
   };
 
   useVariables(config: { collection: any; appends: any[]; summary: any[] }, options: UseVariableOptions) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const compile = useCompile();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { getCollectionFields } = useCollectionManager_deprecated();
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { t } = useTranslation();
+    const { compile, getCollectionFields, t } = options.runtime;
     const rootFields = [
       {
         collectionName: config.collection,

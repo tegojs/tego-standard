@@ -1,5 +1,13 @@
 import React from 'react';
-import { parseCollectionName, useCompile, useGlobalVariable, usePlugin, Variable } from '@tachybase/client';
+import {
+  parseCollectionName,
+  useCollectionManager_deprecated,
+  useCompile,
+  useGlobalVariable,
+  usePlugin,
+  useTranslation,
+  Variable,
+} from '@tachybase/client';
 
 import WorkflowPlugin from '.';
 import { useFlowContext } from './FlowContext';
@@ -40,6 +48,17 @@ export type UseVariableOptions = {
   };
   appends?: string[] | null;
   depth?: number;
+  runtime?: VariableRuntime;
+};
+
+export type VariableRuntime = {
+  compile: ReturnType<typeof useCompile>;
+  getCollectionFields: ReturnType<typeof useCollectionManager_deprecated>['getCollectionFields'];
+  instructions: WorkflowPlugin['instructions'];
+  triggers: WorkflowPlugin['triggers'];
+  workflow: any;
+  currentNode: any;
+  t: ReturnType<typeof useTranslation>['t'];
 };
 
 export const defaultFieldNames = {
@@ -52,9 +71,8 @@ export const currentFormOptions = {
   label: `{{t("Current form variables", { ns: "${NAMESPACE}" })}}`,
   value: '$currentForm',
   useOptions(options: UseVariableOptions) {
-    const currentNode = useContextNode();
-    const pluginWorkflow = usePlugin(WorkflowPlugin);
-    const instruction = pluginWorkflow.instructions.get(currentNode.type);
+    const { currentNode, instructions } = options.runtime;
+    const instruction = instructions.get(currentNode.type);
     const resultList = instruction.useCurrentFormVariables?.(currentNode, options) || [];
     return resultList;
   },
@@ -64,10 +82,8 @@ export const nodesOptions = {
   label: `{{t("Node result", { ns: "${NAMESPACE}" })}}`,
   value: '$jobsMapByNodeKey',
   useOptions(options: UseVariableOptions) {
-    const compile = useCompile();
-    const { instructions } = usePlugin(WorkflowPlugin);
-    const current = useContextNode();
-    const upstreams = useAvailableUpstreams(current);
+    const { compile, currentNode, instructions } = options.runtime;
+    const upstreams = useAvailableUpstreams(currentNode);
     const result: VariableOption[] = [];
     upstreams.forEach((node) => {
       const instruction = instructions.get(node.type);
@@ -86,8 +102,7 @@ export const triggerOptions = {
   label: `{{t("Trigger variables", { ns: "${NAMESPACE}" })}}`,
   value: '$context',
   useOptions(options: UseVariableOptions) {
-    const { triggers } = usePlugin(WorkflowPlugin);
-    const { workflow } = useFlowContext();
+    const { triggers, workflow } = options.runtime;
     const trigger = triggers.get(workflow.type);
     return trigger?.useVariables?.(workflow.config, options) ?? null;
   },
@@ -98,8 +113,7 @@ export const scopeOptions = {
   value: '$scopes',
   useOptions(options: UseVariableOptions & { current: any }) {
     const { fieldNames = defaultFieldNames, current } = options;
-    const { instructions } = usePlugin(WorkflowPlugin);
-    const source = useContextNode();
+    const { currentNode: source, instructions } = options.runtime;
     const from = current ?? source;
     const scopes = useUpstreamScopes(from);
     const result: VariableOption[] = [];
@@ -241,7 +255,7 @@ function filterTypedFields({ fields, types, appends, depth = 1, compile, getColl
 }
 
 function useOptions(scope, opts) {
-  const compile = useCompile();
+  const { compile } = opts.runtime;
   const children = scope.useOptions?.(opts)?.filter(Boolean);
   const { fieldNames } = opts;
   return {
@@ -254,8 +268,9 @@ function useOptions(scope, opts) {
 }
 
 export function useWorkflowVariableOptions(options: UseVariableOptions = {}) {
+  const runtime = useVariableRuntime();
   const fieldNames = Object.assign({}, defaultFieldNames, options.fieldNames ?? {});
-  const opts = Object.assign(options, { fieldNames });
+  const opts = { ...options, fieldNames, runtime };
   const result = [
     useOptions(scopeOptions, opts),
     useOptions(nodesOptions, opts),
@@ -269,10 +284,22 @@ export function useWorkflowVariableOptions(options: UseVariableOptions = {}) {
 }
 
 export function useWorkflowVariableFormOptions(options: UseVariableOptions = {}) {
+  const runtime = useVariableRuntime();
   const fieldNames = Object.assign({}, defaultFieldNames, options.fieldNames ?? {});
-  const opts = Object.assign(options, { fieldNames });
+  const opts = { ...options, fieldNames, runtime };
   const result = [useOptions(currentFormOptions, opts)];
   return result;
+}
+
+function useVariableRuntime(): VariableRuntime {
+  const compile = useCompile();
+  const { getCollectionFields } = useCollectionManager_deprecated();
+  const { instructions, triggers } = usePlugin(WorkflowPlugin);
+  const { workflow } = useFlowContext();
+  const currentNode = useContextNode();
+  const { t } = useTranslation();
+
+  return { compile, getCollectionFields, instructions, triggers, workflow, currentNode, t };
 }
 
 function getNormalizedFields(collectionName, { compile, getCollectionFields }) {

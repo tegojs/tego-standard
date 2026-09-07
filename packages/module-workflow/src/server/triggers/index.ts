@@ -1,6 +1,7 @@
 import { Transactionable } from '@tego/server';
 
 import type Plugin from '../Plugin';
+import type Processor from '../Processor';
 import type { WorkflowModel } from '../types';
 
 export abstract class Trigger {
@@ -11,6 +12,7 @@ export abstract class Trigger {
     return true;
   }
   duplicateConfig?(workflow: WorkflowModel, options: Transactionable): object | Promise<object>;
+  prepareExecution?(processor: Processor): Promise<void>;
   sync?: boolean;
 }
 

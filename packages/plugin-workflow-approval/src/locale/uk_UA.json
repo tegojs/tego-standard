@@ -2,5 +2,6 @@
   "Approval workflow identifier is required": "Потрібен ідентифікатор процесу погодження",
   "Submission succeeded, but post-processing failed": "Надіслано, але постобробка не вдалася",
   "Submit failed": "Не вдалося надіслати",
-  "Submit succeeded": "Надіслано успішно"
+  "Submit succeeded": "Надіслано успішно",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "Не вдалося визначити орендаря цього старого погодження. Попросіть адміністратора перевірити пов’язаний запис і його орендаря, а потім повторіть спробу."
 }

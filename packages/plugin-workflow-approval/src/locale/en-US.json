@@ -272,6 +272,7 @@
   "The Notified Person": "The Notified Person",
   "The interface of show notice detail": "The interface of show notice detail",
   "The result of this node has been referenced by other nodes ({{nodes}}), please remove the usage before deleting.": "The result of this node has been referenced by other nodes ({{nodes}}), please remove the usage before deleting.",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.",
   "This node contains branches, deleting will also be preformed to them, are you sure?": "This node contains branches, deleting will also be preformed to them, are you sure?",
   "Timeout config": "Timeout config",
   "Todos": "Todos",

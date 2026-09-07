@@ -2,5 +2,6 @@
   "Approval workflow identifier is required": "承認ワークフローの識別子が必要です",
   "Submission succeeded, but post-processing failed": "送信は成功しましたが、後処理に失敗しました",
   "Submit failed": "送信に失敗しました",
-  "Submit succeeded": "送信に成功しました"
+  "Submit succeeded": "送信に成功しました",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "この過去の承認のテナントを特定できません。管理者に関連レコードとそのテナントを確認してもらってから、再試行してください。"
 }

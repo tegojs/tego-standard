@@ -37,6 +37,7 @@ export default class Processor {
   jobsMap = new Map<number, JobModel>();
   jobsMapByNodeKey: { [key: string]: any } = {};
   lastSavedJob: JobModel | null = null;
+  private executionPrepared = false;
 
   constructor(
     public execution: ExecutionModel,
@@ -120,6 +121,10 @@ export default class Processor {
     const start = Date.now();
     let job;
     try {
+      if (!this.executionPrepared) {
+        await this.options.plugin.triggers.get(this.execution.workflow.type)?.prepareExecution?.(this);
+        this.executionPrepared = true;
+      }
       // call instruction to get result and status
       this.logger.info(`execution (${this.execution.id}) run instruction [${node.type}] for node (${node.id})`);
       this.logger.debug(`config of node`, { data: node.config });

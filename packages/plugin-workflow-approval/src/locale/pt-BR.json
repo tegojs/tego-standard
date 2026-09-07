@@ -2,5 +2,6 @@
   "Approval workflow identifier is required": "O identificador do fluxo de trabalho de aprovação é obrigatório",
   "Submission succeeded, but post-processing failed": "O envio foi concluído, mas o pós-processamento falhou",
   "Submit failed": "Falha ao enviar",
-  "Submit succeeded": "Enviado com sucesso"
+  "Submit succeeded": "Enviado com sucesso",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "Não foi possível determinar o locatário desta aprovação antiga. Peça a um administrador para verificar o registro vinculado e seu locatário antes de tentar novamente."
 }

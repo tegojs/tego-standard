@@ -2,5 +2,6 @@
   "Approval workflow identifier is required": "승인 워크플로 식별자가 필요합니다",
   "Submission succeeded, but post-processing failed": "제출은 성공했지만 후속 처리에 실패했습니다",
   "Submit failed": "제출에 실패했습니다",
-  "Submit succeeded": "제출에 성공했습니다"
+  "Submit succeeded": "제출에 성공했습니다",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "이 이전 승인의 테넌트를 확인할 수 없습니다. 관리자에게 연결된 레코드와 해당 테넌트를 확인하도록 요청한 후 다시 시도하세요."
 }

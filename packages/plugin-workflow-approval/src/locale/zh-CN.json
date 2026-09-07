@@ -333,6 +333,7 @@
   "The approval or rejection by anyone of them is the result.": "任意一人通过或否决即为结果。",
   "The interface of show notice detail": "显示通知详情界面",
   "The result of this node has been referenced by other nodes ({{nodes}}), please remove the usage before deleting.": "该节点的执行结果已被其他节点（{{nodes}}）引用，删除前请先移除引用。",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "无法确定此历史审批的所属租户。请联系管理员检查关联单据及其租户归属后，再重试。",
   "The updated data can trigger other workflows, and the audit log will also be recorded. But it is usually only applicable to several or dozens of pieces of data, otherwise there will be performance problems.": "被更新的数据可以再次触发其他工作流，也会记录更新日志；但通常只适用于数条或数十条数据，否则会有性能问题。",
   "This node contains branches, deleting will also be preformed to them, are you sure?": "节点包含分支，将同时删除其所有分支下的子节点，确定继续？",
   "Timeout config": "超时设置",

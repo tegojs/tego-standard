@@ -2,5 +2,6 @@
   "Approval workflow identifier is required": "必須提供審批工作流程識別碼",
   "Submission succeeded, but post-processing failed": "提交成功，但後續處理失敗",
   "Submit failed": "提交失敗",
-  "Submit succeeded": "提交成功"
+  "Submit succeeded": "提交成功",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "無法確定此歷史簽核的所屬租戶。請聯絡管理員檢查關聯單據及其租戶歸屬後，再重試。"
 }

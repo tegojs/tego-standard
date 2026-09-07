@@ -11,6 +11,7 @@ import {
   deferUntilTransactionCommitSucceeds,
   type DeferredAfterCommit as DeferredCallback,
 } from '../defer-after-commit';
+import { restoreLegacyApprovalTenant } from '../helpers/restore-legacy-tenant';
 import {
   getTenantValuesFromContext,
   getTenantValuesFromExecution,
@@ -34,6 +35,7 @@ type ApprovalTriggerTransaction = Transaction & {
 export default class ApprovalTrigger extends Trigger {
   static TYPE = 'approval';
   sync = false;
+  prepareExecution = restoreLegacyApprovalTenant;
   triggerHandler = async (
     approval,
     { transaction, dataSourceTransaction, deferAfterCommit }: ApprovalTriggerOptions = {},

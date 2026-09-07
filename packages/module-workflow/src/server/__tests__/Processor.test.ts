@@ -49,6 +49,50 @@ describe('workflow > Processor', () => {
   afterAll(() => app.destroy());
 
   describe('base', () => {
+    it('runs execution preparation once before the first instruction', async () => {
+      const trigger = plugin.triggers.get('collection');
+      const prepare = vi.fn(async (processor) => {
+        processor.execution.context.prepared = true;
+      });
+      trigger.prepareExecution = prepare;
+      try {
+        const first = await workflow.createNode({ type: 'echo' });
+        const second = await workflow.createNode({ type: 'echo', upstreamId: first.id });
+        await first.setDownstream(second);
+        await PostRepo.create({ values: { title: 'preparation' } });
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+          const jobs = await execution.getJobs();
+          expect(jobs).toHaveLength(2);
+          expect(jobs[0].result.prepared).toBe(true);
+        });
+        expect(prepare).toHaveBeenCalledOnce();
+      } finally {
+        delete trigger.prepareExecution;
+      }
+    });
+
+    it('records execution preparation errors without running business instructions', async () => {
+      const trigger = plugin.triggers.get('collection');
+      trigger.prepareExecution = async () => {
+        throw new Error('Execution context could not be restored');
+      };
+      try {
+        await workflow.createNode({ type: 'echo' });
+        await PostRepo.create({ values: { title: 'preparation failure' } });
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+          const [job] = await execution.getJobs();
+          expect(job.status).toBe(JOB_STATUS.ERROR);
+          expect(job.result.message).toBe('Execution context could not be restored');
+        });
+      } finally {
+        delete trigger.prepareExecution;
+      }
+    });
+
     it('normalizes currentUser from persisted auth context for repository context', async () => {
       const execution = {
         id: 123,

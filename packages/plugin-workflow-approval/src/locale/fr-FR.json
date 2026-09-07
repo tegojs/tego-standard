@@ -2,5 +2,6 @@
   "Approval workflow identifier is required": "L’identifiant du workflow d’approbation est requis",
   "Submission succeeded, but post-processing failed": "L’envoi a réussi, mais le post-traitement a échoué",
   "Submit failed": "Échec de l’envoi",
-  "Submit succeeded": "Envoi réussi"
+  "Submit succeeded": "Envoi réussi",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "Le locataire de cette ancienne approbation ne peut pas être déterminé. Demandez à un administrateur de vérifier l’enregistrement lié et son locataire avant de réessayer."
 }

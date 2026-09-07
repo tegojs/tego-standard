@@ -2,5 +2,6 @@
   "Approval workflow identifier is required": "Onay iş akışı tanımlayıcısı gereklidir",
   "Submission succeeded, but post-processing failed": "Gönderildi, ancak son işlem başarısız",
   "Submit failed": "Gönderim başarısız",
-  "Submit succeeded": "Gönderim başarılı"
+  "Submit succeeded": "Gönderim başarılı",
+  "The tenant for this legacy approval could not be determined. Ask an administrator to check the linked record and its tenant before trying again.": "Bu eski onayın kiracısı belirlenemedi. Yeniden denemeden önce bir yöneticiden bağlı kaydı ve kiracısını kontrol etmesini isteyin."
 }

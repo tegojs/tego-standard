@@ -83,6 +83,7 @@ export async function restoreLegacyApprovalTenant(processor: Processor) {
   };
   const values = transaction ? await restore(transaction) : await db.sequelize.transaction(restore);
   if (values) {
-    execution.set(values);
+    // These values are already persisted; do not schedule a second tenant ownership change on the next save.
+    execution.set(values, { raw: true });
   }
 }

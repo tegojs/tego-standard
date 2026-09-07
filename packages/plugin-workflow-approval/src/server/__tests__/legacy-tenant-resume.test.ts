@@ -2,6 +2,7 @@ import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
 import { getApp, waitForWorkflowIdle } from '@tachybase/plugin-workflow-test';
 import { mockDatabase, SequelizeDataSource } from '@tego/server';
 
+import { registerLegacyTenantClaimGuard } from '../../../../module-tenant/src/server/helpers/legacy-data-claim';
 import approvalExecutions from '../collections/approvalExecutions';
 import approvalRecords from '../collections/approvalRecords';
 import approvals from '../collections/approvals';
@@ -21,6 +22,12 @@ describe('legacy approval tenant recovery', () => {
     app = await getApp();
     db = app.db;
     plugin = app.pm.get('workflow');
+    registerLegacyTenantClaimGuard(db);
+    Object.assign(db.getCollection('executions').options, {
+      tenancy: 'tenantInherited',
+      allowEditingLegacyData: true,
+      legacyDataTenantIds: ['owner'],
+    });
     db.collection(approvalExecutions);
     db.collection(approvalRecords);
     db.collection(approvals);
@@ -253,6 +260,22 @@ describe('legacy approval tenant recovery', () => {
     await execution.reload();
     expect(execution.tenantId).toBeNull();
     expect(execution.tenantContext).toBeNull();
+  });
+
+  it('treats recovered tenant metadata as persisted when saving execution status', async () => {
+    const { execution, job, receipt, approval } = await createPendingApproval();
+    const processor = plugin.createProcessor(execution);
+    await processor.prepare();
+    await trigger.prepareExecution(processor);
+    expect(execution.changed('tenantId')).toBe(false);
+    expect(execution.changed('tenantContext')).toBe(false);
+    await processor.resume(job);
+    await execution.reload();
+    await receipt.reload();
+    await approval.reload();
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(receipt.status).toBe('completed');
+    expect(approval.status).toBe(APPROVAL_STATUS.APPROVED);
   });
 
   it('reads ownership from the bound external data source without forwarding the main transaction', async () => {

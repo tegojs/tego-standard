@@ -81,11 +81,20 @@ type WorkflowTenantDiagnostic = {
     | 'TENANT_RECORD_INACCESSIBLE'
     | 'TENANT_ASSOCIATION_RECORD_NOT_FOUND'
     | 'TENANT_ASSOCIATION_RECORD_INACCESSIBLE'
+    | 'TENANT_ASSOCIATION_RECORD_LEGACY_INACCESSIBLE'
     | 'TENANT_RECORD_FILTER_CHANGED'
+    | 'TENANT_RECORD_FILTER_UNRESOLVED'
     | 'TENANT_RECORD_NOT_FOUND_OR_FILTER_CHANGED'
+    | 'TENANT_RECORD_LEGACY_INACCESSIBLE'
     | 'TENANT_RECORD_LEGACY_READ_ONLY'
-    | 'TENANT_RECORD_BECAME_LEGACY';
+    | 'TENANT_RECORD_BECAME_LEGACY'
+    | 'TENANT_RETRY_CONTEXT_MISMATCH'
+    | 'TENANT_RETRY_CONTEXT_UNAVAILABLE';
+  operation?: 'update' | 'updateOrCreate' | 'destroy' | 'associate' | 'retry';
   collection?: string;
+  executionId?: string | number;
+  executionTenantId?: string | number | null;
+  originalTenantId?: string | number;
   recordKey?: string | number;
   recordKeyField?: string;
   lookup?: string;
@@ -96,7 +105,25 @@ type WorkflowTenantDiagnostic = {
   sourceCollection?: string;
   association?: string;
   targetCollection?: string;
+  filterPath?: string;
+  filterValueType?: string;
 };
+
+const TENANT_DIAGNOSTIC_OPERATION_KEYS = {
+  update: 'TENANT_DIAGNOSTIC_OPERATION_UPDATE',
+  updateOrCreate: 'TENANT_DIAGNOSTIC_OPERATION_UPDATE_OR_CREATE',
+  destroy: 'TENANT_DIAGNOSTIC_OPERATION_DELETE',
+  associate: 'TENANT_DIAGNOSTIC_OPERATION_ASSOCIATION',
+  retry: 'TENANT_DIAGNOSTIC_OPERATION_RETRY',
+} as const;
+
+const TENANT_DIAGNOSTIC_OPERATION_DEFAULTS = {
+  update: 'update',
+  updateOrCreate: 'update or create',
+  destroy: 'delete',
+  associate: 'association validation',
+  retry: 'retry',
+} as const;
 
 function tenantError(context: any, message: string) {
   return new Error(typeof context?.t === 'function' ? context.t(message, { ns: 'tenant' }) : message);
@@ -127,18 +154,88 @@ function isDiagnosticRecordKey(value: any): value is string | number {
 }
 
 function getDiagnosticRecordKey(collection: TenantFilterCollection, options: Record<string, any>, record?: any) {
-  if (isDiagnosticRecordKey(options?.filterByTk)) {
-    return options.filterByTk;
-  }
-
   const targetKey = getCollectionTargetKey(collection);
-  const filterValue = options?.filter?.[targetKey];
-  if (isDiagnosticRecordKey(filterValue)) {
-    return filterValue;
+  const targetKeyFilter = getDiagnosticTargetKeyFilter(collection, options);
+  if (isDiagnosticRecordKey(targetKeyFilter?.value)) {
+    return targetKeyFilter.value;
   }
 
   const recordKey = getRecordValue(record, targetKey);
   return isDiagnosticRecordKey(recordKey) ? recordKey : undefined;
+}
+
+function findDiagnosticTargetKeyFilter(
+  value: any,
+  targetKey: string,
+  path = '',
+  depth = 0,
+  seen = new WeakSet<object>(),
+): { path: string; value: any } | undefined {
+  if (depth > 10 || value === null || typeof value !== 'object') {
+    return undefined;
+  }
+  if (seen.has(value)) {
+    return undefined;
+  }
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    for (let index = 0; index < Math.min(value.length, 100); index += 1) {
+      const match = findDiagnosticTargetKeyFilter(value[index], targetKey, `${path}[${index}]`, depth + 1, seen);
+      if (match) {
+        return match;
+      }
+    }
+    return undefined;
+  }
+
+  for (const [key, filterValue] of Object.entries(value).slice(0, 100)) {
+    const filterPath = path ? `${path}.${key}` : key;
+    if (key === targetKey) {
+      if (filterValue && typeof filterValue === 'object' && !Array.isArray(filterValue) && '$eq' in filterValue) {
+        return { path: `${filterPath}.$eq`, value: filterValue.$eq };
+      }
+      return { path: filterPath, value: filterValue };
+    }
+    if (!key.startsWith('$')) {
+      continue;
+    }
+    const match = findDiagnosticTargetKeyFilter(filterValue, targetKey, filterPath, depth + 1, seen);
+    if (match) {
+      return match;
+    }
+  }
+  return undefined;
+}
+
+function getDiagnosticTargetKeyFilter(
+  collection: TenantFilterCollection,
+  options: Record<string, any>,
+): { path: string; value: any } | undefined {
+  if (isDiagnosticRecordKey(options?.filterByTk)) {
+    return { path: 'filterByTk', value: options.filterByTk };
+  }
+
+  const filterMatch = findDiagnosticTargetKeyFilter(options?.filter, getCollectionTargetKey(collection));
+  if (filterMatch) {
+    return filterMatch;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(options || {}, 'filterByTk')) {
+    return { path: 'filterByTk', value: options.filterByTk };
+  }
+  return undefined;
+}
+
+function getUnresolvedDiagnosticTargetKeyFilter(
+  collection: TenantFilterCollection,
+  options: Record<string, any>,
+): { path: string; valueType: string } | undefined {
+  const match = getDiagnosticTargetKeyFilter(collection, options);
+  if (!match || (match.value !== null && match.value !== undefined)) {
+    return undefined;
+  }
+  return { path: match.path, valueType: match.value === null ? 'null' : 'undefined' };
 }
 
 function getDiagnosticLookup(collection: TenantFilterCollection, options: Record<string, any>) {
@@ -160,16 +257,173 @@ function getDiagnosticLookup(collection: TenantFilterCollection, options: Record
   return `filterFields=${fields.join(',')}${suffix}`;
 }
 
-function appendTenantDiagnostic(error: Error, diagnostic: WorkflowTenantDiagnostic) {
+function translateTenantDiagnostic(context: any, key: string, defaultValue: string, values: Record<string, string>) {
+  if (typeof context?.t !== 'function') {
+    return defaultValue;
+  }
+  const translated = context.t(key, { ns: 'workflow', defaultValue, ...values });
+  return typeof translated === 'string' && translated !== key ? translated : defaultValue;
+}
+
+function formatTenantDiagnosticValue(value: unknown) {
+  if (value === undefined) {
+    return 'unknown';
+  }
+  if (value === null) {
+    return 'null';
+  }
+  if (typeof value !== 'string') {
+    return truncateTenantDiagnosticText(String(value));
+  }
+  const serialized = JSON.stringify(value);
+  return truncateTenantDiagnosticText(serialized.slice(1, -1));
+}
+
+function quoteTenantDiagnosticValue(value: unknown) {
+  return `"${formatTenantDiagnosticValue(value)}"`;
+}
+
+function formatTenantDiagnosticTarget(collection: unknown, recordKeyField: unknown) {
+  return formatTenantDiagnosticValue(
+    [collection, recordKeyField].filter((value) => value !== undefined && value !== null).join('.') || 'unknown',
+  );
+}
+
+function formatTenantDiagnosticSummary(context: any, diagnostic: WorkflowTenantDiagnostic) {
+  const operation = diagnostic.operation || 'update';
+  const operationLabel = translateTenantDiagnostic(
+    context,
+    TENANT_DIAGNOSTIC_OPERATION_KEYS[operation],
+    TENANT_DIAGNOSTIC_OPERATION_DEFAULTS[operation],
+    {},
+  );
+  const target = formatTenantDiagnosticTarget(
+    diagnostic.targetCollection || diagnostic.collection,
+    diagnostic.recordKeyField,
+  );
+  const values = {
+    operation: operationLabel,
+    collection: formatTenantDiagnosticValue(diagnostic.collection),
+    recordKeyField: formatTenantDiagnosticValue(diagnostic.recordKeyField),
+    recordTarget: target,
+    recordKey: formatTenantDiagnosticValue(diagnostic.recordKey),
+    currentTenantId: formatTenantDiagnosticValue(diagnostic.currentTenantId),
+    recordTenantId: formatTenantDiagnosticValue(diagnostic.recordTenantId),
+    sourceCollection: formatTenantDiagnosticValue(diagnostic.sourceCollection),
+    association: formatTenantDiagnosticValue(diagnostic.association),
+    targetCollection: formatTenantDiagnosticValue(diagnostic.targetCollection),
+    lookup: formatTenantDiagnosticValue(diagnostic.lookup),
+    filterPath: formatTenantDiagnosticValue(diagnostic.filterPath),
+    filterValueType: formatTenantDiagnosticValue(diagnostic.filterValueType),
+    executionId: formatTenantDiagnosticValue(diagnostic.executionId),
+    originalTenantId: formatTenantDiagnosticValue(diagnostic.originalTenantId),
+  };
+
+  switch (diagnostic.reason) {
+    case 'TENANT_RECORD_NOT_FOUND':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_NOT_FOUND',
+        `Workflow ${operationLabel} failed. Reason: target record ${quoteTenantDiagnosticValue(target)}=${values.recordKey} does not exist or was deleted before this node ran. The target record was not modified.`,
+        values,
+      );
+    case 'TENANT_RECORD_INACCESSIBLE':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_INACCESSIBLE',
+        `Workflow ${operationLabel} failed. Reason: target record ${quoteTenantDiagnosticValue(target)}=${values.recordKey} exists and belongs to tenant ${quoteTenantDiagnosticValue(diagnostic.recordTenantId)}; current tenant ${quoteTenantDiagnosticValue(diagnostic.currentTenantId)} is not allowed to access it. The target record was not modified.`,
+        values,
+      );
+    case 'TENANT_RECORD_LEGACY_INACCESSIBLE':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_LEGACY_INACCESSIBLE',
+        `Workflow ${operationLabel} failed. Reason: target record ${quoteTenantDiagnosticValue(target)}=${values.recordKey} exists but is unassigned legacy data. Current tenant ${quoteTenantDiagnosticValue(diagnostic.currentTenantId)} is not configured to access legacy data in collection ${quoteTenantDiagnosticValue(diagnostic.collection)}. The target record was not modified.`,
+        values,
+      );
+    case 'TENANT_ASSOCIATION_RECORD_NOT_FOUND':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_ASSOCIATION_RECORD_NOT_FOUND',
+        `Workflow association validation failed. Reason: field ${quoteTenantDiagnosticValue(diagnostic.association)} on collection ${quoteTenantDiagnosticValue(diagnostic.sourceCollection)} references record ${quoteTenantDiagnosticValue(target)}=${values.recordKey}, but that related record does not exist or has been deleted. The association write was rejected.`,
+        values,
+      );
+    case 'TENANT_ASSOCIATION_RECORD_INACCESSIBLE':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_ASSOCIATION_RECORD_INACCESSIBLE',
+        `Workflow association validation failed. Reason: field ${quoteTenantDiagnosticValue(diagnostic.association)} on collection ${quoteTenantDiagnosticValue(diagnostic.sourceCollection)} references record ${quoteTenantDiagnosticValue(target)}=${values.recordKey}. The record exists and belongs to tenant ${quoteTenantDiagnosticValue(diagnostic.recordTenantId)}; current tenant ${quoteTenantDiagnosticValue(diagnostic.currentTenantId)} is not allowed to access it. The association write was rejected.`,
+        values,
+      );
+    case 'TENANT_ASSOCIATION_RECORD_LEGACY_INACCESSIBLE':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_ASSOCIATION_RECORD_LEGACY_INACCESSIBLE',
+        `Workflow association validation failed. Reason: field ${quoteTenantDiagnosticValue(diagnostic.association)} on collection ${quoteTenantDiagnosticValue(diagnostic.sourceCollection)} references record ${quoteTenantDiagnosticValue(target)}=${values.recordKey}. The related record exists but is unassigned legacy data, and current tenant ${quoteTenantDiagnosticValue(diagnostic.currentTenantId)} is not configured to access legacy data in collection ${quoteTenantDiagnosticValue(diagnostic.targetCollection)}. The association write was rejected.`,
+        values,
+      );
+    case 'TENANT_RECORD_FILTER_CHANGED':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_FILTER_CHANGED',
+        `Workflow ${operationLabel} failed before modifying data: record ${quoteTenantDiagnosticValue(target)}=${values.recordKey} exists and is accessible, but it no longer matches filter ${quoteTenantDiagnosticValue(diagnostic.lookup)}. The data or filter may have changed while the node was running.`,
+        values,
+      );
+    case 'TENANT_RECORD_FILTER_UNRESOLVED':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_FILTER_UNRESOLVED',
+        `Workflow ${operationLabel} failed. Reason: the target record key (${quoteTenantDiagnosticValue(target)}) is ${values.filterValueType}, so the system cannot determine which record to ${operationLabel}. Check the value at filter ${quoteTenantDiagnosticValue(diagnostic.filterPath)}; if it comes from a workflow variable, check the corresponding upstream output. No ${operationLabel} operation was performed on a target record.`,
+        values,
+      );
+    case 'TENANT_RECORD_NOT_FOUND_OR_FILTER_CHANGED':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_NOT_FOUND_OR_FILTER_CHANGED',
+        `Workflow ${operationLabel} failed before modifying data: no record matches filter ${quoteTenantDiagnosticValue(diagnostic.lookup)}, and the target record key could not be determined. The record may have been deleted or a workflow variable used by the filter may have changed. Current tenant: ${quoteTenantDiagnosticValue(diagnostic.currentTenantId)}.`,
+        values,
+      );
+    case 'TENANT_RECORD_LEGACY_READ_ONLY':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_LEGACY_READ_ONLY',
+        `Workflow ${operationLabel} failed before modifying data: record ${quoteTenantDiagnosticValue(target)}=${values.recordKey} is unassigned legacy data and is read-only for current tenant ${quoteTenantDiagnosticValue(diagnostic.currentTenantId)}. Enable legacy-data editing for this collection before retrying.`,
+        values,
+      );
+    case 'TENANT_RECORD_BECAME_LEGACY':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RECORD_BECAME_LEGACY',
+        `Workflow ${operationLabel} failed before modifying data: record ${quoteTenantDiagnosticValue(target)}=${values.recordKey} became unassigned legacy data while the node was running. Retry after confirming the record's tenant assignment.`,
+        values,
+      );
+    case 'TENANT_RETRY_CONTEXT_MISMATCH':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RETRY_CONTEXT_MISMATCH',
+        `Workflow retry was blocked before execution: execution ${values.executionId} was created under tenant ${quoteTenantDiagnosticValue(diagnostic.originalTenantId)}, but the current tenant is ${quoteTenantDiagnosticValue(diagnostic.currentTenantId)}. Retry it from the original tenant.`,
+        values,
+      );
+    case 'TENANT_RETRY_CONTEXT_UNAVAILABLE':
+      return translateTenantDiagnostic(
+        context,
+        'TENANT_DIAGNOSTIC_RETRY_CONTEXT_UNAVAILABLE',
+        `Workflow retry was blocked before execution: execution ${values.executionId} has no saved tenant context, so its tenant cannot be determined safely. Start a new execution or restore the original tenant context before retrying.`,
+        values,
+      );
+  }
+}
+
+function appendTenantDiagnostic(context: any, error: Error, diagnostic: WorkflowTenantDiagnostic) {
   const boundedDiagnostic = Object.fromEntries(
     Object.entries(diagnostic)
       .filter(([, value]) => value !== undefined)
       .map(([key, value]) => [key, typeof value === 'string' ? truncateTenantDiagnosticText(value) : value]),
   ) as WorkflowTenantDiagnostic;
   const diagnosticLine = `[tenant-diagnostic] ${JSON.stringify(boundedDiagnostic)}`;
-  error.stack = error.stack
-    ? `${error.stack}\n${diagnosticLine}`
-    : `${error.name}: ${error.message}\n${diagnosticLine}`;
+  const stackSummary = formatTenantDiagnosticSummary(context, boundedDiagnostic);
+  const stackFrames = error.stack?.includes('\n') ? error.stack.slice(error.stack.indexOf('\n')) : '';
+  error.stack = `${error.name}: ${stackSummary}\n${diagnosticLine}${stackFrames}`;
   Object.defineProperty(error, 'tenantDiagnostic', {
     configurable: true,
     value: boundedDiagnostic,
@@ -179,7 +433,7 @@ function appendTenantDiagnostic(error: Error, diagnostic: WorkflowTenantDiagnost
 
 export function workflowTenantRecordUnavailableError(context: any, diagnostic?: WorkflowTenantDiagnostic) {
   const error = tenantError(context, RECORD_UNAVAILABLE);
-  return diagnostic ? appendTenantDiagnostic(error, diagnostic) : error;
+  return diagnostic ? appendTenantDiagnostic(context, error, diagnostic) : error;
 }
 
 export async function workflowTenantRecordMutationMissError(
@@ -188,8 +442,10 @@ export async function workflowTenantRecordMutationMissError(
   repository: any,
   options: Record<string, any>,
   transaction?: any,
+  operation: WorkflowTenantDiagnostic['operation'] = 'update',
 ) {
   const targetKey = getCollectionTargetKey(collection);
+  const unresolvedTargetKeyFilter = getUnresolvedDiagnosticTargetKeyFilter(collection, options);
   let recordKey = getDiagnosticRecordKey(collection, options);
   const lookupOptions = isDiagnosticRecordKey(recordKey)
     ? { filter: { [targetKey]: recordKey } }
@@ -200,7 +456,11 @@ export async function workflowTenantRecordMutationMissError(
   let reason: WorkflowTenantDiagnostic['reason'];
   let recordTenantId: string | number | null | undefined;
   if (!unscopedRecord) {
-    reason = isDiagnosticRecordKey(recordKey) ? 'TENANT_RECORD_NOT_FOUND' : 'TENANT_RECORD_NOT_FOUND_OR_FILTER_CHANGED';
+    reason = unresolvedTargetKeyFilter
+      ? 'TENANT_RECORD_FILTER_UNRESOLVED'
+      : isDiagnosticRecordKey(recordKey)
+        ? 'TENANT_RECORD_NOT_FOUND'
+        : 'TENANT_RECORD_NOT_FOUND_OR_FILTER_CHANGED';
   } else {
     recordTenantId = getRecordValue(unscopedRecord, 'tenantId');
     const tenantId = getCurrentTenantIdFromState(context?.state);
@@ -211,6 +471,7 @@ export async function workflowTenantRecordMutationMissError(
       reason = legacyDataEditable ? 'TENANT_RECORD_BECAME_LEGACY' : 'TENANT_RECORD_LEGACY_READ_ONLY';
       return workflowTenantRecordUnavailableError(context, {
         reason,
+        operation,
         collection: getCollectionName(collection),
         recordKey,
         recordKeyField: targetKey,
@@ -224,17 +485,24 @@ export async function workflowTenantRecordMutationMissError(
 
     const writableOptions = applyTenantFilterToContext(context, collection, 'update', lookupOptions);
     const writableRecord = await repository.findOne({ ...writableOptions, context, transaction });
-    reason = writableRecord ? 'TENANT_RECORD_FILTER_CHANGED' : 'TENANT_RECORD_INACCESSIBLE';
+    reason = writableRecord
+      ? 'TENANT_RECORD_FILTER_CHANGED'
+      : recordTenantId === null
+        ? 'TENANT_RECORD_LEGACY_INACCESSIBLE'
+        : 'TENANT_RECORD_INACCESSIBLE';
   }
 
   return workflowTenantRecordUnavailableError(context, {
     reason,
+    operation,
     collection: getCollectionName(collection),
     recordKey,
     recordKeyField: targetKey,
     lookup: getDiagnosticLookup(collection, options),
     currentTenantId: getCurrentTenantIdFromState(context?.state),
     recordTenantId,
+    filterPath: unresolvedTargetKeyFilter?.path,
+    filterValueType: unresolvedTargetKeyFilter?.valueType,
   });
 }
 
@@ -496,8 +764,14 @@ async function findReferenceableRecord(
   const record = await repository.findOne({ ...options, context, transaction });
   if (!record) {
     const unscopedRecord = await repository.findOne({ ...referenceOptions, context, transaction });
+    const recordTenantId = unscopedRecord ? getRecordValue(unscopedRecord, 'tenantId') : undefined;
     throw workflowTenantRecordUnavailableError(context, {
-      reason: unscopedRecord ? 'TENANT_ASSOCIATION_RECORD_INACCESSIBLE' : 'TENANT_ASSOCIATION_RECORD_NOT_FOUND',
+      reason: !unscopedRecord
+        ? 'TENANT_ASSOCIATION_RECORD_NOT_FOUND'
+        : recordTenantId === null
+          ? 'TENANT_ASSOCIATION_RECORD_LEGACY_INACCESSIBLE'
+          : 'TENANT_ASSOCIATION_RECORD_INACCESSIBLE',
+      operation: 'associate',
       sourceCollection: associationContext?.sourceCollection,
       association: associationContext?.association,
       targetCollection: getCollectionName(collection),
@@ -505,7 +779,7 @@ async function findReferenceableRecord(
       recordKeyField: targetKey,
       lookup: getDiagnosticLookup(collection, referenceOptions),
       currentTenantId: getCurrentTenantIdFromState(context?.state),
-      recordTenantId: unscopedRecord ? getRecordValue(unscopedRecord, 'tenantId') : undefined,
+      recordTenantId,
     });
   }
   return record;
@@ -744,7 +1018,7 @@ export async function resolveTenantUpdatePlans(
   repository: any,
   options: Record<string, any>,
   transaction?: any,
-  config: { allowCreateWhenMissing?: boolean } = {},
+  config: { allowCreateWhenMissing?: boolean; operation?: 'update' | 'updateOrCreate' } = {},
 ) {
   const tenancyMode = collection?.options?.tenancy;
   if (!TENANT_ENABLED_MODES.includes(tenancyMode)) {
@@ -802,14 +1076,16 @@ export async function resolveTenantUpdatePlans(
       transaction,
     });
     if (unscopedRecord) {
+      const recordTenantId = getRecordValue(unscopedRecord, 'tenantId');
       throw workflowTenantRecordUnavailableError(context, {
-        reason: 'TENANT_RECORD_INACCESSIBLE',
+        reason: recordTenantId === null ? 'TENANT_RECORD_LEGACY_INACCESSIBLE' : 'TENANT_RECORD_INACCESSIBLE',
+        operation: config.operation || 'update',
         collection: getCollectionName(collection),
         recordKey: getDiagnosticRecordKey(collection, options, unscopedRecord),
         recordKeyField: getCollectionTargetKey(collection),
         lookup: getDiagnosticLookup(collection, options),
         currentTenantId: tenantId,
-        recordTenantId: getRecordValue(unscopedRecord, 'tenantId'),
+        recordTenantId,
       });
     }
   }
@@ -850,21 +1126,7 @@ export async function resolveTenantDestroyOptions(
     throw tenantError(context, LEGACY_RECORD_DELETE_REQUIRES_CLAIM);
   }
   if (!writableRecord) {
-    const unscopedRecord = await repository.findOne({
-      ...options,
-      filter: stripTenantFilter(options?.filter),
-      context,
-      transaction,
-    });
-    throw workflowTenantRecordUnavailableError(context, {
-      reason: unscopedRecord ? 'TENANT_RECORD_INACCESSIBLE' : 'TENANT_RECORD_NOT_FOUND',
-      collection: getCollectionName(collection),
-      recordKey: getDiagnosticRecordKey(collection, options, unscopedRecord),
-      recordKeyField: getCollectionTargetKey(collection),
-      lookup: getDiagnosticLookup(collection, options),
-      currentTenantId: tenantId,
-      recordTenantId: unscopedRecord ? getRecordValue(unscopedRecord, 'tenantId') : undefined,
-    });
+    throw await workflowTenantRecordMutationMissError(context, collection, repository, options, transaction, 'destroy');
   }
   return destroyOptions;
 }

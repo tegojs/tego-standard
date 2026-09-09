@@ -223,7 +223,14 @@ export class UpdateInstruction extends Instruction {
           });
           const count = records?.length ?? records;
           if (count === 0) {
-            throw await workflowTenantRecordMutationMissError(repositoryContext, c, repository, options, transaction);
+            throw await workflowTenantRecordMutationMissError(
+              repositoryContext,
+              c,
+              repository,
+              options,
+              transaction,
+              'update',
+            );
           }
           updatedCount += count;
           if (Array.isArray(records)) {

@@ -6,6 +6,8 @@ import {
   canReadLegacyExecutions,
   getCurrentTenantIdFromState,
   NEVER_MATCH_TENANT_FILTER,
+  shouldApplyExecutionTenantBoundary,
+  workflowTenantRecordUnavailableError,
 } from '../helpers/tenant-context';
 import Plugin from '../Plugin';
 import { triggerWorkflowAndGetExecution } from '../utils';
@@ -39,6 +41,56 @@ function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
   if (`${executionTenantId}` !== `${tenantId}`) {
     ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
   }
+}
+
+function assertExecutionRetryTenantContext(ctx: Context, execution: any) {
+  const currentTenantId = getCurrentTenantIdFromState(ctx.state);
+  const executionId = getModelValue(execution, 'id');
+  const executionTenantId = getModelValue(execution, 'tenantId');
+  const executionTenantContext = getModelValue(execution, 'tenantContext');
+  const originalTenantId =
+    executionTenantContext?.currentTenantId ?? executionTenantContext?.currentTenant?.id ?? executionTenantId;
+  if (currentTenantId === null || currentTenantId === undefined) {
+    return;
+  }
+
+  if (originalTenantId === null || originalTenantId === undefined) {
+    if (!shouldApplyExecutionTenantBoundary(ctx)) {
+      return;
+    }
+
+    throwExecutionRetryTenantError(ctx, {
+      reason: 'TENANT_RETRY_CONTEXT_UNAVAILABLE',
+      operation: 'retry',
+      executionId,
+      executionTenantId,
+      currentTenantId,
+    });
+  }
+
+  if (`${originalTenantId}` === `${currentTenantId}`) {
+    return;
+  }
+
+  throwExecutionRetryTenantError(ctx, {
+    reason: 'TENANT_RETRY_CONTEXT_MISMATCH',
+    operation: 'retry',
+    executionId,
+    executionTenantId,
+    originalTenantId,
+    currentTenantId,
+  });
+}
+
+function throwExecutionRetryTenantError(
+  ctx: Context,
+  diagnostic: NonNullable<Parameters<typeof workflowTenantRecordUnavailableError>[1]>,
+): never {
+  const error = workflowTenantRecordUnavailableError(ctx, {
+    ...diagnostic,
+  }) as Error & { status?: number };
+  error.status = 409;
+  throw error;
 }
 
 /**
@@ -133,6 +185,7 @@ export async function retry(ctx: Context, next: Next) {
     ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
   }
   assertExecutionInCurrentTenant(ctx, execution);
+  assertExecutionRetryTenantContext(ctx, execution);
   const workflow = await WorkflowRepo.findOne({
     filterByTk: execution.workflowId,
     appends: ['nodes'],

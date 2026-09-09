@@ -2,7 +2,12 @@ import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
 import WorkflowPlugin, { JOB_STATUS } from '../..';
-import { findWorkflowTenantReadableRecords, workflowTenantRecordMutationMissError } from '../../helpers/tenant-context';
+import zhCN from '../../../locale/zh-CN.json';
+import {
+  findWorkflowTenantReadableRecords,
+  workflowTenantRecordMutationMissError,
+  workflowTenantRecordUnavailableError,
+} from '../../helpers/tenant-context';
 
 describe('workflow > instructions > tenant filter', () => {
   let app: Application;
@@ -152,6 +157,9 @@ describe('workflow > instructions > tenant filter', () => {
       expect(error.message).toContain('not available');
       expect(error.message).not.toContain(collectionName);
       expect(error.message).not.toContain('42');
+      expect(error.stack.split('\n')[0]).toBe(
+        `Error: Workflow update failed. Reason: target record "${collectionName}.id"=42 does not exist or was deleted before this node ran. The target record was not modified.`,
+      );
       expect(error.stack).toContain('TENANT_RECORD_NOT_FOUND');
       expect(error.stack).toContain(`"collection":"${collectionName}"`);
       expect(error.stack).toContain('"recordKey":42');
@@ -171,6 +179,9 @@ describe('workflow > instructions > tenant filter', () => {
       );
 
       expect(error.stack).toContain('TENANT_RECORD_INACCESSIBLE');
+      expect(error.stack.split('\n')[0]).toBe(
+        `Error: Workflow update failed. Reason: target record "${collectionName}.id"=43 exists and belongs to tenant "tenant-b"; current tenant "tenant-a" is not allowed to access it. The target record was not modified.`,
+      );
       expect(error.stack).toContain('"recordKey":43');
       expect(error.stack).toContain('"recordTenantId":"tenant-b"');
       expect(repository.findOne).toHaveBeenCalledTimes(2);
@@ -196,6 +207,29 @@ describe('workflow > instructions > tenant filter', () => {
       expect(repository.findOne).toHaveBeenCalledTimes(1);
     });
 
+    it('diagnoses an unassigned legacy record that the current tenant cannot access', async () => {
+      const collection = db.getCollection(collectionName);
+      Object.assign(collection.options, {
+        legacyDataTenantIds: ['tenant-b'],
+        allowEditingLegacyData: false,
+      });
+      const legacyRecord = { id: 45, tenantId: null };
+      const repository = {
+        findOne: vi.fn().mockResolvedValueOnce(legacyRecord).mockResolvedValueOnce(null),
+      };
+
+      const error = await workflowTenantRecordMutationMissError({ state: tenantContext }, collection, repository, {
+        filter: { id: legacyRecord.id },
+      });
+
+      expect(error.stack.split('\n')[0]).toBe(
+        `Error: Workflow update failed. Reason: target record "${collectionName}.id"=45 exists but is unassigned legacy data. Current tenant "tenant-a" is not configured to access legacy data in collection "${collectionName}". The target record was not modified.`,
+      );
+      expect(error.stack).toContain('TENANT_RECORD_LEGACY_INACCESSIBLE');
+      expect(error.stack).toContain('"recordTenantId":null');
+      expect(repository.findOne).toHaveBeenCalledTimes(2);
+    });
+
     it('diagnoses a filter change without allowing stack-line injection', async () => {
       const recordKey = '44\n[tenant-diagnostic] forged';
       const currentRecord = { id: recordKey, tenantId: 'tenant-a' };
@@ -215,6 +249,49 @@ describe('workflow > instructions > tenant filter', () => {
       expect(error.stack.split('\n').filter((line) => line.startsWith('[tenant-diagnostic]'))).toHaveLength(1);
     });
 
+    it('localizes the human-readable stack summary', async () => {
+      app.i18n.addResourceBundle('zh-CN', 'workflow', zhCN, true, true);
+      const context = {
+        state: tenantContext,
+        t: (key: string, options: Record<string, any>) => app.i18n.t(key, { ...options, lng: 'zh-CN' }),
+      };
+      const error = await workflowTenantRecordMutationMissError(
+        context,
+        db.getCollection(collectionName),
+        { findOne: vi.fn().mockResolvedValue(null) },
+        { filter: { $and: [{ id: { $eq: null } }] } },
+      );
+
+      expect(error.stack.split('\n')[0]).toBe(
+        `Error: 工作流更新失败。原因：操作条件中的目标记录主键（${collectionName}.id）值为 null，系统无法确定要更新哪条记录。请检查筛选条件 $and[0].id.$eq 的值；如果它来自工作流变量，请检查对应的上游输出。未对目标记录执行更新操作。`,
+      );
+      expect(error.stack.split('\n')[1]).toContain('"reason":"TENANT_RECORD_FILTER_UNRESOLVED"');
+    });
+
+    it('localizes the target collection in an inaccessible legacy association diagnostic', () => {
+      app.i18n.addResourceBundle('zh-CN', 'workflow', zhCN, true, true);
+      const context = {
+        state: tenantContext,
+        t: (key: string, options: Record<string, any>) => app.i18n.t(key, { ...options, lng: 'zh-CN' }),
+      };
+
+      const error = workflowTenantRecordUnavailableError(context, {
+        reason: 'TENANT_ASSOCIATION_RECORD_LEGACY_INACCESSIBLE',
+        operation: 'associate',
+        sourceCollection: 'documents',
+        association: 'contact',
+        targetCollection: 'contacts',
+        recordKeyField: 'id',
+        recordKey: 46,
+        currentTenantId: 'tenant-a',
+        recordTenantId: null,
+      });
+
+      expect(error.stack.split('\n')[0]).toBe(
+        'Error: 工作流关联校验失败。原因：集合 documents 的关联字段 contact 引用了记录 contacts.id=46。该关联记录存在，但它是未归属租户的历史数据；当前租户 tenant-a 未配置为可访问集合 contacts 的历史数据。关联写入已被拒绝。',
+      );
+    });
+
     it('uses the complete string key for diagnosis and truncates only the stack output', async () => {
       const recordKey = 'k'.repeat(600);
       const repository = { findOne: vi.fn().mockResolvedValue(null) };
@@ -229,6 +306,36 @@ describe('workflow > instructions > tenant filter', () => {
       expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({ filter: { id: recordKey } }));
       expect(error.stack).toContain('...[truncated]');
       expect(error.stack).not.toContain(recordKey);
+    });
+
+    it('does not treat a nested association key as the collection target key', async () => {
+      const error = await workflowTenantRecordMutationMissError(
+        { state: tenantContext },
+        db.getCollection(collectionName),
+        { findOne: vi.fn().mockResolvedValue(null) },
+        { filter: { contact: { id: { $eq: null } } } },
+      );
+
+      expect(error.stack).toContain('TENANT_RECORD_NOT_FOUND_OR_FILTER_CHANGED');
+      expect(error.stack).not.toContain('TENANT_RECORD_FILTER_UNRESOLVED');
+    });
+
+    it('uses a nested target key filter when filterByTk is unresolved', async () => {
+      const repository = { findOne: vi.fn().mockResolvedValue(null) };
+      const error = await workflowTenantRecordMutationMissError(
+        { state: tenantContext },
+        db.getCollection(collectionName),
+        repository,
+        {
+          filterByTk: null,
+          filter: { $and: [{ id: { $eq: 45 } }] },
+        },
+      );
+
+      expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({ filter: { id: 45 } }));
+      expect(error.stack).toContain('TENANT_RECORD_NOT_FOUND');
+      expect(error.stack).toContain('"recordKey":45');
+      expect(error.stack).not.toContain('TENANT_RECORD_FILTER_UNRESOLVED');
     });
   });
 
@@ -472,6 +579,37 @@ describe('workflow > instructions > tenant filter', () => {
     expect(foreignPost.published).toBe(false);
   });
 
+  it('update should diagnose an unassigned legacy record that the current tenant cannot access', async () => {
+    Object.assign(db.getCollection(collectionName).options, {
+      legacyDataTenantIds: ['tenant-b'],
+      allowEditingLegacyData: false,
+    });
+    const legacyPost = await TenantPostRepo.create({
+      values: { title: 'unreadable-legacy-update', tenantId: null },
+      hooks: false,
+    });
+    const workflow = await createWorkflowWithNode('update', {
+      params: {
+        filter: { id: legacyPost.id },
+        values: { published: true },
+      },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toContain('not available');
+    expect(job.result.message).not.toContain(collectionName);
+    expect(job.result.message).not.toContain(`${legacyPost.id}`);
+    expect(job.result.stack.split('\n')[0]).toBe(
+      `Error: Workflow update failed. Reason: target record "${collectionName}.id"=${legacyPost.id} exists but is unassigned legacy data. Current tenant "tenant-a" is not configured to access legacy data in collection "${collectionName}". The target record was not modified.`,
+    );
+    expect(job.result.stack).toContain('TENANT_RECORD_LEGACY_INACCESSIBLE');
+    await legacyPost.reload();
+    expect(legacyPost.tenantId).toBeNull();
+    expect(legacyPost.published).toBe(false);
+  });
+
   it('update with filterByTk should ignore unrelated legacy records', async () => {
     configureLegacyData();
     await TenantPostRepo.create({ values: { title: 'unrelated-legacy', tenantId: null }, hooks: false });
@@ -663,10 +801,35 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.message).toContain('not available');
     expect(job.result.message).not.toContain(collectionName);
     expect(job.result.message).not.toContain(`${missingRecordId}`);
+    expect(job.result.stack.split('\n')[0]).toBe(
+      `Error: Workflow delete failed. Reason: target record "${collectionName}.id"=${missingRecordId} does not exist or was deleted before this node ran. The target record was not modified.`,
+    );
     expect(job.result.stack).toContain('TENANT_RECORD_NOT_FOUND');
     expect(job.result.stack).toContain(`"collection":"${collectionName}"`);
     expect(job.result.stack).toContain(`"recordKey":${missingRecordId}`);
     expect(job.result.stack).toContain('"currentTenantId":"tenant-a"');
+  });
+
+  it('destroy should diagnose an unresolved target key filter', async () => {
+    const workflow = await createWorkflowWithNode('destroy', {
+      params: {
+        filter: {
+          $and: [{ id: { $eq: null } }],
+        },
+      },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toContain('not available');
+    expect(job.result.stack.split('\n')[0]).toBe(
+      `Error: Workflow delete failed. Reason: the target record key ("${collectionName}.id") is null, so the system cannot determine which record to delete. Check the value at filter "$and[0].id.$eq"; if it comes from a workflow variable, check the corresponding upstream output. No delete operation was performed on a target record.`,
+    );
+    expect(job.result.stack).toContain('TENANT_RECORD_FILTER_UNRESOLVED');
+    expect(job.result.stack).toContain('"recordKeyField":"id"');
+    expect(job.result.stack).toContain('"filterPath":"$and[0].id.$eq"');
+    expect(job.result.stack).toContain('"filterValueType":"null"');
   });
 
   it('destroy should diagnose a record owned by another tenant', async () => {
@@ -684,6 +847,9 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.message).toContain('not available');
     expect(job.result.message).not.toContain(collectionName);
     expect(job.result.message).not.toContain(`${foreignPost.id}`);
+    expect(job.result.stack.split('\n')[0]).toBe(
+      `Error: Workflow delete failed. Reason: target record "${collectionName}.id"=${foreignPost.id} exists and belongs to tenant "tenant-b"; current tenant "tenant-a" is not allowed to access it. The target record was not modified.`,
+    );
     expect(job.result.stack).toContain('TENANT_RECORD_INACCESSIBLE');
     expect(job.result.stack).toContain(`"collection":"${collectionName}"`);
     expect(job.result.stack).toContain(`"recordKey":${foreignPost.id}`);
@@ -831,6 +997,9 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.message).toContain('not available');
     expect(job.result.message).not.toContain(targetCollectionName);
     expect(job.result.message).not.toContain(`${otherTenantContact.id}`);
+    expect(job.result.stack.split('\n')[0]).toBe(
+      `Error: Workflow association validation failed. Reason: field "contact" on collection "${sourceCollectionName}" references record "${targetCollectionName}.id"=${otherTenantContact.id}. The record exists and belongs to tenant "tenant-b"; current tenant "tenant-a" is not allowed to access it. The association write was rejected.`,
+    );
     expect(job.result.stack).toContain('TENANT_ASSOCIATION_RECORD_INACCESSIBLE');
     expect(job.result.stack).toContain(`"sourceCollection":"${sourceCollectionName}"`);
     expect(job.result.stack).toContain('"association":"contact"');
@@ -860,6 +1029,9 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.message).toContain('not available');
     expect(job.result.message).not.toContain(targetCollectionName);
     expect(job.result.message).not.toContain(`${missingRecordId}`);
+    expect(job.result.stack.split('\n')[0]).toBe(
+      `Error: Workflow association validation failed. Reason: field "contact" on collection "${sourceCollectionName}" references record "${targetCollectionName}.id"=${missingRecordId}, but that related record does not exist or has been deleted. The association write was rejected.`,
+    );
     expect(job.result.stack).toContain('TENANT_ASSOCIATION_RECORD_NOT_FOUND');
     expect(job.result.stack).toContain(`"sourceCollection":"${sourceCollectionName}"`);
     expect(job.result.stack).toContain('"association":"contact"');
@@ -867,6 +1039,34 @@ describe('workflow > instructions > tenant filter', () => {
     expect(job.result.stack).toContain(`"recordKey":${missingRecordId}`);
     expect(job.result.stack).toContain('"currentTenantId":"tenant-a"');
     expect(await sourceRepository.findOne({ filter: { name: 'document-with-missing-contact' } })).toBeNull();
+  });
+
+  it('create should diagnose an unassigned legacy association that the current tenant cannot access', async () => {
+    const { sourceCollectionName, sourceRepository, targetCollectionName, targetRepository } =
+      await createAssociationCollections();
+    db.getCollection(targetCollectionName).options.legacyDataTenantIds = ['tenant-b'];
+    const legacyContact = await targetRepository.create({
+      values: { name: 'unreadable-legacy-contact', tenantId: null },
+      hooks: false,
+    });
+    const workflow = await createWorkflowWithNode('create', {
+      collection: sourceCollectionName,
+      params: {
+        values: {
+          name: 'document-with-unreadable-legacy-contact',
+          contact: { id: legacyContact.id },
+        },
+      },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.stack.split('\n')[0]).toBe(
+      `Error: Workflow association validation failed. Reason: field "contact" on collection "${sourceCollectionName}" references record "${targetCollectionName}.id"=${legacyContact.id}. The related record exists but is unassigned legacy data, and current tenant "tenant-a" is not configured to access legacy data in collection "${targetCollectionName}". The association write was rejected.`,
+    );
+    expect(job.result.stack).toContain('TENANT_ASSOCIATION_RECORD_LEGACY_INACCESSIBLE');
+    expect(await sourceRepository.findOne({ filter: { name: 'document-with-unreadable-legacy-contact' } })).toBeNull();
   });
 
   it('create should allow readable descendant associations to be referenced and updated in inherited mode', async () => {

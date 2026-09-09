@@ -214,6 +214,7 @@ export class UpdateOrCreateInstruction extends Instruction {
         );
         const updatePlans = await resolveTenantUpdatePlans(context, c, repository, options, transaction, {
           allowCreateWhenMissing: true,
+          operation: 'updateOrCreate',
         });
 
         if (updatePlans.length) {
@@ -226,7 +227,14 @@ export class UpdateOrCreateInstruction extends Instruction {
             });
             const count = result?.length ?? result;
             if (count === 0) {
-              throw await workflowTenantRecordMutationMissError(repositoryContext, c, repository, options, transaction);
+              throw await workflowTenantRecordMutationMissError(
+                repositoryContext,
+                c,
+                repository,
+                options,
+                transaction,
+                'updateOrCreate',
+              );
             }
             updatedCount += count;
           }

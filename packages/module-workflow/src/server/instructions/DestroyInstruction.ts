@@ -58,6 +58,7 @@ export class DestroyInstruction extends Instruction {
             repository,
             options,
             transaction,
+            'destroy',
           );
         }
         return destroyed;

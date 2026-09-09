@@ -267,6 +267,68 @@ describe('workflow > actions > tenant executions boundary', () => {
     });
   });
 
+  it('executions.retry should reject a legacy execution retried from a different tenant context', async () => {
+    const workflow = await createWorkflow();
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.ERROR,
+      context: { marker: 'legacy-tenant-a' },
+      tenantId: null,
+      tenantContext: tenantState('tenant-a'),
+    });
+
+    const ctx = createContext('executions', 'retry', { filterByTk: execution.id }, 'tenant-b', ['tenant-b']);
+
+    let error: Error & { status?: number };
+    try {
+      await executionActions.retry(ctx, async () => {});
+    } catch (caught) {
+      error = caught as Error & { status?: number };
+    }
+
+    expect(error).toBeDefined();
+    expect(error.status).toBe(409);
+    expect(error.stack.split('\n')[0]).toBe(
+      `Error: Workflow retry was blocked before execution: execution ${execution.id} was created under tenant "tenant-a", but the current tenant is "tenant-b". Retry it from the original tenant.`,
+    );
+    expect(error.stack).toContain('TENANT_RETRY_CONTEXT_MISMATCH');
+    expect(error.stack).toContain(`"executionId":${execution.id}`);
+    expect(error.stack).toContain('"originalTenantId":"tenant-a"');
+    expect(error.stack).toContain('"currentTenantId":"tenant-b"');
+    expect(await workflow.countExecutions()).toBe(1);
+  });
+
+  it('executions.retry should reject a legacy execution whose original tenant context is unavailable', async () => {
+    const workflow = await createWorkflow();
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.ERROR,
+      context: { marker: 'legacy-without-tenant-context' },
+      tenantId: null,
+      tenantContext: null,
+    });
+
+    const ctx = createContext('executions', 'retry', { filterByTk: execution.id }, 'tenant-b', ['tenant-b']);
+
+    let error: Error & { status?: number };
+    try {
+      await executionActions.retry(ctx, async () => {});
+    } catch (caught) {
+      error = caught as Error & { status?: number };
+    }
+
+    expect(error).toBeDefined();
+    expect(error.status).toBe(409);
+    expect(error.stack.split('\n')[0]).toBe(
+      `Error: Workflow retry was blocked before execution: execution ${execution.id} has no saved tenant context, so its tenant cannot be determined safely. Start a new execution or restore the original tenant context before retrying.`,
+    );
+    expect(error.stack).toContain('TENANT_RETRY_CONTEXT_UNAVAILABLE');
+    expect(error.stack).toContain(`"executionId":${execution.id}`);
+    expect(error.stack).toContain('"executionTenantId":null');
+    expect(error.stack).toContain('"currentTenantId":"tenant-b"');
+    expect(await workflow.countExecutions()).toBe(1);
+  });
+
   it('executions.destroy should fail closed when tenant mode exists but tenant context is missing', async () => {
     const workflow = await createWorkflow();
     await workflow.createExecution({

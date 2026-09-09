@@ -9,6 +9,12 @@
 
 
 
+## [1.6.53] - 2026-09-09
+
+### 🐛 修复
+
+- **workflow**: 添加详细的租户故障诊断 (@TomyJan)
+
 ## [1.6.52] - 2026-09-07
 
 ### 🐛 修复
@@ -3277,7 +3283,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.52...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.53...HEAD
+[1.6.53]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.53
 [1.6.52]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.52
 [1.6.51]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.51
 [1.6.50]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.50

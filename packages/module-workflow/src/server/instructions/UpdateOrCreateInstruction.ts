@@ -13,7 +13,7 @@ import {
   guardWorkflowTenantAssociationValues,
   resolveTenantUpdatePlans,
   withWorkflowDataSourceTransaction,
-  workflowTenantRecordUnavailableError,
+  workflowTenantRecordMutationMissError,
 } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
@@ -226,7 +226,7 @@ export class UpdateOrCreateInstruction extends Instruction {
             });
             const count = result?.length ?? result;
             if (count === 0) {
-              throw workflowTenantRecordUnavailableError(repositoryContext);
+              throw await workflowTenantRecordMutationMissError(repositoryContext, c, repository, options, transaction);
             }
             updatedCount += count;
           }

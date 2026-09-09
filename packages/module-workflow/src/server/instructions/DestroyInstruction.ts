@@ -5,7 +5,7 @@ import { JOB_STATUS } from '../constants';
 import {
   resolveTenantDestroyOptions,
   withWorkflowDataSourceTransaction,
-  workflowTenantRecordUnavailableError,
+  workflowTenantRecordMutationMissError,
 } from '../helpers/tenant-context';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
@@ -52,7 +52,13 @@ export class DestroyInstruction extends Instruction {
           transaction,
         });
         if (destroyed === 0) {
-          throw workflowTenantRecordUnavailableError(repositoryContext);
+          throw await workflowTenantRecordMutationMissError(
+            repositoryContext,
+            targetCollection,
+            repository,
+            options,
+            transaction,
+          );
         }
         return destroyed;
       },

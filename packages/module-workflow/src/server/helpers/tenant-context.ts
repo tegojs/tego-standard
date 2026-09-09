@@ -75,6 +75,29 @@ const RECORD_UNAVAILABLE =
 const TENANT_CONTEXT_REQUIRED =
   'No tenant is selected. Select a tenant and try again. If no tenant is available, contact an administrator.';
 
+type WorkflowTenantDiagnostic = {
+  reason:
+    | 'TENANT_RECORD_NOT_FOUND'
+    | 'TENANT_RECORD_INACCESSIBLE'
+    | 'TENANT_ASSOCIATION_RECORD_NOT_FOUND'
+    | 'TENANT_ASSOCIATION_RECORD_INACCESSIBLE'
+    | 'TENANT_RECORD_FILTER_CHANGED'
+    | 'TENANT_RECORD_NOT_FOUND_OR_FILTER_CHANGED'
+    | 'TENANT_RECORD_LEGACY_READ_ONLY'
+    | 'TENANT_RECORD_BECAME_LEGACY';
+  collection?: string;
+  recordKey?: string | number;
+  recordKeyField?: string;
+  lookup?: string;
+  currentTenantId?: string | number;
+  recordTenantId?: string | number | null;
+  legacyDataReadable?: boolean;
+  legacyDataEditable?: boolean;
+  sourceCollection?: string;
+  association?: string;
+  targetCollection?: string;
+};
+
 function tenantError(context: any, message: string) {
   return new Error(typeof context?.t === 'function' ? context.t(message, { ns: 'tenant' }) : message);
 }
@@ -87,8 +110,132 @@ function requireCurrentTenantId(context: TenantFilterContext) {
   return tenantId;
 }
 
-export function workflowTenantRecordUnavailableError(context: any) {
-  return tenantError(context, RECORD_UNAVAILABLE);
+function getCollectionName(collection: TenantFilterCollection) {
+  return collection?.name || collection?.options?.name || collection?.model?.name || 'unknown';
+}
+
+function getCollectionTargetKey(collection: TenantFilterCollection) {
+  return collection?.filterTargetKey || collection?.options?.filterTargetKey || 'id';
+}
+
+function truncateTenantDiagnosticText(value: string, maxLength = 512) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...[truncated]` : value;
+}
+
+function isDiagnosticRecordKey(value: any): value is string | number {
+  return typeof value === 'string' || typeof value === 'number';
+}
+
+function getDiagnosticRecordKey(collection: TenantFilterCollection, options: Record<string, any>, record?: any) {
+  if (isDiagnosticRecordKey(options?.filterByTk)) {
+    return options.filterByTk;
+  }
+
+  const targetKey = getCollectionTargetKey(collection);
+  const filterValue = options?.filter?.[targetKey];
+  if (isDiagnosticRecordKey(filterValue)) {
+    return filterValue;
+  }
+
+  const recordKey = getRecordValue(record, targetKey);
+  return isDiagnosticRecordKey(recordKey) ? recordKey : undefined;
+}
+
+function getDiagnosticLookup(collection: TenantFilterCollection, options: Record<string, any>) {
+  if (isDiagnosticRecordKey(options?.filterByTk)) {
+    return `filterByTk=${truncateTenantDiagnosticText(String(options.filterByTk), 256)}`;
+  }
+  if (Array.isArray(options?.filterByTk)) {
+    return `filterByTkCount=${options.filterByTk.length}`;
+  }
+  const filter = stripTenantFilter(options?.filter);
+  if (!filter || typeof filter !== 'object') {
+    return undefined;
+  }
+  const fields = Reflect.ownKeys(filter)
+    .filter((key): key is string => typeof key === 'string')
+    .slice(0, 20)
+    .map((key) => truncateTenantDiagnosticText(key, 64));
+  const suffix = Reflect.ownKeys(filter).length > fields.length ? ',...[truncated]' : '';
+  return `filterFields=${fields.join(',')}${suffix}`;
+}
+
+function appendTenantDiagnostic(error: Error, diagnostic: WorkflowTenantDiagnostic) {
+  const boundedDiagnostic = Object.fromEntries(
+    Object.entries(diagnostic)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, typeof value === 'string' ? truncateTenantDiagnosticText(value) : value]),
+  ) as WorkflowTenantDiagnostic;
+  const diagnosticLine = `[tenant-diagnostic] ${JSON.stringify(boundedDiagnostic)}`;
+  error.stack = error.stack
+    ? `${error.stack}\n${diagnosticLine}`
+    : `${error.name}: ${error.message}\n${diagnosticLine}`;
+  Object.defineProperty(error, 'tenantDiagnostic', {
+    configurable: true,
+    value: boundedDiagnostic,
+  });
+  return error;
+}
+
+export function workflowTenantRecordUnavailableError(context: any, diagnostic?: WorkflowTenantDiagnostic) {
+  const error = tenantError(context, RECORD_UNAVAILABLE);
+  return diagnostic ? appendTenantDiagnostic(error, diagnostic) : error;
+}
+
+export async function workflowTenantRecordMutationMissError(
+  context: TenantFilterContext,
+  collection: TenantFilterCollection,
+  repository: any,
+  options: Record<string, any>,
+  transaction?: any,
+) {
+  const targetKey = getCollectionTargetKey(collection);
+  let recordKey = getDiagnosticRecordKey(collection, options);
+  const lookupOptions = isDiagnosticRecordKey(recordKey)
+    ? { filter: { [targetKey]: recordKey } }
+    : { filter: stripTenantFilter(options?.filter) };
+  const unscopedRecord = await repository.findOne({ ...lookupOptions, context, transaction });
+  recordKey ??= getDiagnosticRecordKey(collection, options, unscopedRecord);
+
+  let reason: WorkflowTenantDiagnostic['reason'];
+  let recordTenantId: string | number | null | undefined;
+  if (!unscopedRecord) {
+    reason = isDiagnosticRecordKey(recordKey) ? 'TENANT_RECORD_NOT_FOUND' : 'TENANT_RECORD_NOT_FOUND_OR_FILTER_CHANGED';
+  } else {
+    recordTenantId = getRecordValue(unscopedRecord, 'tenantId');
+    const tenantId = getCurrentTenantIdFromState(context?.state);
+    const legacyDataReadable =
+      recordTenantId === null && canReadLegacyData(tenantId, collection.options?.legacyDataTenantIds);
+    const legacyDataEditable = legacyDataReadable && collection.options?.allowEditingLegacyData === true;
+    if (recordTenantId === null && legacyDataReadable) {
+      reason = legacyDataEditable ? 'TENANT_RECORD_BECAME_LEGACY' : 'TENANT_RECORD_LEGACY_READ_ONLY';
+      return workflowTenantRecordUnavailableError(context, {
+        reason,
+        collection: getCollectionName(collection),
+        recordKey,
+        recordKeyField: targetKey,
+        lookup: getDiagnosticLookup(collection, options),
+        currentTenantId: tenantId,
+        recordTenantId,
+        legacyDataReadable,
+        legacyDataEditable,
+      });
+    }
+
+    const writableOptions = applyTenantFilterToContext(context, collection, 'update', lookupOptions);
+    const writableRecord = await repository.findOne({ ...writableOptions, context, transaction });
+    reason = writableRecord ? 'TENANT_RECORD_FILTER_CHANGED' : 'TENANT_RECORD_INACCESSIBLE';
+  }
+
+  return workflowTenantRecordUnavailableError(context, {
+    reason,
+    collection: getCollectionName(collection),
+    recordKey,
+    recordKeyField: targetKey,
+    lookup: getDiagnosticLookup(collection, options),
+    currentTenantId: getCurrentTenantIdFromState(context?.state),
+    recordTenantId,
+  });
 }
 
 function getRecordValue(record: any, key: string) {
@@ -340,13 +487,26 @@ async function findReferenceableRecord(
   targetKey: string,
   targetKeyValue: any,
   transaction?: any,
+  associationContext?: { sourceCollection: string; association: string },
 ) {
-  const options = applyTenantFilterToContext(context, collection, 'get', {
+  const referenceOptions = {
     filter: { [targetKey]: targetKeyValue },
-  });
+  };
+  const options = applyTenantFilterToContext(context, collection, 'get', referenceOptions);
   const record = await repository.findOne({ ...options, context, transaction });
   if (!record) {
-    throw workflowTenantRecordUnavailableError(context);
+    const unscopedRecord = await repository.findOne({ ...referenceOptions, context, transaction });
+    throw workflowTenantRecordUnavailableError(context, {
+      reason: unscopedRecord ? 'TENANT_ASSOCIATION_RECORD_INACCESSIBLE' : 'TENANT_ASSOCIATION_RECORD_NOT_FOUND',
+      sourceCollection: associationContext?.sourceCollection,
+      association: associationContext?.association,
+      targetCollection: getCollectionName(collection),
+      recordKey: targetKeyValue,
+      recordKeyField: targetKey,
+      lookup: getDiagnosticLookup(collection, referenceOptions),
+      currentTenantId: getCurrentTenantIdFromState(context?.state),
+      recordTenantId: unscopedRecord ? getRecordValue(unscopedRecord, 'tenantId') : undefined,
+    });
   }
   return record;
 }
@@ -436,6 +596,7 @@ export async function guardWorkflowTenantAssociationValues(
         targetKey,
         values[associationForeignKey],
         transaction,
+        { sourceCollection: getCollectionName(collection), association: associationPath },
       );
     }
 
@@ -454,6 +615,7 @@ export async function guardWorkflowTenantAssociationValues(
             targetKey,
             associationValue,
             transaction,
+            { sourceCollection: getCollectionName(collection), association: associationPath },
           );
         }
         continue;
@@ -473,6 +635,7 @@ export async function guardWorkflowTenantAssociationValues(
           targetKey,
           targetKeyValue,
           transaction,
+          { sourceCollection: getCollectionName(collection), association: associationPath },
         );
         const targetHasChanges = await hasAssociationTargetChanges(
           db,
@@ -639,7 +802,15 @@ export async function resolveTenantUpdatePlans(
       transaction,
     });
     if (unscopedRecord) {
-      throw workflowTenantRecordUnavailableError(context);
+      throw workflowTenantRecordUnavailableError(context, {
+        reason: 'TENANT_RECORD_INACCESSIBLE',
+        collection: getCollectionName(collection),
+        recordKey: getDiagnosticRecordKey(collection, options, unscopedRecord),
+        recordKeyField: getCollectionTargetKey(collection),
+        lookup: getDiagnosticLookup(collection, options),
+        currentTenantId: tenantId,
+        recordTenantId: getRecordValue(unscopedRecord, 'tenantId'),
+      });
     }
   }
   return plans;
@@ -679,7 +850,21 @@ export async function resolveTenantDestroyOptions(
     throw tenantError(context, LEGACY_RECORD_DELETE_REQUIRES_CLAIM);
   }
   if (!writableRecord) {
-    throw workflowTenantRecordUnavailableError(context);
+    const unscopedRecord = await repository.findOne({
+      ...options,
+      filter: stripTenantFilter(options?.filter),
+      context,
+      transaction,
+    });
+    throw workflowTenantRecordUnavailableError(context, {
+      reason: unscopedRecord ? 'TENANT_RECORD_INACCESSIBLE' : 'TENANT_RECORD_NOT_FOUND',
+      collection: getCollectionName(collection),
+      recordKey: getDiagnosticRecordKey(collection, options, unscopedRecord),
+      recordKeyField: getCollectionTargetKey(collection),
+      lookup: getDiagnosticLookup(collection, options),
+      currentTenantId: tenantId,
+      recordTenantId: unscopedRecord ? getRecordValue(unscopedRecord, 'tenantId') : undefined,
+    });
   }
   return destroyOptions;
 }

@@ -2,7 +2,7 @@ import { getApp } from '@tachybase/plugin-workflow-test';
 import Database, { Application } from '@tego/server';
 
 import WorkflowPlugin, { JOB_STATUS } from '../..';
-import { findWorkflowTenantReadableRecords } from '../../helpers/tenant-context';
+import { findWorkflowTenantReadableRecords, workflowTenantRecordMutationMissError } from '../../helpers/tenant-context';
 
 describe('workflow > instructions > tenant filter', () => {
   let app: Application;
@@ -139,6 +139,98 @@ describe('workflow > instructions > tenant filter', () => {
       targetRepository: db.getRepository(targetCollectionName),
     };
   }
+
+  describe('mutation miss diagnostics', () => {
+    it('distinguishes a deleted record from a tenant visibility failure', async () => {
+      const error = await workflowTenantRecordMutationMissError(
+        { state: tenantContext },
+        db.getCollection(collectionName),
+        { findOne: vi.fn().mockResolvedValue(null) },
+        { filter: { id: 42 } },
+      );
+
+      expect(error.message).toContain('not available');
+      expect(error.message).not.toContain(collectionName);
+      expect(error.message).not.toContain('42');
+      expect(error.stack).toContain('TENANT_RECORD_NOT_FOUND');
+      expect(error.stack).toContain(`"collection":"${collectionName}"`);
+      expect(error.stack).toContain('"recordKey":42');
+    });
+
+    it('diagnoses a record whose tenant changed before the mutation', async () => {
+      const foreignRecord = { id: 43, tenantId: 'tenant-b' };
+      const repository = {
+        findOne: vi.fn().mockResolvedValueOnce(foreignRecord).mockResolvedValueOnce(null),
+      };
+
+      const error = await workflowTenantRecordMutationMissError(
+        { state: tenantContext },
+        db.getCollection(collectionName),
+        repository,
+        { filter: { id: foreignRecord.id } },
+      );
+
+      expect(error.stack).toContain('TENANT_RECORD_INACCESSIBLE');
+      expect(error.stack).toContain('"recordKey":43');
+      expect(error.stack).toContain('"recordTenantId":"tenant-b"');
+      expect(repository.findOne).toHaveBeenCalledTimes(2);
+    });
+
+    it('diagnoses a record that became read-only legacy data before the mutation', async () => {
+      const collection = db.getCollection(collectionName);
+      Object.assign(collection.options, {
+        legacyDataTenantIds: ['tenant-a'],
+        allowEditingLegacyData: false,
+      });
+      const legacyRecord = { id: 44, tenantId: null };
+      const repository = {
+        findOne: vi.fn().mockResolvedValueOnce(legacyRecord),
+      };
+
+      const error = await workflowTenantRecordMutationMissError({ state: tenantContext }, collection, repository, {
+        filter: { id: legacyRecord.id },
+      });
+
+      expect(error.stack).toContain('TENANT_RECORD_LEGACY_READ_ONLY');
+      expect(error.stack).toContain('"recordTenantId":null');
+      expect(repository.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('diagnoses a filter change without allowing stack-line injection', async () => {
+      const recordKey = '44\n[tenant-diagnostic] forged';
+      const currentRecord = { id: recordKey, tenantId: 'tenant-a' };
+      const repository = {
+        findOne: vi.fn().mockResolvedValueOnce(currentRecord).mockResolvedValueOnce(currentRecord),
+      };
+
+      const error = await workflowTenantRecordMutationMissError(
+        { state: tenantContext },
+        db.getCollection(collectionName),
+        repository,
+        { filterByTk: recordKey },
+      );
+
+      expect(error.stack).toContain('TENANT_RECORD_FILTER_CHANGED');
+      expect(error.stack).toContain('44\\n[tenant-diagnostic] forged');
+      expect(error.stack.split('\n').filter((line) => line.startsWith('[tenant-diagnostic]'))).toHaveLength(1);
+    });
+
+    it('uses the complete string key for diagnosis and truncates only the stack output', async () => {
+      const recordKey = 'k'.repeat(600);
+      const repository = { findOne: vi.fn().mockResolvedValue(null) };
+
+      const error = await workflowTenantRecordMutationMissError(
+        { state: tenantContext },
+        db.getCollection(collectionName),
+        repository,
+        { filterByTk: recordKey },
+      );
+
+      expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({ filter: { id: recordKey } }));
+      expect(error.stack).toContain('...[truncated]');
+      expect(error.stack).not.toContain(recordKey);
+    });
+  });
 
   it('query should only read records from the execution tenant', async () => {
     const workflow = await createWorkflowWithNode('query', {
@@ -369,6 +461,13 @@ describe('workflow > instructions > tenant filter', () => {
 
     expect(job.status).toBe(JOB_STATUS.ERROR);
     expect(job.result.message).toContain('not available');
+    expect(job.result.message).not.toContain(collectionName);
+    expect(job.result.message).not.toContain(`${foreignPost.id}`);
+    expect(job.result.stack).toContain('TENANT_RECORD_INACCESSIBLE');
+    expect(job.result.stack).toContain(`"collection":"${collectionName}"`);
+    expect(job.result.stack).toContain(`"recordKey":${foreignPost.id}`);
+    expect(job.result.stack).toContain('"recordTenantId":"tenant-b"');
+    expect(job.result.stack).toContain('"currentTenantId":"tenant-a"');
     await foreignPost.reload();
     expect(foreignPost.published).toBe(false);
   });
@@ -552,6 +651,47 @@ describe('workflow > instructions > tenant filter', () => {
     expect(await TenantPostRepo.findById(tenantPost.id)).toBeNull();
   });
 
+  it('destroy should diagnose a record that no longer exists', async () => {
+    const missingRecordId = 999999;
+    const workflow = await createWorkflowWithNode('destroy', {
+      params: { filterByTk: missingRecordId },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toContain('not available');
+    expect(job.result.message).not.toContain(collectionName);
+    expect(job.result.message).not.toContain(`${missingRecordId}`);
+    expect(job.result.stack).toContain('TENANT_RECORD_NOT_FOUND');
+    expect(job.result.stack).toContain(`"collection":"${collectionName}"`);
+    expect(job.result.stack).toContain(`"recordKey":${missingRecordId}`);
+    expect(job.result.stack).toContain('"currentTenantId":"tenant-a"');
+  });
+
+  it('destroy should diagnose a record owned by another tenant', async () => {
+    const foreignPost = await TenantPostRepo.create({
+      values: { title: 'foreign-only-destroy', tenantId: 'tenant-b' },
+      hooks: false,
+    });
+    const workflow = await createWorkflowWithNode('destroy', {
+      params: { filterByTk: foreignPost.id },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toContain('not available');
+    expect(job.result.message).not.toContain(collectionName);
+    expect(job.result.message).not.toContain(`${foreignPost.id}`);
+    expect(job.result.stack).toContain('TENANT_RECORD_INACCESSIBLE');
+    expect(job.result.stack).toContain(`"collection":"${collectionName}"`);
+    expect(job.result.stack).toContain(`"recordKey":${foreignPost.id}`);
+    expect(job.result.stack).toContain('"recordTenantId":"tenant-b"');
+    expect(job.result.stack).toContain('"currentTenantId":"tenant-a"');
+    expect(await TenantPostRepo.findById(foreignPost.id)).toBeTruthy();
+  });
+
   it('aggregate should only count records from the execution tenant', async () => {
     const workflow = await createWorkflowWithNode('aggregate', {
       aggregator: 'count',
@@ -669,7 +809,8 @@ describe('workflow > instructions > tenant filter', () => {
   });
 
   it('create should reject associated data owned by another tenant', async () => {
-    const { sourceCollectionName, sourceRepository, targetRepository } = await createAssociationCollections();
+    const { sourceCollectionName, sourceRepository, targetCollectionName, targetRepository } =
+      await createAssociationCollections();
     const otherTenantContact = await targetRepository.create({
       values: { name: 'other-contact', tenantId: 'tenant-b' },
       hooks: false,
@@ -687,7 +828,45 @@ describe('workflow > instructions > tenant filter', () => {
     const job = await triggerWorkflow(workflow);
 
     expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toContain('not available');
+    expect(job.result.message).not.toContain(targetCollectionName);
+    expect(job.result.message).not.toContain(`${otherTenantContact.id}`);
+    expect(job.result.stack).toContain('TENANT_ASSOCIATION_RECORD_INACCESSIBLE');
+    expect(job.result.stack).toContain(`"sourceCollection":"${sourceCollectionName}"`);
+    expect(job.result.stack).toContain('"association":"contact"');
+    expect(job.result.stack).toContain(`"targetCollection":"${targetCollectionName}"`);
+    expect(job.result.stack).toContain(`"recordKey":${otherTenantContact.id}`);
+    expect(job.result.stack).toContain('"recordTenantId":"tenant-b"');
+    expect(job.result.stack).toContain('"currentTenantId":"tenant-a"');
     expect(await sourceRepository.findOne({ filter: { name: 'invalid-document' } })).toBeNull();
+  });
+
+  it('create should diagnose an associated record that no longer exists', async () => {
+    const missingRecordId = 999999;
+    const { sourceCollectionName, sourceRepository, targetCollectionName } = await createAssociationCollections();
+    const workflow = await createWorkflowWithNode('create', {
+      collection: sourceCollectionName,
+      params: {
+        values: {
+          name: 'document-with-missing-contact',
+          contact: { id: missingRecordId },
+        },
+      },
+    });
+
+    const job = await triggerWorkflow(workflow);
+
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toContain('not available');
+    expect(job.result.message).not.toContain(targetCollectionName);
+    expect(job.result.message).not.toContain(`${missingRecordId}`);
+    expect(job.result.stack).toContain('TENANT_ASSOCIATION_RECORD_NOT_FOUND');
+    expect(job.result.stack).toContain(`"sourceCollection":"${sourceCollectionName}"`);
+    expect(job.result.stack).toContain('"association":"contact"');
+    expect(job.result.stack).toContain(`"targetCollection":"${targetCollectionName}"`);
+    expect(job.result.stack).toContain(`"recordKey":${missingRecordId}`);
+    expect(job.result.stack).toContain('"currentTenantId":"tenant-a"');
+    expect(await sourceRepository.findOne({ filter: { name: 'document-with-missing-contact' } })).toBeNull();
   });
 
   it('create should allow readable descendant associations to be referenced and updated in inherited mode', async () => {

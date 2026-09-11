@@ -159,6 +159,40 @@ export const ScriptCodeEditor = connect(({ value: code, onChange: setCode, ...ot
     setUseFallback(true);
   }, []);
 
+  // 监听全局错误，捕获 Monaco Editor 加载失败
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      // 检查是否是 Monaco Editor 相关的错误
+      if (
+        event.message?.includes('monaco') ||
+        event.message?.includes('Monaco') ||
+        event.filename?.includes('monaco') ||
+        event.filename?.includes('vs/') ||
+        event.filename?.includes('loader.js')
+      ) {
+        console.warn('[ScriptCodeEditor] Detected Monaco Editor error, will use fallback:', event.message);
+        setUseFallback(true);
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const errorMessage = reason?.message || String(reason);
+      if (errorMessage.includes('monaco') || errorMessage.includes('Monaco') || errorMessage.includes('loader')) {
+        console.warn('[ScriptCodeEditor] Detected Monaco Editor promise rejection, will use fallback:', errorMessage);
+        setUseFallback(true);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   // 如果使用降级方案，显示 TextArea
   if (useFallback || editorError) {
     const height = others.height || '50vh';
@@ -204,40 +238,6 @@ export const ScriptCodeEditor = connect(({ value: code, onChange: setCode, ...ot
       </div>
     );
   }
-
-  // 监听全局错误，捕获 Monaco Editor 加载失败
-  useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      // 检查是否是 Monaco Editor 相关的错误
-      if (
-        event.message?.includes('monaco') ||
-        event.message?.includes('Monaco') ||
-        event.filename?.includes('monaco') ||
-        event.filename?.includes('vs/') ||
-        event.filename?.includes('loader.js')
-      ) {
-        console.warn('[ScriptCodeEditor] Detected Monaco Editor error, will use fallback:', event.message);
-        setUseFallback(true);
-      }
-    };
-
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      const reason = event.reason;
-      const errorMessage = reason?.message || String(reason);
-      if (errorMessage.includes('monaco') || errorMessage.includes('Monaco') || errorMessage.includes('loader')) {
-        console.warn('[ScriptCodeEditor] Detected Monaco Editor promise rejection, will use fallback:', errorMessage);
-        setUseFallback(true);
-      }
-    };
-
-    window.addEventListener('error', handleError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-
-    return () => {
-      window.removeEventListener('error', handleError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-    };
-  }, []);
 
   // 使用 Monaco Editor
   return (

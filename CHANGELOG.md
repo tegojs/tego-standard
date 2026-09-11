@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.55] - 2026-09-11
+
+### 🐛 Fixed
+
+- **workflow**: preserve hook order in script editor fallback (@TomyJan)
+
 ## [1.6.54] - 2026-09-09
 
 ### 🐛 Fixed
@@ -3289,7 +3295,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.54...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.55...HEAD
+[1.6.55]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.55
 [1.6.54]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.54
 [1.6.53]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.53
 [1.6.52]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.52

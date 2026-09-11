@@ -9,6 +9,12 @@
 
 
 
+## [1.6.55] - 2026-09-11
+
+### 🐛 修复
+
+- **workflow**: preserve hook order in script editor fallback (@TomyJan)
+
 ## [1.6.54] - 2026-09-09
 
 ### 🐛 修复
@@ -3289,7 +3295,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.54...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.55...HEAD
+[1.6.55]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.55
 [1.6.54]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.54
 [1.6.53]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.53
 [1.6.52]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.52

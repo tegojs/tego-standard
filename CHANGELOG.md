@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.58] - 2026-09-15
+
+### 🐛 Fixed
+
+- **tenant**: preserve collection field metadata for UI rendering (@TomyJan)
+
 ## [1.6.57] - 2026-09-15
 
 ### 🐛 Fixed
@@ -3307,7 +3313,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.57...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.58...HEAD
+[1.6.58]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.58
 [1.6.57]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.57
 [1.6.56]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.56
 [1.6.55]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.55

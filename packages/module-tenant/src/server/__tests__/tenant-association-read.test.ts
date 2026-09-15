@@ -133,6 +133,10 @@ describe('shared-source association read boundaries', () => {
     });
     expect(response.status, JSON.stringify(response.body)).toBe(200);
     expect(response.body.data[0].fields.map((field: any) => field.name)).toContain('title');
+    role.grantAction('fields:list');
+    const directFields = await agent.resource('collections.fields', 'metadata_projects').list({ paginate: false });
+    expect(directFields.status, JSON.stringify(directFields.body)).toBe(200);
+    expect(directFields.body.data.map((field: any) => field.name)).toContain('title');
   });
 
   it('does not exempt same-named fields in another data source', async () => {

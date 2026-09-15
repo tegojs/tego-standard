@@ -81,6 +81,17 @@ describe('association target read scope', () => {
     options: { tenancy: 'tenantInherited', legacyDataTenantIds: [] },
   };
 
+  it('ignores the core internal pivot used to constrain a direct many-to-many query', async () => {
+    const scope = await resolveAssociationReadScope(
+      { state: {}, can: () => null },
+      target,
+      { as: '_pivot_', options: { realAs: 'read_companies_projects' } },
+      acl,
+    );
+
+    expect(scope).toBeUndefined();
+  });
+
   it('combines the target ACL and its own tenant visibility', async () => {
     const ctx = {
       state: { currentTenantId: 'parent', currentTenantDescendantIds: ['child'] },

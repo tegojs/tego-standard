@@ -5,6 +5,10 @@ import { applyTenantFilterToContext } from './tenant-filter';
 
 /** Resolve the target collection's own ACL and tenancy boundary for appended associations. */
 export async function resolveAssociationReadScope(ctx: any, collection: any, association: any, acl: any) {
+  if (association?.as === '_pivot_' && association?.options?.realAs) {
+    return;
+  }
+
   const action = association?.isSingleAssociation ? 'get' : 'list';
   const permission = ctx.can?.({ resource: collection.name, action });
   if (!permission) {

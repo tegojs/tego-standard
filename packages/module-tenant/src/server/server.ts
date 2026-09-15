@@ -613,6 +613,7 @@ async function guardTenantAssociationAction(ctx: any, db: any, acl: any, resourc
   const sourceTenancyMode = getCollectionTenancyMode(sourceCollection);
   const targetTenancyMode = getCollectionTenancyMode(targetCollection);
   const actionName = ctx.action.actionName;
+  let sourceReadVerified = false;
   if (isTenantReadAction(actionName) && ctx.action.sourceId !== '_') {
     const scope = await resolveAssociationReadScope(ctx, targetCollection, sourceAssociation, acl);
     if (scope.filter) {
@@ -627,6 +628,24 @@ async function guardTenantAssociationAction(ctx: any, db: any, acl: any, resourc
       }
       ctx.action.params.fields = scope.fields;
     }
+
+    const sourcePermission = ctx.can?.({ resource: sourceCollection.name, action: 'get' });
+    if (!sourcePermission) {
+      ctx.throw(403, translateTenantError(ctx, 'associationReadDenied'));
+    }
+    const sourceAclParams = acl.filterParams(ctx, sourceCollection.name, sourcePermission.params || {});
+    const sourceAclOptions = await acl.parseJsonTemplate(sourceAclParams, ctx);
+    const allowedSource = await sourceCollection.repository.findOne(
+      applyTenantFilterToContext(ctx, sourceCollection, 'get', {
+        filterByTk: ctx.action.sourceId,
+        filter: sourceAclOptions.filter,
+        context: ctx,
+      }),
+    );
+    if (!allowedSource) {
+      ctx.throw(403, translateTenantError(ctx, 'associationReadDenied'));
+    }
+    sourceReadVerified = true;
   }
   const tenantAware =
     TENANT_ENABLED_MODES.includes(sourceTenancyMode as any) || TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
@@ -644,7 +663,9 @@ async function guardTenantAssociationAction(ctx: any, db: any, acl: any, resourc
   }
 
   if (!ASSOCIATION_TARGET_WRITE_ACTIONS.has(actionName)) {
-    await assertTenantRecordAccess(ctx, sourceCollection, ctx.action.sourceId, 'get');
+    if (!sourceReadVerified) {
+      await assertTenantRecordAccess(ctx, sourceCollection, ctx.action.sourceId, 'get');
+    }
     return association;
   }
 

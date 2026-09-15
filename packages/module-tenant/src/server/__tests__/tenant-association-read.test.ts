@@ -132,6 +132,56 @@ describe('shared-source association read boundaries', () => {
     expect(response.body.meta.count).toBe(1);
   });
 
+  it('requires the source view scope for plural and singular association reads', async () => {
+    const { company, own } = await setup();
+    const hidden = await app.db.getRepository('read_companies').create({ values: { title: 'Hidden company' } });
+    const info = await app.db.getRepository('read_info').create({ values: { title: 'Hidden info' } });
+    await app.db
+      .getRepository('read_companies')
+      .update({ filterByTk: hidden.get('id'), values: { infoId: info.get('id') } });
+    await app.db.getRepository('read_companies.projects', hidden.get('id')).add(own.get('id'));
+
+    await app.db.getRepository('roles').create({ values: { name: 'source_scoped_reader' } });
+    const role = app.acl.getRole('source_scoped_reader');
+    role.grantAction('read_companies:view', { filter: { title: 'Shared company' } });
+    role.grantAction('read_companies.projects:list');
+    role.grantAction('read_companies.projects:get');
+    role.grantAction('read_companies.info:get');
+    role.grantAction('read_projects:view');
+    role.grantAction('read_info:view');
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'source_scoped_reader',
+        email: 'source-scoped-reader@example.com',
+        password: '123456',
+        roles: ['source_scoped_reader'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+    const agent = app.agent().login(user);
+
+    const direct = await agent.resource('read_companies').get({ filterByTk: hidden.get('id') });
+    expect(direct.status).toBe(200);
+    expect(direct.body.data ?? null).toBeNull();
+
+    const sourceRepository = app.db.getCollection('read_companies').repository;
+    const sourceFindOne = vi.spyOn(sourceRepository, 'findOne');
+    const allowed = await agent.resource('read_companies.projects', company.get('id')).list({});
+    expect(allowed.status, JSON.stringify(allowed.body)).toBe(200);
+    expect(allowed.body.data.map((row: any) => row.id)).toEqual([own.get('id')]);
+    expect(sourceFindOne).toHaveBeenCalledTimes(2);
+    sourceFindOne.mockRestore();
+
+    for (const response of [
+      await agent.resource('read_companies.projects', hidden.get('id')).list({}),
+      await agent.resource('read_companies.projects', hidden.get('id')).get({ filterByTk: own.get('id') }),
+      await agent.resource('read_companies.info', hidden.get('id')).get({ filterByTk: info.get('id') }),
+    ]) {
+      expect(response.status, JSON.stringify(response.body)).toBe(403);
+    }
+  });
+
   it('does not allow direct association appends omitted by the target ACL', async () => {
     const { company } = await setup();
     await app.db.getRepository('roles').create({ values: { name: 'no_nested_relation_reader' } });

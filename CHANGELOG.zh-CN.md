@@ -9,6 +9,12 @@
 
 
 
+## [1.6.56] - 2026-09-15
+
+### 🐛 修复
+
+- **tenant**: enforce scoped association access (@TomyJan)
+
 ## [1.6.55] - 2026-09-11
 
 ### 🐛 修复
@@ -3295,7 +3301,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.55...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.56...HEAD
+[1.6.56]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.56
 [1.6.55]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.55
 [1.6.54]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.54
 [1.6.53]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.53

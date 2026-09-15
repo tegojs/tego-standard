@@ -9,6 +9,15 @@ export async function resolveAssociationReadScope(ctx: any, collection: any, ass
     return;
   }
 
+  // Collection field definitions are schema metadata, not rows in a business association.
+  if (
+    collection === ctx.tego?.db?.getCollection?.('fields') &&
+    (association?.source?.name === 'collections' ||
+      ['collections', 'collections.fields'].includes(ctx.action?.resourceName))
+  ) {
+    return {};
+  }
+
   const action = association?.isSingleAssociation ? 'get' : 'list';
   const permission = ctx.can?.({ resource: collection.name, action });
   if (!permission) {

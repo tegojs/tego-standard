@@ -1,5 +1,6 @@
 import type { MockServer } from '@tachybase/test';
 
+import { resolveAssociationReadScope } from '../helpers/association-read-scope';
 import { createTenantApp } from './utils';
 
 describe('shared-source association read boundaries', () => {
@@ -101,6 +102,49 @@ describe('shared-source association read boundaries', () => {
       .resource('read_companies.projects', company.get('id'))
       .get({ filterByTk: foreign.get('id') });
     expect(get.body.data ?? null).toBeNull();
+  });
+
+  it('keeps collection field metadata readable without a separate fields data permission', async () => {
+    app = await createTenantApp();
+    await app.db.getRepository('tenants').create({ values: { id: 'tenant-a', name: 'Tenant A' } });
+    await app.db.getRepository('collections').create({
+      values: { name: 'metadata_projects', fields: [{ name: 'title', type: 'string', interface: 'input' }] },
+      context: {},
+    });
+    await app.db.getRepository('roles').create({ values: { name: 'metadata_reader' } });
+    const role = app.acl.getRole('metadata_reader');
+    role.grantAction('collections:view');
+    role.grantAction('collections.fields:list');
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'metadata_reader',
+        email: 'metadata-reader@example.com',
+        password: '123456',
+        roles: ['metadata_reader'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+    const agent = app.agent().login(user);
+    const response = await agent.resource('collections').list({
+      paginate: false,
+      appends: ['fields'],
+      filter: { name: 'metadata_projects' },
+    });
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.data[0].fields.map((field: any) => field.name)).toContain('title');
+  });
+
+  it('does not exempt same-named fields in another data source', async () => {
+    app = await createTenantApp();
+    const externalFields = { name: 'fields', model: { primaryKeyAttribute: 'id' } };
+    const ctx = {
+      tego: { db: app.db },
+      action: { resourceName: 'collections' },
+      can: () => null,
+    };
+    const scope = await resolveAssociationReadScope(ctx, externalFields, { source: { name: 'collections' } }, app.acl);
+    expect(scope).toEqual({ filter: { id: { $in: [] } }, fields: [], appends: [] });
   });
 
   it('enforces target row-level ACL on direct association list and count', async () => {

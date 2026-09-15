@@ -1,0 +1,223 @@
+import type { MockServer } from '@tachybase/test';
+
+import { createTenantApp } from './utils';
+
+describe('shared-source association read boundaries', () => {
+  let app: MockServer;
+
+  afterEach(async () => {
+    await app?.destroy();
+  });
+
+  async function setup() {
+    app = await createTenantApp();
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'Tenant A' },
+        { id: 'tenant-b', name: 'Tenant B' },
+      ],
+    });
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'association_reader',
+        email: 'association-reader@example.com',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'read_info',
+        tenancy: 'shared',
+        fields: [{ type: 'string', name: 'title' }],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'read_projects',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'belongsTo', name: 'info', target: 'read_info' },
+        ],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'read_companies',
+        tenancy: 'shared',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'belongsToMany', name: 'projects', target: 'read_projects' },
+          { type: 'belongsTo', name: 'info', target: 'read_info' },
+        ],
+      },
+      context: {},
+    });
+    const info = await app.db.getRepository('read_info').create({ values: { title: 'Shared info' } });
+    const company = await app.db.getRepository('read_companies').create({
+      values: { title: 'Shared company', infoId: info.get('id') },
+    });
+    const repo = app.db.getRepository('read_projects');
+    const own = await repo.create({
+      values: { title: 'Tenant A project' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    const foreign = await repo.create({
+      values: { title: 'Tenant B project' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+    const projectInfoKey = app.db.getCollection('read_projects').model.associations.info.foreignKey;
+    await repo.update({ filterByTk: own.get('id'), values: { [projectInfoKey]: info.get('id') } });
+    await app.db.getRepository('read_companies.projects', company.get('id')).add([own.get('id'), foreign.get('id')]);
+    return { agent: app.agent().login(user), company, own, foreign };
+  }
+
+  it('fails closed on old-core scoped appends and filters them on a capable core', async () => {
+    const { agent, company, own } = await setup();
+    const shared = await agent.resource('read_companies').get({ filterByTk: company.get('id'), appends: ['info'] });
+    expect(shared.status, JSON.stringify(shared.body)).toBe(200);
+    expect(shared.body.data).toBeDefined();
+    const scoped = await agent.resource('read_companies').get({ filterByTk: company.get('id'), appends: ['projects'] });
+    if ((app.db.getRepository('read_companies') as any).supportsAssociationReadScope === true) {
+      expect(scoped.status, JSON.stringify(scoped.body)).toBe(200);
+      expect(scoped.body.data.projects.map((project: any) => project.id)).toEqual([own.get('id')]);
+    } else {
+      expect(scoped.status, JSON.stringify(scoped.body)).toBe(403);
+    }
+  });
+
+  it('scopes direct association list, count and get to the target tenant', async () => {
+    const { agent, company, own, foreign } = await setup();
+    const list = await agent.resource('read_companies.projects', company.get('id')).list({});
+    expect(list.status, JSON.stringify(list.body)).toBe(200);
+    expect(list.body.data.map((row: any) => row.id)).toEqual([own.get('id')]);
+    expect(list.body.meta.count).toBe(1);
+    const get = await agent
+      .resource('read_companies.projects', company.get('id'))
+      .get({ filterByTk: foreign.get('id') });
+    expect(get.body.data ?? null).toBeNull();
+  });
+
+  it('enforces target row-level ACL on direct association list and count', async () => {
+    const { company } = await setup();
+    const extra = await app.db.getRepository('read_projects').create({
+      values: { title: 'Hidden tenant A project' },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+    await app.db.getRepository('read_companies.projects', company.get('id')).add(extra.get('id'));
+    await app.db.getRepository('roles').create({ values: { name: 'scoped_relation_reader' } });
+    const role = app.acl.getRole('scoped_relation_reader');
+    role.grantAction('read_companies:view');
+    role.grantAction('read_companies.projects:list');
+    role.grantAction('read_projects:view', { filter: { title: 'Tenant A project' } });
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'scoped_relation_reader',
+        email: 'scoped-relation-reader@example.com',
+        password: '123456',
+        roles: ['scoped_relation_reader'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    const response = await app.agent().login(user).resource('read_companies.projects', company.get('id')).list({});
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.data.map((row: any) => row.title)).toEqual(['Tenant A project']);
+    expect(response.body.meta.count).toBe(1);
+  });
+
+  it('does not allow direct association appends omitted by the target ACL', async () => {
+    const { company } = await setup();
+    await app.db.getRepository('roles').create({ values: { name: 'no_nested_relation_reader' } });
+    const role = app.acl.getRole('no_nested_relation_reader');
+    role.grantAction('read_companies:view');
+    role.grantAction('read_companies.projects:list');
+    role.grantAction('read_projects:view', { appends: [] });
+    role.grantAction('read_info:view');
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'no_nested_relation_reader',
+        email: 'no-nested-relation-reader@example.com',
+        password: '123456',
+        roles: ['no_nested_relation_reader'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+
+    const response = await app
+      .agent()
+      .login(user)
+      .resource('read_companies.projects', company.get('id'))
+      .list({
+        appends: ['info'],
+      });
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.data.every((row: any) => row.info == null)).toBe(true);
+  });
+
+  it('fails closed for old-core scoped tree searches and filters them on a capable core', async () => {
+    const { agent } = await setup();
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'read_tree',
+        tenancy: 'tenantScoped',
+        tree: 'adjacency-list',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'integer', name: 'parentId' },
+        ],
+      },
+      context: {},
+    });
+    const repo = app.db.getRepository('read_tree');
+    const hidden = await repo.create({
+      values: { title: 'Hidden parent' },
+      context: { state: { currentTenant: { id: 'tenant-b' }, currentTenantId: 'tenant-b' } },
+    });
+    await repo.create({
+      values: { title: 'Matching child', parentId: hidden.get('id') },
+      context: { state: { currentTenant: { id: 'tenant-a' }, currentTenantId: 'tenant-a' } },
+    });
+
+    const response = await agent.resource('read_tree').list({ tree: true, filter: { title: 'Matching child' } });
+    if ((app.resourcer.getRegisteredHandler('list') as any)?.supportsScopedTreeRead === true) {
+      expect(response.status, JSON.stringify(response.body)).toBe(200);
+      expect(response.body.data.map((row: any) => row.title)).toEqual(['Matching child']);
+      expect(response.body.meta.count).toBe(1);
+    } else {
+      expect(response.status, JSON.stringify(response.body)).toBe(403);
+      expect(response.body.errors[0].message).toContain('tree');
+    }
+  });
+
+  it('keeps unrestricted shared tree searches available on the old core', async () => {
+    const { agent } = await setup();
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'shared_read_tree',
+        tenancy: 'shared',
+        tree: 'adjacency-list',
+        fields: [
+          { type: 'string', name: 'title' },
+          { type: 'integer', name: 'parentId' },
+        ],
+      },
+      context: {},
+    });
+    const parent = await app.db.getRepository('shared_read_tree').create({ values: { title: 'Parent' } });
+    await app.db.getRepository('shared_read_tree').create({
+      values: { title: 'Matching child', parentId: parent.get('id') },
+    });
+
+    const response = await agent.resource('shared_read_tree').list({ tree: true, filter: { title: 'Matching child' } });
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.data[0].title).toBe('Parent');
+  });
+});

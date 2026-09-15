@@ -493,7 +493,8 @@ describe('workflow > triggers > schedule > date field mode', () => {
         },
       });
 
-      const post = await PostRepo.create({ values: { title: 't1' } });
+      // Keep both scheduled runs ahead of the test setup, even under a busy CI worker.
+      const post = await PostRepo.create({ values: { title: 't1', createdAt: getFutureSecond(4) } });
 
       await waitForAssertion(async () => {
         const e1c = await workflow.countExecutions();

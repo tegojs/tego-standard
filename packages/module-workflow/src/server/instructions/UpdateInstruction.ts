@@ -8,6 +8,7 @@ import mime from 'mime-types';
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
 import {
+  applyTenantFilterToContext,
   findWorkflowTenantReadableRecords,
   guardWorkflowTenantAssociationValues,
   resolveTenantUpdatePlans,
@@ -195,6 +196,10 @@ export class UpdateInstruction extends Instruction {
       dataSourceName,
       processor.transaction,
       async (transaction) => {
+        const verificationOptions = applyTenantFilterToContext(repositoryContext, c, 'update', {
+          ...options,
+          values: _.cloneDeep(options.values),
+        });
         const sourceRecords = await findWorkflowTenantReadableRecords(
           repositoryContext,
           c,
@@ -223,14 +228,23 @@ export class UpdateInstruction extends Instruction {
           });
           const count = records?.length ?? records;
           if (count === 0) {
-            throw await workflowTenantRecordMutationMissError(
+            const mutationVerificationOptions = {
+              ...repositoryOptions,
+              values: { ...verificationOptions.values, ...repositoryOptions.values },
+            };
+            const mutationError = await workflowTenantRecordMutationMissError(
               repositoryContext,
               c,
               repository,
-              options,
+              repositoryOptions,
               transaction,
               'update',
+              dataSource.collectionManager.db,
+              mutationVerificationOptions,
             );
+            if (mutationError) {
+              throw mutationError;
+            }
           }
           updatedCount += count;
           if (Array.isArray(records)) {

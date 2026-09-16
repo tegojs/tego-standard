@@ -9,6 +9,13 @@
 
 
 
+## [1.6.59] - 2026-09-16
+
+### 🐛 修复
+
+- **workflow**: handle tenant-scoped no-op updates safely (@TomyJan)
+- **workflow**: remove approval tenant runtime dependency (@TomyJan)
+
 ## [1.6.58] - 2026-09-15
 
 ### 🐛 修复
@@ -3313,7 +3320,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.58...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.59...HEAD
+[1.6.59]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.59
 [1.6.58]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.58
 [1.6.57]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.57
 [1.6.56]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.56

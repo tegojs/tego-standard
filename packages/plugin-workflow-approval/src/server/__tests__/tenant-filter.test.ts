@@ -1,10 +1,30 @@
+import { applyTenantFilterToContext as applyAuthoritativeTenantFilter } from '../../../../module-tenant/src/server/helpers/tenant-filter';
 import {
+  applyTenantFilterToContext,
   getTenantValuesFromContext,
   getTenantValuesFromExecution,
   withCurrentTenantFilter,
 } from '../helpers/tenant-filter';
 
 describe('workflow approval tenant filter helper', () => {
+  it.each([
+    ['list', 'tenantScoped', { filter: { status: 1 } }],
+    ['list', 'tenantInherited', { filter: { status: 1 } }],
+    ['update', 'tenantScoped', { filter: { id: 7 }, values: { tenantId: 'forged', status: 2 } }],
+    ['create', 'tenantScoped', { values: { status: 1 } }],
+  ])('should stay aligned with the tenant module for %s in %s mode', (actionName, tenancy, options) => {
+    const state = {
+      currentTenantId: 'tenant-a',
+      currentTenantDescendantIds: ['tenant-b'],
+      currentLegacyDataTenantIds: ['tenant-a'],
+    };
+    const collection = { options: { tenancy, legacyDataTenantIds: ['tenant-a'] } };
+
+    expect(applyTenantFilterToContext({ state }, collection, actionName, options)).toEqual(
+      applyAuthoritativeTenantFilter({ state }, collection, actionName, options),
+    );
+  });
+
   it('should return original filter when tenant context is absent', () => {
     const filter = { status: 1 };
 

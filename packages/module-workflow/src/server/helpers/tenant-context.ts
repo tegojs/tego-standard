@@ -1406,7 +1406,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
 export async function getDescendantTenantIds(
   db: any,
   tenantId: string,
-  options: { enabledOnly?: boolean } = {},
+  options: { enabledOnly?: boolean; transaction?: any } = {},
 ): Promise<string[]> {
   const repo = db?.getRepository?.('tenants');
   if (!repo) {
@@ -1416,6 +1416,7 @@ export async function getDescendantTenantIds(
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['path'],
+    transaction: options.transaction,
   });
   const path = tenant?.get('path') as string;
   if (!path) {
@@ -1428,6 +1429,7 @@ export async function getDescendantTenantIds(
       ...buildPathPrefixFilter(path),
     },
     fields: ['id', 'path'],
+    transaction: options.transaction,
   });
 
   return descendants

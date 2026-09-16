@@ -223,7 +223,7 @@ describe('server hooks', () => {
     expect(hookFn).toHaveBeenCalled();
   });
 
-  it('should rollback after throw error', async () => {
+  it('should rollback and preserve the server hook error', async () => {
     const collectionName = 'serverHookRollbackPosts';
     const fieldName = 'title';
     const methodName = 'preventDestroyForRollbackTest';
@@ -280,7 +280,7 @@ describe('server hooks', () => {
         },
         individualHooks: true,
       }),
-    ).rejects.toThrow('Transaction cannot be rolled back');
+    ).rejects.toThrow('cant delete field');
 
     expect(jestFn).toHaveBeenCalled();
     expect(

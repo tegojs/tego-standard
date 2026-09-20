@@ -1,3 +1,5 @@
+import { ACL } from '@tego/server';
+
 import { guardUnsupportedAssociationReadScopes, resolveAssociationReadScope } from '../helpers/association-read-scope';
 
 describe('association target read scope', () => {
@@ -30,6 +32,35 @@ describe('association target read scope', () => {
       },
     };
     expect(() => guardUnsupportedAssociationReadScopes(ctx, db, source, {})).not.toThrow();
+  });
+
+  it('uses the association resource when checking shared appends on an old core', () => {
+    const sharedModel = { name: 'flow_nodes' };
+    const shared = { name: 'flow_nodes', model: sharedModel, options: { tenancy: 'shared' } };
+    const source: any = {
+      name: 'workflows',
+      model: {
+        associations: {
+          nodes: { as: 'nodes', source: { name: 'workflows' }, target: sharedModel },
+        },
+      },
+    };
+    const db = { modelCollection: new Map([[sharedModel, shared]]) };
+    const can = vi.fn(({ rawResourceName }: any) => (rawResourceName === 'workflows.nodes' ? { params: {} } : null));
+    const ctx = {
+      action: { params: { appends: ['nodes'] } },
+      can,
+      throw: (_status: number, message: string) => {
+        throw new Error(message);
+      },
+    };
+
+    expect(() => guardUnsupportedAssociationReadScopes(ctx, db, source, {})).not.toThrow();
+    expect(can).toHaveBeenCalledWith({
+      resource: 'flow_nodes',
+      action: 'list',
+      rawResourceName: 'workflows.nodes',
+    });
   });
 
   it('rejects nested paths forbidden by the shared target ACL on an old core', () => {
@@ -103,6 +134,50 @@ describe('association target read scope', () => {
       filter: { $and: [{ status: 'open' }, { tenantId: { $in: ['parent', 'child'] } }] },
       fields: ['id', 'title'],
       appends: undefined,
+    });
+  });
+
+  it('uses the source association resource when resolving target ACL snippets', async () => {
+    const can = vi.fn(({ rawResourceName }: any) => (rawResourceName === 'workflows.nodes' ? { params: {} } : null));
+
+    const scope = await resolveAssociationReadScope(
+      { state: {}, can },
+      { ...target, name: 'flow_nodes', options: { tenancy: 'shared' } },
+      { as: 'nodes', source: { name: 'workflows' }, isSingleAssociation: false },
+      acl,
+    );
+
+    expect(can).toHaveBeenCalledWith({
+      resource: 'flow_nodes',
+      action: 'list',
+      rawResourceName: 'workflows.nodes',
+    });
+    expect(scope).toEqual({ filter: undefined, fields: undefined, appends: undefined });
+  });
+
+  it('keeps explicit target ACL rules ahead of association snippets', async () => {
+    const realAcl = new ACL();
+    realAcl.registerSnippet({ name: 'pm.workflow', actions: ['workflows.nodes:list'] });
+    const role = realAcl.define({ role: 'developer' });
+    role.snippets.add('pm.workflow');
+    const ctx = {
+      state: {},
+      can: (options: any) => realAcl.can({ role: 'developer', ...options }),
+    };
+    const sharedTarget = { ...target, name: 'flow_nodes', options: { tenancy: 'shared' } };
+    const association = { as: 'nodes', source: { name: 'workflows' }, isSingleAssociation: false };
+
+    await expect(resolveAssociationReadScope(ctx, sharedTarget, association, realAcl)).resolves.toEqual({
+      filter: undefined,
+      fields: undefined,
+      appends: undefined,
+    });
+
+    role.grantAction('flow_nodes:create');
+    await expect(resolveAssociationReadScope(ctx, sharedTarget, association, realAcl)).resolves.toEqual({
+      filter: { id: { $in: [] } },
+      fields: [],
+      appends: [],
     });
   });
 

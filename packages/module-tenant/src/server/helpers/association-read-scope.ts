@@ -3,6 +3,12 @@ import { translateTenantError } from '../locale';
 import { getCollectionTenancyMode } from './isTenantScopedCollection';
 import { applyTenantFilterToContext } from './tenant-filter';
 
+function getAssociationResourceName(association: any, fallbackSourceName?: string, fallbackAssociationName?: string) {
+  const sourceName = association?.source?.name || fallbackSourceName;
+  const associationName = association?.as || fallbackAssociationName;
+  return sourceName && associationName ? `${sourceName}.${associationName}` : undefined;
+}
+
 /** Resolve the target collection's own ACL and tenancy boundary for appended associations. */
 export async function resolveAssociationReadScope(ctx: any, collection: any, association: any, acl: any) {
   if (association?.as === '_pivot_' && association?.options?.realAs) {
@@ -19,7 +25,12 @@ export async function resolveAssociationReadScope(ctx: any, collection: any, ass
   }
 
   const action = association?.isSingleAssociation ? 'get' : 'list';
-  const permission = ctx.can?.({ resource: collection.name, action });
+  const rawResourceName = getAssociationResourceName(association);
+  const permission = ctx.can?.({
+    resource: collection.name,
+    action,
+    ...(rawResourceName ? { rawResourceName } : {}),
+  });
   if (!permission) {
     const primaryKey = collection.model?.primaryKeyAttribute || collection.filterTargetKey || 'id';
     return { filter: { [primaryKey]: { $in: [] } }, fields: [], appends: [] };
@@ -72,7 +83,12 @@ export function guardUnsupportedAssociationReadScopes(ctx: any, db: any, collect
       const target = db.modelCollection?.get?.(association.target) || db.getCollection(association.target?.name);
       if (!target) break;
       const action = association.isSingleAssociation ? 'get' : 'list';
-      const permission = ctx.can?.({ resource: target.name, action });
+      const rawResourceName = getAssociationResourceName(association, source.name, segment);
+      const permission = ctx.can?.({
+        resource: target.name,
+        action,
+        ...(rawResourceName ? { rawResourceName } : {}),
+      });
       const filter = permission?.params?.filter;
       const allowedAppends = permission?.params?.appends;
       const remainingPath = segments.slice(index + 1).join('.');

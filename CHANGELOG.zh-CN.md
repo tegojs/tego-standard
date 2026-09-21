@@ -9,6 +9,13 @@
 
 
 
+## [1.6.61] - 2026-09-21
+
+### 🐛 修复
+
+- **tenant**: handle stateless association ACL contexts (@TomyJan)
+- **tenant**: restore approval detail association reads (@TomyJan)
+
 ## [1.6.60] - 2026-09-20
 
 ### 🐛 修复
@@ -3326,7 +3333,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.60...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.61...HEAD
+[1.6.61]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.61
 [1.6.60]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.60
 [1.6.59]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.59
 [1.6.58]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.58

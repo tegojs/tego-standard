@@ -173,6 +173,20 @@ describe('association target read scope', () => {
     expect(scope).toEqual({ filter: undefined, fields: undefined, appends: undefined });
   });
 
+  it('denies allow rules safely when an internal context has no state', async () => {
+    const realAcl = new ACL();
+    realAcl.allow('*', '*', (ctx) => ctx.state.currentRole === 'root');
+
+    const scope = await resolveAssociationReadScope(
+      { can: () => null },
+      { ...target, options: { tenancy: 'shared' } },
+      { isSingleAssociation: false },
+      realAcl,
+    );
+
+    expect(scope).toEqual({ filter: { id: { $in: [] } }, fields: [], appends: [] });
+  });
+
   it('keeps explicit target ACL rules ahead of association snippets', async () => {
     const realAcl = new ACL();
     realAcl.registerSnippet({ name: 'pm.workflow', actions: ['workflows.nodes:list'] });

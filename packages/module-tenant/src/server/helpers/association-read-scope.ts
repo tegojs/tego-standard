@@ -32,12 +32,13 @@ export async function resolveAssociationReadScope(ctx: any, collection: any, ass
     ...(rawResourceName ? { rawResourceName } : {}),
   });
   if (!permission && acl.allowManager?.isAllowed) {
+    const allowContext = ctx?.state ? ctx : Object.assign(Object.create(ctx || null), { state: {} });
     const allowedByAssociation = rawResourceName
-      ? await acl.allowManager.isAllowed(rawResourceName, action, ctx)
+      ? await acl.allowManager.isAllowed(rawResourceName, action, allowContext)
       : false;
     const allowedByTarget = allowedByAssociation
       ? false
-      : await acl.allowManager.isAllowed(collection.name, action, ctx);
+      : await acl.allowManager.isAllowed(collection.name, action, allowContext);
     if (allowedByAssociation || allowedByTarget) {
       permission = { params: {} };
     }

@@ -26,11 +26,22 @@ export async function resolveAssociationReadScope(ctx: any, collection: any, ass
 
   const action = association?.isSingleAssociation ? 'get' : 'list';
   const rawResourceName = getAssociationResourceName(association);
-  const permission = ctx.can?.({
+  let permission = ctx.can?.({
     resource: collection.name,
     action,
     ...(rawResourceName ? { rawResourceName } : {}),
   });
+  if (!permission && acl.allowManager?.isAllowed) {
+    const allowedByAssociation = rawResourceName
+      ? await acl.allowManager.isAllowed(rawResourceName, action, ctx)
+      : false;
+    const allowedByTarget = allowedByAssociation
+      ? false
+      : await acl.allowManager.isAllowed(collection.name, action, ctx);
+    if (allowedByAssociation || allowedByTarget) {
+      permission = { params: {} };
+    }
+  }
   if (!permission) {
     const primaryKey = collection.model?.primaryKeyAttribute || collection.filterTargetKey || 'id';
     return { filter: { [primaryKey]: { $in: [] } }, fields: [], appends: [] };

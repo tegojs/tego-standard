@@ -155,6 +155,24 @@ describe('association target read scope', () => {
     expect(scope).toEqual({ filter: undefined, fields: undefined, appends: undefined });
   });
 
+  it('honors logged-in allow rules declared for an association resource', async () => {
+    const realAcl = new ACL();
+    realAcl.allow('approvalRecords.workflow', 'get', 'loggedIn');
+    const ctx = {
+      state: { currentUser: { id: 8 } },
+      can: () => null,
+    };
+
+    const scope = await resolveAssociationReadScope(
+      ctx,
+      { ...target, name: 'workflows', options: { tenancy: 'shared' } },
+      { as: 'workflow', source: { name: 'approvalRecords' }, isSingleAssociation: true },
+      realAcl,
+    );
+
+    expect(scope).toEqual({ filter: undefined, fields: undefined, appends: undefined });
+  });
+
   it('keeps explicit target ACL rules ahead of association snippets', async () => {
     const realAcl = new ACL();
     realAcl.registerSnippet({ name: 'pm.workflow', actions: ['workflows.nodes:list'] });

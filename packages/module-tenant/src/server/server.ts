@@ -49,6 +49,10 @@ function isTenantOwnedThroughResource(db: any, collectionName?: string, useCache
         if (association.associationType !== 'BelongsToMany' || !association.through?.model?.name) {
           continue;
         }
+        const through = db.getCollection(association.through.model.name);
+        if (TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(through) as any)) {
+          continue;
+        }
         const target = sourceTenantAware ? null : db.getCollection(association.target?.name);
         if (sourceTenantAware || TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(target) as any)) {
           throughNames.add(association.through.model.name);

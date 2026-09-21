@@ -16,6 +16,22 @@ const SENSITIVE_APPROVAL_RESOURCES = new Set([
   COLLECTION_NAME_APPROVAL_CARBON_COPY,
 ]);
 const WORKFLOW_RESULT_RESOURCES = new Set(['executions', 'jobs']);
+const APPROVAL_DETAIL_ASSOCIATION_READS = {
+  get: [
+    'approvalRecords.approvalExecution',
+    'approvalRecords.node',
+    'approvalRecords.job',
+    'approvalRecords.workflow',
+    'approvalRecords.execution',
+    'approvalRecords.user',
+    'approvalRecords.approval',
+    'approvalExecutions.execution',
+    'approvalExecutions.approval',
+    'approvals.workflow',
+    'approvals.createdBy',
+  ],
+  list: ['approvals.approvalExecutions', 'approvals.records', 'workflows.nodes', 'executions.jobs'],
+};
 
 function isSensitiveApprovalResource(resourceName: unknown) {
   return (
@@ -74,6 +90,11 @@ export class PluginWorkflowApproval extends Plugin {
     this.app.acl.allow('approvals', '*', 'loggedIn');
     this.app.acl.allow('approvalExecutions', ['get'], 'loggedIn');
     this.app.acl.allow('approvalRecords', ['get', 'list', 'listCentralized', 'submit'], 'loggedIn');
+    for (const [action, resources] of Object.entries(APPROVAL_DETAIL_ASSOCIATION_READS)) {
+      for (const resource of resources) {
+        this.app.acl.allow(resource, action, 'loggedIn');
+      }
+    }
     // NOTE: 这种命名尽量改为引用同一个变量的形式,
     // 这里因为不妨碍快速获得变量名, 所以没有保持风格一致, 直接使用推荐的方式
     this.app.acl.allow(COLLECTION_NAME_APPROVAL_CARBON_COPY, ['get', 'list', 'listCentralized', 'submit'], 'loggedIn');

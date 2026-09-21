@@ -128,6 +128,93 @@ describe('tenant association source writes', () => {
     expect(await app.db.getRepository('tenant_join_edges').count()).toBe(1);
   });
 
+  it('allows direct access to a tenant-aware first-class collection also used as a through table', async () => {
+    app = await createTenantApp();
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-a', name: 'Tenant A' },
+        { id: 'tenant-b', name: 'Tenant B' },
+      ],
+    });
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant_first_class_through_reader',
+        email: 'tenant-first-class-through-reader@example.com',
+        password: '123456',
+        roles: ['root'],
+        tenants: ['tenant-a'],
+        defaultTenantId: 'tenant-a',
+      },
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_first_class_edges',
+        tenancy: 'tenantScoped',
+        fields: [
+          { type: 'integer', name: 'source_id' },
+          { type: 'integer', name: 'target_id' },
+          { type: 'string', name: 'status' },
+        ],
+      },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: { name: 'tenant_first_class_targets', tenancy: 'shared' },
+      context: {},
+    });
+    await app.db.getRepository('collections').create({
+      values: {
+        name: 'tenant_first_class_sources',
+        tenancy: 'tenantScoped',
+        fields: [
+          {
+            type: 'belongsToMany',
+            name: 'targets',
+            target: 'tenant_first_class_targets',
+            through: 'tenant_first_class_edges',
+            foreignKey: 'source_id',
+            otherKey: 'target_id',
+          },
+        ],
+      },
+      context: {},
+    });
+    const repository = app.db.getRepository('tenant_first_class_edges');
+    const sourceModel = app.db.getModel('tenant_first_class_sources');
+    const targetModel = app.db.getModel('tenant_first_class_targets');
+    const tenantASource = await sourceModel.create({ tenantId: 'tenant-a' }, { hooks: false });
+    const tenantBSource = await sourceModel.create({ tenantId: 'tenant-b' }, { hooks: false });
+    const targetRecord = await targetModel.create({});
+    const model = app.db.getModel('tenant_first_class_edges');
+    const tenantARecord = await model.create(
+      {
+        source_id: tenantASource.get('id'),
+        target_id: targetRecord.get('id'),
+        status: 'pending',
+        tenantId: 'tenant-a',
+      },
+      { hooks: false },
+    );
+    await model.create(
+      {
+        source_id: tenantBSource.get('id'),
+        target_id: targetRecord.get('id'),
+        status: 'pending',
+        tenantId: 'tenant-b',
+      },
+      { hooks: false },
+    );
+    const storedRecords = await repository.find({ sort: ['id'] });
+
+    expect(storedRecords.map((record) => record.get('tenantId'))).toEqual(['tenant-a', 'tenant-b']);
+
+    const response = await app.agent().login(user).resource('tenant_first_class_edges').list({});
+
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].id).toBe(tenantARecord.get('id'));
+  });
+
   it('does not expose the join table when the source is shared and the target is tenant-owned', async () => {
     app = await createTenantApp();
     await app.db.getRepository('tenants').create({

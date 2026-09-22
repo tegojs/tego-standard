@@ -8,6 +8,7 @@ import {
 
 import { Result, Spin } from 'antd';
 
+import { hasExecutionContext } from '../../../../provider/execution-context';
 import { ExecutionContextProvider } from '../../../../provider/ExecutionContextProvider';
 import { COLLECTION_NOTICE_NAME } from '../../../common/constants';
 import { useTranslation } from '../../locale';
@@ -32,12 +33,16 @@ export const NoticeDetailProvider = ({ children, ...props }) => {
 
   const itemsData = data.data;
   const { node, workflow, execution } = itemsData;
+  const nodes = workflow?.nodes;
+  if (!node || !hasExecutionContext(workflow, execution, nodes)) {
+    return <Result status="error" title={t('Submission may be withdrawn, please try refresh the list.')} />;
+  }
   const schemaId = node?.config.showNoticeDetail;
   const { designable } = props;
 
   // THINK: Provider 的顺序, 数据放在外面, 配置放在内层
   return (
-    <ExecutionContextProvider workflow={workflow} nodes={workflow.nodes} execution={execution}>
+    <ExecutionContextProvider workflow={workflow} nodes={nodes} execution={execution}>
       <ProviderContextWorkflowNotice value={itemsData}>
         <ProviderContextMyComponent
           value={{

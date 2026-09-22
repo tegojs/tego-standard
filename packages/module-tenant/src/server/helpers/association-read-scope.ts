@@ -9,6 +9,17 @@ function getAssociationResourceName(association: any, fallbackSourceName?: strin
   return sourceName && associationName ? `${sourceName}.${associationName}` : undefined;
 }
 
+async function isAllowedByAcl(acl: any, resourceName: string, action: 'get' | 'list', ctx: any) {
+  try {
+    return (await acl.allowManager.isAllowed(resourceName, action, ctx)) === true;
+  } catch {
+    // Association scope is an optional ACL fast path. If an internal context is
+    // incomplete or a custom allow condition fails, deny the relation instead
+    // of turning a readable parent record into a server error.
+    return false;
+  }
+}
+
 /** Resolve the target collection's own ACL and tenancy boundary for appended associations. */
 export async function resolveAssociationReadScope(ctx: any, collection: any, association: any, acl: any) {
   if (association?.as === '_pivot_' && association?.options?.realAs) {
@@ -32,13 +43,15 @@ export async function resolveAssociationReadScope(ctx: any, collection: any, ass
     ...(rawResourceName ? { rawResourceName } : {}),
   });
   if (!permission && acl.allowManager?.isAllowed) {
-    const allowContext = ctx?.state ? ctx : Object.assign(Object.create(ctx || null), { state: {} });
+    const allowContext = Object.assign(Object.create(ctx || null), {
+      state: { ...ctx?.state },
+    });
     const allowedByAssociation = rawResourceName
-      ? await acl.allowManager.isAllowed(rawResourceName, action, allowContext)
+      ? await isAllowedByAcl(acl, rawResourceName, action, allowContext)
       : false;
     const allowedByTarget = allowedByAssociation
       ? false
-      : await acl.allowManager.isAllowed(collection.name, action, allowContext);
+      : await isAllowedByAcl(acl, collection.name, action, allowContext);
     if (allowedByAssociation || allowedByTarget) {
       permission = { params: {} };
     }

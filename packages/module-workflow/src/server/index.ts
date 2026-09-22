@@ -1,5 +1,6 @@
 export * from './utils';
 export * from './constants';
+export * from './association-read-permissions';
 export { applyTenantFilterToContext, getDescendantTenantIds } from './helpers/tenant-context';
 export * from './instructions';
 export { Trigger } from './triggers';

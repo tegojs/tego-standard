@@ -15,6 +15,11 @@ import {
 import { LRUCache } from 'lru-cache';
 
 import initActions from './actions';
+import {
+  registerAssociationReadPermissions,
+  WORKFLOW_DETAIL_ASSOCIATION_READS,
+  type AssociationReadPermissions,
+} from './association-read-permissions';
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
 import {
   getWorkflowExecutionOrigin,
@@ -226,6 +231,10 @@ export default class PluginWorkflowServer extends Plugin {
     }
   }
 
+  registerAssociationReadPermissions(permissions: AssociationReadPermissions, condition = 'loggedIn') {
+    registerAssociationReadPermissions(this.app.acl, permissions, condition);
+  }
+
   private initTriggers<T extends Trigger>(more: { [key: string]: T | { new (p: Plugin): T } } = {}) {
     this.registerTrigger('collection', CollectionTrigger);
     this.registerTrigger('schedule', ScheduleTrigger);
@@ -297,6 +306,7 @@ export default class PluginWorkflowServer extends Plugin {
     });
 
     this.app.acl.allow('workflows', ['trigger', 'list'], 'loggedIn');
+    this.registerAssociationReadPermissions(WORKFLOW_DETAIL_ASSOCIATION_READS);
     // this.app.acl.allow('flow_nodes', ['moveUp', 'moveDown'], 'loggedIn');
 
     db.on('workflows.beforeSave', this.onBeforeSave);

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
-import { PluginWorkflow } from '@tachybase/module-workflow';
+import { PluginWorkflow, registerAssociationReadPermissions } from '@tachybase/module-workflow';
 import { Plugin } from '@tego/server';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../common/constants';
@@ -29,8 +29,15 @@ const APPROVAL_DETAIL_ASSOCIATION_READS = {
     'approvalExecutions.approval',
     'approvals.workflow',
     'approvals.createdBy',
+    'approvalCarbonCopy.workflow',
+    'approvalCarbonCopy.node',
+    'approvalCarbonCopy.job',
+    'approvalCarbonCopy.execution',
+    'approvalCarbonCopy.user',
+    'approvalCarbonCopy.approval',
+    'approvalCarbonCopy.createdBy',
   ],
-  list: ['approvals.approvalExecutions', 'approvals.records', 'workflows.nodes', 'executions.jobs'],
+  list: ['approvals.approvalExecutions', 'approvals.records'],
 };
 
 function isSensitiveApprovalResource(resourceName: unknown) {
@@ -90,11 +97,7 @@ export class PluginWorkflowApproval extends Plugin {
     this.app.acl.allow('approvals', '*', 'loggedIn');
     this.app.acl.allow('approvalExecutions', ['get'], 'loggedIn');
     this.app.acl.allow('approvalRecords', ['get', 'list', 'listCentralized', 'submit'], 'loggedIn');
-    for (const [action, resources] of Object.entries(APPROVAL_DETAIL_ASSOCIATION_READS)) {
-      for (const resource of resources) {
-        this.app.acl.allow(resource, action, 'loggedIn');
-      }
-    }
+    registerAssociationReadPermissions(this.app.acl, APPROVAL_DETAIL_ASSOCIATION_READS);
     // NOTE: 这种命名尽量改为引用同一个变量的形式,
     // 这里因为不妨碍快速获得变量名, 所以没有保持风格一致, 直接使用推荐的方式
     this.app.acl.allow(COLLECTION_NAME_APPROVAL_CARBON_COPY, ['get', 'list', 'listCentralized', 'submit'], 'loggedIn');

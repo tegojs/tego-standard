@@ -187,6 +187,27 @@ describe('association target read scope', () => {
     expect(scope).toEqual({ filter: { id: { $in: [] } }, fields: [], appends: [] });
   });
 
+  it('fails closed when an ACL allow condition cannot evaluate an internal context', async () => {
+    const throwingAcl = {
+      filterParams: acl.filterParams,
+      parseJsonTemplate: acl.parseJsonTemplate,
+      allowManager: {
+        isAllowed: vi.fn(async () => {
+          throw new TypeError("Cannot read properties of undefined (reading 'currentRole')");
+        }),
+      },
+    };
+
+    await expect(
+      resolveAssociationReadScope(
+        { state: {}, can: () => null },
+        { ...target, options: { tenancy: 'shared' } },
+        { isSingleAssociation: false },
+        throwingAcl,
+      ),
+    ).resolves.toEqual({ filter: { id: { $in: [] } }, fields: [], appends: [] });
+  });
+
   it('keeps explicit target ACL rules ahead of association snippets', async () => {
     const realAcl = new ACL();
     realAcl.registerSnippet({ name: 'pm.workflow', actions: ['workflows.nodes:list'] });

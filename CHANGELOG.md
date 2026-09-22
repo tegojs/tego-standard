@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.62] - 2026-09-22
+
+### 🐛 Fixed
+
+- **tenant**: harden workflow detail association reads (@TomyJan)
+
 ## [1.6.61] - 2026-09-21
 
 ### 🐛 Fixed
@@ -3333,7 +3339,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.61...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.62...HEAD
+[1.6.62]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.62
 [1.6.61]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.61
 [1.6.60]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.60
 [1.6.59]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.59

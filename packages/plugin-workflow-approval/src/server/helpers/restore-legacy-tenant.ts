@@ -1,4 +1,5 @@
-import { getDescendantTenantIds, type Processor } from '@tachybase/module-workflow';
+import { getDescendantIds } from '@tachybase/module-tenant';
+import type { Processor } from '@tachybase/module-workflow';
 import { parseCollectionName } from '@tego/server';
 
 const RECOVERY_FAILED =
@@ -73,10 +74,7 @@ export async function restoreLegacyApprovalTenant(processor: Processor) {
       tenantContext: {
         currentTenant: { id: tenantId },
         currentTenantId: tenantId,
-        currentTenantDescendantIds: await getDescendantTenantIds(db, tenantId, {
-          enabledOnly: true,
-          transaction,
-        }),
+        currentTenantDescendantIds: await getDescendantIds(tenants, tenantId, { transaction }),
       },
     };
     // Metadata recovery must not trigger approval status hooks or business workflows.

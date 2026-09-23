@@ -195,10 +195,6 @@ export class UpdateOrCreateInstruction extends Instruction {
       dataSourceName,
       processor.transaction,
       async (transaction) => {
-        const verificationOptions = applyTenantFilterToContext(repositoryContext, c, 'update', {
-          ...options,
-          values: _.cloneDeep(options.values),
-        });
         const sourceRecords = await findWorkflowTenantReadableRecords(
           repositoryContext,
           c,
@@ -231,23 +227,14 @@ export class UpdateOrCreateInstruction extends Instruction {
             });
             const count = result?.length ?? result;
             if (count === 0) {
-              const mutationVerificationOptions = {
-                ...updateOptions,
-                values: { ...verificationOptions.values, ...updateOptions.values },
-              };
-              const mutationError = await workflowTenantRecordMutationMissError(
+              throw await workflowTenantRecordMutationMissError(
                 repositoryContext,
                 c,
                 repository,
-                updateOptions,
+                options,
                 transaction,
                 'updateOrCreate',
-                dataSource.collectionManager.db,
-                mutationVerificationOptions,
               );
-              if (mutationError) {
-                throw mutationError;
-              }
             }
             updatedCount += count;
           }

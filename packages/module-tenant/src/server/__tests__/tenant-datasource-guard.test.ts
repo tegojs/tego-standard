@@ -413,50 +413,6 @@ describe('tenant guard on external data sources', () => {
     await assertStaleClaimRejected(replacement.database);
   });
 
-  it('rechecks external join-table tenancy after its target mode changes', async () => {
-    app = await createTenantApp();
-    const user = await setupTenantData(app);
-    const database = mockDatabase({ storage: ':memory:' });
-    externalDatabases.push(database);
-    database.collection({
-      name: 'externalJoinEdges',
-      fields: [
-        { type: 'integer', name: 'source_id' },
-        { type: 'integer', name: 'target_id' },
-      ],
-    });
-    database.collection({ name: 'externalJoinTargets', tenancy: 'shared' });
-    database.collection({
-      name: 'externalJoinSources',
-      tenancy: 'shared',
-      fields: [
-        {
-          type: 'belongsToMany',
-          name: 'targets',
-          target: 'externalJoinTargets',
-          through: 'externalJoinEdges',
-          foreignKey: 'source_id',
-          otherKey: 'target_id',
-        },
-      ],
-    });
-    await database.sync();
-    const dataSource = new SequelizeDataSource({
-      name: 'externalJoinDataSource',
-      collectionManager: { database },
-      resourceManager: {},
-    });
-    dataSource.acl.allow('*', '*');
-    await app.dataSourceManager.add(dataSource);
-    const agent = app.agent().login(user).set('X-data-source', 'externalJoinDataSource');
-    const first = await agent.resource('api/externalJoinEdges').list({});
-    expect(first.status, JSON.stringify(first.body)).toBe(200);
-
-    database.getCollection('externalJoinTargets').options.tenancy = 'tenantScoped';
-    const second = await agent.resource('api/externalJoinEdges').list({});
-    expect(second.status).toBe(403);
-  });
-
   it('middleware chain: auth and setCurrentTenant run for external data source requests', async () => {
     app = await createTenantApp();
     app.dataSourceManager.factory.register('chainDsType', mocks.MockDataSource);

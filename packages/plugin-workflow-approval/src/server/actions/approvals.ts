@@ -1,4 +1,5 @@
 import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
 import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
 
@@ -10,7 +11,7 @@ import {
   runDeferredAfterCommitCallbacks,
   type DeferredAfterCommit,
 } from '../defer-after-commit';
-import { applyTenantFilterToContext, withCurrentTenantFilter } from '../helpers/tenant-filter';
+import { withCurrentTenantFilter } from '../helpers/tenant-filter';
 import { getSummary, getWorkflowAppends, sendApprovalMessage, serializeError } from '../tools';
 
 const APPROVAL_COMMIT_UNCERTAIN_MESSAGE =

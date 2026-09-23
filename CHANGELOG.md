@@ -9,50 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
-## [1.6.62] - 2026-09-22
-
-### 🐛 Fixed
-
-- **tenant**: harden workflow detail association reads (@TomyJan)
-
-## [1.6.61] - 2026-09-21
-
-### 🐛 Fixed
-
-- **tenant**: handle stateless association ACL contexts (@TomyJan)
-- **tenant**: restore approval detail association reads (@TomyJan)
-
-## [1.6.60] - 2026-09-20
-
-### 🐛 Fixed
-
-- **tenant**: preserve association ACL paths for scoped reads (@TomyJan)
-
-## [1.6.59] - 2026-09-16
-
-### 🐛 Fixed
-
-- **workflow**: handle tenant-scoped no-op updates safely (@TomyJan)
-- **workflow**: remove approval tenant runtime dependency (@TomyJan)
-
-## [1.6.58] - 2026-09-15
-
-### 🐛 Fixed
-
-- **tenant**: preserve collection field metadata for UI rendering (@TomyJan)
-
-## [1.6.57] - 2026-09-15
-
-### 🐛 Fixed
-
-- **tenant**: enforce source ACL scope on association reads (@TomyJan)
-
-## [1.6.56] - 2026-09-15
-
-### 🐛 Fixed
-
-- **tenant**: enforce scoped association access (@TomyJan)
-
 ## [1.6.55] - 2026-09-11
 
 ### 🐛 Fixed
@@ -3339,14 +3295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.62...HEAD
-[1.6.62]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.62
-[1.6.61]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.61
-[1.6.60]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.60
-[1.6.59]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.59
-[1.6.58]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.58
-[1.6.57]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.57
-[1.6.56]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.56
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.55...HEAD
 [1.6.55]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.55
 [1.6.54]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.54
 [1.6.53]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.53

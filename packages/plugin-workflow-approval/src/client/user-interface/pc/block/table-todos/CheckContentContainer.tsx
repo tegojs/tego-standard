@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { useRecord, useRequest } from '@tachybase/client';
-import { ExecutionContextProvider, hasExecutionContext } from '@tachybase/module-workflow/client';
+import { ExecutionContextProvider } from '@tachybase/module-workflow/client';
 
 import { Result, Spin } from 'antd';
 import _ from 'lodash';
@@ -63,10 +63,7 @@ export const CheckContentContainer = () => {
 
   const items = data.data;
   const { approvalExecution, node, approval, workflow, execution } = items;
-  const nodes = workflow?.nodes;
-  if (!hasExecutionContext(workflow, execution, nodes)) {
-    return <Result status="error" title={t('Submission may be withdrawn, please try refresh the list.')} />;
-  }
+  const { nodes } = workflow;
   const omitWorkflow = _.omit(workflow, ['nodes']);
   node?.config.applyDetail;
 

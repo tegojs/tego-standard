@@ -234,18 +234,14 @@ describe('workflow > instructions > tenant filter', () => {
       const recordKey = '44\n[tenant-diagnostic] forged';
       const currentRecord = { id: recordKey, tenantId: 'tenant-a' };
       const repository = {
-        findOne: vi
-          .fn()
-          .mockResolvedValueOnce(currentRecord)
-          .mockResolvedValueOnce(currentRecord)
-          .mockResolvedValueOnce(null),
+        findOne: vi.fn().mockResolvedValueOnce(currentRecord).mockResolvedValueOnce(currentRecord),
       };
 
       const error = await workflowTenantRecordMutationMissError(
         { state: tenantContext },
         db.getCollection(collectionName),
         repository,
-        { filter: { id: recordKey, published: false } },
+        { filterByTk: recordKey },
       );
 
       expect(error.stack).toContain('TENANT_RECORD_FILTER_CHANGED');
@@ -498,90 +494,6 @@ describe('workflow > instructions > tenant filter', () => {
     expect(tenantBPost.published).toBe(false);
   });
 
-  it('update should succeed when an association already has the requested value', async () => {
-    const { sourceCollectionName, sourceRepository, targetRepository } = await createAssociationCollections();
-    const contact = await targetRepository.create({
-      values: { name: 'unchanged-contact', tenantId: 'tenant-a' },
-      hooks: false,
-    });
-    const document = await sourceRepository.create({
-      values: {
-        name: 'document-with-unchanged-contact',
-        tenantId: 'tenant-a',
-        contact: { id: contact.id },
-      },
-    });
-    const workflow = await createWorkflowWithNode('update', {
-      collection: sourceCollectionName,
-      params: {
-        filter: { id: document.id },
-        updateAssociationValues: ['contact'],
-        values: { contact: { id: contact.id } },
-      },
-    });
-    const updateSpy = vi.spyOn(sourceRepository, 'update').mockResolvedValueOnce([]);
-
-    const job = await triggerWorkflow(workflow);
-    updateSpy.mockRestore();
-
-    expect(job.status).toBe(JOB_STATUS.RESOLVED);
-    expect(job.result).toMatchObject({ length: 0, data: [] });
-  });
-
-  it('update should fail when zero rows are returned before the requested value is applied', async () => {
-    const post = await TenantPostRepo.create({
-      values: { title: 'update-not-applied', tenantId: 'tenant-a', published: false },
-      hooks: false,
-    });
-    const workflow = await createWorkflowWithNode('update', {
-      params: {
-        filter: { id: post.id },
-        values: { published: true },
-      },
-    });
-    const updateSpy = vi.spyOn(TenantPostRepo, 'update').mockResolvedValueOnce([]);
-
-    const job = await triggerWorkflow(workflow);
-    updateSpy.mockRestore();
-
-    expect(job.status).toBe(JOB_STATUS.ERROR);
-    await post.reload();
-    expect(post.published).toBe(false);
-  });
-
-  it('update should not use an owned record to excuse a failed legacy claim', async () => {
-    configureLegacyData({ allowEditingLegacyData: true });
-    const ownedPost = await TenantPostRepo.create({
-      values: { title: 'mixed-ownership-update', tenantId: 'tenant-a', published: false },
-      hooks: false,
-    });
-    const legacyPost = await TenantPostRepo.create({
-      values: { title: 'mixed-ownership-update', tenantId: null, published: false },
-      hooks: false,
-    });
-    const workflow = await createWorkflowWithNode('update', {
-      params: {
-        filter: { title: 'mixed-ownership-update' },
-        values: { published: true },
-      },
-    });
-    const originalUpdate = TenantPostRepo.update.bind(TenantPostRepo);
-    const updateSpy = vi
-      .spyOn(TenantPostRepo, 'update')
-      .mockImplementationOnce((options) => originalUpdate(options))
-      .mockResolvedValueOnce([]);
-
-    const job = await triggerWorkflow(workflow);
-    updateSpy.mockRestore();
-
-    expect(job.status).toBe(JOB_STATUS.ERROR);
-    await ownedPost.reload();
-    await legacyPost.reload();
-    expect(ownedPost.published).toBe(false);
-    expect(legacyPost.tenantId).toBeNull();
-    expect(legacyPost.published).toBe(false);
-  });
-
   it('update should claim and modify a legacy record when legacy editing is enabled', async () => {
     configureLegacyData({ allowEditingLegacyData: true });
     const legacyPost = await TenantPostRepo.create({
@@ -739,59 +651,6 @@ describe('workflow > instructions > tenant filter', () => {
     await tenantBPost.reload();
     expect(tenantAPost.published).toBe(true);
     expect(tenantBPost.published).toBe(false);
-  });
-
-  it('updateorcreate should succeed when the matching record already has the requested value', async () => {
-    const post = await TenantPostRepo.create({
-      values: { title: 'unchanged-upsert', tenantId: 'tenant-a', published: true },
-      hooks: false,
-    });
-    const workflow = await createWorkflowWithNode('updateorcreate', {
-      params: {
-        filter: { id: post.id },
-        values: { published: true },
-      },
-    });
-    const updateSpy = vi.spyOn(TenantPostRepo, 'update').mockResolvedValueOnce([]);
-
-    const job = await triggerWorkflow(workflow);
-    updateSpy.mockRestore();
-
-    expect(job.status).toBe(JOB_STATUS.RESOLVED);
-    expect(job.result).toBe(0);
-  });
-
-  it('updateorcreate should not use an owned record to excuse a failed legacy claim', async () => {
-    configureLegacyData({ allowEditingLegacyData: true });
-    const ownedPost = await TenantPostRepo.create({
-      values: { title: 'mixed-ownership-upsert', tenantId: 'tenant-a', published: false },
-      hooks: false,
-    });
-    const legacyPost = await TenantPostRepo.create({
-      values: { title: 'mixed-ownership-upsert', tenantId: null, published: false },
-      hooks: false,
-    });
-    const workflow = await createWorkflowWithNode('updateorcreate', {
-      params: {
-        filter: { title: 'mixed-ownership-upsert' },
-        values: { published: true },
-      },
-    });
-    const originalUpdate = TenantPostRepo.update.bind(TenantPostRepo);
-    const updateSpy = vi
-      .spyOn(TenantPostRepo, 'update')
-      .mockImplementationOnce((options) => originalUpdate(options))
-      .mockResolvedValueOnce([]);
-
-    const job = await triggerWorkflow(workflow);
-    updateSpy.mockRestore();
-
-    expect(job.status).toBe(JOB_STATUS.ERROR);
-    await ownedPost.reload();
-    await legacyPost.reload();
-    expect(ownedPost.published).toBe(false);
-    expect(legacyPost.tenantId).toBeNull();
-    expect(legacyPost.published).toBe(false);
   });
 
   it('updateorcreate should inject execution tenant when creating a missing record', async () => {

@@ -111,7 +111,6 @@ describe('workflow > tenant module boundary', () => {
   });
 
   it('should push enabled descendant filtering into the repository query', async () => {
-    const transaction = { id: 'tenant-lookup-transaction' };
     const findOne = vi.fn(async () => ({
       get: (key: string) => (key === 'path' ? '/root/' : undefined),
     }));
@@ -122,14 +121,7 @@ describe('workflow > tenant module boundary', () => {
       getRepository: vi.fn(() => ({ findOne, find })),
     };
 
-    await expect(getDescendantTenantIds(db, 'root', { enabledOnly: true, transaction })).resolves.toEqual([
-      'child-enabled',
-    ]);
-    expect(findOne).toHaveBeenCalledWith({
-      filter: { id: 'root' },
-      fields: ['path'],
-      transaction,
-    });
+    await expect(getDescendantTenantIds(db, 'root', { enabledOnly: true })).resolves.toEqual(['child-enabled']);
     expect(find).toHaveBeenCalledWith({
       filter: {
         enabled: true,
@@ -139,7 +131,6 @@ describe('workflow > tenant module boundary', () => {
         },
       },
       fields: ['id', 'path'],
-      transaction,
     });
   });
 });

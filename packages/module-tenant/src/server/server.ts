@@ -10,7 +10,6 @@ import tenantsCollection from './collections/tenants';
 import tenantUsersCollection from './collections/tenantUsers';
 import usersCollection from './collections/users';
 import { TENANT_ENABLED_MODES } from './constants';
-import { guardUnsupportedAssociationReadScopes, resolveAssociationReadScope } from './helpers/association-read-scope';
 import { ensureTenantIdField } from './helpers/ensure-tenant-id-field';
 import { getCollectionTenancyMode } from './helpers/isTenantScopedCollection';
 import {
@@ -34,37 +33,6 @@ export interface TenantPluginConfig {
 
 const ASSOCIATION_TARGET_WRITE_ACTIONS = new Set(['add', 'remove', 'set', 'toggle', 'move']);
 const ROOT_ASSOCIATION_VALUE_ACTIONS = new Set(['create', 'update']);
-const tenantOwnedThroughResources = new WeakMap<object, Set<string>>();
-
-function isTenantOwnedThroughResource(db: any, collectionName?: string, useCache = true): boolean {
-  if (!db || !collectionName) {
-    return false;
-  }
-  let throughNames = useCache ? tenantOwnedThroughResources.get(db) : null;
-  if (!throughNames) {
-    throughNames = new Set<string>();
-    for (const source of db.collections.values()) {
-      const sourceTenantAware = TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(source) as any);
-      for (const association of Object.values<any>(source.model?.associations || {})) {
-        if (association.associationType !== 'BelongsToMany' || !association.through?.model?.name) {
-          continue;
-        }
-        const through = db.getCollection(association.through.model.name);
-        if (TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(through) as any)) {
-          continue;
-        }
-        const target = sourceTenantAware ? null : db.getCollection(association.target?.name);
-        if (sourceTenantAware || TENANT_ENABLED_MODES.includes(getCollectionTenancyMode(target) as any)) {
-          throughNames.add(association.through.model.name);
-        }
-      }
-    }
-    if (useCache) {
-      tenantOwnedThroughResources.set(db, throughNames);
-    }
-  }
-  return throughNames.has(collectionName);
-}
 
 function getAssociationCollections(db: any, resourceName?: string) {
   const [sourceName, associationName] = resourceName?.split('.') || [];
@@ -605,52 +573,15 @@ async function guardTenantAssociationValues(
   return values;
 }
 
-async function guardTenantAssociationAction(ctx: any, db: any, acl: any, resourceName?: string) {
+async function guardTenantAssociationAction(ctx: any, db: any, resourceName?: string) {
   const association = getAssociationCollections(db, resourceName);
   if (!association || ctx.action?.sourceId === undefined || ctx.action?.sourceId === null) {
     return association;
   }
 
   const { sourceCollection, targetCollection } = association;
-  const associationName = resourceName?.split('.')[1];
-  const sourceAssociation = sourceCollection.model?.associations?.[associationName];
   const sourceTenancyMode = getCollectionTenancyMode(sourceCollection);
   const targetTenancyMode = getCollectionTenancyMode(targetCollection);
-  const actionName = ctx.action.actionName;
-  let sourceReadVerified = false;
-  if (isTenantReadAction(actionName) && ctx.action.sourceId !== '_') {
-    const scope = await resolveAssociationReadScope(ctx, targetCollection, sourceAssociation, acl);
-    if (scope.filter) {
-      const filter = { $and: [ctx.action.params.filter || {}, scope.filter] };
-      ctx.action.mergeParams({ filter });
-      ctx.action.params.filter = filter;
-    }
-    if (Array.isArray(scope.fields)) {
-      const requested = ctx.action.params.fields;
-      if (Array.isArray(requested) && requested.some((field: string) => !scope.fields.includes(field))) {
-        ctx.throw(403, translateTenantError(ctx, 'associationReadDenied'));
-      }
-      ctx.action.params.fields = scope.fields;
-    }
-
-    const sourcePermission = ctx.can?.({ resource: sourceCollection.name, action: 'get' });
-    if (!sourcePermission) {
-      ctx.throw(403, translateTenantError(ctx, 'associationReadDenied'));
-    }
-    const sourceAclParams = acl.filterParams(ctx, sourceCollection.name, sourcePermission.params || {});
-    const sourceAclOptions = await acl.parseJsonTemplate(sourceAclParams, ctx);
-    const allowedSource = await sourceCollection.repository.findOne(
-      applyTenantFilterToContext(ctx, sourceCollection, 'get', {
-        filterByTk: ctx.action.sourceId,
-        filter: sourceAclOptions.filter,
-        context: ctx,
-      }),
-    );
-    if (!allowedSource) {
-      ctx.throw(403, translateTenantError(ctx, 'associationReadDenied'));
-    }
-    sourceReadVerified = true;
-  }
   const tenantAware =
     TENANT_ENABLED_MODES.includes(sourceTenancyMode as any) || TENANT_ENABLED_MODES.includes(targetTenancyMode as any);
   if (!tenantAware) {
@@ -661,88 +592,27 @@ async function guardTenantAssociationAction(ctx: any, db: any, acl: any, resourc
     ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
   }
 
+  const actionName = ctx.action.actionName;
   // The core uses `_` to read the target repository directly when an association source is not specified.
   if (ctx.action.sourceId === '_' && ['get', 'list'].includes(actionName)) {
     return association;
   }
 
+  await assertTenantRecordAccess(ctx, sourceCollection, ctx.action.sourceId, 'get');
+
   if (!ASSOCIATION_TARGET_WRITE_ACTIONS.has(actionName)) {
-    if (!sourceReadVerified) {
-      await assertTenantRecordAccess(ctx, sourceCollection, ctx.action.sourceId, 'get');
-    }
     return association;
   }
 
-  const writableSource = await findTenantRecord(ctx, sourceCollection, ctx.action.sourceId, 'update');
-  if (!writableSource) {
-    const readableSource = await findTenantRecord(ctx, sourceCollection, ctx.action.sourceId, 'get');
-    if (readableSource && getRecordValue(readableSource, 'tenantId') === null) {
-      ctx.throw(
-        403,
-        translateTenantError(
-          ctx,
-          sourceCollection.options?.allowEditingLegacyData ? 'legacyAssociationRequiresClaim' : 'legacyRecordReadOnly',
-        ),
-      );
-    }
-    ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
-  }
-
-  const sourcePermission = ctx.can?.({ resource: sourceCollection.name, action: 'update' });
-  if (!sourcePermission) {
-    ctx.throw(403, translateTenantError(ctx, 'sourceWriteDenied'));
-  }
-  const sourceAclOptions = await acl.parseJsonTemplate({ filter: sourcePermission.params?.filter }, ctx);
-  if (sourceAclOptions.filter) {
-    const allowedSource = await sourceCollection.repository.findOne({
-      filterByTk: ctx.action.sourceId,
-      filter: sourceAclOptions.filter,
-      context: ctx,
-    });
-    if (!allowedSource) {
-      ctx.throw(403, translateTenantError(ctx, 'sourceWriteDenied'));
-    }
-  }
-
   for (const targetKey of getAssociationTargetKeys(actionName, ctx.action.params)) {
-    if (actionName === 'move' || ['HasMany', 'HasOne'].includes(sourceAssociation?.associationType)) {
-      await assertTenantAssociationTargetWriteAccess(ctx, targetCollection, targetKey);
+    if (actionName === 'move') {
+      await assertTenantRecordAccess(ctx, targetCollection, targetKey, 'update');
     } else {
       await assertTenantReferenceAccess(ctx, targetCollection, targetKey);
     }
   }
 
-  if (actionName === 'set' && ['HasMany', 'HasOne'].includes(sourceAssociation?.associationType)) {
-    const getAssociated = sourceAssociation.accessors?.get;
-    const existing = await writableSource[getAssociated]();
-    for (const record of Array.isArray(existing) ? existing : existing ? [existing] : []) {
-      await assertTenantAssociationTargetWriteAccess(
-        ctx,
-        targetCollection,
-        getRecordValue(record, sourceAssociation.targetKey || targetCollection.model.primaryKeyAttribute),
-      );
-    }
-  }
-
   return association;
-}
-
-async function assertTenantAssociationTargetWriteAccess(ctx: any, collection: any, targetKey: any) {
-  const writable = await findTenantRecord(ctx, collection, targetKey, 'update');
-  if (writable) {
-    return writable;
-  }
-  const readable = await findTenantRecord(ctx, collection, targetKey, 'get');
-  if (readable && getRecordValue(readable, 'tenantId') === null) {
-    ctx.throw(
-      403,
-      translateTenantError(
-        ctx,
-        collection.options?.allowEditingLegacyData ? 'legacyAssociationRequiresClaim' : 'legacyRecordReadOnly',
-      ),
-    );
-  }
-  ctx.throw(404, translateTenantError(ctx, 'recordUnavailable'));
 }
 
 /**
@@ -914,16 +784,6 @@ export class PluginTenantServer extends Plugin {
     this.db.on('collections.afterCreateWithAssociations', ensureTenantIdField);
     this.db.on('collections.afterUpdateWithAssociations', ensureTenantIdField);
     this.db.on('collections.afterUpdate', ensureTenantIdField);
-    for (const event of [
-      'fields.afterCreate',
-      'fields.afterUpdate',
-      'fields.afterDestroy',
-      'collections.afterCreate',
-      'collections.afterUpdate',
-      'collections.afterDestroy',
-    ]) {
-      this.db.on(event, () => tenantOwnedThroughResources.delete(this.db));
-    }
     registerLegacyTenantClaimGuard(this.db);
     registerLegacyTenantClaimGuardsForDataSources(this.app.dataSourceManager);
 
@@ -1021,31 +881,10 @@ export class PluginTenantServer extends Plugin {
         (collectionName ? dataSource?.collectionManager?.getCollection(ctx.action.resourceName) : null) ||
         db.getCollection(collectionName);
 
-      if (isTenantOwnedThroughResource(db, collectionName, db === this.db)) {
-        ctx.throw(403, translateTenantError(ctx, 'throughResourceDenied'));
-      }
-
-      const association = await guardTenantAssociationAction(ctx, db, this.app.acl, collectionName);
-
-      if (isTenantReadAction(ctx.action.actionName)) {
-        ctx.getAssociationReadScope = (targetCollection, targetAssociation) =>
-          resolveAssociationReadScope(ctx, targetCollection, targetAssociation, this.app.acl);
-        ctx.getTreeReadScope = (targetCollection) =>
-          resolveAssociationReadScope(ctx, targetCollection, { isSingleAssociation: false }, this.app.acl);
-        if (ctx.action.actionName === 'list' && ctx.action.params.tree && collection) {
-          const readScope = await ctx.getTreeReadScope(collection);
-          const needsScope = readScope.filter && Reflect.ownKeys(readScope.filter).length > 0;
-          if (needsScope && ctx.action.getHandler?.()?.supportsScopedTreeRead !== true) {
-            ctx.throw(403, translateTenantError(ctx, 'treeReadScopeUnsupported'));
-          }
-        }
-      }
+      const association = await guardTenantAssociationAction(ctx, db, collectionName);
 
       const tenancyMode = getCollectionTenancyMode(collection);
       const repository = collection?.repository || dataSource?.collectionManager?.getRepository?.(collectionName);
-      if (isTenantReadAction(ctx.action.actionName)) {
-        guardUnsupportedAssociationReadScopes(ctx, db, collection, repository);
-      }
       let sourceRecord;
 
       if (TENANT_ENABLED_MODES.includes(tenancyMode as any)) {

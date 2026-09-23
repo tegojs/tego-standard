@@ -11,18 +11,8 @@ export const TENANT_ERROR_MESSAGES = {
     'No tenant is selected. Select a tenant and try again. If no tenant is available, contact an administrator.',
   recordUnavailable:
     'This record or a related record is not available in the current tenant. It may belong to another tenant or have been removed.',
-  throughResourceDenied:
-    'This relationship belongs to a tenant-owned record. Access it through the owning record instead of the relationship table.',
-  sourceWriteDenied: 'You do not have permission to modify the record that owns this relationship.',
-  associationReadDenied: 'You do not have permission to read this related field.',
-  associationReadScopeUnsupported:
-    'This related data cannot be read safely with the current database version. Ask an administrator to update the database component.',
-  treeReadScopeUnsupported:
-    'This tree cannot be read safely with the current core version. Ask an administrator to update the core components.',
   legacyRecordReadOnly:
     'This record is unassigned legacy data and is read-only. Ask an administrator to allow editing legacy data for this collection before trying again.',
-  legacyAssociationRequiresClaim:
-    'This record is not assigned to a tenant yet. Edit it first to assign it to the current tenant before changing its associations.',
   legacyRecordDeleteRequiresClaim:
     'This record is unassigned legacy data and cannot be deleted directly. Edit it first to assign it to the current tenant, then try deleting it again.',
   tenantOwnershipMove: 'Moving a record cannot change its tenant. Keep the record in the current tenant and try again.',

@@ -1,6 +1,4 @@
-import { applyTenantFilterToContext } from '@tachybase/module-workflow';
-
-export { applyTenantFilterToContext };
+import { applyTenantFilterToContext } from '@tachybase/module-tenant';
 
 function stripTenantFilter(filter: any): any {
   if (!filter || typeof filter !== 'object') {

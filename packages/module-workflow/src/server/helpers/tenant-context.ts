@@ -62,21 +62,6 @@ function stripTenantFilter(filter: any): any {
   return next;
 }
 
-function hasExactTenantFilter(filter: any, tenantId: string | number | null): boolean {
-  if (!filter || typeof filter !== 'object') {
-    return false;
-  }
-  if (Array.isArray(filter)) {
-    return filter.some((item) => hasExactTenantFilter(item, tenantId));
-  }
-  if (Object.prototype.hasOwnProperty.call(filter, 'tenantId') && filter.tenantId === tenantId) {
-    return true;
-  }
-  return ['$and', '$or'].some(
-    (key) => Array.isArray(filter[key]) && filter[key].some((item: any) => hasExactTenantFilter(item, tenantId)),
-  );
-}
-
 function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
   return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
 }
@@ -451,10 +436,6 @@ export function workflowTenantRecordUnavailableError(context: any, diagnostic?: 
   return diagnostic ? appendTenantDiagnostic(context, error, diagnostic) : error;
 }
 
-/**
- * Diagnoses a zero-row workflow mutation. Returns no error when an update still
- * matches its original tenant-scoped filter and therefore changed no values.
- */
 export async function workflowTenantRecordMutationMissError(
   context: TenantFilterContext,
   collection: TenantFilterCollection,
@@ -462,19 +443,14 @@ export async function workflowTenantRecordMutationMissError(
   options: Record<string, any>,
   transaction?: any,
   operation: WorkflowTenantDiagnostic['operation'] = 'update',
-  database?: any,
-  verificationOptions: Record<string, any> = options,
 ) {
   const targetKey = getCollectionTargetKey(collection);
-  const lockOptions = transaction ? { lock: transaction.LOCK?.UPDATE ?? true } : {};
   const unresolvedTargetKeyFilter = getUnresolvedDiagnosticTargetKeyFilter(collection, options);
-  const isLegacyClaim =
-    TENANT_ENABLED_MODES.includes(collection?.options?.tenancy) && hasExactTenantFilter(options?.filter, null);
   let recordKey = getDiagnosticRecordKey(collection, options);
   const lookupOptions = isDiagnosticRecordKey(recordKey)
     ? { filter: { [targetKey]: recordKey } }
     : { filter: stripTenantFilter(options?.filter) };
-  const unscopedRecord = await repository.findOne({ ...lookupOptions, ...lockOptions, context, transaction });
+  const unscopedRecord = await repository.findOne({ ...lookupOptions, context, transaction });
   recordKey ??= getDiagnosticRecordKey(collection, options, unscopedRecord);
 
   let reason: WorkflowTenantDiagnostic['reason'];
@@ -508,30 +484,7 @@ export async function workflowTenantRecordMutationMissError(
     }
 
     const writableOptions = applyTenantFilterToContext(context, collection, 'update', lookupOptions);
-    const writableRecord = await repository.findOne({ ...writableOptions, ...lockOptions, context, transaction });
-    if (writableRecord && operation !== 'destroy' && !isLegacyClaim) {
-      const originalLookupOptions: Record<string, any> = { filter: stripTenantFilter(options?.filter) };
-      if (options?.filterByTk !== null && options?.filterByTk !== undefined) {
-        originalLookupOptions.filterByTk = options.filterByTk;
-      }
-      const matchingOptions = applyTenantFilterToContext(context, collection, 'update', originalLookupOptions);
-      const matchingRecords =
-        typeof repository.find === 'function'
-          ? await repository.find({ ...matchingOptions, ...lockOptions, context, transaction })
-          : [await repository.findOne({ ...matchingOptions, ...lockOptions, context, transaction })].filter(Boolean);
-      const valuesApplied =
-        matchingRecords.length > 0 &&
-        (await haveWorkflowUpdateValuesApplied(
-          database,
-          collection,
-          matchingRecords,
-          verificationOptions,
-          transaction,
-        ));
-      if (valuesApplied) {
-        return undefined;
-      }
-    }
+    const writableRecord = await repository.findOne({ ...writableOptions, context, transaction });
     reason = writableRecord
       ? 'TENANT_RECORD_FILTER_CHANGED'
       : recordTenantId === null
@@ -743,40 +696,6 @@ async function hasUnchangedAssociationValues(
           transaction,
         ))
       ) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-async function haveWorkflowUpdateValuesApplied(
-  db: any,
-  collection: TenantFilterCollection,
-  records: any[],
-  options: Record<string, any>,
-  transaction?: any,
-) {
-  const values = options?.values;
-  if (!values || typeof values !== 'object' || Array.isArray(values)) {
-    return false;
-  }
-  if (Reflect.ownKeys(values).length === 0) {
-    return true;
-  }
-
-  const updatePaths = new Set<string>(options?.updateAssociationValues || []);
-  for (const record of records) {
-    for (const [key, requestedValue] of Object.entries(values)) {
-      const association = collection?.model?.associations?.[key];
-      if (association) {
-        if (
-          !db ||
-          !(await hasUnchangedAssociationValues(db, record, association, requestedValue, key, updatePaths, transaction))
-        ) {
-          return false;
-        }
-      } else if (!hasSameValue(getRecordValue(record, key), requestedValue)) {
         return false;
       }
     }
@@ -1487,7 +1406,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
 export async function getDescendantTenantIds(
   db: any,
   tenantId: string,
-  options: { enabledOnly?: boolean; transaction?: any } = {},
+  options: { enabledOnly?: boolean } = {},
 ): Promise<string[]> {
   const repo = db?.getRepository?.('tenants');
   if (!repo) {
@@ -1497,7 +1416,6 @@ export async function getDescendantTenantIds(
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['path'],
-    transaction: options.transaction,
   });
   const path = tenant?.get('path') as string;
   if (!path) {
@@ -1510,7 +1428,6 @@ export async function getDescendantTenantIds(
       ...buildPathPrefixFilter(path),
     },
     fields: ['id', 'path'],
-    transaction: options.transaction,
   });
 
   return descendants

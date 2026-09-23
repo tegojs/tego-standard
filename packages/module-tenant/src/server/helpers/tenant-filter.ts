@@ -54,6 +54,34 @@ function stripTenantFilter(filter: any): any {
   return next;
 }
 
+function flattenAndFilters(filter: any): any {
+  if (!filter || typeof filter !== 'object') {
+    return filter;
+  }
+
+  if (Array.isArray(filter)) {
+    return filter.map(flattenAndFilters);
+  }
+
+  const next: Record<PropertyKey, any> = {};
+  for (const key of Reflect.ownKeys(filter)) {
+    const value = flattenAndFilters(filter[key]);
+    if (key === '$and' && Array.isArray(value)) {
+      next[key] = value.flatMap((item: any) => {
+        if (item && typeof item === 'object' && !Array.isArray(item) && Array.isArray(item.$and)) {
+          const { $and, ...siblings } = item;
+          return Reflect.ownKeys(siblings).length > 0 ? [siblings, ...$and] : $and;
+        }
+        return [item];
+      });
+    } else {
+      next[key] = value;
+    }
+  }
+
+  return next;
+}
+
 function canReadLegacyData(tenantId: string | number, legacyDataTenantIds?: Array<string | number>) {
   return (legacyDataTenantIds || []).some((item) => `${item}` === `${tenantId}`);
 }
@@ -80,16 +108,19 @@ function buildInheritedTenantFilter(tenantIds: Array<string | number>, includeLe
   };
 }
 
-function appendTenantFilter(original: any, tenantFilter: any) {
+function appendTenantFilter(original: any, tenantFilter: any, normalizeAnd = false) {
   const sanitizedOriginal = stripTenantFilter(original);
+  const normalizedOriginal = normalizeAnd ? flattenAndFilters(sanitizedOriginal) : sanitizedOriginal;
 
-  if (!sanitizedOriginal || isEmptyPlainObject(sanitizedOriginal)) {
+  if (!normalizedOriginal || isEmptyPlainObject(normalizedOriginal)) {
     return tenantFilter;
   }
 
-  return {
-    $and: [sanitizedOriginal, tenantFilter],
+  const combined = {
+    $and: [normalizedOriginal, tenantFilter],
   };
+
+  return normalizeAnd ? flattenAndFilters(combined) : combined;
 }
 
 export function isTenantReadAction(actionName: string) {
@@ -101,7 +132,7 @@ export function applyUnassignedTenantReadFilter(ctx: TenantFilterContext) {
     return;
   }
   const tenantParams = {
-    filter: appendTenantFilter(ctx.action.params?.filter, { tenantId: null }),
+    filter: appendTenantFilter(ctx.action.params?.filter, { tenantId: null }, true),
   };
   ctx.action.mergeParams(tenantParams);
   ctx.action.params.filter = tenantParams.filter;
@@ -125,12 +156,17 @@ export function applyLegacyTenantClaim(ctx: TenantFilterContext) {
   ctx.action.params.values = tenantParams.values;
 }
 
-function appendFilter(original: any, tenantId: string | number, includeLegacyData = false) {
-  return appendTenantFilter(original, buildTenantFilter(tenantId, includeLegacyData));
+function appendFilter(original: any, tenantId: string | number, includeLegacyData = false, normalizeAnd = false) {
+  return appendTenantFilter(original, buildTenantFilter(tenantId, includeLegacyData), normalizeAnd);
 }
 
-function appendInheritedFilter(original: any, tenantIds: Array<string | number>, includeLegacyData = false) {
-  return appendTenantFilter(original, buildInheritedTenantFilter(tenantIds, includeLegacyData));
+function appendInheritedFilter(
+  original: any,
+  tenantIds: Array<string | number>,
+  includeLegacyData = false,
+  normalizeAnd = false,
+) {
+  return appendTenantFilter(original, buildInheritedTenantFilter(tenantIds, includeLegacyData), normalizeAnd);
 }
 
 function appendTenantValue(values: any, tenantId: string | number) {
@@ -199,11 +235,11 @@ function buildTenantParams(
       const descendantIds: Array<string | number> = state?.currentTenantDescendantIds || [];
       const allIds = [tenantId, ...descendantIds];
       tenantParams = {
-        filter: appendInheritedFilter(params?.filter, allIds, includeLegacyData),
+        filter: appendInheritedFilter(params?.filter, allIds, includeLegacyData, true),
       };
     } else {
       tenantParams = {
-        filter: appendFilter(params?.filter, tenantId, includeLegacyData),
+        filter: appendFilter(params?.filter, tenantId, includeLegacyData, true),
       };
     }
   }

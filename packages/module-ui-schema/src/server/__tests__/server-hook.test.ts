@@ -280,7 +280,7 @@ describe('server hooks', () => {
         },
         individualHooks: true,
       }),
-    ).rejects.toThrow('Transaction cannot be rolled back');
+    ).rejects.toThrow('cant delete field');
 
     expect(jestFn).toHaveBeenCalled();
     expect(

@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { ArrayField, observer, onFieldChange, Schema, useFieldSchema, useFormEffects } from '@tachybase/schema';
+import { fuzzysearch } from '@tego/client';
 
 import { CheckOutlined, SearchOutlined } from '@ant-design/icons';
-import { fuzzysearch } from '@tego/client';
 import { useAsyncEffect, useDeepCompareEffect } from 'ahooks';
 import { Button, Collapse, CollapseProps, Input, Space } from 'antd';
 import flat from 'flat';
@@ -314,7 +314,7 @@ const tabsFilterOptions = (optitons, filterTabs, arrayField) => {
   return filterOptions;
 };
 
-export const InternalCollapse = observer((props) => {
+export const InternalCollapse: React.FC<any> = observer((props) => {
   const { t } = useTranslation();
   const fieldSchema = useFieldSchema();
   const isQuickAdd = fieldSchema['parent']['x-component-props']['isQuickAdd'];

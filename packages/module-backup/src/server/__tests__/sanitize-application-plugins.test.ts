@@ -21,7 +21,7 @@ describe('sanitizeUnavailableApplicationPlugins', () => {
     await app.db.getRepository('applicationPlugins').create({
       values: {
         name: 'tenant',
-        packageName: '@tachybase/module-tenant',
+        packageName: '@tachybase/module-not-installed',
         enabled: true,
         installed: true,
       },
@@ -32,7 +32,7 @@ describe('sanitizeUnavailableApplicationPlugins', () => {
 
     const remaining = await app.db.getRepository('applicationPlugins').find({
       filter: {
-        packageName: '@tachybase/module-tenant',
+        packageName: '@tachybase/module-not-installed',
       },
     });
     expect(remaining).toHaveLength(0);

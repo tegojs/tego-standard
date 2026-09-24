@@ -26,14 +26,14 @@ catalogs:
       version: 5.3.10
 
 overrides:
-  '@tachybase/globals': 1.6.23
-  '@tachybase/loader': 1.6.23
-  '@tachybase/schema': 1.6.23
-  '@tachybase/test': 1.6.23
-  '@tachybase/utils': 1.6.23
-  '@tego/client': 1.6.23
-  '@tego/devkit': 1.6.23
-  '@tego/server': 1.6.23
+  '@tachybase/globals': 1.6.24
+  '@tachybase/loader': 1.6.24
+  '@tachybase/schema': 1.6.24
+  '@tachybase/test': 1.6.24
+  '@tachybase/utils': 1.6.24
+  '@tego/client': 1.6.24
+  '@tego/devkit': 1.6.24
+  '@tego/server': 1.6.24
   '@types/node': 20.17.10
   '@types/react': 18.3.23
   '@types/react-dom': 18.3.7
@@ -46,7 +46,7 @@ overrides:
   sequelize: 6.37.5
   string-width: 4.2.3
   strip-ansi: 6.0.1
-  tego: 1.6.23
+  tego: 1.6.24
   wrap-ansi: 7.0.0
 
 patchedDependencies:
@@ -83,11 +83,11 @@ importers:
         specifier: ^7.8.0
         version: 7.8.0(@types/node@20.17.10)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/devkit':
-        specifier: 1.6.23
-        version: 1.6.23(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@pnpm/logger@5.2.0)(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@pnpm/logger@5.2.0)(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@types/node':
         specifier: 20.17.10
         version: 20.17.10
@@ -134,8 +134,8 @@ importers:
         specifier: 18.3.1
         version: 18.3.1(react@18.3.1)
       tego:
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       ts-morph:
         specifier: ^26.0.0
         version: 26.0.0
@@ -215,8 +215,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/client
       '@tego/devkit':
-        specifier: 1.6.23
-        version: 1.6.23(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@pnpm/logger@5.2.0)(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@pnpm/logger@5.2.0)(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@types/react':
         specifier: 18.3.23
         version: 18.3.23
@@ -287,14 +287,14 @@ importers:
         specifier: ^0.9.3
         version: 0.9.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/utils':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -447,17 +447,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/jsonwebtoken':
         specifier: ^8.5.9
         version: 8.5.9
@@ -492,14 +492,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
 
   packages/module-auth:
     devDependencies:
@@ -510,17 +510,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -570,17 +570,17 @@ importers:
         specifier: workspace:*
         version: link:../plugin-field-sequence
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/archiver':
         specifier: ^5.3.4
         version: 5.3.4
@@ -684,17 +684,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -766,14 +766,14 @@ importers:
         specifier: workspace:*
         version: link:../module-error-handler
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -799,17 +799,17 @@ importers:
         specifier: workspace:*
         version: link:../module-workflow
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -838,17 +838,17 @@ importers:
         specifier: workspace:*
         version: link:../module-acl
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -883,17 +883,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -904,17 +904,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -937,17 +937,17 @@ importers:
         specifier: workspace:*
         version: link:../module-workflow
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -979,17 +979,17 @@ importers:
         specifier: workspace:*
         version: link:../module-tenant
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/koa-multer':
         specifier: ^1.0.4
         version: 1.0.4
@@ -1051,20 +1051,20 @@ importers:
         specifier: workspace:*
         version: link:../module-workflow
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/sheet':
         specifier: 1.0.0-alpha.5
         version: 1.0.0-alpha.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -1129,17 +1129,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1171,17 +1171,17 @@ importers:
         specifier: workspace:*
         version: link:../module-workflow
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1219,17 +1219,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23(mysql2@3.14.3)(pg@8.16.3)
+        specifier: 1.6.24
+        version: 1.6.24(mysql2@3.14.3)(pg@8.16.3)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -1292,14 +1292,14 @@ importers:
         specifier: workspace:*
         version: link:../module-workflow
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -1340,17 +1340,17 @@ importers:
         specifier: workspace:*
         version: link:../plugin-action-import
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1367,14 +1367,14 @@ importers:
         specifier: workspace:*
         version: link:../module-user
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -1394,17 +1394,17 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/jsonwebtoken':
         specifier: ^8.5.9
         version: 8.5.9
@@ -1427,17 +1427,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/express':
         specifier: 'catalog:'
         version: 5.0.2
@@ -1496,11 +1496,11 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/globals':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@tachybase/loader':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@tachybase/module-collection':
         specifier: workspace:*
         version: link:../module-collection
@@ -1508,17 +1508,17 @@ importers:
         specifier: workspace:*
         version: link:../module-user
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1574,17 +1574,17 @@ importers:
         specifier: workspace:*
         version: link:../plugin-workflow-test
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -1670,17 +1670,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1700,17 +1700,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1727,17 +1727,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1763,17 +1763,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1790,17 +1790,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1832,17 +1832,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1880,14 +1880,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       react-to-print:
         specifier: ^2.15.1
         version: 2.15.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1904,17 +1904,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1949,14 +1949,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       bullmq:
         specifier: ^5.56.9
         version: 5.56.9
@@ -1979,14 +1979,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/express':
         specifier: 5.0.2
         version: 5.0.2
@@ -2012,14 +2012,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -2054,17 +2054,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2090,17 +2090,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2129,17 +2129,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2162,17 +2162,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2195,14 +2195,14 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2237,14 +2237,14 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2261,17 +2261,17 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2288,17 +2288,17 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2330,14 +2330,14 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2351,14 +2351,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
 
   packages/plugin-auth-saml:
     devDependencies:
@@ -2375,17 +2375,17 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2411,17 +2411,17 @@ importers:
         specifier: workspace:*
         version: link:../plugin-otp
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2444,14 +2444,14 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2477,14 +2477,14 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2507,17 +2507,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2564,17 +2564,17 @@ importers:
         specifier: workspace:*
         version: link:../module-tenant
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@testing-library/react':
         specifier: ^16.2.0
         version: 16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2621,17 +2621,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2657,17 +2657,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2687,17 +2687,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2729,17 +2729,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/google.maps':
         specifier: ^3.58.1
         version: 3.58.1
@@ -2780,17 +2780,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2813,17 +2813,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2849,17 +2849,17 @@ importers:
         specifier: workspace:*
         version: link:../module-data-source
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23(mysql2@3.14.3)(pg@8.16.3)
+        specifier: 1.6.24
+        version: 1.6.24(mysql2@3.14.3)(pg@8.16.3)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -2897,14 +2897,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/archiver':
         specifier: ^5.3.4
         version: 5.3.4
@@ -2954,14 +2954,14 @@ importers:
         specifier: workspace:*
         version: link:../module-collection
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -3000,14 +3000,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
 
   packages/plugin-devtools:
     devDependencies:
@@ -3018,14 +3018,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3045,11 +3045,11 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       mathjs:
         specifier: ^10.6.4
         version: 10.6.4
@@ -3060,17 +3060,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
 
   packages/plugin-field-china-region:
     devDependencies:
@@ -3078,17 +3078,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/cross-spawn':
         specifier: ^6.0.6
         version: 6.0.6
@@ -3105,14 +3105,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
 
   packages/plugin-field-formula:
     devDependencies:
@@ -3120,17 +3120,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -3153,17 +3153,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3183,17 +3183,17 @@ importers:
         specifier: workspace:*
         version: link:../module-collection
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3225,17 +3225,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3267,17 +3267,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3294,14 +3294,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/sequelize':
         specifier: ^4.28.20
         version: 4.28.20
@@ -3330,17 +3330,17 @@ importers:
         specifier: workspace:*
         version: link:../module-web
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       ahooks:
         specifier: ^3.9.0
         version: 3.9.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3363,17 +3363,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3393,14 +3393,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/tar-fs':
         specifier: ^2.0.4
         version: 2.0.4
@@ -3423,17 +3423,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3453,14 +3453,14 @@ importers:
         specifier: workspace:*
         version: link:../module-error-handler
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23(pg@8.16.3)
+        specifier: 1.6.24
+        version: 1.6.24(pg@8.16.3)
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -3480,17 +3480,17 @@ importers:
         specifier: workspace:*
         version: link:../module-multi-app
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -3513,17 +3513,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@vercel/ncc':
         specifier: 0.38.3
         version: 0.38.3
@@ -3573,17 +3573,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3618,17 +3618,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3645,14 +3645,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3669,14 +3669,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       canvas-confetti:
         specifier: ^1.9.3
         version: 1.9.3
@@ -3693,17 +3693,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3735,14 +3735,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       bullmq:
         specifier: ^5.56.9
         version: 5.56.9
@@ -3768,14 +3768,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3792,14 +3792,14 @@ importers:
         specifier: workspace:*
         version: link:../module-auth
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/xml2js':
         specifier: ^0.4.14
         version: 0.4.14
@@ -3840,14 +3840,14 @@ importers:
         specifier: workspace:*
         version: link:../module-acl
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       minimatch:
         specifier: ^5.1.6
         version: 5.1.6
@@ -3858,17 +3858,17 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3894,14 +3894,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -3936,14 +3936,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3960,17 +3960,17 @@ importers:
         specifier: workspace:*
         version: link:../module-workflow
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3999,17 +3999,17 @@ importers:
         specifier: workspace:*
         version: link:../module-workflow
       '@tachybase/schema':
-        specifier: 1.6.23
-        version: 1.6.23(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(react@18.3.1)
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
@@ -4056,14 +4056,14 @@ importers:
         specifier: workspace:*
         version: link:../client
       '@tachybase/test':
-        specifier: 1.6.23
-        version: 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+        specifier: 1.6.24
+        version: 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@tego/client':
-        specifier: 1.6.23
-        version: 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.6.24
+        version: 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
-        specifier: 1.6.23
-        version: 1.6.23
+        specifier: 1.6.24
+        version: 1.6.24
       dayjs:
         specifier: 1.11.13
         version: 1.11.13
@@ -8216,58 +8216,58 @@ packages:
     resolution: {integrity: sha512-+PmQX0PiAYPMeVYe237LJAYvOMYW1j2rH5YROyS3b4CTVJum34HfRvKvAzozHAQG0TnHNdUfY9nCeUyRAs//cw==}
     engines: {node: '>=14.16'}
 
-  '@tachybase/acl@1.6.23':
-    resolution: {integrity: sha512-Bdnj9LkwWkZOt2dP/MokNW9zg8Zr5amtfdkjePtoQX4o+az1WDH//wxwP7bBaoNLBWm5MPAajVGZ/5t8QqMcmw==}
+  '@tachybase/acl@1.6.24':
+    resolution: {integrity: sha512-hG0G7cHMx1ZAlbI+wf4GB3Pb+g/9yU3gYtO28g37OVm6eOUXL6kkT6F6OsYdoxD5WaaRG0T+AoeeWvu3GvUTwg==}
 
-  '@tachybase/actions@1.6.23':
-    resolution: {integrity: sha512-omyYiDJY+kB6nYHTNmLKeKPETz8gwwNfyHcgTCCngOYpdMka6oF6t4bGyG/NX9nvcJot0iI+8fmk3zaeFaFjSg==}
+  '@tachybase/actions@1.6.24':
+    resolution: {integrity: sha512-ZoYs66j7lchdj5Pq6DhvCj+hYJfhmqMaHeWtwW7oVvfU5PrGPmYMNCOwJ7Wm8SnWWYIFApfeWdlXcD8wA8nMyA==}
 
-  '@tachybase/auth@1.6.23':
-    resolution: {integrity: sha512-rQmLRlVHzx9LdyU1KgF+1kl/kr5H2T9Fuk4ZdCH0KMWTjiSBUmpf0xhup1YCwGfu5LmI1uaV6b90bh1hR8dRjQ==}
+  '@tachybase/auth@1.6.24':
+    resolution: {integrity: sha512-ALHjQRqpMEP9laSPNiI6U4U7CaifRUi+yfA7HNCeFfMa/JUmsedMqtFdD72UYmV+2dPi/Gug9LmKT9qXo5mkCQ==}
 
-  '@tachybase/cache@1.6.23':
-    resolution: {integrity: sha512-RqZ1UXr9YbE/5tXaDFb4EfRkZhnADN6v+uf4oJraUyYMNdWI/Hhj0MD7sxGnyhw/5P2OHqRk3DSQ0j4vE/vLFQ==}
+  '@tachybase/cache@1.6.24':
+    resolution: {integrity: sha512-fPriQrOCTN0iwXB0NCDZXlKRfGSvTaLcYY8LOCWZChwRpjdbnUN0NeHLSnCyd7X184wN/+ukMgtAvaIuI+SDtA==}
 
-  '@tachybase/components@1.6.23':
-    resolution: {integrity: sha512-XBiXPn7+CsYNGFPourVRqVdsNi3CCpnSpjoVjDT8Jx66+HBekcsmPLSg2veJS9LnBtJelbAqFV0NK2/YhdkG5Q==}
+  '@tachybase/components@1.6.24':
+    resolution: {integrity: sha512-DKDGBLYBHwUivYbaqh82bmMaG3vQdDELDTZMoWV35WsDiwGYGyUTah6cts1TOxGHpX40DXWzpaVh6q2zO6ly3A==}
     peerDependencies:
       react: 18.3.1
       react-dom: 18.3.1
 
-  '@tachybase/data-source@1.6.23':
-    resolution: {integrity: sha512-uQYnV+ZuSRazFcCwAJYcRD8ga8GkbOiRFU2q8Nr+Jv6q/1gvr9G00WEVSfXew/ysD2ae0pw+M+j1qTeZB8bAvA==}
+  '@tachybase/data-source@1.6.24':
+    resolution: {integrity: sha512-jw/2zjITyUhU6GyfiA20LphTYh7yAaEtevCwrbFjqgLSGa1BrL/ynYlRVIHXkqhqyO1y5WgSovmBgUUAo4vOdg==}
 
-  '@tachybase/database@1.6.23':
-    resolution: {integrity: sha512-qLPoKFy7hgkwVvy9TE7FKjl33/EuuGuxo7BzInbGul9+7GyGbG564D+EA8tWft8bJk90NoT92lUhTa0xKAtgcA==}
+  '@tachybase/database@1.6.24':
+    resolution: {integrity: sha512-NKvgJEcm720qKESh2bLPhQnFCht4hdnxPcbQgqz7p1Mj+71oT+BNRZgS11ZF9sArKFRhuweqC0g+hGfI8khGFw==}
 
-  '@tachybase/di@1.6.23':
-    resolution: {integrity: sha512-G8KDhlJeUue0eQTeia0Glqz2tB2opt7hi/FYKQRlBxWZHStG+4B4WjQVHoMcrO2YOS2mspHzt7uLADIurFtgQA==}
+  '@tachybase/di@1.6.24':
+    resolution: {integrity: sha512-+6v9h0KOYlFyuf7oMy9aWDMij85h+13g/8PsCDbAkrJXaUNpCXHDOD6KtGUz6sLWDlWsRiox2Wk4476sKbwg4Q==}
 
-  '@tachybase/evaluators@1.6.23':
-    resolution: {integrity: sha512-k0xkbYM3xGyb2bEMg7CWkX9lsrQ9FqNyOXmxW1oL9WWX6dwd0+AO9DL641gRTgiYeg9rxygWxz/wMyJTT+XH+g==}
+  '@tachybase/evaluators@1.6.24':
+    resolution: {integrity: sha512-6xmRW+7lnEvNzocweA92ZZG3hQRDuc+FE+dx/Xnn6Kj2iR3FsLyx1fOyNHBIXPIQKmovx8YWrDjMuImeqeVxSw==}
 
-  '@tachybase/globals@1.6.23':
-    resolution: {integrity: sha512-2YJchm+2eudMxGlNNOohEnyjTJNiblXQ4ls7AJ7XY1OMGm7Ks7KSIPSpRKi9p/sn4TelJLjX/Cw04I0MnVHIWw==}
+  '@tachybase/globals@1.6.24':
+    resolution: {integrity: sha512-T4k4e4Vu93Y659jcZa0xuSKkUEl2e4mbl8hBNH+L8xDF5KmpzZP6pfOzuK3RlhdSH2Z1OgybK1SML7Tv5U0K4Q==}
 
-  '@tachybase/loader@1.6.23':
-    resolution: {integrity: sha512-MYUgnllzubyIeprbOURJcZcq/CamS7b0i6zSbZ50iVLY2JWjF4Jqq/8SBZqV7OUCa/8fleLIy75Y4s+Bx1lp8w==}
+  '@tachybase/loader@1.6.24':
+    resolution: {integrity: sha512-pNGYD7BLXjBWNveS+l9ZNvmJ48MJWFTcJLep+8+qGxmfZfmpkpX0uQghtZRZlr9M11GPkiXR03PvCbs2X0jB9w==}
 
-  '@tachybase/logger@1.6.23':
-    resolution: {integrity: sha512-I/ImBo3QxPmMeVytMOQyMwCLEsQoSypC0lWF+Tv4b5CZlTkLoQtLSIifS2hFXG/O80Eo+iUhdjc54ZK2n/5Rew==}
+  '@tachybase/logger@1.6.24':
+    resolution: {integrity: sha512-CdeEYfdNh5L20GSB6+/f3CRoizUb/LXgOvcI4xpFnlVIrgCnavbHFeCVbC5cTxl5Rtrdgk04Dy0I9DySpeetvQ==}
 
-  '@tachybase/requirejs@1.6.23':
-    resolution: {integrity: sha512-afoJKSU/C390ct+7uelFOzB4qkopE2trzVaD1LNvQsM/UW06zzpszRywf4+y0+2C0iishfOan6OMs/lRXF2N7A==}
+  '@tachybase/requirejs@1.6.24':
+    resolution: {integrity: sha512-dHQexyQNHoiuxIQnk41045juF2Fgx/gfrb9Vp1T9SM4CVaTEUVjyGmefSY77puJADK2kw0vru9xV4k6ku0QbVA==}
 
-  '@tachybase/resourcer@1.6.23':
-    resolution: {integrity: sha512-kevQDyeIutETpNT+KjLpgex2zbZFUPJoO4XJIq2mH+DXnxTlnQWNRgBSNVY9+zWz2Dnj2NiAbr5rEf1d+I324A==}
+  '@tachybase/resourcer@1.6.24':
+    resolution: {integrity: sha512-GuMCnkaOWZ51bcVCNa6b6zzgf17I1cGORhJWBN8a/1dQ443YqDXJKH4tZTTXuEqtpZBChsLN0Wu9lA0obmYvwg==}
 
-  '@tachybase/schema@1.6.23':
-    resolution: {integrity: sha512-03ktwYL6ZSUx5agdkNlIxLoJdTtAgDLomfESlZp/PMhm1k1CbV2yhqf7DflE6npTyOiahJXPrYWvtl+lOUSR4w==}
+  '@tachybase/schema@1.6.24':
+    resolution: {integrity: sha512-I3tMt58SWdRdKsX9sqSjQDyjyz4w2tZKIEL7e7DKmh5KuwtxBtikNMhmwngQQoOdBkQk6h5JerFpqPDCX2saWQ==}
     peerDependencies:
       react: 18.3.1
 
-  '@tachybase/sdk@1.6.23':
-    resolution: {integrity: sha512-tYplWhNkY7vNLmgsvTg+objtD3rvc21jdA0i+/cS0EV5XylhSeBZjau2Cc1gU6KnmMZUvv9W3kAh9bPtwWsqWw==}
+  '@tachybase/sdk@1.6.24':
+    resolution: {integrity: sha512-GROztrJalCw2B/11PMGGnnV6eyaofhjNANKFCb/T27t54gySepUtfWb/iXywYZQ8iWXFTV6+5DfE5N3qic6e0Q==}
 
   '@tachybase/sheet@1.0.0-alpha.5':
     resolution: {integrity: sha512-dnCP+Eedpm8P+LLBgMWZmq5RuHtVKUv9ivDUK1Y5s+HcbT/rd+PSXkLSnYKFT4bkJ3PYKHjshg5tr/9pG0FApA==}
@@ -8275,24 +8275,24 @@ packages:
       react: 18.3.1
       react-dom: 18.3.1
 
-  '@tachybase/test@1.6.23':
-    resolution: {integrity: sha512-LicKrjG7ekidqYAF396SM+djIT2nTyQZono72BEe9JbPoCoEXPzvElJekQXK7o6OLnF6k1MGJHvrABv5ZnnHyg==}
+  '@tachybase/test@1.6.24':
+    resolution: {integrity: sha512-qcO8vhrTFSN/oQwX94zJihNyVs5tgIeoEWQ86hLv7E0hx1KJM8TywoMjdts8qpMjZCI3zVO7QsNl5Gp09SOaEA==}
 
-  '@tachybase/utils@1.6.23':
-    resolution: {integrity: sha512-grfyPbYhFrHsHbvSHf97mSyV4LIVXRPOc9xC/7OenDw5fgH2IF5OUW5cghD82yYENWkEIIr84RIrk+5yRANqEw==}
+  '@tachybase/utils@1.6.24':
+    resolution: {integrity: sha512-XFMg6Fh10KWeZSxpFdeJhhsjabpDI4REntB43be9bFNsBRhI3/HRFMZEWy/MeL5R4x972x3+uAGGkvpr5XybUg==}
 
-  '@tego/client@1.6.23':
-    resolution: {integrity: sha512-qkFZSSBLfRpiP1iFVJ8lTjUyvHBop71MS6oE0/j/NEzmbFBtV1UMqx1cwk/EqR05nqxc3dm1tnPHWjbwI1N0EQ==}
+  '@tego/client@1.6.24':
+    resolution: {integrity: sha512-zeUI62/B7N6Qs53PugIqvfkQ+Hh7ZXG5JYQRLnYl7vkL5xQD4FDGmLI3saNGtgNHis1kdlTUg3SLphjtbJhurw==}
 
-  '@tego/core@1.6.23':
-    resolution: {integrity: sha512-XUUpcLxzI8QYydkUjpJ59ozPB7AhvQaaFzpCTImSXtLc2rzdEi8v7LGQWk5MhZhFyxQaw+dB/oMMYzKoee2YMA==}
+  '@tego/core@1.6.24':
+    resolution: {integrity: sha512-Dxx4BzHZ8L+osalxNm7UO6HcwUwysYo9UWSszGldER+SAd0MEsdvuE6z5zcw+by24z0X1Pk5rQUcEJWlwcrdzg==}
 
-  '@tego/devkit@1.6.23':
-    resolution: {integrity: sha512-9slu26hqFbQUHdwf7CWjAXTupLmw0nye7rembnITvNDaLk7wWEkDi6+4W3LCRZSx3d0Vl4PojWlQO/qCQ0QSgQ==}
+  '@tego/devkit@1.6.24':
+    resolution: {integrity: sha512-/qNsIMLxnjy3nQL8NrRP9jGI5rCEe+3zgKYwpCe710/0bQt6pJT6QmneKUCYEjbFDY9XsKZ6nbMnrmHNFq5urQ==}
     hasBin: true
 
-  '@tego/server@1.6.23':
-    resolution: {integrity: sha512-ebhQbR7/czzmFlCw+Zh4LTbDLuu1Xob0ZkNQkm5MHKzDwvLhlFNgh8X4piKeOTIf10I1Du1VuilhnXX/cy/Ujg==}
+  '@tego/server@1.6.24':
+    resolution: {integrity: sha512-aEeXydAeuOHV1eFxrqwIjf9d5vdIiXnBZnXcjQNXGQCLQI5V+/LkCIbUROE3ybjayYq3FJDYzmjSpsJnuHKg9A==}
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -16007,8 +16007,8 @@ packages:
   tbox-nodejs-sdk@0.0.13:
     resolution: {integrity: sha512-WqOKY5HYqEeb2YgEp26UChC4JTpJqFdz9pWyD1uOMvQmUYXf7k2Vlozpr3MEEiCL+Mvqos0p0TGyT3CvljkABA==}
 
-  tego@1.6.23:
-    resolution: {integrity: sha512-+BCTTNbq94lGyLMgC8L7cHY/j6+oYee/Vifr+u+WP3e1O50QpzdDskRsSd8/Mub+0hG4UIbIgH0RpkgJ0R825A==}
+  tego@1.6.24:
+    resolution: {integrity: sha512-t1yNLjYX+T8plVcN69uEXZGAoCej2N6Wg5fg5JuCoFYdqtx2bmEW2ix1e+C3b/DDU4+oHUBjiJ/6FK1NnyceXg==}
     hasBin: true
 
   temp-file@3.4.0:
@@ -22812,11 +22812,11 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tachybase/acl@1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/acl@1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       koa-compose: 4.1.0
       lodash: 4.17.21
       minimatch: 5.1.6
@@ -22832,11 +22832,11 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/acl@1.6.23(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/acl@1.6.24(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/actions': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/actions': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       koa-compose: 4.1.0
       lodash: 4.17.21
       minimatch: 5.1.6
@@ -22852,11 +22852,11 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/acl@1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/acl@1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/actions': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/actions': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       koa-compose: 4.1.0
       lodash: 4.17.21
       minimatch: 5.1.6
@@ -22872,12 +22872,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/actions@1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/actions@1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/cache': 1.6.23
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/cache': 1.6.24
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       koa: 2.16.3
       lodash: 4.17.21
       sequelize: 6.37.5(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22893,12 +22893,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/actions@1.6.23(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/actions@1.6.24(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/cache': 1.6.23
-      '@tachybase/database': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/cache': 1.6.24
+      '@tachybase/database': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       koa: 2.16.3
       lodash: 4.17.21
       sequelize: 6.37.5(mysql2@3.14.3)(pg@8.16.3)
@@ -22914,12 +22914,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/actions@1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/actions@1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/cache': 1.6.23
-      '@tachybase/database': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/cache': 1.6.24
+      '@tachybase/database': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       koa: 2.16.3
       lodash: 4.17.21
       sequelize: 6.37.5(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -22935,12 +22935,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/auth@1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       jsonwebtoken: 8.5.1
     transitivePeerDependencies:
       - ibm_db
@@ -22954,12 +22954,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.23(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/auth@1.6.24(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/actions': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/actions': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       jsonwebtoken: 8.5.1
     transitivePeerDependencies:
       - ibm_db
@@ -22973,12 +22973,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/auth@1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/actions': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/actions': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       jsonwebtoken: 8.5.1
     transitivePeerDependencies:
       - ibm_db
@@ -22992,7 +22992,7 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/cache@1.6.23':
+  '@tachybase/cache@1.6.24':
     dependencies:
       bloom-filters: 3.0.4
       cache-manager: 5.7.6
@@ -23000,7 +23000,7 @@ snapshots:
       deepmerge: 4.3.1
       lodash: 4.17.21
 
-  '@tachybase/components@1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@tachybase/components@1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@ant-design/cssinjs': 1.24.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/icons': 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -23008,7 +23008,7 @@ snapshots:
       '@dnd-kit/sortable': 8.0.0(@dnd-kit/core@6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       '@dnd-kit/utilities': 3.2.2(react@18.3.1)
       '@monaco-editor/react': 4.7.0(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tachybase/schema': 1.6.23(react@18.3.1)
+      '@tachybase/schema': 1.6.24(react@18.3.1)
       antd: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       classnames: 2.5.1
       dayjs: 1.11.13
@@ -23023,13 +23023,13 @@ snapshots:
       - moment
       - monaco-editor
 
-  '@tachybase/data-source@1.6.23':
+  '@tachybase/data-source@1.6.24':
     dependencies:
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       deepmerge: 4.3.1
       koa-compose: 4.1.0
       lodash: 4.17.21
@@ -23045,13 +23045,13 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/data-source@1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/data-source@1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       deepmerge: 4.3.1
       koa-compose: 4.1.0
       lodash: 4.17.21
@@ -23067,13 +23067,13 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/data-source@1.6.23(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/data-source@1.6.24(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/actions': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       deepmerge: 4.3.1
       koa-compose: 4.1.0
       lodash: 4.17.21
@@ -23089,13 +23089,13 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/data-source@1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/data-source@1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/acl': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       deepmerge: 4.3.1
       koa-compose: 4.1.0
       lodash: 4.17.21
@@ -23111,13 +23111,13 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/data-source@1.6.23(pg@8.16.3)':
+  '@tachybase/data-source@1.6.24(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       deepmerge: 4.3.1
       koa-compose: 4.1.0
       lodash: 4.17.21
@@ -23133,11 +23133,11 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/database@1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/database@1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/globals': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/globals': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/utils': 1.6.24
       async-mutex: 0.5.0
       chalk: 4.1.2
       dayjs: 1.11.13
@@ -23166,11 +23166,11 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/database@1.6.23(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/database@1.6.24(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/globals': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/globals': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/utils': 1.6.24
       async-mutex: 0.5.0
       chalk: 4.1.2
       dayjs: 1.11.13
@@ -23199,11 +23199,11 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/database@1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/database@1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/globals': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/globals': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/utils': 1.6.24
       async-mutex: 0.5.0
       chalk: 4.1.2
       dayjs: 1.11.13
@@ -23232,24 +23232,24 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/di@1.6.23':
+  '@tachybase/di@1.6.24':
     dependencies:
-      '@tachybase/utils': 1.6.23
+      '@tachybase/utils': 1.6.24
 
-  '@tachybase/evaluators@1.6.23':
+  '@tachybase/evaluators@1.6.24':
     dependencies:
       '@formulajs/formulajs': 4.5.3
-      '@tachybase/utils': 1.6.23
+      '@tachybase/utils': 1.6.24
       lodash: 4.17.21
       mathjs: 15.2.0
 
-  '@tachybase/globals@1.6.23': {}
+  '@tachybase/globals@1.6.24': {}
 
-  '@tachybase/loader@1.6.23': {}
+  '@tachybase/loader@1.6.24': {}
 
-  '@tachybase/logger@1.6.23':
+  '@tachybase/logger@1.6.24':
     dependencies:
-      '@tachybase/globals': 1.6.23
+      '@tachybase/globals': 1.6.24
       chalk: 4.1.2
       lodash: 4.17.21
       triple-beam: 1.4.1
@@ -23257,18 +23257,18 @@ snapshots:
       winston-daily-rotate-file: 5.0.0(winston@3.17.0)
       winston-transport: 4.9.0
 
-  '@tachybase/requirejs@1.6.23': {}
+  '@tachybase/requirejs@1.6.24': {}
 
-  '@tachybase/resourcer@1.6.23':
+  '@tachybase/resourcer@1.6.24':
     dependencies:
-      '@tachybase/utils': 1.6.23
+      '@tachybase/utils': 1.6.24
       glob: 11.0.0
       koa-compose: 4.1.0
       lodash: 4.17.21
       path-to-regexp: 8.2.0
       qs: 6.14.0
 
-  '@tachybase/schema@1.6.23(react@18.3.1)':
+  '@tachybase/schema@1.6.24(react@18.3.1)':
     dependencies:
       camel-case: 4.1.2
       hoist-non-react-statics: 3.3.2
@@ -23278,7 +23278,7 @@ snapshots:
       react: 18.3.1
       upper-case: 2.0.2
 
-  '@tachybase/sdk@1.6.23':
+  '@tachybase/sdk@1.6.24':
     dependencies:
       axios: 1.7.7
       qs: 6.14.0
@@ -23290,14 +23290,14 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
-  '@tachybase/test@1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)':
+  '@tachybase/test@1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)':
     dependencies:
       '@faker-js/faker': 9.9.0
       '@playwright/test': 1.56.1
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/globals': 1.6.23
-      '@tachybase/schema': 1.6.23(react@18.3.1)
-      '@tego/core': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/globals': 1.6.24
+      '@tachybase/schema': 1.6.24(react@18.3.1)
+      '@tego/core': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@testing-library/dom': 10.4.1
       '@testing-library/jest-dom': 6.9.1
       '@testing-library/react': 16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -23355,7 +23355,7 @@ snapshots:
       - utf-8-validate
       - yaml
 
-  '@tachybase/utils@1.6.23':
+  '@tachybase/utils@1.6.24':
     dependencies:
       '@hapi/topo': 6.0.2
       '@rc-component/mini-decimal': 1.1.0
@@ -23366,14 +23366,14 @@ snapshots:
       lodash: 4.17.21
       multer: 2.0.2
 
-  '@tego/client@1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@tego/client@1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@tachybase/components': 1.6.23(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tachybase/evaluators': 1.6.23
-      '@tachybase/requirejs': 1.6.23
-      '@tachybase/schema': 1.6.23(react@18.3.1)
-      '@tachybase/sdk': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/components': 1.6.24(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tachybase/evaluators': 1.6.24
+      '@tachybase/requirejs': 1.6.24
+      '@tachybase/schema': 1.6.24(react@18.3.1)
+      '@tachybase/sdk': 1.6.24
+      '@tachybase/utils': 1.6.24
     transitivePeerDependencies:
       - date-fns
       - debug
@@ -23383,21 +23383,21 @@ snapshots:
       - react
       - react-dom
 
-  '@tego/core@1.6.23':
+  '@tego/core@1.6.24':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/di': 1.6.23
-      '@tachybase/globals': 1.6.23
-      '@tachybase/loader': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.6.24
+      '@tachybase/globals': 1.6.24
+      '@tachybase/loader': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       '@types/decompress': 4.2.7
       '@types/ini': 4.1.1
       async-mutex: 0.5.0
@@ -23439,21 +23439,21 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/core@1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tego/core@1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/di': 1.6.23
-      '@tachybase/globals': 1.6.23
-      '@tachybase/loader': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.6.24
+      '@tachybase/globals': 1.6.24
+      '@tachybase/loader': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       '@types/decompress': 4.2.7
       '@types/ini': 4.1.1
       async-mutex: 0.5.0
@@ -23495,21 +23495,21 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/core@1.6.23(mysql2@3.14.3)(pg@8.16.3)':
+  '@tego/core@1.6.24(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/actions': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/auth': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/di': 1.6.23
-      '@tachybase/globals': 1.6.23
-      '@tachybase/loader': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/auth': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/di': 1.6.24
+      '@tachybase/globals': 1.6.24
+      '@tachybase/loader': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       '@types/decompress': 4.2.7
       '@types/ini': 4.1.1
       async-mutex: 0.5.0
@@ -23551,21 +23551,21 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/core@1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tego/core@1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/di': 1.6.23
-      '@tachybase/globals': 1.6.23
-      '@tachybase/loader': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.6.24
+      '@tachybase/globals': 1.6.24
+      '@tachybase/loader': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       '@types/decompress': 4.2.7
       '@types/ini': 4.1.1
       async-mutex: 0.5.0
@@ -23607,21 +23607,21 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/core@1.6.23(pg@8.16.3)':
+  '@tego/core@1.6.24(pg@8.16.3)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(pg@8.16.3)
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/di': 1.6.23
-      '@tachybase/globals': 1.6.23
-      '@tachybase/loader': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(pg@8.16.3)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.6.24
+      '@tachybase/globals': 1.6.24
+      '@tachybase/loader': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
       '@types/decompress': 4.2.7
       '@types/ini': 4.1.1
       async-mutex: 0.5.0
@@ -23663,7 +23663,7 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/devkit@1.6.23(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@pnpm/logger@5.2.0)(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)':
+  '@tego/devkit@1.6.24(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(@pnpm/logger@5.2.0)(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)':
     dependencies:
       '@hapi/topo': 6.0.2
       '@inquirer/prompts': 7.10.1(@types/node@20.17.10)
@@ -23673,7 +23673,7 @@ snapshots:
       '@rsbuild/plugin-less': 1.5.0(@rsbuild/core@1.6.6)
       '@rsbuild/plugin-react': 1.4.2(@rsbuild/core@1.6.6)
       '@rslib/core': 0.13.3(@microsoft/api-extractor@7.52.10(@types/node@20.17.10))(typescript@5.9.3)
-      '@tachybase/test': 1.6.23(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
+      '@tachybase/test': 1.6.24(@types/debug@4.1.12)(@types/node@20.17.10)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(jiti@2.6.1)(less@4.2.1)(lightningcss@1.26.0)(node-fetch@3.3.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.77.8)(terser@5.48.0)(yaml@2.8.1)
       '@types/fs-extra': 11.0.4
       '@types/terminal-kit': 2.5.7
       '@umijs/utils': 4.5.3
@@ -23744,20 +23744,20 @@ snapshots:
       - webpack-hot-middleware
       - yaml
 
-  '@tego/server@1.6.23':
+  '@tego/server@1.6.24':
     dependencies:
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/di': 1.6.23
-      '@tachybase/evaluators': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
-      '@tego/core': 1.6.23
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.6.24
+      '@tachybase/evaluators': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
+      '@tego/core': 1.6.24
     transitivePeerDependencies:
       - bufferutil
       - debug
@@ -23773,20 +23773,20 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/server@1.6.23(mysql2@3.14.3)(pg@8.16.3)':
+  '@tego/server@1.6.24(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/actions': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/auth': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/di': 1.6.23
-      '@tachybase/evaluators': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
-      '@tego/core': 1.6.23(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/acl': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/auth': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/di': 1.6.24
+      '@tachybase/evaluators': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
+      '@tego/core': 1.6.24(mysql2@3.14.3)(pg@8.16.3)
     transitivePeerDependencies:
       - bufferutil
       - debug
@@ -23802,20 +23802,20 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/server@1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tego/server@1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/acl': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/di': 1.6.23
-      '@tachybase/evaluators': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
-      '@tego/core': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/acl': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.6.24
+      '@tachybase/evaluators': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
+      '@tego/core': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
     transitivePeerDependencies:
       - bufferutil
       - debug
@@ -23831,20 +23831,20 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@tego/server@1.6.23(pg@8.16.3)':
+  '@tego/server@1.6.24(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(pg@8.16.3)
-      '@tachybase/database': 1.6.23(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/di': 1.6.23
-      '@tachybase/evaluators': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/utils': 1.6.23
-      '@tego/core': 1.6.23(pg@8.16.3)
+      '@tachybase/acl': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(pg@8.16.3)
+      '@tachybase/database': 1.6.24(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/di': 1.6.24
+      '@tachybase/evaluators': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/utils': 1.6.24
+      '@tego/core': 1.6.24(pg@8.16.3)
     transitivePeerDependencies:
       - bufferutil
       - debug
@@ -33032,26 +33032,26 @@ snapshots:
       - typescript
       - vite
 
-  tego@1.6.23:
+  tego@1.6.24:
     dependencies:
       '@koa/cors': 5.0.0
       '@koa/multer': 3.1.0(multer@2.0.2)
       '@socketregistry/yocto-spinner': 1.0.23
-      '@tachybase/acl': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/actions': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/auth': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/cache': 1.6.23
-      '@tachybase/data-source': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/evaluators': 1.6.23
-      '@tachybase/globals': 1.6.23
-      '@tachybase/loader': 1.6.23
-      '@tachybase/logger': 1.6.23
-      '@tachybase/resourcer': 1.6.23
-      '@tachybase/schema': 1.6.23(react@18.3.1)
-      '@tachybase/utils': 1.6.23
-      '@tego/core': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tego/server': 1.6.23(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/acl': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/auth': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/cache': 1.6.24
+      '@tachybase/data-source': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/evaluators': 1.6.24
+      '@tachybase/globals': 1.6.24
+      '@tachybase/loader': 1.6.24
+      '@tachybase/logger': 1.6.24
+      '@tachybase/resourcer': 1.6.24
+      '@tachybase/schema': 1.6.24(react@18.3.1)
+      '@tachybase/utils': 1.6.24
+      '@tego/core': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tego/server': 1.6.24(mysql2@3.14.4)(pg@8.16.3)(sqlite3@5.1.7)
       async-mutex: 0.5.0
       axios: 0.29.0
       cache-manager: 5.7.6

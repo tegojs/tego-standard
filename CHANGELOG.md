@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **workflow**: restore optional tenant boundary [e910f8a](https://github.com/tegojs/tego-standard/commit/e910f8a75775179f47e65fa90f483bc0bf867b20) (@TomyJan)
+- **tenant**: normalize nested read filters [7cbc0b1](https://github.com/tegojs/tego-standard/commit/7cbc0b1686cdc8ed908b8cccb014f75cd5f70156) (@TomyJan)
+
 
 
 ## [1.6.62] - 2026-09-22

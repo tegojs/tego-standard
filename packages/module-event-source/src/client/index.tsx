@@ -1,5 +1,4 @@
 import { Plugin } from '@tachybase/client';
-
 import { Registry } from '@tego/client';
 
 import { CustomEventSourcePane } from './custom-event-sources/CustomEventSourcePane';
@@ -8,6 +7,7 @@ import { EventSourceTrigger } from './triggers';
 import { APPEventTrigger } from './triggers/APPEventTrigger';
 import { CustomActionTrigger } from './triggers/CustomActionTrigger';
 import { DatabaseEventTrigger } from './triggers/DatabaseEventTrigger';
+import { HttpEndpointTrigger } from './triggers/HttpEndpointTrigger';
 import { ResourceEventTrigger } from './triggers/ResourceEventTrigger';
 import { WebhookManager } from './webhook/WebhookManager';
 
@@ -15,6 +15,7 @@ export class ModuleEventSourceClient extends Plugin {
   triggers = new Registry<EventSourceTrigger>();
 
   async load() {
+    this.triggers.register('code', new HttpEndpointTrigger());
     this.triggers.register('resource', new CustomActionTrigger());
     this.triggers.register('applicationEvent', new APPEventTrigger());
     this.triggers.register('databaseEvent', new DatabaseEventTrigger());

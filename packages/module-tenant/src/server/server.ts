@@ -129,6 +129,22 @@ function getAssociationTargetCollection(db: any, association: any) {
   return db.modelCollection?.get?.(association.target) || db.getCollection(association.target?.name);
 }
 
+function normalizeAssociationReadPlaceholder(ctx: any, db: any) {
+  if (ctx.action?.sourceId !== '_' || !['get', 'list'].includes(ctx.action?.actionName)) {
+    return;
+  }
+
+  const association = getAssociationCollections(db, ctx.action.resourceName);
+  if (!association) {
+    return;
+  }
+
+  // A missing association source uses `_` as a client-side placeholder. Treat
+  // it as a direct read of the target collection before ACL evaluates params.
+  ctx.action.resourceName = association.targetCollection.name;
+  ctx.action.sourceId = undefined;
+}
+
 function requireTenantContext(ctx: any) {
   if (!hasTargetKey(ctx.state?.currentTenant?.id ?? ctx.state?.currentTenantId)) {
     ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
@@ -982,6 +998,17 @@ export class PluginTenantServer extends Plugin {
         tag: 'tenantResourceGuard',
         after: 'acl',
         before: 'dataSource',
+      },
+    );
+
+    this.app.resourcer.use(
+      async (ctx, next) => {
+        normalizeAssociationReadPlaceholder(ctx, this.db);
+        await next();
+      },
+      {
+        tag: 'tenantAssociationReadPlaceholder',
+        before: 'acl',
       },
     );
 

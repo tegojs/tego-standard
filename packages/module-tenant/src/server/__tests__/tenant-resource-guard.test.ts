@@ -751,6 +751,16 @@ describe('tenant resource guard', () => {
   it('should treat the association read placeholder as a direct target read', async () => {
     app = await createTenantApp();
 
+    const roleName = 'tenant-association-read-placeholder-role';
+    await app.db.getRepository('roles').create({ values: { name: roleName } });
+    const role = app.acl.define({ role: roleName });
+    role.grantAction('tenant_placeholder_posts:view', {
+      filter: { title: 'Post A' },
+    });
+    role.grantAction('tenant_placeholder_tags:view', {
+      filter: { name: 'Tag A' },
+    });
+
     await app.db.getRepository('tenants').create({
       values: [
         { id: 'tenant-a', name: 'tenant-a', title: 'Tenant A' },
@@ -764,7 +774,7 @@ describe('tenant resource guard', () => {
         email: 'tenant-association-read-placeholder@example.com',
         phone: '10000000031',
         password: '123456',
-        roles: ['root'],
+        roles: [roleName],
         tenants: ['tenant-a'],
         defaultTenantId: 'tenant-a',
       },

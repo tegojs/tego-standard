@@ -3,8 +3,8 @@ import { actions, Context, Next, Op, utils } from '@tego/server';
 import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
 import {
   buildExecutionTenantFilter,
-  canReadLegacyExecutions,
   getCurrentTenantIdFromState,
+  isWorkflowExecutionTenantVisible,
   NEVER_MATCH_TENANT_FILTER,
   shouldApplyExecutionTenantBoundary,
   workflowTenantRecordUnavailableError,
@@ -34,13 +34,11 @@ function assertExecutionInCurrentTenant(ctx: Context, execution: any) {
   }
 
   const executionTenantId = getModelValue(execution, 'tenantId');
-  if ((executionTenantId === null || executionTenantId === undefined) && canReadLegacyExecutions(ctx.state, tenantId)) {
+  if (isWorkflowExecutionTenantVisible(ctx.state, executionTenantId)) {
     return;
   }
 
-  if (`${executionTenantId}` !== `${tenantId}`) {
-    ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
-  }
+  ctx.throw(404, ctx.t('No execution records found for this workflow.', { ns: 'workflow' }));
 }
 
 function assertExecutionRetryTenantContext(ctx: Context, execution: any) {
@@ -68,7 +66,7 @@ function assertExecutionRetryTenantContext(ctx: Context, execution: any) {
     });
   }
 
-  if (`${originalTenantId}` === `${currentTenantId}`) {
+  if (isWorkflowExecutionTenantVisible(ctx.state, originalTenantId)) {
     return;
   }
 
@@ -200,7 +198,11 @@ export async function retry(ctx: Context, next: Next) {
       plugin,
       workflow,
       execution.context,
-      { httpContext: ctx, transaction: ctx.transaction },
+      {
+        httpContext: ctx,
+        context: { state: execution.tenantContext },
+        transaction: ctx.transaction,
+      },
       ctx.db,
     );
 

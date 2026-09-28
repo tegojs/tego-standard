@@ -431,7 +431,11 @@ export async function retry(ctx: Context, next: Next) {
       plugin,
       workflow,
       execution.context,
-      { httpContext: ctx, transaction: ctx.transaction },
+      {
+        httpContext: ctx,
+        context: { state: execution.tenantContext },
+        transaction: ctx.transaction,
+      },
       ctx.db,
     );
 

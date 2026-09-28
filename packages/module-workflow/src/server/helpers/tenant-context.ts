@@ -1243,6 +1243,46 @@ export function canReadLegacyExecutions(state: Record<string, any> = {}, tenantI
 }
 
 /**
+ * Returns the tenant IDs whose workflow executions are visible in the current tenant mode.
+ */
+export function getVisibleWorkflowExecutionTenantIds(state: Record<string, any> = {}) {
+  const tenantId = getCurrentTenantIdFromState(state);
+  if (tenantId === null || tenantId === undefined) {
+    return [];
+  }
+
+  const tenantIds =
+    state.currentTenancyMode === 'tenantInherited'
+      ? [tenantId, ...(state.currentTenantDescendantIds || [])]
+      : [tenantId];
+  const seen = new Set<string>();
+  return tenantIds.filter((item) => {
+    const key = `${item}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Checks whether a workflow execution belongs to the current tenant visibility scope.
+ */
+export function isWorkflowExecutionTenantVisible(state: Record<string, any> = {}, executionTenantId: any) {
+  const tenantId = getCurrentTenantIdFromState(state);
+  if (tenantId === null || tenantId === undefined) {
+    return true;
+  }
+
+  if (executionTenantId === null || executionTenantId === undefined) {
+    return canReadLegacyExecutions(state, tenantId);
+  }
+
+  return getVisibleWorkflowExecutionTenantIds(state).some((item) => `${item}` === `${executionTenantId}`);
+}
+
+/**
  * Builds the tenant filter used by workflow execution list and lookup actions.
  */
 export function buildWorkflowExecutionTenantFilter(state: Record<string, any> = {}, fallback: any = null) {
@@ -1251,13 +1291,17 @@ export function buildWorkflowExecutionTenantFilter(state: Record<string, any> = 
     return fallback;
   }
 
+  const visibleTenantIds = getVisibleWorkflowExecutionTenantIds(state);
+  const tenantFilter =
+    visibleTenantIds.length === 1 ? { tenantId: visibleTenantIds[0] } : { tenantId: { $in: visibleTenantIds } };
+
   if (canReadLegacyExecutions(state, tenantId)) {
     return {
-      $or: [{ tenantId }, { tenantId: null }],
+      $or: [tenantFilter, { tenantId: null }],
     };
   }
 
-  return { tenantId };
+  return tenantFilter;
 }
 
 function isTenantPluginEnabled(ctx: Context) {

@@ -178,6 +178,44 @@ describe('workflow > actions > tenant executions boundary', () => {
     expect(ctx.body.tenantId).toBe('tenant-a');
   });
 
+  it('workflows.retry should preserve the latest visible descendant tenant in inherited mode', async () => {
+    const workflow = await createWorkflow();
+    await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.RESOLVED,
+      context: { marker: 'tenant-a' },
+      tenantId: 'tenant-a',
+      tenantContext: tenantState('tenant-a'),
+      createdAt: new Date(Date.now() - 1000),
+    });
+    await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.ERROR,
+      context: { marker: 'tenant-b' },
+      tenantId: 'tenant-b',
+      tenantContext: tenantState('tenant-b'),
+      createdAt: new Date(),
+    });
+
+    const ctx = createContext(
+      'workflows',
+      'retry',
+      {
+        filterByTk: workflow.id,
+        filter: { key: workflow.key },
+      },
+      'tenant-a',
+    );
+    ctx.state.currentTenancyMode = 'tenantInherited';
+    ctx.state.currentTenantDescendantIds = ['tenant-b'];
+
+    await workflowActions.retry(ctx, async () => {});
+
+    expect(ctx.body.context.marker).toBe('tenant-b');
+    expect(ctx.body.tenantId).toBe('tenant-b');
+    expect(ctx.body.tenantContext.currentTenantId).toBe('tenant-b');
+  });
+
   it('workflows.retry should fail closed when tenant context is missing', async () => {
     const workflow = await createWorkflow();
     await workflow.createExecution({
@@ -247,6 +285,27 @@ describe('workflow > actions > tenant executions boundary', () => {
     await expect(executionActions.retry(ctx, async () => {})).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it('executions.retry should preserve the descendant tenant in inherited mode', async () => {
+    const workflow = await createWorkflow();
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.ERROR,
+      context: { marker: 'tenant-b' },
+      tenantId: 'tenant-b',
+      tenantContext: tenantState('tenant-b'),
+    });
+
+    const ctx = createContext('executions', 'retry', { filterByTk: execution.id }, 'tenant-a');
+    ctx.state.currentTenancyMode = 'tenantInherited';
+    ctx.state.currentTenantDescendantIds = ['tenant-b'];
+
+    await executionActions.retry(ctx, async () => {});
+
+    expect(ctx.body.tenantId).toBe('tenant-b');
+    expect(ctx.body.tenantContext.currentTenantId).toBe('tenant-b');
+    expect(await workflow.countExecutions()).toBe(2);
   });
 
   it('executions.retry should fail closed when tenant context is missing', async () => {

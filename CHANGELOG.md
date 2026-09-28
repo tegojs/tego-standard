@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.63] - 2026-09-28
+
 ### 🐛 Fixed
 
-- **workflow**: restore optional tenant boundary [e910f8a](https://github.com/tegojs/tego-standard/commit/e910f8a75775179f47e65fa90f483bc0bf867b20) (@TomyJan)
-- **tenant**: normalize nested read filters [7cbc0b1](https://github.com/tegojs/tego-standard/commit/7cbc0b1686cdc8ed908b8cccb014f75cd5f70156) (@TomyJan)
-
-
+- **tenant**: normalize association read placeholders before acl (@TomyJan)
+- **workflow**: guard incomplete execution detail context (@TomyJan)
+- **event-source**: restore HTTP endpoint type metadata (@TomyJan)
+- **workflow**: preserve tenant context when retrying executions (@TomyJan)
+- **workflow**: handle tenant-scoped no-op updates safely (@TomyJan)
+- **workflow**: restore optional tenant boundary (@TomyJan)
+- **tenant**: normalize nested read filters (@TomyJan)
 
 ## [1.6.62] - 2026-09-22
 
@@ -3344,7 +3351,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.62...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.63...HEAD
+[1.6.63]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.63
 [1.6.62]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.62
 [1.6.61]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.61
 [1.6.60]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.60

@@ -3,6 +3,7 @@ import { useFlowContext } from '@tachybase/module-workflow/client';
 import { useField, useFieldSchema, useForm } from '@tachybase/schema';
 
 import { Toast } from 'antd-mobile';
+import { isEqual } from 'lodash';
 
 import { useContextApprovalAction, useContextApprovalExecution, useContextApprovalRecords } from '..';
 import { APPROVAL_TODO_STATUS } from '../constants/approval-todo-status';
@@ -32,10 +33,15 @@ export function useSubmit(props) {
         if (needUpdateRecord) {
           const collectionName = collection.name;
           const targetId = form.values.id;
+          const changedValues = Object.fromEntries(
+            Object.entries(form.values).filter(
+              ([name, value]) => name !== 'id' && !isEqual(value, form.initialValues?.[name]),
+            ),
+          );
 
           await api.resource(collectionName).update({
             filterByTk: targetId,
-            values: form.values,
+            values: changedValues,
           });
         }
         const res = await api.resource('approvalRecords').submit({

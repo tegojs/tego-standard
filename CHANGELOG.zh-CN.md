@@ -7,6 +7,10 @@
 
 ## [未发布]
 
+### 🐛 修复
+
+- **approval**: preserve fields outside execution forms [e51ad1f](https://github.com/tegojs/tego-standard/commit/e51ad1f1f69c2eb7ddaee227b3d26bcb9fd00288) (@TomyJan)
+
 
 
 ## [1.6.63] - 2026-09-28

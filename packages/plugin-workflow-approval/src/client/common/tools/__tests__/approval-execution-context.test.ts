@@ -1,5 +1,5 @@
 import { APPROVAL_TODO_STATUS } from '../../constants/approval-todo-status';
-import { resolveApprovalExecutionContext } from '../approval-execution-context';
+import { resolveApprovalExecutionContext, resolveArchivedExecutionContext } from '../approval-execution-context';
 
 describe('approval execution detail context', () => {
   it('keeps a live workflow execution unchanged', () => {
@@ -58,5 +58,26 @@ describe('approval execution detail context', () => {
         recordStatus: APPROVAL_TODO_STATUS.APPROVED,
       }),
     ).toBeUndefined();
+  });
+
+  it('restores read-only detail context for a carbon copy whose workflow execution was deleted', () => {
+    const snapshot = { id: 70910, reason: 'Approved payment' };
+
+    expect(
+      resolveArchivedExecutionContext({
+        executionId: 1486541,
+        collectionName: 'receipt',
+        snapshot,
+        allowSnapshotWithoutStatus: true,
+      }),
+    ).toEqual({
+      id: 1486541,
+      jobs: [],
+      context: {
+        collectionName: 'receipt',
+        data: snapshot,
+      },
+      archived: true,
+    });
   });
 });

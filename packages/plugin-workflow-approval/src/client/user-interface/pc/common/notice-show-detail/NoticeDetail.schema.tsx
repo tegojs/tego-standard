@@ -11,6 +11,8 @@ import { usePropsNoticeDetail } from '../../../../common/hook/usePropsNoticeDeta
 import { tval } from '../../../../locale';
 import { useContextMyComponent } from './contexts/MyComponent.context';
 import { NoticeDetailProvider } from './NoticeDetail.provider';
+import { NoticeDetailData } from './NoticeDetailData';
+import { NoticeFormBlockProvider } from './NoticeFormBlockProvider';
 
 export const NoticeDetailContent = (props) => {
   const { record } = props;
@@ -29,9 +31,11 @@ const NoticeDetail = (props) => {
     <SchemaComponent
       components={{
         NoticeDetailProvider,
+        NoticeDetailData,
         RemoteSchemaComponent,
         SchemaComponentProvider,
         DetailsBlockProvider,
+        FormBlockProvider: NoticeFormBlockProvider,
       }}
       scope={{
         usePropsNoticeDetail,
@@ -59,7 +63,7 @@ const NoticeDetail = (props) => {
                 'x-decorator-props': {
                   designable: false,
                 },
-                'x-component': 'RemoteSchemaComponent',
+                'x-component': 'NoticeDetailData',
                 'x-component-props': {
                   uid: schemaId,
                   noForm: true,

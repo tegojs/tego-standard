@@ -7,29 +7,61 @@ interface ApprovalExecutionContextOptions {
   recordStatus?: number | null;
 }
 
+interface ArchivedExecutionContextOptions {
+  execution?: any;
+  executionId?: number;
+  collectionName?: string;
+  snapshot?: any;
+  approvalId?: number;
+  status?: number;
+  recordStatus?: number | null;
+  allowSnapshotWithoutStatus?: boolean;
+}
+
 export function resolveApprovalExecutionContext({
   approval,
   approvalExecution,
   execution,
   recordStatus,
 }: ApprovalExecutionContextOptions) {
+  return resolveArchivedExecutionContext({
+    execution,
+    executionId: approvalExecution?.executionId,
+    collectionName: approvalExecution?.collectionName ?? approval?.collectionName,
+    snapshot: approvalExecution?.snapshot,
+    approvalId: approval?.id,
+    status: approvalExecution?.status,
+    recordStatus,
+  });
+}
+
+export function resolveArchivedExecutionContext({
+  execution,
+  executionId,
+  collectionName,
+  snapshot,
+  approvalId,
+  status,
+  recordStatus,
+  allowSnapshotWithoutStatus = false,
+}: ArchivedExecutionContextOptions) {
   if (execution) {
     return execution;
   }
 
   const isCompletedRecord = recordStatus != null && recordStatus !== APPROVAL_TODO_STATUS.PENDING;
-  if (!isCompletedRecord || approvalExecution?.snapshot == null) {
+  if ((!isCompletedRecord && !allowSnapshotWithoutStatus) || snapshot == null) {
     return undefined;
   }
 
   return {
-    id: approvalExecution.executionId,
-    status: approvalExecution.status,
+    id: executionId,
+    ...(status == null ? {} : { status }),
     jobs: [],
     context: {
-      approvalId: approval?.id,
-      collectionName: approvalExecution.collectionName ?? approval?.collectionName,
-      data: approvalExecution.snapshot,
+      ...(approvalId == null ? {} : { approvalId }),
+      collectionName,
+      data: snapshot,
     },
     archived: true,
   };

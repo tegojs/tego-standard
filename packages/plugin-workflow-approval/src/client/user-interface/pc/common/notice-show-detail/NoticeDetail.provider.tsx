@@ -9,6 +9,7 @@ import { ExecutionContextProvider, hasExecutionContext } from '@tachybase/module
 import { Result, Spin } from 'antd';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../../../../../common/constants';
+import { resolveArchivedExecutionContext } from '../../../../common/tools/approval-execution-context';
 import { useTranslation } from '../../../../locale';
 import { ProviderContextMyComponent } from './contexts/MyComponent.context';
 import { ProviderContextWorkflowNotice } from './contexts/WorkflowNotice.context';
@@ -32,7 +33,14 @@ export const NoticeDetailProvider = ({ children, ...props }) => {
   const itemsData = data.data;
   const { node, workflow, execution } = itemsData;
   const nodes = workflow?.nodes;
-  if (!node || !hasExecutionContext(workflow, execution, nodes)) {
+  const resolvedExecution = resolveArchivedExecutionContext({
+    execution,
+    executionId: itemsData.executionId,
+    collectionName: itemsData.collectionName,
+    snapshot: itemsData.snapshot,
+    allowSnapshotWithoutStatus: true,
+  });
+  if (!node || !hasExecutionContext(workflow, resolvedExecution, nodes)) {
     return <Result status="error" title={t('Submission may be withdrawn, please try refresh the list.')} />;
   }
   const schemaId = node?.config.showCarbonCopyDetail;
@@ -40,7 +48,7 @@ export const NoticeDetailProvider = ({ children, ...props }) => {
 
   // THINK: Provider 的顺序, 数据放在外面, 配置放在内层
   return (
-    <ExecutionContextProvider workflow={workflow} nodes={nodes} execution={execution}>
+    <ExecutionContextProvider workflow={workflow} nodes={nodes} execution={resolvedExecution}>
       <ProviderContextWorkflowNotice value={itemsData}>
         <ProviderContextMyComponent
           value={{

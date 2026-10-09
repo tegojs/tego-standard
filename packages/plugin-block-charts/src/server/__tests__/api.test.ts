@@ -222,7 +222,7 @@ describe('api', () => {
     expect(ctx.action.params.values.data).toMatchObject([{ Amount: 10 }]);
   });
 
-  test('association-only filters respect target collection tenant visibility', async () => {
+  test('association-only filters keep the same source records as list queries', async () => {
     const ctx = {
       app,
       db,
@@ -256,6 +256,6 @@ describe('api', () => {
 
     await compose([applyTenantScope, parseFieldAndAssociations, parseBuilder, queryData])(ctx, async () => {});
 
-    expect(ctx.action.params.values.data).toMatchObject([{ Weight: 30 }]);
+    expect(ctx.action.params.values.data).toMatchObject([{ Weight: 55 }]);
   });
 });

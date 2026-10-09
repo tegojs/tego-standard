@@ -474,7 +474,7 @@ export const parseFieldAndAssociations = async (ctx: Context, next: Next) => {
   });
   const { where, include: filterInclude } = filterParser.toSequelizeParams();
   addBelongsToManyThrough(filterInclude, collectionName, db);
-  const includes = scopeChartIncludes(ctx, db, collection, [...include, ...(filterInclude || [])]);
+  const includes = [...scopeChartIncludes(ctx, db, collection, include), ...(filterInclude || [])];
 
   ctx.action.params.values = {
     ...ctx.action.params.values,

@@ -8,6 +8,7 @@ import _ from 'lodash';
 import { ApprovalContext, ContextApprovalRecords } from '../../../../common';
 import { ProviderContextApprovalExecution } from '../../../../common/contexts/approvalExecution';
 import { ContextWithActionEnabled } from '../../../../common/contexts/WithActionEnabled.provider';
+import { resolveApprovalExecutionContext } from '../../../../common/tools/approval-execution-context';
 import { useTranslation } from '../../../../locale';
 import { ViewCheckContent } from './CheckContent.view';
 
@@ -62,16 +63,22 @@ export const CheckContentContainer = () => {
   }
 
   const items = data.data;
-  const { approvalExecution, node, approval, workflow, execution } = items;
+  const { approvalExecution, node, approval, workflow, execution, status } = items;
   const nodes = workflow?.nodes;
-  if (!hasExecutionContext(workflow, execution, nodes)) {
+  const resolvedExecution = resolveApprovalExecutionContext({
+    approval,
+    approvalExecution,
+    execution,
+    recordStatus: status,
+  });
+  if (!hasExecutionContext(workflow, resolvedExecution, nodes)) {
     return <Result status="error" title={t('Submission may be withdrawn, please try refresh the list.')} />;
   }
   const omitWorkflow = _.omit(workflow, ['nodes']);
   node?.config.applyDetail;
 
   return (
-    <ExecutionContextProvider workflow={omitWorkflow} nodes={nodes} execution={execution}>
+    <ExecutionContextProvider workflow={omitWorkflow} nodes={nodes} execution={resolvedExecution}>
       <ApprovalContext.Provider value={approval}>
         <ProviderContextApprovalExecution value={approvalExecution}>
           <ContextApprovalRecords.Provider value={data.data}>

@@ -138,7 +138,7 @@ export class StaticScheduleTrigger {
         const { resourceName, actionName } = ctx.action;
         await next();
         if (resourceName === 'cronJobs' && actionName === 'list') {
-          const rows = ctx.body.rows as CronJobModel[];
+          const rows = (Array.isArray(ctx.body) ? ctx.body : ctx.body.rows) as CronJobModel[];
           rows.forEach((cronJob) => {
             if (!cronJob.enabled) {
               return;

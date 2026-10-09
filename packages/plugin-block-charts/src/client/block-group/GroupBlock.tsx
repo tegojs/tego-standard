@@ -18,6 +18,18 @@ type ReqData = {
   values: any[];
 };
 
+export function buildCustomQueryRequest({ url, filter, collection, dataSource }) {
+  return {
+    url,
+    method: 'POST',
+    data: {
+      filter: { ...filter },
+      collection,
+      dataSource,
+    },
+  };
+}
+
 export const GroupBlock = (props) => {
   const field = useField<any>();
   const fieldSchema = useFieldSchema();
@@ -111,15 +123,14 @@ export const InternalGroupBlock = (props) => {
     const filter = service?.params[0] ? service.params[0].filter : service?.params || {};
     if (configItem.reqUrl) {
       setResult(
-        (await api.request({
-          url: configItem.reqUrl,
-          method: 'POST',
-          data: {
-            filter: { ...filter },
+        (await api.request(
+          buildCustomQueryRequest({
+            url: configItem.reqUrl,
+            filter,
             collection: params.collection,
             dataSource: dataSource.key,
-          },
-        })) ?? {},
+          }),
+        )) ?? {},
       );
     }
   }, [service.params?.[0]]);

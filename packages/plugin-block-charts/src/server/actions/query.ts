@@ -649,6 +649,33 @@ export const checkPermission = (ctx: Context, next: Next) => {
 };
 
 /**
+ * Applies list ACL and tenant visibility to custom summary endpoints invoked by chart blocks.
+ */
+export const scopeCustomQuery = async (ctx: Context, next: Next) => {
+  const resourceName = ctx.action.resourceName?.replace(/^api\//, '');
+  if (resourceName === 'charts' && ctx.action.actionName === 'query') {
+    return next();
+  }
+
+  const values = ctx.action.params.values || ctx.action.params;
+  const hasChartRequestShape =
+    typeof values?.collection === 'string' &&
+    values.collection.length > 0 &&
+    Object.prototype.hasOwnProperty.call(values, 'filter');
+  if (!hasChartRequestShape) {
+    return next();
+  }
+
+  const db = getDB(ctx, values.dataSource) || ctx.db;
+  if (!resourceName || !db.getCollection(resourceName)) {
+    return ctx.throw(400, 'Custom chart queries must target a collection resource');
+  }
+  values.collection = resourceName;
+
+  return compose([checkPermission, applyTenantScope])(ctx, next);
+};
+
+/**
  * Runs the complete chart query middleware pipeline.
  */
 export const query = async (ctx: Context, next: Next) => {

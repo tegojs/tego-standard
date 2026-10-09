@@ -1,7 +1,7 @@
 import path, { resolve } from 'node:path';
 import { Cache, Container, InstallOptions, Plugin } from '@tego/server';
 
-import { query } from './actions/query';
+import { query, scopeCustomQuery } from './actions/query';
 import { SqlLoader } from './services/sql-loader';
 
 export class DataVisualizationPlugin extends Plugin {
@@ -15,6 +15,11 @@ export class DataVisualizationPlugin extends Plugin {
       actions: {
         query,
       },
+    });
+    this.app.resourcer.use(scopeCustomQuery, {
+      tag: 'chartCustomQueryScope',
+      after: 'acl',
+      before: 'dataSource',
     });
     this.app.acl.allow('charts', 'query', 'loggedIn');
   }

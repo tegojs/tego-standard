@@ -52,6 +52,40 @@ describe('api', () => {
         },
       ],
     });
+    db.collection({
+      name: 'tenant_chart_projects',
+      tenancy: 'tenantScoped',
+      fields: [
+        {
+          type: 'string',
+          name: 'name',
+        },
+        {
+          type: 'string',
+          name: 'tenantId',
+        },
+      ],
+    });
+    db.collection({
+      name: 'tenant_chart_records',
+      tenancy: 'tenantScoped',
+      fields: [
+        {
+          type: 'double',
+          name: 'weight',
+        },
+        {
+          type: 'string',
+          name: 'tenantId',
+        },
+        {
+          type: 'belongsTo',
+          name: 'project',
+          target: 'tenant_chart_projects',
+          foreignKey: 'projectId',
+        },
+      ],
+    });
     await db.sync();
     const repo = db.getRepository('chart_test');
     await repo.create({
@@ -64,6 +98,18 @@ describe('api', () => {
       values: [
         { amount: 10, tenantId: null },
         { amount: 90, tenantId: 'tenant-b' },
+      ],
+    });
+    const currentTenantProject = await db.getRepository('tenant_chart_projects').create({
+      values: { name: 'tenant-a project', tenantId: 'tenant-a' },
+    });
+    const legacyProject = await db.getRepository('tenant_chart_projects').create({
+      values: { name: 'legacy project', tenantId: null },
+    });
+    await db.getRepository('tenant_chart_records').create({
+      values: [
+        { weight: 30, tenantId: 'tenant-a', projectId: currentTenantProject.get('id') },
+        { weight: 25, tenantId: 'tenant-a', projectId: legacyProject.get('id') },
       ],
     });
   });
@@ -174,5 +220,42 @@ describe('api', () => {
     await compose([applyTenantScope, parseFieldAndAssociations, parseBuilder, queryData])(ctx, async () => {});
 
     expect(ctx.action.params.values.data).toMatchObject([{ Amount: 10 }]);
+  });
+
+  test('association-only filters respect target collection tenant visibility', async () => {
+    const ctx = {
+      app,
+      db,
+      tego: app,
+      state: {
+        currentTenantId: 'tenant-a',
+      },
+      get: () => undefined,
+      action: {
+        params: {
+          values: {
+            collection: 'tenant_chart_records',
+            measures: [
+              {
+                field: ['weight'],
+                aggregation: 'sum',
+                alias: 'Weight',
+              },
+            ],
+            dimensions: [],
+            orders: [],
+            filter: {
+              project: {
+                id: { $exists: true },
+              },
+            },
+          },
+        },
+      },
+    } as any;
+
+    await compose([applyTenantScope, parseFieldAndAssociations, parseBuilder, queryData])(ctx, async () => {});
+
+    expect(ctx.action.params.values.data).toMatchObject([{ Weight: 30 }]);
   });
 });

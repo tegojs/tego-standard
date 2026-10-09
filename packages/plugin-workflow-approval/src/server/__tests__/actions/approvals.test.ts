@@ -301,6 +301,7 @@ describe('workflow approval actions', () => {
         approvalId: approval.get('id'),
         approvalExecutionId: approvalExecution.get('id'),
         executionId: execution.get('id'),
+        jobId: historicalJob.get('id'),
         workflowId: approval.get('workflowId'),
         userId: currentUser.get('id'),
         status: 0,
@@ -352,6 +353,130 @@ describe('workflow approval actions', () => {
       expect(body).not.toContain('historical-summary-password');
       expect(body).not.toContain('historical-token');
     });
+  });
+
+  it('hides pending approval records with missing execution context but keeps archived records', async () => {
+    const workflow = await workflowModel.create({
+      enabled: true,
+      type: 'approval',
+      config: {
+        collection: collectionName,
+        centralized: true,
+      },
+    });
+    const approval = await db.getRepository('approvals').create({
+      values: {
+        collectionName,
+        workflowId: workflow.id,
+        workflowKey: workflow.key,
+        status: APPROVAL_STATUS.SUBMITTED,
+        data: {},
+        createdById: currentUser.id,
+      },
+    });
+    const execution = await db.getCollection('executions').model.create(
+      {
+        workflowId: workflow.id,
+        key: workflow.key,
+        context: {},
+        status: 0,
+      },
+      { hooks: false },
+    );
+    const job = await db.getRepository('jobs').create({
+      values: {
+        executionId: execution.id,
+        status: JOB_STATUS.PENDING,
+      },
+    });
+    const approvalExecution = await db.getRepository('approvalExecutions').create({
+      values: {
+        approvalId: approval.get('id'),
+        executionId: execution.id,
+        status: APPROVAL_STATUS.SUBMITTED,
+      },
+    });
+    const recordRepository = db.getRepository('approvalRecords');
+    await recordRepository.create({
+      values: {
+        index: 'valid-pending',
+        approvalId: approval.get('id'),
+        approvalExecutionId: approvalExecution.get('id'),
+        executionId: execution.id,
+        jobId: job.get('id'),
+        workflowId: workflow.id,
+        userId: currentUser.id,
+        status: APPROVAL_ACTION_STATUS.PENDING,
+      },
+    });
+    await recordRepository.create({
+      values: {
+        index: 'orphan-pending-missing-both',
+        approvalId: approval.get('id'),
+        approvalExecutionId: approvalExecution.get('id'),
+        executionId: 987654321,
+        jobId: 987654321,
+        workflowId: workflow.id,
+        userId: currentUser.id,
+        status: APPROVAL_ACTION_STATUS.PENDING,
+      },
+    });
+    await recordRepository.create({
+      values: {
+        index: 'orphan-pending-missing-execution',
+        approvalId: approval.get('id'),
+        approvalExecutionId: approvalExecution.get('id'),
+        executionId: 987654321,
+        jobId: job.get('id'),
+        workflowId: workflow.id,
+        userId: currentUser.id,
+        status: APPROVAL_ACTION_STATUS.PENDING,
+      },
+    });
+    await recordRepository.create({
+      values: {
+        index: 'orphan-pending-missing-job',
+        approvalId: approval.get('id'),
+        approvalExecutionId: approvalExecution.get('id'),
+        executionId: execution.id,
+        jobId: 987654321,
+        workflowId: workflow.id,
+        userId: currentUser.id,
+        status: APPROVAL_ACTION_STATUS.PENDING,
+      },
+    });
+    await recordRepository.create({
+      values: {
+        index: 'orphan-assigned',
+        approvalId: approval.get('id'),
+        approvalExecutionId: approvalExecution.get('id'),
+        executionId: 987654321,
+        jobId: 987654321,
+        workflowId: workflow.id,
+        userId: currentUser.id,
+        status: APPROVAL_ACTION_STATUS.ASSIGNED,
+      },
+    });
+    await recordRepository.create({
+      values: {
+        index: 'archived-completed',
+        approvalId: approval.get('id'),
+        approvalExecutionId: approvalExecution.get('id'),
+        workflowId: workflow.id,
+        userId: currentUser.id,
+        status: APPROVAL_ACTION_STATUS.APPROVED,
+      },
+    });
+
+    const response = await agent.resource('approvalRecords').listCentralized({
+      paginate: false,
+      filter: { userId: currentUser.id },
+      sort: ['id'],
+    });
+    const rows = response.body.data ?? response.body;
+
+    expect(response.status).toBe(200);
+    expect(rows.map((record) => record.index)).toEqual(['valid-pending', 'archived-completed']);
   });
 
   it('uses model dataValues when plain serialization fails for an association model', async () => {

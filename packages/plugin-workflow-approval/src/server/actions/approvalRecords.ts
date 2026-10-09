@@ -21,6 +21,30 @@ export const approvalRecords = {
     ctx.action.mergeParams({
       filter: withCurrentTenantFilter(ctx, {
         workflowId: centralizedApprovalFlow.map((item) => item.id),
+        $or: [
+          {
+            status: {
+              $in: [
+                APPROVAL_ACTION_STATUS.RETURNED,
+                APPROVAL_ACTION_STATUS.APPROVED,
+                APPROVAL_ACTION_STATUS.REJECTED,
+                APPROVAL_ACTION_STATUS.CANCELED,
+              ],
+            },
+          },
+          {
+            execution: {
+              id: {
+                $exists: true,
+              },
+            },
+            job: {
+              id: {
+                $exists: true,
+              },
+            },
+          },
+        ],
       }),
     });
 

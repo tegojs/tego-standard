@@ -13,6 +13,50 @@ function model(values: Record<string, any>) {
 }
 
 describe('cron static schedule tenant context', () => {
+  it.each([
+    { ready: true, sync: false, status: undefined, successful: true },
+    { ready: false, sync: false, status: undefined, successful: false },
+    { ready: true, sync: true, status: EXECUTION_STATUS.RESOLVED, successful: true },
+    { ready: true, sync: true, status: EXECUTION_STATUS.ERROR, successful: false },
+    { ready: true, sync: true, status: undefined, successful: false },
+  ])(
+    'counts accepted triggers with ready=$ready sync=$sync status=$status',
+    async ({ ready, sync, status, successful }) => {
+      const workflow = { id: 1, key: 'test-workflow', getNodes: vi.fn().mockResolvedValue([]) };
+      const cronJob = model({ id: 3, workflowKey: workflow.key });
+      Object.assign(cronJob, { increment: vi.fn(), update: vi.fn() });
+      const plugin = Object.assign(Object.create(PluginWorkflow.prototype), {
+        ready,
+        events: [],
+        eventsCount: 0,
+        getLogger: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn() }),
+        isWorkflowSync: () => sync,
+        triggerSync: vi.fn().mockResolvedValue(status === undefined ? null : { execution: { status } }),
+        prepare: vi.fn(),
+      });
+      const service = new StaticScheduleTrigger();
+      Object.assign(service, {
+        app: { pm: { get: () => plugin } },
+        db: {
+          getRepository: (name) =>
+            ({
+              cronJobs: { findOne: vi.fn().mockResolvedValue(cronJob) },
+              workflows: { findOne: vi.fn().mockResolvedValue(workflow) },
+            })[name],
+        },
+        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        cronJobLock: { acquire: vi.fn().mockResolvedValue(true), release: vi.fn() },
+      });
+
+      await service.trigger(cronJob.id, Date.now());
+
+      expect(cronJob.increment).toHaveBeenCalledWith(
+        successful ? ['limitExecuted', 'allExecuted', 'successExecuted'] : ['limitExecuted', 'allExecuted'],
+      );
+      expect(plugin.events).toHaveLength(ready && !sync ? 1 : 0);
+    },
+  );
+
   it('triggers a tenant workflow once for each enabled tenant', async () => {
     const workflow = {
       key: 'tenant-workflow',
@@ -45,7 +89,10 @@ describe('cron static schedule tenant context', () => {
     const service = new StaticScheduleTrigger();
     Object.assign(service as any, {
       app: {
-        pm: { get: (plugin) => (plugin === PluginWorkflow ? { trigger: triggerWorkflow } : null) },
+        pm: {
+          get: (plugin) =>
+            plugin === PluginWorkflow ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
+        },
         dataSourceManager: {
           dataSources: new Map([
             [
@@ -109,7 +156,10 @@ describe('cron static schedule tenant context', () => {
     const service = new StaticScheduleTrigger();
     Object.assign(service as any, {
       app: {
-        pm: { get: (plugin) => (plugin === PluginWorkflow ? { trigger: triggerWorkflow } : null) },
+        pm: {
+          get: (plugin) =>
+            plugin === PluginWorkflow ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
+        },
         dataSourceManager: {
           dataSources: new Map([
             [

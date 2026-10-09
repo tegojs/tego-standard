@@ -11,8 +11,12 @@ import { CronJobLock } from './CronJobLock';
 const MAX_SAFE_INTERVAL = 2147483647;
 const TENANT_ENABLED_MODES = new Set(['tenantScoped', 'tenantInherited']);
 
-function isSuccessfulProcess(process: Processor | null | void) {
-  if (process === undefined || process === null) {
+function isSuccessfulProcess(process: Processor | null | void, acceptedAsync: boolean) {
+  // Async trigger returns void after accepting an event; this counts dispatches, not eventual outcomes.
+  if (process === undefined) {
+    return acceptedAsync;
+  }
+  if (process === null) {
     return false;
   }
   const processor = process as Processor;
@@ -273,20 +277,20 @@ export class StaticScheduleTrigger {
       }
 
       let error = null;
-      const processes: Array<Processor | null | void> = [];
+      const successes: boolean[] = [];
       try {
         const tenantContexts = await this.getTenantContexts(workflow);
         for (const context of tenantContexts) {
           const tenantId = context?.state?.currentTenantId;
           const tenantEventKey = tenantId == null ? eventKey : `${eventKey}@${tenantId}`;
           try {
-            processes.push(
-              await pluginWorkflow.trigger(
-                workflow,
-                { date: new Date(time), state: context?.state },
-                { context, eventKey: tenantEventKey },
-              ),
+            const acceptedAsync = pluginWorkflow.isReady && !pluginWorkflow.isWorkflowSync(workflow);
+            const process = await pluginWorkflow.trigger(
+              workflow,
+              { date: new Date(time), state: context?.state },
+              { context, eventKey: tenantEventKey },
             );
+            successes.push(isSuccessfulProcess(process, acceptedAsync));
           } catch (e) {
             error = error || e;
             this.logger.error(
@@ -298,8 +302,7 @@ export class StaticScheduleTrigger {
         error = e;
         this.logger.error(`cronJobs [${cronJob.id}] workflow [${cronJob.workflowKey}] failed: ${e.message}`);
       } finally {
-        const allProcessesSucceeded =
-          processes.length > 0 && processes.every((process) => isSuccessfulProcess(process));
+        const allProcessesSucceeded = successes.length > 0 && successes.every(Boolean);
         if (!error && allProcessesSucceeded) {
           await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
           await cronJob.update({

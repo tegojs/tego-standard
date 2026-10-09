@@ -152,6 +152,10 @@ export default class PluginWorkflowServer extends Plugin {
     return logger;
   }
 
+  get isReady() {
+    return this.ready;
+  }
+
   isWorkflowSync(workflow: WorkflowModel) {
     const trigger = this.triggers.get(workflow.type);
     if (!trigger) {

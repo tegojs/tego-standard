@@ -1,5 +1,4 @@
 import { MockServer } from '@tachybase/test';
-
 import { Database, DataTypes, Field, Repository, uid } from '@tego/server';
 
 import { createApp } from '../index';
@@ -53,6 +52,37 @@ SELECT * FROM numbers;
 
   afterEach(async () => {
     await app.destroy();
+  });
+
+  it('should list view collections without appended fields', async () => {
+    await collectionRepository.create({
+      values: {
+        name: testViewName,
+        view: true,
+        schema: db.inDialect('postgres') ? 'public' : undefined,
+        fields: [{ name: 'n', type: 'integer' }],
+      },
+      context: {},
+    });
+
+    const response = await agent.resource('collections').list({
+      paginate: false,
+      filter: { name: testViewName },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([expect.objectContaining({ name: testViewName, view: true })]);
+
+    const appendedResponse = await agent.resource('collections').list({
+      paginate: false,
+      filter: { name: testViewName },
+      appends: ['fields'],
+    });
+
+    expect(appendedResponse.status).toBe(200);
+    expect(appendedResponse.body.data[0].fields).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'n', type: 'integer' })]),
+    );
   });
 
   it('should support preview field with getter', async () => {

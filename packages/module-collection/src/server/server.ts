@@ -319,7 +319,7 @@ export class CollectionManagerPlugin extends Plugin {
     this.app.resourcer.registerActions(collectionActions);
 
     const handleFieldSource = (fields) => {
-      for (const field of lodash.castArray(fields)) {
+      for (const field of lodash.castArray(fields ?? [])) {
         if (field.get('source')) {
           const [collectionSource, fieldSource] = field.get('source').split('.');
           // find original field

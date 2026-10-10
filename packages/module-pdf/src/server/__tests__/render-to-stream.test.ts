@@ -3,6 +3,14 @@ import { readFileSync } from 'node:fs';
 
 import { Document, Image, Page, renderToStream, Text } from '../index';
 
+// Use the real Node entry used by the server build. / 使用服务端构建实际加载的 Node 入口。
+// With the CI tsx loader, Yoga's CJS enum re-exports are missing from the ESM namespace.
+// CI 的 tsx 加载器下，Yoga 的 CJS 枚举转导出在 ESM 命名空间中缺失。
+vi.mock('@react-pdf/renderer', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@react-pdf/renderer');
+});
+
 it('renders distinct PDFs concurrently on first use while loading an image', async () => {
   const image = readFileSync('packages/module-file/src/server/__tests__/files/image.png');
   const results = await Promise.allSettled(

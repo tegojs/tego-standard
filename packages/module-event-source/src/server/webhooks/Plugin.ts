@@ -46,7 +46,7 @@ export class PluginWebhook extends Plugin {
         const { resourceName, actionName } = ctx.action;
         if (resourceName === 'webhooks') {
           if (actionName === 'list') {
-            const rows = ctx.body.rows as EventSourceModel[];
+            const rows = (Array.isArray(ctx.body) ? ctx.body : ctx.body.rows) as EventSourceModel[];
             rows.forEach((model) => {
               const trigger = this.triggers.get(model.type);
               if (!trigger) {

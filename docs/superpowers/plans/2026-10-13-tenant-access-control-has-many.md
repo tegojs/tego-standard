@@ -57,3 +57,5 @@ cmd /d /c pnpm exec tegod build @tachybase/module-tenant
 联合回归的原型性能样例为 20006 条根记录、40004 条参与方记录，20 条和 100 条分页 P95 分别约 2.56 ms、2.41 ms。这只验证测试样例的根查询，不代表 HasMany 写入或实际业务页面的性能验收。
 
 测试临时库已精确删除；两仓保持 `feat/tenant-access-control`，未升级依赖、未修改业务数据或线上。普通 HasMany 内部服务完成，业务中间表、其余关联适配、资源和后台任务入口、配置界面以及真实业务试点仍未验收。
+
+后续 HasOne 阶段将元数据检查和事务流程分别移至 `target-foreign-key-metadata.ts`、`target-foreign-key.ts` 复用；`has-many.ts` 的公共接口保持不变。详见 [一对一替换与解绑计划](2026-10-13-tenant-access-control-has-one.md)。

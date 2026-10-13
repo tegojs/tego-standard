@@ -286,9 +286,9 @@
 
 额外必须覆盖：模型条件允许正常状态转换；新增仅命中 V 时拒绝；HasMany 解绑不能改只读目标；内置租户 ACL 与自定义 ACL 的差异；历史 G/V 与认领竞争；多实例保存后配置缓存失效。停用新模型只回退配置，不撤销已发生的数据写入或认领。
 
-本文基于代码核查完善设计。已实现独立规则编译、真实模型适配、可信身份与层级解析、主库配置读写与版本保护、角色范围来源与显式委托，统一根查询服务，以及根记录新增、修改、删除、单值关联引用、普通多对多连接和 HasMany 实际目标写入的内部事务保护。HasMany 包含 `set` 隐式解绑目标的 G 校验、实际变化才认领历史数据，以及当前操作内两表的 ORM 写入检查；裸 SQL 和其他表的业务副作用尚需入口适配时单独核查。已在 SQLite 和独立 PostgreSQL 测试库验证样例查询及并发能力；尚未接入业务请求，未修改业务数据库、生产配置或现有运行时行为。
+本文基于代码核查完善设计。已实现独立规则编译、真实模型适配、可信身份与层级解析、主库配置读写与版本保护、角色范围来源与显式委托，统一根查询服务，以及根记录新增、修改、删除、单值关联引用、普通多对多连接和 HasMany/HasOne 实际目标写入的内部事务保护。HasMany/HasOne 共用目标外键事务服务，包含隐式解绑目标的 G 校验、实际变化才认领历史数据，以及当前操作内两表的 ORM 写入检查；HasOne 额外检查单目标基数，并先解绑再绑定以支持唯一外键。裸 SQL 和其他表的业务副作用尚需入口适配时单独核查。已在 SQLite 和独立 PostgreSQL 测试库验证样例查询及并发能力；尚未接入业务请求，未修改业务数据库、生产配置或现有运行时行为。
 
-实际结果见 [基础实现计划](../plans/2026-10-13-tenant-access-control-foundation.md)、[真实模型适配计划](../plans/2026-10-13-tenant-access-control-adapters.md)、[配置保存与读取计划](../plans/2026-10-13-tenant-access-control-config.md)、[角色权限接入计划](../plans/2026-10-13-tenant-access-control-acl.md)、[统一查询服务计划](../plans/2026-10-13-tenant-access-control-query.md)、[已有记录写入计划](../plans/2026-10-13-tenant-access-control-mutation.md)、[新增记录保护计划](../plans/2026-10-13-tenant-access-control-create.md)、[单值关联读取与引用计划](../plans/2026-10-13-tenant-access-control-reference.md)、[普通多对多连接写入计划](../plans/2026-10-13-tenant-access-control-many-to-many.md) 和 [一对多绑定与解绑计划](../plans/2026-10-13-tenant-access-control-has-many.md)。核心扩展点还需正式发版升级；业务中间表、配置管理入口、其余关联读写及筛选排序适配、业务入口及真实业务性能仍需后续实施验收。
+实际结果见 [基础实现计划](../plans/2026-10-13-tenant-access-control-foundation.md)、[真实模型适配计划](../plans/2026-10-13-tenant-access-control-adapters.md)、[配置保存与读取计划](../plans/2026-10-13-tenant-access-control-config.md)、[角色权限接入计划](../plans/2026-10-13-tenant-access-control-acl.md)、[统一查询服务计划](../plans/2026-10-13-tenant-access-control-query.md)、[已有记录写入计划](../plans/2026-10-13-tenant-access-control-mutation.md)、[新增记录保护计划](../plans/2026-10-13-tenant-access-control-create.md)、[单值关联读取与引用计划](../plans/2026-10-13-tenant-access-control-reference.md)、[普通多对多连接写入计划](../plans/2026-10-13-tenant-access-control-many-to-many.md)、[一对多绑定与解绑计划](../plans/2026-10-13-tenant-access-control-has-many.md) 和 [一对一替换与解绑计划](../plans/2026-10-13-tenant-access-control-has-one.md)。核心扩展点还需正式发版升级；业务中间表、配置管理入口、其余关联读写及筛选排序适配、业务入口及真实业务性能仍需后续实施验收。
 
 ## 13. 第一阶段的具体原型与验收数据
 

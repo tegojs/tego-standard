@@ -5,8 +5,8 @@ import type { AccessCollectionIdentity } from './config-store';
 import type { AccessQueryService } from './query';
 import { invalid } from './write-support';
 
-/** HasMany stores the relationship on its target; it is never just a source reference. */
-export function resolveHasMany(
+/** HasMany and HasOne store the relationship on the target, which is actually edited. */
+export function resolveTargetForeignKey(
   db: Database,
   prepared: AccessAclScopeAdapter,
   queries: AccessQueryService,
@@ -14,6 +14,7 @@ export function resolveHasMany(
   sourceIdentity: AccessCollectionIdentity,
   targetIdentity: AccessCollectionIdentity,
   name: string,
+  associationType: 'HasMany' | 'HasOne',
 ) {
   if (sourceIdentity.dataSourceKey !== targetIdentity.dataSourceKey)
     invalid('Cross-data-source child mutations are unsupported');
@@ -32,7 +33,7 @@ export function resolveHasMany(
   };
   if (
     !association ||
-    association.associationType !== 'HasMany' ||
+    association.associationType !== associationType ||
     association.source !== sourceModel ||
     association.target !== targetModel ||
     sourceModel === targetModel ||
@@ -42,7 +43,9 @@ export function resolveHasMany(
     targetModel.primaryKeyAttributes.length !== 1 ||
     association.sourceKey !== sourceModel.primaryKeyAttribute
   )
-    invalid('Only registered same-database HasMany links between distinct single-primary-key models are supported');
+    invalid(
+      'Only registered same-database target foreign keys between distinct single-primary-key models are supported',
+    );
   const foreignKey = association.foreignKey!;
   const attribute = targetModel.rawAttributes[foreignKey];
   if (!attribute || foreignKey === 'tenantId' || targetModel.primaryKeyAttributes.includes(foreignKey))
@@ -55,7 +58,7 @@ export function resolveHasMany(
       !queries.isCurrentCollection(sourceIdentity, source, sourceModel) ||
       !queries.isCurrentCollection(targetIdentity, target, targetModel) ||
       sourceModel.associations[name] !== association ||
-      association.associationType !== 'HasMany' ||
+      association.associationType !== associationType ||
       association.source !== sourceModel ||
       association.target !== targetModel ||
       association.sourceKey !== sourceKey ||
@@ -83,7 +86,7 @@ export function resolveHasMany(
             (other.associationType === 'BelongsTo' || other.associationType === 'BelongsToMany'
               ? other.targetKey === foreignKey
               : other.foreignKey === foreignKey &&
-                (other.associationType !== 'HasMany' ||
+                (other.associationType !== associationType ||
                   other.source !== sourceModel ||
                   other.sourceKey !== sourceKey))) ||
           (other.through?.model === targetModel && [other.foreignKey, other.otherKey].includes(foreignKey))

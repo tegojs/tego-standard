@@ -1,5 +1,6 @@
 import { ACL, ACLRole, Database, Model } from '@tego/server';
 
+import { recordRoleActionScope, snapshotRoleActionScope } from '../scope-provenance';
 import { AssociationFieldAction, AssociationFieldsActions, GrantHelper } from '../server';
 
 export class RoleResourceActionModel extends Model {
@@ -26,6 +27,7 @@ export class RoleResourceActionModel extends Model {
 
     // @ts-ignore
     const scope = await this.getScope();
+    const scopeSource = snapshotRoleActionScope(scope);
 
     if (scope) {
       actionParams['own'] = scope.get('key') === 'own';
@@ -33,6 +35,7 @@ export class RoleResourceActionModel extends Model {
     }
 
     role.grantAction(actionPath, actionParams);
+    recordRoleActionScope(role, resourceName, actionName, scopeSource);
 
     const collection = db.getCollection(resourceName);
 

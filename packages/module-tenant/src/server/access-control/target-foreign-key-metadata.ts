@@ -1,9 +1,10 @@
+import { isDeepStrictEqual } from 'node:util';
 import type { Database } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessQueryService } from './query';
-import { invalid } from './write-support';
+import { cloneDeep, invalid } from './write-support';
 
 /** HasMany and HasOne store the relationship on the target, which is actually edited. */
 export function resolveTargetForeignKey(
@@ -15,6 +16,7 @@ export function resolveTargetForeignKey(
   targetIdentity: AccessCollectionIdentity,
   name: string,
   associationType: 'HasMany' | 'HasOne',
+  writing = true,
 ) {
   if (sourceIdentity.dataSourceKey !== targetIdentity.dataSourceKey)
     invalid('Cross-data-source child mutations are unsupported');
@@ -51,6 +53,7 @@ export function resolveTargetForeignKey(
   if (!attribute || foreignKey === 'tenantId' || targetModel.primaryKeyAttributes.includes(foreignKey))
     invalid('Unsupported target foreign key');
   const sourceKey = association.sourceKey;
+  const scope = cloneDeep(association.scope);
   const current = () => {
     if (
       prepared.configuration(ctx, sourceIdentity) !== sourceConfig ||
@@ -64,9 +67,11 @@ export function resolveTargetForeignKey(
       association.sourceKey !== sourceKey ||
       association.foreignKey !== foreignKey ||
       targetModel.rawAttributes[foreignKey] !== attribute ||
-      Reflect.ownKeys(association.scope ?? {}).length
+      !isDeepStrictEqual(association.scope, scope) ||
+      (writing && Reflect.ownKeys(association.scope ?? {}).length)
     )
       invalid('Association identity or scope changed during authorization');
+    if (!writing) return;
     for (const collection of db.collections.values())
       for (const entry of Object.values(collection.model.associations)) {
         const other = entry as typeof entry & {
@@ -95,5 +100,5 @@ export function resolveTargetForeignKey(
       }
   };
   current();
-  return { source, target, sourceModel, targetModel, sourceConfig, targetConfig, foreignKey, current };
+  return { source, target, sourceModel, targetModel, sourceConfig, targetConfig, foreignKey, scope, current };
 }

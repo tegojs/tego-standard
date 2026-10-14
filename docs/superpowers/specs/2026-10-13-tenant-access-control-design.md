@@ -290,6 +290,8 @@
 
 实际结果见 [基础实现计划](../plans/2026-10-13-tenant-access-control-foundation.md)、[真实模型适配计划](../plans/2026-10-13-tenant-access-control-adapters.md)、[配置保存与读取计划](../plans/2026-10-13-tenant-access-control-config.md)、[角色权限接入计划](../plans/2026-10-13-tenant-access-control-acl.md)、[统一查询服务计划](../plans/2026-10-13-tenant-access-control-query.md)、[已有记录写入计划](../plans/2026-10-13-tenant-access-control-mutation.md)、[新增记录保护计划](../plans/2026-10-13-tenant-access-control-create.md)、[单值关联读取与引用计划](../plans/2026-10-13-tenant-access-control-reference.md)、[普通多对多连接写入计划](../plans/2026-10-13-tenant-access-control-many-to-many.md)、[一对多绑定与解绑计划](../plans/2026-10-13-tenant-access-control-has-many.md) 和 [一对一替换与解绑计划](../plans/2026-10-13-tenant-access-control-has-one.md)。核心扩展点还需正式发版升级；业务中间表、配置管理入口、其余关联读写及筛选排序适配、业务入口及真实业务性能仍需后续实施验收。
 
+一对多和一对一读取已增加内部查询计划：分别检查来源与目标的读取范围，保留真实外键、关联 scope 和 `/_/` 协议，供目标列表、计数和根字段合计复用。详见 [一对多和一对一关联读取计划](../plans/2026-10-14-tenant-access-control-target-reads.md)。这不是批量关联展开或跨关联筛选排序的完整适配，仍未接入业务入口。
+
 ## 13. 第一阶段的具体原型与验收数据
 
 第一阶段只在独立测试库验证条件、查询和事务能力，不修改现有业务表、不启用生产规则。SQLite 用于条件单测；PostgreSQL 用于实际 SQL、计划和并发验证，不能用 SQLite 通过代替后者。

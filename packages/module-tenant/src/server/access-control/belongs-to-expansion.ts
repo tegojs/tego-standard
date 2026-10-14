@@ -1,10 +1,10 @@
-import { isDeepStrictEqual } from 'node:util';
-import { Op, type Database, type Model, type ModelStatic, type Transaction, type WhereOptions } from '@tego/server';
+import { Op, type Database, type Transaction, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
 import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
 
@@ -18,61 +18,6 @@ export interface BelongsToExpansionRequest {
   targetWhere?: WhereOptions;
   targetBind?: Record<string, unknown>;
   transaction?: Transaction;
-}
-
-/** Detect in-place column/default-scope changes as well as model replacement across awaits. */
-function modelSnapshot(model: ModelStatic<Model>) {
-  const runtime = model as unknown as { _scope: unknown; _timestampAttributes: { deletedAt?: string } };
-  const deletedAt = runtime._timestampAttributes.deletedAt;
-  return cloneDeep({
-    table: model.getTableName(),
-    primary: model.primaryKeyAttributes,
-    attributes: Object.entries(model.rawAttributes).map(([name, attribute]) => [
-      name,
-      attribute.field,
-      (attribute.type as { key?: string }).key,
-      attribute.primaryKey,
-    ]),
-    scope: runtime._scope,
-    paranoid: model.options.paranoid,
-    deletedAt,
-    deletedDefault: deletedAt ? model.rawAttributes[deletedAt]?.defaultValue : undefined,
-  });
-}
-
-function databaseMetadataSnapshot(db: Database) {
-  return [...db.collections.values()]
-    .map((collection) => ({
-      name: collection.name,
-      model: modelSnapshot(collection.model),
-      associations: Object.entries(collection.model.associations)
-        .map(([name, association]) => {
-          const relation = association as typeof association & {
-            foreignKey?: string;
-            sourceKey?: string;
-            targetKey?: string;
-            otherKey?: string;
-            scope?: unknown;
-            through?: { model?: ModelStatic<Model>; scope?: unknown };
-          };
-          return {
-            name,
-            type: relation.associationType,
-            source: relation.source?.name,
-            target: relation.target?.name,
-            foreignKey: relation.foreignKey,
-            sourceKey: relation.sourceKey,
-            targetKey: relation.targetKey,
-            otherKey: relation.otherKey,
-            scope: cloneDeep(relation.scope),
-            through: relation.through
-              ? { model: relation.through.model?.name, scope: cloneDeep(relation.through.scope) }
-              : undefined,
-          };
-        })
-        .sort((left, right) => left.name.localeCompare(right.name)),
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 /** Internal bounded-page expansion; entry adapters supply action/field ACL and parsed data predicates. */
@@ -124,17 +69,13 @@ export class AccessBelongsToExpansionService {
     if (typeof request.association !== 'string' || !request.association)
       invalid('Select a registered belongs-to association');
     const relation = resolveBelongsTo(this.db, this.prepared, this.queries, ctx, source, target, request.association);
-    const sourceSnapshot = modelSnapshot(relation.sourceModel);
-    const targetSnapshot = modelSnapshot(relation.targetModel);
-    const databaseSnapshot = databaseMetadataSnapshot(this.db);
+    const verifyMetadata = accessMetadataGuard(this.db, [
+      { model: relation.sourceModel, config: relation.sourceConfig },
+      { model: relation.targetModel, config: relation.targetConfig },
+    ]);
     const current = () => {
       relation.current();
-      if (
-        !isDeepStrictEqual(sourceSnapshot, modelSnapshot(relation.sourceModel)) ||
-        !isDeepStrictEqual(targetSnapshot, modelSnapshot(relation.targetModel)) ||
-        !isDeepStrictEqual(databaseSnapshot, databaseMetadataSnapshot(this.db))
-      )
-        invalid('Expansion model metadata changed during authorization');
+      verifyMetadata();
     };
     if (!Array.isArray(request.sourceKeys) || request.sourceKeys.length > 1000)
       invalid('Expand at most 1000 explicit source keys');

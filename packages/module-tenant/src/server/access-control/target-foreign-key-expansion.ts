@@ -1,0 +1,164 @@
+import { Op, type Database, type Transaction, type WhereOptions } from '@tego/server';
+
+import type { AccessAclScopeAdapter } from './acl-scope';
+import type { AccessCollectionIdentity } from './config-store';
+import type { AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
+import type { AccessQueryService } from './query';
+import { resolveTargetForeignKey } from './target-foreign-key-metadata';
+import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
+
+export interface TargetForeignKeyExpansionRequest {
+  association: string;
+  sourceKeys: Array<string | number>;
+  /** Physical target fields already approved by the entry adapter's field ACL. */
+  targetAttributes: string[];
+  /** Trusted, server-parsed ACL/request predicates for the two collections independently. */
+  sourceWhere?: WhereOptions;
+  sourceBind?: Record<string, unknown>;
+  targetWhere?: WhereOptions;
+  targetBind?: Record<string, unknown>;
+  transaction?: Transaction;
+}
+
+type TargetValues = Readonly<Record<string, unknown>>;
+
+/** Internal page expansion for HasMany/HasOne; entry adapters provide action and field ACL. */
+export class AccessTargetForeignKeyExpansionService {
+  constructor(
+    private readonly db: Database,
+    private readonly prepared: AccessAclScopeAdapter,
+    private readonly queries: AccessQueryService,
+  ) {}
+
+  async load(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: TargetForeignKeyExpansionRequest,
+  ): Promise<ReadonlyMap<string, readonly TargetValues[] | TargetValues | null>> {
+    source = { ...source };
+    target = { ...target };
+    authenticated = { ...authenticated };
+    const allowed = [
+      'association',
+      'sourceKeys',
+      'targetAttributes',
+      'sourceWhere',
+      'sourceBind',
+      'targetWhere',
+      'targetBind',
+      'transaction',
+    ];
+    if (
+      !plain(request) ||
+      Reflect.ownKeys(request).some(
+        (key) =>
+          typeof key !== 'string' ||
+          !allowed.includes(key) ||
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(request, key)!, 'value'),
+      )
+    )
+      invalid('Unsupported association expansion input');
+    for (const name of ['sourceKeys', 'targetAttributes'] as const) {
+      const values = request[name];
+      if (!Array.isArray(values) || values.length > 1000) invalid('Supply a bounded explicit expansion array');
+      for (let index = 0; index < values.length; index++)
+        if (!Object.hasOwn(values, index)) invalid('Expansion arrays cannot contain missing entries');
+    }
+    const { transaction, ...input } = request;
+    request = { ...cloneDeep(input), transaction };
+    if (typeof request.association !== 'string' || !request.association)
+      invalid('Select a registered target foreign-key association');
+    const associationType = this.db.getCollection(source.collectionName)?.model.associations[request.association]
+      ?.associationType;
+    if (associationType !== 'HasMany' && associationType !== 'HasOne')
+      invalid('Only HasMany and HasOne expansions are supported');
+    const relation = resolveTargetForeignKey(
+      this.db,
+      this.prepared,
+      this.queries,
+      ctx,
+      source,
+      target,
+      request.association,
+      associationType,
+      false,
+    );
+    const verifyMetadata = accessMetadataGuard(this.db, [
+      { model: relation.sourceModel, config: relation.sourceConfig },
+      { model: relation.targetModel, config: relation.targetConfig },
+    ]);
+    const current = () => {
+      relation.current();
+      verifyMetadata();
+    };
+    const keys = request.sourceKeys.length ? normalizeKeys(request.sourceKeys, relation.source) : [];
+    if (
+      !request.targetAttributes.length ||
+      request.targetAttributes.some(
+        (name) =>
+          typeof name !== 'string' ||
+          !Object.hasOwn(relation.targetModel.rawAttributes, name) ||
+          (relation.targetModel.rawAttributes[name].type as { key?: string }).key === 'VIRTUAL',
+      )
+    )
+      invalid('Select explicit physical target attributes');
+    const attributes = [...new Set(request.targetAttributes)];
+    const sourcePrimary = relation.sourceModel.primaryKeyAttribute;
+    const targetForeignKey = relation.foreignKey;
+    const sourceConditions: WhereOptions[] = [{ [sourcePrimary]: { [Op.in]: keys } }];
+    if (request.sourceWhere !== undefined) sourceConditions.push(request.sourceWhere);
+    const sourceScope = await this.queries.scopeQuery(ctx, source, authenticated, {
+      where: { [Op.and]: sourceConditions },
+      bind: request.sourceBind,
+      transaction,
+    });
+    current();
+    if (!sourceScope || sourceScope.config !== relation.sourceConfig) invalid('Source expansion phase changed');
+    const sources = await relation.sourceModel.findAll(
+      internalQuery({ ...sourceScope.query, attributes: [sourcePrimary] }),
+    );
+    current();
+    if (sources.length !== keys.length) unavailable();
+    const targetConditions: WhereOptions[] = [{ [targetForeignKey]: { [Op.in]: keys } }];
+    if (relation.scope !== undefined) targetConditions.push(relation.scope);
+    if (request.targetWhere !== undefined) targetConditions.push(request.targetWhere);
+    const targetScope = await this.queries.scopeQuery(ctx, target, authenticated, {
+      where: { [Op.and]: targetConditions },
+      bind: request.targetBind,
+      transaction,
+    });
+    current();
+    if (!targetScope || targetScope.config !== relation.targetConfig) invalid('Target expansion phase changed');
+    const records = await relation.targetModel.findAll(
+      internalQuery({
+        ...targetScope.query,
+        attributes: [...new Set([targetForeignKey, relation.targetModel.primaryKeyAttribute, ...attributes])],
+        order: [[relation.targetModel.primaryKeyAttribute, 'ASC'] as [string, string]],
+        limit: 10001,
+      }),
+    );
+    current();
+    if (records.length > 10000) invalid('Too many targets for a single expansion page');
+    const grouped = new Map<string, TargetValues[]>();
+    for (const record of records) {
+      const key = normalizeKeys([record.getDataValue(targetForeignKey)], relation.source)[0];
+      const values = Object.freeze(
+        Object.fromEntries(attributes.map((name) => [name, cloneDeep(record.getDataValue(name))])),
+      );
+      const list = grouped.get(key) ?? [];
+      list.push(values);
+      grouped.set(key, list);
+    }
+    const hasOne = associationType === 'HasOne';
+    if (hasOne && [...grouped.values()].some((list) => list.length > 1)) invalid('HasOne target is not unique');
+    return new Map(
+      keys.map((key) => {
+        const values = grouped.get(key) ?? [];
+        return [key, hasOne ? (values[0] ?? null) : Object.freeze(values)] as const;
+      }),
+    );
+  }
+}

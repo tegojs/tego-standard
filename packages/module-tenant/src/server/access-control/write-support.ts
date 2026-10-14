@@ -58,6 +58,7 @@ export function cloneDeep<T>(input: T): T {
     if (seen.has(value)) invalid('Mutation inputs cannot contain cycles');
     seen.add(value);
     const result = Array.isArray(value) ? [] : Object.create(Object.getPrototypeOf(value));
+    if (Array.isArray(value)) result.length = value.length;
     for (const key of Reflect.ownKeys(value)) {
       if (Array.isArray(value) && key === 'length') continue;
       const descriptor = Object.getOwnPropertyDescriptor(value, key);

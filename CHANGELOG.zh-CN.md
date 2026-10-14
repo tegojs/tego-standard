@@ -7,16 +7,24 @@
 
 ## [未发布]
 
+
+
+## [1.6.64] - 2026-10-14
+
 ### 🐛 修复
 
-- **approval**: restore accurate carbon copy detail data [0932dbe](https://github.com/tegojs/tego-standard/commit/0932dbefb6adedb22a1874cde059cb618ae91f2b) (@TomyJan)
-- **charts**: align association filters with list queries [e177f3a](https://github.com/tegojs/tego-standard/commit/e177f3a6b2973b6d3628653811e996c579548bfe) (@TomyJan)
-- **approval**: hide orphan pending approval records [189161f](https://github.com/tegojs/tego-standard/commit/189161fb6da3899f0b6a00df43c0241ffd5f740a) (@TomyJan)
-- **approval**: show archived completed approval details [380ccc0](https://github.com/tegojs/tego-standard/commit/380ccc0f2b203443c524ef9fc71313a0b1ff2ad9) (@TomyJan)
-- **charts**: enforce tenant scope for custom summaries [dbcb303](https://github.com/tegojs/tego-standard/commit/dbcb303aaf4bec5494181bfa3a2f0ea75b5d8799) (@TomyJan)
-- **approval**: preserve fields outside execution forms [e51ad1f](https://github.com/tegojs/tego-standard/commit/e51ad1f1f69c2eb7ddaee227b3d26bcb9fd00288) (@TomyJan)
-
-
+- **event-source**: 支持未分页的 webhook 列表 (@TomyJan)
+- **event-source**: 保留尾随脚本注释 (@TomyJan)
+- **collection**: 处理不带附加字段的视图列表 (@TomyJan)
+- **cron**: 计算接受的异步工作流触发器 (@TomyJan)
+- **cron**: 支持未分页的时间表列表 (@TomyJan)
+- **pdf**: 保护并发首次渲染 (@TomyJan)
+- **approval**: 恢复准确的抄送详细数据 (@TomyJan)
+- **charts**: 将关联过滤器与列表查询对齐 (@TomyJan)
+- **approval**: 隐藏孤儿待审批记录 (@TomyJan)
+- **approval**: 显示已归档的已完成审批详细信息 (@TomyJan)
+- **charts**: 强制执行自定义摘要的租户范围 (@TomyJan)
+- **approval**: 保留执行表单之外的字段 (@TomyJan)
 
 ## [1.6.63] - 2026-09-28
 
@@ -3360,7 +3368,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.63...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.64...HEAD
+[1.6.64]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.64
 [1.6.63]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.63
 [1.6.62]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.62
 [1.6.61]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.61

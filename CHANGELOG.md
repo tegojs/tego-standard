@@ -7,16 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [1.6.64] - 2026-10-14
+
 ### 🐛 Fixed
 
-- **approval**: restore accurate carbon copy detail data [0932dbe](https://github.com/tegojs/tego-standard/commit/0932dbefb6adedb22a1874cde059cb618ae91f2b) (@TomyJan)
-- **charts**: align association filters with list queries [e177f3a](https://github.com/tegojs/tego-standard/commit/e177f3a6b2973b6d3628653811e996c579548bfe) (@TomyJan)
-- **approval**: hide orphan pending approval records [189161f](https://github.com/tegojs/tego-standard/commit/189161fb6da3899f0b6a00df43c0241ffd5f740a) (@TomyJan)
-- **approval**: show archived completed approval details [380ccc0](https://github.com/tegojs/tego-standard/commit/380ccc0f2b203443c524ef9fc71313a0b1ff2ad9) (@TomyJan)
-- **charts**: enforce tenant scope for custom summaries [dbcb303](https://github.com/tegojs/tego-standard/commit/dbcb303aaf4bec5494181bfa3a2f0ea75b5d8799) (@TomyJan)
-- **approval**: preserve fields outside execution forms [e51ad1f](https://github.com/tegojs/tego-standard/commit/e51ad1f1f69c2eb7ddaee227b3d26bcb9fd00288) (@TomyJan)
-
-
+- **event-source**: support unpaginated webhook lists (@TomyJan)
+- **event-source**: preserve trailing script comments (@TomyJan)
+- **collection**: handle view lists without appended fields (@TomyJan)
+- **cron**: count accepted asynchronous workflow triggers (@TomyJan)
+- **cron**: support unpaginated schedule lists (@TomyJan)
+- **pdf**: guard concurrent first-time rendering (@TomyJan)
+- **approval**: restore accurate carbon copy detail data (@TomyJan)
+- **charts**: align association filters with list queries (@TomyJan)
+- **approval**: hide orphan pending approval records (@TomyJan)
+- **approval**: show archived completed approval details (@TomyJan)
+- **charts**: enforce tenant scope for custom summaries (@TomyJan)
+- **approval**: preserve fields outside execution forms (@TomyJan)
 
 ## [1.6.63] - 2026-09-28
 
@@ -3360,7 +3368,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.63...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.64...HEAD
+[1.6.64]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.64
 [1.6.63]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.63
 [1.6.62]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.62
 [1.6.61]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.61

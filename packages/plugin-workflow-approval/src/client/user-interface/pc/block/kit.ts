@@ -34,7 +34,7 @@ const QuickApprovalSchema = {
       (collection.template !== 'view' || collection?.writableView) &&
       collection.template !== 'file' &&
       collection.template !== 'sql' &&
-      data?.data?.length
+      data?.['data']?.length
     );
   },
 };

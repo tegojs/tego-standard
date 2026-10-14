@@ -1,0 +1,438 @@
+import { FilterParser, type Collection, type Database, type WhereOptions } from '@tego/server';
+
+import type { AccessCollectionIdentity } from './config-store';
+import type { AccessFilterNode, AccessFilterTreeRequest } from './filter-tree';
+import { invalid } from './write-support';
+
+/** Resolved by the entry's existing role/association ACL protocol, never by request values. */
+export interface AccessFilterReadGrant {
+  identity: AccessCollectionIdentity;
+  fields: readonly string[];
+  where?: WhereOptions;
+  bind?: Record<string, unknown>;
+}
+
+export type AccessFilterGrantResolver = (
+  collection: Collection,
+  path: readonly string[],
+) => AccessFilterReadGrant | null;
+
+interface ParsedAssociation {
+  identity: AccessCollectionIdentity;
+  grant: AccessFilterReadGrant;
+  values: unknown[];
+  exists: boolean;
+  through?: AccessCollectionIdentity;
+  throughWhere?: WhereOptions;
+  throughBind?: Record<string, unknown>;
+}
+
+/** Internal JSON-to-tree adapter. It does not register a resource or change existing requests. */
+export class AccessRequestFilterParser {
+  constructor(
+    private readonly db: Database,
+    private readonly resolveGrant: AccessFilterGrantResolver,
+  ) {}
+
+  parse(source: AccessCollectionIdentity, filter: unknown): AccessFilterTreeRequest {
+    const snapshot = this.snapshot(filter);
+    const root = this.collection(source);
+    const rootGrant = this.grant(root, [], source);
+    const parsed = this.parseObjects(root, source, [], [snapshot], rootGrant);
+    return {
+      filter: parsed,
+      sourceWhere: rootGrant.where,
+      sourceBind: rootGrant.bind,
+    };
+  }
+
+  private snapshot(input: unknown): unknown {
+    let nodes = 0;
+    const seen = new Set<object>();
+    const copy = (value: unknown, depth = 0): unknown => {
+      if (++nodes > 1000 || depth > 16) invalid('Request filter exceeds size or depth limit');
+      if (value === null || typeof value === 'boolean' || typeof value === 'number') {
+        if (typeof value === 'number' && !Number.isFinite(value))
+          invalid('Request filter contains a non-finite number');
+        return value;
+      }
+      if (typeof value === 'string') {
+        if (value.length > 10000) invalid('Request filter string exceeds size limit');
+        return value;
+      }
+      if (!value || typeof value !== 'object') invalid('Request filters must be JSON values');
+      if (seen.has(value)) invalid('Request filters cannot contain cycles');
+      seen.add(value);
+      if (Array.isArray(value)) {
+        if (
+          value.length > 100 ||
+          Object.getPrototypeOf(value) !== Array.prototype ||
+          Reflect.ownKeys(value).length !== value.length + 1 ||
+          Array.from({ length: value.length }, (_, index) => !Object.hasOwn(value, index)).some(Boolean)
+        )
+          invalid('Request filter lists must be bounded and dense');
+        const result: unknown[] = [];
+        for (let index = 0; index < value.length; index++) {
+          const descriptor = Object.getOwnPropertyDescriptor(value, index)!;
+          if (!Object.hasOwn(descriptor, 'value')) invalid('Request filters cannot contain accessors');
+          result.push(copy(descriptor.value, depth + 1));
+        }
+        seen.delete(value);
+        return result;
+      }
+      if (![Object.prototype, null].includes(Object.getPrototypeOf(value)))
+        invalid('Request filter objects must be plain JSON objects');
+      const result: Record<string, unknown> = Object.create(null);
+      for (const key of Reflect.ownKeys(value)) {
+        if (typeof key !== 'string') invalid('Request filter keys must be strings');
+        if (key.length > 10000) invalid('Request filter key exceeds size limit');
+        if (key.split('.').length > 10) invalid('Request filter path exceeds depth limit');
+        const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+        if (!Object.hasOwn(descriptor, 'value')) invalid('Request filters cannot contain accessors');
+        result[key] = copy(descriptor.value, depth + 1);
+      }
+      seen.delete(value);
+      return result;
+    };
+    return copy(input);
+  }
+
+  private collection(identity: AccessCollectionIdentity): Collection {
+    const collection = this.db.getCollection(identity.collectionName);
+    if (!collection) invalid('Request filter collection is unavailable');
+    return collection;
+  }
+
+  private grant(
+    collection: Collection,
+    path: readonly string[],
+    expected?: AccessCollectionIdentity,
+  ): AccessFilterReadGrant {
+    const grant = this.resolveGrant(collection, path);
+    if (
+      !grant ||
+      grant.identity.collectionName !== collection.name ||
+      (expected &&
+        (grant.identity.dataSourceKey !== expected.dataSourceKey ||
+          grant.identity.collectionKey !== expected.collectionKey ||
+          grant.identity.collectionName !== expected.collectionName)) ||
+      !Array.isArray(grant.fields) ||
+      grant.fields.some((field) => typeof field !== 'string')
+    )
+      invalid('Request filter field or association is not authorized');
+    return grant;
+  }
+
+  private parseObjects(
+    collection: Collection,
+    identity: AccessCollectionIdentity,
+    path: readonly string[],
+    values: unknown[],
+    grant: AccessFilterReadGrant,
+  ): AccessFilterNode {
+    if (path.length > 8) invalid('Request filter association path exceeds depth limit');
+    if (values.some((value) => !value || typeof value !== 'object' || Array.isArray(value)))
+      invalid('Request filter group must be an object');
+    const predicates: AccessFilterNode[] = [];
+    const associations = new Map<string, ParsedAssociation>();
+    const addPath = (parts: string[], operand: unknown) => {
+      if (!parts.length || parts.some((part) => !part || part === '__proto__' || part === 'constructor'))
+        invalid('Request filter path is invalid');
+      let current = collection;
+      let currentIdentity = identity;
+      let currentPath = [...path];
+      for (let index = 0; index < parts.length; index++) {
+        const part = parts[index];
+        const association = current.model.associations[part];
+        if (association) {
+          if (!grant.fields.includes(part)) invalid('Request filter association field is not authorized');
+          const target = this.db.modelCollection.get(association.target);
+          if (!target || target.db !== this.db) invalid('Request filter association is unavailable');
+          const targetPath = [...currentPath, part];
+          const targetGrant = this.grant(target, targetPath);
+          const targetIdentity = targetGrant.identity;
+          if (targetIdentity.dataSourceKey !== currentIdentity.dataSourceKey)
+            invalid('Cross-data-source request filter associations are unsupported');
+          let entry = associations.get(part);
+          if (!entry) {
+            entry = { identity: targetIdentity, grant: targetGrant, values: [], exists: true };
+            associations.set(part, entry);
+          }
+          const throughAssociation = association as typeof association & {
+            through?: { model?: Collection['model']; scope?: unknown };
+          };
+          if (association.associationType === 'BelongsToMany') {
+            const through =
+              throughAssociation.through?.model && this.db.modelCollection.get(throughAssociation.through.model);
+            if (!through || through.db !== this.db) invalid('Request filter through collection is unavailable');
+            const throughGrant = this.grant(through, [...targetPath, '$through']);
+            Object.assign(entry, {
+              through: throughGrant.identity,
+              throughWhere: throughGrant.where,
+              throughBind: throughGrant.bind,
+            });
+          }
+          current = target;
+          currentIdentity = targetIdentity;
+          currentPath = targetPath;
+          const tail = parts.slice(index + 1);
+          const nested = tail.reduceRight<unknown>((child, name) => ({ [name]: child }), operand);
+          entry.values.push(nested);
+          return;
+        }
+        if (index !== parts.length - 1) invalid(`Unknown request filter association: ${part}`);
+        if (!grant.fields.includes(part))
+          invalid(`Request filter field is not authorized: ${[...currentPath, part].join('.')}`);
+        const local = this.parseField(current, part, operand);
+        predicates.push({ type: 'predicate', where: local });
+      }
+    };
+    const entries = values.flatMap((value) => Object.entries(value as Record<string, unknown>));
+    const ordinaryPaths = new Set<string>();
+    const separatePaths: Set<string>[] = [];
+    for (const [key, item] of entries) {
+      if (key === '$and' || key === '$or') {
+        if (!Array.isArray(item) || item.length > 100) invalid(`Request ${key} must be a bounded list`);
+        for (const child of item) separatePaths.push(this.associationPaths(collection, path, child));
+      } else if (key === '$not' || key.endsWith('.$exists') || key.endsWith('.$notExists')) {
+        separatePaths.push(this.associationPaths(collection, path, key === '$not' ? item : { [key]: item }));
+      } else {
+        for (const associationPath of this.associationPaths(collection, path, { [key]: item }))
+          ordinaryPaths.add(associationPath);
+      }
+    }
+    const seenPaths = new Set(ordinaryPaths);
+    for (const paths of separatePaths) {
+      for (const associationPath of paths) {
+        if (
+          [...seenPaths].some(
+            (previous) =>
+              associationPath === previous ||
+              associationPath.startsWith(`${previous}.`) ||
+              previous.startsWith(`${associationPath}.`),
+          )
+        )
+          invalid('Group conditions on the same association must be combined in one filter object');
+      }
+      for (const associationPath of paths) seenPaths.add(associationPath);
+    }
+    for (const [key, item] of entries) {
+      if (key === '$and' || key === '$or') {
+        const children = (item as unknown[]).map((child) =>
+          this.parseObjects(collection, identity, path, [child], grant),
+        );
+        predicates.push({ type: key === '$and' ? 'all' : 'any', children });
+      } else if (key === '$not') {
+        predicates.push({ type: 'not', child: this.parseObjects(collection, identity, path, [item], grant) });
+      } else {
+        const parts = key.split('.');
+        const last = parts.at(-1);
+        if (last === '$exists' || last === '$notExists') {
+          const associationParts = parts.slice(0, -1);
+          const targetPrimaryKey = associationParts.at(-1) === 'id';
+          if (targetPrimaryKey) associationParts.pop();
+          if (this.isAssociationPath(collection, associationParts)) {
+            if (item !== true) invalid('Association existence filters require an explicit true marker');
+            predicates.push(
+              this.parseAssociationExistence(
+                collection,
+                identity,
+                path,
+                associationParts,
+                last === '$exists',
+                targetPrimaryKey,
+                grant,
+              ),
+            );
+          } else {
+            addPath(parts.slice(0, -1), { [last]: item });
+          }
+        } else {
+          addPath(parts, item);
+        }
+      }
+    }
+    for (const [association, entry] of associations) {
+      predicates.push({
+        type: 'association',
+        association,
+        target: entry.identity,
+        exists: entry.exists,
+        targetWhere: entry.grant.where,
+        targetBind: entry.grant.bind,
+        ...(entry.through
+          ? {
+              through: entry.through,
+              throughWhere: entry.throughWhere,
+              throughBind: entry.throughBind,
+            }
+          : {}),
+        condition: this.parseObjects(
+          this.collection(entry.identity),
+          entry.identity,
+          [...path, association],
+          entry.values,
+          entry.grant,
+        ),
+      });
+    }
+    return predicates.length === 1 ? predicates[0] : { type: 'all', children: predicates };
+  }
+
+  private associationPaths(collection: Collection, prefix: readonly string[], input: unknown): Set<string> {
+    const paths = new Set<string>();
+    const visit = (current: Collection, currentPath: readonly string[], value: unknown) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        if (key === '$and' || key === '$or') {
+          if (Array.isArray(child)) for (const nested of child) visit(current, currentPath, nested);
+          continue;
+        }
+        if (key === '$not') {
+          visit(current, currentPath, child);
+          continue;
+        }
+        const parts = key.split('.');
+        if (parts.at(-1) === '$exists' || parts.at(-1) === '$notExists') parts.pop();
+        if (parts.at(-1) === 'id' && parts.length > 1) parts.pop();
+        let targetCollection = current;
+        const targetPath = [...currentPath];
+        for (const part of parts) {
+          const relation = targetCollection.model.associations[part];
+          const target = relation && this.db.modelCollection.get(relation.target);
+          if (!target) break;
+          targetPath.push(part);
+          paths.add(targetPath.join('.'));
+          targetCollection = target;
+        }
+        if (targetCollection !== current && key === parts[0]) visit(targetCollection, targetPath, child);
+      }
+    };
+    visit(collection, prefix, input);
+    return paths;
+  }
+
+  private isAssociationPath(source: Collection, parts: string[]): boolean {
+    if (!parts.length) return false;
+    let collection = source;
+    for (const part of parts) {
+      const relation = collection.model.associations[part];
+      const target = relation && this.db.modelCollection.get(relation.target);
+      if (!target) return false;
+      collection = target;
+    }
+    return true;
+  }
+
+  private parseAssociationExistence(
+    source: Collection,
+    sourceIdentity: AccessCollectionIdentity,
+    path: readonly string[],
+    parts: string[],
+    exists: boolean,
+    targetPrimaryKey: boolean,
+    sourceGrant: AccessFilterReadGrant,
+  ): AccessFilterNode {
+    if (!parts.length) invalid('Association existence filter requires a registered relation');
+    if (path.length + parts.length > 8) invalid('Request filter association path exceeds depth limit');
+    const [name, ...tail] = parts;
+    if (!sourceGrant.fields.includes(name)) invalid('Request filter association field is not authorized');
+    const relation = source.model.associations[name];
+    const target = relation && this.db.modelCollection.get(relation.target);
+    if (!relation || !target || target.db !== this.db) invalid('Association existence path is unavailable');
+    const targetPath = [...path, name];
+    const targetGrant = this.grant(target, targetPath);
+    if (targetGrant.identity.dataSourceKey !== sourceIdentity.dataSourceKey)
+      invalid('Cross-data-source request filter associations are unsupported');
+    let condition: AccessFilterNode;
+    let relationExists = true;
+    if (tail.length) {
+      condition = this.parseAssociationExistence(
+        target,
+        targetGrant.identity,
+        targetPath,
+        tail,
+        exists,
+        targetPrimaryKey,
+        targetGrant,
+      );
+    } else {
+      if (targetPrimaryKey && target.model.primaryKeyAttribute !== 'id')
+        invalid('Existence filters only support the registered id primary key');
+      condition = { type: 'all', children: [] };
+      relationExists = exists;
+    }
+    const throughAssociation = relation as typeof relation & { through?: { model?: Collection['model'] } };
+    const through = throughAssociation.through?.model && this.db.modelCollection.get(throughAssociation.through.model);
+    if (relation.associationType === 'BelongsToMany' && (!through || through.db !== this.db))
+      invalid('Association through collection is unavailable');
+    const throughGrant = through ? this.grant(through, [...targetPath, '$through']) : undefined;
+    return {
+      type: 'association',
+      association: name,
+      target: targetGrant.identity,
+      exists: relationExists,
+      targetWhere: targetGrant.where,
+      targetBind: targetGrant.bind,
+      ...(throughGrant
+        ? { through: throughGrant.identity, throughWhere: throughGrant.where, throughBind: throughGrant.bind }
+        : {}),
+      condition,
+    };
+  }
+
+  private parseField(collection: Collection, field: string, value: unknown): WhereOptions {
+    const fieldType = collection.getField(field)?.type;
+    if (fieldType === 'array' || fieldType === 'json' || fieldType === 'jsonb')
+      invalid('Request filtering does not support JSON or array fields');
+    const allowed = new Set([
+      '$eq',
+      '$ne',
+      '$gt',
+      '$gte',
+      '$lt',
+      '$lte',
+      '$in',
+      '$notIn',
+      '$includes',
+      '$notIncludes',
+      '$startsWith',
+      '$notStartsWith',
+      '$endWith',
+      '$notEndWith',
+      '$empty',
+      '$notEmpty',
+      '$isFalsy',
+      '$isTruly',
+      '$exists',
+      '$notExists',
+    ]);
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const keys = Reflect.ownKeys(value);
+      if (
+        !keys.length ||
+        keys.some((key) => typeof key !== 'string' || !allowed.has(key) || !this.db.operators.has(key))
+      )
+        invalid('Request filter operator is unsupported');
+      for (const key of keys as string[]) this.assertFieldValue((value as Record<string, unknown>)[key]);
+    } else {
+      this.assertFieldValue(value);
+    }
+    const parsed = new FilterParser({ [field]: value }, { collection }).toSequelizeParams();
+    if (parsed.include?.length || Object.keys(parsed.where ?? {}).some((key) => key.includes('.'))) {
+      if (Object.hasOwn(parsed.where ?? {}, field)) return parsed.where as WhereOptions;
+      invalid('Nested association filters must use registered association paths');
+    }
+    return parsed.where as WhereOptions;
+  }
+
+  private assertFieldValue(value: unknown): void {
+    if (Array.isArray(value)) {
+      for (const entry of value) this.assertFieldValue(entry);
+      return;
+    }
+    if (value !== null && typeof value === 'object') invalid('Request filter operators require scalar JSON values');
+    if (value !== null && !['string', 'number', 'boolean'].includes(typeof value))
+      invalid('Request filter operators require scalar JSON values');
+  }
+}

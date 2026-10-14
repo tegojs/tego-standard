@@ -4,3 +4,4 @@ export { SimpleTable } from './SimpleTable';
 export type { SimpleTableColumn, SimpleTableProps } from './SimpleTable';
 export { ApprovalsSummary } from './ApprovalsSummary';
 export { SchemaComponentContextProvider } from './SchemaComponentContextProvider';
+export { CreateCheckLink } from '../../user-interface/pc/block/component/CreateCheckLink';

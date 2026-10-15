@@ -32,6 +32,7 @@ export interface AccessFilterTreeRequest {
   filter: AccessFilterNode;
   sourceWhere?: WhereOptions;
   sourceBind?: Record<string, unknown>;
+  reservedBindNames?: readonly string[];
   transaction?: Transaction;
 }
 
@@ -79,7 +80,7 @@ export class AccessFilterTreeService {
       )
         invalid('Unsupported filter tree input');
     };
-    shape(request, ['filter', 'sourceWhere', 'sourceBind', 'transaction']);
+    shape(request, ['filter', 'sourceWhere', 'sourceBind', 'reservedBindNames', 'transaction']);
     const { transaction, ...input } = request;
     request = { ...cloneDeep(input), transaction };
     const captured: CapturedCollection[] = [];
@@ -269,7 +270,12 @@ export class AccessFilterTreeService {
       return generator.selectQuery(model.getTableName(), options, model).replace(/;\s*$/, '');
     };
     const scope = async (entry: CapturedCollection, where: WhereOptions) => {
-      const result = await this.queries.scopeQuery(ctx, entry.identity, authenticated, { where, bind, transaction });
+      const result = await this.queries.scopeQuery(ctx, entry.identity, authenticated, {
+        where,
+        bind,
+        transaction,
+        reservedBindNames: request.reservedBindNames,
+      });
       assertCurrent();
       if (!result || result.config !== entry.config) invalid('Filter scope phase changed');
       bind = result.query.bind!;

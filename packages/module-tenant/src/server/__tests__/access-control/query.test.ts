@@ -100,6 +100,13 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('tenant access r
     return rows.map((row) => row.get('id'));
   }
 
+  it('reserves future binding names without adding unused values to root aggregates', async () => {
+    const scoped = await plan('B', 'read', { reservedBindNames: ['tac_scope0_0'] });
+    expect(scoped.query.bind).not.toHaveProperty('tac_scope0_0');
+    expect(await docs.model.count(scoped.query)).toBe(2);
+    expect(await docs.model.sum('amount', scoped.query)).toBe(400);
+  });
+
   it.each([
     ['H', [1, 2, 6], 900],
     ['B', [1, 3], 400],

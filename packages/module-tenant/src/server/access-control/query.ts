@@ -12,6 +12,8 @@ export interface AccessPredicateQuery {
   bind?: Record<string, unknown>;
   transaction?: Transaction;
   rootAlias?: string;
+  /** Names used by a later composed plan; reserve them without adding unused SQL bindings. */
+  reservedBindNames?: readonly string[];
 }
 
 export interface ResolvedAccessScopes {
@@ -108,6 +110,26 @@ export class AccessQueryService {
     }
     const bind = { ...options.bind };
     const keys = Object.keys(bind);
+    const reserved = options.reservedBindNames ?? [];
+    if (
+      !Array.isArray(reserved) ||
+      Object.getPrototypeOf(reserved) !== Array.prototype ||
+      reserved.length > 10000 ||
+      Reflect.ownKeys(reserved).length !== reserved.length + 1
+    )
+      throw new AccessRuleError('INVALID_ACCESS_RULE', 'Reserved bindings require a bounded dense list');
+    for (let index = 0; index < reserved.length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(reserved, index);
+      const name: unknown = descriptor?.value;
+      if (
+        !descriptor ||
+        !Object.hasOwn(descriptor, 'value') ||
+        typeof name !== 'string' ||
+        !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)
+      )
+        throw new AccessRuleError('INVALID_ACCESS_RULE', 'Invalid reserved SQL binding name');
+      keys.push(name);
+    }
     let index = 0;
     let parameterPrefix: string;
     do {

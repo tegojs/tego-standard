@@ -27,6 +27,13 @@ export interface AccessSortPlan extends ScopedAccessQuery {
   assertCurrent(): void;
 }
 
+export interface PreparedAccessSort {
+  readonly reservedBindNames: readonly string[];
+  /** Additional trusted predicates from a filter plan compiled after preparation. */
+  scopeRoots(predicate?: Pick<AccessSortRequest, 'sourceWhere' | 'sourceBind'>): Promise<AccessSortPlan>;
+  assertCurrent(): void;
+}
+
 interface CapturedSortCollection {
   collection: Collection;
   model: Collection['model'];
@@ -54,6 +61,16 @@ export class AccessSortService {
     authenticated: AccessIdentity,
     request: AccessSortRequest,
   ): Promise<AccessSortPlan> {
+    return this.prepareRoots(ctx, source, authenticated, request).scopeRoots();
+  }
+
+  /** Capture the entire ordering authorization synchronously, before filter compilation can await. */
+  prepareRoots(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessSortRequest,
+  ): PreparedAccessSort {
     if (
       !plain(request) ||
       Reflect.ownKeys(request).some(
@@ -100,8 +117,8 @@ export class AccessSortService {
     const snapshot = cloneDeep({ sourceWhere: values.sourceWhere, sourceBind: values.sourceBind });
     const captured = new Map<string, CapturedSortCollection>();
     const associations = new Map<string, SortAssociation>();
-    let bind: Record<string, unknown> = {};
-    const reserveBindings = (bindings: Record<string, unknown> | undefined) => {
+    const bind: Record<string, unknown> = {};
+    const reserveBindings = (bind: Record<string, unknown>, bindings: Record<string, unknown> | undefined) => {
       if (bindings === undefined) return;
       if (!plain(bindings)) invalid('Sort SQL bindings must be named');
       for (const key of Reflect.ownKeys(bindings)) {
@@ -115,7 +132,7 @@ export class AccessSortService {
         bind[key] = bindings[key];
       }
     };
-    reserveBindings(snapshot.sourceBind);
+    reserveBindings(bind, snapshot.sourceBind);
     const capture = (collection: Collection, path: string[], expected?: AccessCollectionIdentity) => {
       const pathKey = path.join('.');
       const previous = captured.get(pathKey);
@@ -134,7 +151,7 @@ export class AccessSortService {
         invalid('Sort grant does not match its registered collection');
       const config = this.prepared.configuration(ctx, grant.identity);
       if (!config) invalid('Sort collections require a prepared access configuration');
-      reserveBindings(grant.bind);
+      reserveBindings(bind, grant.bind);
       const entry = { collection, model: collection.model, grant, config };
       captured.set(pathKey, entry);
       return entry;
@@ -222,82 +239,106 @@ export class AccessSortService {
       metadataCurrent();
     };
     assertCurrent();
-    const qi = this.db.sequelize.getQueryInterface();
-    const quote = (name: string) => qi.quoteIdentifier(name);
-    const column = (model: Collection['model'], field: string) =>
-      `${quote(model.name)}.${quote(model.rawAttributes[field].field || field)}`;
-    const generator = qi.queryGenerator as unknown as {
-      selectQuery(
-        table: ReturnType<Collection['model']['getTableName']>,
-        options: object,
-        model: Collection['model'],
-      ): string;
+    const capturedBind = { ...bind };
+    return {
+      assertCurrent,
+      reservedBindNames: Object.freeze(Object.keys(capturedBind)),
+      scopeRoots: async (predicate = {}) => {
+        if (
+          !plain(predicate) ||
+          Reflect.ownKeys(predicate).some(
+            (key) =>
+              typeof key !== 'string' ||
+              !['sourceWhere', 'sourceBind'].includes(key) ||
+              !Object.hasOwn(Object.getOwnPropertyDescriptor(predicate, key)!, 'value'),
+          )
+        )
+          invalid('Unsupported additional sort predicate');
+        predicate = cloneDeep(predicate);
+        let bind = { ...capturedBind };
+        reserveBindings(bind, predicate.sourceBind);
+        const additionalRootBind = { ...rootBind };
+        reserveBindings(additionalRootBind, predicate.sourceBind);
+        assertCurrent();
+        const qi = this.db.sequelize.getQueryInterface();
+        const quote = (name: string) => qi.quoteIdentifier(name);
+        const column = (model: Collection['model'], field: string) =>
+          `${quote(model.name)}.${quote(model.rawAttributes[field].field || field)}`;
+        const generator = qi.queryGenerator as unknown as {
+          selectQuery(
+            table: ReturnType<Collection['model']['getTableName']>,
+            options: object,
+            model: Collection['model'],
+          ): string;
+        };
+        const orm = this.db.sequelize.constructor as unknown as {
+          Utils: { mapOptionFieldNames<T extends object>(options: T, model: Collection['model']): T };
+        };
+        const usedAliases = new Set([...captured.values()].map(({ model }) => model.name.toLowerCase()));
+        let aliasIndex = 0;
+        const nextAlias = () => {
+          let alias: string;
+          do {
+            alias = `tac_sort_${aliasIndex++}`;
+          } while (usedAliases.has(alias.toLowerCase()));
+          usedAliases.add(alias.toLowerCase());
+          return alias;
+        };
+        const conditions: WhereOptions[] = [];
+        if (root.grant.where !== undefined) conditions.push(root.grant.where);
+        if (snapshot.sourceWhere !== undefined) conditions.push(snapshot.sourceWhere);
+        if (predicate.sourceWhere !== undefined) conditions.push(predicate.sourceWhere);
+        const scoped = await this.queries.scopeQuery(ctx, source, authenticated, {
+          where: { [Op.and]: conditions },
+          bind,
+          transaction,
+        });
+        assertCurrent();
+        if (!scoped || scoped.config !== root.config) invalid('Sort root scope phase changed');
+        bind = scoped.query.bind!;
+        const rootQuery = { ...scoped.query, bind: { ...additionalRootBind, ...scoped.scopes.read.bind } };
+        const scopedTargets = new Map<SortAssociation, WhereOptions>();
+        for (const entry of associations.values()) {
+          const conditions: WhereOptions[] = [];
+          if (entry.target.grant.where !== undefined) conditions.push(entry.target.grant.where);
+          if (entry.relation.scope !== undefined) conditions.push(entry.relation.scope);
+          const scoped = await this.queries.scopeQuery(ctx, entry.target.grant.identity, authenticated, {
+            where: { [Op.and]: conditions },
+            bind,
+            transaction,
+          });
+          assertCurrent();
+          if (!scoped || scoped.config !== entry.target.config) invalid('Sort target scope phase changed');
+          bind = scoped.query.bind!;
+          scopedTargets.set(entry, scoped.query.where!);
+        }
+        const order = parsed.map(({ field, model, chain, direction }) => {
+          let expression = column(model, field);
+          for (const entry of [...chain].reverse()) {
+            const target = entry.target.model;
+            const options = orm.Utils.mapOptionFieldNames(
+              {
+                tableAs: target.name,
+                attributes: [
+                  literal(`${column(target, target.primaryKeyAttribute)} AS ${quote('match_key')}`),
+                  literal(`${expression} AS ${quote('sort_value')}`),
+                ],
+                where: scopedTargets.get(entry),
+              },
+              target,
+            );
+            const sql = generator.selectQuery(target.getTableName(), options, target).replace(/;\s*$/, '');
+            const alias = quote(nextAlias());
+            expression = `(SELECT ${alias}.${quote('sort_value')} FROM (${sql}) AS ${alias} WHERE ${alias}.${quote('match_key')} = ${column(entry.relation.sourceModel, entry.relation.foreignKey)})`;
+          }
+          // Both supported dialects implement NULLS LAST; inaccessible values cannot affect ordering.
+          return literal(`${expression} ${direction} NULLS LAST`);
+        });
+        // The internal tiebreaker is not projected and does not authorize querying a hidden field.
+        order.push(literal(`${column(root.model, root.model.primaryKeyAttribute)} ASC`));
+        assertCurrent();
+        return { ...scoped, query: { ...scoped.query, bind, order }, rootQuery, assertCurrent };
+      },
     };
-    const orm = this.db.sequelize.constructor as unknown as {
-      Utils: { mapOptionFieldNames<T extends object>(options: T, model: Collection['model']): T };
-    };
-    const usedAliases = new Set([...captured.values()].map(({ model }) => model.name.toLowerCase()));
-    let aliasIndex = 0;
-    const nextAlias = () => {
-      let alias: string;
-      do {
-        alias = `tac_sort_${aliasIndex++}`;
-      } while (usedAliases.has(alias.toLowerCase()));
-      usedAliases.add(alias.toLowerCase());
-      return alias;
-    };
-    const conditions: WhereOptions[] = [];
-    if (root.grant.where !== undefined) conditions.push(root.grant.where);
-    if (snapshot.sourceWhere !== undefined) conditions.push(snapshot.sourceWhere);
-    const scoped = await this.queries.scopeQuery(ctx, source, authenticated, {
-      where: { [Op.and]: conditions },
-      bind,
-      transaction,
-    });
-    assertCurrent();
-    if (!scoped || scoped.config !== root.config) invalid('Sort root scope phase changed');
-    bind = scoped.query.bind!;
-    const rootQuery = { ...scoped.query, bind: { ...rootBind, ...scoped.scopes.read.bind } };
-    const scopedTargets = new Map<SortAssociation, WhereOptions>();
-    for (const entry of associations.values()) {
-      const conditions: WhereOptions[] = [];
-      if (entry.target.grant.where !== undefined) conditions.push(entry.target.grant.where);
-      if (entry.relation.scope !== undefined) conditions.push(entry.relation.scope);
-      const scoped = await this.queries.scopeQuery(ctx, entry.target.grant.identity, authenticated, {
-        where: { [Op.and]: conditions },
-        bind,
-        transaction,
-      });
-      assertCurrent();
-      if (!scoped || scoped.config !== entry.target.config) invalid('Sort target scope phase changed');
-      bind = scoped.query.bind!;
-      scopedTargets.set(entry, scoped.query.where!);
-    }
-    const order = parsed.map(({ field, model, chain, direction }) => {
-      let expression = column(model, field);
-      for (const entry of [...chain].reverse()) {
-        const target = entry.target.model;
-        const options = orm.Utils.mapOptionFieldNames(
-          {
-            tableAs: target.name,
-            attributes: [
-              literal(`${column(target, target.primaryKeyAttribute)} AS ${quote('match_key')}`),
-              literal(`${expression} AS ${quote('sort_value')}`),
-            ],
-            where: scopedTargets.get(entry),
-          },
-          target,
-        );
-        const sql = generator.selectQuery(target.getTableName(), options, target).replace(/;\s*$/, '');
-        const alias = quote(nextAlias());
-        expression = `(SELECT ${alias}.${quote('sort_value')} FROM (${sql}) AS ${alias} WHERE ${alias}.${quote('match_key')} = ${column(entry.relation.sourceModel, entry.relation.foreignKey)})`;
-      }
-      // Both supported dialects implement NULLS LAST; inaccessible values cannot affect ordering.
-      return literal(`${expression} ${direction} NULLS LAST`);
-    });
-    // The internal tiebreaker is not projected and does not authorize querying a hidden field.
-    order.push(literal(`${column(root.model, root.model.primaryKeyAttribute)} ASC`));
-    assertCurrent();
-    return { ...scoped, query: { ...scoped.query, bind, order }, rootQuery, assertCurrent };
   }
 }

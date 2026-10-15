@@ -182,6 +182,33 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('scoped sorting 
     expect(await docs.model.sum('amount', query)).toBe(260);
     scoped.assertCurrent();
   });
+  it('reuses a prepared sort concurrently without leaking predicates or bindings between plans', async () => {
+    grants.set('project', {
+      identity: identities[1],
+      fields: ['name'],
+      where: literal('"projects"."display_name" = $sortWanted'),
+      bind: { sortWanted: 'Zebra' },
+    });
+    const prepared = sorts.prepareRoots(ctx, mainIdentity, { tenantId: 'B' }, { sort: ['project.name'] });
+    const plans = await Promise.all([
+      prepared.scopeRoots({
+        sourceWhere: literal('"documents"."record_id" >= $boundary'),
+        sourceBind: { boundary: 4 },
+      }),
+      prepared.scopeRoots({
+        sourceWhere: literal('"documents"."record_id" <= $boundary'),
+        sourceBind: { boundary: 2 },
+      }),
+    ]);
+    for (const [index, scoped] of plans.entries()) {
+      const records = await docs.model.findAll({ ...scoped.query, attributes: ['id'] });
+      expect(records.map((row) => row.getDataValue('id'))).toEqual(index ? [1, 2] : [4, 5, 6, 8]);
+      expect(scoped.rootQuery.bind).not.toHaveProperty('sortWanted');
+      expect(await docs.model.count(scoped.rootQuery)).toBe(index ? 2 : 4);
+      expect(await docs.model.sum('amount', scoped.rootQuery)).toBe(index ? 30 : 230);
+      scoped.assertCurrent();
+    }
+  });
   it('preserves source and target ACL predicates and named values', async () => {
     grants.set('', { identity: mainIdentity, fields: ['id', 'project'], where: { id: { [Op.ne]: 2 } } });
     grants.set('project', { identity: identities[1], fields: ['name'], where: { name: { [Op.ne]: 'Legacy' } } });

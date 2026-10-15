@@ -2,9 +2,11 @@ import { ACL, literal, Op, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { AccessManyToManyExpansionService } from '../../access-control/many-to-many-expansion';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
+import type { AccessEntryReadPermission } from '../../access-control/read-grants';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -25,6 +27,9 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
   let adapter: AccessAclScopeAdapter;
   let queries: AccessQueryService;
   let expansion: AccessManyToManyExpansionService;
+  let entry: AccessEntryReadService;
+  let permissions: Map<string, AccessEntryReadPermission | null>;
+  let permissionResolver: ReturnType<typeof vi.fn>;
   let ctx: object;
   const stableKey = (collection: Collection) =>
     accessCollectionKey({ ...mainIdentity, collectionKey: `${collection.name}-key`, collectionName: collection.name });
@@ -35,7 +40,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
   };
 
   beforeEach(async () => {
-    db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl) : sqliteDatabase();
+    db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl!) : sqliteDatabase();
     await seedConfigStore(db);
     await seedAclScopes(db);
     for (const name of ['documents', 'projects', 'links']) {
@@ -48,6 +53,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
           { name: 'tenantId', type: 'string', field: 'tenant_id' },
           { name: 'name', type: 'string', field: 'display_name' },
           { name: 'secret', type: 'string' },
+          { name: 'payload', type: 'json' },
           { name: 'deletedAt', type: 'date', field: 'deleted_at' },
           { name: 'enabled', type: 'boolean' },
           ...(name === 'links'
@@ -139,10 +145,22 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
     adapter = new AccessAclScopeAdapter(new ACL(), 'main', store, db);
     queries = new AccessQueryService(db, adapter, stableKey);
     expansion = new AccessManyToManyExpansionService(db, adapter, queries);
+    permissions = new Map();
+    permissionResolver = vi.fn((_collection: Collection, path: readonly string[]) =>
+      permissions.has(path.join('.')) ? permissions.get(path.join('.'))! : { allowed: true, params: {} },
+    );
+    entry = new AccessEntryReadService(
+      db,
+      adapter,
+      queries,
+      (collection) => ({ ...mainIdentity, collectionKey: `${collection.name}-key`, collectionName: collection.name }),
+      permissionResolver,
+    );
     await prepare();
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     try {
       if (dialect === 'postgres')
         await db.sequelize.query(
@@ -160,6 +178,203 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
       targetAttributes: ['id', 'name'],
       ...extra,
     });
+
+  const entryLoad = (sourceKeys: Array<string | number> = [1, 2, 4, 5], extra = {}) =>
+    entry.expandManyToMany(ctx, mainIdentity, authenticated, {
+      association: 'projects',
+      sourceKeys,
+      targetAttributes: ['name'],
+      ...extra,
+    });
+
+  it('entry intersects source target and through grants without exposing internal fields', async () => {
+    permissions.set('', { allowed: true, params: { fields: [], appends: ['projects'] } });
+    permissions.set('projects', { allowed: true, params: { fields: ['name'], filter: { name: { $ne: 'Owned' } } } });
+    permissions.set('projects.$through', { allowed: true, params: { fields: [], filter: { name: 'Visible' } } });
+    expect([...(await entryLoad())]).toEqual([
+      ['1', [{ name: 'Visible' }]],
+      ['2', []],
+      ['4', []],
+      ['5', []],
+    ]);
+    expect(permissionResolver.mock.calls.map(([, path]) => path)).toEqual([[], ['projects'], ['projects', '$through']]);
+    expect(permissionResolver.mock.calls.every(([, , operation]) => operation.kind === 'expandManyToMany')).toBe(true);
+  });
+  it.each(['source', 'association', 'target', 'field', 'through'])(
+    'entry denies missing %s permission before SQL',
+    async (side) => {
+      if (side === 'source') permissions.set('', null);
+      if (side === 'association') permissions.set('', { allowed: true, params: { fields: ['id'], appends: [] } });
+      if (side === 'target') permissions.set('projects', { allowed: false, params: {} });
+      if (side === 'field') permissions.set('projects', { allowed: true, params: { fields: [] } });
+      if (side === 'through') permissions.set('projects.$through', { allowed: false, params: {} });
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(entryLoad()).rejects.toThrow(/authorized/);
+      expect(query).not.toHaveBeenCalled();
+    },
+  );
+  it('entry compiles role-only target and through facts without granting them payload access', async () => {
+    links.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+    projects.setField('links', { type: 'hasMany', target: 'links', foreignKey: 'projectId' });
+    permissions.set('projects', { allowed: true, params: { fields: ['name'], filter: { links: { name: 'Hidden' } } } });
+    permissions.set('projects.$through', {
+      allowed: true,
+      params: { fields: [], filter: { document: { name: 'Owned' } } },
+    });
+    // Project 106 has only a hidden link. It can match an internal role fact but cannot be expanded.
+    expect([...(await entryLoad([1, 2]))]).toEqual([
+      ['1', []],
+      ['2', []],
+    ]);
+    expect(permissionResolver).toHaveBeenCalledTimes(3);
+    permissions.set('projects', { allowed: true, params: { fields: ['name'], filter: { links: { name: 'Owned' } } } });
+    expect([...(await entryLoad([1, 2]))]).toEqual([
+      ['1', [{ name: 'Owned' }]],
+      ['2', []],
+    ]);
+  });
+  it('entry snapshots all three permissions and source request before the first await', async () => {
+    const source = { allowed: true, params: { filter: { name: 'Owned' } } };
+    const targetPermission = { allowed: true, params: { fields: ['name'], filter: { name: 'Owned' } } };
+    const throughPermission = { allowed: true, params: { fields: [], filter: { name: 'Owned' } } };
+    permissions.set('', source);
+    permissions.set('projects', targetPermission);
+    permissions.set('projects.$through', throughPermission);
+    const keys = [1];
+    const fields = ['name'];
+    const original = queries.scopeQuery.bind(queries);
+    vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+      source.params.filter.name = 'Visible';
+      targetPermission.params.filter.name = 'Visible';
+      throughPermission.params.filter.name = 'Visible';
+      keys[0] = 2;
+      fields.push('secret');
+      return original(...args);
+    });
+    expect([...(await entryLoad(keys, { targetAttributes: fields }))]).toEqual([['1', [{ name: 'Owned' }]]]);
+    expect([...(await entryLoad([2]))]).toEqual([['2', []]]);
+  });
+  it('entry keeps overlapping tenant and through authorizations independent', async () => {
+    let resume!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const original = queries.scopeQuery.bind(queries);
+    vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+      entered();
+      await gate;
+      return original(...args);
+    });
+    permissionResolver.mockImplementation((_collection: Collection, path: readonly string[], operation) => ({
+      allowed: true,
+      params: path.includes('$through')
+        ? { fields: [], filter: { name: operation.authenticated.tenantId === 'B' ? 'Owned' : 'Hidden' } }
+        : path.length
+          ? { fields: ['name'] }
+          : {},
+    }));
+    const first = entryLoad([1]);
+    try {
+      await Promise.race([started, first]);
+      expect([
+        ...(await entry.expandManyToMany(
+          ctx,
+          mainIdentity,
+          { tenantId: 'C' },
+          {
+            association: 'projects',
+            sourceKeys: [3],
+            targetAttributes: ['name'],
+          },
+        )),
+      ]).toEqual([['3', []]]);
+    } finally {
+      resume();
+    }
+    expect([...(await first)]).toEqual([['1', [{ name: 'Owned' }]]]);
+  });
+  it.each(['source scope', 'source SQL', 'target scope', 'through scope', 'final SQL'])(
+    'entry rechecks through role facts after %s',
+    async (point) => {
+      links.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+      permissions.set('projects.$through', {
+        allowed: true,
+        params: { fields: [], filter: { document: { name: 'Owned' } } },
+      });
+      const change = () => {
+        (links.model.associations.document as unknown as { scope: object }).scope = { name: 'Changed' };
+      };
+      if (point.endsWith('scope')) {
+        const call = point === 'source scope' ? 1 : point === 'target scope' ? 2 : 3;
+        let count = 0;
+        const original = queries.scopeQuery.bind(queries);
+        vi.spyOn(queries, 'scopeQuery').mockImplementation(async (...args) => {
+          const result = await original(...args);
+          if (++count === call) change();
+          return result;
+        });
+      } else if (point === 'source SQL') {
+        const original = docs.model.findAll.bind(docs.model);
+        vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+          const result = await original(options);
+          change();
+          return result;
+        });
+      } else {
+        const original = db.sequelize.query.bind(db.sequelize);
+        vi.spyOn(db.sequelize, 'query').mockImplementation(async (...args) => {
+          const result = await original(...args);
+          if (String(args[0]).includes('tac_expansion_target')) change();
+          return result;
+        });
+      }
+      await expect(entryLoad([1])).rejects.toThrow(/changed/);
+    },
+  );
+  it('entry keeps SQL queries constant for 20 and 100 sources and deduplicates visible links', async () => {
+    links.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+    permissions.set('projects.$through', {
+      allowed: true,
+      params: { fields: [], filter: { document: { name: 'Owned' } } },
+    });
+    const keys = Array.from({ length: 100 }, (_, index) => index + 200);
+    await docs.model.bulkCreate(keys.map((id) => ({ id, tenantId: 'B', name: 'Owned' })));
+    await links.model.bulkCreate(
+      keys.flatMap((id) => [
+        { id: id + 1000, documentId: id, projectId: 101, tenantId: 'B' },
+        { id: id + 2000, documentId: id, projectId: 101, tenantId: 'B' },
+      ]),
+    );
+    const query = vi.spyOn(db.sequelize, 'query');
+    expect((await entryLoad(keys.slice(0, 20))).size).toBe(20);
+    const count = query.mock.calls.length;
+    query.mockClear();
+    const result = await entryLoad(keys);
+    expect(result.size).toBe(100);
+    expect([...result.values()]).toEqual(keys.map(() => [{ name: 'Owned' }]));
+    expect(query).toHaveBeenCalledTimes(count);
+  });
+  it('entry returns large authorized JSON and retains native values', async () => {
+    const payload = { items: Array.from({ length: 10050 }, (_, index) => index) };
+    await projects.model.update({ payload }, { where: { id: 101 } });
+    permissions.set('projects', { allowed: true, params: { fields: ['payload'], filter: { id: 101 } } });
+    expect([...(await entryLoad([1], { targetAttributes: ['payload'] }))]).toEqual([['1', [{ payload }]]]);
+    expect([...(await load([1], { targetAttributes: ['payload'], targetWhere: { id: 101 } }))]).toEqual([
+      ['1', [{ payload }]],
+    ]);
+  });
+  it.each([{ throughWhere: {} }, { through: target }, { association: 'projects.links' }, { sourceKeys: ['_'] }])(
+    'entry rejects unsupported many-to-many input %# before SQL',
+    async (extra) => {
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(entryLoad([1], extra)).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+    },
+  );
 
   it('batches readable targets and links without duplicates or losing empty roots', async () => {
     expect([...(await load())]).toEqual([
@@ -209,7 +424,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
     await projects.model.update({ deletedAt: date }, { where: { id: 101 } });
     const getter = vi.fn(() => 'secret');
     projects.model.rawAttributes.name.get = getter;
-    projects.model.refreshAttributes();
+    (projects.model as unknown as { refreshAttributes(): void }).refreshAttributes();
     expect([
       ...(await load([1], { targetWhere: { id: 101 }, targetAttributes: ['name', 'enabled', 'deletedAt'] })),
     ]).toEqual([['1', [{ name: 'Owned', enabled: true, deletedAt: date }]]]);
@@ -217,12 +432,13 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
   });
   it('does not claim historical sources targets or links', async () => {
     await load([4]);
+    expect([...(await entryLoad([4]))]).toEqual([['4', [{ name: 'Legacy' }]]]);
     for (const [model, id] of [
       [docs.model, 4],
       [projects.model, 104],
       [links.model, 8],
     ] as const)
-      expect((await model.findByPk(id)).getDataValue('tenantId')).toBeNull();
+      expect((await model.findByPk(id))!.getDataValue('tenantId')).toBeNull();
   });
   it('retains target and through association scopes', async () => {
     docs.setField('visibleProjects', {
@@ -278,6 +494,10 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
         ['2', [{ id: 101, name: 'Owned' }]],
         ['5', [{ id: 105, name: 'Other' }]],
       ]);
+      expect([...(await entryLoad([2, 5], { transaction }))]).toEqual([
+        ['2', [{ name: 'Owned' }]],
+        ['5', [{ name: 'Other' }]],
+      ]);
     } finally {
       await transaction.rollback();
     }
@@ -287,6 +507,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
     const ended = await db.sequelize.transaction();
     await ended.rollback();
     await expect(load([1], { transaction: ended })).rejects.toMatchObject({ code: 'MISSING_ACCESS_CONTEXT' });
+    await expect(entryLoad([1], { transaction: ended })).rejects.toMatchObject({ code: 'MISSING_ACCESS_CONTEXT' });
     const other = sqliteDatabase();
     const foreign = await other.sequelize.transaction();
     try {
@@ -360,6 +581,10 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
     }
     await prepare();
     expect((await load([1])).get('1')).toHaveLength(5);
+    expect((await entryLoad([1])).get('1')).toHaveLength(5);
+    permissions.set('projects', { allowed: true, params: { fields: ['name'], filter: { name: 'Visible' } } });
+    permissions.set('projects.$through', { allowed: true, params: { fields: [], filter: { name: 'Visible' } } });
+    expect([...(await entryLoad([1]))]).toEqual([['1', [{ name: 'Visible' }]]]);
     expect([...(await load([1], { throughWhere: { name: 'Visible' }, targetWhere: { name: 'Visible' } }))]).toEqual([
       ['1', [{ id: 102, name: 'Visible' }]],
     ]);
@@ -370,8 +595,9 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
       Array.from({ length: 100 }, (_, i) => ({ id: 200 + i, documentId: 200 + i, projectId: 101, tenantId: 'B' })),
     );
     const messages: string[] = [];
-    const logging = db.sequelize.options.logging;
-    db.sequelize.options.logging = (sql) => messages.push(sql);
+    const runtime = db.sequelize as unknown as { options: { logging: false | ((sql: string) => void) } };
+    const logging = runtime.options.logging;
+    runtime.options.logging = (sql) => messages.push(sql);
     try {
       expect((await load(Array.from({ length: 20 }, (_, i) => 200 + i))).size).toBe(20);
       const count = messages.length;
@@ -380,7 +606,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
       expect(messages).toHaveLength(count);
       expect(count).toBeLessThanOrEqual(5);
     } finally {
-      db.sequelize.options.logging = logging;
+      runtime.options.logging = logging;
     }
   });
   it('deduplicates in SQL before applying the expansion cap', async () => {
@@ -536,7 +762,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
       const original = db.sequelize.query.bind(db.sequelize);
       vi.spyOn(db.sequelize, 'query').mockImplementation(async (...args) => {
         const result = await original(...args);
-        if (args[1]?.model === projects.model)
+        if ((args[1] as { model?: unknown })?.model === projects.model)
           db.getCollection(identity.collectionName).model.rawAttributes.name.field = 'secret';
         return result;
       });
@@ -588,7 +814,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many ex
     const original = db.sequelize.query.bind(db.sequelize);
     vi.spyOn(db.sequelize, 'query').mockImplementation(async (...args) => {
       const result = await original(...args);
-      if (args[1]?.model === projects.model) adapter.release(ctx);
+      if ((args[1] as { model?: unknown })?.model === projects.model) adapter.release(ctx);
       return result;
     });
     await expect(load([1])).rejects.toMatchObject({ code: 'INVALID_ACCESS_CONFIG_WRITE' });

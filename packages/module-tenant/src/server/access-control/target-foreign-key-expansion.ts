@@ -29,6 +29,7 @@ export class AccessTargetForeignKeyExpansionService {
     private readonly db: Database,
     private readonly prepared: AccessAclScopeAdapter,
     private readonly queries: AccessQueryService,
+    private readonly assertAuthorizationCurrent?: () => void,
   ) {}
 
   async load(
@@ -91,6 +92,7 @@ export class AccessTargetForeignKeyExpansionService {
       { model: relation.targetModel, config: relation.targetConfig },
     ]);
     const current = () => {
+      this.assertAuthorizationCurrent?.();
       relation.current();
       verifyMetadata();
     };
@@ -110,6 +112,7 @@ export class AccessTargetForeignKeyExpansionService {
     const targetForeignKey = relation.foreignKey;
     const sourceConditions: WhereOptions[] = [{ [sourcePrimary]: { [Op.in]: keys } }];
     if (request.sourceWhere !== undefined) sourceConditions.push(request.sourceWhere);
+    current();
     const sourceScope = await this.queries.scopeQuery(ctx, source, authenticated, {
       where: { [Op.and]: sourceConditions },
       bind: request.sourceBind,
@@ -145,9 +148,8 @@ export class AccessTargetForeignKeyExpansionService {
     const grouped = new Map<string, TargetValues[]>();
     for (const record of records) {
       const key = normalizeKeys([record.getDataValue(targetForeignKey)], relation.source)[0];
-      const values = Object.freeze(
-        Object.fromEntries(attributes.map((name) => [name, cloneDeep(record.getDataValue(name))])),
-      );
+      // Fresh query values preserve authorized JSON without applying mutation input limits.
+      const values = Object.freeze(Object.fromEntries(attributes.map((name) => [name, record.getDataValue(name)])));
       const list = grouped.get(key) ?? [];
       list.push(values);
       grouped.set(key, list);

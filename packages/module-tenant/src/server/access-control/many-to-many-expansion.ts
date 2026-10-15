@@ -29,6 +29,7 @@ export class AccessManyToManyExpansionService {
     private readonly db: Database,
     private readonly prepared: AccessAclScopeAdapter,
     private readonly queries: AccessQueryService,
+    private readonly assertAuthorizationCurrent?: () => void,
   ) {}
 
   async load(
@@ -96,6 +97,7 @@ export class AccessManyToManyExpansionService {
       models.map((model, index) => ({ model, config: relation.configs[index]! })),
     );
     const current = () => {
+      this.assertAuthorizationCurrent?.();
       relation.current();
       verifyMetadata();
     };
@@ -115,6 +117,7 @@ export class AccessManyToManyExpansionService {
     const targetPrimary = relation.targetModel.primaryKeyAttribute;
     const sourceWhere: WhereOptions[] = [{ [sourcePrimary]: { [Op.in]: keys } }];
     if (request.sourceWhere !== undefined) sourceWhere.push(request.sourceWhere);
+    current();
     const sourceScope = await this.queries.scopeQuery(ctx, source, authenticated, {
       where: { [Op.and]: sourceWhere },
       bind: request.sourceBind,
@@ -207,9 +210,8 @@ export class AccessManyToManyExpansionService {
     const grouped = new Map<string, Readonly<Record<string, unknown>>[]>();
     for (const record of records) {
       const key = normalizeKeys([record.getDataValue(sourceAlias)], relation.source)[0];
-      const values = Object.freeze(
-        Object.fromEntries(attributes.map((name) => [name, cloneDeep(record.getDataValue(name))])),
-      );
+      // Fresh query values preserve authorized JSON without applying mutation input limits.
+      const values = Object.freeze(Object.fromEntries(attributes.map((name) => [name, record.getDataValue(name)])));
       const list = grouped.get(key) ?? [];
       list.push(values);
       grouped.set(key, list);

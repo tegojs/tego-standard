@@ -4,6 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessBelongsToExpansionService } from './belongs-to-expansion';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import type { AccessQueryService } from './query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
 import {
@@ -14,17 +15,22 @@ import {
   type AccessSumRequest,
 } from './reads';
 import { AccessRoleFilterCompiler } from './role-filter';
+import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
 import { cloneDeep, invalid, plain } from './write-support';
 
-export interface AccessEntryBelongsToExpansionRequest {
+export interface AccessEntryExpansionRequest {
   association: string;
   sourceKeys: Array<string | number>;
   targetAttributes: string[];
   transaction?: Transaction;
 }
 
+export type AccessEntryBelongsToExpansionRequest = AccessEntryExpansionRequest;
+
+type ExpansionKind = 'expandBelongsTo' | 'expandTargetForeignKey' | 'expandManyToMany';
+
 export interface AccessEntryReadOperation {
-  readonly kind: 'list' | 'get' | 'count' | 'sum' | 'expandBelongsTo';
+  readonly kind: 'list' | 'get' | 'count' | 'sum' | ExpansionKind;
   readonly context: object;
   readonly source: Readonly<AccessCollectionIdentity>;
   readonly authenticated: Readonly<AccessIdentity>;
@@ -116,11 +122,13 @@ export class AccessEntryReadService {
     return this.reader('sum', ctx, source, authenticated).sum(ctx, source, authenticated, request);
   }
 
-  async expandBelongsTo(
+  private expansion(
+    kind: ExpansionKind,
     ctx: object,
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
-    request: AccessEntryBelongsToExpansionRequest,
+    request: AccessEntryExpansionRequest,
+    types: readonly string[],
   ) {
     if (
       !plain(request) ||
@@ -155,19 +163,20 @@ export class AccessEntryReadService {
     if (
       typeof input.association !== 'string' ||
       !input.association ||
+      input.sourceKeys.includes('_') ||
       !input.targetAttributes.length ||
       new Set(input.targetAttributes).size !== input.targetAttributes.length
     )
       invalid('Select a direct association and distinct target attributes');
-    const authorization = this.operation('expandBelongsTo', ctx, source, authenticated);
+    const authorization = this.operation(kind, ctx, source, authenticated);
     const collection = this.db.getCollection(authorization.source.collectionName);
     const association =
       collection && Object.hasOwn(collection.model.associations, input.association)
         ? collection.model.associations[input.association]
         : undefined;
     const target = association && this.db.modelCollection.get(association.target);
-    if (!collection || !association || association.associationType !== 'BelongsTo' || !target || target.db !== this.db)
-      invalid('Select a registered same-database BelongsTo association');
+    if (!collection || !association || !types.includes(association.associationType) || !target || target.db !== this.db)
+      invalid('Select a registered same-database association of the requested type');
     const sourceGrant = authorization.resolveGrant(collection, Object.freeze([]));
     const targetGrant = authorization.resolveGrant(target, Object.freeze([input.association]));
     if (!sourceGrant || !sourceGrant.fields.includes(input.association) || !targetGrant)
@@ -187,18 +196,77 @@ export class AccessEntryReadService {
       )
     )
       invalid('Expansion attributes must be authorized physical target fields');
-    return new AccessBelongsToExpansionService(this.db, this.prepared, this.queries, authorization.assertCurrent).load(
-      ctx,
-      authorization.source,
-      targetGrant.identity,
-      authorization.authenticated,
-      {
+    return {
+      association,
+      authorization,
+      targetGrant,
+      request: {
         ...input,
         sourceWhere: sourceGrant.where,
         sourceBind: sourceGrant.bind,
         targetWhere: targetGrant.where,
         targetBind: targetGrant.bind,
       },
+    };
+  }
+
+  async expandBelongsTo(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessEntryBelongsToExpansionRequest,
+  ) {
+    const plan = this.expansion('expandBelongsTo', ctx, source, authenticated, request, ['BelongsTo']);
+    return new AccessBelongsToExpansionService(
+      this.db,
+      this.prepared,
+      this.queries,
+      plan.authorization.assertCurrent,
+    ).load(ctx, plan.authorization.source, plan.targetGrant.identity, plan.authorization.authenticated, plan.request);
+  }
+
+  async expandTargetForeignKey(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessEntryExpansionRequest,
+  ) {
+    const plan = this.expansion('expandTargetForeignKey', ctx, source, authenticated, request, ['HasMany', 'HasOne']);
+    return new AccessTargetForeignKeyExpansionService(
+      this.db,
+      this.prepared,
+      this.queries,
+      plan.authorization.assertCurrent,
+    ).load(ctx, plan.authorization.source, plan.targetGrant.identity, plan.authorization.authenticated, plan.request);
+  }
+
+  async expandManyToMany(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessEntryExpansionRequest,
+  ) {
+    const plan = this.expansion('expandManyToMany', ctx, source, authenticated, request, ['BelongsToMany']);
+    const association = plan.association as typeof plan.association & { through?: { model?: Collection['model'] } };
+    const through = association.through?.model && this.db.modelCollection.get(association.through.model);
+    if (!through || through.db !== this.db) invalid('Expansion through collection is unavailable');
+    const throughGrant = plan.authorization.resolveGrant(
+      through,
+      Object.freeze([plan.request.association, '$through']),
+    );
+    if (!throughGrant) invalid('Through expansion is not authorized');
+    return new AccessManyToManyExpansionService(
+      this.db,
+      this.prepared,
+      this.queries,
+      plan.authorization.assertCurrent,
+    ).load(
+      ctx,
+      plan.authorization.source,
+      plan.targetGrant.identity,
+      throughGrant.identity,
+      plan.authorization.authenticated,
+      { ...plan.request, throughWhere: throughGrant.where, throughBind: throughGrant.bind },
     );
   }
 }

@@ -4,6 +4,11 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessBelongsToExpansionService } from './belongs-to-expansion';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import {
+  AccessExpandedReadService,
+  type AccessExpandedGetRequest,
+  type AccessExpandedListRequest,
+} from './expanded-reads';
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import type { AccessQueryService } from './query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
@@ -112,6 +117,38 @@ export class AccessEntryReadService {
 
   get(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessGetRequest) {
     return this.reader('get', ctx, source, authenticated).get(ctx, source, authenticated, request);
+  }
+
+  listExpanded(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessExpandedListRequest,
+  ) {
+    const authorization = this.operation('list', ctx, source, authenticated);
+    return new AccessExpandedReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      authorization.resolveGrant,
+      authorization.assertCurrent,
+    ).list(ctx, authorization.source, authorization.authenticated, request);
+  }
+
+  getExpanded(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessExpandedGetRequest,
+  ) {
+    const authorization = this.operation('get', ctx, source, authenticated);
+    return new AccessExpandedReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      authorization.resolveGrant,
+      authorization.assertCurrent,
+    ).get(ctx, authorization.source, authorization.authenticated, request);
   }
 
   count(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessReadRequest = {}) {

@@ -76,6 +76,34 @@ export class AccessReadService {
     return row ? this.project(row, plan.attributes) : null;
   }
 
+  /** Internal assembly page: pairing keys are never added to the authorized output fields. */
+  async page(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessListRequest | AccessGetRequest,
+    kind: 'list' | 'get',
+  ) {
+    const plan = await this.plan(ctx, source, authenticated, request, kind, true);
+    const primary = plan.model.primaryKeyAttribute;
+    if (plan.model.primaryKeyAttributes.length !== 1) invalid('Assembly requires a single root primary key');
+    plan.assertCurrent();
+    const options = internalQuery({
+      ...plan.query,
+      attributes: [...new Set([primary, ...plan.attributes])],
+      ...(kind === 'list' ? { limit: plan.limit, offset: plan.offset } : { limit: 1 }),
+    });
+    const rows = await plan.model.findAll(options);
+    plan.assertCurrent();
+    return {
+      records: rows.map((row) => ({
+        key: normalizeKeys([row.getDataValue(primary)], plan.collection)[0],
+        values: this.project(row, plan.attributes),
+      })),
+      assertCurrent: plan.assertCurrent,
+    };
+  }
+
   async count(
     ctx: object,
     source: AccessCollectionIdentity,
@@ -113,6 +141,7 @@ export class AccessReadService {
     authenticated: AccessIdentity,
     request: unknown,
     kind: ReadKind,
+    allowEmptyAttributes = false,
   ) {
     const allowed = [
       'filter',
@@ -172,7 +201,7 @@ export class AccessReadService {
       if (
         !Array.isArray(input) ||
         Object.getPrototypeOf(input) !== Array.prototype ||
-        !input.length ||
+        (!allowEmptyAttributes && !input.length) ||
         input.length > 1000 ||
         Reflect.ownKeys(input).length !== input.length + 1
       )
@@ -257,6 +286,6 @@ export class AccessReadService {
       sorted?.assertCurrent();
     };
     assertCurrent();
-    return { model, query, attributes, field, limit, offset, assertCurrent };
+    return { collection, model, query, attributes, field, limit, offset, assertCurrent };
   }
 }

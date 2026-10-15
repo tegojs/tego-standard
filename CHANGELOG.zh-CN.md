@@ -9,6 +9,12 @@
 
 
 
+## [1.6.65] - 2026-10-15
+
+### ✨ 新增
+
+- quick initiation of vouchers ([#413](https://github.com/tegojs/tego-standard/pull/413)) (@dududuna)
+
 ## [1.6.64] - 2026-10-14
 
 ### 🐛 修复
@@ -3368,7 +3374,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.64...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.65...HEAD
+[1.6.65]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.65
 [1.6.64]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.64
 [1.6.63]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.63
 [1.6.62]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.62

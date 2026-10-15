@@ -8,6 +8,7 @@ function modelSnapshot(model: ModelStatic<Model>) {
   const runtime = model as unknown as { _scope: unknown; _timestampAttributes: { deletedAt?: string } };
   const deletedAt = runtime._timestampAttributes.deletedAt;
   return cloneDeep({
+    alias: model.name,
     table: model.getTableName(),
     primary: model.primaryKeyAttributes,
     attributes: Object.entries(model.rawAttributes).map(([name, attribute]) => [
@@ -24,7 +25,11 @@ function modelSnapshot(model: ModelStatic<Model>) {
 }
 
 /** Snapshot only registered metadata used by these rules, not every collection in the application. */
-export function accessMetadataGuard(db: Database, roots: Array<{ model: ModelStatic<Model>; config: AccessConfig }>) {
+export function accessMetadataGuard(
+  db: Database,
+  roots: Array<{ model: ModelStatic<Model>; config: AccessConfig }>,
+  paths: Array<{ model: ModelStatic<Model>; path: readonly string[] }> = [],
+) {
   const checks: Array<() => boolean> = [];
   const models = new Set<ModelStatic<Model>>();
   const captureModel = (model: ModelStatic<Model>) => {
@@ -95,6 +100,11 @@ export function accessMetadataGuard(db: Database, roots: Array<{ model: ModelSta
       visit(rule.subject, model);
       visit(rule.condition, model);
     }
+  }
+  for (const entry of paths) {
+    let model = entry.model;
+    captureModel(model);
+    for (const segment of entry.path) model = captureAssociation(model, segment);
   }
   return () => {
     if (checks.some((check) => !check())) invalid('Expansion authorization metadata changed during query');

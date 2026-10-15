@@ -1,9 +1,11 @@
-import { Plugin } from '@tachybase/client';
+import { Plugin, useCollection, useRequest } from '@tachybase/client';
 
 import { ProviderApprovalUpdateForm } from '../../../common/contexts/ApprovalUpdateForm.provider';
+import { tval } from '../../../locale';
 import { KitApprovalCommon } from '../common/kit';
 import { InitiateApplication } from './apply-list-old/InitiateApplication';
 import { ApplyList } from './apply-list/ApplyList';
+import { CreateCheckCancelAction, CreateCheckLink, createCheckSubmitAction } from './component/CreateCheckLink';
 import { KitApprovalBlockInitializer } from './initializers/kit';
 import { CarbonCopyBlockProvider } from './table-carbon-copy/CarbonCopyBlock.provider';
 import { CarbonCopyCenter } from './table-carbon-copy/CarbonCopyCenter.schema';
@@ -12,6 +14,30 @@ import { ViewTableInitiated } from './table-initiations/TableInitiated';
 import { ViewCheckLink as ViewCheckLinkTodos } from './table-todos/CheckLink.view';
 import { ViewTableTodos } from './table-todos/TableTodos.view';
 
+const QuickApprovalSchema = {
+  title: tval('Quickly initiate approval'),
+  Component: CreateCheckLink,
+  name: 'workflowApproval',
+  useVisible() {
+    const collection = useCollection();
+    const { data } = useRequest({
+      url: 'workflows:list',
+      params: {
+        filter: {
+          'config.centralized': true,
+          enabled: true,
+          'config.collection': collection.name,
+        },
+      },
+    });
+    return (
+      (collection.template !== 'view' || collection?.writableView) &&
+      collection.template !== 'file' &&
+      collection.template !== 'sql' &&
+      data?.['data']?.length
+    );
+  },
+};
 export class KitApprovalBlock extends Plugin {
   async afterAdd() {
     this.pm.add(KitApprovalCommon);
@@ -22,7 +48,8 @@ export class KitApprovalBlock extends Plugin {
     this.app.addComponents({
       CarbonCopyBlockProvider: CarbonCopyBlockProvider,
       CarbonCopyCenter: CarbonCopyCenter,
-
+      CreateCheckCancelAction: CreateCheckCancelAction,
+      createCheckSubmitAction: createCheckSubmitAction,
       // NOTE: 这里注册在全局, 而不是组件内的作用域, 是为了让手机端共享到
       ProviderApprovalUpdateForm: ProviderApprovalUpdateForm,
 
@@ -48,5 +75,15 @@ export class KitApprovalBlock extends Plugin {
       'ApprovalBlock.ViewActionLaunch': ViewCheckLinkInitiations,
       'ApprovalBlock.ViewActionTodos': ViewCheckLinkTodos,
     });
+    this.app.schemaInitializerManager.addItem(
+      `details:configureActions`,
+      'customize.workflowApproval',
+      QuickApprovalSchema,
+    );
+    this.app.schemaInitializerManager.addItem(
+      `editForm:configureActions`,
+      'customize.workflowApproval',
+      QuickApprovalSchema,
+    );
   }
 }

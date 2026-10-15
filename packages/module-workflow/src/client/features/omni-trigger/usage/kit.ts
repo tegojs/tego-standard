@@ -16,21 +16,5 @@ export class KitAPIRegularUsage extends Plugin {
     });
 
     this.app.schemaSettingsManager.add(APIRegularActionSettings);
-
-    ['table', 'details'].forEach((block) => {
-      this.app.schemaInitializerManager.addItem(`${block}:configureActions`, 'customize.APIRegular', {
-        title: tval('Trigger workflow'),
-        Component: 'APIRegularInitializer',
-        name: 'apiRegular',
-        useVisible() {
-          const collection = useCollection();
-          return (
-            (collection.template !== 'view' || collection?.writableView) &&
-            collection.template !== 'file' &&
-            collection.template !== 'sql'
-          );
-        },
-      });
-    });
   }
 }

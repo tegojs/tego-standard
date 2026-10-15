@@ -26,6 +26,7 @@ export class AccessBelongsToExpansionService {
     private readonly db: Database,
     private readonly prepared: AccessAclScopeAdapter,
     private readonly queries: AccessQueryService,
+    private readonly assertAuthorizationCurrent?: () => void,
   ) {}
 
   async load(
@@ -74,6 +75,7 @@ export class AccessBelongsToExpansionService {
       { model: relation.targetModel, config: relation.targetConfig },
     ]);
     const current = () => {
+      this.assertAuthorizationCurrent?.();
       relation.current();
       verifyMetadata();
     };
@@ -95,6 +97,7 @@ export class AccessBelongsToExpansionService {
     const targetPrimary = relation.targetModel.primaryKeyAttribute;
     const sourceConditions: WhereOptions[] = [{ [sourcePrimary]: { [Op.in]: keys } }];
     if (request.sourceWhere !== undefined) sourceConditions.push(request.sourceWhere);
+    current();
     const sourceScope = await this.queries.scopeQuery(ctx, source, authenticated, {
       where: { [Op.and]: sourceConditions },
       bind: request.sourceBind,
@@ -144,9 +147,9 @@ export class AccessBelongsToExpansionService {
       keys.map((key) => {
         const foreign = foreignKeys.get(key);
         const record = foreign == null ? undefined : readable.get(foreign);
-        // Raw values omit virtual/custom getters and internal pairing keys not explicitly selected.
+        // Fresh query values omit getters/internal keys; mutation input limits must not truncate authorized JSON.
         const values = record
-          ? Object.freeze(Object.fromEntries(attributes.map((name) => [name, cloneDeep(record.getDataValue(name))])))
+          ? Object.freeze(Object.fromEntries(attributes.map((name) => [name, record.getDataValue(name)])))
           : null;
         return [key, values] as const;
       }),

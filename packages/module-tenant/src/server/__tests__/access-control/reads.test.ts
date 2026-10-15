@@ -2,9 +2,10 @@ import { ACL, literal, Op, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
-import { AccessReadGrantAdapter } from '../../access-control/read-grants';
+import { AccessReadGrantAdapter, type AccessEntryReadPermission } from '../../access-control/read-grants';
 import { AccessReadService } from '../../access-control/reads';
 import type { AccessFilterReadGrant } from '../../access-control/request-filter';
 import { seedAclScopes } from './acl-database';
@@ -25,6 +26,9 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
   let reads: AccessReadService;
   let grants: Map<string, AccessFilterReadGrant | null>;
   let resolver: ReturnType<typeof vi.fn>;
+  let entryReads: AccessEntryReadService;
+  let permissions: Map<string, AccessEntryReadPermission | null>;
+  let entryResolver: ReturnType<typeof vi.fn>;
   let ctx: object;
   const auth = { tenantId: 'B' };
   beforeEach(async () => {
@@ -116,6 +120,17 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
           },
     );
     reads = new AccessReadService(db, adapter, queries, resolver);
+    permissions = new Map();
+    entryResolver = vi.fn((_collection: Collection, path: readonly string[]) =>
+      permissions.has(path.join('.')) ? permissions.get(path.join('.'))! : { allowed: true, params: {} },
+    );
+    entryReads = new AccessEntryReadService(
+      db,
+      adapter,
+      queries,
+      (collection) => identities.find((identity) => identity.collectionName === collection.name),
+      entryResolver,
+    );
   });
   afterEach(async () => {
     vi.restoreAllMocks();
@@ -133,6 +148,191 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     reads.get(ctx, mainIdentity, auth, { key, attributes: ['id'], ...request });
   const count = (filter: unknown = {}) => reads.count(ctx, mainIdentity, auth, { filter });
   const sum = (filter: unknown = {}) => reads.sum(ctx, mainIdentity, auth, { field: 'amount', filter });
+  const entryList = (request: object = {}) =>
+    entryReads.list(ctx, mainIdentity, auth, { attributes: ['id'], ...request });
+  const entryOperation = (kind: 'list' | 'get' | 'count' | 'sum') => {
+    if (kind === 'list') return entryList();
+    if (kind === 'get') return entryReads.get(ctx, mainIdentity, auth, { key: 2, attributes: ['id'] });
+    if (kind === 'count') return entryReads.count(ctx, mainIdentity, auth);
+    return entryReads.sum(ctx, mainIdentity, auth, { field: 'amount' });
+  };
+  it('entry supports relational finalized ACL conditions across all four reads without exposing fact fields', async () => {
+    const acl = new ACL();
+    acl.setAvailableAction('view', { aliases: ['get', 'list'] });
+    const role = acl.define({ role: 'reader' });
+    role.grantAction('documents:view', {
+      fields: ['id', 'amount'],
+      appends: [],
+      filter: { 'project.name': '{{ ctx.state.currentUser.projectName }}' },
+    });
+    acl.addFixedParams('documents', 'list', () => ({ filter: { amount: { $gte: 15 } } }));
+    const can = acl.can({ role: 'reader', resource: 'documents', action: 'list' })!;
+    const params = await acl.parseJsonTemplate(structuredClone(can.params), {
+      db,
+      state: { currentRole: 'reader', currentUser: { projectName: 'Secret' } },
+    } as unknown as Parameters<ACL['parseJsonTemplate']>[1]);
+    permissions.set('', { allowed: true, params });
+    permissions.set('project', { allowed: false, params: {} });
+    expect(await entryOperation('list')).toEqual([{ id: 2 }]);
+    expect(await entryOperation('get')).toEqual({ id: 2 });
+    expect(await entryOperation('count')).toBe(1);
+    expect(await entryOperation('sum')).toBe(20);
+    await expect(entryList({ attributes: ['name'] })).rejects.toThrow(/authorized/);
+    await expect(entryList({ filter: { project: { name: 'Secret' } } })).rejects.toThrow(/authorized/);
+    expect(entryResolver.mock.calls.every(([, path]) => !path.length)).toBe(true);
+  });
+  it('entry keeps role conditions and G/V outside an OR request filter', async () => {
+    permissions.set('', { allowed: true, params: { filter: { project: { name: 'Zebra' } } } });
+    expect(await entryList({ filter: { $or: [{ id: 3 }, { id: 1 }, { id: 2 }] } })).toEqual([{ id: 1 }]);
+    expect(await entryReads.get(ctx, mainIdentity, auth, { key: 3, attributes: ['id'] })).toBeNull();
+  });
+  it('entry request associations remain scoped independently of role authorization facts', async () => {
+    permissions.set('', {
+      allowed: true,
+      params: { fields: ['id', 'amount'], appends: ['project'], filter: { project: { name: 'Secret' } } },
+    });
+    permissions.set('project', { allowed: true, params: { fields: ['name'] } });
+    expect(await entryList({ sort: ['project.name'] })).toEqual([{ id: 2 }]);
+    const filter = { project: { name: 'Secret' } };
+    expect(await entryList({ filter })).toEqual([]);
+    expect(await entryReads.count(ctx, mainIdentity, auth, { filter })).toBe(0);
+    expect(await entryReads.sum(ctx, mainIdentity, auth, { field: 'amount', filter })).toBeNull();
+  });
+  it.each(['list', 'get', 'count', 'sum'] as const)(
+    'entry denies missing operation permission for %s',
+    async (kind) => {
+      permissions.set('', { allowed: false, params: {} });
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(entryOperation(kind)).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+    },
+  );
+  it('entry snapshots permission JSON before asynchronous scope resolution and refreshes each operation', async () => {
+    const permission = { allowed: true, params: { fields: ['id'], filter: { project: { name: 'Secret' } } } };
+    permissions.set('', permission);
+    const original = queries.scopeQuery.bind(queries);
+    vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+      permission.params.filter.project.name = 'Zebra';
+      permission.params.fields[0] = 'amount';
+      return original(...args);
+    });
+    expect(await entryList()).toEqual([{ id: 2 }]);
+    expect(await entryList({ attributes: ['amount'] })).toEqual([{ amount: 10 }]);
+    expect(entryResolver.mock.calls.filter(([, path]) => !path.length)).toHaveLength(2);
+  });
+  it('entry isolates simultaneous reads on the same service', async () => {
+    permissions.set('', { allowed: true, params: { filter: { project: { name: 'Secret' } } } });
+    let resume!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const original = queries.scopeQuery.bind(queries);
+    vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+      entered();
+      await gate;
+      return original(...args);
+    });
+    const first = entryList();
+    try {
+      await Promise.race([started, first]);
+      permissions.set('', { allowed: true, params: { filter: { project: { name: 'Zebra' } } } });
+      expect(await entryList()).toEqual([{ id: 1 }]);
+    } finally {
+      resume();
+    }
+    expect(await first).toEqual([{ id: 2 }]);
+  });
+  it('entry resolves permissions for the specific operation and trusted identity', async () => {
+    const kinds: string[] = [];
+    entryReads = new AccessEntryReadService(
+      db,
+      adapter,
+      queries,
+      (collection) => identities.find((identity) => identity.collectionName === collection.name),
+      (_collection, _path, operation) => {
+        expect(operation.context).toBe(ctx);
+        expect(operation.source).toEqual(mainIdentity);
+        expect(operation.authenticated).toEqual(auth);
+        kinds.push(operation.kind);
+        return { allowed: operation.kind !== 'get', params: { fields: ['id', 'amount'] } };
+      },
+    );
+    expect(await entryOperation('list')).toHaveLength(4);
+    await expect(entryOperation('get')).rejects.toThrow(/authorized/);
+    expect(await entryOperation('count')).toBe(4);
+    expect(await entryOperation('sum')).toBe(120);
+    expect(kinds).toEqual(['list', 'get', 'count', 'sum']);
+  });
+  it.each([
+    'fields prototype',
+    'appends prototype',
+    'permission prototype',
+    'hidden permission key',
+    'hidden params key',
+    'hidden own',
+  ])('entry rejects malformed permission %s before cloning or spreading', async (invalidCase) => {
+    const permission = { allowed: true, params: { fields: ['id'], appends: ['project'] } };
+    if (invalidCase === 'fields prototype')
+      Object.setPrototypeOf(permission.params.fields, Object.create(Array.prototype));
+    if (invalidCase === 'appends prototype')
+      Object.setPrototypeOf(permission.params.appends, Object.create(Array.prototype));
+    if (invalidCase === 'permission prototype') Object.setPrototypeOf(permission, { custom: true });
+    if (invalidCase === 'hidden permission key') Object.defineProperty(permission, 'extra', { value: true });
+    if (invalidCase === 'hidden params key') Object.defineProperty(permission.params, 'extra', { value: true });
+    if (invalidCase === 'hidden own') Object.defineProperty(permission.params, 'own', { value: true });
+    permissions.set('', permission);
+    const query = vi.spyOn(db.sequelize, 'query');
+    await expect(entryList()).rejects.toThrow();
+    expect(query).not.toHaveBeenCalled();
+  });
+  it('entry preserves non-enumerable field restrictions', async () => {
+    permissions.set('', { allowed: true, params: Object.defineProperty({}, 'fields', { value: ['id'] }) });
+    expect(await entryList()).toHaveLength(4);
+    await expect(entryList({ attributes: ['name'] })).rejects.toThrow(/authorized/);
+  });
+  it('entry rejects changed role-only metadata during scope preparation before root SQL', async () => {
+    permissions.set('', { allowed: true, params: { filter: { project: { name: 'Secret' } } } });
+    const original = queries.scopeQuery.bind(queries);
+    vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+      const result = await original(...args);
+      projects.model.rawAttributes.name.field = 'changed_field';
+      return result;
+    });
+    const find = vi.spyOn(docs.model, 'findAll');
+    await expect(entryList()).rejects.toThrow(/changed/);
+    expect(find).not.toHaveBeenCalled();
+  });
+  it.each(['list', 'get', 'count', 'sum'] as const)(
+    'entry checks role-only metadata after executing %s',
+    async (kind) => {
+      permissions.set('', { allowed: true, params: { filter: { project: { name: 'Secret' } } } });
+      const query = db.sequelize.query.bind(db.sequelize);
+      vi.spyOn(db.sequelize, 'query').mockImplementation(async (...args) => {
+        const result = await query(...args);
+        if (String(args[0]).includes('read_documents')) projects.model.rawAttributes.name.field = 'changed_field';
+        return result;
+      });
+      await expect(entryOperation(kind)).rejects.toThrow(/changed/);
+    },
+  );
+  it('entry checks sort-only target role facts captured before filtering awaits', async () => {
+    projects.setField('related', { type: 'belongsTo', target: 'projects', foreignKey: 'projectId' });
+    await projects.model.update({ projectId: 103 }, { where: { id: 101 } });
+    permissions.set('project', { allowed: true, params: { fields: ['name'], filter: { related: { name: 'Alpha' } } } });
+    const original = queries.scopeQuery.bind(queries);
+    vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+      const result = await original(...args);
+      Object.assign(projects.model.associations.related, { scope: { name: 'Zebra' } });
+      return result;
+    });
+    const find = vi.spyOn(docs.model, 'findAll');
+    await expect(entryList({ sort: ['project.name'] })).rejects.toThrow(/changed/);
+    expect(find).not.toHaveBeenCalled();
+  });
   it('uses the same G/V and root constraints for all four operations', async () => {
     expect(await list()).toEqual([1, 2, 4, 5].map((id) => ({ id })));
     expect(await count()).toBe(4);

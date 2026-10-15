@@ -3,6 +3,7 @@ import { literal, Op, type Collection, type Database, type WhereOptions } from '
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessFilterNode } from './filter-tree';
 import { AccessRequestFilterParser, type AccessFilterReadGrant } from './request-filter';
+import type { AccessRoleFilterCompiler } from './role-filter';
 import { cloneDeep, invalid, plain } from './write-support';
 
 /** Server-finalized operation authorization, never action params or request headers. */
@@ -58,6 +59,30 @@ export class AccessReadGrantAdapter {
   ) {}
 
   capture(identity: AccessCollectionIdentity, permission: AccessEntryReadPermission): AccessFilterReadGrant | null {
+    const prepared = this.prepare(identity, permission);
+    if (!prepared) return null;
+    const { collection, physical, grant, filter } = prepared;
+    // ACL conditions may use hidden root fields, independently of output authorization.
+    const parsed = new AccessRequestFilterParser(this.db, (target, path) => {
+      if (target !== collection || path.length) invalid('Relational role scopes require a dedicated entry adapter');
+      return { identity: grant.identity, fields: physical };
+    }).parse(grant.identity, filter);
+    return Object.freeze({ ...grant, where: this.where(parsed.filter) });
+  }
+
+  /** Compiled relationship permissions require a lifecycle-aware consumer; never return a bare grant. */
+  capturePlan(
+    identity: AccessCollectionIdentity,
+    permission: AccessEntryReadPermission,
+    compiler: AccessRoleFilterCompiler,
+  ): { grant: AccessFilterReadGrant; assertCurrent(): void } | null {
+    const prepared = this.prepare(identity, permission);
+    if (!prepared) return null;
+    const role = compiler.compile(prepared.grant.identity, prepared.filter);
+    return { grant: Object.freeze({ ...prepared.grant, where: role.where }), assertCurrent: role.assertCurrent };
+  }
+
+  private prepare(identity: AccessCollectionIdentity, permission: AccessEntryReadPermission) {
     shape(identity, ['dataSourceKey', 'collectionKey', 'collectionName']);
     identity = cloneDeep(identity);
     const key = accessCollectionKey(identity);
@@ -83,16 +108,12 @@ export class AccessReadGrantAdapter {
     const outputFields = [...(fields ?? physical), ...(appends ?? (fields === undefined ? relations : []))];
     const filter = params.filter === undefined ? {} : params.filter;
     this.assertResolved(filter);
-    // ACL conditions may use hidden root fields, independently of output authorization.
-    const parsed = new AccessRequestFilterParser(this.db, (target, path) => {
-      if (target !== collection || path.length) invalid('Relational role scopes require a dedicated entry adapter');
-      return { identity, fields: physical };
-    }).parse(identity, filter);
-    return Object.freeze({
-      identity: Object.freeze(identity),
-      fields: Object.freeze(outputFields),
-      where: this.where(parsed.filter),
-    });
+    return {
+      collection,
+      physical,
+      filter,
+      grant: Object.freeze({ identity: Object.freeze(identity), fields: Object.freeze(outputFields) }),
+    };
   }
 
   private assertResolved(value: unknown): void {

@@ -45,6 +45,7 @@ export class AccessReadService {
     private readonly prepared: AccessAclScopeAdapter,
     private readonly queries: AccessQueryService,
     private readonly resolveGrant: AccessFilterGrantResolver,
+    private readonly assertAuthorizationCurrent?: () => void,
   ) {}
 
   async list(
@@ -228,6 +229,7 @@ export class AccessReadService {
             { sort: request.sort === undefined ? [] : request.sort, transaction },
           )
         : undefined;
+    this.assertAuthorizationCurrent?.();
     const filtered = await new AccessFilterTreeService(this.db, this.prepared, this.queries).scopeRoots(
       ctx,
       source,
@@ -235,6 +237,7 @@ export class AccessReadService {
       { ...parsed, transaction, reservedBindNames: sorting?.reservedBindNames },
     );
     const current = () => {
+      this.assertAuthorizationCurrent?.();
       if (
         this.prepared.configuration(ctx, source) !== config ||
         !this.queries.isCurrentCollection(source, collection, model)

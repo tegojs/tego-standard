@@ -4,6 +4,7 @@ import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
+import { AccessReadGrantAdapter } from '../../access-control/read-grants';
 import { AccessReadService } from '../../access-control/reads';
 import type { AccessFilterReadGrant } from '../../access-control/request-filter';
 import { seedAclScopes } from './acl-database';
@@ -138,6 +139,40 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     expect(await sum()).toBe(120);
     expect(await get(2)).toEqual({ id: 2 });
     for (const id of [3, 6, 7, 999]) expect(await get(id)).toBeNull();
+  });
+  it('uses finalized role grants consistently without exposing role-filter fields', async () => {
+    const acl = new ACL();
+    acl.setAvailableAction('view', { aliases: ['get', 'list'] });
+    const role = acl.define({ role: 'reader' });
+    role.grantAction('documents:view', {
+      fields: ['id', 'amount'],
+      appends: ['project'],
+      filter: { name: '{{ ctx.state.currentUser.name }}' },
+    });
+    role.grantAction('projects:view', { fields: ['name'], filter: { name: 'Zebra' } });
+    acl.addFixedParams('documents', 'list', () => ({ filter: { amount: { $gte: 15 } } }));
+    const entry = new AccessReadGrantAdapter(db, (collection) =>
+      accessCollectionKey(identities.find((identity) => identity.collectionName === collection.name)!),
+    );
+    for (const identity of identities) {
+      const can = acl.can({ role: 'reader', resource: identity.collectionName, action: 'list' })!;
+      const params = await acl.parseJsonTemplate(structuredClone(can.params), {
+        db,
+        state: { currentRole: 'reader', currentUser: { name: 'Visible' } },
+      } as unknown as Parameters<ACL['parseJsonTemplate']>[1]);
+      grants.set(identity === mainIdentity ? '' : 'project', entry.capture(identity, { allowed: true, params }));
+    }
+    expect(await list()).toEqual([{ id: 2 }]);
+    expect(await count()).toBe(1);
+    expect(await sum()).toBe(20);
+    expect(await get(2)).toEqual({ id: 2 });
+    expect(await get(1)).toBeNull();
+    const filter = { project: { name: 'Secret' } };
+    expect(await list({ filter })).toEqual([]);
+    expect(await count(filter)).toBe(0);
+    expect(await sum(filter)).toBeNull();
+    expect(await get(2, { filter })).toBeNull();
+    await expect(list({ attributes: ['name'] })).rejects.toThrow(/authorized/);
   });
   it('combines parsed association filters with ordering without changing aggregate roots', async () => {
     const filter = { project: { name: { $includes: 'a' } } };

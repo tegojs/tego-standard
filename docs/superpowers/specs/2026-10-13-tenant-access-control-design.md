@@ -356,6 +356,8 @@ HasMany/HasOne 增加同库不同单主键模型的有限页批量展开服务�
 
 一对多、多对多关联进一步支持独立 `countAssociationFromParams` 与内部 `sumAssociationFromParams`。它们复用列表/详情的关系准备器和根查询执行器，分别捕获 count/sum 的最终操作权限；来源、目标、中间表仍独立执行角色条件与 G/V，重复连接不增加计数或金额。求和需要当前路径允许的物理数值字段，计数可以不授权输出字段；日期按目标字段解析，事务由可信调用者独立提供。`fromResource` 仅增加具体来源 HasMany/BelongsToMany count，拒绝单值关系汇总、占位符汇总和关联 sum 路由：核心 `/_/` 直读契约只属于 get/list，内部 sum 不能冒充通用 aggregate。核心单值关系的 find 返回一条记录或 null，因此不扩展成分页列表协议。详见 [关联数据汇总读取计划](../plans/2026-10-16-tenant-access-control-association-summary.md)。本阶段仍未注册业务路由或启用业务配置；多层资源路径、业务中间件及其他入口、管理界面和真实业务验收仍待完成。
 
+内部根读取增加标量 `aggregate`，以独立操作权限复用列表的根条件、关联筛选、角色条件、G/V 及生命周期检查。支持明确物理字段的 `avg/count/min/max/sum` 和布尔 `distinct`；count 统计字段非空值，其余仅限数值字段，空集合分别返回 0/null。重复关联不重复根记录；`distinct` 另用于去重字段值，只接受数值、字符串、布尔和日期等支持标量，JSON 等在 SQL 前拒绝。平均值明确按浮点结果读取，避免整数字段被截断或 PostgreSQL 返回字符串；count 明确按整数读取，避免字符串字段返回文本。同步补齐内置 double 的实际数值类型键，原 sum 不再误拒合法双精度字段。SQL 表达式、分组、输出展开、底层类型和分页选项均不接受。详见 [根记录数值统计计划](../plans/2026-10-16-tenant-access-control-numeric-aggregates.md)。核心没有通用 aggregate 资源 action，也不支持任意多层资源路径，本阶段不自行扩展这些协议；实际图表、导出、工作流入口、业务中间件、管理界面和真实业务验收仍待完成。新模型尚未注册或启用。
+
 ## 13. 第一阶段的具体原型与验收数据
 
 第一阶段只在独立测试库验证条件、查询和事务能力，不修改现有业务表、不启用生产规则。SQLite 用于条件单测；PostgreSQL 用于实际 SQL、计划和并发验证，不能用 SQLite 通过代替后者。

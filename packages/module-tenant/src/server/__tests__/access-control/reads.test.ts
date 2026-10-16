@@ -150,6 +150,209 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       entryResolver,
     );
   });
+  describe('numeric aggregate', () => {
+    const aggregate = (request: Record<string, unknown>) =>
+      entryReads.aggregate(ctx, mainIdentity, auth, request as never);
+
+    it.each([
+      ['avg', 30],
+      ['min', 10],
+      ['max', 50],
+      ['sum', 120],
+      ['count', 4],
+    ] as const)('computes %s over the same scoped roots as the list', async (method, expected) => {
+      expect(await aggregate({ method, field: 'amount' })).toBe(expected);
+      permissions.set('', { allowed: true, params: { filter: { amount: { $gte: 20 } } } });
+      expect(await aggregate({ method, field: 'amount', filter: { amount: { $lte: 40 } } })).toBe(
+        method === 'avg' ? 30 : method === 'min' ? 20 : method === 'max' ? 40 : method === 'count' ? 2 : 60,
+      );
+    });
+    it.each(['avg', 'min', 'max', 'sum', 'count'] as const)('preserves empty-set semantics for %s', async (method) => {
+      expect(await aggregate({ method, field: 'amount', filter: { id: 3 } })).toBe(method === 'count' ? 0 : null);
+    });
+    it.each([
+      ['avg', 2.5],
+      ['min', 1.25],
+      ['max', 3.75],
+      ['sum', 7.5],
+      ['count', 3],
+    ] as const)('supports the built-in double field for %s including distinct', async (method, expected) => {
+      docs.setField('stat', { type: 'double', field: 'stat_value' });
+      await db.sequelize.getQueryInterface().addColumn('read_documents', 'stat_value', {
+        type: docs.model.rawAttributes.stat.type,
+      });
+      for (const [id, stat] of [
+        [1, 1.25],
+        [2, 2.5],
+        [3, 100],
+        [5, 3.75],
+      ])
+        await docs.model.update({ stat }, { where: { id } });
+      expect(await aggregate({ method, field: 'stat', distinct: true })).toBe(expected);
+      if (method === 'sum') expect(await reads.sum(ctx, mainIdentity, auth, { field: 'stat' })).toBe(7.5);
+    });
+    it('counts authorized non-null values including strings and distinguishes distinct values from root count', async () => {
+      await docs.model.update({ amount: 10 }, { where: { id: 2 } });
+      expect(await aggregate({ method: 'count', field: 'projectId' })).toBe(3);
+      expect(await aggregate({ method: 'count', field: 'name', distinct: true })).toBe(4);
+      expect(await aggregate({ method: 'sum', field: 'amount', distinct: true })).toBe(100);
+      expect(await aggregate({ method: 'avg', field: 'amount', distinct: true })).toBeCloseTo(100 / 3);
+      expect(await aggregate({ method: 'count', field: 'amount', distinct: true })).toBe(3);
+      expect(await aggregate({ method: 'sum', field: 'amount', distinct: false })).toBe(110);
+      expect(await reads.count(ctx, mainIdentity, auth)).toBe(4);
+    });
+    it('uses independent aggregate action permission and enforces field grants before SQL', async () => {
+      entryResolver.mockImplementation((_collection, _path, operation) =>
+        operation.kind === 'aggregate' ? null : { allowed: true, params: {} },
+      );
+      expect(await entryReads.count(ctx, mainIdentity, auth)).toBe(4);
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(aggregate({ method: 'avg', field: 'amount' })).rejects.toThrow(/authorized/);
+      entryResolver.mockImplementation(() => ({ allowed: true, params: { fields: ['name'] } }));
+      await expect(aggregate({ method: 'count', field: 'amount' })).rejects.toThrow(/authorized/);
+      expect(query).not.toHaveBeenCalled();
+      expect(await aggregate({ method: 'count', field: 'name' })).toBe(4);
+    });
+    it('rejects JSON distinct before SQL while allowing non-null JSON value counts', async () => {
+      await docs.model.update({ labels: { value: 1 } }, { where: { id: 1 } });
+      expect(await aggregate({ method: 'count', field: 'labels' })).toBe(1);
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(aggregate({ method: 'count', field: 'labels', distinct: true })).rejects.toThrow(
+        /distinct.*scalar/i,
+      );
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('aggregates each root once when an actual relationship filter matches multiple children', async () => {
+      docs.setField('matches', { type: 'hasMany', target: 'projects', foreignKey: 'projectId' });
+      await projects.model.update({ projectId: 1 }, { where: { id: [101, 103] } });
+      const filter = { matches: { name: { $ne: 'Missing' } } };
+      expect(await aggregate({ method: 'count', field: 'amount', filter })).toBe(1);
+      expect(await aggregate({ method: 'sum', field: 'amount', filter })).toBe(10);
+    });
+    it('uses mapped physical numeric fields without accepting physical column names as field names', async () => {
+      expect(await aggregate({ method: 'sum', field: 'id' })).toBe(12);
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(aggregate({ method: 'sum', field: 'record_id' })).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('uses visible target scopes for request filters but preserves hidden relationship facts for role filters', async () => {
+      expect(await aggregate({ method: 'sum', field: 'amount', filter: { 'project.name': 'Secret' } })).toBeNull();
+      permissions.set('', { allowed: true, params: { filter: { 'project.name': 'Secret' } } });
+      permissions.set('project', null);
+      expect(await aggregate({ method: 'max', field: 'amount' })).toBe(20);
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(aggregate({ method: 'max', field: 'amount', filter: { 'project.name': 'Secret' } })).rejects.toThrow(
+        /authorized/,
+      );
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('rejects unsupported methods, fields and query options before SQL or invoking getters', async () => {
+      const getter = vi.fn(() => 'avg');
+      const accessor = Object.defineProperty({ field: 'amount' }, 'method', { get: getter });
+      const query = vi.spyOn(db.sequelize, 'query');
+      for (const request of [
+        accessor,
+        { method: 'SUM(amount); --', field: 'amount' },
+        { method: 'median', field: 'amount' },
+        { method: 'avg' },
+        { method: 'avg', field: 'name' },
+        { method: 'count', field: 'project.name' },
+        { method: 'sum', field: 'amount', distinct: 'true' },
+        { method: 'sum', field: 'amount', distinct: null },
+        { method: 'sum', field: 'amount', group: ['tenantId'] },
+        { method: 'sum', field: 'amount', dataType: 'INTEGER' },
+        { method: 'sum', field: 'amount', limit: 1 },
+        { method: 'sum', field: literal('amount') },
+        { method: 'sum', field: 'amount', transaction: {} },
+      ])
+        await expect(aggregate(request)).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+      expect(getter).not.toHaveBeenCalled();
+    });
+    it('captures request, identity and final permissions before asynchronous scope preparation', async () => {
+      const request = { method: 'sum', field: 'amount', distinct: false, filter: { id: { $in: [1, 2] } } };
+      const source = { ...mainIdentity };
+      const authenticated = { ...auth };
+      const permission = { allowed: true, params: { filter: { amount: { $lte: 20 } } } };
+      permissions.set('', permission);
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        request.method = 'max';
+        request.field = 'id';
+        request.distinct = true;
+        request.filter.id.$in = [3];
+        source.collectionName = 'projects';
+        authenticated.tenantId = 'C';
+        permission.params.filter.amount.$lte = 0;
+        return original(...args);
+      });
+      expect(await entryReads.aggregate(ctx, source, authenticated, request)).toBe(30);
+    });
+    it('checks prepared phase after the aggregate SQL', async () => {
+      const original = docs.model.aggregate.bind(docs.model);
+      vi.spyOn(docs.model, 'aggregate').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        adapter.release(ctx);
+        return result;
+      });
+      await expect(aggregate({ method: 'avg', field: 'amount' })).rejects.toThrow();
+    });
+    it('rejects changed aggregation field metadata before returning results', async () => {
+      const original = docs.model.aggregate.bind(docs.model);
+      vi.spyOn(docs.model, 'aggregate').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        docs.model.rawAttributes.amount.field = 'changed_column';
+        return result;
+      });
+      await expect(aggregate({ method: 'max', field: 'amount' })).rejects.toThrow(/changed/);
+    });
+    it('reads uncommitted scoped values in the supplied transaction and respects default scopes and soft deletes', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await docs.model.create({ id: 9, tenantId: 'B', amount: 90 }, { transaction });
+        expect(await aggregate({ method: 'max', field: 'amount', transaction })).toBe(90);
+        expect(await aggregate({ method: 'sum', field: 'amount', transaction })).toBe(210);
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await aggregate({ method: 'max', field: 'amount' })).toBe(50);
+      expect(await docs.model.findByPk(4)).toHaveProperty('tenantId', null);
+    });
+    it('keeps query counts bounded as matching root rows increase', async () => {
+      const query = vi.spyOn(db.sequelize, 'query');
+      const run = async () => {
+        query.mockClear();
+        await aggregate({ method: 'sum', field: 'amount', filter: { 'project.name': 'Zebra' } });
+        return query.mock.calls.length;
+      };
+      const before = await run();
+      await docs.model.bulkCreate(
+        Array.from({ length: 100 }, (_, index) => ({ id: 1000 + index, tenantId: 'B', amount: 1, projectId: 101 })),
+      );
+      expect(await run()).toBe(before);
+      expect(await aggregate({ method: 'count', field: 'amount', filter: { 'project.name': 'Zebra' } })).toBe(101);
+    });
+    it('supports an explicitly shared collection without tenant context or a physical tenant column', async () => {
+      const key = (collection: Collection) =>
+        accessCollectionKey(identities.find((i) => i.collectionName === collection.name)!);
+      const store = new AccessConfigStore(db, (identity) =>
+        resolveModelMetadata(db.getCollection(identity.collectionName), { resolveCollectionKey: key }),
+      );
+      await store.save(
+        projectIdentity,
+        { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 1 },
+        { userId: 28 },
+      );
+      await db.sequelize.getQueryInterface().removeColumn('read_projects', 'tenant_id');
+      projects.removeField('tenantId');
+      adapter.release(ctx);
+      await adapter.prepare(ctx, identities);
+      const query = vi.spyOn(db.sequelize, 'query');
+      expect(await entryReads.aggregate(ctx, projectIdentity, {}, { method: 'count', field: 'name' })).toBe(3);
+      expect(await entryReads.aggregate(ctx, projectIdentity, {}, { method: 'avg', field: 'amount' })).toBeNull();
+      expect(query.mock.calls.map(([sql]) => String(sql)).join('\n')).not.toContain('tenant_id');
+    });
+  });
   describe('absolute date filtering', () => {
     beforeEach(async () => {
       for (const [id, date] of [

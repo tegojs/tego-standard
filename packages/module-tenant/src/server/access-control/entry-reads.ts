@@ -18,6 +18,7 @@ import { captureReadKey } from './read-key';
 import { AccessReadSelectionParser, type AccessAssociationSelection } from './read-selection';
 import {
   AccessReadService,
+  type AccessAggregateRequest,
   type AccessGetRequest,
   type AccessListRequest,
   type AccessReadRequest,
@@ -61,7 +62,7 @@ export interface AccessSelectedGetRequest extends Omit<AccessGetRequest, 'attrib
 type ExpansionKind = 'expandBelongsTo' | 'expandTargetForeignKey' | 'expandManyToMany';
 
 export interface AccessEntryReadOperation {
-  readonly kind: 'list' | 'get' | 'count' | 'sum' | ExpansionKind;
+  readonly kind: 'list' | 'get' | 'count' | 'sum' | 'aggregate' | ExpansionKind;
   readonly context: object;
   readonly source: Readonly<AccessCollectionIdentity>;
   readonly authenticated: Readonly<AccessIdentity>;
@@ -177,7 +178,7 @@ export class AccessEntryReadService {
   }
 
   private reader(
-    kind: 'list' | 'get' | 'count' | 'sum',
+    kind: 'list' | 'get' | 'count' | 'sum' | 'aggregate',
     ctx: object,
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
@@ -198,6 +199,15 @@ export class AccessEntryReadService {
 
   get(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessGetRequest) {
     return this.reader('get', ctx, source, authenticated).get(ctx, source, authenticated, request);
+  }
+
+  aggregate(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessAggregateRequest,
+  ) {
+    return this.reader('aggregate', ctx, source, authenticated).aggregate(ctx, source, authenticated, request);
   }
 
   /** Internal parsed-resource bridge; callers supply authentication and wrap the final HTTP response. */

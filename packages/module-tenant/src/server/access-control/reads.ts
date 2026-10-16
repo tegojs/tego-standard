@@ -1,4 +1,12 @@
-import { Op, type Collection, type Database, type Model, type Transaction, type WhereOptions } from '@tego/server';
+import {
+  DataTypes,
+  Op,
+  type Collection,
+  type Database,
+  type Model,
+  type Transaction,
+  type WhereOptions,
+} from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
@@ -37,8 +45,26 @@ export interface AccessSumRequest extends AccessReadRequest {
   field: unknown;
 }
 
-type ReadKind = 'list' | 'get' | 'count' | 'sum';
+export interface AccessAggregateRequest extends AccessSumRequest {
+  method: unknown;
+  distinct?: unknown;
+}
+
+type AggregateMethod = 'avg' | 'count' | 'min' | 'max' | 'sum';
+type ReadKind = 'list' | 'get' | 'count' | 'sum' | 'aggregate';
 type ReadRecord = Readonly<Record<string, unknown>>;
+const numericTypes = [
+  'INTEGER',
+  'BIGINT',
+  'SMALLINT',
+  'TINYINT',
+  'MEDIUMINT',
+  'DECIMAL',
+  'FLOAT',
+  'DOUBLE',
+  'DOUBLE PRECISION',
+  'REAL',
+];
 
 export interface AccessReadResult {
   rows: ReadRecord[];
@@ -167,6 +193,31 @@ export class AccessReadService {
     return result;
   }
 
+  /** Internal scalar statistics over scoped roots; group/SQL expressions are not accepted. */
+  async aggregate(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessAggregateRequest,
+  ): Promise<number | null> {
+    const plan = await this.plan(ctx, source, authenticated, request, 'aggregate');
+    plan.assertCurrent();
+    const result = await plan.model.aggregate<unknown, Model>(plan.field!, plan.method!, {
+      ...internalQuery(plan.query),
+      distinct: plan.distinct,
+      // Actual types are required: ORM normalization leaves type-name strings unchanged.
+      ...(plan.method === 'count'
+        ? { dataType: DataTypes.INTEGER }
+        : plan.method === 'avg'
+          ? { dataType: DataTypes.FLOAT }
+          : {}),
+    });
+    plan.assertCurrent();
+    if (result === null) return null;
+    if (typeof result !== 'number') invalid('Scalar numeric aggregation returned a nonnumeric result');
+    return result;
+  }
+
   private project(row: Model, attributes: string[]): ReadRecord {
     // These are fresh query values, not mutation inputs; preserve complete authorized JSON.
     return Object.freeze(Object.fromEntries(attributes.map((name) => [name, row.getDataValue(name)])));
@@ -198,7 +249,9 @@ export class AccessReadService {
           ? ['attributes', 'key', 'keyField']
           : kind === 'sum'
             ? ['field']
-            : []),
+            : kind === 'aggregate'
+              ? ['field', 'method', 'distinct']
+              : []),
     ];
     if (
       !plain(request) ||
@@ -210,6 +263,18 @@ export class AccessReadService {
       )
     )
       invalid('Unsupported root read request');
+    let method: AggregateMethod | undefined;
+    let distinct = false;
+    if (kind === 'aggregate') {
+      if (
+        typeof request.method !== 'string' ||
+        !['avg', 'count', 'min', 'max', 'sum'].includes(request.method) ||
+        (request.distinct !== undefined && typeof request.distinct !== 'boolean')
+      )
+        invalid('Aggregate requires a supported method and a boolean distinct option');
+      method = request.method as AggregateMethod;
+      distinct = request.distinct === true;
+    }
     source = { ...source };
     authenticated = { ...authenticated };
     const transaction = request.transaction as Transaction | undefined;
@@ -265,15 +330,24 @@ export class AccessReadService {
       }
     }
     let field: string | undefined;
-    if (kind === 'sum') {
+    if (kind === 'sum' || kind === 'aggregate') {
       if (
         !physical(request.field) ||
-        !['INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'MEDIUMINT', 'DECIMAL', 'FLOAT', 'DOUBLE', 'REAL'].includes(
-          (model.rawAttributes[request.field].type as { key: string }).key,
+        (method !== 'count' && !numericTypes.includes((model.rawAttributes[request.field].type as { key: string }).key))
+      )
+        invalid(
+          kind === 'sum'
+            ? 'Sum requires an authorized physical numeric root field'
+            : 'Aggregate requires an authorized physical root field; numeric methods require numeric fields',
+        );
+      field = request.field;
+      if (
+        distinct &&
+        ![...numericTypes, 'STRING', 'CHAR', 'TEXT', 'UUID', 'ENUM', 'CITEXT', 'BOOLEAN', 'DATE', 'DATEONLY'].includes(
+          (model.rawAttributes[field].type as { key: string }).key,
         )
       )
-        invalid('Sum requires an authorized physical numeric root field');
-      field = request.field;
+        invalid('Distinct aggregation requires a supported scalar field');
     }
     const limit = kind === 'list' && request.limit !== undefined ? request.limit : 20;
     const offset = kind === 'list' && request.offset !== undefined ? request.offset : 0;
@@ -345,6 +419,6 @@ export class AccessReadService {
     };
     assertCurrent();
     const rootQuery = sorted?.rootQuery ?? filtered.query;
-    return { collection, model, query, rootQuery, attributes, field, limit, offset, assertCurrent };
+    return { collection, model, query, rootQuery, attributes, field, method, distinct, limit, offset, assertCurrent };
   }
 }

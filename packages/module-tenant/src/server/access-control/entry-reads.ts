@@ -23,6 +23,7 @@ import {
   type AccessRootReadConstraintResolver,
   type AccessSumRequest,
 } from './reads';
+import { AccessReferenceService } from './references';
 import type { AccessFilterReadGrant } from './request-filter';
 import {
   parseResourceAssociationGetParams,
@@ -297,7 +298,7 @@ export class AccessEntryReadService {
     };
   }
 
-  /** Internal concrete-source HasMany/HasOne detail bridge; no business route is installed. */
+  /** Internal concrete-source relationship detail bridge; no business route is installed. */
   async getAssociationFromParams(
     ctx: object,
     source: AccessCollectionIdentity,
@@ -366,13 +367,17 @@ export class AccessEntryReadService {
       !collection ||
       !field ||
       !relation ||
-      (relation.associationType !== 'HasMany' && !(kind === 'get' && relation.associationType === 'HasOne')) ||
+      (relation.associationType !== 'HasMany' &&
+        !(kind === 'get' && ['HasOne', 'BelongsTo'].includes(relation.associationType))) ||
       !target ||
       target.db !== this.db ||
       field.target !== target.name
     )
       invalid('Select a supported same-database association');
     const targetKeyField = field.options.targetKey || target.model.primaryKeyAttribute;
+    const sourceKeyField = field.options.sourceKey || collection.model.primaryKeyAttribute;
+    if (relation.associationType === 'BelongsTo' && sourceKeyField !== collection.model.primaryKeyAttribute)
+      invalid('Association details require a primary source key');
     if (kind === 'get' && relation.associationType === 'HasMany' && targetKeyField !== target.model.primaryKeyAttribute)
       invalid('Association details require a primary target key');
     const sourceGrant = authorization.resolveGrant(collection, []);
@@ -382,14 +387,14 @@ export class AccessEntryReadService {
     if (accessCollectionKey(sourceGrant.identity) !== accessCollectionKey(authorization.source))
       invalid('Association source permission does not match the requested collection');
     const detail =
-      kind === 'get' ? parseResourceAssociationGetParams(params, relation.associationType === 'HasOne') : undefined;
+      kind === 'get' ? parseResourceAssociationGetParams(params, relation.associationType !== 'HasMany') : undefined;
     const { key, ...selection } = detail ?? {};
     const parsed = kind === 'list' ? parseResourceListParams(params) : { ...selection, limit: 1, offset: 0 };
     const request = {
       ...this.withDates(targetGrant.identity, parsed, dates),
       transaction,
     };
-    const plan = new AccessTargetForeignKeyReadService(this.db, this.prepared, this.queries).prepareTargets(
+    const relationArgs = [
       ctx,
       authorization.source,
       targetGrant.identity,
@@ -402,7 +407,11 @@ export class AccessEntryReadService {
         sourceBind: sourceGrant.bind,
         transaction,
       },
-    );
+    ] as const;
+    const plan =
+      relation.associationType === 'BelongsTo'
+        ? new AccessReferenceService(this.db, this.prepared, this.queries).prepareBelongsToTarget(...relationArgs)
+        : new AccessTargetForeignKeyReadService(this.db, this.prepared, this.queries).prepareTargets(...relationArgs);
     const targetAuthorization = {
       ...authorization,
       source: targetGrant.identity,
@@ -414,6 +423,8 @@ export class AccessEntryReadService {
         if (
           collection.getField(name) !== field ||
           field.target !== target.name ||
+          (relation.associationType === 'BelongsTo' &&
+            (field.options.sourceKey || collection.model.primaryKeyAttribute) !== sourceKeyField) ||
           (kind === 'get' &&
             relation.associationType === 'HasMany' &&
             (field.options.targetKey || target.model.primaryKeyAttribute) !== targetKeyField)

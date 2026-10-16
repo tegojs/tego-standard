@@ -90,7 +90,11 @@ export function resolveResourceReadRoute(
     )
       invalid('Resource read association target is unavailable');
     const relationType = relation.associationType;
-    if (concrete && relationType !== 'HasMany' && !(relationType === 'HasOne' && actionName === 'get'))
+    if (
+      concrete &&
+      relationType !== 'HasMany' &&
+      !(actionName === 'get' && ['HasOne', 'BelongsTo'].includes(relationType))
+    )
       invalid('Concrete reads for this association type or action are not supported');
     const targetName = relatedTarget.name;
     assertRelation = () => {

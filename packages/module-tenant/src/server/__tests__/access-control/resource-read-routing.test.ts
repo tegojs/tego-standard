@@ -52,6 +52,7 @@ describe('internal resource read routing', () => {
     ['children', 'list', 1],
     ['children', 'get', '1'],
     ['single', 'get', 1],
+    ['parent', 'get', 1],
   ] as const)('selects a concrete %s %s source (%j)', (association, actionName, sourceId) => {
     const route = resolveResourceReadRoute(db, resolveConcreteIdentity, {
       resourceName: `sources.${association}`,
@@ -125,7 +126,7 @@ describe('internal resource read routing', () => {
 
   it('does not route unsupported concrete associations or actions to a direct target', () => {
     for (const [association, actionName] of [
-      ['parent', 'get'],
+      ['parent', 'list'],
       ['links', 'get'],
       ['single', 'list'],
       ['children', 'count'],

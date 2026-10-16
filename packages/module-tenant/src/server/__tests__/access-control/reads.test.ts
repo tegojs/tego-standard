@@ -858,16 +858,23 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       expect(await entryReads.fromResource(ctx, auth, { ...root, actionName: 'count' }, {})).toBe(4);
       expect(await entryReads.fromResource(ctx, auth, { ...root, actionName: 'sum' }, { field: 'amount' })).toBe(120);
     });
-    it.each([1, '1', null, ''])(
-      'rejects unsupported concrete or malformed source ID %j before SQL',
-      async (sourceId) => {
-        const query = vi.spyOn(db.sequelize, 'query');
+    it('routes concrete belongs-to sources without bypassing default scope or deletion', async () => {
+      for (const sourceId of [1, '1'])
+        expect(
+          await entryReads.fromResource(ctx, auth, { ...action, sourceId }, { fields: ['name'], filterByTk: 103 }),
+        ).toEqual({ name: 'Zebra' });
+      for (const sourceId of [3, 6, 7])
         await expect(
-          entryReads.fromResource(ctx, auth, { ...action, sourceId }, { filterByTk: 101 }),
-        ).rejects.toThrow();
-        expect(query).not.toHaveBeenCalled();
-      },
-    );
+          entryReads.fromResource(ctx, auth, { ...action, sourceId }, { fields: ['name'] }),
+        ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await entryReads.fromResource(ctx, auth, { ...action, sourceId: 2 }, { fields: ['name'] })).toBeNull();
+      expect(await entryReads.fromResource(ctx, auth, { ...action, sourceId: 5 }, { fields: ['name'] })).toBeNull();
+    });
+    it.each([null, ''])('rejects malformed source ID %j before SQL', async (sourceId) => {
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(entryReads.fromResource(ctx, auth, { ...action, sourceId }, { filterByTk: 101 })).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+    });
     it('captures the route and request params before asynchronous queries', async () => {
       const mutableAction = { ...action };
       const params = { filterByTk: 101, fields: ['name'] };

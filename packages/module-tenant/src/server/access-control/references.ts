@@ -4,12 +4,15 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService, ScopedAccessQuery } from './query';
+import type { AccessConfig } from './types';
 import {
   cloneDeep,
   internalQuery,
   invalid,
   normalizeKeys,
+  plain,
   unavailable,
   validateWriteTransaction,
 } from './write-support';
@@ -30,6 +33,16 @@ export interface BelongsToReadRequest {
   targetWhere?: WhereOptions;
   targetBind?: Record<string, unknown>;
   transaction?: Transaction;
+}
+
+interface PreparedBelongsToRead {
+  readonly target: AccessCollectionIdentity;
+  readonly authenticated: AccessIdentity;
+  readonly config: AccessConfig;
+  readonly bind: Record<string, unknown> | undefined;
+  readonly transaction: Transaction | undefined;
+  assertCurrent(): void;
+  resolve(): Promise<{ where: WhereOptions; assertCurrent(): void }>;
 }
 
 /** Explicit association adapters only; no global eager-loading or ACL interception. */
@@ -87,53 +100,105 @@ export class AccessReferenceService {
     authenticated: AccessIdentity,
     request: BelongsToReadRequest,
   ): Promise<ScopedAccessQuery> {
+    const plan = this.prepareBelongsToTarget(ctx, source, target, authenticated, request);
+    const constraint = await plan.resolve();
+    const scoped = await this.queries.scopeQuery(ctx, plan.target, plan.authenticated, {
+      where: constraint.where,
+      bind: plan.bind,
+      transaction: plan.transaction,
+    });
+    constraint.assertCurrent();
+    if (!scoped || scoped.config !== plan.config) invalid('Target read phase changed');
+    return scoped;
+  }
+
+  /** Capture the relation before any asynchronous source lookup or target selection. */
+  prepareBelongsToTarget(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: BelongsToReadRequest,
+  ): PreparedBelongsToRead {
     source = { ...source };
     target = { ...target };
     authenticated = { ...authenticated };
+    const allowed = [
+      'association',
+      'sourceKey',
+      'targetKey',
+      'sourceWhere',
+      'sourceBind',
+      'targetWhere',
+      'targetBind',
+      'transaction',
+    ];
+    if (
+      !plain(request) ||
+      Reflect.ownKeys(request).some(
+        (key) =>
+          typeof key !== 'string' ||
+          !allowed.includes(key) ||
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(request, key)!, 'value'),
+      )
+    )
+      invalid('Unsupported belongs-to read input');
     // Preserve a live transaction object; clone only the caller's predicates and scalar inputs.
     const { transaction, ...input } = request;
     request = { ...cloneDeep(input), transaction };
     const relation = resolveBelongsTo(this.db, this.prepared, this.queries, ctx, source, target, request.association);
-    let key: unknown;
-    if (request.sourceKey === '_') {
-      if (request.targetKey === undefined) invalid('Direct association target reads require an explicit target key');
-      key = normalizeKeys([request.targetKey], relation.target)[0];
-    } else {
-      const sourceKey = normalizeKeys([request.sourceKey], relation.source)[0];
-      const keyWhere = { [relation.sourceModel.primaryKeyAttribute]: sourceKey };
-      const scoped = await this.queries.scopeQuery(ctx, source, authenticated, {
-        where: request.sourceWhere === undefined ? keyWhere : { [Op.and]: [keyWhere, request.sourceWhere] },
-        bind: request.sourceBind,
-        transaction,
-      });
-      if (!scoped) invalid('Source has not migrated to access control');
-      const record = await relation.sourceModel.findOne(
-        internalQuery({
-          ...scoped.query,
-          attributes: [relation.sourceModel.primaryKeyAttribute, relation.foreignKey],
-        }),
-      );
+    const verifyMetadata = accessMetadataGuard(this.db, [
+      { model: relation.sourceModel, config: relation.sourceConfig },
+      { model: relation.targetModel, config: relation.targetConfig },
+    ]);
+    const current = () => {
       relation.current();
-      if (!record) unavailable();
-      key = record.getDataValue(relation.foreignKey);
-      if (key != null) key = normalizeKeys([key], relation.target)[0];
-    }
-    const conditions: WhereOptions[] = [
-      { [relation.targetModel.primaryKeyAttribute]: { [Op.in]: key == null ? [] : [key] } },
-    ];
-    if (request.targetKey !== undefined)
-      conditions.push({
-        [relation.targetModel.primaryKeyAttribute]: normalizeKeys([request.targetKey], relation.target)[0],
-      });
-    if (relation.scope !== undefined) conditions.push(relation.scope);
-    if (request.targetWhere !== undefined) conditions.push(request.targetWhere);
-    const scoped = await this.queries.scopeQuery(ctx, target, authenticated, {
-      where: { [Op.and]: conditions },
+      verifyMetadata();
+    };
+    const sourceKey = request.sourceKey === '_' ? undefined : normalizeKeys([request.sourceKey], relation.source)[0];
+    const targetKey =
+      request.targetKey === undefined ? undefined : normalizeKeys([request.targetKey], relation.target)[0];
+    if (sourceKey === undefined && targetKey === undefined)
+      invalid('Direct association target reads require an explicit target key');
+    return {
+      target,
+      authenticated,
+      config: relation.targetConfig,
       bind: request.targetBind,
       transaction,
-    });
-    relation.current();
-    if (!scoped) invalid('Target has not migrated to access control');
-    return scoped;
+      assertCurrent: current,
+      resolve: async () => {
+        current();
+        let key: unknown = targetKey;
+        if (sourceKey !== undefined) {
+          const keyWhere = { [relation.sourceModel.primaryKeyAttribute]: sourceKey };
+          const scoped = await this.queries.scopeQuery(ctx, source, authenticated, {
+            where: request.sourceWhere === undefined ? keyWhere : { [Op.and]: [keyWhere, request.sourceWhere] },
+            bind: request.sourceBind,
+            transaction,
+          });
+          current();
+          if (!scoped || scoped.config !== relation.sourceConfig) invalid('Source read phase changed');
+          const record = await relation.sourceModel.findOne(
+            internalQuery({
+              ...scoped.query,
+              attributes: [relation.sourceModel.primaryKeyAttribute, relation.foreignKey],
+            }),
+          );
+          current();
+          if (!record) unavailable();
+          key = record.getDataValue(relation.foreignKey);
+          if (key != null) key = normalizeKeys([key], relation.target)[0];
+        }
+        // An empty FK is an empty relation, never an unconstrained target query.
+        const conditions: WhereOptions[] = [
+          { [relation.targetModel.primaryKeyAttribute]: { [Op.in]: key == null ? [] : [key] } },
+        ];
+        if (targetKey !== undefined) conditions.push({ [relation.targetModel.primaryKeyAttribute]: targetKey });
+        if (relation.scope !== undefined) conditions.push(relation.scope);
+        if (request.targetWhere !== undefined) conditions.push(request.targetWhere);
+        return { where: { [Op.and]: conditions }, assertCurrent: current };
+      },
+    };
   }
 }

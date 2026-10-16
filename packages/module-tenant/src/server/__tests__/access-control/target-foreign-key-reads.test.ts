@@ -6,6 +6,7 @@ import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessEntryReadPermission } from '../../access-control/read-grants';
+import { AccessReferenceService } from '../../access-control/references';
 import { AccessTargetForeignKeyReadService } from '../../access-control/target-foreign-key-reads';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
@@ -167,6 +168,299 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('target foreign-
     params: unknown = { fields: ['id'], filterByTk: 101 },
     association = 'children',
   ) => entry.getAssociationFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);
+
+  describe('belongs-to detail entry', () => {
+    const belonging = (sourceKey: unknown = 101, params: unknown = { fields: ['id'] }, association = 'document') =>
+      entry.getAssociationFromParams(ctx, target, authenticated, { association, sourceKey }, params);
+    const routed = (sourceId: unknown = 101, params: unknown = { fields: ['id'] }, actionName = 'get') =>
+      entry.fromResource(ctx, authenticated, { resourceName: 'children.document', sourceId, actionName }, params);
+
+    it('locates the target by its source foreign key and ignores unrelated scalar target keys', async () => {
+      for (const filterByTk of [undefined, null, 999, 'unrelated']) {
+        expect(await belonging(101, { fields: ['id'], filterByTk })).toEqual({ id: 1 });
+        expect(await routed('105', { fields: ['id'], filterByTk })).toEqual({ id: 2 });
+      }
+      expect(await belonging(102)).toEqual({ id: 1 });
+      expect(await belonging(106)).toBeNull();
+      expect(await belonging(101, { fields: ['id'], filter: { id: 2 } })).toBeNull();
+      expect(
+        permissionResolver.mock.calls.every(
+          ([, , operation]) => operation.kind === 'get' && operation.source.collectionName === 'children',
+        ),
+      ).toBe(true);
+    });
+
+    it('matches the core single-relation detail protocol', async () => {
+      const repository = db.getRepository('children.document', 105) as unknown as Pick<HasManyRepository, 'findOne'>;
+      const record = await repository.findOne({ fields: ['id'], filterByTk: 999 });
+      expect(await routed(105, { fields: ['id'], filterByTk: 999 })).toEqual({ id: record!.getDataValue('id') });
+    });
+
+    it('rejects hidden missing and role-filtered sources independently of a readable target', async () => {
+      for (const sourceId of [103, 999])
+        await expect(routed(sourceId)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      permissions.set('', { allowed: true, params: { filter: { amount: { $gt: 10 } } } });
+      await expect(belonging()).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await belonging(102)).toEqual({ id: 1 });
+    });
+
+    it('returns null for an empty foreign key or missing target without broadening the query', async () => {
+      await children.model.update({ documentId: null }, { where: { id: 101 } });
+      expect(await routed()).toBeNull();
+      await docs.model.destroy({ where: { id: 2 } });
+      expect(await belonging(105)).toBeNull();
+    });
+
+    it('keeps foreign keys private and intersects nested field and target role restrictions', async () => {
+      permissions.set('', { allowed: true, params: { fields: [], appends: ['document.name'] } });
+      permissions.set('document', { allowed: true, params: { fields: ['id', 'name'], filter: { name: 'Visible' } } });
+      expect(await belonging(105, { fields: ['name'] })).toEqual({ name: 'Visible' });
+      expect(await belonging(101, { fields: ['name'] })).toBeNull();
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const params of [
+        { fields: ['id'] },
+        { fields: ['name'], filter: { id: 2 } },
+        { fields: ['name'], appends: ['children.name'] },
+      ])
+        await expect(belonging(105, params)).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('does not substitute list permissions for get or grant a denied source relationship', async () => {
+      for (const [path, permission] of [
+        ['', null],
+        ['', { allowed: true, params: { fields: ['name'], appends: [] } }],
+        ['document', { allowed: false, params: {} }],
+      ] as const) {
+        permissions.clear();
+        permissions.set(path, permission);
+        await expect(routed()).rejects.toThrow(/authorized/);
+      }
+    });
+
+    it('retains original nested permission paths without applying the root constraint to expansions', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: [], appends: ['document.name', 'document.children.name'] },
+      });
+      permissions.set('document', { allowed: true, params: { filter: { children: { id: 103 } } } });
+      expect(await belonging(101, { fields: ['name'], appends: ['children.name'] })).toEqual({
+        name: 'Owned',
+        children: [{ name: 'Owned' }, { name: 'Visible' }, { name: 'Legacy' }],
+      });
+      expect(permissionResolver.mock.calls.some(([, path]) => path.join('.') === 'document.children')).toBe(true);
+    });
+
+    it('does not claim legacy source or target records while reading', async () => {
+      expect(await routed(107)).toEqual({ id: 4 });
+      expect((await children.model.findByPk(107))!.getDataValue('tenantId')).toBeNull();
+      expect((await docs.model.findByPk(4))!.getDataValue('tenantId')).toBeNull();
+    });
+
+    it('preserves relationship scope and source and target default scopes', async () => {
+      children.setField('visibleDocument', {
+        type: 'belongsTo',
+        target: 'documents',
+        foreignKey: 'documentId',
+        scope: { name: 'Visible' },
+      });
+      expect(await belonging(101, { fields: ['id'] }, 'visibleDocument')).toBeNull();
+      expect(await belonging(105, { fields: ['id'] }, 'visibleDocument')).toEqual({ id: 2 });
+      docs.model.addScope('defaultScope', { where: { name: 'Owned' } }, { override: true });
+      expect(await belonging(105)).toBeNull();
+      children.model.addScope('defaultScope', { where: { name: 'Visible' } }, { override: true });
+      await expect(belonging()).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('does not use root business keys to locate either end of the relation', async () => {
+      children.options.filterTargetKey = 'name';
+      docs.options.filterTargetKey = 'name';
+      expect(await routed(105)).toEqual({ id: 2 });
+    });
+
+    it('reads shared targets without a tenant column', async () => {
+      await store.save(
+        mainIdentity,
+        {
+          ...configFor({ type: 'constant', value: true }),
+          ownership: { enabled: false },
+          revision: 1,
+        },
+        { userId: 28 },
+      );
+      adapter.release(ctx);
+      docs.removeField('tenantId');
+      await db.sequelize.getQueryInterface().removeColumn(docs.model.getTableName(), 'tenant_id');
+      await adapter.prepare(ctx, [mainIdentity, target]);
+      expect(await routed(106)).toEqual({ id: 3 });
+      await expect(routed(103)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('captures source descriptor params and nested grants before querying the source', async () => {
+      const descriptor = { association: 'document', sourceKey: 101 };
+      const params = { fields: ['name'], appends: ['children.name'] };
+      const names = ['document.name', 'document.children.name'];
+      permissions.set('', { allowed: true, params: { fields: [], appends: names } });
+      const original = children.model.findOne.bind(children.model);
+      vi.spyOn(children.model, 'findOne').mockImplementationOnce(async (options) => {
+        descriptor.sourceKey = 105;
+        params.fields[0] = 'id';
+        params.appends[0] = 'children.id';
+        names.splice(0, names.length, 'document.id');
+        permissions.set('document.children', null);
+        return original(options);
+      });
+      expect(await entry.getAssociationFromParams(ctx, target, authenticated, descriptor, params)).toEqual({
+        name: 'Owned',
+        children: [{ name: 'Owned' }, { name: 'Visible' }, { name: 'Legacy' }],
+      });
+    });
+
+    it('rejects relationship changes after source lookup', async () => {
+      const original = children.model.findOne.bind(children.model);
+      vi.spyOn(children.model, 'findOne').mockImplementationOnce(async (options) => {
+        const record = await original(options);
+        Object.assign(children.model.associations.document, { foreignKey: 'amount' });
+        return record;
+      });
+      await expect(routed()).rejects.toThrow(/changed/);
+    });
+
+    it('rejects target phase changes after the selected query', async () => {
+      const original = docs.model.findAll.bind(docs.model);
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+        const records = await original(options);
+        adapter.release(ctx);
+        await adapter.prepare(ctx, [mainIdentity, target]);
+        return records;
+      });
+      await expect(routed()).rejects.toThrow(/changed/);
+    });
+
+    it('uses the trusted transaction and performs bounded detail reads without count', async () => {
+      const count = vi.spyOn(docs.model, 'count');
+      const sourceQuery = vi.spyOn(children.model, 'findOne');
+      const targetQuery = vi.spyOn(docs.model, 'findAll');
+      await db.sequelize.transaction(async (transaction) => {
+        await children.model.update({ documentId: 2 }, { where: { id: 101 }, transaction });
+        expect(
+          await entry.fromResource(
+            ctx,
+            authenticated,
+            {
+              resourceName: 'children.document',
+              sourceId: 101,
+              actionName: 'get',
+            },
+            { fields: ['name'] },
+            transaction,
+          ),
+        ).toEqual({ name: 'Visible' });
+        expect(sourceQuery.mock.calls[0][0]!.transaction).toBe(transaction);
+        expect(targetQuery.mock.calls[0][0]).toMatchObject({ transaction, limit: 1 });
+      });
+      expect(count).not.toHaveBeenCalled();
+      expect(sourceQuery).toHaveBeenCalledTimes(1);
+      expect(targetQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('resolves trusted date shortcuts using the associated target date field', async () => {
+      docs.setField('selectedChild', { type: 'belongsTo', target: 'children', foreignKey: 'amount' });
+      await docs.model.update({ amount: 105 }, { where: { id: 1 } });
+      await children.model.update({ occurredAt: new Date('2026-09-15T16:00:00Z') }, { where: { id: 105 } });
+      const action = { resourceName: 'documents.selectedChild', sourceId: 1, actionName: 'get' };
+      const params = { fields: ['name'], filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } } };
+      expect(
+        await entry.fromResource(ctx, authenticated, action, params, undefined, {
+          now: '2026-09-16T00:00:00.000Z',
+          timezone: '+08:00',
+        }),
+      ).toEqual({ name: 'Owned' });
+      expect(
+        await entry.fromResource(ctx, authenticated, action, params, undefined, {
+          now: '2026-09-17T00:00:00.000Z',
+          timezone: '+08:00',
+        }),
+      ).toBeNull();
+    });
+
+    it('rejects non-primary source locators and changes to the field locator during lookup', async () => {
+      const field = children.getField('document');
+      field.options.sourceKey = 'amount';
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(routed()).rejects.toThrow(/primary source key/);
+      expect(sql).not.toHaveBeenCalled();
+      delete field.options.sourceKey;
+      const original = children.model.findOne.bind(children.model);
+      vi.spyOn(children.model, 'findOne').mockImplementationOnce(async (options) => {
+        const record = await original(options);
+        field.options.sourceKey = 'amount';
+        return record;
+      });
+      await expect(routed()).rejects.toThrow(/changed/);
+    });
+
+    it('captures lower read inputs synchronously and preserves named predicates', async () => {
+      const reads = new AccessReferenceService(db, adapter, queries);
+      const request = {
+        association: 'document',
+        sourceKey: 105,
+        sourceWhere: literal('"children"."amount" > $min'),
+        sourceBind: { min: 30 },
+        targetWhere: literal('"documents"."name" = $name'),
+        targetBind: { name: 'Visible' },
+      };
+      const plan = reads.prepareBelongsToTarget(ctx, target, mainIdentity, authenticated, request);
+      request.sourceKey = 101;
+      request.sourceBind.min = 100;
+      request.targetBind.name = 'Hidden';
+      const constraint = await plan.resolve();
+      const scoped = await queries.scopeQuery(ctx, plan.target, plan.authenticated, {
+        where: constraint.where,
+        bind: plan.bind,
+        transaction: plan.transaction,
+      });
+      expect((await docs.model.findAll(scoped!.query)).map((row) => row.getDataValue('id'))).toEqual([2]);
+      constraint.assertCurrent();
+    });
+
+    it('rejects lower read input accessors and injected capabilities without invoking them', () => {
+      const reads = new AccessReferenceService(db, adapter, queries);
+      const getter = vi.fn(() => 101);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const request of [
+        { association: 'document', sourceKey: 101, include: [] },
+        Object.defineProperty({ association: 'document' }, 'sourceKey', { get: getter }),
+      ])
+        expect(() =>
+          reads.prepareBelongsToTarget(ctx, target, mainIdentity, authenticated, request as never),
+        ).toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('rejects malformed keys params and unsupported list before SQL', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const sourceId of [null, '', {}, [], 1.5]) await expect(routed(sourceId)).rejects.toThrow();
+      for (const filterByTk of [[], {}, true, ''])
+        await expect(routed(101, { fields: ['id'], filterByTk })).rejects.toThrow();
+      await expect(routed(101, { fields: ['id'], where: {} })).rejects.toThrow();
+      await expect(routed(101, {}, 'list')).rejects.toThrow();
+      await expect(
+        entry.listAssociationPageFromParams(
+          ctx,
+          target,
+          authenticated,
+          {
+            association: 'document',
+            sourceKey: 101,
+          },
+          {},
+        ),
+      ).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+  });
 
   describe('concrete resource routing', () => {
     const route = (

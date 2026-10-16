@@ -1,4 +1,14 @@
-import { ACL, DataTypes, Field, FilterParser, literal, Op, type Collection, type Database } from '@tego/server';
+import {
+  ACL,
+  DataTypes,
+  Field,
+  FilterParser,
+  literal,
+  Op,
+  type Collection,
+  type Database,
+  type Model,
+} from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -760,6 +770,128 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     if (kind === 'count') return entryReads.count(ctx, mainIdentity, auth);
     return entryReads.sum(ctx, mainIdentity, auth, { field: 'amount' });
   };
+  describe('parsed resource routing', () => {
+    const action = { resourceName: 'documents.project', sourceId: '_', actionName: 'get' };
+    it('reads a placeholder target within its own role and tenant scope without a source row', async () => {
+      expect(await entryReads.fromResource(ctx, auth, action, { filterByTk: 101, fields: ['name'] })).toEqual({
+        name: 'Zebra',
+      });
+      expect(await entryReads.fromResource(ctx, auth, action, { filterByTk: 102, fields: ['name'] })).toBeNull();
+      expect(entryResolver.mock.calls.every(([collection, path]) => collection === projects && path.length === 0)).toBe(
+        true,
+      );
+    });
+  });
+  describe('parsed resource routing boundaries', () => {
+    const action = { resourceName: 'documents.project', sourceId: '_', actionName: 'get' };
+    it('keeps placeholder source configuration out of direct target reads', async () => {
+      adapter.release(ctx);
+      await adapter.prepare(ctx, [projectIdentity]);
+      expect(await entryReads.fromResource(ctx, auth, action, { filterByTk: 103, fields: ['name'] })).toEqual({
+        name: 'Alpha',
+      });
+      expect(entryResolver.mock.calls.every(([collection]) => collection === projects)).toBe(true);
+    });
+    it('uses core direct target semantics rather than applying a relation scope or requiring a link', async () => {
+      const relation = docs.model.associations.project as typeof docs.model.associations.project & { scope?: object };
+      relation.scope = { name: 'Not an existing project' };
+      const expected = (
+        await projects.repository.find({ fields: ['name'], filter: { tenantId: 'B' }, sort: ['id'] })
+      ).map((record: Model) => ({ name: record.getDataValue('name') }));
+      expect(expected).toEqual([{ name: 'Zebra' }, { name: 'Alpha' }]);
+      expect(
+        await entryReads.fromResource(
+          ctx,
+          auth,
+          { ...action, actionName: 'list' },
+          { fields: ['name'], sort: ['id'], pageSize: 1, page: 2 },
+        ),
+      ).toEqual({ rows: [{ name: 'Alpha' }], count: 2, page: 2, pageSize: 1, totalPage: 2 });
+    });
+    it('applies target final role filters and rejects unauthorized projection and operations before SQL', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], filter: { name: 'Alpha' } } });
+      expect(await entryReads.fromResource(ctx, auth, action, { filterByTk: 101, fields: ['name'] })).toBeNull();
+      expect(await entryReads.fromResource(ctx, auth, action, { filterByTk: 103, fields: ['name'] })).toEqual({
+        name: 'Alpha',
+      });
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(entryReads.fromResource(ctx, auth, action, { filterByTk: 101, fields: ['amount'] })).rejects.toThrow(
+        /authorized/,
+      );
+      permissions.set('', null);
+      await expect(entryReads.fromResource(ctx, auth, action, { filterByTk: 101 })).rejects.toThrow(/authorized/);
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('uses the configured target detail key and preserves explicit field selection', async () => {
+      projects.options.filterTargetKey = 'name';
+      permissions.set('', { allowed: true, params: { fields: ['id'] } });
+      expect(await entryReads.fromResource(ctx, auth, action, { filterByTk: 'Zebra', fields: ['id'] })).toEqual({
+        id: 101,
+      });
+      expect(await entryReads.fromResource(ctx, auth, action, { filterByTk: 'Secret', fields: ['id'] })).toBeNull();
+    });
+    it('reuses the trusted date context for direct target pages', async () => {
+      await projects.model.update({ occurredAt: new Date('2026-09-15T16:00:00Z') }, { where: { id: [101, 102] } });
+      expect(
+        await entryReads.fromResource(
+          ctx,
+          auth,
+          { ...action, actionName: 'list' },
+          { fields: ['name'], filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } } },
+          undefined,
+          { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' },
+        ),
+      ).toEqual({ rows: [{ name: 'Zebra' }], count: 1, page: 1, pageSize: 20, totalPage: 1 });
+    });
+    it('dispatches root list, get, count and sum with their original operation decisions', async () => {
+      const root = { resourceName: 'documents', actionName: 'list' };
+      expect(await entryReads.fromResource(ctx, auth, root, { fields: ['id'], sort: ['id'], pageSize: 2 })).toEqual({
+        rows: [{ id: 1 }, { id: 2 }],
+        count: 4,
+        page: 1,
+        pageSize: 2,
+        totalPage: 2,
+      });
+      expect(
+        await entryReads.fromResource(ctx, auth, { ...root, actionName: 'get' }, { fields: ['id'], filterByTk: 2 }),
+      ).toEqual({ id: 2 });
+      expect(await entryReads.fromResource(ctx, auth, { ...root, actionName: 'count' }, {})).toBe(4);
+      expect(await entryReads.fromResource(ctx, auth, { ...root, actionName: 'sum' }, { field: 'amount' })).toBe(120);
+    });
+    it.each([1, '1', null, ''])(
+      'rejects unsupported concrete or malformed source ID %j before SQL',
+      async (sourceId) => {
+        const query = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          entryReads.fromResource(ctx, auth, { ...action, sourceId }, { filterByTk: 101 }),
+        ).rejects.toThrow();
+        expect(query).not.toHaveBeenCalled();
+      },
+    );
+    it('captures the route and request params before asynchronous queries', async () => {
+      const mutableAction = { ...action };
+      const params = { filterByTk: 101, fields: ['name'] };
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        mutableAction.resourceName = 'documents';
+        mutableAction.actionName = 'list';
+        params.filterByTk = 103;
+        params.fields[0] = 'amount';
+        return original(...args);
+      });
+      expect(await entryReads.fromResource(ctx, auth, mutableAction, params)).toEqual({ name: 'Zebra' });
+    });
+    it('rejects a changed association before returning query results', async () => {
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        delete docs.model.associations.project;
+        return original(...args);
+      });
+      await expect(entryReads.fromResource(ctx, auth, action, { filterByTk: 101, fields: ['name'] })).rejects.toThrow(
+        /association changed/,
+      );
+    });
+  });
   it('summary params require the specific operation permission rather than list permission', async () => {
     const kinds: string[] = [];
     entryReads = new AccessEntryReadService(
@@ -1099,6 +1231,14 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     expect(await reads.get(ctx, projectIdentity, {}, { key: 102, attributes: ['name'] })).toEqual({ name: 'Secret' });
     expect(await reads.count(ctx, projectIdentity, {})).toBe(3);
     expect(await reads.sum(ctx, projectIdentity, {}, { field: 'amount' })).toBeNull();
+    expect(
+      await entryReads.fromResource(
+        ctx,
+        {},
+        { resourceName: 'documents.project', sourceId: '_', actionName: 'get' },
+        { filterByTk: 102, fields: ['name'] },
+      ),
+    ).toEqual({ name: 'Secret' });
     expect(query.mock.calls.map(([sql]) => String(sql)).join('\n')).not.toContain('tenant_id');
   });
   it('rejects virtual projection and missing root grants', async () => {
@@ -1233,6 +1373,24 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       expect(
         await entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount', filter: { id: 9 } }, transaction),
       ).toBe(90);
+      expect(
+        await entryReads.fromResource(
+          ctx,
+          auth,
+          { resourceName: 'documents', actionName: 'count' },
+          { filter: { id: 9 } },
+          transaction,
+        ),
+      ).toBe(1);
+      expect(
+        await entryReads.fromResource(
+          ctx,
+          auth,
+          { resourceName: 'documents', actionName: 'get' },
+          { filterByTk: 9, fields: ['id'] },
+          transaction,
+        ),
+      ).toEqual({ id: 9 });
       expect(hook).not.toHaveBeenCalled();
     } finally {
       await transaction.rollback();

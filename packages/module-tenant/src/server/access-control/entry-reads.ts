@@ -29,6 +29,7 @@ import {
   parseResourceListParams,
   parseResourceSumParams,
 } from './resource-read-params';
+import { resolveResourceReadRoute } from './resource-read-routing';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
 import { cloneDeep, invalid, plain } from './write-support';
@@ -193,7 +194,29 @@ export class AccessEntryReadService {
     return this.reader('get', ctx, source, authenticated).get(ctx, source, authenticated, request);
   }
 
-  /** Internal action-param bridge; response envelopes and resource routing belong to the caller. */
+  /** Internal parsed-resource bridge; callers supply authentication and wrap the final HTTP response. */
+  async fromResource(
+    ctx: object,
+    authenticated: AccessIdentity,
+    action: unknown,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const route = resolveResourceReadRoute(this.db, this.resolveIdentity, action);
+    const args = [ctx, route.identity, authenticated, params, transaction, dates] as const;
+    const result = await (route.actionName === 'list'
+      ? this.listPageFromParams(...args)
+      : route.actionName === 'get'
+        ? this.getFromParams(...args)
+        : route.actionName === 'count'
+          ? this.countFromParams(...args)
+          : this.sumFromParams(...args));
+    route.assertCurrent();
+    return result;
+  }
+
+  /** Internal action-param bridge; response envelopes belong to the caller. */
   async listFromParams(
     ctx: object,
     source: AccessCollectionIdentity,

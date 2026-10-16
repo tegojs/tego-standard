@@ -1,4 +1,4 @@
-import { ACL, literal, Op, type Collection, type Database } from '@tego/server';
+import { ACL, DataTypes, Field, FilterParser, literal, Op, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -16,6 +16,11 @@ import { configFor, ownerCondition } from './fixtures';
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 const projectIdentity = { ...mainIdentity, collectionKey: 'projects-key', collectionName: 'projects' };
 const identities = [mainIdentity, projectIdentity];
+class CalendarDateField extends Field {
+  get dataType() {
+    return DataTypes.DATEONLY;
+  }
+}
 
 describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root reads (%s)', (dialect) => {
   let db: Database;
@@ -33,6 +38,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
   const auth = { tenantId: 'B' };
   beforeEach(async () => {
     db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl!) : sqliteDatabase();
+    db.registerFieldTypes({ calendarDate: CalendarDateField });
     await seedConfigStore(db);
     await seedAclScopes(db);
     for (const identity of identities) {
@@ -51,6 +57,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
           { name: 'projectId', type: 'integer', field: 'project_id' },
           { name: 'deletedAt', type: 'date' },
           { name: 'labels', type: 'json' },
+          { name: 'occurredAt', type: 'date', field: 'occurred_at' },
+          { name: 'calendarDate', type: 'calendarDate', field: 'calendar_date' },
         ],
       });
       await collection.model.sync();
@@ -131,6 +139,214 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       (collection) => identities.find((identity) => identity.collectionName === collection.name),
       entryResolver,
     );
+  });
+  describe('absolute date filtering', () => {
+    beforeEach(async () => {
+      for (const [id, date] of [
+        [1, '2026-09-15T16:00:00.000Z'],
+        [2, '2026-09-16T15:59:59.999Z'],
+        [3, '2026-09-16T00:00:00.000Z'],
+        [4, '2026-09-15T15:59:59.999Z'],
+        [5, '2026-09-16T16:00:00.000Z'],
+        [6, '2026-09-16T00:00:00.000Z'],
+        [7, '2026-09-16T00:00:00.000Z'],
+      ] as const)
+        await docs.model.update({ occurredAt: new Date(date) }, { where: { id }, paranoid: false });
+    });
+    it('selects the local calendar day within role and tenant scopes', async () => {
+      expect(
+        await entryReads.listFromParams(ctx, mainIdentity, auth, {
+          fields: ['name'],
+          filter: { occurredAt: { $dateOn: '2026-09-16+08:00' } },
+        }),
+      ).toEqual([{ name: 'Owned' }, { name: 'Visible' }]);
+    });
+    it.each([
+      ['$dateOn', [1, 2]],
+      ['$dateNotOn', [4, 5]],
+      ['$dateBefore', [4]],
+      ['$dateNotBefore', [1, 2, 5]],
+      ['$dateAfter', [5]],
+      ['$dateNotAfter', [1, 2, 4]],
+      ['$dateBetween', [1, 2]],
+    ])('keeps %s calendar boundaries, NULL and tenant restrictions', async (operator, ids) => {
+      await docs.model.create({ id: 8, tenantId: 'B', name: 'No date', amount: 80 });
+      const value = operator === '$dateBetween' ? '[2026-09-16,2026-09-17)+08:00' : '2026-09-16+08:00';
+      expect(
+        await entryReads.list(ctx, mainIdentity, auth, {
+          attributes: ['id'],
+          sort: ['id'],
+          filter: { occurredAt: { [operator as string]: value } },
+        }),
+      ).toEqual((ids as number[]).map((id) => ({ id })));
+    });
+    it.each([
+      ['$dateOn', [1]],
+      ['$dateNotOn', [2, 4, 5]],
+      ['$dateBefore', [4]],
+      ['$dateNotBefore', [1, 2, 5]],
+      ['$dateAfter', [2, 5]],
+      ['$dateNotAfter', [1, 4]],
+    ])('retains %s instant comparisons instead of calendar precision', async (operator, ids) => {
+      expect(
+        await entryReads.list(ctx, mainIdentity, auth, {
+          attributes: ['id'],
+          sort: ['id'],
+          filter: { occurredAt: { [operator as string]: '2026-09-15T16:00:00.000Z' } },
+        }),
+      ).toEqual((ids as number[]).map((id) => ({ id })));
+    });
+    it('uses the same date and role conditions for pages, detail, counts and sums', async () => {
+      const filter = { occurredAt: { $dateOn: '2026-09-16+08:00' } };
+      permissions.set('', { allowed: true, params: { filter: { amount: { $gte: 15 } } } });
+      expect(
+        await entryReads.listPageFromParams(ctx, mainIdentity, auth, {
+          fields: ['name'],
+          filter,
+          pageSize: 1,
+          page: 1,
+        }),
+      ).toEqual({ rows: [{ name: 'Visible' }], count: 1, page: 1, pageSize: 1, totalPage: 1 });
+      expect(
+        await entryReads.listPageFromParams(ctx, mainIdentity, auth, {
+          fields: ['name'],
+          filter,
+          pageSize: 1,
+          page: 2,
+        }),
+      ).toEqual({ rows: [], count: 1, page: 2, pageSize: 1, totalPage: 1 });
+      expect(await entryReads.count(ctx, mainIdentity, auth, { filter })).toBe(1);
+      expect(await entryReads.sum(ctx, mainIdentity, auth, { field: 'amount', filter })).toBe(20);
+      expect(
+        await entryReads.getFromParams(ctx, mainIdentity, auth, { filterByTk: 2, fields: ['name'], filter }),
+      ).toEqual({ name: 'Visible' });
+      expect(
+        await entryReads.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, fields: ['name'], filter }),
+      ).toBeNull();
+    });
+    it('allows hidden date fields in finalized root role conditions but not user filtering', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: {
+          fields: ['id', 'amount'],
+          appends: [],
+          filter: { occurredAt: { $dateOn: '2026-09-16+08:00' } },
+        },
+      });
+      expect(await entryList()).toEqual([{ id: 1 }, { id: 2 }]);
+      expect(await entryReads.count(ctx, mainIdentity, auth)).toBe(2);
+      expect(await entryReads.sum(ctx, mainIdentity, auth, { field: 'amount' })).toBe(30);
+      await expect(entryList({ filter: { occurredAt: { $dateOn: '2026-09-16+08:00' } } })).rejects.toThrow(
+        /authorized/,
+      );
+    });
+    it('allows internal relationship date facts without granting target payload access', async () => {
+      await projects.model.update({ occurredAt: new Date('2026-09-16T00:00:00Z') }, { where: { id: 102 } });
+      permissions.set('', {
+        allowed: true,
+        params: {
+          fields: ['id'],
+          appends: [],
+          filter: { project: { occurredAt: { $dateOn: '2026-09-16+08:00' } } },
+        },
+      });
+      permissions.set('project', { allowed: false, params: {} });
+      expect(await entryList()).toEqual([{ id: 2 }]);
+      await expect(entryList({ filter: { project: { occurredAt: { $dateOn: '2026-09-16+08:00' } } } })).rejects.toThrow(
+        /authorized/,
+      );
+    });
+    it('independently constrains targets of public relationship date filters', async () => {
+      await projects.model.update({ occurredAt: new Date('2026-09-16T00:00:00Z') }, { where: { id: [101, 102] } });
+      const filter = { project: { occurredAt: { $dateOn: '2026-09-16+08:00' } } };
+      expect(await entryList({ filter })).toEqual([{ id: 1 }]);
+      permissions.set('project', { allowed: true, params: { filter: { name: { $ne: 'Zebra' } } } });
+      expect(await entryList({ filter })).toEqual([]);
+    });
+    it('intersects multiple date operators on the same field', async () => {
+      expect(
+        await entryList({
+          filter: {
+            occurredAt: {
+              $dateOn: '2026-09-16+08:00',
+              $dateBefore: '2026-09-16T00:00:00.000Z',
+            },
+          },
+        }),
+      ).toEqual([{ id: 1 }]);
+    });
+    it.each([false, true])('does not merge away conflicting date predicates (reverse=%s)', async (reverse) => {
+      const entries: Array<[string, unknown]> = [
+        ['$dateOn', '2026-09-16+08:00'],
+        ['$dateBetween', '[2026-09-17,2026-09-18)+08:00'],
+      ];
+      const filter = { occurredAt: Object.fromEntries(reverse ? entries.reverse() : entries) };
+      expect(await entryList({ filter })).toEqual([]);
+      permissions.set('', { allowed: true, params: { fields: ['id'], filter } });
+      expect(await entryList()).toEqual([]);
+    });
+    it('uses the captured scalar timezone and the core UTC default for array ranges', async () => {
+      db.options.timezone = '+08:00';
+      expect(await entryList({ filter: { occurredAt: { $dateOn: '2026-09-16' } } })).toEqual([{ id: 1 }, { id: 2 }]);
+      expect(await entryList({ filter: { occurredAt: { $dateOn: '2026-09-16+00:00' } } })).toEqual([
+        { id: 2 },
+        { id: 5 },
+      ]);
+      expect(await entryList({ filter: { occurredAt: { $dateBetween: ['2026-09-16', '2026-09-17', '[)'] } } })).toEqual(
+        [{ id: 2 }, { id: 5 }],
+      );
+      expect(
+        await entryList({ filter: { occurredAt: { $dateBetween: ['2026-09-16', '2026-09-17', '[)', '+08:00'] } } }),
+      ).toEqual([{ id: 1 }, { id: 2 }]);
+    });
+    it('snapshots date range arrays and timezone before asynchronous scope queries', async () => {
+      db.options.timezone = '+08:00';
+      const range = ['2026-09-16', '2026-09-17', '[)', '+08:00'];
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        range[0] = '2027-01-01';
+        db.options.timezone = '-05:00';
+        return original(...args);
+      });
+      expect(await entryList({ filter: { occurredAt: { $dateBetween: range } } })).toEqual([{ id: 1 }, { id: 2 }]);
+    });
+    it('rejects unresolved and invalid date filters before SQL', async () => {
+      const query = vi.spyOn(db.sequelize, 'query');
+      for (const filter of [
+        { occurredAt: { $dateOn: '{{$nDate.today}}' } },
+        { occurredAt: { $dateOn: '2026-02-29' } },
+        { name: { $dateOn: '2026-09-16' } },
+      ])
+        await expect(entryList({ filter })).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('preserves core DATEONLY predicates on a registered physical date field', async () => {
+      await docs.model.update({ calendarDate: '2026-09-16' }, { where: { id: [1, 2] } });
+      for (const operator of [
+        '$dateOn',
+        '$dateNotOn',
+        '$dateBefore',
+        '$dateNotBefore',
+        '$dateAfter',
+        '$dateNotAfter',
+        '$dateBetween',
+      ]) {
+        const value = operator === '$dateBetween' ? '[2026-09-16,2026-09-17)+00:00' : '2026-09-16+00:00';
+        const filter = { calendarDate: { [operator]: value } };
+        const parsed = new FilterParser(filter, { collection: docs }).toSequelizeParams();
+        const expected = await docs.model.findAll({
+          attributes: ['id'],
+          where: { [Op.and]: [parsed.where!, { id: [1, 2, 4, 5] }] },
+          order: [['id', 'ASC']],
+          raw: true,
+        });
+        expect(await entryList({ filter, sort: ['id'] })).toEqual(expected);
+      }
+      expect(await entryList({ filter: { calendarDate: { $dateOn: '2026-09-16+00:00' } } })).toEqual([
+        { id: 1 },
+        { id: 2 },
+      ]);
+    });
   });
   afterEach(async () => {
     vi.restoreAllMocks();

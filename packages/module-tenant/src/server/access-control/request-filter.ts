@@ -1,6 +1,7 @@
-import { FilterParser, type Collection, type Database, type WhereOptions } from '@tego/server';
+import { FilterParser, Op, type Collection, type Database, type WhereOptions } from '@tego/server';
 
 import type { AccessCollectionIdentity } from './config-store';
+import { dateFilterOperators, normalizeDateFilterOperand } from './date-filter';
 import type { AccessFilterNode, AccessFilterTreeRequest } from './filter-tree';
 import { invalid } from './write-support';
 
@@ -35,10 +36,11 @@ export class AccessRequestFilterParser {
   ) {}
 
   parse(source: AccessCollectionIdentity, filter: unknown): AccessFilterTreeRequest {
+    const dateTimezone = this.db.options.timezone ?? '+00:00';
     const snapshot = this.snapshot(filter);
     const root = this.collection(source);
     const rootGrant = this.grant(root, [], source);
-    const parsed = this.parseObjects(root, source, [], [snapshot], rootGrant);
+    const parsed = this.parseObjects(root, source, [], [snapshot], rootGrant, dateTimezone);
     return {
       filter: parsed,
       sourceWhere: rootGrant.where,
@@ -129,6 +131,7 @@ export class AccessRequestFilterParser {
     path: readonly string[],
     values: unknown[],
     grant: AccessFilterReadGrant,
+    dateTimezone: string,
   ): AccessFilterNode {
     if (path.length > 8) invalid('Request filter association path exceeds depth limit');
     if (values.some((value) => !value || typeof value !== 'object' || Array.isArray(value)))
@@ -183,7 +186,7 @@ export class AccessRequestFilterParser {
         if (index !== parts.length - 1) invalid(`Unknown request filter association: ${part}`);
         if (!grant.fields.includes(part))
           invalid(`Request filter field is not authorized: ${[...currentPath, part].join('.')}`);
-        const local = this.parseField(current, part, operand);
+        const local = this.parseField(current, part, operand, dateTimezone);
         predicates.push({ type: 'predicate', where: local });
       }
     };
@@ -219,11 +222,14 @@ export class AccessRequestFilterParser {
     for (const [key, item] of entries) {
       if (key === '$and' || key === '$or') {
         const children = (item as unknown[]).map((child) =>
-          this.parseObjects(collection, identity, path, [child], grant),
+          this.parseObjects(collection, identity, path, [child], grant, dateTimezone),
         );
         predicates.push({ type: key === '$and' ? 'all' : 'any', children });
       } else if (key === '$not') {
-        predicates.push({ type: 'not', child: this.parseObjects(collection, identity, path, [item], grant) });
+        predicates.push({
+          type: 'not',
+          child: this.parseObjects(collection, identity, path, [item], grant, dateTimezone),
+        });
       } else {
         const parts = key.split('.');
         const last = parts.at(-1);
@@ -273,6 +279,7 @@ export class AccessRequestFilterParser {
           [...path, association],
           entry.values,
           entry.grant,
+          dateTimezone,
         ),
       });
     }
@@ -381,7 +388,7 @@ export class AccessRequestFilterParser {
     };
   }
 
-  private parseField(collection: Collection, field: string, value: unknown): WhereOptions {
+  private parseField(collection: Collection, field: string, value: unknown, dateTimezone: string): WhereOptions {
     const fieldType = collection.getField(field)?.type;
     if (fieldType === 'array' || fieldType === 'json' || fieldType === 'jsonb')
       invalid('Request filtering does not support JSON or array fields');
@@ -406,6 +413,7 @@ export class AccessRequestFilterParser {
       '$isTruly',
       '$exists',
       '$notExists',
+      ...dateFilterOperators,
     ]);
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const keys = Reflect.ownKeys(value);
@@ -414,7 +422,29 @@ export class AccessRequestFilterParser {
         keys.some((key) => typeof key !== 'string' || !allowed.has(key) || !this.db.operators.has(key))
       )
         invalid('Request filter operator is unsupported');
-      for (const key of keys as string[]) this.assertFieldValue((value as Record<string, unknown>)[key]);
+      const normalized: Record<string, unknown> = {};
+      for (const key of keys as string[]) {
+        const operand = (value as Record<string, unknown>)[key];
+        if ((dateFilterOperators as readonly string[]).includes(key)) {
+          if (
+            !['DATE', 'DATEONLY'].includes((collection.model.rawAttributes[field]?.type as { key?: string })?.key ?? '')
+          )
+            invalid('Date filter operators require a physical date field');
+          normalized[key] = normalizeDateFilterOperand(key, operand, dateTimezone);
+        } else {
+          this.assertFieldValue(operand);
+          normalized[key] = operand;
+        }
+      }
+      // Core field-operator merging can overwrite shared symbols such as Op.and.
+      // Keep each date predicate intact when intersecting it with other operators.
+      if (keys.length > 1 && keys.some((key) => (dateFilterOperators as readonly string[]).includes(key as string)))
+        return {
+          [Op.and]: Object.entries(normalized).map(([key, operand]) =>
+            this.parseField(collection, field, { [key]: operand }, dateTimezone),
+          ),
+        };
+      value = normalized;
     } else {
       this.assertFieldValue(value);
     }

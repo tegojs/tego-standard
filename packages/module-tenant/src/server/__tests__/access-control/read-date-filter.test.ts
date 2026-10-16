@@ -10,9 +10,18 @@ const shortcuts = [
   'today',
   'yesterday',
   'tomorrow',
+  'thisWeek',
+  'lastWeek',
+  'nextWeek',
+  'thisIsoWeek',
+  'lastIsoWeek',
+  'nextIsoWeek',
   'thisMonth',
   'lastMonth',
   'nextMonth',
+  'thisQuarter',
+  'lastQuarter',
+  'nextQuarter',
   'thisYear',
   'lastYear',
   'nextYear',
@@ -65,7 +74,13 @@ describe('read entry date shortcuts', () => {
     }
   });
   it('uses field GMT for relative and absolute dates without overriding explicit offsets', async () => {
-    for (const value of ['{{$nDate.today}}', '2026-09-16', '2026-09-16+08:00', ['2026-09-16', '2026-09-17']]) {
+    for (const value of [
+      ...shortcuts.filter((name) => /Week|Quarter/.test(name)).map((name) => `{{$nDate.${name}}}`),
+      '{{$nDate.today}}',
+      '2026-09-16',
+      '2026-09-16+08:00',
+      ['2026-09-16', '2026-09-17'],
+    ]) {
       const filter = { date: { $dateOn: value } };
       expect(where(resolveReadDateFilter(filter, clock, () => '+00:00'))).toEqual(
         where(await core(filter, clock, '+00:00')),
@@ -123,9 +138,9 @@ describe('read entry date shortcuts', () => {
     '{{$nDate.today}} suffix',
     '{{$user.id}}',
     '{{$nRole}}',
-    '{{$nDate.thisWeek}}',
-    '{{$nDate.thisIsoWeek}}',
-    '{{$nDate.thisQuarter}}',
+    '{{$nDate.thisweek}}',
+    '{{$nDate.thisISOWeek}}',
+    '{{$nDate.thisQuarter()}}',
     '{{$nDate.today',
     '$nDate.today}}',
   ])('rejects unsupported date templates instead of substituting NULL: %s', (value) => {

@@ -1,3 +1,5 @@
+import { getDateVars } from '@tego/server';
+
 import { invalid } from './write-support';
 
 export const dateFilterOperators = [
@@ -19,6 +21,21 @@ export function normalizeDateFilterTimezone(value: unknown): string {
 
 function date(value: unknown, timezone: string): string {
   if (typeof value !== 'string' || value.length > 64) invalid('Date filters require bounded absolute date strings');
+  const period = /^(\d{4})(Q[1-4]|[Ww](?:0[1-9]|[1-4]\d|5[0-3]))([+-]\d{2}:\d{2})?$/.exec(value);
+  if (period) {
+    if (Number(period[1]) < 1000) invalid('Date filter value is not a valid calendar period');
+    if (period[2].slice(1) === '53') {
+      const variables = getDateVars();
+      const week = period[2][0] === 'W' ? variables.thisIsoWeek : variables.thisWeek;
+      // Only a year's final seven dates can belong to its week 53; let core decide each week convention.
+      const exists = Array.from({ length: 7 }, (_, index) => `${period[1]}-12-${25 + index}T12:00:00.000Z`).some(
+        (now) => week({ now, timezone: '+00:00', field: undefined }) === `${period[1]}${period[2]}+00:00`,
+      );
+      if (!exists) invalid('Date filter week does not exist in that year');
+    }
+    const zone = normalizeDateFilterTimezone(period[3] ?? timezone);
+    return `${period[1]}${period[2]}${zone}`;
+  }
   const match =
     /^(\d{4})(?:-(\d{2})(?:-(\d{2})(?:[T ](\d{2})(?::(\d{2})(?::(\d{2})(?:\.(\d{3}))?)?)?)?)?)?(Z|[+-]\d{2}:\d{2})?$/.exec(
       value,
@@ -45,7 +62,7 @@ function date(value: unknown, timezone: string): string {
   return zone ? value : `${value}${resolved}`;
 }
 
-/** Freeze core date semantics without reading a clock, variables, headers or mutable request context. */
+/** Freeze validated core date semantics without evaluating request templates or reading request context. */
 export function normalizeDateFilterOperand(operator: string, input: unknown, timezone = '+00:00'): string | string[] {
   if (!(dateFilterOperators as readonly string[]).includes(operator)) invalid('Unknown date filter operator');
   if (Array.isArray(input)) {

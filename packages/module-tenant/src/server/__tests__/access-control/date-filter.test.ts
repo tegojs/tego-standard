@@ -25,6 +25,16 @@ describe('absolute date filter operands', () => {
   const where = (operator: string, value: unknown) =>
     new FilterParser({ date: { [operator]: value } }, { collection }).toSequelizeParams().where;
 
+  it.each(['2026Q3+08:00', '2026W38+08:00', '2026w38+08:00'])('supports core calendar period labels: %s', (value) => {
+    for (const operator of dateFilterOperators) {
+      const operand = operator === '$dateBetween' ? [value, value] : value;
+      expect(parser().parse(mainIdentity, { date: { [operator]: operand } }).filter).toEqual({
+        type: 'predicate',
+        where: where(operator, operand),
+      });
+    }
+  });
+
   it.each(dateFilterOperators)('preserves the core %s predicate for explicit local dates', (operator) => {
     const value = operator === '$dateBetween' ? '[2026-09-16,2026-09-17]+08:00' : '2026-09-16+08:00';
     expect(parser().parse(mainIdentity, { date: { [operator]: value } }).filter).toEqual({
@@ -42,6 +52,18 @@ describe('absolute date filter operands', () => {
       '2026-09-16T12:34:56',
       '2026-09-16T12:34:56.789',
       '2026-09-16T12:34:56.789Z',
+      '2026Q3',
+      '2026W38',
+      '2026w38',
+      '2026Q1-05:00',
+      '2026Q4+14:00',
+      '2026W01+05:45',
+      '2026W52-12:00',
+      '2026W53+08:00',
+      '2020W53',
+      '2022w53',
+      '[2026Q1,2026Q3)+08:00',
+      ['2026W01', '2026Q2', '[)', '+08:00'],
       '2024-02-29-05:30',
       '[2026-09-16,2026-09-17)',
       '(2026-09-16,2026-09-18]+05:45',
@@ -108,9 +130,23 @@ describe('absolute date filter operands', () => {
       {},
       'today',
       '{{$nDate.today}}',
-      '2026Q3',
-      '2026W38',
-      '2026w38',
+      '2026Q0',
+      '2026Q5',
+      '2026q3',
+      '2026Q03',
+      '2026W00',
+      '2026W54',
+      '2026w00',
+      '2026w54',
+      '2026W1',
+      '2021W53',
+      '2026w53',
+      '0099W01',
+      '0099Q1',
+      '2026W38Z',
+      '2026Q3+15:00',
+      '2026W38+08:60',
+      '[2026W38,2021W53]',
       '0099-01-01',
       '2026-00-01',
       '2026-13-01',
@@ -140,6 +176,17 @@ describe('absolute date filter operands', () => {
   it('rejects scalar dateBetween values and unknown operators', () => {
     expect(() => normalizeDateFilterOperand('$dateBetween', '2026-09-16')).toThrow();
     expect(() => normalizeDateFilterOperand('$unknown', '2026-09-16')).toThrow();
+  });
+  it('keeps Sunday-based weeks distinct from Monday-based ISO weeks', () => {
+    expect(where('$dateOn', normalizeDateFilterOperand('$dateOn', '2026w38+00:00'))).toEqual(
+      where('$dateOn', '[2026-09-13,2026-09-20)+00:00'),
+    );
+    expect(where('$dateOn', normalizeDateFilterOperand('$dateOn', '2026W38+00:00'))).toEqual(
+      where('$dateOn', '[2026-09-14,2026-09-21)+00:00'),
+    );
+    expect(where('$dateOn', normalizeDateFilterOperand('$dateOn', '2026Q3+08:00'))).toEqual(
+      where('$dateOn', '[2026-07-01,2026-10-01)+08:00'),
+    );
   });
   it('does not accept date operators on non-date or unauthorized fields', () => {
     expect(() => parser().parse(mainIdentity, { name: { $dateOn: '2026-09-16' } })).toThrow();

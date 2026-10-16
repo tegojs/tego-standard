@@ -304,6 +304,127 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         expect(query).not.toHaveBeenCalled();
       });
     });
+    describe('calendar period dates', () => {
+      const dates = { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' };
+      const page = (filter: unknown, context = dates) =>
+        entryReads.listPageFromParams(
+          ctx,
+          mainIdentity,
+          auth,
+          { fields: ['id'], sort: ['id'], filter },
+          undefined,
+          context,
+        );
+      it('distinguishes Sunday and Monday week starts in real pages and details', async () => {
+        await docs.model.update({ occurredAt: new Date('2026-09-13T04:00:00Z') }, { where: { id: 1 } });
+        await docs.model.update({ occurredAt: new Date('2026-09-20T04:00:00Z') }, { where: { id: 2 } });
+        const ordinary = { occurredAt: { $dateOn: '{{$nDate.thisWeek}}' } };
+        const iso = { occurredAt: { $dateOn: '{{$nDate.thisIsoWeek}}' } };
+        expect(await page(ordinary)).toMatchObject({ rows: [{ id: 1 }, { id: 4 }, { id: 5 }], count: 3 });
+        expect(await page(iso)).toMatchObject({ rows: [{ id: 2 }, { id: 4 }, { id: 5 }], count: 3 });
+        expect(
+          await entryReads.getFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { fields: ['id'], filterByTk: 1, filter: iso },
+            undefined,
+            dates,
+          ),
+        ).toBeNull();
+        expect(
+          await entryReads.getFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { fields: ['id'], filterByTk: 1, filter: ordinary },
+            undefined,
+            dates,
+          ),
+        ).toEqual({ id: 1 });
+        permissions.set('', { allowed: true, params: { filter: { amount: { $lt: 40 } } } });
+        expect(await page(iso)).toMatchObject({ rows: [{ id: 2 }], count: 1 });
+      });
+      describe('quarter boundaries', () => {
+        beforeEach(async () => {
+          for (const [id, instant] of [
+            [1, '2026-06-30T16:00:00.000Z'],
+            [2, '2026-09-30T15:59:59.999Z'],
+            [4, '2026-06-30T15:59:59.999Z'],
+            [5, '2026-09-30T16:00:00.000Z'],
+          ] as const)
+            await docs.model.update({ occurredAt: new Date(instant) }, { where: { id } });
+        });
+        it('preserves full quarter boundaries for calendar operators and field GMT', async () => {
+          for (const [operator, ids] of [
+            ['$dateOn', [1, 2]],
+            ['$dateNotOn', [4, 5]],
+            ['$dateBefore', [4]],
+            ['$dateNotBefore', [1, 2, 5]],
+            ['$dateAfter', [5]],
+            ['$dateNotAfter', [1, 2, 4]],
+            ['$dateBetween', [1, 2]],
+          ] as const)
+            expect(await page({ occurredAt: { [operator]: '{{$date.thisQuarter}}' } })).toMatchObject({
+              rows: ids.map((id) => ({ id })),
+              count: ids.length,
+            });
+          docs.getField('occurredAt').options.uiSchema = { 'x-component-props': { gmt: true } };
+          expect((await page({ occurredAt: { $dateOn: '{{$nDate.thisQuarter}}' } })).rows).toEqual([
+            { id: 2 },
+            { id: 5 },
+          ]);
+        });
+        it('uses finalized role period conditions without exposing hidden date fields', async () => {
+          permissions.set('', {
+            allowed: true,
+            params: {
+              fields: ['id'],
+              appends: [],
+              filter: { occurredAt: { $dateOn: '2026Q3+08:00' } },
+            },
+          });
+          expect(await entryList()).toEqual([{ id: 1 }, { id: 2 }]);
+          expect(await entryReads.count(ctx, mainIdentity, auth)).toBe(2);
+          await expect(page({ occurredAt: { $dateOn: '{{$nDate.thisQuarter}}' } })).rejects.toThrow(/authorized/);
+        });
+      });
+      it('intersects period filters with linked target visibility and role conditions', async () => {
+        await projects.model.update({ occurredAt: new Date(dates.now) }, { where: { id: [101, 102] } });
+        await projects.model.update({ occurredAt: new Date('2026-10-01T00:00:00Z') }, { where: { id: 103 } });
+        const linked = { project: { occurredAt: { $dateOn: '{{$nDate.thisQuarter}}' } } };
+        expect(await page(linked)).toMatchObject({ rows: [{ id: 1 }], count: 1 });
+        permissions.set('project', {
+          allowed: true,
+          params: { filter: { occurredAt: { $dateBefore: '2026Q3+08:00' } } },
+        });
+        expect(await page(linked)).toMatchObject({ rows: [], count: 0 });
+      });
+      it('keeps ISO week 53 in its week year when the calendar year has changed', async () => {
+        for (const [id, instant] of [
+          [1, '2020-12-27T16:00:00.000Z'],
+          [2, '2021-01-03T15:59:59.999Z'],
+          [4, '2020-12-27T15:59:59.999Z'],
+          [5, '2021-01-03T16:00:00.000Z'],
+        ] as const)
+          await docs.model.update({ occurredAt: new Date(instant) }, { where: { id } });
+        const context = { now: '2021-01-01T00:00:00.000Z', timezone: '+08:00' };
+        expect(await page({ occurredAt: { $dateOn: '{{$nDate.thisIsoWeek}}' } }, context)).toMatchObject({
+          rows: [{ id: 1 }, { id: 2 }],
+          count: 2,
+        });
+        expect(await page({ occurredAt: { $dateOn: '{{$nDate.thisWeek}}' } }, context)).toMatchObject({
+          rows: [{ id: 1 }, { id: 4 }],
+          count: 2,
+        });
+      });
+      it('rejects nonexistent week and quarter labels before SQL', async () => {
+        const query = vi.spyOn(db.sequelize, 'query');
+        for (const value of ['2021W53', '2026w53', '2026W54', '2026Q5', '2026Q3+15:00'])
+          await expect(page({ occurredAt: { $dateOn: value } })).rejects.toThrow();
+        expect(query).not.toHaveBeenCalled();
+      });
+    });
     it.each([
       ['$dateOn', [1, 2]],
       ['$dateNotOn', [4, 5]],

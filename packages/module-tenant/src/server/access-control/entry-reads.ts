@@ -207,6 +207,14 @@ export class AccessEntryReadService {
     dates?: AccessReadDateContext,
   ) {
     const route = resolveResourceReadRoute(this.db, this.resolveIdentity, action);
+    if (route.kind === 'association') {
+      const args = [ctx, route.identity, authenticated, route.association, params, transaction, dates] as const;
+      const result = await (route.actionName === 'list'
+        ? this.listAssociationPageFromParams(...args)
+        : this.getAssociationFromParams(...args));
+      route.assertCurrent();
+      return result;
+    }
     const args = [ctx, route.identity, authenticated, params, transaction, dates] as const;
     const result = await (route.actionName === 'list'
       ? this.listPageFromParams(...args)

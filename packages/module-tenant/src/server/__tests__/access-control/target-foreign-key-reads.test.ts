@@ -168,6 +168,231 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('target foreign-
     association = 'children',
   ) => entry.getAssociationFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);
 
+  describe('concrete resource routing', () => {
+    const route = (
+      actionName: string = 'get',
+      sourceId: unknown = 1,
+      params: unknown = { fields: ['id'], filterByTk: 101 },
+      association = 'children',
+    ) =>
+      entry.fromResource(
+        ctx,
+        authenticated,
+        { resourceName: `documents.${association}`, sourceId, actionName },
+        params,
+      );
+
+    it('routes the concrete HasMany list through its original source and relationship', async () => {
+      expect(
+        await entry.fromResource(
+          ctx,
+          authenticated,
+          {
+            resourceName: 'documents.children',
+            sourceId: 1,
+            actionName: 'list',
+          },
+          { fields: ['id'], sort: 'id' },
+        ),
+      ).toMatchObject({
+        rows: [{ id: 101 }, { id: 102 }, { id: 104 }],
+        count: 3,
+      });
+    });
+
+    it('routes HasMany detail and HasOne relation-located detail under get permissions', async () => {
+      expect(await route()).toEqual({ id: 101 });
+      expect(await route('get', '1', { fields: ['id'], filterByTk: 102 })).toEqual({ id: 102 });
+      expect(await route('get', 2, { fields: ['id'], filterByTk: 999 }, 'child')).toEqual({ id: 105 });
+      expect(
+        permissionResolver.mock.calls.every(
+          ([, , operation]) => operation.kind === 'get' && operation.source.collectionName === 'documents',
+        ),
+      ).toBe(true);
+    });
+
+    it('does not broaden hidden missing or unrelated sources to direct target reads', async () => {
+      for (const sourceId of [3, 999]) {
+        await expect(route('get', sourceId, { fields: ['id'], filterByTk: 106 })).rejects.toMatchObject({
+          code: 'ACCESS_RECORD_UNAVAILABLE',
+        });
+        await expect(route('list', sourceId, { fields: ['id'] })).rejects.toMatchObject({
+          code: 'ACCESS_RECORD_UNAVAILABLE',
+        });
+      }
+      expect(await route('get', 2)).toBeNull();
+      expect(await route('get', 1, { fields: ['id'], filterByTk: 103 })).toBeNull();
+      expect(await route('list', 5, { fields: ['id'] })).toMatchObject({ rows: [], count: 0 });
+    });
+
+    it('preserves source and target ACL and the ancestor nested field boundary', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: [], appends: ['children.name', 'children.document.name'] },
+      });
+      permissions.set('children', { allowed: true, params: { filter: { amount: { $gt: 10 } } } });
+      expect(await route('get', 1, { fields: ['name'], filterByTk: 102, appends: ['document.name'] })).toEqual({
+        name: 'Visible',
+        document: { name: 'Owned' },
+      });
+      expect(await route('get', 1, { fields: ['name'], filterByTk: 101 })).toBeNull();
+      await expect(route('get', 1, { fields: ['amount'], filterByTk: 102 })).rejects.toThrow(/authorized/);
+      permissions.set('children', null);
+      await expect(route('get', 1, { fields: ['name'], filterByTk: 102 })).rejects.toThrow(/authorized/);
+      permissions.clear();
+      permissions.set('', { allowed: true, params: { filter: { name: 'Visible' } } });
+      await expect(route()).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('keeps placeholder behavior target-only even when the corresponding concrete source is hidden', async () => {
+      expect(await route('get', '_', { fields: ['id'], filterByTk: 106 })).toEqual({ id: 106 });
+      expect(permissionResolver.mock.calls.every(([, path]) => path.length === 0)).toBe(true);
+      await expect(route('get', 3, { fields: ['id'], filterByTk: 106 })).rejects.toMatchObject({
+        code: 'ACCESS_RECORD_UNAVAILABLE',
+      });
+      adapter.release(ctx);
+      await adapter.prepare(ctx, [target]);
+      expect(await route('get', '_', { fields: ['id'], filterByTk: 106 })).toEqual({ id: 106 });
+    });
+
+    it('uses target root detail keys for placeholders and relation keys for concrete sources', async () => {
+      docs.options.filterTargetKey = 'name';
+      children.options.filterTargetKey = 'amount';
+      expect(await route('get', '_', { fields: ['id'], filterByTk: 50 })).toEqual({ id: 106 });
+      expect(await route('get', 1, { fields: ['id'], filterByTk: 102 })).toEqual({ id: 102 });
+      expect(await route('get', 2, { fields: ['id'] }, 'child')).toEqual({ id: 105 });
+    });
+
+    it('reads legacy sources and targets without claiming either', async () => {
+      expect(await route('get', 4, { fields: ['id'], filterByTk: 107 })).toEqual({ id: 107 });
+      expect((await docs.model.findByPk(4))!.getDataValue('tenantId')).toBeNull();
+      expect((await children.model.findByPk(107))!.getDataValue('tenantId')).toBeNull();
+    });
+
+    it('captures concrete route params and authorization paths before querying the source', async () => {
+      const action = { resourceName: 'documents.children', sourceId: 1 as string | number, actionName: 'get' };
+      const params = { fields: ['name'], filterByTk: 102, appends: ['document.name'] };
+      const original = docs.model.findOne.bind(docs.model);
+      vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (options) => {
+        action.sourceId = '_';
+        action.resourceName = 'children';
+        action.actionName = 'list';
+        params.filterByTk = 106;
+        params.fields[0] = 'id';
+        params.appends[0] = 'document.id';
+        permissions.set('children.document', null);
+        return original(options);
+      });
+      expect(await entry.fromResource(ctx, authenticated, action, params)).toEqual({
+        name: 'Visible',
+        document: { name: 'Owned' },
+      });
+    });
+
+    it('rechecks stable source and target identities before returning data', async () => {
+      for (const changed of [mainIdentity, target]) {
+        const sourceIdentity = { ...mainIdentity };
+        const targetIdentity = { ...target };
+        const reader = new AccessEntryReadService(
+          db,
+          adapter,
+          queries,
+          (collection) => (collection === docs ? sourceIdentity : collection === children ? targetIdentity : undefined),
+          permissionResolver,
+        );
+        const original = docs.model.findOne.bind(docs.model);
+        const spy = vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (options) => {
+          const record = await original(options);
+          (changed === mainIdentity ? sourceIdentity : targetIdentity).collectionKey = 'recreated';
+          return record;
+        });
+        await expect(
+          reader.fromResource(
+            ctx,
+            authenticated,
+            {
+              resourceName: 'documents.children',
+              sourceId: 1,
+              actionName: 'get',
+            },
+            { fields: ['id'], filterByTk: 101 },
+          ),
+        ).rejects.toThrow(/identity changed/);
+        spy.mockRestore();
+      }
+    });
+
+    it('carries server-supplied transactions and trusted dates through dispatch', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await children.model.update(
+          { documentId: 2, occurredAt: '2026-10-16T03:00:00.000Z' },
+          { where: { id: 101 }, transaction },
+        );
+        expect(
+          await entry.fromResource(
+            ctx,
+            authenticated,
+            {
+              resourceName: 'documents.children',
+              sourceId: 2,
+              actionName: 'get',
+            },
+            { fields: ['id'], filterByTk: 101, filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } } },
+            transaction,
+            { now: '2026-10-16T03:00:00.000Z', timezone: '+08:00' },
+          ),
+        ).toEqual({ id: 101 });
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await route('get', 2)).toBeNull();
+    });
+
+    it('does not add SQL queries to the existing list and detail adapters', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await page();
+      const listCount = sql.mock.calls.length;
+      sql.mockClear();
+      await route('list', 1, { fields: ['id'], sort: 'id' });
+      expect(sql.mock.calls.length).toBe(listCount);
+      sql.mockClear();
+      await detail();
+      const detailCount = sql.mock.calls.length;
+      sql.mockClear();
+      await route();
+      expect(sql.mock.calls.length).toBe(detailCount);
+      expect(detailCount).toBeGreaterThan(0);
+    });
+
+    it('rejects unsupported concrete relation kinds actions keys and forged capabilities before SQL', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const [actionName, sourceId, association] of [
+        ['list', null, 'children'],
+        ['get', {}, 'children'],
+        ['count', 1, 'children'],
+        ['sum', 1, 'children'],
+        ['list', 1, 'child'],
+        ['get', 1, 'document'],
+      ] as const)
+        await expect(route(actionName, sourceId, {}, association)).rejects.toThrow();
+      await expect(
+        entry.fromResource(
+          ctx,
+          authenticated,
+          {
+            resourceName: 'documents.children',
+            sourceId: 1,
+            actionName: 'get',
+            permission: {},
+          },
+          {},
+        ),
+      ).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+  });
+
   describe('association detail entry', () => {
     it('reads only the requested related target through its own ACL and G/V', async () => {
       expect(await detail()).toEqual({ id: 101 });

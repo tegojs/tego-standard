@@ -5,13 +5,23 @@ import { invalid, plain } from './write-support';
 
 type ResourceReadAction = 'list' | 'get' | 'count' | 'sum';
 
-export interface AccessResourceReadRoute {
+interface ResourceReadRouteBase {
+  /** Authorization root: the target for direct reads, or the source for concrete relationships. */
   readonly identity: Readonly<AccessCollectionIdentity>;
-  readonly actionName: ResourceReadAction;
   readonly assertCurrent: () => void;
 }
 
-/** Parsed action descriptors only. Concrete source-record routes require a separate association adapter. */
+export type AccessResourceReadRoute = ResourceReadRouteBase &
+  (
+    | { readonly kind: 'direct'; readonly actionName: ResourceReadAction }
+    | {
+        readonly kind: 'association';
+        readonly actionName: 'list' | 'get';
+        readonly association: Readonly<{ association: string; sourceKey: string | number }>;
+      }
+  );
+
+/** Parsed descriptors only; concrete sources are dispatched to the dedicated association adapters. */
 export function resolveResourceReadRoute(
   db: Database,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
@@ -46,9 +56,16 @@ export function resolveResourceReadRoute(
         !/^[A-Za-z_][A-Za-z0-9_]*$/.test(part) ||
         ['_', '__proto__', 'constructor', 'prototype'].includes(part),
     ) ||
-    (parts.length === 1 ? sourceId !== undefined : sourceId !== '_' || !['list', 'get'].includes(actionName))
+    (parts.length === 1
+      ? sourceId !== undefined
+      : !['list', 'get'].includes(actionName) ||
+        !(
+          (typeof sourceId === 'string' && sourceId.length > 0 && sourceId.length <= 512) ||
+          (typeof sourceId === 'number' && Number.isSafeInteger(sourceId))
+        ))
   )
-    invalid('Only root reads and direct association placeholder get/list are supported');
+    invalid('Only root reads and bounded association get/list are supported');
+  const concrete = parts.length === 2 && sourceId !== '_';
   const source = db.collections.get(parts[0]);
   if (!source || source.db !== db || source.name !== parts[0] || source.model.sequelize !== db.sequelize)
     invalid('Resource read source collection is unavailable');
@@ -73,6 +90,8 @@ export function resolveResourceReadRoute(
     )
       invalid('Resource read association target is unavailable');
     const relationType = relation.associationType;
+    if (concrete && relationType !== 'HasMany' && !(relationType === 'HasOne' && actionName === 'get'))
+      invalid('Concrete reads for this association type or action are not supported');
     const targetName = relatedTarget.name;
     assertRelation = () => {
       if (
@@ -94,6 +113,16 @@ export function resolveResourceReadRoute(
   if (!resolved || resolved.collectionName !== targetName) invalid('Resource read target identity is unavailable');
   const identity = Object.freeze({ ...resolved });
   const key = accessCollectionKey(identity);
+  const resolvedSource = concrete ? resolveIdentity(source) : undefined;
+  if (
+    concrete &&
+    (!resolvedSource ||
+      resolvedSource.collectionName !== source.name ||
+      resolvedSource.dataSourceKey !== identity.dataSourceKey)
+  )
+    invalid('Resource read source identity is unavailable');
+  const sourceIdentity = resolvedSource && Object.freeze({ ...resolvedSource });
+  const sourceKey = sourceIdentity && accessCollectionKey(sourceIdentity);
   const assertCurrent = () => {
     const current = resolveIdentity(target);
     if (
@@ -109,8 +138,25 @@ export function resolveResourceReadRoute(
       accessCollectionKey(current) !== key
     )
       invalid('Resource read collection or identity changed during query');
+    if (sourceIdentity) {
+      const currentSource = resolveIdentity(source);
+      if (
+        !currentSource ||
+        currentSource.collectionName !== sourceIdentity.collectionName ||
+        accessCollectionKey(currentSource) !== sourceKey
+      )
+        invalid('Resource read source identity changed during query');
+    }
     assertRelation();
   };
   assertCurrent();
-  return Object.freeze({ identity, actionName: actionName as ResourceReadAction, assertCurrent });
+  return concrete
+    ? Object.freeze({
+        kind: 'association',
+        identity: sourceIdentity!,
+        actionName: actionName as 'list' | 'get',
+        association: Object.freeze({ association: parts[1], sourceKey: sourceId as string | number }),
+        assertCurrent,
+      })
+    : Object.freeze({ kind: 'direct', identity, actionName: actionName as ResourceReadAction, assertCurrent });
 }

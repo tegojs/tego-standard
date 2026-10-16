@@ -25,3 +25,25 @@
 聚焦命令：`pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/resource-read-routing.test.ts packages/module-tenant/src/server/__tests__/access-control/resource-read-params.test.ts packages/module-tenant/src/server/__tests__/access-control/reads.test.ts --reporter=dot --maxWorkers=1 --pool=threads --no-file-parallelism`。PostgreSQL 使用随机独立本地测试库。
 
 仍不注册实际资源路由、不启用业务配置、不更改核心或依赖。
+
+## 后续：具体来源资源分派
+
+在已有根资源与占位符分派上，接入已经验证的一对多列表、一对多详情和一对一详情内部入口。路由返回明确的类型：`direct` 为根资源或占位符目标，`association` 为具体来源关系；后者只传入冻结的关联名和来源键，不能降级成目标表查询。
+
+具体来源列表只支持 HasMany，详情支持 HasMany/HasOne；BelongsTo、多对多、关联 count/sum 和多层资源路径仍拒绝。来源键限定为有界标量，来源与目标必须有同一数据源下的独立稳定身份。角色授权操作仍以来源为根，沿实际关联路径解析；列表、详情参数及定位规则委托原有内部适配器，不复制权限或 SQL 逻辑。
+
+`/_/` 保留核心协议：只授权真实目标，不要求来源配置或来源记录可读、不要求已有连接、不附加关系 scope。具体来源则必须检查来源权限、来源 G/V 和实际连接，再独立检查目标。这次仍不注册业务路由。
+
+- [x] 新增实际资源分派红灯，确认具体来源请求此前因不支持而拒绝。
+- [x] 扩展严格路由解析及明确类型，捕获并复核来源/目标稳定身份；`fromResource` 分派已有列表/详情入口。
+- [x] 补齐具体来源、占位符、来源/目标角色与 G/V、字段路径、定位键、历史不认领、事务/日期、异步快照及身份变更测试。
+- [x] SQLite 与独立 PostgreSQL 回归路由、根资源和已有具体来源读取；类型、lint、格式及租户模块构建。
+- [x] 独立审查、记录结果、签名原子提交。
+
+具体来源分派验证：
+
+- 新增列表红灯明确为旧路由拒绝具体来源；实现后 SQLite 路由专项通过 67 项。
+- 路由、根读取及目标外键读取共 3 个文件，在 SQLite 与独立 PostgreSQL 通过 472 项（253.55 秒）。临时库 `tego_tenant_access_test_b4365bed60` 已删除并确认不存在。
+- 增加实际 SQL 次数对照后，具体来源分派专项在两个数据库再次通过 24 项（18.63 秒），列表和详情均不增加查询。临时库 `tego_tenant_access_test_616accd583` 已删除并确认不存在。
+- 严格 TypeScript 0 项诊断，聚焦 oxlint 0 个问题，格式检查及租户模块构建通过。独立审查未发现有效问题，另运行 261 项隔离路由检查通过，访问器调用 0 次。
+- 未注册业务资源，未修改业务数据或核心仓库；真实业务页面和剩余入口仍待验收。

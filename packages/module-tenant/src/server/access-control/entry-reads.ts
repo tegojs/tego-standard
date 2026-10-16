@@ -20,6 +20,7 @@ import {
   type AccessListRequest,
   type AccessReadRequest,
   type AccessReadResult,
+  type AccessRootReadConstraintResolver,
   type AccessSumRequest,
 } from './reads';
 import type { AccessFilterReadGrant } from './request-filter';
@@ -32,6 +33,7 @@ import {
 import { resolveResourceReadRoute } from './resource-read-routing';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
+import { AccessTargetForeignKeyReadService } from './target-foreign-key-reads';
 import { cloneDeep, invalid, plain } from './write-support';
 
 export interface AccessEntryExpansionRequest {
@@ -245,6 +247,93 @@ export class AccessEntryReadService {
     return { rows: result.rows, count: result.count, page, pageSize, totalPage: Math.ceil(result.count / pageSize) };
   }
 
+  /** Internal concrete-source HasMany list bridge; no business resource route is installed here. */
+  async listAssociationPageFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    descriptor: unknown,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    if (
+      !plain(descriptor) ||
+      Reflect.ownKeys(descriptor).some(
+        (key) =>
+          typeof key !== 'string' ||
+          !['association', 'sourceKey'].includes(key) ||
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(descriptor, key)!, 'value'),
+      )
+    )
+      invalid('Unsupported association list descriptor');
+    const name = Object.getOwnPropertyDescriptor(descriptor, 'association')?.value;
+    const sourceKey = Object.getOwnPropertyDescriptor(descriptor, 'sourceKey')?.value;
+    if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || name.length > 255 || sourceKey === '_')
+      invalid('Select a direct HasMany association and a concrete source key');
+    const authorization = this.operation('list', ctx, source, authenticated);
+    const collection = this.db.getCollection(authorization.source.collectionName);
+    const field = collection?.getField(name);
+    const relation =
+      collection && Object.hasOwn(collection.model.associations, name) && collection.model.associations[name];
+    const target = relation && this.db.modelCollection.get(relation.target);
+    if (
+      !collection ||
+      !field ||
+      !relation ||
+      relation.associationType !== 'HasMany' ||
+      !target ||
+      target.db !== this.db ||
+      field.target !== target.name
+    )
+      invalid('Select a registered same-database HasMany association');
+    const sourceGrant = authorization.resolveGrant(collection, []);
+    const targetGrant = authorization.resolveGrant(target, [name]);
+    if (!sourceGrant || !targetGrant || !sourceGrant.fields.includes(name))
+      invalid('Association list is not authorized');
+    if (accessCollectionKey(sourceGrant.identity) !== accessCollectionKey(authorization.source))
+      invalid('Association source permission does not match the requested collection');
+    const plan = new AccessTargetForeignKeyReadService(this.db, this.prepared, this.queries).prepareTargets(
+      ctx,
+      authorization.source,
+      targetGrant.identity,
+      authorization.authenticated,
+      { association: name, sourceKey, sourceWhere: sourceGrant.where, sourceBind: sourceGrant.bind, transaction },
+    );
+    const targetAuthorization = {
+      ...authorization,
+      source: targetGrant.identity,
+      resolveGrant: (collection: Collection, path: readonly string[]) =>
+        authorization.resolveGrant(collection, [name, ...path]),
+      assertCurrent: () => {
+        authorization.assertCurrent();
+        plan.assertCurrent();
+        if (collection.getField(name) !== field || field.target !== target.name)
+          invalid('Association list field changed during query');
+      },
+    };
+    const request = this.withDates(targetGrant.identity, parseResourceListParams(params), dates);
+    const result = await this.selected(
+      ctx,
+      targetGrant.identity,
+      authorization.authenticated,
+      { ...request, transaction },
+      'list',
+      true,
+      { authorization: targetAuthorization, rootConstraint: plan.resolve },
+    );
+    targetAuthorization.assertCurrent();
+    if (result.count === undefined) invalid('Association page is missing its root count');
+    const pageSize = request.limit;
+    return {
+      rows: result.rows,
+      count: result.count,
+      page: request.offset / pageSize + 1,
+      pageSize,
+      totalPage: Math.ceil(result.count / pageSize),
+    };
+  }
+
   async getFromParams(
     ctx: object,
     source: AccessCollectionIdentity,
@@ -340,6 +429,10 @@ export class AccessEntryReadService {
     request: AccessSelectedListRequest | AccessSelectedGetRequest,
     kind: 'list' | 'get',
     withCount = false,
+    scope?: {
+      authorization: ReturnType<AccessEntryReadService['operation']>;
+      rootConstraint: AccessRootReadConstraintResolver;
+    },
   ): Promise<AccessReadResult> {
     const selectionKeys = ['fields', 'appends', 'except'];
     const allowed = [
@@ -363,7 +456,7 @@ export class AccessEntryReadService {
     );
     const ownValues = (selection: boolean) =>
       Object.fromEntries(captured.filter(([key]) => selectionKeys.includes(key as string) === selection));
-    const authorization = this.operation(kind, ctx, source, authenticated);
+    const authorization = scope?.authorization ?? this.operation(kind, ctx, source, authenticated);
     const collection = this.db.getCollection(authorization.source.collectionName);
     if (!collection) invalid('Selected read collection is unavailable');
     // Selection and subsequent filter/sort/expansion share one operation-local permission snapshot.
@@ -383,6 +476,7 @@ export class AccessEntryReadService {
         this.queries,
         resolveGrant,
         authorization.assertCurrent,
+        scope?.rootConstraint,
       );
       const expanded = { ...input, expansions: selection.expansions.map(project) };
       if (kind === 'list') {
@@ -408,6 +502,7 @@ export class AccessEntryReadService {
       this.queries,
       resolveGrant,
       authorization.assertCurrent,
+      scope?.rootConstraint,
     );
     if (kind === 'list') {
       if (withCount) {

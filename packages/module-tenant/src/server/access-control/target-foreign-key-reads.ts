@@ -5,6 +5,7 @@ import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import type { AccessQueryService, ScopedAccessQuery } from './query';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
+import type { AccessConfig } from './types';
 import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
 
 export interface TargetForeignKeyReadRequest {
@@ -17,6 +18,16 @@ export interface TargetForeignKeyReadRequest {
   targetWhere?: WhereOptions;
   targetBind?: Record<string, unknown>;
   transaction?: Transaction;
+}
+
+interface PreparedTargetForeignKeyRead {
+  readonly target: AccessCollectionIdentity;
+  readonly authenticated: AccessIdentity;
+  readonly config: AccessConfig;
+  readonly bind: Record<string, unknown> | undefined;
+  readonly transaction: Transaction | undefined;
+  assertCurrent(): void;
+  resolve(): Promise<{ where: WhereOptions; assertCurrent(): void }>;
 }
 
 /** Explicit HasMany/HasOne read plans; never installs a global association interceptor. */
@@ -34,6 +45,26 @@ export class AccessTargetForeignKeyReadService {
     authenticated: AccessIdentity,
     request: TargetForeignKeyReadRequest,
   ): Promise<ScopedAccessQuery> {
+    const plan = this.prepareTargets(ctx, source, target, authenticated, request);
+    const constraint = await plan.resolve();
+    const scoped = await this.queries.scopeQuery(ctx, plan.target, plan.authenticated, {
+      where: constraint.where,
+      bind: plan.bind,
+      transaction: plan.transaction,
+    });
+    constraint.assertCurrent();
+    if (!scoped || scoped.config !== plan.config) invalid('Target read phase changed');
+    return scoped;
+  }
+
+  /** Capture the relation now; resolve its source before executing a selected target read. */
+  prepareTargets(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: TargetForeignKeyReadRequest,
+  ): PreparedTargetForeignKeyRead {
     source = { ...source };
     target = { ...target };
     authenticated = { ...authenticated };
@@ -75,36 +106,41 @@ export class AccessTargetForeignKeyReadService {
       associationType,
       false,
     );
-    const conditions: WhereOptions[] = [];
-    if (request.sourceKey !== '_') {
-      const sourceKey = normalizeKeys([request.sourceKey], relation.source)[0];
-      const keyWhere = { [relation.sourceModel.primaryKeyAttribute]: sourceKey };
-      const sourceScope = await this.queries.scopeQuery(ctx, source, authenticated, {
-        where: request.sourceWhere === undefined ? keyWhere : { [Op.and]: [keyWhere, request.sourceWhere] },
-        bind: request.sourceBind,
-        transaction,
-      });
-      if (!sourceScope || sourceScope.config !== relation.sourceConfig) invalid('Source read phase changed');
-      const record = await relation.sourceModel.findOne(
-        internalQuery({ ...sourceScope.query, attributes: [relation.sourceModel.primaryKeyAttribute] }),
-      );
-      relation.current();
-      if (!record) unavailable();
-      conditions.push({ [relation.foreignKey]: sourceKey });
-    }
-    if (request.targetKey !== undefined)
-      conditions.push({
-        [relation.targetModel.primaryKeyAttribute]: normalizeKeys([request.targetKey], relation.target)[0],
-      });
-    if (relation.scope !== undefined) conditions.push(relation.scope);
-    if (request.targetWhere !== undefined) conditions.push(request.targetWhere);
-    const scoped = await this.queries.scopeQuery(ctx, target, authenticated, {
-      where: { [Op.and]: conditions },
+    const sourceKey = request.sourceKey === '_' ? undefined : normalizeKeys([request.sourceKey], relation.source)[0];
+    return {
+      target,
+      authenticated,
+      config: relation.targetConfig,
       bind: request.targetBind,
       transaction,
-    });
-    relation.current();
-    if (!scoped || scoped.config !== relation.targetConfig) invalid('Target read phase changed');
-    return scoped;
+      assertCurrent: relation.current,
+      resolve: async () => {
+        relation.current();
+        const conditions: WhereOptions[] = [];
+        if (sourceKey !== undefined) {
+          const keyWhere = { [relation.sourceModel.primaryKeyAttribute]: sourceKey };
+          const sourceScope = await this.queries.scopeQuery(ctx, source, authenticated, {
+            where: request.sourceWhere === undefined ? keyWhere : { [Op.and]: [keyWhere, request.sourceWhere] },
+            bind: request.sourceBind,
+            transaction,
+          });
+          if (!sourceScope || sourceScope.config !== relation.sourceConfig) invalid('Source read phase changed');
+          const record = await relation.sourceModel.findOne(
+            internalQuery({ ...sourceScope.query, attributes: [relation.sourceModel.primaryKeyAttribute] }),
+          );
+          relation.current();
+          if (!record) unavailable();
+          conditions.push({ [relation.foreignKey]: sourceKey });
+        }
+        if (request.targetKey !== undefined)
+          conditions.push({
+            [relation.targetModel.primaryKeyAttribute]: normalizeKeys([request.targetKey], relation.target)[0],
+          });
+        if (relation.scope !== undefined) conditions.push(relation.scope);
+        if (request.targetWhere !== undefined) conditions.push(request.targetWhere);
+        const where: WhereOptions = { [Op.and]: conditions };
+        return { where, assertCurrent: relation.current };
+      },
+    };
   }
 }

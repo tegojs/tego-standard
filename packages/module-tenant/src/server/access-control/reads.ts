@@ -1,4 +1,4 @@
-import { Op, type Collection, type Database, type Model, type Transaction } from '@tego/server';
+import { Op, type Collection, type Database, type Model, type Transaction, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
@@ -45,6 +45,14 @@ export interface AccessReadResult {
   count?: number;
 }
 
+/** Trusted entry constraint, captured separately from client read parameters. */
+export interface AccessRootReadConstraint {
+  readonly where: WhereOptions;
+  readonly assertCurrent: () => void;
+}
+
+export type AccessRootReadConstraintResolver = () => Promise<AccessRootReadConstraint>;
+
 /** Internal execution service. The entry must supply this operation's role/action read grants. */
 export class AccessReadService {
   constructor(
@@ -53,6 +61,7 @@ export class AccessReadService {
     private readonly queries: AccessQueryService,
     private readonly resolveGrant: AccessFilterGrantResolver,
     private readonly assertAuthorizationCurrent?: () => void,
+    private readonly resolveRootConstraint?: AccessRootReadConstraintResolver,
   ) {}
 
   async list(
@@ -295,6 +304,16 @@ export class AccessReadService {
           )
         : undefined;
     this.assertAuthorizationCurrent?.();
+    // Capture all client values and permissions before the source lookup can yield.
+    const constraint = this.resolveRootConstraint ? await this.resolveRootConstraint() : undefined;
+    if (constraint) {
+      constraint.assertCurrent();
+      parsed.filter = {
+        type: 'all',
+        children: [parsed.filter, { type: 'predicate', where: constraint.where }],
+      };
+    }
+    this.assertAuthorizationCurrent?.();
     const filtered = await new AccessFilterTreeService(this.db, this.prepared, this.queries).scopeRoots(
       ctx,
       source,
@@ -303,6 +322,7 @@ export class AccessReadService {
     );
     const current = () => {
       this.assertAuthorizationCurrent?.();
+      constraint?.assertCurrent();
       detailKey?.assertCurrent();
       if (
         this.prepared.configuration(ctx, source) !== config ||

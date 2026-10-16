@@ -15,7 +15,13 @@ import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import { resolveManyToManyRead } from './many-to-many-read-metadata';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
-import { AccessReadService, type AccessGetRequest, type AccessListRequest, type AccessReadResult } from './reads';
+import {
+  AccessReadService,
+  type AccessGetRequest,
+  type AccessListRequest,
+  type AccessReadResult,
+  type AccessRootReadConstraintResolver,
+} from './reads';
 import type { AccessFilterGrantResolver, AccessFilterReadGrant } from './request-filter';
 import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
@@ -53,6 +59,7 @@ export class AccessExpandedReadService {
     private readonly queries: AccessQueryService,
     private readonly resolveGrant: AccessFilterGrantResolver,
     private readonly assertAuthorizationCurrent?: () => void,
+    private readonly resolveRootConstraint?: AccessRootReadConstraintResolver,
   ) {}
 
   async list(
@@ -305,14 +312,14 @@ export class AccessExpandedReadService {
       });
     const loaders = prepare(source, collection, sourceGrant, selections, []);
     current();
-    const page = await new AccessReadService(this.db, this.prepared, this.queries, resolveGrant, current).page(
-      ctx,
-      source,
-      authenticated,
-      rootRequest,
-      kind,
-      withCount,
-    );
+    const page = await new AccessReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      resolveGrant,
+      current,
+      this.resolveRootConstraint,
+    ).page(ctx, source, authenticated, rootRequest, kind, withCount);
     const assertCurrent = () => {
       current();
       page.assertCurrent();

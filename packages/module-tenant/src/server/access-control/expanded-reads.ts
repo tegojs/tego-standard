@@ -15,7 +15,7 @@ import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import { resolveManyToManyRead } from './many-to-many-read-metadata';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
-import { AccessReadService, type AccessGetRequest, type AccessListRequest } from './reads';
+import { AccessReadService, type AccessGetRequest, type AccessListRequest, type AccessReadResult } from './reads';
 import type { AccessFilterGrantResolver, AccessFilterReadGrant } from './request-filter';
 import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
@@ -55,13 +55,24 @@ export class AccessExpandedReadService {
     private readonly assertAuthorizationCurrent?: () => void,
   ) {}
 
-  list(
+  async list(
     ctx: object,
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: AccessExpandedListRequest,
   ) {
-    return this.read(ctx, source, authenticated, request, 'list');
+    return (await this.read(ctx, source, authenticated, request, 'list')).rows;
+  }
+
+  async listWithCount(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessExpandedListRequest,
+  ) {
+    const result = await this.read(ctx, source, authenticated, request, 'list', true);
+    if (result.count === undefined) invalid('Expanded page is missing its root count');
+    return { rows: result.rows, count: result.count };
   }
 
   async get(
@@ -70,7 +81,7 @@ export class AccessExpandedReadService {
     authenticated: AccessIdentity,
     request: AccessExpandedGetRequest,
   ) {
-    return (await this.read(ctx, source, authenticated, request, 'get'))[0] ?? null;
+    return (await this.read(ctx, source, authenticated, request, 'get')).rows[0] ?? null;
   }
 
   private async read(
@@ -79,7 +90,8 @@ export class AccessExpandedReadService {
     authenticated: AccessIdentity,
     request: AccessExpandedListRequest | AccessExpandedGetRequest,
     kind: 'list' | 'get',
-  ): Promise<ReadRecord[]> {
+    withCount = false,
+  ): Promise<AccessReadResult> {
     const allowed = [
       'attributes',
       'filter',
@@ -299,6 +311,7 @@ export class AccessExpandedReadService {
       authenticated,
       rootRequest,
       kind,
+      withCount,
     );
     const assertCurrent = () => {
       current();
@@ -350,6 +363,6 @@ export class AccessExpandedReadService {
     };
     const result = await assemble(page.records, loaders);
     assertCurrent();
-    return page.records.map((record) => result.get(record.key)!.values);
+    return { rows: page.records.map((record) => result.get(record.key)!.values), count: page.count };
   }
 }

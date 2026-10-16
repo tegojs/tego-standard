@@ -167,6 +167,206 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
   const get = (key: unknown, extra = {}) =>
     entry.getExpanded(ctx, mainIdentity, auth, { key, attributes: ['name'], expansions, ...extra });
 
+  describe('complete paged results', () => {
+    const page = (params = {}, transaction?: Parameters<typeof entry.listFromParams>[4]) =>
+      entry.listPageFromParams(ctx, mainIdentity, auth, { fields: ['name'], ...params }, transaction);
+
+    it('returns the core pagination shape with a count of all readable roots', async () => {
+      expect(await page({ page: '2', pageSize: '2', sort: '-amount' })).toEqual({
+        rows: [{ name: 'Visible' }, { name: 'Owned' }],
+        count: 4,
+        page: 2,
+        pageSize: 2,
+        totalPage: 2,
+      });
+    });
+    it('returns defaults and keeps count independent of page size', async () => {
+      const result = await page();
+      expect(result).toEqual({
+        rows: [{ name: 'Owned' }, { name: 'Visible' }, { name: 'Legacy' }, { name: 'Empty' }],
+        count: 4,
+        page: 1,
+        pageSize: 20,
+        totalPage: 1,
+      });
+      expect((await page({ pageSize: 1 })).count).toBe(4);
+    });
+    it('does not impose association pairing key limits on ordinary paged rows', async () => {
+      const source = { ...mainIdentity, collectionKey: 'long-key', collectionName: 'long_key_documents' };
+      const collection = db.collection({
+        name: source.collectionName,
+        autoGenId: false,
+        timestamps: false,
+        fields: [
+          { name: 'id', type: 'text', primaryKey: true },
+          { name: 'tenantId', type: 'string' },
+          { name: 'name', type: 'string' },
+        ],
+      });
+      try {
+        await collection.model.sync();
+        await collection.model.create({ id: 'x'.repeat(300), tenantId: 'B', name: 'Long key' });
+        await db
+          .getRepository('collections')
+          .create({ values: { key: source.collectionKey, name: source.collectionName } });
+        const key = () => accessCollectionKey(source);
+        const configs = new AccessConfigStore(db, () =>
+          resolveModelMetadata(collection, { resolveCollectionKey: key }),
+        );
+        await configs.save(source, { ...configFor(ownerCondition), revision: 0 }, { userId: 28 });
+        const prepared = new AccessAclScopeAdapter(new ACL(), 'main', configs, db);
+        const context = {};
+        await prepared.prepare(context, [source]);
+        const reader = new AccessEntryReadService(
+          db,
+          prepared,
+          new AccessQueryService(db, prepared, key),
+          () => source,
+          () => ({ allowed: true, params: {} }),
+        );
+        const params = { fields: ['name'] };
+        expect(await reader.listFromParams(context, source, auth, params)).toEqual([{ name: 'Long key' }]);
+        expect(await reader.listPageFromParams(context, source, auth, params)).toEqual({
+          rows: [{ name: 'Long key' }],
+          count: 1,
+          page: 1,
+          pageSize: 20,
+          totalPage: 1,
+        });
+      } finally {
+        await collection.model.drop();
+      }
+    });
+    it('retains total count for an empty page and reports zero for no matches', async () => {
+      expect(await page({ page: 3, pageSize: 2 })).toEqual({ rows: [], count: 4, page: 3, pageSize: 2, totalPage: 2 });
+      expect(await page({ filter: { name: 'Missing' } })).toEqual({
+        rows: [],
+        count: 0,
+        page: 1,
+        pageSize: 20,
+        totalPage: 0,
+      });
+    });
+    it('applies one role and request-filter snapshot to both rows and count', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name', 'amount'], filter: { amount: { $lte: 40 } } } });
+      expect(await page({ pageSize: 1, filter: { amount: { $gte: 20 } }, sort: ['amount'] })).toEqual({
+        rows: [{ name: 'Visible' }],
+        count: 2,
+        page: 1,
+        pageSize: 1,
+        totalPage: 2,
+      });
+      expect(resolver.mock.calls.every(([, , operation]) => operation.kind === 'list')).toBe(true);
+      expect(resolver.mock.calls.filter(([, path]) => !path.length)).toHaveLength(1);
+    });
+    it('counts roots once for duplicate many-to-many matches and supports relation-only output', async () => {
+      expect(await page({ fields: ['projects.name'], filter: { 'projects.name': 'Zebra' }, pageSize: 1 })).toEqual({
+        rows: [{ projects: [{ name: 'Zebra' }] }],
+        count: 1,
+        page: 1,
+        pageSize: 1,
+        totalPage: 1,
+      });
+      const paths = resolver.mock.calls.map(([, path]) => JSON.stringify(path));
+      expect(new Set(paths).size).toBe(paths.length);
+    });
+    it('does not filter roots by hidden expanded targets or apply sort-only target scopes to count', async () => {
+      permissions.set('project', { allowed: true, params: { fields: ['name'], filter: { name: 'Zebra' } } });
+      const query = vi.spyOn(db.sequelize, 'query');
+      const result = await page({ appends: ['project.name'], sort: 'project.name', pageSize: 1 });
+      expect(result).toEqual({
+        rows: [{ name: 'Owned', project: { name: 'Zebra' } }],
+        count: 4,
+        page: 1,
+        pageSize: 1,
+        totalPage: 4,
+      });
+      const countSql = query.mock.calls
+        .map(([sql]) => (typeof sql === 'string' ? sql : sql.query))
+        .find((sql) => /count\(/i.test(sql));
+      expect(countSql).toBeDefined();
+      expect(countSql).not.toContain('assembled_projects');
+      expect(countSql).not.toMatch(/ORDER BY|LIMIT|OFFSET/i);
+    });
+    it('snapshots paging filters and permissions before asynchronous row loading', async () => {
+      const params = { page: '1', pageSize: '1', fields: ['name'], filter: { name: 'Owned' } };
+      const original = docs.model.findAll.bind(docs.model);
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+        const rows = await original(options);
+        params.page = '2';
+        params.pageSize = '2';
+        params.filter.name = 'Visible';
+        permissions.set('', null);
+        return rows;
+      });
+      expect(await entry.listPageFromParams(ctx, mainIdentity, auth, params)).toEqual({
+        rows: [{ name: 'Owned' }],
+        count: 1,
+        page: 1,
+        pageSize: 1,
+        totalPage: 1,
+      });
+      expect(resolver).toHaveBeenCalledTimes(1);
+    });
+    it('uses the same trusted transaction for rows count and nested expansion', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await docs.model.create({ id: 99, name: 'Transactional', tenantId: 'B', projectId: 101 }, { transaction });
+        await projects.model.update({ name: 'Changed' }, { where: { id: 101 }, transaction });
+        expect(await page({ filter: { name: 'Transactional' }, appends: ['project.name'] }, transaction)).toEqual({
+          rows: [{ name: 'Transactional', project: { name: 'Changed' } }],
+          count: 1,
+          page: 1,
+          pageSize: 20,
+          totalPage: 1,
+        });
+      } finally {
+        await transaction.rollback();
+      }
+    });
+    it('rejects phase changes after row loading before counting', async () => {
+      const original = docs.model.findAll.bind(docs.model);
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+        const rows = await original(options);
+        adapter.release(ctx);
+        return rows;
+      });
+      const count = vi.spyOn(docs.model, 'count');
+      await expect(page()).rejects.toThrow(/not prepared|phase/);
+      expect(count).not.toHaveBeenCalled();
+    });
+    it('rejects phase changes after counting before association loading', async () => {
+      const original = docs.model.count.bind(docs.model);
+      vi.spyOn(docs.model, 'count').mockImplementationOnce(async (options) => {
+        const result = await original(options);
+        adapter.release(ctx);
+        return result;
+      });
+      await expect(page({ appends: ['project.name'] })).rejects.toThrow(/not prepared|phase/);
+    });
+    it('rejects unauthorized or malformed input without running a count', async () => {
+      const count = vi.spyOn(docs.model, 'count');
+      permissions.set('', null);
+      await expect(page()).rejects.toThrow(/authoriz/);
+      await expect(page({ pageSize: 0 })).rejects.toThrow();
+      expect(count).not.toHaveBeenCalled();
+    });
+    it('keeps SQL counts independent of root row counts', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 100 }, (_, index) => ({ id: 1000 + index, name: 'Bulk', tenantId: 'B', projectId: 101 })),
+      );
+      const query = vi.spyOn(db.sequelize, 'query');
+      const params = { appends: ['project.name', 'project.documents.name'], filter: { name: 'Bulk' } };
+      expect((await page({ ...params, pageSize: 20 })).count).toBe(100);
+      const queries = query.mock.calls.length;
+      query.mockClear();
+      const result = await page({ ...params, pageSize: 100 });
+      expect(result.rows).toHaveLength(100);
+      expect(result.count).toBe(100);
+      expect(query).toHaveBeenCalledTimes(queries);
+    });
+  });
+
   describe('resource params entry', () => {
     it('rejects a business target key instead of looking up a different primary-key record', async () => {
       docs.options.filterTargetKey = 'amount';

@@ -3,6 +3,11 @@ import { invalid, plain } from './write-support';
 
 const selectionKeys = ['fields', 'appends', 'except'];
 
+export interface AccessResourceListRequest extends AccessSelectedListRequest {
+  limit: number;
+  offset: number;
+}
+
 function names(input: unknown, sort = false): string[] {
   if (
     !Array.isArray(input) ||
@@ -75,7 +80,7 @@ function positiveInteger(value: unknown, fallback: number): number {
 }
 
 /** Converts parsed action params only; callers separately provide trusted transaction and authorization. */
-export function parseResourceListParams(input: unknown): AccessSelectedListRequest {
+export function parseResourceListParams(input: unknown): AccessResourceListRequest {
   const params = capture(input, 'list');
   if (params.paginate !== undefined && params.paginate !== true && params.paginate !== 'true')
     invalid('Only paginated resource lists are supported');

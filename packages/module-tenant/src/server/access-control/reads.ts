@@ -38,6 +38,11 @@ export interface AccessSumRequest extends AccessReadRequest {
 type ReadKind = 'list' | 'get' | 'count' | 'sum';
 type ReadRecord = Readonly<Record<string, unknown>>;
 
+export interface AccessReadResult {
+  rows: ReadRecord[];
+  count?: number;
+}
+
 /** Internal execution service. The entry must supply this operation's role/action read grants. */
 export class AccessReadService {
   constructor(
@@ -63,6 +68,22 @@ export class AccessReadService {
     return rows.map((row) => this.project(row, plan.attributes));
   }
 
+  async listWithCount(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessListRequest,
+  ) {
+    const plan = await this.plan(ctx, source, authenticated, request, 'list');
+    plan.assertCurrent();
+    const rows = await plan.model.findAll(
+      internalQuery({ ...plan.query, attributes: plan.attributes, limit: plan.limit, offset: plan.offset }),
+    );
+    plan.assertCurrent();
+    const count = await this.rootCount(plan);
+    return { rows: rows.map((row) => this.project(row, plan.attributes)), count };
+  }
+
   async get(
     ctx: object,
     source: AccessCollectionIdentity,
@@ -83,7 +104,9 @@ export class AccessReadService {
     authenticated: AccessIdentity,
     request: AccessListRequest | AccessGetRequest,
     kind: 'list' | 'get',
+    withCount = false,
   ) {
+    if (withCount && kind !== 'list') invalid('Paged counts require a list operation');
     const plan = await this.plan(ctx, source, authenticated, request, kind, true);
     const primary = plan.model.primaryKeyAttribute;
     if (plan.model.primaryKeyAttributes.length !== 1) invalid('Assembly requires a single root primary key');
@@ -95,12 +118,14 @@ export class AccessReadService {
     });
     const rows = await plan.model.findAll(options);
     plan.assertCurrent();
+    const count = withCount ? await this.rootCount(plan) : undefined;
     return {
       records: rows.map((row) => ({
         key: normalizeKeys([row.getDataValue(primary)], plan.collection)[0],
         values: this.project(row, plan.attributes),
       })),
       assertCurrent: plan.assertCurrent,
+      count,
     };
   }
 
@@ -133,6 +158,15 @@ export class AccessReadService {
   private project(row: Model, attributes: string[]): ReadRecord {
     // These are fresh query values, not mutation inputs; preserve complete authorized JSON.
     return Object.freeze(Object.fromEntries(attributes.map((name) => [name, row.getDataValue(name)])));
+  }
+
+  private async rootCount(plan: Awaited<ReturnType<AccessReadService['plan']>>) {
+    // Use the same root predicate, without pagination or order-only target bindings.
+    plan.assertCurrent();
+    const count = await plan.model.count(internalQuery(plan.rootQuery));
+    plan.assertCurrent();
+    if (!Number.isSafeInteger(count) || count < 0) invalid('Invalid root record count');
+    return count;
   }
 
   private async plan(
@@ -286,6 +320,7 @@ export class AccessReadService {
       sorted?.assertCurrent();
     };
     assertCurrent();
-    return { collection, model, query, attributes, field, limit, offset, assertCurrent };
+    const rootQuery = sorted?.rootQuery ?? filtered.query;
+    return { collection, model, query, rootQuery, attributes, field, limit, offset, assertCurrent };
   }
 }

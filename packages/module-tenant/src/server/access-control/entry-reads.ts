@@ -18,6 +18,7 @@ import {
   type AccessGetRequest,
   type AccessListRequest,
   type AccessReadRequest,
+  type AccessReadResult,
   type AccessSumRequest,
 } from './reads';
 import type { AccessFilterReadGrant } from './request-filter';
@@ -142,6 +143,21 @@ export class AccessEntryReadService {
     return this.listSelected(ctx, source, authenticated, { ...parseResourceListParams(params), transaction });
   }
 
+  async listPageFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    transaction?: Transaction,
+  ) {
+    const request = parseResourceListParams(params);
+    const page = request.offset / request.limit + 1;
+    const pageSize = request.limit;
+    const result = await this.selected(ctx, source, authenticated, { ...request, transaction }, 'list', true);
+    if (result.count === undefined) invalid('Selected page is missing its root count');
+    return { rows: result.rows, count: result.count, page, pageSize, totalPage: Math.ceil(result.count / pageSize) };
+  }
+
   async getFromParams(
     ctx: object,
     source: AccessCollectionIdentity,
@@ -170,13 +186,13 @@ export class AccessEntryReadService {
     return record;
   }
 
-  listSelected(
+  async listSelected(
     ctx: object,
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: AccessSelectedListRequest,
   ) {
-    return this.selected(ctx, source, authenticated, request, 'list');
+    return (await this.selected(ctx, source, authenticated, request, 'list')).rows;
   }
 
   async getSelected(
@@ -185,7 +201,7 @@ export class AccessEntryReadService {
     authenticated: AccessIdentity,
     request: AccessSelectedGetRequest,
   ) {
-    return (await this.selected(ctx, source, authenticated, request, 'get'))[0] ?? null;
+    return (await this.selected(ctx, source, authenticated, request, 'get')).rows[0] ?? null;
   }
 
   private async selected(
@@ -194,7 +210,8 @@ export class AccessEntryReadService {
     authenticated: AccessIdentity,
     request: AccessSelectedListRequest | AccessSelectedGetRequest,
     kind: 'list' | 'get',
-  ): Promise<Readonly<Record<string, unknown>>[]> {
+    withCount = false,
+  ): Promise<AccessReadResult> {
     const selectionKeys = ['fields', 'appends', 'except'];
     const allowed = [
       ...selectionKeys,
@@ -250,20 +267,22 @@ export class AccessEntryReadService {
         authorization.assertCurrent,
       );
       const expanded = { ...input, expansions: selection.expansions.map(project) };
-      if (kind === 'list')
-        return reader.list(
+      if (kind === 'list') {
+        const args = [
           ctx,
           authorization.source,
           authorization.authenticated,
           expanded as AccessExpandedListRequest,
-        );
+        ] as const;
+        return withCount ? reader.listWithCount(...args) : { rows: await reader.list(...args) };
+      }
       const record = await reader.get(
         ctx,
         authorization.source,
         authorization.authenticated,
         expanded as AccessExpandedGetRequest,
       );
-      return record ? [record] : [];
+      return { rows: record ? [record] : [] };
     }
     const reader = new AccessReadService(
       this.db,
@@ -272,10 +291,16 @@ export class AccessEntryReadService {
       resolveGrant,
       authorization.assertCurrent,
     );
-    if (kind === 'list')
-      return reader.list(ctx, authorization.source, authorization.authenticated, input as AccessListRequest);
+    if (kind === 'list') {
+      if (withCount) {
+        return reader.listWithCount(ctx, authorization.source, authorization.authenticated, input as AccessListRequest);
+      }
+      return {
+        rows: await reader.list(ctx, authorization.source, authorization.authenticated, input as AccessListRequest),
+      };
+    }
     const record = await reader.get(ctx, authorization.source, authorization.authenticated, input as AccessGetRequest);
-    return record ? [record] : [];
+    return { rows: record ? [record] : [] };
   }
 
   listExpanded(

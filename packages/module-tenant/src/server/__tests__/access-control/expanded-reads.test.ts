@@ -167,6 +167,223 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
   const get = (key: unknown, extra = {}) =>
     entry.getExpanded(ctx, mainIdentity, auth, { key, attributes: ['name'], expansions, ...extra });
 
+  describe('framework selection entry', () => {
+    it('reads selected root fields without requiring an association', async () => {
+      expect(await entry.getSelected(ctx, mainIdentity, auth, { key: 1, fields: ['name'] })).toEqual({ name: 'Owned' });
+      expect(await entry.getSelected(ctx, mainIdentity, auth, { key: 3, fields: ['name'] })).toBeNull();
+      expect(
+        await entry.listSelected(ctx, mainIdentity, auth, { fields: ['name'], sort: ['-amount'], limit: 2 }),
+      ).toEqual([{ name: 'Empty' }, { name: 'Legacy' }]);
+    });
+    it('translates all four relationship projections without exposing internal pairing keys', async () => {
+      expect(
+        await entry.getSelected(ctx, mainIdentity, auth, {
+          key: 1,
+          fields: ['name'],
+          appends: ['project.name', 'children.name', 'child.name', 'projects.name'],
+        }),
+      ).toEqual({
+        name: 'Owned',
+        project: { name: 'Zebra' },
+        children: [{ name: 'Child' }],
+        child: { name: 'Child' },
+        projects: [{ name: 'Zebra' }],
+      });
+    });
+    it('supports nested relation-only output and preserves explicit intermediate fields', async () => {
+      permissions.set('project', { allowed: true, params: { fields: ['name'], appends: ['documents'] } });
+      expect(
+        await entry.getSelected(ctx, mainIdentity, auth, {
+          key: 1,
+          fields: ['project.name', 'project.documents.name'],
+        }),
+      ).toEqual({ project: { name: 'Zebra', documents: [{ name: 'Owned' }] } });
+    });
+    it('bounds default fields by each path grant and applies except without changing row visibility', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name', 'amount'], appends: ['project'] } });
+      permissions.set('project', { allowed: true, params: { fields: ['name'], appends: [] } });
+      expect(
+        await entry.listSelected(ctx, mainIdentity, auth, {
+          appends: ['project'],
+          except: ['amount'],
+          filter: { amount: { $lte: 20 } },
+        }),
+      ).toEqual([
+        { name: 'Owned', project: { name: 'Zebra' } },
+        { name: 'Visible', project: null },
+      ]);
+    });
+    it('reuses one permission snapshot for selection filtering sorting and nested assembly', async () => {
+      expect(
+        await entry.listSelected(ctx, mainIdentity, auth, {
+          fields: ['name', 'project.name'],
+          appends: ['project.documents.name'],
+          filter: { 'project.documents.name': 'Owned' },
+          sort: ['project.name'],
+        }),
+      ).toEqual([{ name: 'Owned', project: { name: 'Zebra', documents: [{ name: 'Owned' }] } }]);
+      const paths = resolver.mock.calls.map(([, path]) => JSON.stringify(path));
+      expect(new Set(paths).size).toBe(paths.length);
+    });
+    it('captures selections and role predicates before the first scope await', async () => {
+      const fields = ['name'];
+      const appends = ['project.name'];
+      const permission = { allowed: true, params: { fields: ['name'], filter: { name: 'Zebra' } } };
+      permissions.set('project', permission);
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        fields.push('payload');
+        appends.length = 0;
+        permission.params.filter.name = 'Missing';
+        return original(...args);
+      });
+      expect(await entry.getSelected(ctx, mainIdentity, auth, { key: 1, fields, appends })).toEqual({
+        name: 'Owned',
+        project: { name: 'Zebra' },
+      });
+    });
+    it('captures root descriptors before resolving selection permissions', async () => {
+      const request = { fields: ['name'], filter: { name: 'Owned' } };
+      const original = resolver.getMockImplementation()!;
+      resolver.mockImplementationOnce((...args) => {
+        request.filter = { name: 'Visible' };
+        return original(...args);
+      });
+      expect(await entry.listSelected(ctx, mainIdentity, auth, request)).toEqual([{ name: 'Owned' }]);
+    });
+    it('uses the supplied transaction for selected nested data', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await projects.model.update({ name: 'Changed' }, { where: { id: 101 }, transaction });
+        expect(
+          await entry.getSelected(ctx, mainIdentity, auth, {
+            key: 1,
+            fields: ['children.name', 'children.document.project.name', 'children.document.name'],
+            transaction,
+          }),
+        ).toEqual({ children: [{ name: 'Child', document: { name: 'Owned', project: { name: 'Changed' } } }] });
+      } finally {
+        await transaction.rollback();
+      }
+    });
+    it('rejects phase changes while returning selected associations', async () => {
+      const original = projects.model.findAll.bind(projects.model);
+      vi.spyOn(projects.model, 'findAll').mockImplementationOnce(async (options) => {
+        const records = await original(options);
+        adapter.release(ctx);
+        return records;
+      });
+      await expect(
+        entry.getSelected(ctx, mainIdentity, auth, {
+          key: 1,
+          fields: ['name'],
+          appends: ['project.name'],
+        }),
+      ).rejects.toThrow(/not prepared/);
+    });
+    it.each(['action', 'association', 'targetField', 'through'])(
+      'rejects denied %s permission before SQL',
+      async (side) => {
+        if (side === 'action') permissions.set('project', null);
+        if (side === 'association') permissions.set('', { allowed: true, params: { fields: ['name'], appends: [] } });
+        if (side === 'targetField')
+          permissions.set('project', { allowed: true, params: { fields: ['id'], appends: [] } });
+        if (side === 'through') permissions.set('projects.$through', null);
+        const query = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          entry.getSelected(ctx, mainIdentity, auth, {
+            key: 1,
+            fields: ['name'],
+            appends: [side === 'through' ? 'projects.name' : 'project.name'],
+          }),
+        ).rejects.toThrow(/authoriz/);
+        expect(query).not.toHaveBeenCalled();
+      },
+    );
+    it('preserves non-enumerable root filters and rejects accessors or unsupported root inputs', async () => {
+      const request = Object.defineProperty({ fields: ['name'] }, 'filter', { value: { name: 'Owned' } });
+      expect(await entry.listSelected(ctx, mainIdentity, auth, request)).toEqual([{ name: 'Owned' }]);
+      const getter = vi.fn(() => ['name']);
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(
+        entry.listSelected(ctx, mainIdentity, auth, Object.defineProperty({}, 'fields', { get: getter })),
+      ).rejects.toThrow();
+      await expect(
+        entry.listSelected(ctx, mainIdentity, auth, { fields: ['name'], attributes: ['payload'] } as never),
+      ).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('keeps selected relationship query counts independent of root row counts', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 100 }, (_, index) => ({
+          id: 1000 + index,
+          name: 'Bulk',
+          tenantId: 'B',
+          projectId: 101,
+        })),
+      );
+      const query = vi.spyOn(db.sequelize, 'query');
+      const request = { fields: ['name', 'project.name', 'project.documents.name'], filter: { name: 'Bulk' } };
+      expect(await entry.listSelected(ctx, mainIdentity, auth, { ...request, limit: 20 })).toHaveLength(20);
+      const count = query.mock.calls.length;
+      query.mockClear();
+      expect(await entry.listSelected(ctx, mainIdentity, auth, { ...request, limit: 100 })).toHaveLength(100);
+      expect(query).toHaveBeenCalledTimes(count);
+    });
+    it('preserves strict validation of the original root filter and sort arrays', async () => {
+      const query = vi.spyOn(db.sequelize, 'query');
+      const getter = vi.fn(() => 'Owned');
+      await expect(
+        entry.listSelected(ctx, mainIdentity, auth, {
+          fields: ['name'],
+          filter: Object.defineProperty({}, 'name', { get: getter, enumerable: true }),
+        }),
+      ).rejects.toThrow();
+      await expect(
+        entry.listSelected(ctx, mainIdentity, auth, {
+          fields: ['name'],
+          sort: Object.setPrototypeOf(['name'], {}),
+        }),
+      ).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('keeps concurrent selected operations independent for different tenant identities', async () => {
+      expect(
+        await Promise.all([
+          entry.getSelected(ctx, mainIdentity, auth, { key: 1, fields: ['name', 'project.name'] }),
+          entry.getSelected(ctx, mainIdentity, { tenantId: 'H' }, { key: 1, fields: ['name', 'project.name'] }),
+        ]),
+      ).toEqual([{ name: 'Owned', project: { name: 'Zebra' } }, null]);
+    });
+    it('uses shared collection metadata without requiring or selecting a tenant column', async () => {
+      for (const item of identities) {
+        await store.save(
+          item,
+          {
+            ...configFor({ type: 'constant', value: true }),
+            ownership: { enabled: false },
+            revision: 1,
+          },
+          { userId: 28 },
+        );
+        await db.sequelize.getQueryInterface().removeColumn(`assembled_${item.collectionName}`, 'tenant_id');
+        db.getCollection(item.collectionName).removeField('tenantId');
+      }
+      adapter.release(ctx);
+      await adapter.prepare(ctx, identities);
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: ['project'] } });
+      permissions.set('project', { allowed: true, params: { fields: ['name'], appends: [] } });
+      const query = vi.spyOn(db.sequelize, 'query');
+      expect(await entry.getSelected(ctx, mainIdentity, {}, { key: 2, appends: ['project'] })).toEqual({
+        name: 'Visible',
+        project: { name: 'Secret' },
+      });
+      expect(query.mock.calls.map(([sql]) => String(sql)).join('\n')).not.toContain('tenant_id');
+    });
+  });
+
   it('assembles all four relationships without exposing pairing keys or losing visible roots', async () => {
     expect(await list()).toEqual([
       {

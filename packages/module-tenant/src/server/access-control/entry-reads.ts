@@ -12,6 +12,7 @@ import {
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import type { AccessQueryService } from './query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
+import { AccessReadSelectionParser, type AccessAssociationSelection } from './read-selection';
 import {
   AccessReadService,
   type AccessGetRequest,
@@ -19,6 +20,7 @@ import {
   type AccessReadRequest,
   type AccessSumRequest,
 } from './reads';
+import type { AccessFilterReadGrant } from './request-filter';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
 import { cloneDeep, invalid, plain } from './write-support';
@@ -31,6 +33,15 @@ export interface AccessEntryExpansionRequest {
 }
 
 export type AccessEntryBelongsToExpansionRequest = AccessEntryExpansionRequest;
+
+interface AccessSelectionRequest {
+  fields?: unknown;
+  appends?: unknown;
+  except?: unknown;
+}
+
+export interface AccessSelectedListRequest extends Omit<AccessListRequest, 'attributes'>, AccessSelectionRequest {}
+export interface AccessSelectedGetRequest extends Omit<AccessGetRequest, 'attributes'>, AccessSelectionRequest {}
 
 type ExpansionKind = 'expandBelongsTo' | 'expandTargetForeignKey' | 'expandManyToMany';
 
@@ -117,6 +128,114 @@ export class AccessEntryReadService {
 
   get(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessGetRequest) {
     return this.reader('get', ctx, source, authenticated).get(ctx, source, authenticated, request);
+  }
+
+  listSelected(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessSelectedListRequest,
+  ) {
+    return this.selected(ctx, source, authenticated, request, 'list');
+  }
+
+  async getSelected(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessSelectedGetRequest,
+  ) {
+    return (await this.selected(ctx, source, authenticated, request, 'get'))[0] ?? null;
+  }
+
+  private async selected(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessSelectedListRequest | AccessSelectedGetRequest,
+    kind: 'list' | 'get',
+  ): Promise<Readonly<Record<string, unknown>>[]> {
+    const selectionKeys = ['fields', 'appends', 'except'];
+    const allowed = [
+      ...selectionKeys,
+      'filter',
+      'transaction',
+      ...(kind === 'list' ? ['sort', 'limit', 'offset'] : ['key']),
+    ];
+    if (
+      !plain(request) ||
+      Reflect.ownKeys(request).some(
+        (key) =>
+          typeof key !== 'string' ||
+          !allowed.includes(key) ||
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(request, key)!, 'value'),
+      )
+    )
+      invalid('Unsupported selected read request');
+    const captured = Reflect.ownKeys(request).map(
+      (key) => [key, Object.getOwnPropertyDescriptor(request, key)!.value] as const,
+    );
+    const ownValues = (selection: boolean) =>
+      Object.fromEntries(captured.filter(([key]) => selectionKeys.includes(key as string) === selection));
+    const authorization = this.operation(kind, ctx, source, authenticated);
+    const collection = this.db.getCollection(authorization.source.collectionName);
+    if (!collection) invalid('Selected read collection is unavailable');
+    // Selection and subsequent filter/sort/expansion share one operation-local permission snapshot.
+    const grants = new Map<string, { collection: Collection; grant: AccessFilterReadGrant | null }>();
+    const resolveGrant = (collection: Collection, path: readonly string[]) => {
+      const key = JSON.stringify(path);
+      const previous = grants.get(key);
+      if (previous) {
+        if (previous.collection !== collection) invalid('Selected read permission path changed its collection');
+        return previous.grant;
+      }
+      const grant = authorization.resolveGrant(collection, path);
+      grants.set(key, { collection, grant });
+      return grant;
+    };
+    const selection = new AccessReadSelectionParser(this.db, resolveGrant).parse(collection, ownValues(true));
+    // Keep original filter/sort values for their strict validation; copying first could normalize bad inputs.
+    const input = { ...ownValues(false), attributes: selection.attributes };
+    if (selection.expansions.length) {
+      const project = (child: AccessAssociationSelection): object => ({
+        association: child.association,
+        attributes: child.attributes,
+        ...(child.expansions.length ? { expansions: child.expansions.map(project) } : {}),
+      });
+      const reader = new AccessExpandedReadService(
+        this.db,
+        this.prepared,
+        this.queries,
+        resolveGrant,
+        authorization.assertCurrent,
+      );
+      const expanded = { ...input, expansions: selection.expansions.map(project) };
+      if (kind === 'list')
+        return reader.list(
+          ctx,
+          authorization.source,
+          authorization.authenticated,
+          expanded as AccessExpandedListRequest,
+        );
+      const record = await reader.get(
+        ctx,
+        authorization.source,
+        authorization.authenticated,
+        expanded as AccessExpandedGetRequest,
+      );
+      return record ? [record] : [];
+    }
+    const reader = new AccessReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      resolveGrant,
+      authorization.assertCurrent,
+    );
+    if (kind === 'list')
+      return reader.list(ctx, authorization.source, authorization.authenticated, input as AccessListRequest);
+    const record = await reader.get(ctx, authorization.source, authorization.authenticated, input as AccessGetRequest);
+    return record ? [record] : [];
   }
 
   listExpanded(

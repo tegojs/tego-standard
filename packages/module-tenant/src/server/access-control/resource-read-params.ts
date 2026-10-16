@@ -1,4 +1,5 @@
 import type { AccessSelectedGetRequest, AccessSelectedListRequest } from './entry-reads';
+import type { AccessReadRequest, AccessSumRequest } from './reads';
 import { invalid, plain } from './write-support';
 
 const selectionKeys = ['fields', 'appends', 'except'];
@@ -32,12 +33,15 @@ function names(input: unknown, sort = false): string[] {
   return result;
 }
 
-function capture(input: unknown, kind: 'list' | 'get'): Record<string, unknown> {
-  const allowed = [
-    ...selectionKeys,
-    'filter',
-    ...(kind === 'list' ? ['sort', 'page', 'pageSize', 'paginate', 'tree'] : ['filterByTk']),
-  ];
+function capture(input: unknown, kind: 'list' | 'get' | 'count' | 'sum'): Record<string, unknown> {
+  const allowed =
+    kind === 'count' || kind === 'sum'
+      ? ['filter', ...(kind === 'sum' ? ['field'] : [])]
+      : [
+          ...selectionKeys,
+          'filter',
+          ...(kind === 'list' ? ['sort', 'page', 'pageSize', 'paginate', 'tree'] : ['filterByTk']),
+        ];
   if (
     !plain(input) ||
     Reflect.ownKeys(input).some(
@@ -103,4 +107,17 @@ export function parseResourceGetParams(input: unknown): AccessSelectedGetRequest
   )
     invalid('Resource detail reads require an explicit scalar key');
   return { ...selection(params), key };
+}
+
+export function parseResourceCountParams(input: unknown): Omit<AccessReadRequest, 'transaction'> {
+  const params = capture(input, 'count');
+  return params.filter === undefined ? {} : { filter: params.filter };
+}
+
+/** Internal root sum contract; not the generic repository aggregate action. */
+export function parseResourceSumParams(input: unknown): Omit<AccessSumRequest, 'transaction'> {
+  const params = capture(input, 'sum');
+  if (typeof params.field !== 'string' || params.field.length > 512 || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(params.field))
+    invalid('Resource sum requires a bounded root field name');
+  return { field: params.field, ...(params.filter === undefined ? {} : { filter: params.filter }) };
 }

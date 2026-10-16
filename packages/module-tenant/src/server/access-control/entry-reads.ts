@@ -23,7 +23,12 @@ import {
   type AccessSumRequest,
 } from './reads';
 import type { AccessFilterReadGrant } from './request-filter';
-import { parseResourceGetParams, parseResourceListParams } from './resource-read-params';
+import {
+  parseResourceCountParams,
+  parseResourceGetParams,
+  parseResourceListParams,
+  parseResourceSumParams,
+} from './resource-read-params';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
 import { cloneDeep, invalid, plain } from './write-support';
@@ -245,6 +250,30 @@ export class AccessEntryReadService {
     const record = await this.getSelected(ctx, identity, authenticated, { ...request, keyField });
     assertTargetKey();
     return record;
+  }
+
+  async countFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const request = this.withDates(source, parseResourceCountParams(params), dates);
+    return this.count(ctx, source, authenticated, { ...request, transaction });
+  }
+
+  async sumFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const request = this.withDates(source, parseResourceSumParams(params), dates);
+    return this.sum(ctx, source, authenticated, { ...request, transaction });
   }
 
   private withDates<T extends { filter?: unknown }>(

@@ -179,6 +179,130 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     describe('page date context', () => {
       const dates = { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' };
       const filter = { occurredAt: { $dateOn: '{{$nDate.today}}' } };
+      it('summary params share list dates, role conditions and tenant scopes', async () => {
+        expect(await entryReads.countFromParams(ctx, mainIdentity, auth, { filter }, undefined, dates)).toBe(2);
+        expect(
+          await entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount', filter }, undefined, dates),
+        ).toBe(30);
+        permissions.set('', { allowed: true, params: { filter: { amount: { $gte: 15 } } } });
+        expect(await entryReads.countFromParams(ctx, mainIdentity, auth, { filter }, undefined, dates)).toBe(1);
+        expect(
+          await entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount', filter }, undefined, dates),
+        ).toBe(20);
+      });
+      it('summary params preserve field GMT metadata and absolute date behavior without context', async () => {
+        docs.getField('occurredAt').options.uiSchema = { 'x-component-props': { gmt: true } };
+        expect(await entryReads.countFromParams(ctx, mainIdentity, auth, { filter }, undefined, dates)).toBe(2);
+        expect(
+          await entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount', filter }, undefined, dates),
+        ).toBe(70);
+        const absolute = { occurredAt: { $dateOn: '2026-09-16+08:00' } };
+        expect(await entryReads.countFromParams(ctx, mainIdentity, auth, { filter: absolute })).toBe(2);
+        expect(await entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount', filter: absolute })).toBe(30);
+      });
+      it('summary params independently constrain linked date targets and their role filters', async () => {
+        await projects.model.update({ occurredAt: new Date(dates.now) }, { where: { id: [101, 102] } });
+        const linked = { 'project.occurredAt': { $dateOn: '{{$date.today}}' } };
+        expect(await entryReads.countFromParams(ctx, mainIdentity, auth, { filter: linked }, undefined, dates)).toBe(1);
+        expect(
+          await entryReads.sumFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { field: 'amount', filter: linked },
+            undefined,
+            dates,
+          ),
+        ).toBe(10);
+        permissions.set('project', { allowed: true, params: { filter: { name: { $ne: 'Zebra' } } } });
+        expect(await entryReads.countFromParams(ctx, mainIdentity, auth, { filter: linked }, undefined, dates)).toBe(0);
+        expect(
+          await entryReads.sumFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { field: 'amount', filter: linked },
+            undefined,
+            dates,
+          ),
+        ).toBeNull();
+        permissions.set('project', null);
+        const query = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          entryReads.countFromParams(ctx, mainIdentity, auth, { filter: linked }, undefined, dates),
+        ).rejects.toThrow(/authorized/);
+        await expect(
+          entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount', filter: linked }, undefined, dates),
+        ).rejects.toThrow(/authorized/);
+        expect(query).not.toHaveBeenCalled();
+      });
+      it.each(['count', 'sum'] as const)(
+        'summary params capture %s filter and dates before asynchronous scope queries',
+        async (kind) => {
+          const context = { ...dates };
+          const params = {
+            filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } },
+            ...(kind === 'sum' ? { field: 'amount' } : {}),
+          };
+          const original = queries.scopeQuery.bind(queries);
+          vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+            context.now = '2027-01-01T00:00:00.000Z';
+            context.timezone = '-05:00';
+            params.filter.occurredAt.$dateOn = '2027-01-01';
+            if (kind === 'sum') params.field = 'id';
+            return original(...args);
+          });
+          expect(
+            await entryReads[kind === 'sum' ? 'sumFromParams' : 'countFromParams'](
+              ctx,
+              mainIdentity,
+              auth,
+              params,
+              undefined,
+              context,
+            ),
+          ).toBe(kind === 'sum' ? 30 : 2);
+        },
+      );
+      it.each(['count', 'sum'] as const)(
+        'summary params reject malformed and unauthorized %s requests before SQL',
+        async (kind) => {
+          const getter = vi.fn(() => ({ $dateOn: '{{$nDate.today}}' }));
+          const execute = (params: object, context: typeof dates | undefined = dates) =>
+            entryReads[kind === 'sum' ? 'sumFromParams' : 'countFromParams'](
+              ctx,
+              mainIdentity,
+              auth,
+              { ...(kind === 'sum' ? { field: 'amount' } : {}), ...params },
+              undefined,
+              context,
+            );
+          const query = vi.spyOn(db.sequelize, 'query');
+          for (const params of [
+            { filter, now: dates.now },
+            { filter, timezone: dates.timezone },
+            { filter, pageSize: 1 },
+            { filter: { occurredAt: { $dateOn: '{{$nDate.unknown}}' } } },
+            { filter: { occurredAt: { $dateOn: '2026-02-30' } } },
+            { filter: { name: { $dateOn: '{{$nDate.today}}' } } },
+            {
+              filter: Object.defineProperty({}, 'occurredAt', { get: getter }),
+            },
+          ])
+            await expect(execute(params)).rejects.toThrow();
+          await expect(execute({ filter }, { ...dates, now: 'invalidZ' })).rejects.toThrow();
+          await expect(
+            entryReads[kind === 'sum' ? 'sumFromParams' : 'countFromParams'](ctx, mainIdentity, auth, {
+              filter,
+              ...(kind === 'sum' ? { field: 'amount' } : {}),
+            }),
+          ).rejects.toThrow(/unresolved/);
+          permissions.set('', { allowed: true, params: { fields: ['id'], appends: [] } });
+          await expect(execute({ filter })).rejects.toThrow(/authorized/);
+          expect(getter).not.toHaveBeenCalled();
+          expect(query).not.toHaveBeenCalled();
+        },
+      );
       const page = (params: object, context = dates) =>
         entryReads.listPageFromParams(
           ctx,
@@ -636,6 +760,33 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     if (kind === 'count') return entryReads.count(ctx, mainIdentity, auth);
     return entryReads.sum(ctx, mainIdentity, auth, { field: 'amount' });
   };
+  it('summary params require the specific operation permission rather than list permission', async () => {
+    const kinds: string[] = [];
+    entryReads = new AccessEntryReadService(
+      db,
+      adapter,
+      queries,
+      (collection) => identities.find((identity) => identity.collectionName === collection.name),
+      (_collection, _path, operation) => {
+        kinds.push(operation.kind);
+        return { allowed: operation.kind === 'count', params: { fields: ['id'] } };
+      },
+    );
+    expect(await entryReads.countFromParams(ctx, mainIdentity, auth, {})).toBe(4);
+    const query = vi.spyOn(db.sequelize, 'query');
+    await expect(entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount' })).rejects.toThrow(/authorized/);
+    await expect(entryReads.listFromParams(ctx, mainIdentity, auth, { fields: ['id'] })).rejects.toThrow(/authorized/);
+    expect(query).not.toHaveBeenCalled();
+    expect(kinds).toEqual(['count', 'sum', 'list']);
+  });
+  it('summary params reject nonnumeric and unauthorized root sum fields before SQL', async () => {
+    const query = vi.spyOn(db.sequelize, 'query');
+    for (const field of ['name', 'labels', 'occurredAt', 'project.amount', 'missing', 'amount; DROP TABLE documents'])
+      await expect(entryReads.sumFromParams(ctx, mainIdentity, auth, { field })).rejects.toThrow();
+    permissions.set('', { allowed: true, params: { fields: ['id'], appends: [] } });
+    await expect(entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount' })).rejects.toThrow(/authorized/);
+    expect(query).not.toHaveBeenCalled();
+  });
   it('entry supports relational finalized ACL conditions across all four reads without exposing fact fields', async () => {
     const acl = new ACL();
     acl.setAvailableAction('view', { aliases: ['get', 'list'] });
@@ -1078,6 +1229,10 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       expect(await list({ filter: { id: 9 }, transaction })).toEqual([{ id: 9 }]);
       expect(await reads.count(ctx, mainIdentity, auth, { filter: { id: 9 }, transaction })).toBe(1);
       expect(await reads.sum(ctx, mainIdentity, auth, { field: 'amount', filter: { id: 9 }, transaction })).toBe(90);
+      expect(await entryReads.countFromParams(ctx, mainIdentity, auth, { filter: { id: 9 } }, transaction)).toBe(1);
+      expect(
+        await entryReads.sumFromParams(ctx, mainIdentity, auth, { field: 'amount', filter: { id: 9 } }, transaction),
+      ).toBe(90);
       expect(hook).not.toHaveBeenCalled();
     } finally {
       await transaction.rollback();

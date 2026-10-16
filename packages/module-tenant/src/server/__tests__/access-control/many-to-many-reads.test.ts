@@ -185,6 +185,103 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
     );
   }
 
+  describe('association scalar aggregate', () => {
+    const aggregate = async (method = 'sum', extra: Record<string, unknown> = {}, sourceKey: unknown = 1) =>
+      entry.aggregateAssociation(
+        ctx,
+        mainIdentity,
+        authenticated,
+        { association: 'projects', sourceKey },
+        { method, field: 'amount', ...extra },
+      );
+
+    it.each([
+      ['count', 3],
+      ['sum', 60],
+      ['avg', 20],
+      ['min', 10],
+      ['max', 30],
+    ])('computes %s once per readable target despite duplicate links', async (method, expected) => {
+      expect(await aggregate(String(method))).toBe(expected);
+      expect(new Set(permissionResolver.mock.calls.map(([, path]) => path.join('.')))).toEqual(
+        new Set(['', 'projects', 'projects.$through']),
+      );
+      expect(permissionResolver.mock.calls.every(([, , operation]) => operation.kind === 'aggregate')).toBe(true);
+    });
+
+    it('intersects independent through and target ACL with request filters', async () => {
+      permissions.set('projects.$through', { allowed: true, params: { fields: [], filter: { name: 'Visible' } } });
+      permissions.set('projects', { allowed: true, params: { fields: ['amount'], filter: { amount: { $gte: 20 } } } });
+      expect(await aggregate('sum')).toBe(20);
+      expect(await aggregate('sum', { filter: { amount: { $gt: 20 } } })).toBeNull();
+      for (const path of ['', 'projects', 'projects.$through']) {
+        const previous = permissions.get(path);
+        permissions.set(path, { allowed: false, params: {} });
+        const sql = vi.spyOn(db.sequelize, 'query');
+        sql.mockClear();
+        await expect(aggregate()).rejects.toThrow();
+        expect(sql).not.toHaveBeenCalled();
+        if (previous) permissions.set(path, previous);
+        else permissions.delete(path);
+      }
+    });
+
+    it('separates field value distinct from relationship duplicate elimination and null counts', async () => {
+      await projects.model.update({ amount: 10 }, { where: { id: 102 } });
+      await projects.model.update({ amount: null }, { where: { id: 104 } });
+      expect(await aggregate('sum')).toBe(20);
+      expect(await aggregate('sum', { distinct: true })).toBe(10);
+      expect(await aggregate('count')).toBe(2);
+      expect(await aggregate('count', { distinct: true })).toBe(1);
+      for (const method of ['count', 'sum', 'avg', 'min', 'max'])
+        expect(await aggregate(method, {}, 5)).toBe(method === 'count' ? 0 : null);
+    });
+
+    it('keeps legacy source target and through ownership unchanged', async () => {
+      expect(await aggregate('sum', {}, 4)).toBe(30);
+      for (const [collection, id] of [
+        [docs, 4],
+        [projects, 104],
+        [links, 8],
+      ] as const)
+        expect((await collection.model.findByPk(id))!.getDataValue('tenantId')).toBeNull();
+      for (const sourceKey of [3, 999])
+        await expect(aggregate('sum', {}, sourceKey)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('rechecks through metadata after SQL and does not return a stale aggregate', async () => {
+      const original = projects.model.aggregate.bind(projects.model);
+      vi.spyOn(projects.model, 'aggregate').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        links.model.rawAttributes.projectId.field = 'changed_column';
+        return result;
+      });
+      await expect(aggregate()).rejects.toThrow(/changed/);
+    });
+
+    it('keeps aggregate SQL counts bounded as linked targets increase', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      expect(await aggregate()).toBe(60);
+      const before = sql.mock.calls.length;
+      await projects.model.bulkCreate(
+        Array.from({ length: 20 }, (_, i) => ({ id: 200 + i, tenantId: 'B', name: 'Owned', amount: 1 })),
+      );
+      await links.model.bulkCreate(
+        Array.from({ length: 20 }, (_, i) => ({
+          id: 200 + i,
+          documentId: 1,
+          projectId: 200 + i,
+          tenantId: 'B',
+          name: 'Owned',
+        })),
+      );
+      sql.mockClear();
+      expect(await aggregate()).toBe(80);
+      expect(sql.mock.calls.length).toBe(before);
+      expect(before).toBeLessThanOrEqual(10);
+    });
+  });
+
   describe('association summary entry', () => {
     const count = (sourceKey: unknown = 1, params: unknown = {}) =>
       entry.countAssociationFromParams(

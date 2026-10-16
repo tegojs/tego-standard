@@ -169,6 +169,157 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('target foreign-
     association = 'children',
   ) => entry.getAssociationFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);
 
+  describe('association scalar aggregate', () => {
+    const aggregate = async (
+      method: unknown = 'sum',
+      extra: Record<string, unknown> = {},
+      sourceKey: unknown = 1,
+      association = 'children',
+    ) =>
+      entry.aggregateAssociation(
+        ctx,
+        mainIdentity,
+        authenticated,
+        { association, sourceKey },
+        { method, field: 'amount', ...extra },
+      );
+
+    it.each([
+      ['count', 3],
+      ['sum', 60],
+      ['avg', 20],
+      ['min', 10],
+      ['max', 30],
+    ])('computes %s from linked readable targets', async (method, expected) => {
+      expect(await aggregate(method)).toBe(expected);
+      expect(permissionResolver.mock.calls.every(([, , operation]) => operation.kind === 'aggregate')).toBe(true);
+    });
+
+    it('distinguishes nonnull field counts value distinct and empty results', async () => {
+      await children.model.update({ amount: 10 }, { where: { id: 102 } });
+      await children.model.update({ amount: null }, { where: { id: 104 } });
+      expect(await aggregate('count')).toBe(2);
+      expect(await aggregate('count', { distinct: true })).toBe(1);
+      expect(await aggregate('sum')).toBe(20);
+      expect(await aggregate('sum', { distinct: true })).toBe(10);
+      for (const method of ['count', 'sum', 'avg', 'min', 'max'])
+        expect(await aggregate(method, {}, 5)).toBe(method === 'count' ? 0 : null);
+      await children.model.update({ amount: 11 }, { where: { id: 102 } });
+      expect(await aggregate('avg')).toBe(10.5);
+    });
+
+    it('intersects target and source role filters without exposing hidden authorization facts', async () => {
+      permissions.set('', { allowed: true, params: { fields: [], appends: ['children.amount'] } });
+      permissions.set('children', {
+        allowed: true,
+        params: { fields: ['amount'], filter: { document: { id: 1 }, amount: { $gte: 20 } } },
+      });
+      expect(await aggregate('sum', { filter: { amount: { $lte: 20 } } })).toBe(20);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(aggregate('sum', { filter: { document: { id: 1 } } })).rejects.toThrow(/authorized/);
+      await expect(aggregate('count', { field: 'id' })).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+      permissions.set('', { allowed: true, params: { filter: { id: 2 } } });
+      await expect(aggregate()).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('rejects denied paths invalid requests and accessors before SQL', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const path of ['', 'children']) {
+        permissions.set(path, { allowed: false, params: {} });
+        await expect(aggregate()).rejects.toThrow();
+        permissions.delete(path);
+      }
+      for (const extra of [
+        { method: 'median' },
+        { field: 'name' },
+        { field: 'document.amount' },
+        { distinct: 'true' },
+        { group: ['name'] },
+        { bind: {} },
+        { transaction: {} },
+      ])
+        await expect(aggregate('sum', extra)).rejects.toThrow();
+      const getter = vi.fn(() => 'sum');
+      const request = Object.defineProperty({ field: 'amount' }, 'method', { get: getter });
+      await expect(
+        entry.aggregateAssociation(
+          ctx,
+          mainIdentity,
+          authenticated,
+          { association: 'children', sourceKey: 1 },
+          request as never,
+        ),
+      ).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      await expect(aggregate('sum', {}, '_')).rejects.toThrow();
+      await expect(aggregate('sum', {}, 1, 'child')).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('snapshots parameters before permissions and source lookup can change them', async () => {
+      const request = { method: 'sum', field: 'amount', filter: { amount: { $gte: 20 } } };
+      const descriptor = { association: 'children', sourceKey: 1 };
+      permissionResolver.mockImplementation((_collection: Collection, path: readonly string[]) => {
+        request.method = 'max';
+        request.field = 'id';
+        request.filter.amount.$gte = 100;
+        return { allowed: true, params: path.length ? { fields: ['amount'] } : {} };
+      });
+      const pending = entry.aggregateAssociation(ctx, mainIdentity, authenticated, descriptor, request);
+      descriptor.sourceKey = 2;
+      expect(await pending).toBe(50);
+    });
+
+    it('preserves trusted transactions dates and read-only legacy references', async () => {
+      expect(await aggregate('sum', {}, 4)).toBe(60);
+      expect((await docs.model.findByPk(4))!.getDataValue('tenantId')).toBeNull();
+      expect((await children.model.findByPk(107))!.getDataValue('tenantId')).toBeNull();
+      const transaction = await db.sequelize.transaction();
+      try {
+        await children.model.update(
+          { documentId: 2, occurredAt: new Date('2026-09-15T16:00:00Z') },
+          { where: { id: 101 }, transaction },
+        );
+        expect(
+          await entry.aggregateAssociation(
+            ctx,
+            mainIdentity,
+            authenticated,
+            { association: 'children', sourceKey: 2 },
+            { method: 'avg', field: 'amount', filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } } },
+            transaction,
+            { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' },
+          ),
+        ).toBe(10);
+      } finally {
+        await transaction.rollback();
+      }
+      await expect(
+        entry.aggregateAssociation(
+          ctx,
+          mainIdentity,
+          authenticated,
+          { association: 'children', sourceKey: 1 },
+          { method: 'sum', field: 'amount' },
+          transaction,
+        ),
+      ).rejects.toMatchObject({ code: 'MISSING_ACCESS_CONTEXT' });
+    });
+
+    it('rechecks relationship metadata after aggregate and rejects hidden sources', async () => {
+      for (const key of [3, 999])
+        await expect(aggregate('sum', {}, key)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      const original = children.model.aggregate.bind(children.model);
+      vi.spyOn(children.model, 'aggregate').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        Object.assign(docs.model.associations.children, { scope: { name: 'Hidden' } });
+        return result;
+      });
+      await expect(aggregate()).rejects.toThrow(/changed/);
+    });
+  });
+
   describe('association summary entry', () => {
     const count = (sourceKey: unknown = 1, params: unknown = {}, association = 'children') =>
       entry.countAssociationFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);

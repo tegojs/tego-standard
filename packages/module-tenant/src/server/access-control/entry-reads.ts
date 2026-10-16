@@ -9,6 +9,7 @@ import {
   type AccessExpandedGetRequest,
   type AccessExpandedListRequest,
 } from './expanded-reads';
+import { captureAccessFilter } from './filter-input';
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import { AccessManyToManyReadService } from './many-to-many-reads';
 import type { AccessQueryService } from './query';
@@ -408,8 +409,56 @@ export class AccessEntryReadService {
     return reader.sum(ctx, authorization.source, authorization.authenticated, request);
   }
 
+  /** Internal scalar statistics for a concrete multi-record relation; no aggregate resource action. */
+  async aggregateAssociation(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    descriptor: unknown,
+    input: Omit<AccessAggregateRequest, 'transaction'>,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    if (
+      !plain(input) ||
+      Reflect.ownKeys(input).some(
+        (key) =>
+          typeof key !== 'string' ||
+          !['method', 'field', 'distinct', 'filter'].includes(key) ||
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(input, key)!, 'value'),
+      )
+    )
+      invalid('Unsupported association aggregate request');
+    // Capture before any permission callback or source lookup can mutate caller-owned parameters.
+    const captured = {
+      method: input.method,
+      field: input.field,
+      distinct: input.distinct,
+      filter: captureAccessFilter(input.filter === undefined ? {} : input.filter),
+    };
+    const { request, authorization, scope } = this.associationSelection(
+      'aggregate',
+      ctx,
+      source,
+      authenticated,
+      descriptor,
+      () => captured,
+      transaction,
+      dates,
+    );
+    const reader = new AccessReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      authorization.resolveGrant,
+      authorization.assertCurrent,
+      scope.rootConstraint,
+    );
+    return reader.aggregate(ctx, authorization.source, authorization.authenticated, request);
+  }
+
   private associationSelection<T extends { filter?: unknown; key?: string | number }>(
-    kind: 'list' | 'get' | 'count' | 'sum',
+    kind: 'list' | 'get' | 'count' | 'sum' | 'aggregate',
     ctx: object,
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,

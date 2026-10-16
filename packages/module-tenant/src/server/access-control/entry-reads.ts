@@ -25,6 +25,7 @@ import {
 } from './reads';
 import type { AccessFilterReadGrant } from './request-filter';
 import {
+  parseResourceAssociationGetParams,
   parseResourceCountParams,
   parseResourceGetParams,
   parseResourceListParams,
@@ -257,6 +258,82 @@ export class AccessEntryReadService {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
+    const { request, authorization, scope } = this.associationSelection(
+      'list',
+      ctx,
+      source,
+      authenticated,
+      descriptor,
+      params,
+      transaction,
+      dates,
+    );
+    const result = await this.selected(
+      ctx,
+      authorization.source,
+      authorization.authenticated,
+      request,
+      'list',
+      true,
+      scope,
+    );
+    authorization.assertCurrent();
+    if (result.count === undefined) invalid('Association page is missing its root count');
+    const pageSize = request.limit;
+    return {
+      rows: result.rows,
+      count: result.count,
+      page: request.offset / pageSize + 1,
+      pageSize,
+      totalPage: Math.ceil(result.count / pageSize),
+    };
+  }
+
+  /** Internal concrete-source HasMany/HasOne detail bridge; no business route is installed. */
+  async getAssociationFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    descriptor: unknown,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const { request, authorization, scope } = this.associationSelection(
+      'get',
+      ctx,
+      source,
+      authenticated,
+      descriptor,
+      params,
+      transaction,
+      dates,
+    );
+    // A relation supplies the locator. Execute a bounded root page under GET authorization,
+    // without substituting the target collection's unrelated root filterTargetKey.
+    const result = await this.selected(
+      ctx,
+      authorization.source,
+      authorization.authenticated,
+      request,
+      'list',
+      false,
+      scope,
+    );
+    authorization.assertCurrent();
+    return result.rows[0] ?? null;
+  }
+
+  private associationSelection(
+    kind: 'list' | 'get',
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    descriptor: unknown,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
     if (
       !plain(descriptor) ||
       Reflect.ownKeys(descriptor).some(
@@ -266,12 +343,12 @@ export class AccessEntryReadService {
           !Object.hasOwn(Object.getOwnPropertyDescriptor(descriptor, key)!, 'value'),
       )
     )
-      invalid('Unsupported association list descriptor');
+      invalid('Unsupported association read descriptor');
     const name = Object.getOwnPropertyDescriptor(descriptor, 'association')?.value;
     const sourceKey = Object.getOwnPropertyDescriptor(descriptor, 'sourceKey')?.value;
     if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || name.length > 255 || sourceKey === '_')
-      invalid('Select a direct HasMany association and a concrete source key');
-    const authorization = this.operation('list', ctx, source, authenticated);
+      invalid('Select a direct association and a concrete source key');
+    const authorization = this.operation(kind, ctx, source, authenticated);
     const collection = this.db.getCollection(authorization.source.collectionName);
     const field = collection?.getField(name);
     const relation =
@@ -281,24 +358,42 @@ export class AccessEntryReadService {
       !collection ||
       !field ||
       !relation ||
-      relation.associationType !== 'HasMany' ||
+      (relation.associationType !== 'HasMany' && !(kind === 'get' && relation.associationType === 'HasOne')) ||
       !target ||
       target.db !== this.db ||
       field.target !== target.name
     )
-      invalid('Select a registered same-database HasMany association');
+      invalid('Select a supported same-database association');
+    const targetKeyField = field.options.targetKey || target.model.primaryKeyAttribute;
+    if (kind === 'get' && relation.associationType === 'HasMany' && targetKeyField !== target.model.primaryKeyAttribute)
+      invalid('Association details require a primary target key');
     const sourceGrant = authorization.resolveGrant(collection, []);
     const targetGrant = authorization.resolveGrant(target, [name]);
     if (!sourceGrant || !targetGrant || !sourceGrant.fields.includes(name))
-      invalid('Association list is not authorized');
+      invalid('Association read is not authorized');
     if (accessCollectionKey(sourceGrant.identity) !== accessCollectionKey(authorization.source))
       invalid('Association source permission does not match the requested collection');
+    const detail =
+      kind === 'get' ? parseResourceAssociationGetParams(params, relation.associationType === 'HasOne') : undefined;
+    const { key, ...selection } = detail ?? {};
+    const parsed = kind === 'list' ? parseResourceListParams(params) : { ...selection, limit: 1, offset: 0 };
+    const request = {
+      ...this.withDates(targetGrant.identity, parsed, dates),
+      transaction,
+    };
     const plan = new AccessTargetForeignKeyReadService(this.db, this.prepared, this.queries).prepareTargets(
       ctx,
       authorization.source,
       targetGrant.identity,
       authorization.authenticated,
-      { association: name, sourceKey, sourceWhere: sourceGrant.where, sourceBind: sourceGrant.bind, transaction },
+      {
+        association: name,
+        sourceKey,
+        targetKey: key,
+        sourceWhere: sourceGrant.where,
+        sourceBind: sourceGrant.bind,
+        transaction,
+      },
     );
     const targetAuthorization = {
       ...authorization,
@@ -308,29 +403,20 @@ export class AccessEntryReadService {
       assertCurrent: () => {
         authorization.assertCurrent();
         plan.assertCurrent();
-        if (collection.getField(name) !== field || field.target !== target.name)
-          invalid('Association list field changed during query');
+        if (
+          collection.getField(name) !== field ||
+          field.target !== target.name ||
+          (kind === 'get' &&
+            relation.associationType === 'HasMany' &&
+            (field.options.targetKey || target.model.primaryKeyAttribute) !== targetKeyField)
+        )
+          invalid('Association read field changed during query');
       },
     };
-    const request = this.withDates(targetGrant.identity, parseResourceListParams(params), dates);
-    const result = await this.selected(
-      ctx,
-      targetGrant.identity,
-      authorization.authenticated,
-      { ...request, transaction },
-      'list',
-      true,
-      { authorization: targetAuthorization, rootConstraint: plan.resolve },
-    );
-    targetAuthorization.assertCurrent();
-    if (result.count === undefined) invalid('Association page is missing its root count');
-    const pageSize = request.limit;
     return {
-      rows: result.rows,
-      count: result.count,
-      page: request.offset / pageSize + 1,
-      pageSize,
-      totalPage: Math.ceil(result.count / pageSize),
+      request,
+      authorization: targetAuthorization,
+      scope: { authorization: targetAuthorization, rootConstraint: plan.resolve },
     };
   }
 

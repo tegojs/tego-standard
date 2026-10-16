@@ -98,7 +98,7 @@ export function parseResourceListParams(input: unknown): AccessResourceListReque
   return { ...selection(params), limit, offset };
 }
 
-export function parseResourceGetParams(input: unknown): AccessSelectedGetRequest {
+export function parseResourceGetParams(input: unknown): AccessSelectedGetRequest & { key: string | number } {
   const params = capture(input, 'get');
   const key = params.filterByTk;
   if (
@@ -107,6 +107,18 @@ export function parseResourceGetParams(input: unknown): AccessSelectedGetRequest
   )
     invalid('Resource detail reads require an explicit scalar key');
   return { ...selection(params), key };
+}
+
+/** HasOne locates its target through the source relation; core ignores filterByTk for it. */
+export function parseResourceAssociationGetParams(
+  input: unknown,
+  single: boolean,
+): Omit<AccessSelectedGetRequest, 'key' | 'keyField'> & { key?: string | number } {
+  if (!single) return parseResourceGetParams(input);
+  const params = capture(input, 'get');
+  if (params.filterByTk !== undefined && params.filterByTk !== null)
+    parseResourceGetParams({ filterByTk: params.filterByTk });
+  return selection(params);
 }
 
 export function parseResourceCountParams(input: unknown): Omit<AccessReadRequest, 'transaction'> {

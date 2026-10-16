@@ -1,4 +1,5 @@
 import {
+  parseResourceAssociationGetParams,
   parseResourceCountParams,
   parseResourceGetParams,
   parseResourceListParams,
@@ -6,6 +7,32 @@ import {
 } from '../../access-control/resource-read-params';
 
 describe('resource read params', () => {
+  describe('association detail params', () => {
+    it('requires an explicit HasMany key and preserves its scalar value', () => {
+      expect(parseResourceAssociationGetParams({ fields: ['name'], filterByTk: '9007199254740993' }, false)).toEqual({
+        fields: ['name'],
+        key: '9007199254740993',
+      });
+      expect(() => parseResourceAssociationGetParams({}, false)).toThrow();
+    });
+    it('allows a relation-located HasOne detail and ignores a supported scalar or null target key', () => {
+      for (const filterByTk of [undefined, null, 1, 'unrelated'])
+        expect(parseResourceAssociationGetParams({ fields: ['name'], filterByTk }, true)).toEqual({ fields: ['name'] });
+    });
+    it('does not broaden get input to accept list or execution capabilities', () => {
+      const getter = vi.fn(() => 1);
+      for (const input of [
+        { sort: 'name' },
+        { pageSize: 1 },
+        { transaction: {} },
+        { rootConstraint: {} },
+        { filterByTk: {} },
+        Object.defineProperty({}, 'filterByTk', { get: getter }),
+      ])
+        expect(() => parseResourceAssociationGetParams(input, true)).toThrow();
+      expect(getter).not.toHaveBeenCalled();
+    });
+  });
   describe('summary params', () => {
     it('accepts only the count filter and the internal sum field/filter contract', () => {
       const filter = { amount: { $gte: 15 } };

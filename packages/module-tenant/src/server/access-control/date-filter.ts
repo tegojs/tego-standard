@@ -10,7 +10,7 @@ export const dateFilterOperators = [
   '$dateBetween',
 ] as const;
 
-function offset(value: unknown): string {
+export function normalizeDateFilterTimezone(value: unknown): string {
   const match = typeof value === 'string' && /^([+-])(\d{2}):(\d{2})$/.exec(value);
   if (!match || Number(match[2]) > 14 || Number(match[3]) > 59 || (match[2] === '14' && match[3] !== '00'))
     invalid('Date filters require a valid explicit UTC offset');
@@ -41,7 +41,7 @@ function date(value: unknown, timezone: string): string {
   )
     invalid('Date filter value is not a valid calendar date');
   if (zone === 'Z') return value;
-  const resolved = offset(zone ?? timezone);
+  const resolved = normalizeDateFilterTimezone(zone ?? timezone);
   return zone ? value : `${value}${resolved}`;
 }
 
@@ -65,14 +65,14 @@ export function normalizeDateFilterOperand(operator: string, input: unknown, tim
     const bounds = values.length >= 3 ? values[2] : '[]';
     if (typeof bounds !== 'string' || !['[]', '[)', '(]', '()'].includes(bounds)) invalid('Invalid date range bounds');
     // Core parseDateBetween uses UTC for arrays without their own fourth timezone item.
-    const zone = offset(values.length === 4 ? values[3] : '+00:00');
+    const zone = normalizeDateFilterTimezone(values.length === 4 ? values[3] : '+00:00');
     return [date(values[0], zone), date(values[1], zone), bounds, zone];
   }
   if (typeof input === 'string' && (input.startsWith('[') || input.startsWith('('))) {
     if (input.length > 160) invalid('Date range exceeds size limit');
     const match = /^(\[|\()([^,]+),([^,]+)(\]|\))([+-]\d{2}:\d{2})?$/.exec(input);
     if (!match) invalid('Invalid absolute date range');
-    const zone = offset(match[5] ?? timezone);
+    const zone = normalizeDateFilterTimezone(match[5] ?? timezone);
     return [date(match[2], zone), date(match[3], zone), match[1] + match[4], zone];
   }
   if (operator === '$dateBetween') invalid('Date between requires an explicit range');

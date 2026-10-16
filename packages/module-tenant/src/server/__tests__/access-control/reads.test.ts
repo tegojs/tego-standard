@@ -161,6 +161,149 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         }),
       ).toEqual([{ name: 'Owned' }, { name: 'Visible' }]);
     });
+    it('resolves page date shortcuts from a trusted fixed clock', async () => {
+      expect(
+        await entryReads.listFromParams(
+          ctx,
+          mainIdentity,
+          auth,
+          {
+            fields: ['name'],
+            filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } },
+          },
+          undefined,
+          { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' },
+        ),
+      ).toEqual([{ name: 'Owned' }, { name: 'Visible' }]);
+    });
+    describe('page date context', () => {
+      const dates = { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' };
+      const filter = { occurredAt: { $dateOn: '{{$nDate.today}}' } };
+      const page = (params: object, context = dates) =>
+        entryReads.listPageFromParams(
+          ctx,
+          mainIdentity,
+          auth,
+          { fields: ['id'], sort: ['id'], ...params },
+          undefined,
+          context,
+        );
+      it('shares resolved dates across page rows, counts and detail within role and tenant scopes', async () => {
+        permissions.set('', { allowed: true, params: { filter: { amount: { $gte: 15 } } } });
+        expect(await page({ filter, pageSize: 1 })).toEqual({
+          rows: [{ id: 2 }],
+          count: 1,
+          page: 1,
+          pageSize: 1,
+          totalPage: 1,
+        });
+        expect(await page({ filter, pageSize: 1, page: 2 })).toEqual({
+          rows: [],
+          count: 1,
+          page: 2,
+          pageSize: 1,
+          totalPage: 1,
+        });
+        expect(
+          await entryReads.getFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { filterByTk: 2, fields: ['id'], filter },
+            undefined,
+            dates,
+          ),
+        ).toEqual({ id: 2 });
+        expect(
+          await entryReads.getFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { filterByTk: 1, fields: ['id'], filter },
+            undefined,
+            dates,
+          ),
+        ).toBeNull();
+      });
+      it('keeps linked date targets independently scoped and authorized', async () => {
+        await projects.model.update({ occurredAt: new Date(dates.now) }, { where: { id: [101, 102] } });
+        const linked = { project: { occurredAt: { $dateOn: '{{$date.today}}' } } };
+        expect((await page({ filter: linked })).rows).toEqual([{ id: 1 }]);
+        permissions.set('project', { allowed: true, params: { filter: { name: { $ne: 'Zebra' } } } });
+        expect(await page({ filter: linked })).toMatchObject({ rows: [], count: 0 });
+        permissions.set('project', null);
+        const query = vi.spyOn(db.sequelize, 'query');
+        await expect(page({ filter: linked })).rejects.toThrow(/authorized/);
+        expect(query).not.toHaveBeenCalled();
+      });
+      it('resolves logical groups, dotted fields and calendar ranges without merging conditions away', async () => {
+        expect((await page({ filter: { $and: [filter, { $not: { amount: { $lt: 15 } } }] } })).rows).toEqual([
+          { id: 2 },
+        ]);
+        expect(
+          (await page({ filter: { $or: [filter, { occurredAt: { $dateOn: '{{$nDate.tomorrow}}' } }] } })).rows,
+        ).toEqual([{ id: 1 }, { id: 2 }, { id: 5 }]);
+        expect(
+          (await page({ filter: { occurredAt: { $dateBetween: '{{$nDate.today}}', $dateBefore: '{{$nDate.now}}' } } }))
+            .rows,
+        ).toEqual([{ id: 1 }]);
+      });
+      it('honors actual GMT field metadata and explicit operand offsets', async () => {
+        docs.getField('occurredAt').options.uiSchema = { 'x-component-props': { gmt: true } };
+        expect((await page({ filter })).rows).toEqual([{ id: 2 }, { id: 5 }]);
+        expect((await page({ filter: { occurredAt: { $dateOn: '2026-09-16+08:00' } } })).rows).toEqual([
+          { id: 1 },
+          { id: 2 },
+        ]);
+        await projects.model.update({ occurredAt: new Date('2026-09-15T16:00:00Z') }, { where: { id: 101 } });
+        projects.getField('occurredAt').options.uiSchema = { 'x-component-props': { gmt: true } };
+        expect((await page({ filter: { 'project.occurredAt': { $dateOn: '{{$nDate.today}}' } } })).rows).toEqual([]);
+      });
+      it('uses the supplied clock across a local day boundary and for instant comparisons', async () => {
+        const beforeDay = { now: '2026-09-15T15:59:59.999Z', timezone: '+08:00' };
+        expect((await page({ filter }, beforeDay)).rows).toEqual([{ id: 4 }]);
+        expect((await page({ filter: { occurredAt: { $dateOn: '{{$nDate.now}}' } } }, beforeDay)).rows).toEqual([
+          { id: 4 },
+        ]);
+      });
+      it('captures the date context and filter before asynchronous queries', async () => {
+        const context = { ...dates };
+        const input = { occurredAt: { $dateOn: '{{$nDate.today}}' } };
+        const original = queries.scopeQuery.bind(queries);
+        vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+          context.now = '2027-01-01T00:00:00.000Z';
+          context.timezone = '-05:00';
+          input.occurredAt.$dateOn = '2027-01-01';
+          return original(...args);
+        });
+        expect(await page({ filter: input }, context)).toMatchObject({ rows: [{ id: 1 }, { id: 2 }], count: 2 });
+      });
+      it('rejects date overrides in action params and malformed or unauthorized dates before SQL', async () => {
+        const query = vi.spyOn(db.sequelize, 'query');
+        for (const params of [
+          { filter, now: dates.now },
+          { filter, timezone: dates.timezone },
+          { filter, dates },
+          { filter: { occurredAt: { $dateOn: '{{$nDate.unknown}}' } } },
+          { filter: { name: { $dateOn: '{{$nDate.today}}' } } },
+        ])
+          await expect(page(params)).rejects.toThrow();
+        await expect(page({ filter }, { ...dates, now: 'invalidZ' })).rejects.toThrow();
+        permissions.set('', { allowed: true, params: { fields: ['id'], appends: [] } });
+        await expect(page({ filter })).rejects.toThrow(/authorized/);
+        expect(query).not.toHaveBeenCalled();
+      });
+      it('applies explicit entry timezone to implicit arrays while preserving calls without context', async () => {
+        const range = { occurredAt: { $dateBetween: ['2026-09-16', '2026-09-17', '[)'] } };
+        expect((await page({ filter: range })).rows).toEqual([{ id: 1 }, { id: 2 }]);
+        expect(
+          await entryReads.listFromParams(ctx, mainIdentity, auth, { fields: ['id'], sort: ['id'], filter: range }),
+        ).toEqual([{ id: 2 }, { id: 5 }]);
+        const query = vi.spyOn(db.sequelize, 'query');
+        await expect(entryReads.listFromParams(ctx, mainIdentity, auth, { filter })).rejects.toThrow(/unresolved/);
+        expect(query).not.toHaveBeenCalled();
+      });
+    });
     it.each([
       ['$dateOn', [1, 2]],
       ['$dateNotOn', [4, 5]],

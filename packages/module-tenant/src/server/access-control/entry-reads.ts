@@ -11,6 +11,7 @@ import {
 } from './expanded-reads';
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import type { AccessQueryService } from './query';
+import { resolveReadDateFilter, type AccessReadDateContext } from './read-date-filter';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
 import { AccessReadSelectionParser, type AccessAssociationSelection } from './read-selection';
 import {
@@ -194,8 +195,10 @@ export class AccessEntryReadService {
     authenticated: AccessIdentity,
     params: unknown,
     transaction?: Transaction,
+    dates?: AccessReadDateContext,
   ) {
-    return this.listSelected(ctx, source, authenticated, { ...parseResourceListParams(params), transaction });
+    const request = this.withDates(source, parseResourceListParams(params), dates);
+    return this.listSelected(ctx, source, authenticated, { ...request, transaction });
   }
 
   async listPageFromParams(
@@ -204,8 +207,9 @@ export class AccessEntryReadService {
     authenticated: AccessIdentity,
     params: unknown,
     transaction?: Transaction,
+    dates?: AccessReadDateContext,
   ) {
-    const request = parseResourceListParams(params);
+    const request = this.withDates(source, parseResourceListParams(params), dates);
     const page = request.offset / request.limit + 1;
     const pageSize = request.limit;
     const result = await this.selected(ctx, source, authenticated, { ...request, transaction }, 'list', true);
@@ -219,8 +223,9 @@ export class AccessEntryReadService {
     authenticated: AccessIdentity,
     params: unknown,
     transaction?: Transaction,
+    dates?: AccessReadDateContext,
   ) {
-    const request = { ...parseResourceGetParams(params), transaction };
+    const request = { ...this.withDates(source, parseResourceGetParams(params), dates), transaction };
     const identity = { ...source };
     const collection = this.db.getCollection(identity.collectionName);
     if (!collection || collection.db !== this.db) invalid('Resource detail collection is unavailable');
@@ -240,6 +245,22 @@ export class AccessEntryReadService {
     const record = await this.getSelected(ctx, identity, authenticated, { ...request, keyField });
     assertTargetKey();
     return record;
+  }
+
+  private withDates<T extends { filter?: unknown }>(
+    source: AccessCollectionIdentity,
+    request: T,
+    dates?: AccessReadDateContext,
+  ): T {
+    if (dates === undefined) return request;
+    return {
+      ...request,
+      filter: resolveReadDateFilter(
+        request.filter === undefined ? {} : request.filter,
+        dates,
+        (path) => this.db.getFieldByPath(`${source.collectionName}.${path.join('.')}`)?.timezone,
+      ),
+    };
   }
 
   async listSelected(

@@ -10,9 +10,11 @@ import {
   type AccessExpandedListRequest,
 } from './expanded-reads';
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
+import { AccessManyToManyReadService } from './many-to-many-reads';
 import type { AccessQueryService } from './query';
 import { resolveReadDateFilter, type AccessReadDateContext } from './read-date-filter';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
+import { captureReadKey } from './read-key';
 import { AccessReadSelectionParser, type AccessAssociationSelection } from './read-selection';
 import {
   AccessReadService,
@@ -257,7 +259,7 @@ export class AccessEntryReadService {
     return { rows: result.rows, count: result.count, page, pageSize, totalPage: Math.ceil(result.count / pageSize) };
   }
 
-  /** Internal concrete-source HasMany list bridge; no business resource route is installed here. */
+  /** Internal concrete-source multi-record relation bridge; no business resource route is installed here. */
   async listAssociationPageFromParams(
     ctx: object,
     source: AccessCollectionIdentity,
@@ -318,8 +320,7 @@ export class AccessEntryReadService {
       transaction,
       dates,
     );
-    // A relation supplies the locator. Execute a bounded root page under GET authorization,
-    // without substituting the target collection's unrelated root filterTargetKey.
+    // The relation adapter supplies its own locator protocol. Execute a bounded page under GET authorization.
     const result = await this.selected(
       ctx,
       authorization.source,
@@ -367,7 +368,7 @@ export class AccessEntryReadService {
       !collection ||
       !field ||
       !relation ||
-      (relation.associationType !== 'HasMany' &&
+      (!['HasMany', 'BelongsToMany'].includes(relation.associationType) &&
         !(kind === 'get' && ['HasOne', 'BelongsTo'].includes(relation.associationType))) ||
       !target ||
       target.db !== this.db ||
@@ -386,9 +387,19 @@ export class AccessEntryReadService {
       invalid('Association read is not authorized');
     if (accessCollectionKey(sourceGrant.identity) !== accessCollectionKey(authorization.source))
       invalid('Association source permission does not match the requested collection');
+    const manyToMany = relation.associationType === 'BelongsToMany';
+    const throughModel = manyToMany
+      ? (relation as typeof relation & { through?: { model?: Collection['model'] } }).through?.model
+      : undefined;
+    const through = throughModel && this.db.modelCollection.get(throughModel);
+    const throughGrant = through ? authorization.resolveGrant(through, [name, '$through']) : undefined;
+    if (manyToMany && !throughGrant) invalid('Association through read is not authorized');
     const detail =
-      kind === 'get' ? parseResourceAssociationGetParams(params, relation.associationType !== 'HasMany') : undefined;
+      kind === 'get'
+        ? parseResourceAssociationGetParams(params, ['HasOne', 'BelongsTo'].includes(relation.associationType))
+        : undefined;
     const { key, ...selection } = detail ?? {};
+    const detailKey = manyToMany && kind === 'get' ? captureReadKey(target, key, target.filterTargetKey) : undefined;
     const parsed = kind === 'list' ? parseResourceListParams(params) : { ...selection, limit: 1, offset: 0 };
     const request = {
       ...this.withDates(targetGrant.identity, parsed, dates),
@@ -408,8 +419,25 @@ export class AccessEntryReadService {
         transaction,
       },
     ] as const;
-    const plan =
-      relation.associationType === 'BelongsTo'
+    const plan = manyToMany
+      ? new AccessManyToManyReadService(this.db, this.prepared, this.queries).prepareTargets(
+          ctx,
+          authorization.source,
+          targetGrant.identity,
+          throughGrant!.identity,
+          authorization.authenticated,
+          {
+            association: name,
+            sourceKey,
+            sourceWhere: sourceGrant.where,
+            sourceBind: sourceGrant.bind,
+            throughWhere: throughGrant!.where,
+            throughBind: throughGrant!.bind,
+            ...(detailKey ? { targetWhere: { [detailKey.field]: detailKey.value } } : {}),
+            transaction,
+          },
+        )
+      : relation.associationType === 'BelongsTo'
         ? new AccessReferenceService(this.db, this.prepared, this.queries).prepareBelongsToTarget(...relationArgs)
         : new AccessTargetForeignKeyReadService(this.db, this.prepared, this.queries).prepareTargets(...relationArgs);
     const targetAuthorization = {
@@ -420,6 +448,7 @@ export class AccessEntryReadService {
       assertCurrent: () => {
         authorization.assertCurrent();
         plan.assertCurrent();
+        detailKey?.assertCurrent();
         if (
           collection.getField(name) !== field ||
           field.target !== target.name ||

@@ -92,7 +92,7 @@ export function resolveResourceReadRoute(
     const relationType = relation.associationType;
     if (
       concrete &&
-      relationType !== 'HasMany' &&
+      !['HasMany', 'BelongsToMany'].includes(relationType) &&
       !(actionName === 'get' && ['HasOne', 'BelongsTo'].includes(relationType))
     )
       invalid('Concrete reads for this association type or action are not supported');

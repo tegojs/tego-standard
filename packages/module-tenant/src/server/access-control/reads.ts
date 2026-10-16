@@ -48,6 +48,7 @@ export interface AccessReadResult {
 /** Trusted entry constraint, captured separately from client read parameters. */
 export interface AccessRootReadConstraint {
   readonly where: WhereOptions;
+  readonly bind?: Record<string, unknown>;
   readonly assertCurrent: () => void;
 }
 
@@ -310,7 +311,7 @@ export class AccessReadService {
       constraint.assertCurrent();
       parsed.filter = {
         type: 'all',
-        children: [parsed.filter, { type: 'predicate', where: constraint.where }],
+        children: [parsed.filter, { type: 'predicate', where: constraint.where, bind: constraint.bind }],
       };
     }
     this.assertAuthorizationCurrent?.();

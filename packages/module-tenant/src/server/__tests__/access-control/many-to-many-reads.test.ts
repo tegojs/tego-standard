@@ -2,9 +2,11 @@ import { ACL, literal, Op, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { AccessManyToManyReadService } from '../../access-control/many-to-many-reads';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
+import type { AccessEntryReadPermission } from '../../access-control/read-grants';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -25,11 +27,14 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
   let queries: AccessQueryService;
   let reads: AccessManyToManyReadService;
   let ctx: object;
+  let entry: AccessEntryReadService;
+  let permissions: Map<string, AccessEntryReadPermission | null>;
+  let permissionResolver: ReturnType<typeof vi.fn>;
   const stableKey = (collection: Collection) =>
     accessCollectionKey({ ...mainIdentity, collectionKey: `${collection.name}-key`, collectionName: collection.name });
 
   beforeEach(async () => {
-    db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl) : sqliteDatabase();
+    db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl!) : sqliteDatabase();
     await seedConfigStore(db);
     await seedAclScopes(db);
     for (const name of ['documents', 'projects', 'links']) {
@@ -42,6 +47,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
           { name: 'tenantId', type: 'string', field: 'tenant_id' },
           { name: 'name', type: 'string' },
           { name: 'amount', type: 'integer' },
+          ...(name === 'projects' ? [{ name: 'occurredAt', type: 'date', field: 'occurred_at' }] : []),
           ...(name === 'links'
             ? [
                 { name: 'documentId', type: 'integer', field: 'document_id' },
@@ -142,6 +148,17 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
     reads = new AccessManyToManyReadService(db, adapter, queries);
     ctx = {};
     await adapter.prepare(ctx, [mainIdentity, target, through]);
+    permissions = new Map();
+    permissionResolver = vi.fn((_collection: Collection, path: readonly string[], _operation: object) =>
+      permissions.has(path.join('.')) ? permissions.get(path.join('.'))! : { allowed: true, params: {} },
+    );
+    entry = new AccessEntryReadService(
+      db,
+      adapter,
+      queries,
+      (collection) => [mainIdentity, target, through].find((identity) => identity.collectionName === collection.name),
+      permissionResolver,
+    );
   });
 
   afterEach(async () => {
@@ -168,15 +185,315 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
     );
   }
 
+  describe('many-to-many entry', () => {
+    const page = (sourceKey: unknown = 1, params: unknown = { fields: ['id'], sort: 'id' }, association = 'projects') =>
+      entry.listAssociationPageFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);
+    const detail = (sourceKey: unknown = 1, params: unknown = { fields: ['id'], filterByTk: 101 }) =>
+      entry.getAssociationFromParams(ctx, mainIdentity, authenticated, { association: 'projects', sourceKey }, params);
+    const route = (actionName = 'list', sourceId: unknown = 1, params: unknown = { fields: ['id'], sort: 'id' }) =>
+      entry.fromResource(ctx, authenticated, { resourceName: 'documents.projects', sourceId, actionName }, params);
+
+    it('pages distinct readable targets using readable links and the same count', async () => {
+      expect(await page(1, { fields: ['id'], sort: '-amount', pageSize: 1, page: 2 })).toEqual({
+        rows: [{ id: 102 }],
+        count: 3,
+        page: 2,
+        pageSize: 1,
+        totalPage: 3,
+      });
+      expect(await route()).toMatchObject({ rows: [{ id: 101 }, { id: 102 }, { id: 104 }], count: 3 });
+      expect(await page(5)).toMatchObject({ rows: [], count: 0 });
+    });
+
+    it('requires an explicit detail key and excludes hidden unrelated or unlinked targets', async () => {
+      expect(await detail()).toEqual({ id: 101 });
+      for (const filterByTk of [102, 104])
+        expect(await route('get', 1, { fields: ['id'], filterByTk })).toEqual({ id: filterByTk });
+      for (const filterByTk of [103, 105, 106, 107, 999])
+        expect(await detail(1, { fields: ['id'], filterByTk })).toBeNull();
+      expect(await detail(2, { fields: ['id'], filterByTk: 105 })).toEqual({ id: 105 });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const filterByTk of [undefined, null, {}, [], ''])
+        await expect(detail(1, { fields: ['id'], filterByTk })).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('uses the core target collection business detail key independently of pairing keys', async () => {
+      projects.options.filterTargetKey = 'name';
+      docs.options.filterTargetKey = 'name';
+      // Core MultipleRelationRepository delegates filterByTk to the target collection repository.
+      expect(await detail(1, { fields: ['id'], filterByTk: 'Visible' })).toEqual({ id: 102 });
+      expect(await detail(1, { fields: ['id'], filterByTk: 'Hidden' })).toBeNull();
+      expect(await detail(1, { fields: ['id'], filterByTk: 'Other' })).toBeNull();
+    });
+
+    it('intersects independent source target and through role predicates', async () => {
+      permissions.set('', { allowed: true, params: { filter: { name: 'Visible' } } });
+      await expect(page()).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      permissions.set('', { allowed: true, params: {} });
+      permissions.set('projects', { allowed: true, params: { filter: { amount: { $gt: 10 } } } });
+      permissions.set('projects.$through', { allowed: true, params: { fields: [], filter: { name: 'Visible' } } });
+      expect(await page()).toMatchObject({ rows: [{ id: 102 }], count: 1 });
+      expect(await detail(1, { fields: ['id'], filterByTk: 101 })).toBeNull();
+      expect(permissionResolver.mock.calls.some(([, path]) => path.join('.') === 'projects.$through')).toBe(true);
+      expect(permissionResolver.mock.calls.at(-1)![2]).toMatchObject({ kind: 'get', source: mainIdentity });
+    });
+
+    it('does not grant a denied operation association or through permission', async () => {
+      for (const [path, permission] of [
+        ['', null],
+        ['', { allowed: true, params: { fields: ['name'], appends: [] } }],
+        ['projects', null],
+        ['projects.$through', { allowed: false, params: {} }],
+      ] as const) {
+        permissions.clear();
+        permissions.set(path, permission);
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(page()).rejects.toThrow(/authorized/);
+        await expect(detail()).rejects.toThrow(/authorized/);
+        expect(sql).not.toHaveBeenCalled();
+        sql.mockRestore();
+      }
+    });
+
+    it('enforces ancestor nested fields without exposing or requiring join keys', async () => {
+      permissions.set('', { allowed: true, params: { fields: [], appends: ['projects.name'] } });
+      permissions.set('projects.$through', { allowed: true, params: { fields: [] } });
+      expect(await page(1, { fields: ['name'], sort: 'name' })).toMatchObject({
+        rows: [{ name: 'Legacy' }, { name: 'Owned' }, { name: 'Visible' }],
+        count: 3,
+      });
+      expect(await detail(1, { fields: ['name'], filterByTk: 101 })).toEqual({ name: 'Owned' });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const params of [
+        { fields: ['id'] },
+        { fields: ['name'], filter: { amount: 10 } },
+        { fields: ['name'], sort: 'amount' },
+        { fields: ['name'], appends: ['links.name'] },
+      ])
+        await expect(page(1, params)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('keeps root relationship constraints away from expansions and internal role facts', async () => {
+      projects.setField('links', { type: 'hasMany', target: 'links', foreignKey: 'projectId' });
+      permissions.set('projects', { allowed: true, params: { filter: { links: { id: 9 } } } });
+      // A role may use a hidden link internally; root membership still requires a visible link.
+      expect(await page()).toMatchObject({ rows: [], count: 0 });
+      permissions.set('projects', { allowed: true, params: { filter: { links: { id: 2 } } } });
+      expect(await page(1, { fields: ['name'], appends: ['links.name'] })).toMatchObject({
+        rows: [{ name: 'Owned', links: [{ name: 'Owned' }, { name: 'Visible' }] }],
+        count: 1,
+      });
+      expect(permissionResolver.mock.calls.some(([, path]) => path.join('.') === 'projects.links')).toBe(true);
+    });
+
+    it('reads historical source targets and links without claiming them', async () => {
+      expect(await route('get', 4, { fields: ['id'], filterByTk: 104 })).toEqual({ id: 104 });
+      for (const [model, id] of [
+        [docs.model, 4],
+        [projects.model, 104],
+        [links.model, 8],
+      ] as const)
+        expect((await model.findByPk(id))!.getDataValue('tenantId')).toBeNull();
+    });
+
+    it('combines relationship membership with authorized association filters and root sorting', async () => {
+      projects.setField('links', { type: 'hasMany', target: 'links', foreignKey: 'projectId' });
+      permissions.set('projects.$through', { allowed: true, params: { filter: { name: 'Visible' } } });
+      // The membership link and the separately requested filter may match different readable rows.
+      expect(await page(1, { fields: ['id'], filter: { links: { name: 'Owned' } }, sort: '-amount' })).toMatchObject({
+        rows: [{ id: 101 }],
+        count: 1,
+      });
+      permissions.set('projects', { allowed: true, params: { filter: { amount: { $gt: 10 } } } });
+      expect(await page(1, { fields: ['id'], filter: { links: { name: 'Visible' } }, sort: '-amount' })).toMatchObject({
+        rows: [{ id: 102 }],
+        count: 1,
+      });
+      permissions.clear();
+      // Target 105 has a readable link to source 2 and a hidden link to source 3.
+      await links.model.update({ tenantId: 'C', name: 'Hidden' }, { where: { id: 7 } });
+      expect(await page(2, { fields: ['id'], filter: { links: { id: 7 } }, sort: 'id' })).toMatchObject({
+        rows: [],
+        count: 0,
+      });
+    });
+
+    it('keeps underscore reads independent of source and through configuration', async () => {
+      const direct = {};
+      await adapter.prepare(direct, [target]);
+      permissions.set('', { allowed: true, params: {} });
+      expect(
+        await entry.fromResource(
+          direct,
+          authenticated,
+          {
+            resourceName: 'documents.projects',
+            sourceId: '_',
+            actionName: 'get',
+          },
+          { fields: ['id'], filterByTk: 106 },
+        ),
+      ).toEqual({ id: 106 });
+      await expect(
+        entry.fromResource(
+          direct,
+          authenticated,
+          {
+            resourceName: 'documents.projects',
+            sourceId: 1,
+            actionName: 'get',
+          },
+          { fields: ['id'], filterByTk: 106 },
+        ),
+      ).rejects.toThrow();
+    });
+
+    it('requires explicit configuration but supports shared targets and links without tenant columns', async () => {
+      for (const identity of [target, through])
+        await store.save(
+          identity,
+          {
+            ...configFor({ type: 'constant', value: true }),
+            ownership: { enabled: false },
+            revision: 1,
+          },
+          { userId: 28 },
+        );
+      adapter.release(ctx);
+      for (const collection of [projects, links]) {
+        collection.removeField('tenantId');
+        await db.sequelize.getQueryInterface().removeColumn(collection.model.getTableName(), 'tenant_id');
+      }
+      await adapter.prepare(ctx, [mainIdentity, target, through]);
+      expect(await page()).toMatchObject({
+        rows: [{ id: 101 }, { id: 102 }, { id: 103 }, { id: 104 }, { id: 106 }],
+        count: 5,
+      });
+      await expect(page(3)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('preserves relationship scopes default scopes and soft-deleted links', async () => {
+      docs.setField('visibleProjects', {
+        type: 'belongsToMany',
+        target: 'projects',
+        through: 'links',
+        foreignKey: 'documentId',
+        otherKey: 'projectId',
+        throughUnique: false,
+        scope: { name: 'Visible' },
+        throughScope: { name: 'Visible' },
+      });
+      expect(await page(1, { fields: ['id'] }, 'visibleProjects')).toMatchObject({ rows: [{ id: 102 }], count: 1 });
+      links.model.options.paranoid = true;
+      (links.model as unknown as { _timestampAttributes: Record<string, string> })._timestampAttributes.deletedAt =
+        'deletedAt';
+      await links.model.update({ deletedAt: new Date() }, { where: { id: 3 } });
+      expect(await page()).toMatchObject({ rows: [{ id: 101 }, { id: 104 }], count: 2 });
+      links.model.addScope('defaultScope', { where: { name: 'Legacy' } }, { override: true });
+      expect(await page()).toMatchObject({ rows: [{ id: 104 }], count: 1 });
+      projects.model.addScope('defaultScope', { where: { name: 'Owned' } }, { override: true });
+      expect(await page()).toMatchObject({ rows: [], count: 0 });
+    });
+
+    it('captures descriptor params and all grants before the source lookup yields', async () => {
+      const action = { resourceName: 'documents.projects', sourceId: 1, actionName: 'list' };
+      const params = { fields: ['name'], sort: ['name'] };
+      const throughFilter = { name: 'Visible' };
+      permissions.set('projects.$through', { allowed: true, params: { filter: throughFilter } });
+      const original = docs.model.findOne.bind(docs.model);
+      vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (options) => {
+        action.sourceId = 2;
+        action.actionName = 'get';
+        params.fields[0] = 'id';
+        params.sort[0] = '-name';
+        throughFilter.name = 'Hidden';
+        permissions.set('projects', null);
+        return original(options);
+      });
+      expect(await entry.fromResource(ctx, authenticated, action, params)).toMatchObject({
+        rows: [{ name: 'Owned' }, { name: 'Visible' }],
+        count: 2,
+      });
+    });
+
+    it('rejects changed through metadata after source lookup and target business keys after detail query', async () => {
+      const original = docs.model.findOne.bind(docs.model);
+      vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (options) => {
+        const record = await original(options);
+        links.model.rawAttributes.projectId.field = 'changed_column';
+        return record;
+      });
+      await expect(page()).rejects.toThrow(/changed/);
+      links.model.rawAttributes.projectId.field = 'project_id';
+      projects.options.filterTargetKey = 'name';
+      const find = projects.model.findAll.bind(projects.model);
+      vi.spyOn(projects.model, 'findAll').mockImplementationOnce(async (options) => {
+        const rows = await find(options);
+        projects.options.filterTargetKey = 'id';
+        return rows;
+      });
+      await expect(detail(1, { fields: ['id'], filterByTk: 'Visible' })).rejects.toThrow(/changed/);
+    });
+
+    it('uses trusted transactions and date context while keeping detail queries bounded', async () => {
+      await projects.model.update({ occurredAt: new Date('2026-09-15T16:00:00Z') }, { where: { id: 102 } });
+      const count = vi.spyOn(projects.model, 'count');
+      const find = vi.spyOn(projects.model, 'findAll');
+      await db.sequelize.transaction(async (transaction) => {
+        await links.model.update({ projectId: 102 }, { where: { id: 6 }, transaction });
+        expect(
+          await entry.fromResource(
+            ctx,
+            authenticated,
+            {
+              resourceName: 'documents.projects',
+              sourceId: 2,
+              actionName: 'get',
+            },
+            { fields: ['id'], filterByTk: 102, filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } } },
+            transaction,
+            { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' },
+          ),
+        ).toEqual({ id: 102 });
+        expect(find.mock.calls[0][0]).toMatchObject({ transaction, limit: 1 });
+      });
+      expect(count).not.toHaveBeenCalled();
+    });
+
+    it('keeps query counts constant when the number of distinct targets increases', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await page(1, { fields: ['id'], pageSize: 100 });
+      const before = sql.mock.calls.length;
+      sql.mockClear();
+      await projects.model.bulkCreate(
+        Array.from({ length: 20 }, (_, i) => ({ id: 200 + i, tenantId: 'B', name: 'Owned' })),
+      );
+      await links.model.bulkCreate(
+        Array.from({ length: 20 }, (_, i) => ({
+          id: 200 + i,
+          documentId: 1,
+          projectId: 200 + i,
+          tenantId: 'B',
+          name: 'Owned',
+        })),
+      );
+      sql.mockClear();
+      expect(await page(1, { fields: ['id'], pageSize: 100 })).toMatchObject({ count: 23 });
+      expect(sql.mock.calls.length).toBe(before);
+    });
+  });
+
   it('intersects target and through G or V and never claims historical records', async () => {
     expect(await ids()).toEqual([101, 102, 104]);
-    expect((await projects.model.findByPk(104)).getDataValue('tenantId')).toBeNull();
-    expect((await links.model.findByPk(5)).getDataValue('tenantId')).toBeNull();
+    expect((await projects.model.findByPk(104))!.getDataValue('tenantId')).toBeNull();
+    expect((await links.model.findByPk(5))!.getDataValue('tenantId')).toBeNull();
   });
   it('reads visible and historical sources without claiming them', async () => {
     expect(await ids(2)).toEqual([105]);
     expect(await ids(4)).toEqual([104]);
-    expect((await docs.model.findByPk(4)).getDataValue('tenantId')).toBeNull();
+    expect((await docs.model.findByPk(4))!.getDataValue('tenantId')).toBeNull();
   });
   it('rejects hidden or missing sources', async () => {
     for (const key of [3, 999]) await expect(ids(key)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
@@ -466,8 +783,9 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
 
   it('keeps authorization query count constant as target count grows', async () => {
     const messages: string[] = [];
-    const logging = db.sequelize.options.logging;
-    db.sequelize.options.logging = (sql) => messages.push(sql);
+    const runtime = db.sequelize as unknown as { options: { logging: false | ((sql: string) => void) } };
+    const logging = runtime.options.logging;
+    runtime.options.logging = (sql) => messages.push(sql);
     try {
       await ids();
       const before = messages.length;
@@ -488,7 +806,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
       expect(messages).toHaveLength(before);
       expect(before).toBeLessThanOrEqual(5);
     } finally {
-      db.sequelize.options.logging = logging;
+      runtime.options.logging = logging;
     }
   });
 

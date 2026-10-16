@@ -55,6 +55,8 @@ describe('internal resource read routing', () => {
     ['parent', 'get', 1],
     ['links', 'list', 1],
     ['links', 'get', 1],
+    ['children', 'count', 1],
+    ['links', 'count', '1'],
   ] as const)('selects a concrete %s %s source (%j)', (association, actionName, sourceId) => {
     const route = resolveResourceReadRoute(db, resolveConcreteIdentity, {
       resourceName: `sources.${association}`,
@@ -130,8 +132,10 @@ describe('internal resource read routing', () => {
     for (const [association, actionName] of [
       ['parent', 'list'],
       ['single', 'list'],
-      ['children', 'count'],
+      ['parent', 'count'],
+      ['single', 'count'],
       ['children', 'sum'],
+      ['links', 'sum'],
     ])
       expect(() =>
         resolveResourceReadRoute(db, resolveConcreteIdentity, {

@@ -214,7 +214,9 @@ export class AccessEntryReadService {
       const args = [ctx, route.identity, authenticated, route.association, params, transaction, dates] as const;
       const result = await (route.actionName === 'list'
         ? this.listAssociationPageFromParams(...args)
-        : this.getAssociationFromParams(...args));
+        : route.actionName === 'get'
+          ? this.getAssociationFromParams(...args)
+          : this.countAssociationFromParams(...args));
       route.assertCurrent();
       return result;
     }
@@ -275,7 +277,7 @@ export class AccessEntryReadService {
       source,
       authenticated,
       descriptor,
-      params,
+      () => parseResourceListParams(params),
       transaction,
       dates,
     );
@@ -316,7 +318,7 @@ export class AccessEntryReadService {
       source,
       authenticated,
       descriptor,
-      params,
+      (_target, single) => ({ ...parseResourceAssociationGetParams(params, single), limit: 1, offset: 0 }),
       transaction,
       dates,
     );
@@ -334,13 +336,75 @@ export class AccessEntryReadService {
     return result.rows[0] ?? null;
   }
 
-  private associationSelection(
-    kind: 'list' | 'get',
+  /** Internal multi-record association count; final permissions belong to the count operation. */
+  async countAssociationFromParams(
     ctx: object,
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     descriptor: unknown,
     params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const { request, authorization, scope } = this.associationSelection(
+      'count',
+      ctx,
+      source,
+      authenticated,
+      descriptor,
+      () => parseResourceCountParams(params),
+      transaction,
+      dates,
+    );
+    const reader = new AccessReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      authorization.resolveGrant,
+      authorization.assertCurrent,
+      scope.rootConstraint,
+    );
+    return reader.count(ctx, authorization.source, authorization.authenticated, request);
+  }
+
+  /** Internal sum contract only; does not install or emulate a generic aggregate action. */
+  async sumAssociationFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    descriptor: unknown,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const { request, authorization, scope } = this.associationSelection(
+      'sum',
+      ctx,
+      source,
+      authenticated,
+      descriptor,
+      () => parseResourceSumParams(params),
+      transaction,
+      dates,
+    );
+    const reader = new AccessReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      authorization.resolveGrant,
+      authorization.assertCurrent,
+      scope.rootConstraint,
+    );
+    return reader.sum(ctx, authorization.source, authorization.authenticated, request);
+  }
+
+  private associationSelection<T extends { filter?: unknown; key?: string | number }>(
+    kind: 'list' | 'get' | 'count' | 'sum',
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    descriptor: unknown,
+    parse: (target: Collection, single: boolean) => T,
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
@@ -394,13 +458,8 @@ export class AccessEntryReadService {
     const through = throughModel && this.db.modelCollection.get(throughModel);
     const throughGrant = through ? authorization.resolveGrant(through, [name, '$through']) : undefined;
     if (manyToMany && !throughGrant) invalid('Association through read is not authorized');
-    const detail =
-      kind === 'get'
-        ? parseResourceAssociationGetParams(params, ['HasOne', 'BelongsTo'].includes(relation.associationType))
-        : undefined;
-    const { key, ...selection } = detail ?? {};
+    const { key, ...parsed } = parse(target, ['HasOne', 'BelongsTo'].includes(relation.associationType));
     const detailKey = manyToMany && kind === 'get' ? captureReadKey(target, key, target.filterTargetKey) : undefined;
-    const parsed = kind === 'list' ? parseResourceListParams(params) : { ...selection, limit: 1, offset: 0 };
     const request = {
       ...this.withDates(targetGrant.identity, parsed, dates),
       transaction,

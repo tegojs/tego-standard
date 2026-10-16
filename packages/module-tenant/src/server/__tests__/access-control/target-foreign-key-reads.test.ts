@@ -169,6 +169,228 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('target foreign-
     association = 'children',
   ) => entry.getAssociationFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);
 
+  describe('association summary entry', () => {
+    const count = (sourceKey: unknown = 1, params: unknown = {}, association = 'children') =>
+      entry.countAssociationFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);
+    const sum = (sourceKey: unknown = 1, params: unknown = { field: 'amount' }) =>
+      entry.sumAssociationFromParams(ctx, mainIdentity, authenticated, { association: 'children', sourceKey }, params);
+
+    it('counts and sums only linked readable children under independent summary authorization', async () => {
+      expect(await count()).toBe(3);
+      expect(await sum()).toBe(60);
+      expect(await count(2)).toBe(1);
+      expect(await sum(2)).toBe(40);
+      expect(await count(5)).toBe(0);
+      expect(await sum(5)).toBeNull();
+      expect(await count(1, { filter: { amount: { $gt: 10 } } })).toBe(2);
+      expect(await sum(1, { field: 'amount', filter: { amount: { $gt: 10 } } })).toBe(50);
+      expect(new Set(permissionResolver.mock.calls.map(([, , operation]) => operation.kind))).toEqual(
+        new Set(['count', 'sum']),
+      );
+      expect(
+        await entry.fromResource(
+          ctx,
+          authenticated,
+          { resourceName: 'documents.children', sourceId: 1, actionName: 'count' },
+          {},
+        ),
+      ).toBe(3);
+    });
+
+    it('requires source relationship and target operation grants without borrowing list permissions', async () => {
+      permissionResolver.mockImplementation(
+        (_collection: Collection, _path: readonly string[], operation: { kind: string }) => ({
+          allowed: operation.kind === 'list',
+          params: {},
+        }),
+      );
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(count()).rejects.toThrow(/authorized/);
+      await expect(sum()).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+      permissionResolver.mockImplementation((_collection: Collection, path: readonly string[]) =>
+        permissions.has(path.join('.')) ? permissions.get(path.join('.'))! : { allowed: true, params: {} },
+      );
+      for (const [path, permission] of [
+        ['', null],
+        ['', { allowed: true, params: { fields: ['name'], appends: [] } }],
+        ['children', { allowed: false, params: {} }],
+      ] as const) {
+        permissions.clear();
+        permissions.set(path, permission);
+        await expect(count()).rejects.toThrow(/authorized/);
+        await expect(sum()).rejects.toThrow(/authorized/);
+      }
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('intersects source and target role filters and parent field restrictions', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: [], appends: ['children.amount'], filter: { name: 'Owned' } },
+      });
+      permissions.set('children', { allowed: true, params: { fields: ['amount'], filter: { amount: { $gte: 20 } } } });
+      expect(await count()).toBe(2);
+      expect(await sum()).toBe(50);
+      await expect(count(2)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      permissions.set('', { allowed: true, params: { fields: [], appends: ['children.name'] } });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(sum()).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('rejects unreadable sources and unsupported summary inputs before SQL', async () => {
+      for (const sourceKey of [3, 999]) {
+        await expect(count(sourceKey)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        await expect(sum(sourceKey)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      }
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const params of [
+        { page: 1 },
+        { fields: ['id'] },
+        { bind: {} },
+        { transaction: {} },
+        { filter: { unknown: 1 } },
+      ])
+        await expect(count(1, params)).rejects.toThrow();
+      for (const params of [
+        { field: 'name' },
+        { field: 'document.amount' },
+        { field: 'missing' },
+        { field: 'amount', appends: ['document'] },
+      ])
+        await expect(sum(1, params)).rejects.toThrow();
+      for (const association of ['child', 'missing']) await expect(count(1, {}, association)).rejects.toThrow();
+      await expect(count('_')).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('counts legacy references without claiming source or target ownership', async () => {
+      expect(await count(4)).toBe(1);
+      expect(await sum(4)).toBe(60);
+      expect((await docs.model.findByPk(4))!.getDataValue('tenantId')).toBeNull();
+      expect((await children.model.findByPk(107))!.getDataValue('tenantId')).toBeNull();
+    });
+
+    it('allows operation-only count grants but requires an authorized numeric sum field', async () => {
+      permissions.set('children', { allowed: true, params: { fields: [] } });
+      expect(await count()).toBe(3);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(sum()).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('preserves relation and model default scopes in summaries', async () => {
+      docs.setField('visibleChildren', {
+        type: 'hasMany',
+        target: 'children',
+        foreignKey: 'documentId',
+        scope: { name: 'Visible' },
+      });
+      expect(await count(1, {}, 'visibleChildren')).toBe(1);
+      expect(
+        await entry.sumAssociationFromParams(
+          ctx,
+          mainIdentity,
+          authenticated,
+          { association: 'visibleChildren', sourceKey: 1 },
+          { field: 'amount' },
+        ),
+      ).toBe(20);
+      children.model.addScope('defaultScope', { where: { name: 'Owned' } }, { override: true });
+      expect(await count()).toBe(1);
+      expect(await sum()).toBe(10);
+      docs.model.addScope('defaultScope', { where: { name: 'Visible' } }, { override: true });
+      await expect(sum()).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('keeps hidden relationship facts internal to role predicates and scopes actual request relationships', async () => {
+      permissions.set('children', {
+        allowed: true,
+        params: { fields: ['amount'], appends: [], filter: { document: { id: 1 } } },
+      });
+      expect(await count()).toBe(3);
+      expect(await sum()).toBe(60);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(count(1, { filter: { document: { id: 1 } } })).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+      permissions.set('children', { allowed: true, params: {} });
+      expect(await count(1, { filter: { document: { name: 'Owned' } } })).toBe(3);
+      expect(await sum(1, { field: 'amount', filter: { document: { name: 'Hidden' } } })).toBeNull();
+    });
+
+    it('uses the same trusted transaction and target dates for count and sum', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await children.model.update(
+          { documentId: 2, occurredAt: new Date('2026-09-15T16:00:00Z') },
+          { where: { id: 101 }, transaction },
+        );
+        const descriptor = { association: 'children', sourceKey: 2 };
+        const filter = { occurredAt: { $dateOn: '{{$nDate.today}}' } };
+        const dates = { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' };
+        const sourceQuery = vi.spyOn(docs.model, 'findOne');
+        const targetQuery = vi.spyOn(children.model, 'count');
+        expect(
+          await entry.countAssociationFromParams(
+            ctx,
+            mainIdentity,
+            authenticated,
+            descriptor,
+            { filter },
+            transaction,
+            dates,
+          ),
+        ).toBe(1);
+        expect(
+          await entry.sumAssociationFromParams(
+            ctx,
+            mainIdentity,
+            authenticated,
+            descriptor,
+            { field: 'amount', filter },
+            transaction,
+            dates,
+          ),
+        ).toBe(10);
+        expect(sourceQuery.mock.calls[0][0]!.transaction).toBe(transaction);
+        expect(targetQuery.mock.calls[0][0]!.transaction).toBe(transaction);
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await count(2)).toBe(1);
+      await expect(
+        entry.countAssociationFromParams(
+          ctx,
+          mainIdentity,
+          authenticated,
+          { association: 'children', sourceKey: 1 },
+          {},
+          transaction,
+        ),
+      ).rejects.toMatchObject({ code: 'MISSING_ACCESS_CONTEXT' });
+    });
+
+    it('rejects relation changes after count and phase release after source lookup', async () => {
+      const relation = docs.model.associations.children;
+      const originalCount = children.model.count.bind(children.model);
+      vi.spyOn(children.model, 'count').mockImplementationOnce(async (...args) => {
+        const result = await originalCount(...args);
+        Object.assign(relation, { scope: { name: 'Hidden' } });
+        return result;
+      });
+      await expect(count()).rejects.toThrow(/changed/);
+      Object.assign(relation, { scope: undefined });
+      const originalSource = docs.model.findOne.bind(docs.model);
+      vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (...args) => {
+        const result = await originalSource(...args);
+        adapter.release(ctx);
+        return result;
+      });
+      await expect(sum()).rejects.toThrow();
+    });
+  });
+
   describe('belongs-to detail entry', () => {
     const belonging = (sourceKey: unknown = 101, params: unknown = { fields: ['id'] }, association = 'document') =>
       entry.getAssociationFromParams(ctx, target, authenticated, { association, sourceKey }, params);
@@ -664,7 +886,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('target foreign-
       for (const [actionName, sourceId, association] of [
         ['list', null, 'children'],
         ['get', {}, 'children'],
-        ['count', 1, 'children'],
+        ['count', 1, 'child'],
+        ['count', '_', 'children'],
         ['sum', 1, 'children'],
         ['list', 1, 'child'],
         ['get', 1, 'document'],

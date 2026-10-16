@@ -16,7 +16,7 @@ export type AccessResourceReadRoute = ResourceReadRouteBase &
     | { readonly kind: 'direct'; readonly actionName: ResourceReadAction }
     | {
         readonly kind: 'association';
-        readonly actionName: 'list' | 'get';
+        readonly actionName: 'list' | 'get' | 'count';
         readonly association: Readonly<{ association: string; sourceKey: string | number }>;
       }
   );
@@ -58,13 +58,14 @@ export function resolveResourceReadRoute(
     ) ||
     (parts.length === 1
       ? sourceId !== undefined
-      : !['list', 'get'].includes(actionName) ||
+      : !['list', 'get', 'count'].includes(actionName) ||
+        (sourceId === '_' && actionName === 'count') ||
         !(
           (typeof sourceId === 'string' && sourceId.length > 0 && sourceId.length <= 512) ||
           (typeof sourceId === 'number' && Number.isSafeInteger(sourceId))
         ))
   )
-    invalid('Only root reads and bounded association get/list are supported');
+    invalid('Only root reads and bounded association get/list/count are supported');
   const concrete = parts.length === 2 && sourceId !== '_';
   const source = db.collections.get(parts[0]);
   if (!source || source.db !== db || source.name !== parts[0] || source.model.sequelize !== db.sequelize)
@@ -158,7 +159,7 @@ export function resolveResourceReadRoute(
     ? Object.freeze({
         kind: 'association',
         identity: sourceIdentity!,
-        actionName: actionName as 'list' | 'get',
+        actionName: actionName as 'list' | 'get' | 'count',
         association: Object.freeze({ association: parts[1], sourceKey: sourceId as string | number }),
         assertCurrent,
       })

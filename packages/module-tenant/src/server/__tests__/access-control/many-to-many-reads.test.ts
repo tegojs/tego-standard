@@ -185,6 +185,250 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
     );
   }
 
+  describe('association summary entry', () => {
+    const count = (sourceKey: unknown = 1, params: unknown = {}) =>
+      entry.countAssociationFromParams(
+        ctx,
+        mainIdentity,
+        authenticated,
+        { association: 'projects', sourceKey },
+        params,
+      );
+    const sum = (sourceKey: unknown = 1, params: unknown = { field: 'amount' }) =>
+      entry.sumAssociationFromParams(ctx, mainIdentity, authenticated, { association: 'projects', sourceKey }, params);
+
+    it('counts and sums distinct readable targets rather than duplicate or unreadable links', async () => {
+      expect(await count()).toBe(3);
+      expect(await sum()).toBe(60);
+      expect(await count(2)).toBe(1);
+      expect(await sum(2)).toBe(40);
+      expect(await count(5)).toBe(0);
+      expect(await sum(5)).toBeNull();
+      expect(await count(1, { filter: { amount: { $gte: 20 } } })).toBe(2);
+      expect(await sum(1, { field: 'amount', filter: { amount: { $gte: 20 } } })).toBe(50);
+      expect(
+        await entry.fromResource(
+          ctx,
+          authenticated,
+          { resourceName: 'documents.projects', sourceId: 1, actionName: 'count' },
+          {},
+        ),
+      ).toBe(3);
+      expect(new Set(permissionResolver.mock.calls.map(([, , operation]) => operation.kind))).toEqual(
+        new Set(['count', 'sum']),
+      );
+      expect(permissionResolver.mock.calls.some(([, path]) => path.join('.') === 'projects.$through')).toBe(true);
+    });
+
+    it('intersects role filters independently on the source target and through without requiring through fields', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: [], appends: ['projects.amount'], filter: { name: 'Owned' } },
+      });
+      permissions.set('projects', { allowed: true, params: { fields: ['amount'], filter: { amount: { $gte: 20 } } } });
+      permissions.set('projects.$through', { allowed: true, params: { fields: [], filter: { name: 'Visible' } } });
+      expect(await count()).toBe(1);
+      expect(await sum()).toBe(20);
+      expect(await count(1, { filter: { amount: { $gt: 20 } } })).toBe(0);
+      await expect(sum(2)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+
+    it('requires the current summary operation at all three permission paths', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const path of ['', 'projects', 'projects.$through']) {
+        permissions.clear();
+        permissions.set(path, { allowed: false, params: {} });
+        await expect(count()).rejects.toThrow(/authorized/);
+        await expect(sum()).rejects.toThrow(/authorized/);
+      }
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('does not claim legacy rows or make an unreadable source accessible through visible links', async () => {
+      expect(await count(4)).toBe(1);
+      expect(await sum(4)).toBe(30);
+      for (const sourceKey of [3, 999]) {
+        await expect(count(sourceKey)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        await expect(sum(sourceKey)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      }
+      expect((await docs.model.findByPk(4))!.getDataValue('tenantId')).toBeNull();
+      expect((await projects.model.findByPk(104))!.getDataValue('tenantId')).toBeNull();
+      expect((await links.model.findByPk(8))!.getDataValue('tenantId')).toBeNull();
+    });
+
+    it('snapshots descriptors filters identities and permissions before the source query', async () => {
+      const descriptor = { association: 'projects', sourceKey: 1 };
+      const identity = { tenantId: 'B' };
+      const params = { field: 'amount', filter: { amount: { $gte: 20 } } };
+      const permission = { allowed: true, params: { fields: ['amount'], filter: { amount: { $lte: 20 } } } };
+      permissions.set('projects', permission);
+      const pending = entry.sumAssociationFromParams(ctx, mainIdentity, identity, descriptor, params);
+      descriptor.sourceKey = 2;
+      descriptor.association = 'missing';
+      identity.tenantId = 'C';
+      params.field = 'id';
+      params.filter.amount.$gte = 100;
+      permission.params.filter.amount.$lte = 100;
+      expect(await pending).toBe(20);
+    });
+
+    it('uses a trusted live transaction and resolves dates against the target field', async () => {
+      await db.sequelize.transaction(async (transaction) => {
+        await links.model.update({ projectId: 102 }, { where: { id: 6 }, transaction });
+        await projects.model.update(
+          { occurredAt: new Date('2026-09-15T16:00:00Z') },
+          { where: { id: 102 }, transaction },
+        );
+        const filter = { occurredAt: { $dateOn: '{{$nDate.today}}' } };
+        const dates = { now: '2026-09-16T00:00:00.000Z', timezone: '+08:00' };
+        const sourceQuery = vi.spyOn(docs.model, 'findOne');
+        const targetQuery = vi.spyOn(projects.model, 'sum');
+        expect(
+          await entry.sumAssociationFromParams(
+            ctx,
+            mainIdentity,
+            authenticated,
+            { association: 'projects', sourceKey: 2 },
+            { field: 'amount', filter },
+            transaction,
+            dates,
+          ),
+        ).toBe(20);
+        expect(sourceQuery.mock.calls[0][0]!.transaction).toBe(transaction);
+        expect(targetQuery.mock.calls[0][1]!.transaction).toBe(transaction);
+        expect(
+          await entry.countAssociationFromParams(
+            ctx,
+            mainIdentity,
+            authenticated,
+            { association: 'projects', sourceKey: 2 },
+            { filter },
+            transaction,
+            dates,
+          ),
+        ).toBe(1);
+      });
+    });
+
+    it('rechecks through and target metadata after asynchronous execution', async () => {
+      const originalSource = docs.model.findOne.bind(docs.model);
+      const sourceQuery = vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (...args) => {
+        const record = await originalSource(...args);
+        links.model.rawAttributes.projectId.field = 'changed_column';
+        return record;
+      });
+      await expect(count()).rejects.toThrow(/changed/);
+      links.model.rawAttributes.projectId.field = 'project_id';
+      sourceQuery.mockRestore();
+      const originalSum = projects.model.sum.bind(projects.model);
+      vi.spyOn(projects.model, 'sum').mockImplementationOnce(async (...args) => {
+        const result = await originalSum(...args);
+        projects.model.rawAttributes.amount.field = 'changed_amount';
+        return result;
+      });
+      await expect(sum()).rejects.toThrow(/changed/);
+    });
+
+    it('preserves target and through association scopes default scopes and soft deletion', async () => {
+      docs.setField('visibleProjects', {
+        type: 'belongsToMany',
+        target: 'projects',
+        through: 'links',
+        foreignKey: 'documentId',
+        otherKey: 'projectId',
+        throughUnique: false,
+        scope: { name: 'Visible' },
+        throughScope: { name: 'Visible' },
+      });
+      expect(
+        await entry.countAssociationFromParams(
+          ctx,
+          mainIdentity,
+          authenticated,
+          { association: 'visibleProjects', sourceKey: 1 },
+          {},
+        ),
+      ).toBe(1);
+      expect(
+        await entry.sumAssociationFromParams(
+          ctx,
+          mainIdentity,
+          authenticated,
+          { association: 'visibleProjects', sourceKey: 1 },
+          { field: 'amount' },
+        ),
+      ).toBe(20);
+      links.model.options.paranoid = true;
+      (links.model as unknown as { _timestampAttributes: Record<string, string> })._timestampAttributes.deletedAt =
+        'deletedAt';
+      await links.model.update({ deletedAt: new Date() }, { where: { id: 3 } });
+      expect(await count()).toBe(2);
+      expect(await sum()).toBe(40);
+      links.model.addScope('defaultScope', { where: { name: 'Legacy' } }, { override: true });
+      expect(await count()).toBe(1);
+      expect(await sum()).toBe(30);
+      projects.model.addScope('defaultScope', { where: { name: 'Owned' } }, { override: true });
+      expect(await count()).toBe(0);
+      expect(await sum()).toBeNull();
+    });
+
+    it('summarizes shared source target and through models without tenant columns or tenant context', async () => {
+      for (const identity of [mainIdentity, target, through])
+        await store.save(
+          identity,
+          { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 1 },
+          { userId: 28 },
+        );
+      adapter.release(ctx);
+      for (const collection of [docs, projects, links]) {
+        collection.removeField('tenantId');
+        await db.sequelize.getQueryInterface().removeColumn(collection.model.getTableName(), 'tenant_id');
+      }
+      await adapter.prepare(ctx, [mainIdentity, target, through]);
+      expect(
+        await entry.countAssociationFromParams(ctx, mainIdentity, {}, { association: 'projects', sourceKey: 1 }, {}),
+      ).toBe(5);
+      expect(
+        await entry.sumAssociationFromParams(
+          ctx,
+          mainIdentity,
+          {},
+          { association: 'projects', sourceKey: 1 },
+          { field: 'amount' },
+        ),
+      ).toBe(210);
+      permissions.set('projects.$through', { allowed: true, params: { fields: [], filter: { name: 'Visible' } } });
+      expect(
+        await entry.countAssociationFromParams(ctx, mainIdentity, {}, { association: 'projects', sourceKey: 1 }, {}),
+      ).toBe(2);
+    });
+
+    it('keeps summary query counts bounded as linked targets increase', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      expect(await count()).toBe(3);
+      const before = sql.mock.calls.length;
+      await projects.model.bulkCreate(
+        Array.from({ length: 20 }, (_, i) => ({ id: 200 + i, tenantId: 'B', name: 'Owned', amount: 1 })),
+      );
+      await links.model.bulkCreate(
+        Array.from({ length: 20 }, (_, i) => ({
+          id: 200 + i,
+          documentId: 1,
+          projectId: 200 + i,
+          tenantId: 'B',
+          name: 'Owned',
+        })),
+      );
+      sql.mockClear();
+      expect(await count()).toBe(23);
+      expect(sql.mock.calls.length).toBe(before);
+      expect(before).toBeLessThanOrEqual(10);
+      sql.mockClear();
+      expect(await sum()).toBe(80);
+      expect(sql.mock.calls.length).toBe(before);
+    });
+  });
+
   describe('many-to-many entry', () => {
     const page = (sourceKey: unknown = 1, params: unknown = { fields: ['id'], sort: 'id' }, association = 'projects') =>
       entry.listAssociationPageFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);

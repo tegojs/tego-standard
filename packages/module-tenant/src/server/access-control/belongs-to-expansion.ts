@@ -4,9 +4,10 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { captureExpansionRequest, normalizeExpansionKeys, type AccessExpansionRecord } from './expansion-page';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
-import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
+import { internalQuery, invalid, normalizeKeys, unavailable } from './write-support';
 
 export interface BelongsToExpansionRequest {
   association: string;
@@ -36,6 +37,29 @@ export class AccessBelongsToExpansionService {
     authenticated: AccessIdentity,
     request: BelongsToExpansionRequest,
   ): Promise<ReadonlyMap<string, Readonly<Record<string, unknown>> | null>> {
+    const records = await this.read(ctx, source, target, authenticated, request, false);
+    return new Map([...records].map(([key, record]) => [key, record?.values ?? null]));
+  }
+
+  /** Internal nested-assembly page; pairing keys are independent of output-field authorization. */
+  page(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: BelongsToExpansionRequest,
+  ) {
+    return this.read(ctx, source, target, authenticated, request, true);
+  }
+
+  private async read(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: BelongsToExpansionRequest,
+    pairing: boolean,
+  ): Promise<ReadonlyMap<string, AccessExpansionRecord | null>> {
     source = { ...source };
     target = { ...target };
     authenticated = { ...authenticated };
@@ -49,24 +73,8 @@ export class AccessBelongsToExpansionService {
       'targetBind',
       'transaction',
     ];
-    if (
-      !plain(request) ||
-      Reflect.ownKeys(request).some(
-        (key) =>
-          typeof key !== 'string' ||
-          !allowed.includes(key) ||
-          !Object.hasOwn(Object.getOwnPropertyDescriptor(request, key)!, 'value'),
-      )
-    )
-      invalid('Unsupported association expansion input');
-    for (const name of ['sourceKeys', 'targetAttributes'] as const) {
-      const values = request[name];
-      if (!Array.isArray(values) || values.length > 1000) invalid('Supply a bounded explicit expansion array');
-      for (let index = 0; index < values.length; index++)
-        if (!Object.hasOwn(values, index)) invalid('Expansion arrays cannot contain missing entries');
-    }
-    const { transaction, ...input } = request;
-    request = { ...cloneDeep(input), transaction };
+    request = captureExpansionRequest(request, allowed, pairing);
+    const { transaction } = request;
     if (typeof request.association !== 'string' || !request.association)
       invalid('Select a registered belongs-to association');
     const relation = resolveBelongsTo(this.db, this.prepared, this.queries, ctx, source, target, request.association);
@@ -79,12 +87,10 @@ export class AccessBelongsToExpansionService {
       relation.current();
       verifyMetadata();
     };
-    if (!Array.isArray(request.sourceKeys) || request.sourceKeys.length > 1000)
-      invalid('Expand at most 1000 explicit source keys');
-    const keys = request.sourceKeys.length ? normalizeKeys(request.sourceKeys, relation.source) : [];
+    const keys = normalizeExpansionKeys(request.sourceKeys, relation.source);
     if (
       !Array.isArray(request.targetAttributes) ||
-      !request.targetAttributes.length ||
+      (!pairing && !request.targetAttributes.length) ||
       request.targetAttributes.length > 1000 ||
       request.targetAttributes.some((name) => {
         if (typeof name !== 'string' || !Object.hasOwn(relation.targetModel.rawAttributes, name)) return true;
@@ -151,7 +157,15 @@ export class AccessBelongsToExpansionService {
         const values = record
           ? Object.freeze(Object.fromEntries(attributes.map((name) => [name, record.getDataValue(name)])))
           : null;
-        return [key, values] as const;
+        return [
+          key,
+          record
+            ? Object.freeze({
+                key: normalizeKeys([record.getDataValue(targetPrimary)], relation.target)[0],
+                values: values!,
+              })
+            : null,
+        ] as const;
       }),
     );
   }

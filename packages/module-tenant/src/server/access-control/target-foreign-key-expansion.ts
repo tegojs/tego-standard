@@ -3,10 +3,17 @@ import { Op, type Database, type Transaction, type WhereOptions } from '@tego/se
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import {
+  captureExpansionRequest,
+  mapExpansionValue,
+  normalizeExpansionKeys,
+  type AccessExpansionRecord,
+  type AccessExpansionValue,
+} from './expansion-page';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
-import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
+import { internalQuery, invalid, normalizeKeys, unavailable } from './write-support';
 
 export interface TargetForeignKeyExpansionRequest {
   association: string;
@@ -39,6 +46,29 @@ export class AccessTargetForeignKeyExpansionService {
     authenticated: AccessIdentity,
     request: TargetForeignKeyExpansionRequest,
   ): Promise<ReadonlyMap<string, readonly TargetValues[] | TargetValues | null>> {
+    const records = await this.read(ctx, source, target, authenticated, request, false);
+    return new Map([...records].map(([key, value]) => [key, mapExpansionValue(value, (record) => record.values)]));
+  }
+
+  /** Internal nested-assembly page; pairing keys are never output fields. */
+  page(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: TargetForeignKeyExpansionRequest,
+  ) {
+    return this.read(ctx, source, target, authenticated, request, true);
+  }
+
+  private async read(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: TargetForeignKeyExpansionRequest,
+    pairing: boolean,
+  ): Promise<ReadonlyMap<string, AccessExpansionValue>> {
     source = { ...source };
     target = { ...target };
     authenticated = { ...authenticated };
@@ -52,24 +82,8 @@ export class AccessTargetForeignKeyExpansionService {
       'targetBind',
       'transaction',
     ];
-    if (
-      !plain(request) ||
-      Reflect.ownKeys(request).some(
-        (key) =>
-          typeof key !== 'string' ||
-          !allowed.includes(key) ||
-          !Object.hasOwn(Object.getOwnPropertyDescriptor(request, key)!, 'value'),
-      )
-    )
-      invalid('Unsupported association expansion input');
-    for (const name of ['sourceKeys', 'targetAttributes'] as const) {
-      const values = request[name];
-      if (!Array.isArray(values) || values.length > 1000) invalid('Supply a bounded explicit expansion array');
-      for (let index = 0; index < values.length; index++)
-        if (!Object.hasOwn(values, index)) invalid('Expansion arrays cannot contain missing entries');
-    }
-    const { transaction, ...input } = request;
-    request = { ...cloneDeep(input), transaction };
+    request = captureExpansionRequest(request, allowed, pairing);
+    const { transaction } = request;
     if (typeof request.association !== 'string' || !request.association)
       invalid('Select a registered target foreign-key association');
     const associationType = this.db.getCollection(source.collectionName)?.model.associations[request.association]
@@ -96,9 +110,9 @@ export class AccessTargetForeignKeyExpansionService {
       relation.current();
       verifyMetadata();
     };
-    const keys = request.sourceKeys.length ? normalizeKeys(request.sourceKeys, relation.source) : [];
+    const keys = normalizeExpansionKeys(request.sourceKeys, relation.source);
     if (
-      !request.targetAttributes.length ||
+      (!pairing && !request.targetAttributes.length) ||
       request.targetAttributes.some(
         (name) =>
           typeof name !== 'string' ||
@@ -145,13 +159,18 @@ export class AccessTargetForeignKeyExpansionService {
     );
     current();
     if (records.length > 10000) invalid('Too many targets for a single expansion page');
-    const grouped = new Map<string, TargetValues[]>();
+    const grouped = new Map<string, AccessExpansionRecord[]>();
     for (const record of records) {
       const key = normalizeKeys([record.getDataValue(targetForeignKey)], relation.source)[0];
       // Fresh query values preserve authorized JSON without applying mutation input limits.
       const values = Object.freeze(Object.fromEntries(attributes.map((name) => [name, record.getDataValue(name)])));
       const list = grouped.get(key) ?? [];
-      list.push(values);
+      list.push(
+        Object.freeze({
+          key: normalizeKeys([record.getDataValue(relation.targetModel.primaryKeyAttribute)], relation.target)[0],
+          values,
+        }),
+      );
       grouped.set(key, list);
     }
     const hasOne = associationType === 'HasOne';

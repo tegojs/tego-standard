@@ -1,11 +1,14 @@
 import { ACL, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
+import { AccessBelongsToExpansionService } from '../../access-control/belongs-to-expansion';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { AccessEntryReadService } from '../../access-control/entry-reads';
+import { AccessManyToManyExpansionService } from '../../access-control/many-to-many-expansion';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessEntryReadPermission } from '../../access-control/read-grants';
+import { AccessTargetForeignKeyExpansionService } from '../../access-control/target-foreign-key-expansion';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -82,6 +85,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
       otherKey: 'projectId',
       throughUnique: false,
     });
+    projects.setField('documents', { type: 'hasMany', target: 'documents', foreignKey: 'projectId' });
+    children.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
     for (const collection of [docs, projects, children, links]) await collection.model.sync();
     await docs.model.bulkCreate([
       { id: 1, tenantId: 'B', name: 'Owned', amount: 10, projectId: 101 },
@@ -459,5 +464,384 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
     const query = vi.spyOn(db.sequelize, 'query');
     await expect(list(extra)).rejects.toThrow();
     expect(query).not.toHaveBeenCalled();
+  });
+
+  describe('nested expansion', () => {
+    const selected = [
+      {
+        association: 'project',
+        attributes: [],
+        expansions: [
+          {
+            association: 'documents',
+            attributes: ['name'],
+            expansions: [{ association: 'project', attributes: ['name'] }],
+          },
+        ],
+      },
+      {
+        association: 'children',
+        attributes: ['name'],
+        expansions: [
+          { association: 'document', attributes: [], expansions: [{ association: 'project', attributes: ['name'] }] },
+        ],
+      },
+      { association: 'child', attributes: [], expansions: [{ association: 'document', attributes: ['name'] }] },
+      {
+        association: 'projects',
+        attributes: [],
+        expansions: [
+          {
+            association: 'documents',
+            attributes: ['name'],
+            expansions: [{ association: 'children', attributes: ['name'] }],
+          },
+        ],
+      },
+    ];
+    const nested = (key: number, extra = {}) => get(key, { expansions: selected, ...extra });
+    it('assembles three levels across all relationship types without exposing keys', async () => {
+      expect(await nested(1)).toEqual({
+        name: 'Owned',
+        project: { documents: [{ name: 'Owned', project: { name: 'Zebra' } }] },
+        children: [{ name: 'Child', document: { project: { name: 'Zebra' } } }],
+        child: { document: { name: 'Owned' } },
+        projects: [{ documents: [{ name: 'Owned', children: [{ name: 'Child' }] }] }],
+      });
+      expect(await nested(2)).toEqual({
+        name: 'Visible',
+        project: null,
+        children: [{ name: 'Visible', document: { project: null } }],
+        child: { document: { name: 'Visible' } },
+        projects: [],
+      });
+    });
+    it('authorizes fields at each full path and keeps the same target independent across branches', async () => {
+      permissions.set('project', { allowed: true, params: { fields: [], appends: ['documents'] } });
+      permissions.set('project.documents', { allowed: true, params: { fields: ['name'], appends: ['project'] } });
+      permissions.set('project.documents.project', {
+        allowed: true,
+        params: { fields: ['name'], filter: { name: 'Missing' } },
+      });
+      expect((await nested(1))?.project).toEqual({ documents: [{ name: 'Owned', project: null }] });
+      expect((await nested(1))?.children).toEqual([{ name: 'Child', document: { project: { name: 'Zebra' } } }]);
+      expect(resolver.mock.calls.some(([, path]) => path.join('.') === 'projects.documents.children')).toBe(true);
+    });
+    it.each(['action', 'association', 'field', 'through'])(
+      'rejects missing descendant %s permission before root SQL',
+      async (side) => {
+        let expansions: unknown = selected;
+        if (side === 'action') permissions.set('children.document', null);
+        if (side === 'association')
+          permissions.set('children', { allowed: true, params: { fields: ['name'], appends: [] } });
+        if (side === 'field') permissions.set('children.document.project', { allowed: true, params: { fields: [] } });
+        if (side === 'through') {
+          expansions = [
+            {
+              association: 'children',
+              attributes: [],
+              expansions: [
+                {
+                  association: 'document',
+                  attributes: [],
+                  expansions: [{ association: 'projects', attributes: ['name'] }],
+                },
+              ],
+            },
+          ];
+          permissions.set('children.document.projects.$through', null);
+        }
+        const query = vi.spyOn(db.sequelize, 'query');
+        await expect(nested(1, { expansions })).rejects.toThrow(/authorized/);
+        expect(query).not.toHaveBeenCalled();
+      },
+    );
+    it('captures nested permissions requests and metadata before the first root scope await', async () => {
+      const permission = { allowed: true, params: { fields: ['name'], filter: { name: 'Zebra' } } };
+      permissions.set('children.document.project', permission);
+      const fields = ['name'];
+      const descendants = [{ association: 'project', attributes: fields }];
+      const expansions = [
+        {
+          association: 'children',
+          attributes: [],
+          expansions: [{ association: 'document', attributes: [], expansions: descendants }],
+        },
+      ];
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        permission.params.fields.push('payload');
+        permission.params.filter.name = 'Alpha';
+        fields.push('payload');
+        descendants.length = 0;
+        return original(...args);
+      });
+      expect(await nested(1, { expansions })).toEqual({
+        name: 'Owned',
+        children: [{ document: { project: { name: 'Zebra' } } }],
+      });
+      expect(resolver.mock.calls.filter(([, path]) => path.join('.') === 'children.document.project')).toHaveLength(1);
+    });
+    it('rejects changed deeper relationship metadata while the root query is in flight', async () => {
+      const original = docs.model.findAll.bind(docs.model);
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+        const rows = await original(options);
+        (projects.model.associations.documents as unknown as { scope: object }).scope = { name: 'Changed' };
+        return rows;
+      });
+      await expect(nested(1)).rejects.toThrow(/changed/);
+    });
+    it('uses the transaction for every descendant and preserves large JSON output', async () => {
+      const payload = { items: Array.from({ length: 10050 }, (_, index) => index) };
+      const transaction = await db.sequelize.transaction();
+      try {
+        await projects.model.update({ name: 'Changed', payload }, { where: { id: 101 }, transaction });
+        expect(
+          await nested(1, {
+            transaction,
+            expansions: [
+              {
+                association: 'children',
+                attributes: ['name'],
+                expansions: [
+                  {
+                    association: 'document',
+                    attributes: [],
+                    expansions: [{ association: 'project', attributes: ['name', 'payload'] }],
+                  },
+                ],
+              },
+            ],
+          }),
+        ).toEqual({
+          name: 'Owned',
+          children: [{ name: 'Child', document: { project: { name: 'Changed', payload } } }],
+        });
+      } finally {
+        await transaction.rollback();
+      }
+    });
+    it('accepts a bounded wide intermediate page and queries the descendant once', async () => {
+      await children.model.bulkCreate(
+        Array.from({ length: 1100 }, (_, index) => ({ id: 1000 + index, documentId: 1, name: 'Bulk', tenantId: 'B' })),
+      );
+      const result = await nested(1, {
+        expansions: [
+          { association: 'children', attributes: [], expansions: [{ association: 'document', attributes: ['name'] }] },
+        ],
+      });
+      expect(result?.children).toHaveLength(1101);
+      expect(
+        (result!.children as Array<{ document: { name: string } }>).every((row) => row.document.name === 'Owned'),
+      ).toBe(true);
+      expect(resolver.mock.calls.filter(([, path]) => path.join('.') === 'children.document')).toHaveLength(1);
+    });
+    it('keeps query counts fixed for 20 and 100 roots sharing nested targets', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 100 }, (_, index) => ({ id: 1000 + index, name: 'Bulk', tenantId: 'B', projectId: 101 })),
+      );
+      const expansions = [
+        { association: 'project', attributes: [], expansions: [{ association: 'documents', attributes: ['name'] }] },
+      ];
+      const query = vi.spyOn(db.sequelize, 'query');
+      expect(await list({ filter: { name: 'Bulk' }, limit: 20, expansions })).toHaveLength(20);
+      const count = query.mock.calls.length;
+      query.mockClear();
+      expect(await list({ filter: { name: 'Bulk' }, limit: 100, expansions })).toHaveLength(100);
+      expect(query).toHaveBeenCalledTimes(count);
+    });
+    it('rejects excessive nested response fanout even when each query page is bounded', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 400 }, (_, index) => ({ id: 1000 + index, name: 'Bulk', tenantId: 'B', projectId: 101 })),
+      );
+      await expect(
+        list({
+          filter: { name: 'Bulk' },
+          limit: 400,
+          expansions: [
+            {
+              association: 'project',
+              attributes: [],
+              expansions: [{ association: 'documents', attributes: ['name'] }],
+            },
+          ],
+        }),
+      ).rejects.toThrow(/response.*limit/);
+    });
+    it.each([
+      [{ association: 'project', attributes: [], expansions: [] }],
+      [{ association: 'project', attributes: [], expansions: Array(1) }],
+      [{ association: 'project', attributes: [], expansions: [{ association: 'documents', attributes: [] }] }],
+      [
+        {
+          association: 'project',
+          attributes: [],
+          expansions: [
+            {
+              association: 'documents',
+              attributes: [],
+              expansions: [
+                {
+                  association: 'project',
+                  attributes: [],
+                  expansions: [{ association: 'documents', attributes: ['name'] }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    ])('rejects invalid nested shapes or excess depth %# before SQL', async (expansions) => {
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(nested(1, { expansions })).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('rejects nested accessors without invoking them', async () => {
+      const getter = vi.fn(() => selected);
+      const expansion = { association: 'project', attributes: [] };
+      Object.defineProperty(expansion, 'expansions', { get: getter });
+      await expect(nested(1, { expansions: [expansion] })).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+    });
+    it('limits the total tree rather than granting 20 expansions to every level', async () => {
+      const expansions = Array.from({ length: 20 }, (_, index) => ({
+        association: `branch${index}`,
+        attributes: ['name'],
+        ...(index === 0 ? { expansions: [{ association: 'leaf', attributes: ['name'] }] } : {}),
+      }));
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(nested(1, { expansions })).rejects.toThrow(/20 association paths/);
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('reuses full path permissions between a nested request filter and expanded data', async () => {
+      const result = await list({
+        filter: { 'children.document.project.name': 'Zebra' },
+        expansions: [
+          {
+            association: 'children',
+            attributes: [],
+            expansions: [
+              {
+                association: 'document',
+                attributes: [],
+                expansions: [{ association: 'project', attributes: ['name'] }],
+              },
+            ],
+          },
+        ],
+      });
+      expect(result).toEqual([{ name: 'Owned', children: [{ document: { project: { name: 'Zebra' } } }] }]);
+      expect(resolver.mock.calls.filter(([, path]) => path.join('.') === 'children.document.project')).toHaveLength(1);
+    });
+    it('does not claim historical records while traversing back through readable associations', async () => {
+      await nested(4);
+      for (const [model, id] of [
+        [docs.model, 4],
+        [children.model, 204],
+        [links.model, 305],
+      ] as const)
+        expect((await model.findByPk(id))!.getDataValue('tenantId')).toBeNull();
+    });
+    it('supports a fully shared nested path without any tenant columns or tenant context', async () => {
+      for (const item of identities) {
+        await store.save(
+          item,
+          { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 1 },
+          { userId: 28 },
+        );
+        await db.sequelize.getQueryInterface().removeColumn(`assembled_${item.collectionName}`, 'tenant_id');
+        db.getCollection(item.collectionName).removeField('tenantId');
+      }
+      adapter.release(ctx);
+      await adapter.prepare(ctx, identities);
+      const query = vi.spyOn(db.sequelize, 'query');
+      expect(
+        await entry.getExpanded(
+          ctx,
+          mainIdentity,
+          {},
+          {
+            key: 2,
+            attributes: ['name'],
+            expansions: [
+              {
+                association: 'children',
+                attributes: [],
+                expansions: [
+                  {
+                    association: 'document',
+                    attributes: [],
+                    expansions: [{ association: 'project', attributes: ['name'] }],
+                  },
+                ],
+              },
+            ],
+          },
+        ),
+      ).toEqual({ name: 'Visible', children: [{ document: { project: { name: 'Secret' } } }] });
+      expect(query.mock.calls.map(([sql]) => String(sql)).join('\n')).not.toContain('tenant_id');
+    });
+    it('withholds all assembled results if the phase ends at the deepest target query', async () => {
+      const original = projects.model.findAll.bind(projects.model);
+      vi.spyOn(projects.model, 'findAll').mockImplementationOnce(async (options) => {
+        const rows = await original(options);
+        adapter.release(ctx);
+        return rows;
+      });
+      await expect(
+        nested(1, {
+          expansions: [
+            {
+              association: 'children',
+              attributes: [],
+              expansions: [
+                {
+                  association: 'document',
+                  attributes: [],
+                  expansions: [{ association: 'project', attributes: ['name'] }],
+                },
+              ],
+            },
+          ],
+        }),
+      ).rejects.toThrow(/not prepared/);
+    });
+    it.each(['belongsTo', 'targetForeignKey', 'manyToMany'])(
+      'preserves non-enumerable server predicates in the %s pairing page',
+      async (kind) => {
+        const request = {
+          association: kind === 'belongsTo' ? 'project' : kind === 'targetForeignKey' ? 'children' : 'projects',
+          sourceKeys: [1],
+          targetAttributes: ['name'],
+        };
+        Object.defineProperty(request, 'targetWhere', { value: { name: 'Missing' }, enumerable: false });
+        const records =
+          kind === 'belongsTo'
+            ? await new AccessBelongsToExpansionService(db, adapter, queries).page(
+                ctx,
+                mainIdentity,
+                identities[1],
+                auth,
+                request,
+              )
+            : kind === 'targetForeignKey'
+              ? await new AccessTargetForeignKeyExpansionService(db, adapter, queries).page(
+                  ctx,
+                  mainIdentity,
+                  identities[2],
+                  auth,
+                  request,
+                )
+              : await new AccessManyToManyExpansionService(db, adapter, queries).page(
+                  ctx,
+                  mainIdentity,
+                  identities[1],
+                  identities[3],
+                  auth,
+                  request,
+                );
+        expect(records.get('1')).toEqual(kind === 'belongsTo' ? null : []);
+      },
+    );
   });
 });

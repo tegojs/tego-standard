@@ -3,10 +3,11 @@ import { literal, Op, type Database, type Transaction, type WhereOptions } from 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { captureExpansionRequest, normalizeExpansionKeys, type AccessExpansionRecord } from './expansion-page';
 import { resolveManyToManyRead } from './many-to-many-read-metadata';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
-import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
+import { internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
 
 export interface ManyToManyExpansionRequest {
   association: string;
@@ -40,6 +41,31 @@ export class AccessManyToManyExpansionService {
     authenticated: AccessIdentity,
     request: ManyToManyExpansionRequest,
   ): Promise<ReadonlyMap<string, readonly Readonly<Record<string, unknown>>[]>> {
+    const records = await this.read(ctx, source, target, through, authenticated, request, false);
+    return new Map([...records].map(([key, values]) => [key, Object.freeze(values.map((record) => record.values))]));
+  }
+
+  /** Internal nested-assembly page, with the same target/through authorization as load. */
+  page(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    through: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ManyToManyExpansionRequest,
+  ) {
+    return this.read(ctx, source, target, through, authenticated, request, true);
+  }
+
+  private async read(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    through: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ManyToManyExpansionRequest,
+    pairing: boolean,
+  ): Promise<ReadonlyMap<string, readonly AccessExpansionRecord[]>> {
     source = { ...source };
     target = { ...target };
     through = { ...through };
@@ -56,24 +82,8 @@ export class AccessManyToManyExpansionService {
       'throughBind',
       'transaction',
     ];
-    if (
-      !plain(request) ||
-      Reflect.ownKeys(request).some(
-        (key) =>
-          typeof key !== 'string' ||
-          !allowed.includes(key) ||
-          !Object.hasOwn(Object.getOwnPropertyDescriptor(request, key)!, 'value'),
-      )
-    )
-      invalid('Unsupported many-to-many expansion input');
-    for (const name of ['sourceKeys', 'targetAttributes'] as const) {
-      const values = request[name];
-      if (!Array.isArray(values) || values.length > 1000) invalid('Supply a bounded explicit expansion array');
-      for (let index = 0; index < values.length; index++)
-        if (!Object.hasOwn(values, index)) invalid('Expansion arrays cannot contain missing entries');
-    }
-    const { transaction, ...input } = request;
-    request = { ...cloneDeep(input), transaction };
+    request = captureExpansionRequest(request, allowed, pairing);
+    const { transaction } = request;
     if (request.sourceKeys.includes('_')) invalid('Expansion requires actual source keys, not a protocol placeholder');
     for (const bind of [request.sourceBind, request.targetBind, request.throughBind])
       if (bind !== undefined && !plain(bind)) invalid('Association expansion requires named SQL bindings');
@@ -101,9 +111,9 @@ export class AccessManyToManyExpansionService {
       relation.current();
       verifyMetadata();
     };
-    const keys = request.sourceKeys.length ? normalizeKeys(request.sourceKeys, relation.source) : [];
+    const keys = normalizeExpansionKeys(request.sourceKeys, relation.source);
     if (
-      !request.targetAttributes.length ||
+      (!pairing && !request.targetAttributes.length) ||
       request.targetAttributes.some(
         (name) =>
           typeof name !== 'string' ||
@@ -207,13 +217,15 @@ export class AccessManyToManyExpansionService {
     );
     current();
     if (records.length > 10000) invalid('Too many source-target pairs for a single expansion page');
-    const grouped = new Map<string, Readonly<Record<string, unknown>>[]>();
+    const grouped = new Map<string, AccessExpansionRecord[]>();
     for (const record of records) {
       const key = normalizeKeys([record.getDataValue(sourceAlias)], relation.source)[0];
       // Fresh query values preserve authorized JSON without applying mutation input limits.
       const values = Object.freeze(Object.fromEntries(attributes.map((name) => [name, record.getDataValue(name)])));
       const list = grouped.get(key) ?? [];
-      list.push(values);
+      list.push(
+        Object.freeze({ key: normalizeKeys([record.getDataValue(targetPrimary)], relation.target)[0], values }),
+      );
       grouped.set(key, list);
     }
     return new Map(keys.map((key) => [key, Object.freeze(grouped.get(key) ?? [])] as const));

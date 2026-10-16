@@ -5,6 +5,12 @@ import { resolveBelongsTo } from './association-metadata';
 import { AccessBelongsToExpansionService } from './belongs-to-expansion';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import {
+  expansionRecords,
+  mapExpansionValue,
+  type AccessExpansionRecord,
+  type AccessExpansionValue,
+} from './expansion-page';
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import { resolveManyToManyRead } from './many-to-many-read-metadata';
 import { accessMetadataGuard } from './metadata-snapshot';
@@ -24,9 +30,22 @@ export interface AccessExpandedGetRequest extends AccessGetRequest {
 }
 
 type ReadRecord = Readonly<Record<string, unknown>>;
-type ExpandedValue = ReadRecord | readonly ReadRecord[] | null;
+interface ExpansionSelection {
+  association: string;
+  attributes: string[];
+  expansions: ExpansionSelection[];
+}
+interface ExpansionPlan {
+  name: string;
+  children: ExpansionPlan[];
+  load(keys: string[]): Promise<ReadonlyMap<string, AccessExpansionValue>>;
+}
+interface AssembledRecord {
+  values: ReadRecord;
+  size: number;
+}
 
-/** Single-level internal assembly. Capture all sibling permissions and metadata before querying the root. */
+/** Bounded nested assembly. Capture every path's permissions and metadata before querying the root. */
 export class AccessExpandedReadService {
   constructor(
     private readonly db: Database,
@@ -78,11 +97,11 @@ export class AccessExpandedReadService {
       )
     )
       invalid('Unsupported expanded root read request');
-    const dense = (input: unknown, maximum: number): unknown[] => {
+    const dense = (input: unknown, maximum: number, allowEmpty = false): unknown[] => {
       if (
         !Array.isArray(input) ||
         Object.getPrototypeOf(input) !== Array.prototype ||
-        !input.length ||
+        (!allowEmpty && !input.length) ||
         input.length > maximum ||
         Reflect.ownKeys(input).length !== input.length + 1
       )
@@ -93,28 +112,36 @@ export class AccessExpandedReadService {
       }
       return input;
     };
-    const names = new Set<string>();
-    const selections = dense(request.expansions, 20).map((input) => {
-      if (
-        !plain(input) ||
-        Reflect.ownKeys(input).length !== 2 ||
-        Reflect.ownKeys(input).some(
-          (key) =>
-            typeof key !== 'string' ||
-            !['association', 'attributes'].includes(key) ||
-            !Object.hasOwn(Object.getOwnPropertyDescriptor(input, key)!, 'value'),
+    let nodes = 0;
+    const select = (values: unknown, depth: number): ExpansionSelection[] => {
+      if (depth > 3) invalid('Expand at most three association levels');
+      const names = new Set<string>();
+      return dense(values, 20).map((input) => {
+        if (++nodes > 20) invalid('Expand at most 20 association paths');
+        if (
+          !plain(input) ||
+          !Object.hasOwn(input, 'association') ||
+          !Object.hasOwn(input, 'attributes') ||
+          Reflect.ownKeys(input).some(
+            (key) =>
+              typeof key !== 'string' ||
+              !['association', 'attributes', 'expansions'].includes(key) ||
+              !Object.hasOwn(Object.getOwnPropertyDescriptor(input, key)!, 'value'),
+          )
         )
-      )
-        invalid('Select an association and explicit target attributes');
-      const name = input.association;
-      if (typeof name !== 'string' || !name || name.includes('.') || names.has(name))
-        invalid('Select distinct direct associations');
-      names.add(name);
-      const attributes = dense(input.attributes, 1000);
-      if (attributes.some((field) => typeof field !== 'string') || new Set(attributes).size !== attributes.length)
-        invalid('Select distinct physical target attributes');
-      return { association: name, attributes: [...attributes] as string[] };
-    });
+          invalid('Select an association and explicit target attributes');
+        const name = input.association;
+        if (typeof name !== 'string' || !name || name.includes('.') || names.has(name))
+          invalid('Select distinct direct associations');
+        names.add(name);
+        const expansions = Object.hasOwn(input, 'expansions') ? select(input.expansions, depth + 1) : [];
+        const attributes = dense(input.attributes, 1000, expansions.length > 0);
+        if (attributes.some((field) => typeof field !== 'string') || new Set(attributes).size !== attributes.length)
+          invalid('Select distinct physical target attributes');
+        return { association: name, attributes: [...attributes] as string[], expansions };
+      });
+    };
+    const selections = select(request.expansions, 1);
     const transaction = request.transaction as Transaction | undefined;
     // Root planning validates and snapshots these original values synchronously before its first await.
     // Do not clone first: cloning would normalize unsupported array prototypes before validation.
@@ -156,102 +183,115 @@ export class AccessExpandedReadService {
       this.assertAuthorizationCurrent?.();
       for (const check of checks) check();
     };
-    const loaders = selections.map((selection) => {
-      const name = selection.association;
-      const association = Object.hasOwn(collection.model.associations, name)
-        ? collection.model.associations[name]
-        : undefined;
-      const target = association && this.db.modelCollection.get(association.target);
-      if (!association || !target || target.db !== this.db || Object.hasOwn(collection.model.rawAttributes, name))
-        invalid('Select a registered same-database association');
-      const targetGrant = resolveGrant(target, [name]);
-      if (!sourceGrant.fields.includes(name) || !targetGrant) invalid('Association expansion is not authorized');
-      if (
-        selection.attributes.some(
-          (field) =>
-            !targetGrant.fields.includes(field) ||
-            !Object.hasOwn(target.model.rawAttributes, field) ||
-            (target.model.rawAttributes[field].type as { key?: string }).key === 'VIRTUAL',
+    const prepare = (
+      source: AccessCollectionIdentity,
+      collection: Collection,
+      sourceGrant: AccessFilterReadGrant,
+      selections: ExpansionSelection[],
+      path: readonly string[],
+    ): ExpansionPlan[] =>
+      selections.map((selection) => {
+        const name = selection.association;
+        const association = Object.hasOwn(collection.model.associations, name)
+          ? collection.model.associations[name]
+          : undefined;
+        const target = association && this.db.modelCollection.get(association.target);
+        if (!association || !target || target.db !== this.db || Object.hasOwn(collection.model.rawAttributes, name))
+          invalid('Select a registered same-database association');
+        const targetPath = [...path, name];
+        const targetGrant = resolveGrant(target, targetPath);
+        if (!sourceGrant.fields.includes(name) || !targetGrant) invalid('Association expansion is not authorized');
+        if (
+          selection.attributes.some(
+            (field) =>
+              !targetGrant.fields.includes(field) ||
+              !Object.hasOwn(target.model.rawAttributes, field) ||
+              (target.model.rawAttributes[field].type as { key?: string }).key === 'VIRTUAL',
+          )
         )
-      )
-        invalid('Expansion attributes must be authorized physical target fields');
-      const input = {
-        association: name,
-        targetAttributes: selection.attributes,
-        transaction,
-        sourceWhere: sourceGrant.where,
-        sourceBind: sourceGrant.bind,
-        targetWhere: targetGrant.where,
-        targetBind: targetGrant.bind,
-      };
-      const type = association.associationType;
-      let load: (keys: string[]) => Promise<ReadonlyMap<string, ExpandedValue>>;
-      if (type === 'BelongsToMany') {
-        const throughModel = (association as typeof association & { through?: { model?: Collection['model'] } }).through
-          ?.model;
-        const through = throughModel && this.db.modelCollection.get(throughModel);
-        if (!through || through.db !== this.db) invalid('Expansion through collection is unavailable');
-        const throughGrant = resolveGrant(through, [name, '$through']);
-        if (!throughGrant) invalid('Through expansion is not authorized');
-        const relation = resolveManyToManyRead(
-          this.db,
-          this.prepared,
-          this.queries,
-          ctx,
-          source,
-          targetGrant.identity,
-          throughGrant.identity,
-          name,
-        );
-        checks.push(
-          relation.current,
-          accessMetadataGuard(
+          invalid('Expansion attributes must be authorized physical target fields');
+        const input = {
+          association: name,
+          targetAttributes: selection.attributes,
+          transaction,
+          sourceWhere: sourceGrant.where,
+          sourceBind: sourceGrant.bind,
+          targetWhere: targetGrant.where,
+          targetBind: targetGrant.bind,
+        };
+        const type = association.associationType;
+        let load: ExpansionPlan['load'];
+        if (type === 'BelongsToMany') {
+          const throughModel = (association as typeof association & { through?: { model?: Collection['model'] } })
+            .through?.model;
+          const through = throughModel && this.db.modelCollection.get(throughModel);
+          if (!through || through.db !== this.db) invalid('Expansion through collection is unavailable');
+          const throughGrant = resolveGrant(through, [...targetPath, '$through']);
+          if (!throughGrant) invalid('Through expansion is not authorized');
+          const relation = resolveManyToManyRead(
             this.db,
-            [relation.sourceModel, relation.targetModel, relation.throughModel].map((model, index) => ({
-              model,
-              config: relation.configs[index]!,
-            })),
-          ),
-        );
-        load = (keys) =>
-          new AccessManyToManyExpansionService(this.db, this.prepared, this.queries, current).load(
+            this.prepared,
+            this.queries,
             ctx,
             source,
             targetGrant.identity,
             throughGrant.identity,
-            authenticated,
-            { ...input, sourceKeys: keys, throughWhere: throughGrant.where, throughBind: throughGrant.bind },
+            name,
           );
-      } else if (type === 'BelongsTo' || type === 'HasMany' || type === 'HasOne') {
-        const relation =
-          type === 'BelongsTo'
-            ? resolveBelongsTo(this.db, this.prepared, this.queries, ctx, source, targetGrant.identity, name)
-            : resolveTargetForeignKey(
-                this.db,
-                this.prepared,
-                this.queries,
-                ctx,
-                source,
-                targetGrant.identity,
-                name,
-                type,
-                false,
-              );
-        checks.push(
-          relation.current,
-          accessMetadataGuard(this.db, [
-            { model: relation.sourceModel, config: relation.sourceConfig },
-            { model: relation.targetModel, config: relation.targetConfig },
-          ]),
-        );
-        load = (keys) =>
-          (type === 'BelongsTo'
-            ? new AccessBelongsToExpansionService(this.db, this.prepared, this.queries, current)
-            : new AccessTargetForeignKeyExpansionService(this.db, this.prepared, this.queries, current)
-          ).load(ctx, source, targetGrant.identity, authenticated, { ...input, sourceKeys: keys });
-      } else invalid('Unsupported expansion association type');
-      return { name, load };
-    });
+          checks.push(
+            relation.current,
+            accessMetadataGuard(
+              this.db,
+              [relation.sourceModel, relation.targetModel, relation.throughModel].map((model, index) => ({
+                model,
+                config: relation.configs[index]!,
+              })),
+            ),
+          );
+          load = (keys) =>
+            new AccessManyToManyExpansionService(this.db, this.prepared, this.queries, current).page(
+              ctx,
+              source,
+              targetGrant.identity,
+              throughGrant.identity,
+              authenticated,
+              { ...input, sourceKeys: keys, throughWhere: throughGrant.where, throughBind: throughGrant.bind },
+            );
+        } else if (type === 'BelongsTo' || type === 'HasMany' || type === 'HasOne') {
+          const relation =
+            type === 'BelongsTo'
+              ? resolveBelongsTo(this.db, this.prepared, this.queries, ctx, source, targetGrant.identity, name)
+              : resolveTargetForeignKey(
+                  this.db,
+                  this.prepared,
+                  this.queries,
+                  ctx,
+                  source,
+                  targetGrant.identity,
+                  name,
+                  type,
+                  false,
+                );
+          checks.push(
+            relation.current,
+            accessMetadataGuard(this.db, [
+              { model: relation.sourceModel, config: relation.sourceConfig },
+              { model: relation.targetModel, config: relation.targetConfig },
+            ]),
+          );
+          load = (keys) =>
+            (type === 'BelongsTo'
+              ? new AccessBelongsToExpansionService(this.db, this.prepared, this.queries, current)
+              : new AccessTargetForeignKeyExpansionService(this.db, this.prepared, this.queries, current)
+            ).page(ctx, source, targetGrant.identity, authenticated, { ...input, sourceKeys: keys });
+        } else invalid('Unsupported expansion association type');
+        return {
+          name,
+          load,
+          children: prepare(targetGrant.identity, target, targetGrant, selection.expansions, targetPath),
+        };
+      });
+    const loaders = prepare(source, collection, sourceGrant, selections, []);
     current();
     const page = await new AccessReadService(this.db, this.prepared, this.queries, resolveGrant, current).page(
       ctx,
@@ -265,20 +305,51 @@ export class AccessExpandedReadService {
       page.assertCurrent();
     };
     assertCurrent();
-    const keys = page.records.map((record) => record.key);
-    const expanded: Array<{ name: string; values: ReadonlyMap<string, ExpandedValue> }> = [];
-    for (const loader of loaders) {
-      const values = await loader.load(keys);
-      assertCurrent();
-      expanded.push({ name: loader.name, values });
-    }
-    return page.records.map((record) =>
-      Object.freeze(
-        Object.fromEntries([
-          ...Object.entries(record.values),
-          ...expanded.map(({ name, values }) => [name, values.get(record.key)]),
-        ]),
-      ),
-    );
+    const assemble = async (
+      records: readonly AccessExpansionRecord[],
+      plans: ExpansionPlan[],
+    ): Promise<Map<string, AssembledRecord>> => {
+      const keys = [...new Set(records.map((record) => record.key))];
+      const expanded: Array<{
+        name: string;
+        values: ReadonlyMap<string, AccessExpansionValue>;
+        targets: Map<string, AssembledRecord>;
+      }> = [];
+      for (const plan of plans) {
+        const values = await plan.load(keys);
+        assertCurrent();
+        const targets = new Map<string, AccessExpansionRecord>();
+        for (const value of values.values())
+          for (const record of expansionRecords(value)) targets.set(record.key, record);
+        const assembled = await assemble([...targets.values()], plan.children);
+        assertCurrent();
+        expanded.push({ name: plan.name, values, targets: assembled });
+      }
+      let totalSize = 0;
+      return new Map(
+        records.map((record) => {
+          let size = 1;
+          const values = Object.freeze(
+            Object.fromEntries([
+              ...Object.entries(record.values),
+              ...expanded.map(({ name, values, targets }) => {
+                const value = values.get(record.key);
+                if (value === undefined) invalid('Expansion page is missing a source pairing');
+                for (const target of expansionRecords(value)) size += targets.get(target.key)!.size;
+                // Count repeated serialized subtrees, not just the shared in-memory object identities.
+                if (size > 100000) invalid('Expanded response exceeds record limit');
+                return [name, mapExpansionValue(value, (target) => targets.get(target.key)!.values)];
+              }),
+            ]),
+          );
+          totalSize += size;
+          if (totalSize > 100000) invalid('Expanded response exceeds record limit');
+          return [record.key, { values, size }];
+        }),
+      );
+    };
+    const result = await assemble(page.records, loaders);
+    assertCurrent();
+    return page.records.map((record) => result.get(record.key)!.values);
   }
 }

@@ -6,6 +6,7 @@ import type { AccessIdentity } from './context';
 import { AccessFilterTreeService } from './filter-tree';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
+import { captureReadKey } from './read-key';
 import {
   AccessRequestFilterParser,
   type AccessFilterGrantResolver,
@@ -28,6 +29,7 @@ export interface AccessListRequest extends AccessReadRequest {
 
 export interface AccessGetRequest extends AccessReadRequest {
   key: unknown;
+  keyField?: unknown;
   attributes: unknown;
 }
 
@@ -183,7 +185,7 @@ export class AccessReadService {
       ...(kind === 'list'
         ? ['attributes', 'sort', 'limit', 'offset']
         : kind === 'get'
-          ? ['attributes', 'key']
+          ? ['attributes', 'key', 'keyField']
           : kind === 'sum'
             ? ['field']
             : []),
@@ -276,11 +278,11 @@ export class AccessReadService {
       offset > 1000000
     )
       invalid('Root read pagination exceeds supported limits');
-    if (kind === 'get') {
-      const key = normalizeKeys([request.key], collection)[0];
+    const detailKey = kind === 'get' ? captureReadKey(collection, request.key, request.keyField) : undefined;
+    if (detailKey) {
       parsed.filter = {
         type: 'all',
-        children: [parsed.filter, { type: 'predicate', where: { [model.primaryKeyAttribute]: { [Op.eq]: key } } }],
+        children: [parsed.filter, { type: 'predicate', where: { [detailKey.field]: { [Op.eq]: detailKey.value } } }],
       };
     }
     const sorting =
@@ -301,6 +303,7 @@ export class AccessReadService {
     );
     const current = () => {
       this.assertAuthorizationCurrent?.();
+      detailKey?.assertCurrent();
       if (
         this.prepared.configuration(ctx, source) !== config ||
         !this.queries.isCurrentCollection(source, collection, model)

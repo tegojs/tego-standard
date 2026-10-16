@@ -97,7 +97,7 @@ export class AccessExpandedReadService {
       'filter',
       'transaction',
       'expansions',
-      ...(kind === 'list' ? ['sort', 'limit', 'offset'] : ['key']),
+      ...(kind === 'list' ? ['sort', 'limit', 'offset'] : ['key', 'keyField']),
     ];
     if (
       !plain(request) ||

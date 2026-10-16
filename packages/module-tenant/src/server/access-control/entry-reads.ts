@@ -170,18 +170,19 @@ export class AccessEntryReadService {
     const collection = this.db.getCollection(identity.collectionName);
     if (!collection || collection.db !== this.db) invalid('Resource detail collection is unavailable');
     const primary = collection.model.primaryKeyAttribute;
-    // Core filterByTk may name a business key; internal getSelected currently supports primary keys only.
+    const keyField = collection.filterTargetKey;
+    if (!keyField) invalid('Resource detail target key is unavailable');
     const assertTargetKey = () => {
       if (
         this.db.getCollection(identity.collectionName) !== collection ||
         collection.model.primaryKeyAttributes.length !== 1 ||
         collection.model.primaryKeyAttribute !== primary ||
-        collection.filterTargetKey !== primary
+        collection.filterTargetKey !== keyField
       )
-        invalid('Resource detail target key requires a dedicated adapter');
+        invalid('Resource detail target key changed during query');
     };
     assertTargetKey();
-    const record = await this.getSelected(ctx, identity, authenticated, request);
+    const record = await this.getSelected(ctx, identity, authenticated, { ...request, keyField });
     assertTargetKey();
     return record;
   }
@@ -217,7 +218,7 @@ export class AccessEntryReadService {
       ...selectionKeys,
       'filter',
       'transaction',
-      ...(kind === 'list' ? ['sort', 'limit', 'offset'] : ['key']),
+      ...(kind === 'list' ? ['sort', 'limit', 'offset'] : ['key', 'keyField']),
     ];
     if (
       !plain(request) ||

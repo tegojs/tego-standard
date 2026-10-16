@@ -368,15 +368,160 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
   });
 
   describe('resource params entry', () => {
-    it('rejects a business target key instead of looking up a different primary-key record', async () => {
+    it('uses the configured business target key instead of a different primary-key record', async () => {
       docs.options.filterTargetKey = 'amount';
+      await docs.model.update({ amount: 1 }, { where: { id: 2 } });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, fields: ['name'] })).toEqual({
+        name: 'Visible',
+      });
+      expect((await db.getRepository('documents').findOne({ filterByTk: 1, fields: ['name'] })).get('name')).toBe(
+        'Visible',
+      );
+    });
+    it('locates by a hidden business key without authorizing its output or request filtering', async () => {
+      docs.options.filterTargetKey = 'amount';
+      permissions.set('', { allowed: true, params: { fields: ['name'] } });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 20, fields: ['name'] })).toEqual({
+        name: 'Visible',
+      });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 20, fields: ['amount'] }),
+      ).rejects.toThrow(/authoriz/);
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 20, filter: { amount: 20 }, fields: ['name'] }),
+      ).rejects.toThrow(/authoriz/);
+    });
+    it('intersects the business locator with visibility role scope and request filters', async () => {
+      docs.options.filterTargetKey = 'amount';
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 30, fields: ['name'] })).toBeNull();
+      expect(
+        await entry.getFromParams(ctx, mainIdentity, auth, {
+          filterByTk: 20,
+          fields: ['name'],
+          filter: { name: 'Owned' },
+        }),
+      ).toBeNull();
+      permissions.set('', { allowed: true, params: { fields: ['name'], filter: { amount: { $lt: 20 } } } });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 20, fields: ['name'] })).toBeNull();
+    });
+    it('uses real primary keys to assemble associations after a business-key lookup', async () => {
+      docs.options.filterTargetKey = 'amount';
+      expect(
+        await entry.getFromParams(ctx, mainIdentity, auth, {
+          filterByTk: 10,
+          fields: ['name'],
+          appends: ['project.name', 'project.documents.name', 'projects.name'],
+        }),
+      ).toEqual({
+        name: 'Owned',
+        project: { name: 'Zebra', documents: [{ name: 'Owned' }] },
+        projects: [{ name: 'Zebra' }],
+      });
+    });
+    it('uses the mapped string attribute and binds hostile locator text as data', async () => {
+      docs.options.filterTargetKey = 'name';
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 'Owned', fields: ['amount'] })).toEqual({
+        amount: 10,
+      });
+      expect(
+        await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: "Owned' OR '1'='1", fields: ['amount'] }),
+      ).toBeNull();
+    });
+    it('keeps default scopes and soft deletion in business-key details', async () => {
+      docs.options.filterTargetKey = 'amount';
+      await docs.model.update({ enabled: false }, { where: { id: 1 } });
+      await docs.model.destroy({ where: { id: 2 } });
+      for (const filterByTk of [10, 20])
+        expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk, fields: ['name'] })).toBeNull();
+    });
+    it('passes the trusted transaction through business-key lookup and expansion', async () => {
+      docs.options.filterTargetKey = 'amount';
+      const transaction = await db.sequelize.transaction();
+      try {
+        await docs.model.create(
+          { id: 99, amount: 990, tenantId: 'B', name: 'Transactional', projectId: 101 },
+          { transaction },
+        );
+        expect(
+          await entry.getFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { filterByTk: 990, fields: ['name', 'project.name'] },
+            transaction,
+          ),
+        ).toEqual({
+          name: 'Transactional',
+          project: { name: 'Zebra' },
+        });
+      } finally {
+        await transaction.rollback();
+      }
+    });
+    it('captures the business locator and authorization before asynchronous preparation', async () => {
+      docs.options.filterTargetKey = 'amount';
+      const params = { filterByTk: 10, fields: ['name'] };
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        params.filterByTk = 20;
+        permissions.set('', null);
+        return result;
+      });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, params)).toEqual({ name: 'Owned' });
+      expect(resolver).toHaveBeenCalledTimes(1);
+    });
+    it('rejects target-key changes during preparation before loading a record', async () => {
+      docs.options.filterTargetKey = 'amount';
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        docs.options.filterTargetKey = 'name';
+        return result;
+      });
+      const find = vi.spyOn(docs.model, 'findOne');
+      await expect(entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 10, fields: ['name'] })).rejects.toThrow(
+        /target key/,
+      );
+      expect(find).not.toHaveBeenCalled();
+    });
+    it('rejects target-key changes during association loading', async () => {
+      docs.options.filterTargetKey = 'amount';
+      const original = AccessBelongsToExpansionService.prototype.page;
+      vi.spyOn(AccessBelongsToExpansionService.prototype, 'page').mockImplementationOnce(async function (
+        this: AccessBelongsToExpansionService,
+        ...args
+      ) {
+        const result = await original.call(this, ...args);
+        docs.options.filterTargetKey = 'name';
+        return result;
+      });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 10, fields: ['name', 'project.name'] }),
+      ).rejects.toThrow(/target key/);
+    });
+    it('rejects physical target-field changes while loading a record', async () => {
+      docs.options.filterTargetKey = 'amount';
+      const original = docs.model.findOne.bind(docs.model);
+      vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (options) => {
+        const record = await original(options);
+        docs.model.rawAttributes.amount.field = 'changed_amount';
+        return record;
+      });
+      await expect(entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 10, fields: ['name'] })).rejects.toThrow(
+        /metadata/,
+      );
+    });
+    it('preserves direct internal primary-key reads and rejects client-selected locator fields', async () => {
+      docs.options.filterTargetKey = 'amount';
+      expect(await entry.getSelected(ctx, mainIdentity, auth, { key: 1, fields: ['name'] })).toEqual({ name: 'Owned' });
       const query = vi.spyOn(db.sequelize, 'query');
       await expect(
-        entry.getFromParams(ctx, mainIdentity, auth, {
-          filterByTk: 1,
-          fields: ['name'],
-        }),
-      ).rejects.toThrow(/target key/);
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 10, fields: ['name'], keyField: 'id' }),
+      ).rejects.toThrow(/params/);
+      await expect(
+        entry.listSelected(ctx, mainIdentity, auth, { fields: ['name'], keyField: 'amount' } as never),
+      ).rejects.toThrow(/request/);
       expect(query).not.toHaveBeenCalled();
     });
     it('rejects target-key metadata changes while reading details', async () => {

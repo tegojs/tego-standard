@@ -167,6 +167,149 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
   const get = (key: unknown, extra = {}) =>
     entry.getExpanded(ctx, mainIdentity, auth, { key, attributes: ['name'], expansions, ...extra });
 
+  describe('resource params entry', () => {
+    it('rejects a business target key instead of looking up a different primary-key record', async () => {
+      docs.options.filterTargetKey = 'amount';
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, {
+          filterByTk: 1,
+          fields: ['name'],
+        }),
+      ).rejects.toThrow(/target key/);
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('rejects target-key metadata changes while reading details', async () => {
+      const original = docs.model.findOne.bind(docs.model);
+      vi.spyOn(docs.model, 'findOne').mockImplementationOnce(async (options) => {
+        const record = await original(options);
+        docs.options.filterTargetKey = 'amount';
+        return record;
+      });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, {
+          filterByTk: 1,
+          fields: ['name'],
+        }),
+      ).rejects.toThrow(/target key/);
+    });
+    it('pages authorized roots with selected associations using framework parameter names', async () => {
+      expect(
+        await entry.listFromParams(ctx, mainIdentity, auth, {
+          page: '2',
+          pageSize: '2',
+          fields: ['name'],
+          appends: ['project.name'],
+          sort: '-amount',
+        }),
+      ).toEqual([
+        { name: 'Visible', project: null },
+        { name: 'Owned', project: { name: 'Zebra' } },
+      ]);
+    });
+    it('maps detail keys and retains target visibility and root filters', async () => {
+      const request = { filterByTk: '1', fields: ['name', 'project.name'] };
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, request)).toEqual({
+        name: 'Owned',
+        project: { name: 'Zebra' },
+      });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { ...request, filterByTk: '3' })).toBeNull();
+      expect(
+        await entry.getFromParams(ctx, mainIdentity, auth, { ...request, filter: { name: 'Missing' } }),
+      ).toBeNull();
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { ...request, filterByTk: '2' })).toEqual({
+        name: 'Visible',
+        project: null,
+      });
+    });
+    it('keeps operation and field authorization in the existing entry chain', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: [] } });
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(entry.listFromParams(ctx, mainIdentity, auth, { fields: ['payload'] })).rejects.toThrow(/authoriz/);
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, fields: ['project.name'] }),
+      ).rejects.toThrow(/authoriz/);
+      permissions.set('', null);
+      await expect(entry.listFromParams(ctx, mainIdentity, auth, { fields: ['name'] })).rejects.toThrow(/authoriz/);
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('snapshots parsed request fields filters and paging before asynchronous work', async () => {
+      const request = { page: '1', pageSize: '1', fields: ['name'], filter: { name: 'Owned' }, sort: ['amount'] };
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        request.fields.push('payload');
+        request.filter.name = 'Hidden';
+        request.sort[0] = '-amount';
+        request.page = '2';
+        return original(...args);
+      });
+      expect(await entry.listFromParams(ctx, mainIdentity, auth, request)).toEqual([{ name: 'Owned' }]);
+    });
+    it('accepts a trusted transaction separately from action params', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await projects.model.update({ name: 'In transaction' }, { where: { id: 101 }, transaction });
+        expect(
+          await entry.getFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            {
+              filterByTk: 1,
+              fields: ['project.name'],
+            },
+            transaction,
+          ),
+        ).toEqual({ project: { name: 'In transaction' } });
+        expect(
+          await entry.listFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            {
+              fields: ['project.name'],
+              filter: { name: 'Owned' },
+            },
+            transaction,
+          ),
+        ).toEqual([{ project: { name: 'In transaction' } }]);
+      } finally {
+        await transaction.rollback();
+      }
+    });
+    it('rejects unsupported modes and client-supplied internal options before SQL', async () => {
+      const query = vi.spyOn(db.sequelize, 'query');
+      for (const params of [
+        { paginate: false },
+        { tree: true },
+        { pageSize: 1001 },
+        { where: {} },
+        { transaction: {} },
+      ])
+        await expect(entry.listFromParams(ctx, mainIdentity, auth, params)).rejects.toThrow();
+      await expect(entry.getFromParams(ctx, mainIdentity, auth, {})).rejects.toThrow();
+      expect(query).not.toHaveBeenCalled();
+    });
+    it('preserves strict nested filter and sort array validation', async () => {
+      const getter = vi.fn(() => 'Owned');
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(
+        entry.listFromParams(ctx, mainIdentity, auth, {
+          fields: ['name'],
+          filter: Object.defineProperty({}, 'name', { get: getter, enumerable: true }),
+        }),
+      ).rejects.toThrow();
+      await expect(
+        entry.listFromParams(ctx, mainIdentity, auth, {
+          fields: ['name'],
+          sort: Object.setPrototypeOf(['name'], {}),
+        }),
+      ).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(query).not.toHaveBeenCalled();
+    });
+  });
+
   describe('framework selection entry', () => {
     it('reads selected root fields without requiring an association', async () => {
       expect(await entry.getSelected(ctx, mainIdentity, auth, { key: 1, fields: ['name'] })).toEqual({ name: 'Owned' });

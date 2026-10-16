@@ -21,6 +21,7 @@ import {
   type AccessSumRequest,
 } from './reads';
 import type { AccessFilterReadGrant } from './request-filter';
+import { parseResourceGetParams, parseResourceListParams } from './resource-read-params';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { AccessTargetForeignKeyExpansionService } from './target-foreign-key-expansion';
 import { cloneDeep, invalid, plain } from './write-support';
@@ -128,6 +129,45 @@ export class AccessEntryReadService {
 
   get(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessGetRequest) {
     return this.reader('get', ctx, source, authenticated).get(ctx, source, authenticated, request);
+  }
+
+  /** Internal action-param bridge; response envelopes and resource routing belong to the caller. */
+  async listFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    transaction?: Transaction,
+  ) {
+    return this.listSelected(ctx, source, authenticated, { ...parseResourceListParams(params), transaction });
+  }
+
+  async getFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    transaction?: Transaction,
+  ) {
+    const request = { ...parseResourceGetParams(params), transaction };
+    const identity = { ...source };
+    const collection = this.db.getCollection(identity.collectionName);
+    if (!collection || collection.db !== this.db) invalid('Resource detail collection is unavailable');
+    const primary = collection.model.primaryKeyAttribute;
+    // Core filterByTk may name a business key; internal getSelected currently supports primary keys only.
+    const assertTargetKey = () => {
+      if (
+        this.db.getCollection(identity.collectionName) !== collection ||
+        collection.model.primaryKeyAttributes.length !== 1 ||
+        collection.model.primaryKeyAttribute !== primary ||
+        collection.filterTargetKey !== primary
+      )
+        invalid('Resource detail target key requires a dedicated adapter');
+    };
+    assertTargetKey();
+    const record = await this.getSelected(ctx, identity, authenticated, request);
+    assertTargetKey();
+    return record;
   }
 
   listSelected(

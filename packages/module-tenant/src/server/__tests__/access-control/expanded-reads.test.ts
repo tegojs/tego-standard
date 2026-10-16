@@ -167,6 +167,155 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
   const get = (key: unknown, extra = {}) =>
     entry.getExpanded(ctx, mainIdentity, auth, { key, attributes: ['name'], expansions, ...extra });
 
+  describe('nested finalized permission paths', () => {
+    it.each([
+      ['project', { name: 'Zebra' }],
+      ['children', [{ name: 'Child' }]],
+      ['child', { name: 'Child' }],
+      ['projects', [{ name: 'Zebra' }]],
+    ])('bounds default fields for %s while retaining tenant restrictions', async (association, expected) => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: [`${association}.name`] } });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, appends: [association] })).toEqual({
+        name: 'Owned',
+        [association as string]: expected,
+      });
+    });
+    it('restricts default target fields to the ancestor permission path', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: ['project.name'] } });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, appends: ['project'] })).toEqual({
+        name: 'Owned',
+        project: { name: 'Zebra' },
+      });
+    });
+    it('rejects explicit target fields outside the ancestor permission path', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: ['project.name'] } });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, fields: ['project.id'] }),
+      ).rejects.toThrow(/authorized/);
+    });
+    it('allows only the designated fields at each of three relationship levels', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: ['name'], appends: ['children.name', 'children.document.project.name'] },
+      });
+      expect(
+        await entry.getFromParams(ctx, mainIdentity, auth, {
+          filterByTk: 1,
+          appends: ['children', 'children.document.project'],
+        }),
+      ).toEqual({ name: 'Owned', children: [{ name: 'Child', document: { project: { name: 'Zebra' } } }] });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, fields: ['children.document.name'] }),
+      ).rejects.toThrow(/authorized/);
+    });
+    it('intersects ancestor paths with each target field decision', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: [], appends: ['project.name', 'project.amount', 'project.documents.name'] },
+      });
+      permissions.set('project', { allowed: true, params: { fields: ['name'], appends: ['documents.name'] } });
+      expect(
+        await entry.getFromParams(ctx, mainIdentity, auth, {
+          filterByTk: 1,
+          appends: ['project', 'project.documents'],
+        }),
+      ).toEqual({ project: { name: 'Zebra', documents: [{ name: 'Owned' }] } });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, fields: ['project.amount'] }),
+      ).rejects.toThrow(/authorized/);
+    });
+    it('does not widen conflicting descendant paths to unrestricted defaults', async () => {
+      permissions.set('', { allowed: true, params: { fields: [], appends: ['project.documents.name'] } });
+      permissions.set('project', { allowed: true, params: { fields: [], appends: ['documents.amount'] } });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, appends: ['project.documents'] }),
+      ).rejects.toThrow(/authorized/);
+    });
+    it('keeps bare association permissions unrestricted within independently granted target fields', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: ['project', 'project.name'] } });
+      permissions.set('project', { allowed: true, params: { fields: ['id', 'name'], appends: ['documents'] } });
+      expect(
+        await entry.getFromParams(ctx, mainIdentity, auth, {
+          filterByTk: 1,
+          fields: ['project.id', 'project.documents.name'],
+        }),
+      ).toEqual({ project: { id: 101, documents: [{ name: 'Owned' }] } });
+    });
+    it('uses the same restricted paths for filtering sorting count and sum', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name', 'amount'], appends: ['project.name'] } });
+      const filter = { project: { name: 'Zebra' } };
+      expect(
+        await entry.listPageFromParams(ctx, mainIdentity, auth, { fields: ['name'], filter, sort: 'project.name' }),
+      ).toEqual({
+        rows: [{ name: 'Owned' }],
+        count: 1,
+        page: 1,
+        pageSize: 20,
+        totalPage: 1,
+      });
+      expect(await entry.count(ctx, mainIdentity, auth, { filter })).toBe(1);
+      expect(await entry.sum(ctx, mainIdentity, auth, { field: 'amount', filter })).toBe(10);
+      for (const params of [{ filter: { project: { id: 101 } } }, { sort: 'project.id' }])
+        await expect(entry.listFromParams(ctx, mainIdentity, auth, { fields: ['name'], ...params })).rejects.toThrow(
+          /authorized/,
+        );
+    });
+    it('does not restrict internal role relationship facts to public target fields', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: ['name'], appends: ['project.name'], filter: { project: { id: 101 } } },
+      });
+      expect(
+        await entry.listFromParams(ctx, mainIdentity, auth, { fields: ['name'], appends: ['project.name'] }),
+      ).toEqual([{ name: 'Owned', project: { name: 'Zebra' } }]);
+    });
+    it('independently applies through authorization without exposing or restricting it as target fields', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: ['projects.name'] } });
+      permissions.set('projects.$through', { allowed: true, params: { fields: [], filter: { name: 'Owned' } } });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, appends: ['projects'] })).toEqual({
+        name: 'Owned',
+        projects: [{ name: 'Zebra' }],
+      });
+      permissions.set('projects.$through', null);
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, appends: ['projects'] }),
+      ).rejects.toThrow(/authorized/);
+    });
+    it('does not grant a target operation merely because its path is permitted', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: ['project.name'] } });
+      permissions.set('project', { allowed: false, params: {} });
+      await expect(
+        entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, appends: ['project'] }),
+      ).rejects.toThrow(/authorized/);
+    });
+    it('snapshots permission paths before asynchronous scope preparation', async () => {
+      const appends = ['project.name'];
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends } });
+      const original = queries.scopeQuery.bind(queries);
+      vi.spyOn(queries, 'scopeQuery').mockImplementationOnce(async (...args) => {
+        appends.splice(0, 1, 'project.id');
+        return original(...args);
+      });
+      expect(await entry.getFromParams(ctx, mainIdentity, auth, { filterByTk: 1, appends: ['project'] })).toEqual({
+        name: 'Owned',
+        project: { name: 'Zebra' },
+      });
+    });
+    it('checks permission-only path metadata even when that path was not requested', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name'], appends: ['project.name'] } });
+      const original = docs.model.findAll.bind(docs.model);
+      const relation = docs.model.associations.project as typeof docs.model.associations.project & {
+        targetKey: string;
+      };
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+        const rows = await original(options);
+        relation.targetKey = 'amount';
+        return rows;
+      });
+      await expect(entry.listFromParams(ctx, mainIdentity, auth, { fields: ['name'] })).rejects.toThrow(/changed/);
+    });
+  });
+
   describe('complete paged results', () => {
     const page = (params = {}, transaction?: Parameters<typeof entry.listFromParams>[4]) =>
       entry.listPageFromParams(ctx, mainIdentity, auth, { fields: ['name'], ...params }, transaction);
@@ -802,23 +951,35 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
       expect(getter).not.toHaveBeenCalled();
       expect(query).not.toHaveBeenCalled();
     });
-    it('keeps selected relationship query counts independent of root row counts', async () => {
-      await docs.model.bulkCreate(
-        Array.from({ length: 100 }, (_, index) => ({
-          id: 1000 + index,
-          name: 'Bulk',
-          tenantId: 'B',
-          projectId: 101,
-        })),
-      );
-      const query = vi.spyOn(db.sequelize, 'query');
-      const request = { fields: ['name', 'project.name', 'project.documents.name'], filter: { name: 'Bulk' } };
-      expect(await entry.listSelected(ctx, mainIdentity, auth, { ...request, limit: 20 })).toHaveLength(20);
-      const count = query.mock.calls.length;
-      query.mockClear();
-      expect(await entry.listSelected(ctx, mainIdentity, auth, { ...request, limit: 100 })).toHaveLength(100);
-      expect(query).toHaveBeenCalledTimes(count);
-    });
+    it.each([false, true])(
+      'keeps selected relationship query counts independent of root row counts (nested permissions: %s)',
+      async (restricted) => {
+        if (restricted)
+          permissions.set('', {
+            allowed: true,
+            params: { fields: ['name'], appends: ['project.name', 'project.documents.name'] },
+          });
+        await docs.model.bulkCreate(
+          Array.from({ length: 100 }, (_, index) => ({
+            id: 1000 + index,
+            name: 'Bulk',
+            tenantId: 'B',
+            projectId: 101,
+          })),
+        );
+        const query = vi.spyOn(db.sequelize, 'query');
+        const request = { fields: ['name', 'project.name', 'project.documents.name'], filter: { name: 'Bulk' } };
+        expect(await entry.listSelected(ctx, mainIdentity, auth, { ...request, limit: 20 })).toHaveLength(20);
+        const count = query.mock.calls.length;
+        const permissionCount = resolver.mock.calls.length;
+        expect(new Set(resolver.mock.calls.map(([, path]) => JSON.stringify(path))).size).toBe(permissionCount);
+        query.mockClear();
+        resolver.mockClear();
+        expect(await entry.listSelected(ctx, mainIdentity, auth, { ...request, limit: 100 })).toHaveLength(100);
+        expect(query).toHaveBeenCalledTimes(count);
+        expect(resolver).toHaveBeenCalledTimes(permissionCount);
+      },
+    );
     it('preserves strict validation of the original root filter and sort arrays', async () => {
       const query = vi.spyOn(db.sequelize, 'query');
       const getter = vi.fn(() => 'Owned');

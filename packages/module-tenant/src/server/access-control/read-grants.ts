@@ -2,6 +2,7 @@ import { literal, Op, type Collection, type Database, type WhereOptions } from '
 
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessFilterNode } from './filter-tree';
+import { captureReadPermissionPaths } from './read-permission-paths';
 import { AccessRequestFilterParser, type AccessFilterReadGrant } from './request-filter';
 import type { AccessRoleFilterCompiler } from './role-filter';
 import { cloneDeep, invalid, plain } from './write-support';
@@ -61,6 +62,7 @@ export class AccessReadGrantAdapter {
   capture(identity: AccessCollectionIdentity, permission: AccessEntryReadPermission): AccessFilterReadGrant | null {
     const prepared = this.prepare(identity, permission);
     if (!prepared) return null;
+    if (prepared.paths) invalid('Nested read permissions require a lifecycle-aware entry adapter');
     const { collection, physical, grant, filter } = prepared;
     // ACL conditions may use hidden root fields, independently of output authorization.
     const parsed = new AccessRequestFilterParser(this.db, (target, path) => {
@@ -75,11 +77,22 @@ export class AccessReadGrantAdapter {
     identity: AccessCollectionIdentity,
     permission: AccessEntryReadPermission,
     compiler: AccessRoleFilterCompiler,
-  ): { grant: AccessFilterReadGrant; assertCurrent(): void } | null {
+  ): {
+    grant: AccessFilterReadGrant;
+    fieldsAt(path: readonly string[], fields: readonly string[]): readonly string[];
+    assertCurrent(): void;
+  } | null {
     const prepared = this.prepare(identity, permission);
     if (!prepared) return null;
     const role = compiler.compile(prepared.grant.identity, prepared.filter);
-    return { grant: Object.freeze({ ...prepared.grant, where: role.where }), assertCurrent: role.assertCurrent };
+    return {
+      grant: Object.freeze({ ...prepared.grant, where: role.where }),
+      fieldsAt: (path, fields) => prepared.paths?.fieldsAt(path, fields) ?? fields,
+      assertCurrent: () => {
+        role.assertCurrent();
+        prepared.paths?.assertCurrent();
+      },
+    };
   }
 
   private prepare(identity: AccessCollectionIdentity, permission: AccessEntryReadPermission) {
@@ -103,15 +116,25 @@ export class AccessReadGrantAdapter {
       (name) => (collection.model.rawAttributes[name].type as { key?: string }).key !== 'VIRTUAL',
     );
     const relations = Object.keys(collection.model.associations);
-    if (fields?.some((name) => !physical.includes(name)) || appends?.some((name) => !relations.includes(name)))
+    const paths = appends?.some((name) => name.includes('.'))
+      ? captureReadPermissionPaths(this.db, collection, appends, this.resolveCollectionKey)
+      : undefined;
+    if (
+      fields?.some((name) => !physical.includes(name)) ||
+      (!paths && appends?.some((name) => !relations.includes(name)))
+    )
       invalid('Read permission contains unsupported fields or association paths');
-    const outputFields = [...(fields ?? physical), ...(appends ?? (fields === undefined ? relations : []))];
+    const outputFields = [
+      ...(fields ?? physical),
+      ...(paths?.associations ?? appends ?? (fields === undefined ? relations : [])),
+    ];
     const filter = params.filter === undefined ? {} : params.filter;
     this.assertResolved(filter);
     return {
       collection,
       physical,
       filter,
+      paths,
       grant: Object.freeze({ identity: Object.freeze(identity), fields: Object.freeze(outputFields) }),
     };
   }

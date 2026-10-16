@@ -87,21 +87,76 @@ export class AccessEntryReadService {
       const identity = this.resolveIdentity(collection);
       return identity && accessCollectionKey(identity);
     });
+    const grants = new Map<
+      string,
+      {
+        collection: Collection;
+        plan: ReturnType<AccessReadGrantAdapter['capturePlan']>;
+        grant: AccessFilterReadGrant | null;
+      }
+    >();
+    const resolveGrant = (collection: Collection, path: readonly string[]): AccessFilterReadGrant | null => {
+      const key = JSON.stringify(path);
+      const previous = grants.get(key);
+      if (previous) {
+        if (previous.collection !== collection) invalid('Entry permission path changed its collection');
+        return previous.grant;
+      }
+      let current = this.db.getCollection(operation.source.collectionName);
+      if (!current || path.length > 9) invalid('Entry permission source or path is unavailable');
+      let throughCollection: Collection | undefined;
+      const ancestors: Array<{ plan: NonNullable<ReturnType<AccessReadGrantAdapter['capturePlan']>>; offset: number }> =
+        [];
+      for (let index = 0; index < path.length; index++) {
+        const parentPath = path.slice(0, index);
+        const parent = resolveGrant(current, parentPath);
+        if (!parent) return null;
+        const through = path[index] === '$through';
+        if (through) {
+          if (index !== path.length - 1 || !index || throughCollection !== collection)
+            invalid('Invalid through permission path');
+          break;
+        }
+        if (!parent.fields.includes(path[index])) return null;
+        const relation =
+          Object.hasOwn(current.model.associations, path[index]) && current.model.associations[path[index]];
+        const target = relation && this.db.modelCollection.get(relation.target);
+        if (!target || target.db !== this.db) invalid('Entry permission association is unavailable');
+        const throughModel = (relation as typeof relation & { through?: { model?: Collection['model'] } }).through
+          ?.model;
+        throughCollection = throughModel && this.db.modelCollection.get(throughModel);
+        ancestors.push({ plan: grants.get(JSON.stringify(parentPath))!.plan!, offset: index });
+        current = target;
+      }
+      const through = path.at(-1) === '$through';
+      if (!through && current !== collection) invalid('Entry permission path does not match its collection');
+      const identity = this.resolveIdentity(collection);
+      if (!identity) invalid('Entry read collection identity is unavailable');
+      const permission = this.resolvePermission(collection, path, operation);
+      if (!permission) {
+        grants.set(key, { collection, plan: null, grant: null });
+        return null;
+      }
+      // Validate the original descriptors before copying anything: fields/own may be non-enumerable.
+      const plan = adapter.capturePlan(identity, permission, roles);
+      if (!plan) {
+        grants.set(key, { collection, plan: null, grant: null });
+        return null;
+      }
+      checks.push(plan.assertCurrent);
+      let fields = plan.grant.fields;
+      // Through rows have independent authorization and are never projected as target fields.
+      if (!through)
+        for (const ancestor of ancestors) fields = ancestor.plan.fieldsAt(path.slice(ancestor.offset), fields);
+      const grant = Object.freeze({ ...plan.grant, fields: Object.freeze([...fields]) });
+      grants.set(key, { collection, plan, grant });
+      // Keep lifecycle functions outside grants: downstream parsers and sorting clone grants as data.
+      return grant;
+    };
     return {
       source: operation.source,
       authenticated: operation.authenticated,
-      resolveGrant: (collection: Collection, path: readonly string[]) => {
-        const identity = this.resolveIdentity(collection);
-        if (!identity) invalid('Entry read collection identity is unavailable');
-        const permission = this.resolvePermission(collection, path, operation);
-        if (!permission) return null;
-        // Validate the original descriptors before copying anything: fields/own may be non-enumerable.
-        const plan = adapter.capturePlan(identity, permission, roles);
-        if (!plan) return null;
-        checks.push(plan.assertCurrent);
-        // Keep lifecycle functions outside grants: downstream parsers and sorting clone grants as data.
-        return plan.grant;
-      },
+      resolveGrant,
       assertCurrent: () => {
         for (const check of checks) check();
       },
@@ -239,18 +294,7 @@ export class AccessEntryReadService {
     const collection = this.db.getCollection(authorization.source.collectionName);
     if (!collection) invalid('Selected read collection is unavailable');
     // Selection and subsequent filter/sort/expansion share one operation-local permission snapshot.
-    const grants = new Map<string, { collection: Collection; grant: AccessFilterReadGrant | null }>();
-    const resolveGrant = (collection: Collection, path: readonly string[]) => {
-      const key = JSON.stringify(path);
-      const previous = grants.get(key);
-      if (previous) {
-        if (previous.collection !== collection) invalid('Selected read permission path changed its collection');
-        return previous.grant;
-      }
-      const grant = authorization.resolveGrant(collection, path);
-      grants.set(key, { collection, grant });
-      return grant;
-    };
+    const resolveGrant = authorization.resolveGrant;
     const selection = new AccessReadSelectionParser(this.db, resolveGrant).parse(collection, ownValues(true));
     // Keep original filter/sort values for their strict validation; copying first could normalize bad inputs.
     const input = { ...ownValues(false), attributes: selection.attributes };

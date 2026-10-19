@@ -1,0 +1,80 @@
+import { captureAccessFilter } from './filter-input';
+import { invalid, plain } from './write-support';
+
+function record(input: unknown, keys: readonly string[]): Record<string, unknown> {
+  if (
+    !plain(input) ||
+    Reflect.ownKeys(input).some(
+      (key) =>
+        typeof key !== 'string' ||
+        !keys.includes(key) ||
+        !Object.hasOwn(Object.getOwnPropertyDescriptor(input, key)!, 'value'),
+    )
+  )
+    invalid('Unsupported chart params or descriptor');
+  return Object.fromEntries(
+    Reflect.ownKeys(input).map((key) => [key, Object.getOwnPropertyDescriptor(input, key)!.value]),
+  );
+}
+
+function items(input: unknown, max: number): unknown[] {
+  if (
+    !Array.isArray(input) ||
+    Object.getPrototypeOf(input) !== Array.prototype ||
+    input.length > max ||
+    Reflect.ownKeys(input).length !== input.length + 1
+  )
+    invalid('Chart fields must use bounded dense arrays');
+  const result: unknown[] = [];
+  for (let index = 0; index < input.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, index);
+    if (!descriptor || !Object.hasOwn(descriptor, 'value')) invalid('Chart arrays cannot contain accessors or holes');
+    result.push(descriptor.value);
+  }
+  return result;
+}
+
+function selected(input: unknown, measure: boolean) {
+  const params = record(input, ['field', 'alias', 'type', ...(measure ? ['aggregation'] : ['format'])]);
+  const fields = Array.isArray(params.field) ? items(params.field, 1) : [params.field];
+  const field = fields[0];
+  if (fields.length !== 1 || typeof field !== 'string' || field.length > 255 || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(field))
+    invalid('Chart statistics require a bounded root field name');
+  const alias = params.alias === undefined ? field : params.alias;
+  if (typeof alias !== 'string' || !alias.length || alias.length > 255 || alias.includes('\0'))
+    invalid('Chart aliases must be bounded nonempty names');
+  // Client type hints never determine database types, field permissions or output conversion.
+  if (params.type !== undefined && (typeof params.type !== 'string' || params.type.length > 255))
+    invalid('Unsupported chart type hint');
+  if (!measure && params.format !== undefined && params.format !== '')
+    invalid('Chart dimension formatting requires a dedicated adapter');
+  return { field, alias, aggregation: params.aggregation };
+}
+
+/** Internal subset of chart query values; routing, cache and trusted execution context belong to the caller. */
+export function parseChartParams(input: unknown) {
+  const params = record(input, ['measures', 'dimensions', 'orders', 'filter', 'limit']);
+  const measures = items(params.measures, 1);
+  if (measures.length !== 1) invalid('Select one chart aggregate measure');
+  const measure = selected(measures[0], true);
+  if (typeof measure.aggregation !== 'string' || !['avg', 'count', 'min', 'max', 'sum'].includes(measure.aggregation))
+    invalid('Select a supported chart aggregate method');
+  const dimensions = items(params.dimensions === undefined ? [] : params.dimensions, 3).map((item) =>
+    selected(item, false),
+  );
+  if (
+    new Set(dimensions.map((item) => item.field)).size !== dimensions.length ||
+    new Set([measure.alias, ...dimensions.map((item) => item.alias)]).size !== dimensions.length + 1
+  )
+    invalid('Chart grouping fields and output aliases must be distinct');
+  if (params.orders !== undefined) items(params.orders, 0);
+  const limit = params.limit === undefined ? 1000 : params.limit;
+  if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
+    invalid('Chart group limit exceeds supported limits');
+  return {
+    measure: { field: measure.field, alias: measure.alias, method: measure.aggregation },
+    dimensions: dimensions.map(({ field, alias }) => ({ field, alias })),
+    filter: captureAccessFilter(params.filter === undefined ? {} : params.filter),
+    limit,
+  };
+}

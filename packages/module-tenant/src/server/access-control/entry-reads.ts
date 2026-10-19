@@ -2,6 +2,7 @@ import type { Collection, Database, Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessBelongsToExpansionService } from './belongs-to-expansion';
+import { parseChartParams } from './chart-params';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import {
@@ -223,6 +224,37 @@ export class AccessEntryReadService {
       source,
       authenticated,
       request,
+    );
+  }
+
+  /** Internal root-chart subset, using the chart's existing collection-list permission contract. */
+  async chartFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const { measure, dimensions, filter, limit } = parseChartParams(params);
+    const request = {
+      ...this.withDates(source, { field: measure.field, method: measure.method, filter }, dates),
+      transaction,
+    };
+    const reader = this.reader('list', ctx, source, authenticated);
+    if (!dimensions.length) {
+      const value = await reader.aggregate(ctx, source, authenticated, request);
+      return [Object.freeze(Object.fromEntries([[measure.alias, value]]))];
+    }
+    const rows = await reader.groupAggregate(ctx, source, authenticated, {
+      ...request,
+      groupBy: dimensions.map(({ field }) => field),
+      limit,
+    });
+    return rows.map(({ key, value }) =>
+      Object.freeze(
+        Object.fromEntries([...dimensions.map(({ field, alias }) => [alias, key[field]]), [measure.alias, value]]),
+      ),
     );
   }
 

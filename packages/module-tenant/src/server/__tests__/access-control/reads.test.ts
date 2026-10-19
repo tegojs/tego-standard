@@ -150,6 +150,227 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       entryResolver,
     );
   });
+  describe('chart params', () => {
+    const chart = (extra: Record<string, unknown> = {}) =>
+      entryReads.chartFromParams(ctx, mainIdentity, auth, {
+        measures: [{ field: ['amount'], aggregation: 'sum', alias: '金额' }],
+        dimensions: [{ field: ['tenantId'], alias: '归属' }],
+        orders: [],
+        ...extra,
+      });
+
+    it('returns flat chart aliases under list permissions with independently authorized fields', async () => {
+      entryResolver.mockImplementation((_collection, _path, operation) => ({
+        allowed: operation.kind === 'list',
+        params: { fields: ['amount', 'tenantId'] },
+      }));
+      expect(await chart()).toEqual([
+        { 归属: 'B', 金额: 60 },
+        { 归属: 'H', 金额: 20 },
+        { 归属: null, 金额: 40 },
+      ]);
+      expect(entryResolver.mock.calls.every(([, , operation]) => operation.kind === 'list')).toBe(true);
+      entryResolver.mockImplementation(() => ({ allowed: true, params: { fields: ['amount'] } }));
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(chart()).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['sum', 120],
+      ['avg', 30],
+      ['min', 10],
+      ['max', 50],
+      ['count', 4],
+    ])('supports scalar %s with default field aliases and string fields', async (aggregation, amount) => {
+      expect(await chart({ measures: [{ field: 'amount', aggregation }], dimensions: [] })).toEqual([{ amount }]);
+    });
+
+    it('treats aliases and type hints as output metadata without invoking object prototypes', async () => {
+      const rows = await chart({
+        measures: [{ field: 'amount', aggregation: 'sum', alias: '__proto__', type: 'string' }],
+        dimensions: [{ field: 'tenantId', alias: 'constructor', type: 'integer', format: '' }],
+      });
+      expect(rows.map((row) => [row.constructor, row.__proto__])).toEqual([
+        ['B', 60],
+        ['H', 20],
+        [null, 40],
+      ]);
+      expect(rows.every((row) => Object.getPrototypeOf(row) === Object.prototype)).toBe(true);
+      expect(rows.every((row) => Object.hasOwn(row, '__proto__') && Object.isFrozen(row))).toBe(true);
+    });
+
+    it('preserves fractional averages and multiple mapped grouping fields', async () => {
+      await docs.model.update({ amount: 51 }, { where: { id: 5 } });
+      expect(await chart({ measures: [{ field: ['amount'], aggregation: 'avg' }], filter: { tenantId: 'B' } })).toEqual(
+        [{ 归属: 'B', amount: 30.5 }],
+      );
+      expect(await chart({ dimensions: [{ field: 'tenantId' }, { field: ['projectId'], alias: '项目' }] })).toEqual([
+        { tenantId: 'B', 项目: 101, 金额: 10 },
+        { tenantId: 'B', 项目: null, 金额: 51 },
+        { tenantId: 'H', 项目: 102, 金额: 20 },
+        { tenantId: null, 项目: 103, 金额: 40 },
+      ]);
+    });
+
+    it('intersects role and request filters and preserves empty scalar and grouped results', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: ['tenantId', 'amount'], filter: { amount: { $gte: 20 } } },
+      });
+      expect(await chart({ filter: { amount: { $lte: 40 } } })).toEqual([
+        { 归属: 'H', 金额: 20 },
+        { 归属: null, 金额: 40 },
+      ]);
+      expect(await chart({ filter: { amount: 30 } })).toEqual([]);
+      expect(await chart({ dimensions: [], filter: { amount: 30 } })).toEqual([{ 金额: null }]);
+      expect(
+        await chart({ dimensions: [], filter: { amount: 30 }, measures: [{ field: 'amount', aggregation: 'count' }] }),
+      ).toEqual([{ amount: 0 }]);
+    });
+
+    it('denies missing list permission and cannot use aliases or type hints to grant fields', async () => {
+      permissions.set('', { allowed: false, params: {} });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(chart()).rejects.toThrow(/authorized/);
+      permissions.set('', { allowed: true, params: { fields: ['amount', 'tenantId'] } });
+      await expect(
+        chart({ measures: [{ field: 'name', aggregation: 'count', alias: 'amount', type: 'integer' }] }),
+      ).rejects.toThrow(/authorized/);
+      await expect(chart({ measures: [{ field: 'tenantId', aggregation: 'sum', type: 'integer' }] })).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('independently restricts actual relationship filters while preserving hidden role facts', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: ['tenantId', 'amount'], appends: [], filter: { project: { name: 'Secret' } } },
+      });
+      expect(await chart()).toEqual([{ 归属: 'H', 金额: 20 }]);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(chart({ filter: { project: { name: 'Secret' } } })).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+      permissions.set('', { allowed: true, params: {} });
+      expect(await chart({ filter: { project: { name: 'Secret' } } })).toEqual([]);
+      expect(await chart({ filter: { project: { name: 'Zebra' } } })).toEqual([{ 归属: 'B', 金额: 10 }]);
+    });
+
+    it('uses trusted date shortcuts without granting client control of the date context', async () => {
+      await docs.model.update({ occurredAt: new Date('2026-09-16T08:00:00Z') }, { where: { id: [1, 2, 3] } });
+      const dates = { now: '2026-09-16T12:00:00.000Z', timezone: '+08:00' };
+      expect(
+        await entryReads.chartFromParams(
+          ctx,
+          mainIdentity,
+          auth,
+          {
+            measures: [{ field: 'amount', aggregation: 'sum', alias: '金额' }],
+            filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } },
+          },
+          undefined,
+          dates,
+        ),
+      ).toEqual([{ 金额: 30 }]);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(chart({ dates })).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('captures aliases groups and filters before permission callbacks and asynchronous SQL', async () => {
+      const params = {
+        measures: [{ field: ['amount'], aggregation: 'sum', alias: '金额' }],
+        dimensions: [{ field: ['tenantId'], alias: '归属' }],
+        filter: { amount: { $gte: 20 } },
+      };
+      entryResolver.mockImplementation(() => {
+        params.measures[0].field[0] = 'name';
+        params.measures[0].alias = 'changed';
+        params.dimensions[0].field[0] = 'name';
+        params.dimensions[0].alias = 'changed';
+        params.filter.amount.$gte = 100;
+        return { allowed: true, params: {} };
+      });
+      const pending = entryReads.chartFromParams(ctx, mainIdentity, auth, params);
+      params.measures.length = 0;
+      expect(await pending).toEqual([
+        { 归属: 'B', 金额: 50 },
+        { 归属: 'H', 金额: 20 },
+        { 归属: null, 金额: 40 },
+      ]);
+    });
+
+    it('preserves trusted transactions and keeps visible legacy data unclaimed', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await docs.model.update({ amount: 99 }, { where: { id: 1 }, transaction });
+        expect(
+          await entryReads.chartFromParams(
+            ctx,
+            mainIdentity,
+            auth,
+            { measures: [{ field: 'amount', aggregation: 'sum' }] },
+            transaction,
+          ),
+        ).toEqual([{ amount: 209 }]);
+        expect((await docs.model.findByPk(4, { transaction }))!.getDataValue('tenantId')).toBeNull();
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await chart({ dimensions: [] })).toEqual([{ 金额: 120 }]);
+    });
+
+    it('enforces the group cap without returning truncated chart data', async () => {
+      await expect(chart({ limit: 2 })).rejects.toThrow(/limit/);
+      expect(await chart({ limit: 1, filter: { tenantId: 'B' } })).toEqual([{ 归属: 'B', 金额: 60 }]);
+    });
+
+    it('rejects unsupported chart protocols and malformed descriptors before any SQL', async () => {
+      const getter = vi.fn(() => 'amount');
+      const measure = Object.defineProperty({ aggregation: 'sum' }, 'field', { get: getter });
+      const fields = Object.defineProperty(['amount'], 0, { get: getter });
+      const sparse: unknown[] = [];
+      sparse.length = 1;
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const extra of [
+        { measures: [] },
+        {
+          measures: [
+            { field: 'amount', aggregation: 'sum' },
+            { field: 'id', aggregation: 'count' },
+          ],
+        },
+        { measures: [{ field: 'amount' }] },
+        { measures: [{ field: 'amount', aggregation: 'median' }] },
+        { measures: [{ field: ['project', 'amount'], aggregation: 'sum' }] },
+        { measures: [{ field: 'project.amount', aggregation: 'sum' }] },
+        { measures: [{ field: 'amount', aggregation: 'sum', distinct: true }] },
+        { measures: [measure] },
+        { measures: sparse },
+        { measures: [{ field: fields, aggregation: 'sum' }] },
+        { measures: [{ field: [], aggregation: 'sum' }] },
+        { dimensions: sparse },
+        { dimensions: [{ field: 'id' }, { field: 'name' }, { field: 'tenantId' }, { field: 'enabled' }] },
+        { dimensions: [{ field: 'name', alias: '金额' }] },
+        { dimensions: [{ field: 'name' }, { field: 'name', alias: 'another' }] },
+        { dimensions: [{ field: 'occurredAt', format: 'YYYY-MM' }] },
+        { dimensions: [{ field: 'name', alias: '' }] },
+        { dimensions: [{ field: 'name', alias: '\0' }] },
+        { dimensions: [{ field: 'name', alias: 'a'.repeat(256) }] },
+        { orders: [{ field: 'amount', order: 'desc' }] },
+        { sql: { fields: '*' } },
+        { transaction: {} },
+        { collection: 'projects' },
+        { dataSource: 'other' },
+        { cache: { enabled: true } },
+        { limit: 0 },
+        { limit: 1001 },
+      ])
+        await expect(chart(extra)).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+    });
+  });
+
   describe('grouped aggregate', () => {
     const grouped = (extra: Record<string, unknown> = {}) =>
       entryReads.groupAggregate(ctx, mainIdentity, auth, {

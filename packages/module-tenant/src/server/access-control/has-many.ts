@@ -6,7 +6,11 @@ import type { AccessIdentity } from './context';
 import type { AccessMutationService } from './mutation';
 import type { AccessQueryService } from './query';
 import type { AccessReferenceService } from './references';
-import { AccessTargetForeignKeyService, type TargetForeignKeyWriteRequest } from './target-foreign-key';
+import {
+  AccessTargetForeignKeyService,
+  type TargetForeignKeyMutationEntry,
+  type TargetForeignKeyWriteRequest,
+} from './target-foreign-key';
 
 export type HasManyWriteRequest = TargetForeignKeyWriteRequest;
 
@@ -27,7 +31,8 @@ export class AccessHasManyService extends AccessTargetForeignKeyService {
     target: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: HasManyWriteRequest,
+    entry?: TargetForeignKeyMutationEntry,
   ) {
-    return this.writeChildren(ctx, source, target, authenticated, request);
+    return this.writeChildren(ctx, source, target, authenticated, request, entry);
   }
 }

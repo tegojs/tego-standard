@@ -112,7 +112,7 @@ export function captureAssociationSourcePermission(
   db: Database,
   source: Collection,
   roleName: string,
-  operation: 'add' | 'remove' | 'set',
+  operation: 'add' | 'remove' | 'set' | 'update',
   related: AccessRootReadContext | null,
 ) {
   if (

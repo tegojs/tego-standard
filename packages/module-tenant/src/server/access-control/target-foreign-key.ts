@@ -34,6 +34,13 @@ export interface TargetForeignKeyWriteRequest {
   targetReadBind?: Record<string, unknown>;
 }
 
+/** Trusted final-ACL entry; request values must never supply these callbacks. */
+export interface TargetForeignKeyMutationEntry {
+  assertCurrent(): void;
+  targetReadScope(): Promise<{ where?: WhereOptions }>;
+  targetWriteScope(): Promise<{ where?: WhereOptions }>;
+}
+
 /** Changes target foreign keys; all actual child writes are authorized against their old G. */
 export abstract class AccessTargetForeignKeyService {
   protected constructor(
@@ -51,6 +58,7 @@ export abstract class AccessTargetForeignKeyService {
     target: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: TargetForeignKeyWriteRequest,
+    entry?: TargetForeignKeyMutationEntry,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     source = { ...source };
     target = { ...target };
@@ -83,6 +91,11 @@ export abstract class AccessTargetForeignKeyService {
       request.association,
       this.associationType,
     );
+    const current = () => {
+      relation.current();
+      entry?.assertCurrent();
+    };
+    current();
     const sourceKey = normalizeKeys([request.sourceKey], relation.source)[0];
     const targetKeys =
       Array.isArray(request.targetKeys) && request.targetKeys.length === 0
@@ -95,6 +108,7 @@ export abstract class AccessTargetForeignKeyService {
         { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
         async (transaction) => {
           await validateWriteTransaction(this.db, transaction, true);
+          current();
           const sourcePlan = await this.mutations.authorizeReferenceSource(
             ctx,
             source,
@@ -102,7 +116,7 @@ export abstract class AccessTargetForeignKeyService {
             { keys: [sourceKey], where: request.sourceWhere, bind: request.sourceBind },
             transaction,
           );
-          relation.current();
+          current();
           const primary = relation.targetModel.primaryKeyAttribute;
           const candidateWhere = {
             [Op.or]: [
@@ -119,7 +133,7 @@ export abstract class AccessTargetForeignKeyService {
               limit: 1001,
             }),
           );
-          relation.current();
+          current();
           if (records.length > 1000) invalid('Child mutation exceeds batch limit');
           if (
             this.associationType === 'HasOne' &&
@@ -131,15 +145,24 @@ export abstract class AccessTargetForeignKeyService {
             invalid('HasOne source has multiple existing targets');
           // Lock candidates for UPDATE before reference checks take SHARE locks.
           // Otherwise competing parents can deadlock while upgrading the same child.
-          if (targetKeys.length)
+          if (targetKeys.length) {
+            const scope = await entry?.targetReadScope();
+            current();
             await this.references.authorizeTargets(
               ctx,
               target,
               authenticated,
-              { keys: targetKeys, where: request.targetReadWhere, bind: request.targetReadBind },
+              {
+                keys: targetKeys,
+                where: scope
+                  ? { [Op.and]: [request.targetReadWhere ?? {}, scope.where ?? {}] }
+                  : request.targetReadWhere,
+                bind: request.targetReadBind,
+              },
               transaction,
             );
-          relation.current();
+          }
+          current();
           const selected = new Set(targetKeys);
           const changes: Array<{ record: Model; key: string; value: string | null }> = [];
           for (const record of records) {
@@ -151,14 +174,20 @@ export abstract class AccessTargetForeignKeyService {
             if (value !== before) changes.push({ record, key, value });
           }
           if (!changes.length) return { keys: [], affected: 0 };
+          const scope = await entry?.targetWriteScope();
+          current();
           const targetPlan = await this.mutations.authorizeReferenceSource(
             ctx,
             target,
             authenticated,
-            { keys: changes.map((change) => change.key), where: request.targetWhere, bind: request.targetBind },
+            {
+              keys: changes.map((change) => change.key),
+              where: scope ? { [Op.and]: [request.targetWhere ?? {}, scope.where ?? {}] } : request.targetWhere,
+              bind: request.targetBind,
+            },
             transaction,
           );
-          relation.current();
+          current();
           const changedByKey = new Map(changes.map((change) => [change.key, change]));
           const beforeSource = sourcePlan.records[0];
           const sourcePatch = sourcePlan.valuesFor(beforeSource);
@@ -186,15 +215,16 @@ export abstract class AccessTargetForeignKeyService {
               relation.source,
               sourceKey,
               transaction,
-              relation.current,
+              current,
               () =>
                 relation.source.repository.update({
                   filterByTk: beforeSource.getDataValue(relation.sourceModel.primaryKeyAttribute),
                   values: sourcePatch,
                   transaction,
+                  ...(entry ? { context: ctx } : {}),
                 }),
             );
-          relation.current();
+          current();
           const writeOrder =
             this.associationType === 'HasOne'
               ? [...targetPlan.records].sort(
@@ -216,31 +246,33 @@ export abstract class AccessTargetForeignKeyService {
               relation.target,
               key,
               transaction,
-              relation.current,
+              current,
               () =>
                 relation.target.repository.update({
                   filterByTk: record.getDataValue(primary),
                   values: { ...targetPlan.valuesFor(record), [relation.foreignKey]: changedByKey.get(key)!.value },
                   transaction,
+                  ...(entry ? { context: ctx } : {}),
                 }),
             );
-            relation.current();
+            current();
           }
           await validateWriteTransaction(this.db, transaction, true);
-          relation.current();
+          current();
           const afterSource = await relation.sourceModel.unscoped().findAll(
             internalQuery({
               where: { [relation.sourceModel.primaryKeyAttribute]: sourceKey },
               transaction,
             }),
           );
+          current();
           const after = await relation.targetModel.unscoped().findAll(
             internalQuery({
               where: { [primary]: { [Op.in]: changes.map((change) => change.key) } },
               transaction,
             }),
           );
-          relation.current();
+          current();
           if (afterSource.length !== 1 || after.length !== changes.length) invalid('Writer removed a relation record');
           sourceProtected.verify(afterSource);
           targetProtected.verify(after);

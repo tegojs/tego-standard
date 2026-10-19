@@ -150,6 +150,212 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       entryResolver,
     );
   });
+  describe('grouped aggregate', () => {
+    const grouped = (extra: Record<string, unknown> = {}) =>
+      entryReads.groupAggregate(ctx, mainIdentity, auth, {
+        method: 'sum',
+        field: 'amount',
+        groupBy: ['tenantId'],
+        ...extra,
+      } as never);
+
+    it.each([
+      ['sum', 60],
+      ['avg', 30],
+      ['min', 10],
+      ['max', 50],
+      ['count', 2],
+    ])('computes %s per authorized group without hidden disabled or deleted records', async (method, value) => {
+      expect(await grouped({ method })).toEqual([
+        { key: { tenantId: 'B' }, value },
+        { key: { tenantId: 'H' }, value: method === 'count' ? 1 : 20 },
+        { key: { tenantId: null }, value: method === 'count' ? 1 : 40 },
+      ]);
+      expect(entryResolver.mock.calls.every(([, , operation]) => operation.kind === 'groupAggregate')).toBe(true);
+    });
+
+    it('intersects role rows and request filters before grouping', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: ['tenantId', 'amount'], filter: { amount: { $gte: 20 } } },
+      });
+      expect(await grouped({ filter: { amount: { $lte: 40 } } })).toEqual([
+        { key: { tenantId: 'H' }, value: 20 },
+        { key: { tenantId: null }, value: 40 },
+      ]);
+      expect(await grouped({ filter: { amount: 30 } })).toEqual([]);
+    });
+
+    it('groups by multiple mapped physical fields and preserves boolean and date values', async () => {
+      expect(await grouped({ groupBy: ['tenantId', 'projectId'] })).toEqual([
+        { key: { tenantId: 'B', projectId: 101 }, value: 10 },
+        { key: { tenantId: 'B', projectId: null }, value: 50 },
+        { key: { tenantId: 'H', projectId: 102 }, value: 20 },
+        { key: { tenantId: null, projectId: 103 }, value: 40 },
+      ]);
+      await docs.model.update(
+        { name: 'Grouped', occurredAt: new Date('2026-09-16T00:00:00Z') },
+        { where: { id: [1, 5] } },
+      );
+      expect(await grouped({ groupBy: ['name'], filter: { tenantId: 'B' } })).toEqual([
+        { key: { name: 'Grouped' }, value: 60 },
+      ]);
+      expect(await grouped({ groupBy: ['enabled'], filter: { tenantId: 'B' } })).toEqual([
+        { key: { enabled: true }, value: 60 },
+      ]);
+      const dateResult = await grouped({ groupBy: ['occurredAt'], filter: { tenantId: 'B' } });
+      expect(dateResult[0].key.occurredAt).toEqual(new Date('2026-09-16T00:00:00Z'));
+      expect(dateResult[0].value).toBe(60);
+    });
+
+    it('keeps NULL group keys independent from nonnull counts and distinct field values', async () => {
+      await docs.model.update({ amount: 10 }, { where: { id: 5 } });
+      await docs.model.update({ amount: null }, { where: { id: 4 } });
+      expect(await grouped({ method: 'count' })).toEqual([
+        { key: { tenantId: 'B' }, value: 2 },
+        { key: { tenantId: 'H' }, value: 1 },
+        { key: { tenantId: null }, value: 0 },
+      ]);
+      expect(await grouped({ distinct: true })).toEqual([
+        { key: { tenantId: 'B' }, value: 10 },
+        { key: { tenantId: 'H' }, value: 20 },
+        { key: { tenantId: null }, value: null },
+      ]);
+      expect(await grouped({ method: 'count', field: 'name', filter: { tenantId: 'B' } })).toEqual([
+        { key: { tenantId: 'B' }, value: 2 },
+      ]);
+    });
+
+    it('requires independent operation grouping and measure field permissions before SQL', async () => {
+      entryResolver.mockImplementation((_collection, _path, operation) => ({
+        allowed: operation.kind !== 'groupAggregate',
+        params: {},
+      }));
+      const query = vi.spyOn(db.sequelize, 'query');
+      await expect(grouped()).rejects.toThrow(/authorized/);
+      entryResolver.mockImplementation(() => ({ allowed: true, params: { fields: ['amount'] } }));
+      await expect(grouped()).rejects.toThrow(/authorized/);
+      entryResolver.mockImplementation(() => ({ allowed: true, params: { fields: ['tenantId'] } }));
+      await expect(grouped()).rejects.toThrow(/authorized/);
+      expect(query).not.toHaveBeenCalled();
+    });
+
+    it('uses hidden role facts internally but filters actual relationships by target read access', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: {
+          fields: ['tenantId', 'amount'],
+          appends: [],
+          filter: { project: { name: 'Secret' } },
+        },
+      });
+      expect(await grouped()).toEqual([{ key: { tenantId: 'H' }, value: 20 }]);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(grouped({ filter: { project: { name: 'Secret' } } })).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+      permissions.set('', { allowed: true, params: {} });
+      expect(await grouped({ filter: { project: { name: 'Secret' } } })).toEqual([]);
+      expect(await grouped({ filter: { project: { name: 'Zebra' } } })).toEqual([
+        { key: { tenantId: 'B' }, value: 10 },
+      ]);
+    });
+
+    it('rejects malformed groups options and accessors before SQL without invoking them', async () => {
+      const getter = vi.fn(() => 'tenantId');
+      const group = Object.defineProperty(['tenantId'], 0, { get: getter });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const extra of [
+        { groupBy: [] },
+        { groupBy: ['tenantId', 'tenantId'] },
+        { groupBy: ['id', 'name', 'amount', 'tenantId'] },
+        { groupBy: ['project.name'] },
+        { groupBy: ['labels'] },
+        { groupBy: ['missing'] },
+        { groupBy: group },
+        { groupBy: 'tenantId' },
+        { groupBy: [literal('1')] },
+        { groupBy: ['tenantId; --'] },
+        { method: 'median' },
+        { method: 'sum', field: 'name' },
+        { limit: 0 },
+        { limit: 1001 },
+        { having: {} },
+        { sort: ['name'] },
+        { bind: {} },
+        { dataType: 'INTEGER' },
+      ])
+        await expect(grouped(extra)).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('bounds group output with a database limit and rejects overflow instead of truncating', async () => {
+      const find = vi.spyOn(docs.model, 'findAll');
+      await expect(grouped({ limit: 2 })).rejects.toThrow(/limit/);
+      expect(find.mock.calls[0][0]!.limit).toBe(3);
+      expect(await grouped({ limit: 1, filter: { tenantId: 'B' } })).toEqual([{ key: { tenantId: 'B' }, value: 60 }]);
+    });
+
+    it('snapshots group and filter input before the first asynchronous query', async () => {
+      const request = { method: 'sum', field: 'amount', groupBy: ['tenantId'], filter: { amount: { $gte: 20 } } };
+      const pending = entryReads.groupAggregate(ctx, mainIdentity, auth, request);
+      request.groupBy[0] = 'name';
+      request.filter.amount.$gte = 100;
+      request.method = 'max';
+      expect(await pending).toEqual([
+        { key: { tenantId: 'B' }, value: 50 },
+        { key: { tenantId: 'H' }, value: 20 },
+        { key: { tenantId: null }, value: 40 },
+      ]);
+    });
+
+    it('preserves trusted transactions and does not claim legacy ownership', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await docs.model.update({ amount: 99 }, { where: { id: 1 }, transaction });
+        expect(await grouped({ transaction, filter: { tenantId: 'B' } })).toEqual([
+          { key: { tenantId: 'B' }, value: 149 },
+        ]);
+        expect(await grouped({ transaction, filter: { id: 4 } })).toEqual([{ key: { tenantId: null }, value: 40 }]);
+        expect((await docs.model.findByPk(4, { transaction }))!.getDataValue('tenantId')).toBeNull();
+      } finally {
+        await transaction.rollback();
+      }
+      await expect(grouped({ transaction })).rejects.toMatchObject({ code: 'MISSING_ACCESS_CONTEXT' });
+    });
+
+    it('rejects metadata or phase changes after the grouped SQL', async () => {
+      const original = docs.model.findAll.bind(docs.model);
+      const find = vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        docs.model.rawAttributes.tenantId.field = 'changed_column';
+        return result;
+      });
+      await expect(grouped()).rejects.toThrow(/changed/);
+      docs.model.rawAttributes.tenantId.field = 'tenant_id';
+      find.mockRestore();
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (...args) => {
+        const result = await original(...args);
+        adapter.release(ctx);
+        return result;
+      });
+      await expect(grouped()).rejects.toThrow();
+    });
+
+    it('keeps query counts constant when more roots belong to a group', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await grouped();
+      const before = sql.mock.calls.length;
+      await docs.model.bulkCreate(
+        Array.from({ length: 20 }, (_, index) => ({ id: 200 + index, tenantId: 'B', name: 'Owned', amount: 1 })),
+      );
+      sql.mockClear();
+      expect((await grouped())[0]).toEqual({ key: { tenantId: 'B' }, value: 80 });
+      expect(sql.mock.calls.length).toBe(before);
+      expect(before).toBeLessThanOrEqual(5);
+    });
+  });
+
   describe('numeric aggregate', () => {
     const aggregate = (request: Record<string, unknown>) =>
       entryReads.aggregate(ctx, mainIdentity, auth, request as never);

@@ -1,5 +1,6 @@
 import {
   DataTypes,
+  literal,
   Op,
   type Collection,
   type Database,
@@ -50,8 +51,18 @@ export interface AccessAggregateRequest extends AccessSumRequest {
   distinct?: unknown;
 }
 
+export interface AccessGroupedAggregateRequest extends AccessAggregateRequest {
+  groupBy: unknown;
+  limit?: unknown;
+}
+
+export interface AccessGroupedAggregateResult {
+  readonly key: Readonly<Record<string, unknown>>;
+  readonly value: number | null;
+}
+
 type AggregateMethod = 'avg' | 'count' | 'min' | 'max' | 'sum';
-type ReadKind = 'list' | 'get' | 'count' | 'sum' | 'aggregate';
+type ReadKind = 'list' | 'get' | 'count' | 'sum' | 'aggregate' | 'groupAggregate';
 type ReadRecord = Readonly<Record<string, unknown>>;
 const numericTypes = [
   'INTEGER',
@@ -64,6 +75,18 @@ const numericTypes = [
   'DOUBLE',
   'DOUBLE PRECISION',
   'REAL',
+];
+const scalarTypes = [
+  ...numericTypes,
+  'STRING',
+  'CHAR',
+  'TEXT',
+  'UUID',
+  'ENUM',
+  'CITEXT',
+  'BOOLEAN',
+  'DATE',
+  'DATEONLY',
 ];
 
 export interface AccessReadResult {
@@ -218,6 +241,60 @@ export class AccessReadService {
     return result;
   }
 
+  /** Internal bounded root-field groups, computed in SQL under the same root predicate. */
+  async groupAggregate(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessGroupedAggregateRequest,
+  ): Promise<AccessGroupedAggregateResult[]> {
+    const plan = await this.plan(ctx, source, authenticated, request, 'groupAggregate');
+    const qi = this.db.sequelize.getQueryInterface();
+    const column = (name: string) =>
+      `${qi.quoteIdentifier(plan.model.name)}.${qi.quoteIdentifier(plan.model.rawAttributes[name].field || name)}`;
+    let index = 0;
+    let alias: string;
+    do {
+      alias = `tac_aggregate_${index++}`;
+    } while (Object.keys(plan.model.rawAttributes).some((name) => name.toLowerCase() === alias.toLowerCase()));
+    plan.assertCurrent();
+    const rows = await plan.model.findAll({
+      ...internalQuery(plan.query),
+      attributes: [
+        ...plan.groupBy.map((name): [ReturnType<typeof literal>, string] => [literal(column(name)), name]),
+        [literal(`${plan.method!.toUpperCase()}(${plan.distinct ? 'DISTINCT ' : ''}${column(plan.field!)})`), alias],
+      ],
+      // Sequelize accepts literals here at runtime, but omits them from GroupOption.
+      group: plan.groupBy.map((name) => literal(column(name))) as unknown as NonNullable<
+        Parameters<typeof plan.model.findAll>[0]
+      >['group'],
+      order: plan.groupBy.map((name) => literal(`${column(name)} ASC NULLS LAST`)),
+      limit: plan.limit + 1,
+    });
+    plan.assertCurrent();
+    if (rows.length > plan.limit) invalid('Grouped aggregate exceeds its group limit');
+    return rows.map((row) => {
+      const raw: unknown = row.getDataValue(alias);
+      const value =
+        raw === null
+          ? null
+          : typeof raw === 'number'
+            ? raw
+            : typeof raw === 'string' && raw.trim() !== ''
+              ? Number(raw)
+              : NaN;
+      if (
+        (value !== null && !Number.isFinite(value)) ||
+        (plan.method === 'count' && (value === null || !Number.isSafeInteger(value) || value < 0))
+      )
+        invalid('Grouped aggregate returned an invalid numeric result');
+      return Object.freeze({
+        key: Object.freeze(Object.fromEntries(plan.groupBy.map((name) => [name, row.getDataValue(name)]))),
+        value,
+      });
+    });
+  }
+
   private project(row: Model, attributes: string[]): ReadRecord {
     // These are fresh query values, not mutation inputs; preserve complete authorized JSON.
     return Object.freeze(Object.fromEntries(attributes.map((name) => [name, row.getDataValue(name)])));
@@ -249,8 +326,8 @@ export class AccessReadService {
           ? ['attributes', 'key', 'keyField']
           : kind === 'sum'
             ? ['field']
-            : kind === 'aggregate'
-              ? ['field', 'method', 'distinct']
+            : kind === 'aggregate' || kind === 'groupAggregate'
+              ? ['field', 'method', 'distinct', ...(kind === 'groupAggregate' ? ['groupBy', 'limit'] : [])]
               : []),
     ];
     if (
@@ -265,7 +342,7 @@ export class AccessReadService {
       invalid('Unsupported root read request');
     let method: AggregateMethod | undefined;
     let distinct = false;
-    if (kind === 'aggregate') {
+    if (kind === 'aggregate' || kind === 'groupAggregate') {
       if (
         typeof request.method !== 'string' ||
         !['avg', 'count', 'min', 'max', 'sum'].includes(request.method) ||
@@ -330,7 +407,7 @@ export class AccessReadService {
       }
     }
     let field: string | undefined;
-    if (kind === 'sum' || kind === 'aggregate') {
+    if (kind === 'sum' || kind === 'aggregate' || kind === 'groupAggregate') {
       if (
         !physical(request.field) ||
         (method !== 'count' && !numericTypes.includes((model.rawAttributes[request.field].type as { key: string }).key))
@@ -341,15 +418,40 @@ export class AccessReadService {
             : 'Aggregate requires an authorized physical root field; numeric methods require numeric fields',
         );
       field = request.field;
-      if (
-        distinct &&
-        ![...numericTypes, 'STRING', 'CHAR', 'TEXT', 'UUID', 'ENUM', 'CITEXT', 'BOOLEAN', 'DATE', 'DATEONLY'].includes(
-          (model.rawAttributes[field].type as { key: string }).key,
-        )
-      )
+      if (distinct && !scalarTypes.includes((model.rawAttributes[field].type as { key: string }).key))
         invalid('Distinct aggregation requires a supported scalar field');
     }
-    const limit = kind === 'list' && request.limit !== undefined ? request.limit : 20;
+    const groupBy: string[] = [];
+    if (kind === 'groupAggregate') {
+      const groups = request.groupBy;
+      if (
+        !Array.isArray(groups) ||
+        Object.getPrototypeOf(groups) !== Array.prototype ||
+        !groups.length ||
+        groups.length > 3 ||
+        Reflect.ownKeys(groups).length !== groups.length + 1
+      )
+        invalid('Select one to three distinct authorized scalar grouping fields');
+      for (let index = 0; index < groups.length; index++) {
+        const descriptor = Object.getOwnPropertyDescriptor(groups, index);
+        const name: unknown = descriptor?.value;
+        if (
+          !descriptor ||
+          !Object.hasOwn(descriptor, 'value') ||
+          !physical(name) ||
+          groupBy.includes(name) ||
+          !scalarTypes.includes((model.rawAttributes[name].type as { key: string }).key)
+        )
+          invalid('Grouping requires distinct authorized physical scalar fields');
+        groupBy.push(name);
+      }
+    }
+    const limit =
+      (kind === 'list' || kind === 'groupAggregate') && request.limit !== undefined
+        ? request.limit
+        : kind === 'groupAggregate'
+          ? 1000
+          : 20;
     const offset = kind === 'list' && request.offset !== undefined ? request.offset : 0;
     if (
       typeof limit !== 'number' ||
@@ -419,6 +521,19 @@ export class AccessReadService {
     };
     assertCurrent();
     const rootQuery = sorted?.rootQuery ?? filtered.query;
-    return { collection, model, query, rootQuery, attributes, field, method, distinct, limit, offset, assertCurrent };
+    return {
+      collection,
+      model,
+      query,
+      rootQuery,
+      attributes,
+      field,
+      method,
+      distinct,
+      groupBy,
+      limit,
+      offset,
+      assertCurrent,
+    };
   }
 }

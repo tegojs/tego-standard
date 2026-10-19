@@ -4,11 +4,8 @@ import type { Collection, Database } from '@tego/server';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessEntryReadOperation } from './entry-reads';
 import { resolveResourceReadRoute } from './resource-read-routing';
-import {
-  captureRelatedReadPermission,
-  type AccessRelatedReadContextResolver,
-  type AccessRootReadContext,
-} from './root-read-handler';
+import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
+import type { AccessRelatedReadContextResolver } from './root-read-handler';
 import { cloneDeep, invalid, plain } from './write-support';
 
 export type AccessRelatedReadAuthorizer = (

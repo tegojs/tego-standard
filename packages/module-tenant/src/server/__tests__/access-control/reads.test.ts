@@ -422,6 +422,238 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         return { handler: createHandler(undefined, resolve), resolve };
       };
 
+      describe('automatic preparation', () => {
+        it.each(['list', 'get', 'count'] as const)('prepares used paths for root %s', async (kind) => {
+          const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
+          const result = await authorized(kind, {
+            filter: { project: { name: { $includes: 'a' } } },
+            ...(kind === 'count' ? {} : { fields: ['id'], appends: ['project'] }),
+            ...(kind === 'list' ? { sort: ['project.name'] } : {}),
+            ...(kind === 'get' ? { filterByTk: 1 } : {}),
+          });
+          const authorize = vi.fn(async () => target);
+          await createHandler().handleWithRelatedContexts(result, trusted(), authorize);
+          expect(authorize).toHaveBeenCalledTimes(1);
+          expect(authorize.mock.calls[0]).toEqual([
+            projects,
+            ['project'],
+            {
+              kind,
+              context: result,
+              source: mainIdentity,
+              authenticated: trusted(),
+            },
+          ]);
+          expect(result.body).toEqual(
+            kind === 'count'
+              ? 1
+              : kind === 'get'
+                ? { id: 1, project: { name: 'Zebra' } }
+                : { rows: [{ id: 1, project: { name: 'Zebra' } }], count: 1, page: 1, pageSize: 20, totalPage: 1 },
+          );
+        });
+
+        it('does not request unused target permissions', async () => {
+          const result = await authorized('count', { filter: { name: 'Owned' } });
+          const authorize = vi.fn(async () => null);
+          await createHandler().handleWithRelatedContexts(result, trusted(), authorize);
+          expect(result.body).toBe(1);
+          expect(authorize).not.toHaveBeenCalled();
+        });
+
+        it('keeps concurrent requests and their target decisions independent', async () => {
+          const zebra = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
+          const alpha = await targetContext({ fields: ['name'], filter: { name: 'Alpha' } });
+          const first = { ...(await authorized('get', { filterByTk: 1, fields: ['id'], appends: ['project'] })) };
+          const second = { ...(await authorized('get', { filterByTk: 4, fields: ['id'], appends: ['project'] })) };
+          await adapter.prepare(first, identities);
+          await adapter.prepare(second, identities);
+          let release!: () => void;
+          const wait = new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          const handler = createHandler();
+          const pending = handler.handleWithRelatedContexts(first, trusted(), async () => {
+            await wait;
+            return zebra;
+          });
+          try {
+            await handler.handleWithRelatedContexts(second, trusted(), async () => alpha);
+            expect(second.body).toEqual({ id: 4, project: { name: 'Alpha' } });
+            expect(first.body).toBe('unchanged');
+          } finally {
+            release();
+            await pending;
+          }
+          expect(first.body).toEqual({ id: 1, project: { name: 'Zebra' } });
+        });
+
+        it('captures root parameters, final permission and identity before awaiting target authorization', async () => {
+          const target = await targetContext({ fields: ['name'] });
+          const acl = allowed();
+          acl
+            .getRole('reader')
+            .grantAction('documents:view', { fields: ['id'], appends: ['project'], filter: { id: 1 } });
+          const result = await authorized(
+            'list',
+            { fields: ['id'], appends: ['project'], sort: ['project.name'] },
+            acl,
+          );
+          const identity = trusted();
+          await createHandler().handleWithRelatedContexts(result, identity, async () => {
+            await Promise.resolve();
+            Object.assign(identity, { tenantId: 'C', roleName: 'other' });
+            Object.assign((result.permission as { parsedParams: object }).parsedParams, {
+              fields: ['name'],
+              filter: {},
+            });
+            Object.assign((result.permission as { rawParams: object }).rawParams, {
+              fields: ['name'],
+              appends: [],
+              filter: { id: 2 },
+            });
+            Object.assign(result.action, { resourceName: 'projects', actionName: 'count' });
+            return target;
+          });
+          expect(result.body).toMatchObject({ rows: [{ id: 1, project: { name: 'Zebra' } }], count: 1 });
+          expect(result.paginate).toBe(true);
+        });
+
+        it('preserves the captured date context while awaiting authorization', async () => {
+          await docs.model.update({ occurredAt: new Date('2026-10-19T00:00:00.000Z') }, { where: { id: 1 } });
+          const target = await targetContext({ fields: ['name'] });
+          const result = await authorized('list', {
+            fields: ['id'],
+            appends: ['project'],
+            filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } },
+          });
+          const dates = { now: '2026-10-19T00:00:00.000Z', timezone: '+08:00' };
+          await createHandler().handleWithRelatedContexts(
+            result,
+            trusted(),
+            async () => {
+              dates.now = '2026-10-20T00:00:00.000Z';
+              dates.timezone = '-08:00';
+              return target;
+            },
+            undefined,
+            dates,
+          );
+          expect(result.body).toMatchObject({ rows: [{ id: 1, project: { name: 'Zebra' } }], count: 1 });
+        });
+
+        it('retains root rows while hiding target data outside G/V', async () => {
+          const target = await targetContext({ fields: ['name'] });
+          const result = await authorized('get', { filterByTk: 2, fields: ['id'], appends: ['project'] });
+          await createHandler().handleWithRelatedContexts(result, trusted(), async () => target);
+          expect(result.body).toEqual({ id: 2, project: null });
+        });
+
+        it('uses the caller transaction for uncommitted root records', async () => {
+          const target = await targetContext({ fields: ['name'] });
+          const result = await authorized('get', { filterByTk: 9, fields: ['id'], appends: ['project'] });
+          const transaction = await db.sequelize.transaction();
+          try {
+            await docs.model.create({ id: 9, tenantId: 'B', projectId: 101, name: 'Uncommitted' }, { transaction });
+            await createHandler().handleWithRelatedContexts(result, trusted(), async () => target, transaction);
+            expect(result.body).toEqual({ id: 9, project: { name: 'Zebra' } });
+          } finally {
+            await transaction.rollback();
+          }
+          expect(await docs.model.findByPk(9)).toBeNull();
+        });
+
+        it('does not reuse root authorization after replacing its prepared configuration phase', async () => {
+          const target = await targetContext();
+          const result = await authorized('list', { appends: ['project'] });
+          const find = vi.spyOn(docs.model, 'findAll');
+          await expect(
+            createHandler().handleWithRelatedContexts(result, trusted(), async () => {
+              adapter.release(result);
+              await adapter.prepare(result, identities);
+              return target;
+            }),
+          ).rejects.toThrow(/phase/);
+          expect(find).not.toHaveBeenCalled();
+          expect(result.body).toBe('unchanged');
+        });
+
+        it.each(['list', 'get', 'count'] as const)(
+          'rejects invalid request array prototypes before authorization for %s',
+          async (kind) => {
+            const result = await authorized(kind, kind === 'get' ? { filterByTk: 1 } : {});
+            const values = [{ name: 'Owned' }];
+            Object.setPrototypeOf(values, Object.create(Array.prototype));
+            Object.assign((result.permission as { rawParams: object }).rawParams, { filter: { $and: values } });
+            const authorize = vi.fn(async () => null);
+            const sql = vi.spyOn(db.sequelize, 'query');
+            await expect(createHandler().handleWithRelatedContexts(result, trusted(), authorize)).rejects.toThrow(
+              /dense/,
+            );
+            expect(authorize).not.toHaveBeenCalled();
+            expect(sql).not.toHaveBeenCalled();
+          },
+        );
+
+        it.each(['missing', 'denied'] as const)('does not query for %s target permission', async (kind) => {
+          const target = await targetContext();
+          if (kind === 'denied') Object.assign(target.permission as object, { can: false });
+          const result = await authorized('get', { filterByTk: 1, appends: ['project'] });
+          const sql = vi.spyOn(db.sequelize, 'query');
+          await expect(
+            createHandler().handleWithRelatedContexts(result, trusted(), async () =>
+              kind === 'missing' ? null : target,
+            ),
+          ).rejects.toThrow(/authorized/);
+          expect(sql).not.toHaveBeenCalled();
+          expect(result.body).toBe('unchanged');
+        });
+
+        it('does not authorize targets for a denied root read', async () => {
+          const result = await authorized('list', { appends: ['project'] });
+          Object.assign(result.permission as object, { can: false });
+          const authorize = vi.fn(async () => null);
+          const sql = vi.spyOn(db.sequelize, 'query');
+          await expect(createHandler().handleWithRelatedContexts(result, trusted(), authorize)).rejects.toThrow(
+            /authorized/,
+          );
+          expect(authorize).not.toHaveBeenCalled();
+          expect(sql).not.toHaveBeenCalled();
+          expect(result.body).toBe('unchanged');
+        });
+
+        it('propagates target preparation errors without querying or replacing the response', async () => {
+          const result = await authorized('list', { appends: ['project'] });
+          const failure = new Error('target authorization failed');
+          const sql = vi.spyOn(db.sequelize, 'query');
+          await expect(
+            createHandler().handleWithRelatedContexts(result, trusted(), async () => {
+              throw failure;
+            }),
+          ).rejects.toBe(failure);
+          expect(sql).not.toHaveBeenCalled();
+          expect(result.body).toBe('unchanged');
+        });
+
+        it.each(['relation', 'phase'] as const)(
+          'rejects changed %s during authorization before business SQL',
+          async (kind) => {
+            const target = await targetContext();
+            const result = await authorized('list', { appends: ['project'] });
+            const sql = vi.spyOn(db.sequelize, 'query');
+            await expect(
+              createHandler().handleWithRelatedContexts(result, trusted(), async () => {
+                if (kind === 'relation') Object.assign(docs.model.associations.project, { target: docs.model });
+                else adapter.release(result);
+                return target;
+              }),
+            ).rejects.toThrow();
+            expect(sql).not.toHaveBeenCalled();
+            expect(result.body).toBe('unchanged');
+          },
+        );
+      });
+
       it('uses asynchronously prepared permissions for real filtered and expanded root reads', async () => {
         const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
         const params = {

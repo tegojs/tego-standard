@@ -168,7 +168,7 @@ export class AccessRootReadHandler {
     const captured = captureRootReadContext(this.db, ctx, authenticated, dates);
     const preparation = await this.prepareRelated(ctx, captured, authorize);
     preparation.assertCurrent();
-    await this.execute(ctx, captured, preparation.related, transaction);
+    await this.execute(ctx, captured, preparation.related, transaction, preparation.assertCurrent);
   }
 
   /** Charts require a neutral finalized collection list decision, not the chart resource decision. */
@@ -203,6 +203,7 @@ export class AccessRootReadHandler {
       transaction,
       captured.dateContext,
     );
+    preparation.assertCurrent();
     ctx.body = body;
   }
 
@@ -253,8 +254,12 @@ export class AccessRootReadHandler {
         return related;
       },
     );
-    assertCurrent();
-    return { related, assertCurrent };
+    const assertPreparedCurrent = () => {
+      assertCurrent();
+      related.assertCurrent();
+    };
+    assertPreparedCurrent();
+    return { related, assertCurrent: assertPreparedCurrent };
   }
 
   async handle(

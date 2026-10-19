@@ -575,6 +575,112 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         return { handler: createHandler(undefined, resolve), resolve };
       };
 
+      describe('prepared read lifecycle', () => {
+        const routes = [
+          'list',
+          'get',
+          'count',
+          'placeholder-list',
+          'placeholder-get',
+          'chart',
+          'grouped-chart',
+        ] as const;
+
+        it.each(routes.flatMap((route) => ['phase', 'nested relation'].map((change) => [route, change] as const)))(
+          'does not publish %s results after a late %s change',
+          async (route, change) => {
+            projects.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'projectId' });
+            await projects.model.update({ projectId: 1 }, { where: { id: 101 } });
+            const documentContext = { ...(await authorized()) };
+            const projectContext = await targetContext();
+            const authorize = vi.fn(async (collection: Collection) =>
+              collection === projects ? projectContext : documentContext,
+            );
+            const placeholder = route.startsWith('placeholder-');
+            const chart = route === 'chart' || route === 'grouped-chart';
+            const kind = route === 'count' ? 'count' : route.endsWith('get') ? 'get' : 'list';
+            const params = chart
+              ? {}
+              : {
+                  filter: placeholder ? { document: { name: 'Owned' } } : { project: { document: { name: 'Owned' } } },
+                  ...(kind === 'get' ? { filterByTk: placeholder ? 101 : 1 } : {}),
+                  ...(kind === 'count' ? {} : { fields: [placeholder ? 'document.name' : 'project.document.name'] }),
+                };
+            const result = placeholder
+              ? Object.assign(context(kind, params, 'project'), {
+                  getCurrentRepository: () => ({ targetCollection: projects }),
+                })
+              : await authorized(kind, params);
+            if (placeholder) {
+              Object.assign(result.action, { resourceName: 'documents.project', sourceId: '_', resourceOf: '_' });
+              result.action.mergeParams({ associatedName: 'documents', associatedIndex: '_' });
+              const acl = allowed();
+              acl.getRole('reader').grantAction('projects:view', {});
+              await acl.middleware()(result as never, async () => {});
+            }
+            const mutate = async () => {
+              if (change === 'phase') {
+                adapter.release(result);
+                await adapter.prepare(result, identities);
+              } else {
+                projects.model.associations.document = { ...projects.model.associations.document } as never;
+              }
+            };
+            // Execute the real reader and SQL first, then interleave a change before response publication.
+            if (chart) {
+              const original = AccessEntryReadService.prototype.chartFromQuery;
+              vi.spyOn(AccessEntryReadService.prototype, 'chartFromQuery').mockImplementationOnce(async function (
+                this: AccessEntryReadService,
+                ...args
+              ) {
+                const body = await original.apply(this, args);
+                expect(body).toEqual(route === 'chart' ? [{ total: 10 }] : [{ owner: 'B', total: 10 }]);
+                await mutate();
+                return body;
+              });
+            } else {
+              const original = AccessEntryReadService.prototype.fromResource;
+              vi.spyOn(AccessEntryReadService.prototype, 'fromResource').mockImplementationOnce(async function (
+                this: AccessEntryReadService,
+                ...args
+              ) {
+                const body = await original.apply(this, args);
+                const record = placeholder
+                  ? { document: { name: 'Owned' } }
+                  : { project: { document: { name: 'Owned' } } };
+                if (kind === 'count') expect(body).toBe(1);
+                else
+                  expect(body).toMatchObject(
+                    kind === 'get' ? record : { rows: [record], count: 1, page: 1, pageSize: 20, totalPage: 1 },
+                  );
+                await mutate();
+                return body;
+              });
+            }
+            const handler = createHandler();
+            const pending = chart
+              ? handler.handleChartWithRelatedContexts(
+                  result,
+                  trusted(),
+                  {
+                    collection: 'documents',
+                    dataSource: 'main',
+                    measures: [{ field: ['amount'], aggregation: 'sum', alias: 'total' }],
+                    dimensions: route === 'chart' ? [] : [{ field: 'tenantId', alias: 'owner' }],
+                    filter: { project: { document: { name: 'Owned' } } },
+                  },
+                  authorize,
+                )
+              : placeholder
+                ? handler.handlePlaceholderWithRelatedContexts(result, trusted(), authorize)
+                : handler.handleWithRelatedContexts(result, trusted(), authorize);
+            await expect(pending).rejects.toThrow(change === 'phase' ? /phase/ : /association changed/);
+            expect(result.body).toBe('unchanged');
+            expect(result.paginate).toBe(false);
+          },
+        );
+      });
+
       describe('chart handler', () => {
         const values = () => ({
           collection: 'documents',

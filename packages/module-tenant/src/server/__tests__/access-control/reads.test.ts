@@ -159,6 +159,246 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         ...extra,
       });
 
+    describe('date grouping', () => {
+      const dateChart = (extra: Record<string, unknown> = {}, timezone = '+08:00') =>
+        entryReads.chartFromParams(
+          ctx,
+          mainIdentity,
+          auth,
+          {
+            measures: [{ field: 'amount', aggregation: 'sum', alias: '金额' }],
+            dimensions: [{ field: 'occurredAt', alias: '日期', format: 'YYYY-MM-DD' }],
+            ...extra,
+          },
+          undefined,
+          { now: '2026-09-16T12:00:00.000Z', timezone },
+        );
+
+      beforeEach(async () => {
+        for (const [id, instant] of [
+          [1, '2026-12-31T15:59:59.999Z'],
+          [2, '2026-12-31T16:00:00.000Z'],
+          [3, '2026-12-31T16:00:00.000Z'],
+          [4, '2027-01-31T16:00:00.000Z'],
+        ] as const)
+          await docs.model.update({ occurredAt: new Date(instant) }, { where: { id } });
+      });
+
+      it.each([
+        ['YYYY-MM-DD', ['2026-12-31', '2027-01-01', '2027-02-01']],
+        ['YYYY-MM', ['2026-12', '2027-01', '2027-02']],
+        ['YYYY', ['2026', '2027']],
+      ])('groups authorized dates by %s without coercing strings back into dates', async (format, keys) => {
+        const rows = await dateChart({ dimensions: [{ field: 'occurredAt', format, alias: '日期', type: 'string' }] });
+        expect(rows).toEqual(
+          keys.length === 2
+            ? [
+                { 日期: keys[0], 金额: 10 },
+                { 日期: keys[1], 金额: 60 },
+                { 日期: null, 金额: 50 },
+              ]
+            : [
+                { 日期: keys[0], 金额: 10 },
+                { 日期: keys[1], 金额: 20 },
+                { 日期: keys[2], 金额: 40 },
+                { 日期: null, 金额: 50 },
+              ],
+        );
+      });
+
+      it('uses negative and fractional offsets and leaves pure calendar dates unchanged', async () => {
+        expect(await dateChart({}, '-05:30')).toEqual([
+          { 日期: '2026-12-31', 金额: 30 },
+          { 日期: '2027-01-31', 金额: 40 },
+          { 日期: null, 金额: 50 },
+        ]);
+        await docs.model.update({ calendarDate: '2027-01-01' }, { where: { id: [1, 2, 3, 4] } });
+        for (const timezone of ['+14:00', '-14:00'])
+          expect(
+            await dateChart(
+              {
+                dimensions: [{ field: 'calendarDate', format: 'YYYY-MM-DD' }],
+              },
+              timezone,
+            ),
+          ).toEqual([
+            { calendarDate: '2027-01-01', 金额: 70 },
+            { calendarDate: null, 金额: 50 },
+          ]);
+        expect(await dateChart({}, '+08:30')).toEqual([
+          { 日期: '2027-01-01', 金额: 30 },
+          { 日期: '2027-02-01', 金额: 40 },
+          { 日期: null, 金额: 50 },
+        ]);
+      });
+
+      it('shares formatted groups across measures and SQL ordering, preserving NULL and group limits', async () => {
+        const params = {
+          measures: [
+            { field: 'amount', aggregation: 'sum', alias: '金额' },
+            { field: 'id', aggregation: 'count', alias: '数量' },
+          ],
+          dimensions: [
+            { field: 'occurredAt', format: 'YYYY', alias: '年' },
+            { field: 'tenantId', alias: '归属' },
+          ],
+          orders: [
+            { alias: '年', order: 'desc' },
+            { alias: '数量', order: 'desc' },
+          ],
+        };
+        expect(await dateChart(params)).toEqual([
+          { 年: '2027', 归属: 'H', 金额: 20, 数量: 1 },
+          { 年: '2027', 归属: null, 金额: 40, 数量: 1 },
+          { 年: '2026', 归属: 'B', 金额: 10, 数量: 1 },
+          { 年: null, 归属: 'B', 金额: 50, 数量: 1 },
+        ]);
+        await expect(dateChart({ ...params, limit: 3 })).rejects.toThrow(/group limit/);
+        expect(await dateChart({ filter: { amount: 30 } })).toEqual([]);
+      });
+
+      it('intersects role, relationship and date filters and independently requires the grouping field grant', async () => {
+        permissions.set('', {
+          allowed: true,
+          params: { fields: ['amount', 'occurredAt'], filter: { amount: { $gte: 20 } } },
+        });
+        expect(await dateChart({ filter: { occurredAt: { $dateOn: '2027+08:00' } } })).toEqual([
+          { 日期: '2027-01-01', 金额: 20 },
+          { 日期: '2027-02-01', 金额: 40 },
+        ]);
+        permissions.set('', { allowed: true, params: {} });
+        expect(await dateChart({ filter: { project: { name: 'Zebra' } } })).toEqual([{ 日期: '2026-12-31', 金额: 10 }]);
+        permissions.set('', { allowed: true, params: { fields: ['amount'] } });
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(dateChart()).rejects.toThrow(/authorized/);
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it('captures format and trusted timezone before permission callbacks', async () => {
+        const dates = { now: '2026-09-16T12:00:00.000Z', timezone: '+08:00' };
+        const params = {
+          measures: [{ field: 'id', aggregation: 'count' }],
+          dimensions: [{ field: 'occurredAt', format: 'YYYY' }],
+        };
+        entryResolver.mockImplementation(() => {
+          dates.timezone = '-05:00';
+          params.dimensions[0].format = 'YYYY-MM-DD';
+          return { allowed: true, params: {} };
+        });
+        expect(await entryReads.chartFromParams(ctx, mainIdentity, auth, params, undefined, dates)).toEqual([
+          { occurredAt: '2026', id: 1 },
+          { occurredAt: '2027', id: 2 },
+          { occurredAt: null, id: 1 },
+        ]);
+      });
+
+      it('uses one aggregate SQL and the supplied transaction without claiming legacy data', async () => {
+        const transaction = await db.sequelize.transaction();
+        try {
+          await docs.model.update(
+            { occurredAt: new Date('2028-03-01T00:00:00Z'), amount: 99 },
+            { where: { id: 4 }, transaction },
+          );
+          const find = vi.spyOn(docs.model, 'findAll');
+          expect(
+            await entryReads.chartFromParams(
+              ctx,
+              mainIdentity,
+              auth,
+              {
+                measures: [
+                  { field: 'amount', aggregation: 'sum' },
+                  { field: 'id', aggregation: 'count' },
+                ],
+                dimensions: [{ field: 'occurredAt', format: 'YYYY-MM' }],
+                filter: { occurredAt: { $dateOn: '2028' } },
+              },
+              transaction,
+              { now: '2026-09-16T12:00:00.000Z', timezone: '+08:00' },
+            ),
+          ).toEqual([{ occurredAt: '2028-03', amount: 99, id: 1 }]);
+          expect(find).toHaveBeenCalledTimes(1);
+          expect(find.mock.calls[0][0]?.transaction).toBe(transaction);
+          expect((await docs.model.findByPk(4, { transaction }))!.getDataValue('tenantId')).toBeNull();
+        } finally {
+          await transaction.rollback();
+        }
+        expect(await dateChart({ filter: { occurredAt: { $dateOn: '2028' } } })).toEqual([]);
+      });
+
+      it('supports captured date descriptors in the existing single grouped reader', async () => {
+        const group = { field: 'occurredAt', format: 'YYYY', timezone: '+08:00' };
+        const resolve = resolver.getMockImplementation()!;
+        resolver.mockImplementation((...args) => {
+          group.field = 'name';
+          group.timezone = '-05:00';
+          group.format = 'YYYY-MM-DD';
+          return resolve(...args);
+        });
+        expect(
+          await reads.groupAggregate(ctx, mainIdentity, auth, {
+            field: 'amount',
+            method: 'sum',
+            groupBy: [group],
+            order: [{ by: 'field', field: 'occurredAt', direction: 'desc' }],
+          }),
+        ).toEqual([
+          { key: { occurredAt: '2027' }, value: 60 },
+          { key: { occurredAt: '2026' }, value: 10 },
+          { key: { occurredAt: null }, value: 50 },
+        ]);
+      });
+
+      it('rejects malformed internal date descriptors without running getters or SQL', async () => {
+        const getter = vi.fn(() => 'YYYY');
+        const valid = { field: 'occurredAt', format: 'YYYY', timezone: '+08:00' };
+        const sql = vi.spyOn(db.sequelize, 'query');
+        for (const groupBy of [
+          [{ field: 'occurredAt', format: 'YYYY' }],
+          [{ ...valid, format: 'YYYY-Q' }],
+          [{ ...valid, timezone: 'UTC' }],
+          [{ ...valid, extra: true }],
+          [{ ...valid, field: 'labels' }],
+          [valid, 'occurredAt'],
+          [Object.defineProperty({ field: 'occurredAt', timezone: '+08:00' }, 'format', { get: getter })],
+        ])
+          await expect(
+            reads.aggregateMany(ctx, mainIdentity, auth, { measures: [{ field: 'id', method: 'count' }], groupBy }),
+          ).rejects.toThrow();
+        expect(getter).not.toHaveBeenCalled();
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it.each(['phase', 'type'])('rejects %s changes after the formatted query', async (change) => {
+        const find = docs.model.findAll.bind(docs.model);
+        vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (...args) => {
+          const result = await find(...args);
+          if (change === 'phase') adapter.release(ctx);
+          else docs.model.rawAttributes.occurredAt.type = DataTypes.STRING;
+          return result;
+        });
+        await expect(dateChart()).rejects.toThrow();
+      });
+
+      it('rejects non-date fields, unsupported formats and injected timezone before SQL', async () => {
+        const getter = vi.fn(() => 'YYYY');
+        const sql = vi.spyOn(db.sequelize, 'query');
+        for (const dimensions of [
+          [{ field: 'amount', format: 'YYYY', type: 'date' }],
+          [{ field: 'name', format: 'YYYY-MM-DD', type: 'datetime' }],
+          [{ field: 'occurredAt', format: 'YYYY-MM-DD hh:mm:ss' }],
+          [{ field: 'occurredAt', format: 'YYYY', timezone: '+00:00' }],
+          [Object.defineProperty({ field: 'occurredAt' }, 'format', { get: getter })],
+        ])
+          await expect(dateChart({ dimensions })).rejects.toThrow();
+        for (const timezone of ['UTC', '+14:01', "'+08:00", '+08:00;select 1'])
+          await expect(dateChart({}, timezone)).rejects.toThrow();
+        await expect(chart({ dimensions: [{ field: 'occurredAt', format: 'YYYY' }] })).rejects.toThrow();
+        expect(getter).not.toHaveBeenCalled();
+        expect(sql).not.toHaveBeenCalled();
+      });
+    });
+
     it('returns flat chart aliases under list permissions with independently authorized fields', async () => {
       entryResolver.mockImplementation((_collection, _path, operation) => ({
         allowed: operation.kind === 'list',

@@ -1,3 +1,4 @@
+import { isAggregateDateFormat } from './aggregate-groups';
 import type { AccessAggregateOrder } from './aggregate-order';
 import { captureAccessFilter } from './filter-input';
 import { invalid, plain } from './write-support';
@@ -47,9 +48,9 @@ function selected(input: unknown, measure: boolean) {
   // Client type hints never determine database types, field permissions or output conversion.
   if (params.type !== undefined && (typeof params.type !== 'string' || params.type.length > 255))
     invalid('Unsupported chart type hint');
-  if (!measure && params.format !== undefined && params.format !== '')
-    invalid('Chart dimension formatting requires a dedicated adapter');
-  return { field, alias, aggregation: params.aggregation };
+  const format = !measure && params.format !== '' ? params.format : undefined;
+  if (format !== undefined && !isAggregateDateFormat(format)) invalid('Unsupported chart date grouping format');
+  return { field, alias, aggregation: params.aggregation, format };
 }
 
 function parseOrders(
@@ -113,7 +114,7 @@ export function parseChartParams(input: unknown) {
     invalid('Chart group limit exceeds supported limits');
   return {
     measures: measures.map((measure) => ({ field: measure.field, alias: measure.alias, method: measure.aggregation })),
-    dimensions: dimensions.map(({ field, alias }) => ({ field, alias })),
+    dimensions: dimensions.map(({ field, alias, format }) => ({ field, alias, format })),
     order,
     filter: captureAccessFilter(params.filter === undefined ? {} : params.filter),
     limit,

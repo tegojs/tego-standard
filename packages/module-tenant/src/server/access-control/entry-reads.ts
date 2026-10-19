@@ -239,12 +239,18 @@ export class AccessEntryReadService {
     const { measures, dimensions, filter, limit, order } = parseChartParams(params);
     const measure = measures[0];
     const reader = this.reader('list', ctx, source, authenticated);
-    if (measures.length > 1) {
+    const formatted = dimensions.some(({ format }) => format !== undefined);
+    if (formatted && dates === undefined) invalid('Chart date grouping requires a trusted date context');
+    if (measures.length > 1 || formatted) {
+      const request = this.withDates(source, { filter }, dates);
+      const groupBy = dimensions.map(({ field, format }) =>
+        format === undefined ? field : { field, format, timezone: dates!.timezone },
+      );
       const rows = await reader.aggregateMany(ctx, source, authenticated, {
-        ...this.withDates(source, { filter }, dates),
+        ...request,
         transaction,
         measures: measures.map(({ field, method }) => ({ field, method })),
-        groupBy: dimensions.map(({ field }) => field),
+        groupBy,
         limit,
         order,
       });

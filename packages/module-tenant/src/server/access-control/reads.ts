@@ -10,6 +10,7 @@ import {
 } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { aggregateGroupExpression, captureAggregateGroups } from './aggregate-groups';
 import { captureAggregateMeasures, type AccessAggregateMeasure, type AggregateMethod } from './aggregate-measures';
 import { captureAggregateOrder } from './aggregate-order';
 import type { AccessCollectionIdentity } from './config-store';
@@ -284,37 +285,54 @@ export class AccessReadService {
       `${qi.quoteIdentifier(plan.model.name)}.${qi.quoteIdentifier(plan.model.rawAttributes[name].field || name)}`;
     let index = 0;
     const reserved = new Set(Object.keys(plan.model.rawAttributes).map((name) => name.toLowerCase()));
-    const aliases = measures.map(() => {
+    const nextAlias = () => {
       let alias: string;
       do {
         alias = `tac_aggregate_${index++}`;
       } while (reserved.has(alias));
       reserved.add(alias);
       return alias;
-    });
+    };
+    const aliases = measures.map(nextAlias);
+    // Date-formatted groups must not use the model's date attribute alias: Sequelize would parse them as Date.
+    const groupAliases = plan.groups.map((group) => (group.format ? nextAlias() : group.field));
+    const groupColumns = new Map(
+      plan.groups.map((group) => [
+        group.field,
+        aggregateGroupExpression(
+          this.db,
+          column(group.field),
+          group,
+          (plan.model.rawAttributes[group.field].type as { key: string }).key,
+        ),
+      ]),
+    );
     plan.assertCurrent();
     const rows = await plan.model.findAll({
       ...internalQuery(plan.query),
       attributes: [
-        ...plan.groupBy.map((name): [ReturnType<typeof literal>, string] => [literal(column(name)), name]),
+        ...plan.groupBy.map((name, index): [ReturnType<typeof literal>, string] => [
+          literal(groupColumns.get(name)!),
+          groupAliases[index],
+        ]),
         ...measures.map((measure, index): [ReturnType<typeof literal>, string] => [
           literal(`${measure.method.toUpperCase()}(${measure.distinct ? 'DISTINCT ' : ''}${column(measure.field)})`),
           aliases[index],
         ]),
       ],
       // Sequelize accepts literals here at runtime, but omits them from GroupOption.
-      group: plan.groupBy.map((name) => literal(column(name))) as unknown as NonNullable<
+      group: plan.groupBy.map((name) => literal(groupColumns.get(name)!)) as unknown as NonNullable<
         Parameters<typeof plan.model.findAll>[0]
       >['group'],
       order: [
         ...plan.aggregateOrder.map((item) =>
           literal(
-            `${item.by === 'value' ? qi.quoteIdentifier(aliases[item.index ?? 0]) : column(item.field)} ${item.direction.toUpperCase()} NULLS LAST`,
+            `${item.by === 'value' ? qi.quoteIdentifier(aliases[item.index ?? 0]) : groupColumns.get(item.field)!} ${item.direction.toUpperCase()} NULLS LAST`,
           ),
         ),
         ...plan.groupBy
           .filter((name) => !plan.aggregateOrder.some((item) => item.by === 'field' && item.field === name))
-          .map((name) => literal(`${column(name)} ASC NULLS LAST`)),
+          .map((name) => literal(`${groupColumns.get(name)!} ASC NULLS LAST`)),
       ],
       limit: plan.groupBy.length ? plan.limit + 1 : 1,
     });
@@ -340,7 +358,9 @@ export class AccessReadService {
         return value;
       });
       return Object.freeze({
-        key: Object.freeze(Object.fromEntries(plan.groupBy.map((name) => [name, row.getDataValue(name)]))),
+        key: Object.freeze(
+          Object.fromEntries(plan.groupBy.map((name, index) => [name, row.getDataValue(groupAliases[index])])),
+        ),
         values: Object.freeze(values),
       });
     });
@@ -412,25 +432,14 @@ export class AccessReadService {
       method = request.method as AggregateMethod;
       distinct = request.distinct === true;
     }
-    const groupBy: string[] = [];
-    if (kind === 'groupAggregate' || kind === 'aggregateMany') {
-      const groups = kind === 'aggregateMany' && request.groupBy === undefined ? [] : request.groupBy;
-      if (
-        !Array.isArray(groups) ||
-        Object.getPrototypeOf(groups) !== Array.prototype ||
-        (kind === 'groupAggregate' && !groups.length) ||
-        groups.length > 3 ||
-        Reflect.ownKeys(groups).length !== groups.length + 1
-      )
-        invalid('Select up to three distinct authorized scalar grouping fields');
-      for (let index = 0; index < groups.length; index++) {
-        const descriptor = Object.getOwnPropertyDescriptor(groups, index);
-        const name: unknown = descriptor?.value;
-        if (!descriptor || !Object.hasOwn(descriptor, 'value') || typeof name !== 'string' || groupBy.includes(name))
-          invalid('Grouping requires distinct authorized physical scalar fields');
-        groupBy.push(name);
-      }
-    }
+    const groups =
+      kind === 'groupAggregate' || kind === 'aggregateMany'
+        ? captureAggregateGroups(
+            kind === 'aggregateMany' && request.groupBy === undefined ? [] : request.groupBy,
+            kind === 'aggregateMany',
+          )
+        : [];
+    const groupBy = groups.map(({ field }) => field);
     source = { ...source };
     authenticated = { ...authenticated };
     const transaction = request.transaction as Transaction | undefined;
@@ -518,6 +527,13 @@ export class AccessReadService {
         invalid('Grouping requires distinct authorized physical scalar fields');
       if (aggregateOrder.some((item) => item.by === 'field' && !groupBy.includes(item.field)))
         invalid('Aggregate order requires an authorized grouping field');
+      for (const group of groups) {
+        const type = (model.rawAttributes[group.field].type as { key: string }).key;
+        if (group.format && type !== 'DATE' && type !== 'DATEONLY')
+          invalid('Date grouping requires an authorized physical date field');
+        if (group.format && !['sqlite', 'postgres'].includes(this.db.sequelize.getDialect()))
+          invalid('Date grouping is unsupported for this database');
+      }
     }
     const limit =
       (kind === 'list' || kind === 'groupAggregate' || kind === 'aggregateMany') && requestedLimit !== undefined
@@ -605,6 +621,7 @@ export class AccessReadService {
       distinct,
       measures,
       groupBy,
+      groups,
       aggregateOrder,
       limit,
       offset,

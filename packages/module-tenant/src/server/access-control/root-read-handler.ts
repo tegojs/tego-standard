@@ -11,6 +11,7 @@ import { collectRelatedReadPaths } from './read-paths';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
 import { resolveResourceReadRoute } from './resource-read-routing';
 import {
+  captureAssociationReadContext,
   capturePlaceholderReadContext,
   captureRelatedReadPermission,
   captureRootReadContext,
@@ -39,6 +40,64 @@ export class AccessRootReadHandler {
     private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
     private readonly resolveRelatedContext?: AccessRelatedReadContextResolver,
   ) {}
+
+  /** Concrete sources and targets retain separate finalized ACL decisions and G/V scopes. */
+  async handleAssociation(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    sourceContext: AccessRootReadContext,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ): Promise<void> {
+    // Capture the neutral source decision before any collection metadata callback can change it.
+    const source = captureRootReadContext(this.db, sourceContext, authenticated, dates);
+    if (source.action.actionName !== 'list' || Reflect.ownKeys(source.params).length || !source.permission.allowed)
+      invalid('Association reads require a neutral authorized source list context');
+    const plan = captureAssociationReadContext(this.db, this.resolveIdentity, ctx, source.identity, source.dateContext);
+    const { captured, sourceCollection, targetCollection, relation } = plan;
+    if (source.action.resourceName !== sourceCollection.name || !captured.permission.allowed)
+      invalid('Association source or target read is not authorized');
+    const config = this.prepared.configuration(ctx, plan.identity);
+    const assertCurrent = () => {
+      plan.assertCurrent();
+      if (this.prepared.configuration(ctx, plan.identity) !== config)
+        invalid('Association read preparation phase changed');
+    };
+    const reader = new AccessEntryReadService(
+      this.db,
+      this.prepared,
+      this.queries,
+      this.resolveIdentity,
+      (collection, path, operation) => {
+        assertCurrent();
+        if (!path.length) {
+          if (collection !== sourceCollection) invalid('Association source permission target changed');
+          return source.permission;
+        }
+        if (path.length === 1 && path[0] === relation) {
+          if (collection !== targetCollection) invalid('Association target permission changed');
+          return captured.permission;
+        }
+        const context = this.resolveRelatedContext?.(collection, Object.freeze([...path]), operation);
+        const permission =
+          context == null ? null : captureRelatedReadPermission(this.db, collection, captured.roleName, context);
+        assertCurrent();
+        return permission;
+      },
+    );
+    assertCurrent();
+    const body = await reader.fromResource(
+      ctx,
+      captured.identity,
+      plan.action,
+      captured.params,
+      transaction,
+      captured.dateContext,
+    );
+    assertCurrent();
+    ctx.body = body;
+    if (plan.action.actionName === 'list') ctx.paginate = true;
+  }
 
   /** Association placeholders retain target ACL constraints and reuse the direct read pipeline. */
   async handlePlaceholderWithRelatedContexts(

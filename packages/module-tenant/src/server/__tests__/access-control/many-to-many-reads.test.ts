@@ -7,9 +7,11 @@ import { AccessManyToManyReadService } from '../../access-control/many-to-many-r
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessEntryReadPermission } from '../../access-control/read-grants';
+import { AccessRootReadHandler, type AccessRelatedReadContextResolver } from '../../access-control/root-read-handler';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
+import { finalizedReadContext } from './finalized-read-context';
 import { configFor, ownerCondition } from './fixtures';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
@@ -178,6 +180,125 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
       sourceKey,
       ...extra,
     });
+
+  describe('finalized association handler', () => {
+    const identity = () => ({ tenantId: 'B', userId: 28, roleName: 'reader' });
+    const handler = (resolve?: AccessRelatedReadContextResolver) =>
+      new AccessRootReadHandler(
+        db,
+        adapter,
+        queries,
+        (collection) => [mainIdentity, target, through].find((value) => value.collectionName === collection.name),
+        resolve,
+      );
+    const source = (permission = {}) => finalizedReadContext(db, 'documents', 'list', {}, permission);
+    const request = (
+      kind = 'list',
+      params: Record<string, unknown> = { fields: ['id'], sort: 'id' },
+      sourceId = 1,
+      relation = 'projects',
+    ) => finalizedReadContext(db, `documents.${relation}`, kind, params, {}, sourceId);
+    const throughContext = (permission = {}, params: Record<string, unknown> = {}) =>
+      finalizedReadContext(db, 'links', 'list', params, permission);
+    const execute = async (
+      kind = 'list',
+      params: Record<string, unknown> = { fields: ['id'], sort: 'id' },
+      throughPermission = {},
+    ) => {
+      const linkPermission = await throughContext(throughPermission);
+      const result = Object.assign(ctx, await request(kind, params));
+      const resolve = vi.fn(() => linkPermission);
+      await handler(resolve).handleAssociation(result, identity(), await source());
+      expect(resolve).toHaveBeenCalledWith(
+        links,
+        ['projects', '$through'],
+        expect.objectContaining({ kind, source: mainIdentity }),
+      );
+      return result;
+    };
+
+    it('checks all three ranges without duplicating targets from repeated links', async () => {
+      expect((await execute()).body).toMatchObject({ rows: [{ id: 101 }, { id: 102 }, { id: 104 }], count: 3 });
+    });
+    it.each([
+      ['get', { fields: ['id'], filterByTk: 102 }, { id: 102 }],
+      ['get', { fields: ['id'], filterByTk: 107 }, null],
+      ['count', {}, 3],
+    ] as const)('retains membership and through constraints for %s %j', async (kind, params, expected) => {
+      expect((await execute(kind, params)).body).toEqual(expected);
+    });
+    it('intersects the independent through role scope with its G/V range', async () => {
+      expect((await execute('list', { fields: ['id'] }, { filter: { projectId: 101 } })).body).toMatchObject({
+        rows: [{ id: 101 }],
+        count: 1,
+      });
+    });
+    it.each(['missing', 'denied', 'filtered request'])('rejects %s through authorization before SQL', async (mode) => {
+      const link =
+        mode === 'missing'
+          ? null
+          : await throughContext({}, mode === 'filtered request' ? { filter: { projectId: 101 } } : {});
+      if (mode === 'denied') Object.assign(link!.permission!, { can: false });
+      const result = Object.assign(ctx, await request());
+      const sourceContext = await source();
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(handler(() => link).handleAssociation(result, identity(), sourceContext)).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+      expect(result.body).toBe('unchanged');
+    });
+    it('does not lose source path field restrictions when applying target permissions', async () => {
+      const link = await throughContext();
+      const result = Object.assign(ctx, await request('list', { fields: ['name'] }));
+      await expect(
+        handler(() => link).handleAssociation(
+          result,
+          identity(),
+          await source({ fields: ['id'], appends: ['projects.id'] }),
+        ),
+      ).rejects.toThrow(/authorized/);
+    });
+    it('uses the actual target collection for a differently named relation', async () => {
+      docs.setField('project_refs', {
+        type: 'belongsToMany',
+        target: 'projects',
+        through: 'links',
+        foreignKey: 'documentId',
+        otherKey: 'projectId',
+        throughUnique: false,
+      });
+      const link = await throughContext();
+      const result = Object.assign(ctx, await request('list', { fields: ['id'], sort: 'id' }, 1, 'project_refs'));
+      await handler(() => link).handleAssociation(result, identity(), await source());
+      expect(result.body).toMatchObject({ rows: [{ id: 101 }, { id: 102 }, { id: 104 }], count: 3 });
+    });
+    it('rejects phase release from a through permission callback before SQL', async () => {
+      const link = await throughContext();
+      const result = Object.assign(ctx, await request());
+      const sourceContext = await source();
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(
+        handler(() => {
+          adapter.release(ctx);
+          return link;
+        }).handleAssociation(result, identity(), sourceContext),
+      ).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+      expect(result.body).toBe('unchanged');
+    });
+    it('keeps the trusted caller transaction for uncommitted links', async () => {
+      const link = await throughContext();
+      const transaction = await db.sequelize.transaction();
+      try {
+        await links.model.create({ id: 99, documentId: 1, projectId: 107, tenantId: 'B' }, { transaction });
+        const result = Object.assign(ctx, await request('get', { fields: ['id'], filterByTk: 107 }));
+        await handler(() => link).handleAssociation(result, identity(), await source(), transaction);
+        expect(result.body).toEqual({ id: 107 });
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await links.model.findByPk(99)).toBeNull();
+    });
+  });
   async function ids(sourceKey: string | number = 1, extra = {}) {
     const scoped = await plan(sourceKey, extra);
     return (await projects.model.findAll({ ...scoped.query, order: [['id', 'ASC']] })).map((row) =>

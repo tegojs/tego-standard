@@ -5,7 +5,11 @@ import type { AccessIdentity } from './context';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalReadPermission } from './final-read-permission';
 import { captureReadDateContext, type AccessReadDateContext } from './read-date-filter';
-import { parseResourceCountParams, parseResourceGetParams, parseResourceListParams } from './resource-read-params';
+import {
+  parseResourceAssociationGetParams,
+  parseResourceCountParams,
+  parseResourceListParams,
+} from './resource-read-params';
 import { resolveResourceReadRoute } from './resource-read-routing';
 import { cloneDeep, invalid, plain } from './write-support';
 
@@ -46,7 +50,8 @@ function captureParams(
   permission: unknown,
   resourceName: string,
   actionName: 'list' | 'get' | 'count',
-  association?: { source: string; relation: string },
+  association?: { source: string; relation: string; index: string | number },
+  single = false,
 ) {
   if (!plain(permission)) invalid('Root read permission context is unavailable');
   const raw = data(permission, 'rawParams');
@@ -59,7 +64,7 @@ function captureParams(
     ['resourceName', association?.relation ?? resourceName],
     ['actionName', actionName],
     ['associatedName', association?.source],
-    ['associatedIndex', association ? '_' : undefined],
+    ['associatedIndex', association?.index],
   ] as const) {
     if (Object.hasOwn(params, key) && params[key] !== expected)
       invalid('Root read transport metadata does not match the requested operation');
@@ -82,7 +87,7 @@ function captureParams(
   // Core sets this own undefined property even for lists and counts.
   if (params.filterByTk === undefined) delete params.filterByTk;
   if (actionName === 'list') parseResourceListParams(params);
-  else if (actionName === 'get') parseResourceGetParams(params);
+  else if (actionName === 'get') parseResourceAssociationGetParams(params, single);
   else parseResourceCountParams(params);
   if (params.filter !== undefined) params.filter = captureAccessFilter(params.filter);
   return cloneDeep(params);
@@ -104,14 +109,15 @@ function captureReadContext(
   authenticated: AccessIdentity,
   action: { resourceName: string; actionName: 'list' | 'get' | 'count' },
   dates?: AccessReadDateContext,
-  association?: { source: string; relation: string },
+  association?: { source: string; relation: string; index: string | number },
+  single = false,
 ) {
   if (!plain(authenticated)) invalid('Root read authenticated identity is unavailable');
   const identity = Object.freeze(cloneDeep<AccessIdentity>(authenticated));
   const roleName = identity.roleName;
   if (typeof roleName !== 'string') invalid('Root reads require an authenticated role');
   const permission = captureFinalReadPermission(ctx.permission, { ...action, roleName });
-  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association);
+  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association, single);
   const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
   return { action, identity, roleName, permission, params, dateContext };
 }
@@ -147,13 +153,70 @@ export function capturePlaceholderReadContext(
     authenticated,
     { resourceName: targetName, actionName: actionName as 'get' | 'list' },
     dates,
-    { source, relation },
+    { source, relation, index: '_' },
   );
   const route = resolveResourceReadRoute(db, resolveIdentity, { resourceName, actionName, sourceId: '_' });
   if (route.kind !== 'direct' || route.identity.collectionName !== targetName)
     invalid('Placeholder permission does not match its actual target collection');
   route.assertCurrent();
   return { captured, assertCurrent: route.assertCurrent };
+}
+
+/** A concrete association's final ACL decision belongs to the target, never to its source. */
+export function captureAssociationReadContext(
+  db: Database,
+  resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+  ctx: AccessRootReadContext,
+  authenticated: AccessIdentity,
+  dates?: AccessReadDateContext,
+) {
+  if (ctx.db !== db || !ctx.action || typeof ctx.action !== 'object')
+    invalid('Association read does not match the resource database');
+  const resourceName = data(ctx.action, 'resourceName');
+  const actionName = data(ctx.action, 'actionName');
+  const sourceId = data(ctx.action, 'sourceId');
+  const resourceOf = data(ctx.action, 'resourceOf');
+  if (
+    typeof resourceName !== 'string' ||
+    resourceName.length > 511 ||
+    resourceName.split('.').length !== 2 ||
+    typeof actionName !== 'string' ||
+    !['get', 'list', 'count'].includes(actionName) ||
+    sourceId === '_' ||
+    !(
+      (typeof sourceId === 'string' && sourceId.length > 0 && sourceId.length <= 512) ||
+      (typeof sourceId === 'number' && Number.isSafeInteger(sourceId))
+    ) ||
+    (resourceOf !== undefined && resourceOf !== sourceId)
+  )
+    invalid('Association reads require a concrete source and a get/list/count action');
+  if (!plain(ctx.permission)) invalid('Association target permission is unavailable');
+  const targetName = data(ctx.permission, 'resourceName');
+  if (typeof targetName !== 'string') invalid('Association reads require a target collection decision');
+  const [source, relation] = resourceName.split('.');
+  const captured = captureReadContext(
+    ctx,
+    authenticated,
+    { resourceName: targetName, actionName: actionName as 'get' | 'list' | 'count' },
+    dates,
+    { source, relation, index: sourceId },
+    true,
+  );
+  const action = { resourceName, actionName, sourceId };
+  const route = resolveResourceReadRoute(db, resolveIdentity, action);
+  const target = resolveResourceReadRoute(db, resolveIdentity, { resourceName, actionName: 'get', sourceId: '_' });
+  if (route.kind !== 'association' || target.identity.collectionName !== targetName)
+    invalid('Association permission does not match its actual target collection');
+  const sourceCollection = db.getCollection(source);
+  const targetCollection = db.getCollection(targetName);
+  const single = ['HasOne', 'BelongsTo'].includes(sourceCollection.model.associations[relation].associationType);
+  if (actionName === 'get') parseResourceAssociationGetParams(captured.params, single);
+  const assertCurrent = () => {
+    route.assertCurrent();
+    target.assertCurrent();
+  };
+  assertCurrent();
+  return { captured, action, identity: route.identity, sourceCollection, targetCollection, relation, assertCurrent };
 }
 
 /** Capture only a neutral target list decision finalized by the existing server authorization chain. */

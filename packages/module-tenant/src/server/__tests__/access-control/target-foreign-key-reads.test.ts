@@ -7,10 +7,12 @@ import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessEntryReadPermission } from '../../access-control/read-grants';
 import { AccessReferenceService } from '../../access-control/references';
+import { AccessRootReadHandler } from '../../access-control/root-read-handler';
 import { AccessTargetForeignKeyReadService } from '../../access-control/target-foreign-key-reads';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
+import { finalizedReadContext } from './finalized-read-context';
 import { configFor, ownerCondition } from './fixtures';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
@@ -168,6 +170,206 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('target foreign-
     params: unknown = { fields: ['id'], filterByTk: 101 },
     association = 'children',
   ) => entry.getAssociationFromParams(ctx, mainIdentity, authenticated, { association, sourceKey }, params);
+
+  describe('finalized association handler', () => {
+    const identity = () => ({ tenantId: 'B', userId: 28, roleName: 'reader' });
+    const finalized = (
+      resourceName: string,
+      actionName: string,
+      params: Record<string, unknown>,
+      permission: object,
+      sourceId?: string | number,
+    ) => finalizedReadContext(db, resourceName, actionName, params, permission, sourceId);
+    const source = (permission: object = {}, params: Record<string, unknown> = {}) =>
+      finalized('documents', 'list', params, permission);
+    const request = (
+      kind = 'list',
+      params: Record<string, unknown> = { fields: ['id'], sort: 'id' },
+      sourceId: string | number = 1,
+      permission: object = {},
+      relation = 'children',
+    ) => finalized(`documents.${relation}`, kind, params, permission, sourceId);
+    const handler = (related?: ConstructorParameters<typeof AccessRootReadHandler>[4]) =>
+      new AccessRootReadHandler(
+        db,
+        adapter,
+        queries,
+        (collection) => [mainIdentity, target].find((value) => value.collectionName === collection.name),
+        related,
+      );
+    const execute = async (
+      kind = 'list',
+      sourceId: string | number = 1,
+      params: Record<string, unknown> = { fields: ['id'], sort: 'id' },
+      sourcePermission: object = {},
+      targetPermission: object = {},
+      relation = 'children',
+    ) => {
+      const result = Object.assign(ctx, await request(kind, params, sourceId, targetPermission, relation));
+      await handler().handleAssociation(result, identity(), await source(sourcePermission));
+      return result;
+    };
+
+    it('returns only linked readable targets and preserves target pagination', async () => {
+      const result = await execute();
+      expect(result.body).toEqual({
+        rows: [{ id: 101 }, { id: 102 }, { id: 104 }],
+        count: 3,
+        page: 1,
+        pageSize: 20,
+        totalPage: 1,
+      });
+      expect(result.paginate).toBe(true);
+    });
+    it.each([
+      ['get', { fields: ['id'], filterByTk: 102 }, { id: 102 }],
+      ['count', {}, 3],
+    ] as const)('uses the final target %s decision', async (kind, params, expected) => {
+      const result = await execute(kind, 1, params);
+      expect(result.body).toEqual(expected);
+      expect(result.paginate).toBe(false);
+    });
+    it.each([2, 4, 5])('applies the source visibility and actual membership for source %s', async (sourceId) => {
+      const result = await execute('list', sourceId);
+      const ids = sourceId === 2 ? [105] : sourceId === 4 ? [107] : [];
+      expect(result.body).toMatchObject({ rows: ids.map((id) => ({ id })), count: ids.length });
+    });
+    it('rejects a hidden source without exposing the linked readable target', async () => {
+      await expect(execute('list', 3)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    });
+    it('does not borrow target permission for a source outside the source role range', async () => {
+      await expect(execute('list', 1, { fields: ['id'] }, { filter: { id: 2 } })).rejects.toMatchObject({
+        code: 'ACCESS_RECORD_UNAVAILABLE',
+      });
+    });
+    it('intersects the actual target role range and field restrictions', async () => {
+      expect(
+        (await execute('list', 1, { fields: ['id'] }, {}, { fields: ['id'], filter: { id: 102 } })).body,
+      ).toMatchObject({ rows: [{ id: 102 }], count: 1 });
+      await expect(execute('list', 1, { fields: ['name'] }, {}, { fields: ['id'] })).rejects.toThrow(/authorized/);
+    });
+    it.each(['child', 'children'])('supports concrete %s detail without bypassing membership', async (relation) => {
+      const result = await execute(
+        'get',
+        2,
+        relation === 'child' ? { fields: ['id'] } : { fields: ['id'], filterByTk: 105 },
+        {},
+        {},
+        relation,
+      );
+      expect(result.body).toEqual({ id: 105 });
+      if (relation === 'children')
+        expect((await execute('get', 1, { fields: ['id'], filterByTk: 105 })).body).toBeNull();
+    });
+    it('resolves nested neutral list permissions relative to the original source', async () => {
+      const nested = await source({ fields: ['name'] });
+      const result = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'], filterByTk: 101 }));
+      const resolve = vi.fn(() => nested);
+      await handler(resolve).handleAssociation(result, identity(), await source());
+      expect(result.body).toEqual({ id: 101, document: { name: 'Owned' } });
+      expect(resolve).toHaveBeenCalledWith(
+        docs,
+        ['children', 'document'],
+        expect.objectContaining({ kind: 'get', source: mainIdentity }),
+      );
+    });
+    it('uses a belongs-to source locator without requiring a target detail key', async () => {
+      const sourceContext = await finalized('children', 'list', {}, {});
+      const result = Object.assign(
+        ctx,
+        await finalized('children.document', 'get', { fields: ['name'] }, { fields: ['name'] }, 101),
+      );
+      await handler().handleAssociation(result, identity(), sourceContext);
+      expect(result.body).toEqual({ name: 'Owned' });
+    });
+    it.each([
+      ['placeholder', { sourceId: '_', resourceOf: '_' }, {}, {}],
+      ['conflicting source', { resourceOf: 2 }, {}, {}],
+      ['conflicting transport source', {}, { associatedIndex: 2 }, {}],
+      ['wrong target', {}, {}, { resourceName: 'documents' }],
+      ['denied target', {}, {}, { can: false }],
+    ] as const)('rejects %s before SQL', async (_name, action, raw, permission) => {
+      const result = Object.assign(ctx, await request());
+      const sourceContext = await source();
+      Object.assign(result.action, action);
+      Object.assign((result.permission as { rawParams: object }).rawParams, raw);
+      Object.assign(result.permission!, permission);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(handler().handleAssociation(result, identity(), sourceContext)).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+      expect(result.body).toBe('unchanged');
+    });
+    it.each([{ fields: ['id'] }, { filter: { id: 1 } }])(
+      'rejects source context with unavailable relation or nonneutral request %j',
+      async (params) => {
+        const result = Object.assign(ctx, await request());
+        const sourceContext = 'fields' in params ? await source(params) : await source({}, params);
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(handler().handleAssociation(result, identity(), sourceContext)).rejects.toThrow();
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      },
+    );
+
+    it('captures source and target decisions and identity before metadata callbacks', async () => {
+      const sourceContext = await source();
+      const result = Object.assign(ctx, await request('get', { fields: ['id'], filterByTk: 101 }));
+      const authenticated = identity();
+      const custom = new AccessRootReadHandler(db, adapter, queries, (collection) => {
+        authenticated.tenantId = 'C';
+        Object.assign(sourceContext.permission!, { can: false });
+        Object.assign((result.permission as { rawParams: object }).rawParams, { filterByTk: 103 });
+        return [mainIdentity, target].find((value) => value.collectionName === collection.name);
+      });
+      await custom.handleAssociation(result, authenticated, sourceContext);
+      expect(result.body).toEqual({ id: 101 });
+    });
+
+    it('rechecks the source relation after execution before publishing a response', async () => {
+      const sourceContext = await source();
+      const result = Object.assign(ctx, await request());
+      vi.spyOn(AccessEntryReadService.prototype, 'fromResource').mockImplementationOnce(async () => {
+        docs.model.associations.children = { ...docs.model.associations.children } as never;
+        return { rows: [{ id: 101 }] };
+      });
+      await expect(handler().handleAssociation(result, identity(), sourceContext)).rejects.toThrow(
+        /association changed/,
+      );
+      expect(result.body).toBe('unchanged');
+    });
+
+    it('requires an explicit target key for multi-record relation details before SQL', async () => {
+      const sourceContext = await source();
+      const result = Object.assign(ctx, await request('get', { fields: ['id'] }));
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(handler().handleAssociation(result, identity(), sourceContext)).rejects.toThrow(
+        /explicit scalar key/,
+      );
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      'denied source',
+      'wrong source role',
+      'wrong source collection',
+      'wrong target role',
+      'wrong target action',
+    ])('rejects %s before SQL', async (mode) => {
+      const sourceContext = await source();
+      const result = Object.assign(ctx, await request());
+      const sourcePermission = sourceContext.permission as { can: object; resourceName: string };
+      const permission = result.permission as { can: object; actionName: string };
+      if (mode === 'denied source') Object.assign(sourcePermission, { can: false });
+      if (mode === 'wrong source role') Object.assign(sourcePermission.can, { role: 'other' });
+      if (mode === 'wrong source collection') sourcePermission.resourceName = 'children';
+      if (mode === 'wrong target role') Object.assign(permission.can, { role: 'other' });
+      if (mode === 'wrong target action') permission.actionName = 'get';
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(handler().handleAssociation(result, identity(), sourceContext)).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+      expect(result.body).toBe('unchanged');
+    });
+  });
 
   describe('association scalar aggregate', () => {
     const aggregate = async (

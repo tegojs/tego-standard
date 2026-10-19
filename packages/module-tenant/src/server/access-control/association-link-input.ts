@@ -42,7 +42,12 @@ function transport(permission: unknown, expected: Record<string, unknown>, selec
 }
 
 /** Snapshot the real target action and concrete source before metadata or asynchronous authorization. */
-export function captureAssociationLinkInput(db: Database, ctx: AccessRootReadContext, authenticated: AccessIdentity) {
+export function captureAssociationLinkInput(
+  db: Database,
+  ctx: AccessRootReadContext,
+  authenticated: AccessIdentity,
+  associationType: 'BelongsToMany' | 'HasMany' | 'HasOne',
+) {
   if (ctx.db !== db || !ctx.action || typeof ctx.action !== 'object' || !plain(authenticated))
     invalid('Association database or authenticated context is unavailable');
   const actor = Object.freeze(cloneDeep(authenticated));
@@ -54,7 +59,7 @@ export function captureAssociationLinkInput(db: Database, ctx: AccessRootReadCon
   if (
     typeof resource !== 'string' ||
     resource.split('.').length !== 2 ||
-    !['add', 'remove', 'set'].includes(operation as string) ||
+    !(associationType === 'HasOne' ? ['remove', 'set'] : ['add', 'remove', 'set']).includes(operation as string) ||
     !key(sourceKey) ||
     (resourceOf !== undefined && resourceOf !== sourceKey)
   )
@@ -81,13 +86,26 @@ export function captureAssociationLinkInput(db: Database, ctx: AccessRootReadCon
     ['filterByTk', 'filterByTks', 'values'],
   );
   const selectors = ['filterByTk', 'filterByTks', 'values'].filter((entry) => data(raw, entry) !== undefined);
-  if (selectors.length !== 1) invalid('Association action requires one target selector');
-  const value = data(raw, selectors[0]);
+  const selectedValue = selectors.length === 1 ? data(raw, selectors[0]) : undefined;
+  const selectorlessHasOneRemove =
+    associationType === 'HasOne' &&
+    operation === 'remove' &&
+    (selectors.length === 0 ||
+      (selectors.length === 1 &&
+        selectors[0] === 'values' &&
+        Array.isArray(selectedValue) &&
+        selectedValue.length === 0));
+  if (associationType === 'HasOne' && operation === 'remove' && !selectorlessHasOneRemove)
+    invalid('HasOne remove does not accept target selectors');
+  if (!selectorlessHasOneRemove && selectors.length !== 1) invalid('Association action requires one target selector');
+  const value = selectorlessHasOneRemove ? [] : selectedValue;
+  if (associationType === 'HasOne' && operation === 'set' && Array.isArray(value))
+    invalid('HasOne set requires one scalar target');
   if (Array.isArray(value)) {
     if (
       Object.getPrototypeOf(value) !== Array.prototype ||
       value.length > 1000 ||
-      (!value.length && operation !== 'set') ||
+      (!value.length && operation !== 'set' && !selectorlessHasOneRemove) ||
       Reflect.ownKeys(value).length !== value.length + 1 ||
       Array.from({ length: value.length }, (_, index) => index).some(
         (index) => !Object.hasOwn(value, index) || !key(data(value, index)),

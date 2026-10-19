@@ -7,6 +7,7 @@ import type { AccessIdentity } from './context';
 import { captureAccessFilter } from './filter-input';
 import type { AccessFinalActionPermission } from './final-action-permission';
 import { AccessHasManyService } from './has-many';
+import { AccessHasOneService } from './has-one';
 import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessMutationService } from './mutation';
 import type { AccessQueryService } from './query';
@@ -17,13 +18,14 @@ import { captureRelatedReadPermission, type AccessRootReadContext } from './root
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
 import { cloneDeep, invalid, normalizeKeys, plain } from './write-support';
 
-/** Internal concrete HasMany actions; child edits require their own final update decision. */
-export class AccessHasManyMutationHandler {
+/** Internal concrete foreign-key association actions with independent child write decisions. */
+export class AccessTargetForeignKeyMutationHandler {
   constructor(
     private readonly db: Database,
     private readonly prepared: AccessAclScopeAdapter,
     private readonly queries: AccessQueryService,
     private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+    private readonly associationType: 'HasMany' | 'HasOne' = 'HasMany',
   ) {}
 
   async handle(
@@ -36,7 +38,7 @@ export class AccessHasManyMutationHandler {
     authorizeUpdate: (collection: Collection) => Promise<AccessRootReadContext | null>,
     authorizeRead: (collection: Collection) => Promise<AccessRootReadContext | null>,
   ): Promise<void> {
-    const input = captureAssociationLinkInput(this.db, ctx, authenticated);
+    const input = captureAssociationLinkInput(this.db, ctx, authenticated, this.associationType);
     const { actor, name, operation } = input;
     const roleName = actor.roleName;
     if (typeof roleName !== 'string') invalid('Child mutations require an authenticated role');
@@ -50,9 +52,9 @@ export class AccessHasManyMutationHandler {
       !target ||
       field.target !== target.name ||
       target.name !== input.targetName ||
-      association.associationType !== 'HasMany'
+      association.associationType !== this.associationType
     )
-      invalid('Child mutations require a registered HasMany field');
+      invalid('Child mutations require a registered foreign-key association field');
     const sourceIdentity = cloneDeep(this.resolveIdentity(source));
     const targetIdentity = cloneDeep(this.resolveIdentity(target));
     if (
@@ -70,7 +72,7 @@ export class AccessHasManyMutationHandler {
       sourceIdentity,
       targetIdentity,
       name,
-      'HasMany',
+      this.associationType,
     );
     const inverseNames = () =>
       Object.entries(target.model.associations)
@@ -188,48 +190,67 @@ export class AccessHasManyMutationHandler {
     const sourceWhere = compile(sourcePermission, source, [name], true);
     const targetWhere = compile(input.permission, target, [target.model.primaryKeyAttribute], true);
     current();
-    const result = await new AccessHasManyService(
-      this.db,
-      this.prepared,
-      this.queries,
-      new AccessMutationService(this.db, this.prepared, this.queries),
-      new AccessReferenceService(this.db, this.prepared, this.queries),
-    ).withChildren(
-      ctx,
-      sourceIdentity,
-      targetIdentity,
-      actor,
-      { association: name, operation, sourceKey, targetKeys, sourceWhere, targetWhere },
-      {
-        assertCurrent: current,
-        targetReadScope: async () => {
-          current();
-          const related = await authorizeRead(target);
-          current();
-          if (!related) invalid('Child reference read is not authorized');
-          const decision = captureRelatedReadPermission(this.db, target, roleName, related);
-          const plan = new AccessReadGrantAdapter(this.db, (collection) => {
-            const resolved = this.resolveIdentity(collection);
-            return resolved && accessCollectionKey(resolved);
-          }).capturePlan(targetIdentity, decision, compiler);
-          if (!plan || !plan.grant.fields.includes(target.model.primaryKeyAttribute))
-            invalid('Child reference key is not readable');
-          assertReadCurrent = plan.assertCurrent;
-          current();
-          return { where: plan.grant.where };
-        },
-        targetWriteScope: async () => {
-          current();
-          const related = await authorizeUpdate(target);
-          current();
-          const permission = captureAssociationSourcePermission(this.db, target, roleName, 'update', related);
-          const where = compile(permission, target, [relation.foreignKey, ...aliases], false);
-          current();
-          return { where };
-        },
+    const entry = {
+      assertCurrent: current,
+      targetReadScope: async () => {
+        current();
+        const related = await authorizeRead(target);
+        current();
+        if (!related) invalid('Child reference read is not authorized');
+        const decision = captureRelatedReadPermission(this.db, target, roleName, related);
+        const plan = new AccessReadGrantAdapter(this.db, (collection) => {
+          const resolved = this.resolveIdentity(collection);
+          return resolved && accessCollectionKey(resolved);
+        }).capturePlan(targetIdentity, decision, compiler);
+        if (!plan || !plan.grant.fields.includes(target.model.primaryKeyAttribute))
+          invalid('Child reference key is not readable');
+        assertReadCurrent = plan.assertCurrent;
+        current();
+        return { where: plan.grant.where };
       },
-    );
+      targetWriteScope: async () => {
+        current();
+        const related = await authorizeUpdate(target);
+        current();
+        const permission = captureAssociationSourcePermission(this.db, target, roleName, 'update', related);
+        const where = compile(permission, target, [relation.foreignKey, ...aliases], false);
+        current();
+        return { where };
+      },
+    };
+    const mutations = new AccessMutationService(this.db, this.prepared, this.queries);
+    const references = new AccessReferenceService(this.db, this.prepared, this.queries);
+    const result =
+      this.associationType === 'HasOne'
+        ? operation === 'remove'
+          ? await new AccessHasOneService(this.db, this.prepared, this.queries, mutations, references).removeTarget(
+              ctx,
+              sourceIdentity,
+              targetIdentity,
+              actor,
+              { association: name, sourceKey, sourceWhere, targetWhere },
+              entry,
+            )
+          : await new AccessHasOneService(this.db, this.prepared, this.queries, mutations, references).withTarget(
+              ctx,
+              sourceIdentity,
+              targetIdentity,
+              actor,
+              { association: name, sourceKey, targetKey: targetKeys[0], sourceWhere, targetWhere },
+              entry,
+            )
+        : await new AccessHasManyService(this.db, this.prepared, this.queries, mutations, references).withChildren(
+            ctx,
+            sourceIdentity,
+            targetIdentity,
+            actor,
+            { association: name, operation, sourceKey, targetKeys, sourceWhere, targetWhere },
+            entry,
+          );
     current();
     ctx.body = result;
   }
 }
+
+/** Backward-compatible name for the default HasMany handler. */
+export { AccessTargetForeignKeyMutationHandler as AccessHasManyMutationHandler };

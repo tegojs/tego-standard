@@ -125,7 +125,7 @@ export class AccessReferenceMutationHandler {
     ) => Promise<AccessRootReadContext | null>,
     authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
   ): Promise<void> {
-    const captured = captureAssociationLinkInput(this.db, ctx, authenticated);
+    const captured = captureAssociationLinkInput(this.db, ctx, authenticated, 'BelongsToMany');
     return this.execute(
       ctx,
       captured.actor,

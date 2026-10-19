@@ -101,8 +101,13 @@ export abstract class AccessTargetForeignKeyService {
       Array.isArray(request.targetKeys) && request.targetKeys.length === 0
         ? []
         : normalizeKeys(request.targetKeys, relation.target);
-    if (this.associationType === 'HasOne' && (request.operation !== 'set' || targetKeys.length > 1))
-      invalid('A HasOne replacement requires at most one target');
+    if (
+      this.associationType === 'HasOne' &&
+      (request.operation === 'add' ||
+        (request.operation === 'set' && targetKeys.length > 1) ||
+        (request.operation === 'remove' && targetKeys.length > 0))
+    )
+      invalid('HasOne writes require one replacement target or an implicit remove');
     try {
       return await this.db.sequelize.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
@@ -121,7 +126,9 @@ export abstract class AccessTargetForeignKeyService {
           const candidateWhere = {
             [Op.or]: [
               { [primary]: { [Op.in]: targetKeys } },
-              ...(request.operation === 'set' ? [{ [relation.foreignKey]: sourceKey }] : []),
+              ...(request.operation === 'set' || (this.associationType === 'HasOne' && request.operation === 'remove')
+                ? [{ [relation.foreignKey]: sourceKey }]
+                : []),
             ],
           };
           const records = await relation.targetModel.unscoped().findAll(

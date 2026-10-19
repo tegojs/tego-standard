@@ -1,7 +1,8 @@
-import { ACL, type Collection, type Database } from '@tego/server';
+import { ACL, Resourcer, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessTargetForeignKeyMutationHandler } from '../../access-control/has-many-mutation-handler';
 import { AccessHasOneService } from '../../access-control/has-one';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessMutationService } from '../../access-control/mutation';
@@ -25,9 +26,11 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-one 
   let adapter: AccessAclScopeAdapter;
   let queries: AccessQueryService;
   let service: AccessHasOneService;
+  let handler: AccessTargetForeignKeyMutationHandler;
   let ctx: object;
   const stableKey = (collection: Collection) =>
     accessCollectionKey({ ...mainIdentity, collectionKey: `${collection.name}-key`, collectionName: collection.name });
+  const identity = (collection: Collection) => (collection === docs ? mainIdentity : target);
 
   beforeEach(async () => {
     db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl) : sqliteDatabase();
@@ -108,6 +111,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-one 
       new AccessMutationService(db, adapter, queries),
       new AccessReferenceService(db, adapter, queries),
     );
+    handler = new AccessTargetForeignKeyMutationHandler(db, adapter, queries, identity, 'HasOne');
     ctx = {};
     await adapter.prepare(ctx, [mainIdentity, target]);
   });
@@ -159,6 +163,81 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-one 
     children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
   };
 
+  async function actionContext(
+    resourceName: string,
+    actionName: string,
+    params: object = {},
+    grant: object = {},
+    source?: string,
+  ) {
+    const acl = new ACL();
+    for (const action of ['add', 'remove', 'set', 'update', 'list']) acl.setAvailableAction(action, {});
+    acl.define({ role: 'editor' }).grantAction(`${resourceName}:${actionName}`, grant);
+    const resourcer = new Resourcer();
+    resourcer.define({ name: resourceName, actions: { add: {}, remove: {}, set: {}, update: {}, list: {} } });
+    const action = resourcer.getAction(resourceName, actionName).clone();
+    Object.assign(action, {
+      resourceName: source === undefined ? resourceName : 'documents.profile',
+      actionName,
+      sourceId: source,
+      resourceOf: source,
+    });
+    action.mergeParams({
+      resourceName: source === undefined ? resourceName : 'profile',
+      actionName,
+      filterByTk: undefined,
+      ...(source === undefined ? {} : { associatedName: 'documents', associatedIndex: source }),
+      ...params,
+    });
+    const context = {
+      db,
+      action,
+      permission: undefined as unknown,
+      body: 'unchanged' as unknown,
+      state: { currentRole: 'editor', currentUser: { id: 28, name: 'Owned' } },
+      get: () => '+08:00',
+      getCurrentRepository: () =>
+        source === undefined ? undefined : { targetCollection: db.getCollection(resourceName) },
+      logger: { info: vi.fn() },
+      throw: (status: number) => {
+        throw new Error(String(status));
+      },
+    };
+    await adapter.prepare(context, [mainIdentity, target]);
+    await acl.middleware()(context as never, async () => {});
+    return context;
+  }
+
+  const associationAction = (operation: 'set' | 'remove', params: object = {}, grant: object = {}) =>
+    actionContext('profiles', operation, params, grant, '3');
+
+  const handleAssociation = async (
+    context: Awaited<ReturnType<typeof actionContext>>,
+    sourceGrant: object = {},
+    updateGrant: object = { fields: ['document'] },
+    readGrant: object = { fields: ['id'] },
+    authorizeRead = async () => actionContext('profiles', 'list', {}, readGrant),
+    authorizeUpdate = async () => actionContext('profiles', 'update', {}, updateGrant),
+  ) =>
+    handler.handle(
+      context as never,
+      { ...authenticated, roleName: 'editor', userId: 28 },
+      async (_collection, operation) => actionContext('documents', operation, {}, sourceGrant),
+      authorizeUpdate,
+      authorizeRead,
+    );
+
+  it('resolves association action permissions against the target collection', async () => {
+    const context = await associationAction('set', { values: 101 }, { fields: ['id'] });
+
+    expect(context.permission).toMatchObject({
+      resourceName: 'profiles',
+      actionName: 'set',
+      can: { resource: 'profiles', action: 'set', role: 'editor' },
+      parsedParams: { fields: ['id'] },
+    });
+  });
+
   if (dialect === 'sqlite') {
     it('rejects relationship writes on unvalidated dialects', async () => {
       await expect(mutate(101)).rejects.toMatchObject({ code: 'UNSUPPORTED_ACCESS_MUTATION' });
@@ -166,6 +245,72 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-one 
     });
     return;
   }
+
+  it('replaces one target with independent source, target, read, and update grants', async () => {
+    const context = await associationAction('set', { values: 101 }, { fields: ['id'] });
+    await handleAssociation(context, { fields: ['profile'] });
+    expect(await linked()).toEqual([101]);
+    expect(context.body).toEqual({ keys: [101, 105], affected: 2 });
+  });
+
+  it.each([{}, { values: [] }])('removes the current target without an explicit target selector %j', async (params) => {
+    const context = await associationAction('remove', params);
+    const authorizeRead = vi.fn(async () => actionContext('profiles', 'list', {}, { fields: ['id'] }));
+    await handleAssociation(context, { fields: ['profile'] }, { fields: ['document'] }, {}, authorizeRead);
+    expect(await linked()).toEqual([]);
+    expect(context.body).toEqual({ keys: [105], affected: 1 });
+    expect(authorizeRead).not.toHaveBeenCalled();
+  });
+
+  it('does not let remove bypass G for the current target', async () => {
+    await profiles.model.update({ tenantId: 'H' }, { where: { id: 105 } });
+    const context = await associationAction('remove');
+    await expect(handleAssociation(context, { fields: ['profile'] })).rejects.toMatchObject({
+      code: 'ACCESS_RECORD_UNAVAILABLE',
+    });
+    expect(await linked()).toEqual([105]);
+  });
+
+  it('requires the target update grant to include its inverse relationship field', async () => {
+    const context = await associationAction('remove');
+    await expect(handleAssociation(context, { fields: ['profile'] }, { fields: ['name'] })).rejects.toMatchObject({
+      code: 'INVALID_ACCESS_MUTATION',
+    });
+    expect(await linked()).toEqual([105]);
+  });
+
+  it('rejects relationship metadata changes during asynchronous update authorization', async () => {
+    const context = await associationAction('remove');
+    const authorizeUpdate = async () => {
+      const decision = await actionContext('profiles', 'update', {}, { fields: ['document'] });
+      profiles.removeField('document');
+      return decision;
+    };
+
+    await expect(
+      handleAssociation(
+        context,
+        { fields: ['profile'] },
+        { fields: ['document'] },
+        { fields: ['id'] },
+        undefined,
+        authorizeUpdate,
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+    expect(await linked()).toEqual([105]);
+  });
+
+  it('intersects target remove and independent update role conditions', async () => {
+    const context = await associationAction('remove', {}, { filter: { id: 101 } });
+    await expect(handleAssociation(context, { fields: ['profile'] })).rejects.toMatchObject({
+      code: 'ACCESS_RECORD_UNAVAILABLE',
+    });
+    const unrestricted = await associationAction('remove');
+    await expect(
+      handleAssociation(unrestricted, { fields: ['profile'] }, { fields: ['document'], filter: { id: 101 } }),
+    ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    expect(await linked()).toEqual([105]);
+  });
 
   it('replaces and clears a single target without transferring ownership', async () => {
     expect(await mutate(101)).toEqual({ keys: [101, 105], affected: 2 });

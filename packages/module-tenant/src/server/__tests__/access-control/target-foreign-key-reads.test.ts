@@ -210,6 +210,200 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('target foreign-
       return result;
     };
 
+    describe('asynchronous association preparation', () => {
+      it.each(['list', 'get', 'count'] as const)(
+        'prepares nested paths using the original %s operation',
+        async (kind) => {
+          const nested = await source({ fields: ['name'], filter: { id: 1 } });
+          const result = Object.assign(
+            ctx,
+            await request(kind, {
+              filter: { document: { name: 'Owned' } },
+              ...(kind === 'count' ? {} : { fields: ['id', 'document.name'] }),
+              ...(kind === 'get' ? { filterByTk: 101 } : {}),
+              ...(kind === 'list' ? { sort: ['document.name', 'id'] } : {}),
+            }),
+          );
+          const authorize = vi.fn(async () => nested);
+          await handler().handleAssociationWithRelatedContexts(result, identity(), await source(), authorize);
+          expect(authorize).toHaveBeenCalledOnce();
+          expect(authorize).toHaveBeenCalledWith(docs, ['children', 'document'], {
+            kind,
+            context: result,
+            source: mainIdentity,
+            authenticated: identity(),
+          });
+          expect(result.body).toEqual(
+            kind === 'count'
+              ? 3
+              : kind === 'get'
+                ? { id: 101, document: { name: 'Owned' } }
+                : {
+                    rows: [101, 102, 104].map((id) => ({ id, document: { name: 'Owned' } })),
+                    count: 3,
+                    page: 1,
+                    pageSize: 20,
+                    totalPage: 1,
+                  },
+          );
+        },
+      );
+
+      it('supports single-value details without inventing a target key', async () => {
+        const nested = await source({ fields: ['name'] });
+        const result = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'] }, 2, {}, 'child'));
+        await handler().handleAssociationWithRelatedContexts(result, identity(), await source(), async () => nested);
+        expect(result.body).toEqual({ id: 105, document: { name: 'Visible' } });
+      });
+
+      it('supports belongs-to details and retains the source-relative nested path', async () => {
+        const nested = await finalized('children', 'list', {}, { fields: ['id'] });
+        const result = Object.assign(
+          ctx,
+          await finalized('children.document', 'get', { fields: ['id', 'children.id'] }, {}, 101),
+        );
+        const authorize = vi.fn(async () => nested);
+        await handler().handleAssociationWithRelatedContexts(
+          result,
+          identity(),
+          await finalized('children', 'list', {}, {}),
+          authorize,
+        );
+        expect(result.body).toEqual({ id: 1, children: [101, 102, 104].map((id) => ({ id })) });
+        expect(authorize).toHaveBeenCalledWith(
+          children,
+          ['document', 'children'],
+          expect.objectContaining({ kind: 'get', source: target }),
+        );
+      });
+
+      it('does not require a neutral target list decision or unused permissions', async () => {
+        const result = Object.assign(ctx, await request('count', {}));
+        const authorize = vi.fn(async () => null);
+        await handler().handleAssociationWithRelatedContexts(result, identity(), await source(), authorize);
+        expect(result.body).toBe(3);
+        expect(authorize).not.toHaveBeenCalled();
+      });
+
+      it.each(['missing', 'denied', 'nonneutral'])('rejects %s nested permission before SQL', async (mode) => {
+        const nested = mode === 'missing' ? null : await source({}, mode === 'nonneutral' ? { filter: { id: 1 } } : {});
+        if (mode === 'denied') Object.assign(nested!.permission!, { can: false });
+        const result = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'], filterByTk: 101 }));
+        const sourceContext = await source();
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          handler().handleAssociationWithRelatedContexts(result, identity(), sourceContext, async () => nested),
+        ).rejects.toThrow();
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      });
+
+      it('captures both decisions, request and identity before awaiting authorization', async () => {
+        const nested = await source({ fields: ['name'] });
+        const result = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'], filterByTk: 101 }));
+        const sourceContext = await source();
+        const authenticated = identity();
+        await handler().handleAssociationWithRelatedContexts(
+          result,
+          authenticated,
+          sourceContext,
+          async (_collection, path, operation) => {
+            await Promise.resolve();
+            expect(Object.isFrozen(path)).toBe(true);
+            expect(Object.isFrozen(operation.authenticated)).toBe(true);
+            authenticated.tenantId = 'C';
+            Object.assign(sourceContext.permission!, { can: false });
+            Object.assign(result.permission!, { can: false });
+            Object.assign((result.permission as { rawParams: object }).rawParams, { filterByTk: 103 });
+            return nested;
+          },
+        );
+        expect(result.body).toEqual({ id: 101, document: { name: 'Owned' } });
+      });
+
+      it.each(['phase', 'relation'])('rejects %s changes during authorization without querying', async (mode) => {
+        const nested = await source();
+        const result = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'], filterByTk: 101 }));
+        const sourceContext = await source();
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          handler().handleAssociationWithRelatedContexts(result, identity(), sourceContext, async () => {
+            await Promise.resolve();
+            if (mode === 'phase') adapter.release(result);
+            else docs.model.associations.children = { ...docs.model.associations.children } as never;
+            return nested;
+          }),
+        ).rejects.toThrow();
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      });
+
+      it('rechecks prepared nested relations after execution before publishing the response', async () => {
+        const nested = await source();
+        const result = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'], filterByTk: 101 }));
+        vi.spyOn(AccessEntryReadService.prototype, 'fromResource').mockImplementationOnce(async () => {
+          children.model.associations.document = { ...children.model.associations.document } as never;
+          return { id: 101 };
+        });
+        await expect(
+          handler().handleAssociationWithRelatedContexts(result, identity(), await source(), async () => nested),
+        ).rejects.toThrow(/association changed/);
+        expect(result.body).toBe('unchanged');
+      });
+
+      it('retains the caller transaction after asynchronous preparation', async () => {
+        const nested = await source({ fields: ['name'] });
+        const transaction = await db.sequelize.transaction();
+        try {
+          await children.model.create({ id: 108, documentId: 1, tenantId: 'B', name: 'Owned' }, { transaction });
+          const result = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'], filterByTk: 108 }));
+          await handler().handleAssociationWithRelatedContexts(
+            result,
+            identity(),
+            await source(),
+            async () => nested,
+            transaction,
+          );
+          expect(result.body).toEqual({ id: 108, document: { name: 'Owned' } });
+        } finally {
+          await transaction.rollback();
+        }
+        expect(await children.model.findByPk(108)).toBeNull();
+      });
+
+      it('keeps concurrent association requests and prepared permissions independent', async () => {
+        const first = Object.assign(ctx, await request('get', { fields: ['id', 'document.name'], filterByTk: 101 }));
+        const second = { ...(await request('get', { fields: ['id', 'document.name'], filterByTk: 105 }, 2)) };
+        await adapter.prepare(second, [mainIdentity, target]);
+        const firstPermission = await source({ fields: ['name'], filter: { id: 1 } });
+        const secondPermission = await source({ fields: ['name'], filter: { id: 2 } });
+        const sourceContext = await source();
+        let release!: () => void;
+        const wait = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const shared = handler();
+        const pending = shared.handleAssociationWithRelatedContexts(first, identity(), sourceContext, async () => {
+          await wait;
+          return firstPermission;
+        });
+        try {
+          await shared.handleAssociationWithRelatedContexts(
+            second,
+            identity(),
+            sourceContext,
+            async () => secondPermission,
+          );
+          expect(second.body).toEqual({ id: 105, document: { name: 'Visible' } });
+          expect(first.body).toBe('unchanged');
+        } finally {
+          release();
+          await pending;
+        }
+        expect(first.body).toEqual({ id: 101, document: { name: 'Owned' } });
+      });
+    });
+
     it('returns only linked readable targets and preserves target pagination', async () => {
       const result = await execute();
       expect(result.body).toEqual({

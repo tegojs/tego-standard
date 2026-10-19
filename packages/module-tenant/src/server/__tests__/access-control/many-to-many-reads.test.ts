@@ -217,6 +217,105 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('many-to-many re
       return result;
     };
 
+    describe('asynchronous association preparation', () => {
+      it.each(['list', 'get', 'count'] as const)(
+        'awaits independent through permissions for %s without reauthorizing the target',
+        async (kind) => {
+          const link = await throughContext({ filter: { projectId: 101 } });
+          const result = Object.assign(
+            ctx,
+            await request(
+              kind,
+              kind === 'count'
+                ? {}
+                : {
+                    fields: ['id'],
+                    ...(kind === 'get' ? { filterByTk: 102 } : {}),
+                  },
+            ),
+          );
+          const authorize = vi.fn(async () => {
+            await Promise.resolve();
+            return link;
+          });
+          await handler().handleAssociationWithRelatedContexts(result, identity(), await source(), authorize);
+          expect(authorize).toHaveBeenCalledOnce();
+          expect(authorize).toHaveBeenCalledWith(links, ['projects', '$through'], {
+            kind,
+            context: result,
+            source: mainIdentity,
+            authenticated: identity(),
+          });
+          expect(result.body).toEqual(
+            kind === 'count'
+              ? 1
+              : kind === 'get'
+                ? null
+                : { rows: [{ id: 101 }], count: 1, page: 1, pageSize: 20, totalPage: 1 },
+          );
+        },
+      );
+
+      it.each(['missing', 'denied', 'nonneutral'])('rejects %s through permission before SQL', async (mode) => {
+        const link =
+          mode === 'missing' ? null : await throughContext({}, mode === 'nonneutral' ? { filter: { id: 1 } } : {});
+        if (mode === 'denied') Object.assign(link!.permission!, { can: false });
+        const result = Object.assign(ctx, await request());
+        const sourceContext = await source();
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          handler().handleAssociationWithRelatedContexts(result, identity(), sourceContext, async () => link),
+        ).rejects.toThrow();
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      });
+
+      it('prepares nested many-to-many paths and their actual through models', async () => {
+        projects.setField('documents', {
+          type: 'belongsToMany',
+          target: 'documents',
+          through: 'links',
+          foreignKey: 'projectId',
+          otherKey: 'documentId',
+          throughUnique: false,
+        });
+        const link = await throughContext({ filter: { projectId: 101 } });
+        const nested = await source({ fields: ['id'], filter: { id: 1 } });
+        const result = Object.assign(ctx, await request('get', { fields: ['id', 'documents.id'], filterByTk: 101 }));
+        const seen: string[] = [];
+        await handler().handleAssociationWithRelatedContexts(
+          result,
+          identity(),
+          await source(),
+          async (collection, path) => {
+            seen.push(path.join('.'));
+            return collection === links ? link : nested;
+          },
+        );
+        expect(new Set(seen)).toEqual(
+          new Set(['projects.$through', 'projects.documents', 'projects.documents.$through']),
+        );
+        expect(result.body).toEqual({ id: 101, documents: [{ id: 1 }] });
+      });
+
+      it('rejects changes to the actual through model while awaiting its permission', async () => {
+        const link = await throughContext();
+        const result = Object.assign(ctx, await request());
+        const sourceContext = await source();
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          handler().handleAssociationWithRelatedContexts(result, identity(), sourceContext, async () => {
+            await Promise.resolve();
+            const relation = docs.model.associations.projects as unknown as { through: { model: unknown } };
+            relation.through.model = projects.model;
+            return link;
+          }),
+        ).rejects.toThrow(/through/);
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      });
+    });
+
     it('checks all three ranges without duplicating targets from repeated links', async () => {
       expect((await execute()).body).toMatchObject({ rows: [{ id: 101 }, { id: 102 }, { id: 104 }], count: 3 });
     });

@@ -56,7 +56,7 @@ export async function prepareRelatedReadContexts(
   operation: AccessEntryReadOperation,
   paths: unknown,
   authorize: AccessRelatedReadAuthorizer,
-): Promise<AccessRelatedReadContextResolver> {
+): Promise<AccessRelatedReadContextResolver & { assertCurrent(): void }> {
   if (
     !plain(operation) ||
     !operation.context ||
@@ -169,7 +169,7 @@ export async function prepareRelatedReadContexts(
     });
   }
   assertCurrent();
-  return (collection, path, current) => {
+  const resolve: AccessRelatedReadContextResolver = (collection, path, current) => {
     if (
       current.context !== captured.context ||
       current.kind !== captured.kind ||
@@ -184,4 +184,5 @@ export async function prepareRelatedReadContexts(
     if (nodes.get(key)?.collection !== collection) invalid('Prepared related permission target does not match');
     return { ...context, permission: cloneDeep(context.permission) };
   };
+  return Object.assign(resolve, { assertCurrent });
 }

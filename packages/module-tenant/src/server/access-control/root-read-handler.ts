@@ -1,6 +1,7 @@
 import type { Collection, Database, Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { prepareAssociationReadContexts } from './association-read-contexts';
 import { parseChartQueryParams } from './chart-query-params';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
@@ -49,6 +50,29 @@ export class AccessRootReadHandler {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ): Promise<void> {
+    await this.executeAssociation(ctx, authenticated, sourceContext, transaction, dates);
+  }
+
+  /** Await only the through/nested decisions used by this concrete association operation. */
+  async handleAssociationWithRelatedContexts(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    sourceContext: AccessRootReadContext,
+    authorize: AccessRelatedReadAuthorizer,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ): Promise<void> {
+    await this.executeAssociation(ctx, authenticated, sourceContext, transaction, dates, authorize);
+  }
+
+  private async executeAssociation(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    sourceContext: AccessRootReadContext,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+    authorize?: AccessRelatedReadAuthorizer,
+  ) {
     // Capture the neutral source decision before any collection metadata callback can change it.
     const source = captureRootReadContext(this.db, sourceContext, authenticated, dates);
     if (source.action.actionName !== 'list' || Reflect.ownKeys(source.params).length || !source.permission.allowed)
@@ -63,13 +87,27 @@ export class AccessRootReadHandler {
       if (this.prepared.configuration(ctx, plan.identity) !== config)
         invalid('Association read preparation phase changed');
     };
+    const preparation = authorize
+      ? await prepareAssociationReadContexts(
+          this.db,
+          this.prepared,
+          this.queries,
+          this.resolveIdentity,
+          ctx,
+          plan,
+          authorize,
+          assertCurrent,
+        )
+      : undefined;
+    const related = preparation?.related ?? this.resolveRelatedContext;
+    const assertReady = preparation?.assertCurrent ?? assertCurrent;
     const reader = new AccessEntryReadService(
       this.db,
       this.prepared,
       this.queries,
       this.resolveIdentity,
       (collection, path, operation) => {
-        assertCurrent();
+        assertReady();
         if (!path.length) {
           if (collection !== sourceCollection) invalid('Association source permission target changed');
           return source.permission;
@@ -78,14 +116,14 @@ export class AccessRootReadHandler {
           if (collection !== targetCollection) invalid('Association target permission changed');
           return captured.permission;
         }
-        const context = this.resolveRelatedContext?.(collection, Object.freeze([...path]), operation);
+        const context = related?.(collection, Object.freeze([...path]), operation);
         const permission =
           context == null ? null : captureRelatedReadPermission(this.db, collection, captured.roleName, context);
-        assertCurrent();
+        assertReady();
         return permission;
       },
     );
-    assertCurrent();
+    assertReady();
     const body = await reader.fromResource(
       ctx,
       captured.identity,
@@ -94,7 +132,7 @@ export class AccessRootReadHandler {
       transaction,
       captured.dateContext,
     );
-    assertCurrent();
+    assertReady();
     ctx.body = body;
     if (plan.action.actionName === 'list') ctx.paginate = true;
   }

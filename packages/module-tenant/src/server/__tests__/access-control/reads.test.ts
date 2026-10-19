@@ -18,6 +18,7 @@ import { captureFinalReadPermission } from '../../access-control/final-read-perm
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from '../../access-control/read-grants';
+import { collectRelatedReadPaths } from '../../access-control/read-paths';
 import { AccessReadService } from '../../access-control/reads';
 import { prepareRelatedReadContexts } from '../../access-control/related-read-contexts';
 import type { AccessFilterReadGrant } from '../../access-control/request-filter';
@@ -201,6 +202,214 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       return result;
     };
 
+    describe('path planning', () => {
+      const plan = (
+        params: unknown,
+        kind: 'list' | 'get' | 'count' = 'list',
+        dates?: { now: string; timezone: string },
+      ) =>
+        collectRelatedReadPaths(
+          db,
+          adapter,
+          queries,
+          (collection) => identities.find((identity) => identity.collectionName === collection.name),
+          { kind, context: ctx, source: mainIdentity, authenticated: trusted() },
+          params,
+          dates,
+        );
+
+      it.each([
+        ['list', {}],
+        ['get', { filterByTk: 1, fields: ['name'] }],
+        ['count', { filter: { name: 'Owned' } }],
+      ] as const)('does not invent association paths for root %s', (kind, params) => {
+        const sql = vi.spyOn(db.sequelize, 'query');
+        expect(plan(params, kind)).toEqual([]);
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it('collects and deduplicates the same path across filter, sort and selection without SQL', () => {
+        const sql = vi.spyOn(db.sequelize, 'query');
+        const paths = plan({
+          fields: ['id', 'project.name'],
+          appends: ['project'],
+          filter: { project: { name: { $includes: 'a' } } },
+          sort: '-project.name,id',
+        });
+        expect(paths).toEqual([['project']]);
+        expect(Object.isFrozen(paths)).toBe(true);
+        expect(Object.isFrozen(paths[0])).toBe(true);
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it.each(['list', 'get', 'count'] as const)('collects nested user filters for %s', (kind) => {
+        projects.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'projectId' });
+        expect(
+          plan(
+            {
+              ...(kind === 'get' ? { filterByTk: 1 } : {}),
+              filter: { 'project.parent.name': { $eq: 'Owned' } },
+            },
+            kind,
+          ),
+        ).toEqual([['project'], ['project', 'parent']]);
+      });
+
+      it('collects nested expansions and leaves unused except paths out', () => {
+        projects.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'projectId' });
+        expect(plan({ appends: ['project.parent.name'], except: ['project.parent.id'] })).toEqual([
+          ['project'],
+          ['project', 'parent'],
+        ]);
+        expect(plan({ except: ['project.name'] })).toEqual([]);
+      });
+
+      it('includes a registered many-to-many through path even for selection-only reads', () => {
+        docs.setField('links', { type: 'belongsToMany', target: 'projects', through: 'document_projects' });
+        const through = db.getCollection('document_projects');
+        const resolve = (collection: Collection) =>
+          collection === through
+            ? { ...mainIdentity, collectionKey: 'through-key', collectionName: through.name }
+            : identities.find((identity) => identity.collectionName === collection.name);
+        const collect = (params: unknown) =>
+          collectRelatedReadPaths(
+            db,
+            adapter,
+            queries,
+            resolve,
+            {
+              kind: 'list',
+              context: ctx,
+              source: mainIdentity,
+              authenticated: trusted(),
+            },
+            params,
+          );
+        expect(collect({ appends: ['links.name'] })).toEqual([['links'], ['links', '$through']]);
+        expect(collect({ filter: { links: { name: 'Zebra' } } })).toEqual([['links'], ['links', '$through']]);
+      });
+
+      it('uses the server clock for date shortcuts without creating authorization-fact paths', () => {
+        expect(
+          plan({ filter: { 'project.occurredAt': { $dateOn: '{{$nDate.today}}' } } }, 'list', {
+            now: '2026-10-19T00:00:00.000Z',
+            timezone: '+08:00',
+          }),
+        ).toEqual([['project']]);
+      });
+
+      it.each([
+        { appends: ['missing'] },
+        { fields: ['project.missing'] },
+        { filter: { project: { missing: 1 } } },
+        { filter: { project: { name: { $wat: 1 } } } },
+        { sort: ['project.missing'] },
+        { sort: ['project.name', 'project.name'] },
+        { pageSize: 1001 },
+        { tree: true },
+        { paginate: false },
+        { values: {} },
+      ])('preserves strict parser rejection for unsupported params %j', (params) => {
+        expect(() => plan(params)).toThrow();
+      });
+
+      it('snapshots the request before metadata callbacks can mutate it', () => {
+        const params = { fields: ['id'], appends: ['project.name'] };
+        const paths = collectRelatedReadPaths(
+          db,
+          adapter,
+          queries,
+          (collection) => {
+            params.appends.length = 0;
+            return identities.find((identity) => identity.collectionName === collection.name);
+          },
+          { kind: 'list', context: ctx, source: mainIdentity, authenticated: trusted() },
+          params,
+        );
+        expect(paths).toEqual([['project']]);
+      });
+
+      it('snapshots filter values before resolving the root collection identity', () => {
+        const params = { filter: { project: { name: 'Zebra' } } };
+        const paths = collectRelatedReadPaths(
+          db,
+          adapter,
+          queries,
+          (collection) => {
+            Reflect.deleteProperty(params.filter, 'project');
+            return identities.find((identity) => identity.collectionName === collection.name);
+          },
+          { kind: 'list', context: ctx, source: mainIdentity, authenticated: trusted() },
+          params,
+        );
+        expect(paths).toEqual([['project']]);
+      });
+
+      it('rejects getter input without invoking it', () => {
+        const getter = vi.fn(() => ['project']);
+        const params = Object.defineProperty({}, 'appends', { get: getter });
+        expect(() => plan(params)).toThrow();
+        expect(getter).not.toHaveBeenCalled();
+      });
+
+      it.each(['fields', 'appends', 'sort', 'filter'])('does not normalize invalid array prototypes in %s', (key) => {
+        const values = key === 'filter' ? [{ name: 'Owned' }] : [key === 'fields' ? 'id' : 'project.name'];
+        Object.setPrototypeOf(values, Object.create(Array.prototype));
+        expect(() => plan(key === 'filter' ? { filter: { $and: values } } : { [key]: values })).toThrow();
+      });
+
+      it('bounds the union of used paths without querying or scanning unused targets', () => {
+        for (let index = 0; index < 101; index++)
+          docs.setField(`link${index}`, { type: 'belongsTo', target: 'projects', foreignKey: 'projectId' });
+        const filter = Object.fromEntries(
+          Array.from({ length: 100 }, (_, index) => [`link${index}`, { name: 'Zebra' }]),
+        );
+        const sql = vi.spyOn(db.sequelize, 'query');
+        expect(plan({ filter }, 'count')).toHaveLength(100);
+        expect(() => plan({ filter: { ...filter, link100: { name: 'Zebra' } } }, 'count')).toThrow(/path limit/);
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it('rejects non-scalar ordering and missing through identities', () => {
+        expect(() => plan({ sort: ['project.labels'] })).toThrow(/scalar/);
+        docs.setField('links', { type: 'belongsToMany', target: 'projects', through: 'document_projects' });
+        expect(() => plan({ appends: ['links.name'] })).toThrow(/identity/);
+      });
+
+      it.each(['wrong source', 'other data source', 'unregistered model'])(
+        'rejects metadata binding errors: %s',
+        (kind) => {
+          const resolve = (collection: Collection) => {
+            if (kind === 'unregistered model' && collection === projects) db.modelCollection.delete(projects.model);
+            const identity = identities.find((identity) => identity.collectionName === collection.name);
+            if (
+              (kind === 'wrong source' && collection === docs) ||
+              (kind === 'other data source' && collection === projects)
+            )
+              return { ...identity!, dataSourceKey: 'other' };
+            return identity;
+          };
+          const sql = vi.spyOn(db.sequelize, 'query');
+          expect(() =>
+            collectRelatedReadPaths(
+              db,
+              adapter,
+              queries,
+              resolve,
+              {
+                kind: 'list',
+                context: ctx,
+                source: mainIdentity,
+                authenticated: trusted(),
+              },
+              { appends: ['project.name'] },
+            ),
+          ).toThrow();
+          expect(sql).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     describe('related permissions', () => {
       const targetContext = async (permission = {}, raw: Record<string, unknown> = {}, actionName = 'list') => {
         const acl = allowed();
@@ -215,18 +424,20 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
 
       it('uses asynchronously prepared permissions for real filtered and expanded root reads', async () => {
         const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
-        const result = await authorized('list', {
+        const params = {
           fields: ['id'],
           appends: ['project'],
           filter: { project: { name: { $includes: 'a' } } },
-        });
-        const resolve = await prepareRelatedReadContexts(
-          db,
-          (collection) => identities.find((identity) => identity.collectionName === collection.name),
-          { kind: 'list', context: result, source: mainIdentity, authenticated: trusted() },
-          [['project']],
-          async () => target,
-        );
+          sort: ['project.name'],
+        };
+        const result = await authorized('list', params);
+        const operation = { kind: 'list' as const, context: result, source: mainIdentity, authenticated: trusted() };
+        const resolveIdentity = (collection: Collection) =>
+          identities.find((identity) => identity.collectionName === collection.name);
+        const paths = collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params);
+        const authorize = vi.fn(async () => target);
+        const resolve = await prepareRelatedReadContexts(db, resolveIdentity, operation, paths, authorize);
+        expect(authorize).toHaveBeenCalledTimes(1);
         Object.assign((target.permission as { parsedParams: object }).parsedParams, { fields: [], filter: {} });
         await createHandler(undefined, resolve).handle(result, trusted());
         expect(result.body).toEqual({
@@ -240,16 +451,61 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
 
       it('retains root rows while asynchronously prepared target G/V hides associated data', async () => {
         const target = await targetContext({ fields: ['name'] });
-        const result = await authorized('get', { filterByTk: 2, fields: ['id'], appends: ['project'] });
+        const params = { filterByTk: 2, fields: ['id'], appends: ['project'] };
+        const result = await authorized('get', params);
+        const operation = { kind: 'get' as const, context: result, source: mainIdentity, authenticated: trusted() };
+        const resolveIdentity = (collection: Collection) =>
+          identities.find((identity) => identity.collectionName === collection.name);
         const resolve = await prepareRelatedReadContexts(
           db,
-          (collection) => identities.find((identity) => identity.collectionName === collection.name),
-          { kind: 'get', context: result, source: mainIdentity, authenticated: trusted() },
-          [['project']],
+          resolveIdentity,
+          operation,
+          collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params),
           async () => target,
         );
         await createHandler(undefined, resolve).handle(result, trusted());
         expect(result.body).toEqual({ id: 2, project: null });
+      });
+
+      it.each(['missing target', 'target field', 'parent field'])(
+        'path planning does not grant access: %s',
+        async (kind) => {
+          const target = await targetContext({ fields: kind === 'target field' ? ['id'] : ['name'] });
+          const acl = allowed();
+          if (kind === 'parent field') acl.getRole('reader').grantAction('documents:view', { fields: ['id'] });
+          const params = { fields: ['id'], filter: { project: { name: 'Zebra' } } };
+          const result = await authorized('list', params, acl);
+          const operation = { kind: 'list' as const, context: result, source: mainIdentity, authenticated: trusted() };
+          const resolveIdentity = (collection: Collection) =>
+            identities.find((identity) => identity.collectionName === collection.name);
+          const sql = vi.spyOn(db.sequelize, 'query');
+          const paths = collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params);
+          const resolve = await prepareRelatedReadContexts(db, resolveIdentity, operation, paths, async () =>
+            kind === 'missing target' ? null : target,
+          );
+          await expect(createHandler(undefined, resolve).handle(result, trusted())).rejects.toThrow(/authorized/);
+          expect(result.body).toBe('unchanged');
+          expect(sql).not.toHaveBeenCalled();
+        },
+      );
+
+      it('does not request target permissions for internal role-filter relationship facts', async () => {
+        const acl = allowed();
+        acl
+          .getRole('reader')
+          .grantAction('documents:view', { fields: ['id'], filter: { project: { name: 'Secret' } } });
+        const params = { fields: ['id'] };
+        const result = await authorized('list', params, acl);
+        const operation = { kind: 'list' as const, context: result, source: mainIdentity, authenticated: trusted() };
+        const resolveIdentity = (collection: Collection) =>
+          identities.find((identity) => identity.collectionName === collection.name);
+        const paths = collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params);
+        const authorize = vi.fn(async () => null);
+        const resolve = await prepareRelatedReadContexts(db, resolveIdentity, operation, paths, authorize);
+        await createHandler(undefined, resolve).handle(result, trusted());
+        expect(paths).toEqual([]);
+        expect(authorize).not.toHaveBeenCalled();
+        expect(result.body).toMatchObject({ rows: [{ id: 2 }], count: 1 });
       });
 
       it('expands only readable target rows while retaining every readable root and native count', async () => {

@@ -10,13 +10,8 @@ export interface AccessReadDateContext {
   timezone: string;
 }
 
-/** Resolve date shortcuts only; never interpret user variables, code or permission inputs. */
-export function resolveReadDateFilter(
-  filter: unknown,
-  context: AccessReadDateContext,
-  resolveFieldTimezone: (path: readonly string[]) => unknown = () => undefined,
-): unknown {
-  const input = captureAccessFilter(filter);
+/** Capture before metadata callbacks so later mutations cannot change the clock or UTC offset. */
+export function captureReadDateContext(context: AccessReadDateContext): Readonly<AccessReadDateContext> {
   if (
     !plain(context) ||
     Reflect.ownKeys(context).length !== 2 ||
@@ -30,6 +25,17 @@ export function resolveReadDateFilter(
   const timezone = normalizeDateFilterTimezone(context.timezone);
   if (typeof now !== 'string' || !now.endsWith('Z')) invalid('Date context requires a UTC instant');
   normalizeDateFilterOperand('$dateOn', now, timezone);
+  return Object.freeze({ now, timezone });
+}
+
+/** Resolve date shortcuts only; never interpret user variables, code or permission inputs. */
+export function resolveReadDateFilter(
+  filter: unknown,
+  context: AccessReadDateContext,
+  resolveFieldTimezone: (path: readonly string[]) => unknown = () => undefined,
+): unknown {
+  const input = captureAccessFilter(filter);
+  const { now, timezone } = captureReadDateContext(context);
   const variables = getDateVars();
   const fieldZones = new Map<string, string>();
   const operand = (operator: string, value: unknown, path: readonly string[]) => {

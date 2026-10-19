@@ -964,6 +964,192 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     });
   });
 
+  describe('chart query', () => {
+    const values = () => ({
+      uid: 'chart-test',
+      dataSource: 'main',
+      collection: 'documents',
+      measures: [{ field: ['amount'], aggregation: 'sum', alias: '金额' }],
+      dimensions: [{ field: ['tenantId'], alias: '归属' }],
+      orders: [],
+      cache: { enabled: true, ttl: 30 },
+      refresh: false,
+    });
+    const chartQuery = (extra: Record<string, unknown> = {}) =>
+      entryReads.chartFromQuery(ctx, auth, { ...values(), ...extra });
+
+    it('accepts a complete chart envelope and applies current list permissions and G/V', async () => {
+      permissions.set('', {
+        allowed: true,
+        params: { fields: ['amount', 'tenantId'], filter: { amount: { $gte: 20 } } },
+      });
+      expect(await chartQuery()).toEqual([
+        { 归属: 'B', 金额: 50 },
+        { 归属: 'H', 金额: 20 },
+        { 归属: null, 金额: 40 },
+      ]);
+      expect(entryResolver.mock.calls.every(([, , operation]) => operation.kind === 'list')).toBe(true);
+      expect(await chartQuery({ dataSource: undefined, dimensions: [], filter: { tenantId: 'B' } })).toEqual([
+        { 金额: 50 },
+      ]);
+      expect(await chartQuery({ filter: { amount: 30 } })).toEqual([]);
+    });
+
+    it('requeries identical cache-enabled requests and checks changed permissions each time', async () => {
+      const params = { ...values(), dimensions: [] };
+      expect(await entryReads.chartFromQuery(ctx, auth, params)).toEqual([{ 金额: 120 }]);
+      await docs.model.update({ amount: 11 }, { where: { id: 1 } });
+      expect(await entryReads.chartFromQuery(ctx, auth, params)).toEqual([{ 金额: 121 }]);
+      permissions.set('', { allowed: false, params: {} });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(entryReads.chartFromQuery(ctx, auth, params)).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('keeps trusted dates and transaction with multiple measures', async () => {
+      const transaction = await db.sequelize.transaction();
+      try {
+        await docs.model.update(
+          { occurredAt: new Date('2026-09-15T16:00:00Z') },
+          { where: { id: [1, 2, 3] }, transaction },
+        );
+        expect(
+          await entryReads.chartFromQuery(
+            ctx,
+            auth,
+            {
+              ...values(),
+              measures: [
+                { field: 'amount', aggregation: 'sum' },
+                { field: 'id', aggregation: 'count' },
+              ],
+              dimensions: [{ field: 'occurredAt', format: 'YYYY-MM-DD', alias: '日期' }],
+              filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } },
+            },
+            transaction,
+            { now: '2026-09-16T12:00:00.000Z', timezone: '+08:00' },
+          ),
+        ).toEqual([{ 日期: '2026-09-16', amount: 30, id: 2 }]);
+        expect((await docs.model.findByPk(4, { transaction }))!.getDataValue('tenantId')).toBeNull();
+      } finally {
+        await transaction.rollback();
+      }
+    });
+
+    it('captures all client parameters, identity and dates before metadata callbacks', async () => {
+      await docs.model.update({ occurredAt: new Date('2026-09-15T16:00:00Z') }, { where: { id: [1, 2, 3] } });
+      const params = { ...values(), dimensions: [{ field: ['occurredAt'], alias: '日期', format: 'YYYY-MM-DD' }] };
+      const dates = { now: '2026-09-16T12:00:00.000Z', timezone: '+08:00' };
+      const identity = { tenantId: 'B' };
+      const entry = new AccessEntryReadService(
+        db,
+        adapter,
+        queries,
+        (collection) => {
+          params.collection = 'projects';
+          params.dataSource = 'external';
+          params.measures[0].field[0] = 'name';
+          params.measures[0].alias = 'changed';
+          params.dimensions[0].format = 'YYYY';
+          dates.timezone = '-05:00';
+          identity.tenantId = 'C';
+          return identities.find((item) => item.collectionName === collection.name);
+        },
+        entryResolver,
+      );
+      expect(await entry.chartFromQuery(ctx, identity, params, undefined, dates)).toEqual([
+        { 日期: '2026-09-16', 金额: 30 },
+        { 日期: null, 金额: 90 },
+      ]);
+    });
+
+    it('rejects data source or root collection mismatches without SQL or permission callbacks', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const extra of [
+        { dataSource: 'external' },
+        { dataSource: '' },
+        { collection: 'missing' },
+        { collection: 'documents.project' },
+        { collection: '_' },
+      ])
+        await expect(chartQuery(extra)).rejects.toThrow();
+      const entry = new AccessEntryReadService(
+        db,
+        adapter,
+        queries,
+        () => ({ ...mainIdentity, collectionName: 'projects' }),
+        entryResolver,
+      );
+      await expect(entry.chartFromQuery(ctx, auth, values())).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+      expect(entryResolver).not.toHaveBeenCalled();
+    });
+
+    it('does not fall back to main for an equally named external source', async () => {
+      const entry = new AccessEntryReadService(
+        db,
+        adapter,
+        queries,
+        (collection) => {
+          const identity = identities.find((item) => item.collectionName === collection.name);
+          return identity && { ...identity, dataSourceKey: 'external' };
+        },
+        entryResolver,
+      );
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(entry.chartFromQuery(ctx, auth, values())).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('rejects persistent identity changes after execution', async () => {
+      const identity = { ...mainIdentity };
+      const entry = new AccessEntryReadService(
+        db,
+        adapter,
+        queries,
+        (collection) => (collection === docs ? identity : projectIdentity),
+        entryResolver,
+      );
+      const find = docs.model.findAll.bind(docs.model);
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (...args) => {
+        const rows = await find(...args);
+        identity.collectionKey = 'recreated';
+        return rows;
+      });
+      await expect(entry.chartFromQuery(ctx, auth, values())).rejects.toThrow();
+    });
+
+    it('rejects malformed metadata, identity injection and getters before resolving permissions or SQL', async () => {
+      const getter = vi.fn(() => 'documents');
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const extra of [
+        { uid: 'a'.repeat(256) },
+        { uid: null },
+        { refresh: 'true' },
+        { cache: null },
+        { cache: { enabled: 1 } },
+        { cache: { enabled: true, ttl: -1 } },
+        { cache: { ttl: Infinity } },
+        { cache: { enabled: true, ttl: Number.MAX_SAFE_INTEGER } },
+        { cache: { scope: 'shared' } },
+        { tenantId: 'C' },
+        { roleName: 'root' },
+        { transaction: {} },
+        { sql: { fields: '*' } },
+        { dates: { now: '2026-01-01T00:00:00.000Z', timezone: '+00:00' } },
+        { raw: true },
+        Object.defineProperty({}, 'collection', { enumerable: true, get: getter }),
+      ]) {
+        // Preserve descriptors, including non-data properties, rather than invoking getters through object spread.
+        const params = Object.defineProperties(values(), Object.getOwnPropertyDescriptors(extra));
+        await expect(entryReads.chartFromQuery(ctx, auth, params)).rejects.toThrow();
+      }
+      expect(getter).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+      expect(entryResolver).not.toHaveBeenCalled();
+    });
+  });
+
   describe('multiple aggregate', () => {
     const batch = (extra: Record<string, unknown> = {}) =>
       reads.aggregateMany(ctx, mainIdentity, auth, {

@@ -3,6 +3,7 @@ import type { Collection, Database, Transaction } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessBelongsToExpansionService } from './belongs-to-expansion';
 import { parseChartParams } from './chart-params';
+import { parseChartQueryParams } from './chart-query-params';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import {
@@ -14,7 +15,7 @@ import { captureAccessFilter } from './filter-input';
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import { AccessManyToManyReadService } from './many-to-many-reads';
 import type { AccessQueryService } from './query';
-import { resolveReadDateFilter, type AccessReadDateContext } from './read-date-filter';
+import { captureReadDateContext, resolveReadDateFilter, type AccessReadDateContext } from './read-date-filter';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
 import { captureReadKey } from './read-key';
 import { AccessReadSelectionParser, type AccessAssociationSelection } from './read-selection';
@@ -236,7 +237,40 @@ export class AccessEntryReadService {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
-    const { measures, dimensions, filter, limit, order } = parseChartParams(params);
+    return this.executeChart(ctx, source, authenticated, parseChartParams(params), transaction, dates);
+  }
+
+  /** Internal full chart envelope. Always performs live reads; no chart middleware/cache is registered here. */
+  async chartFromQuery(
+    ctx: object,
+    authenticated: AccessIdentity,
+    values: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const request = parseChartQueryParams(values);
+    const identity = { ...authenticated };
+    const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
+    const route = resolveResourceReadRoute(this.db, this.resolveIdentity, {
+      resourceName: request.collection,
+      actionName: 'list',
+    });
+    if (route.kind !== 'direct' || route.identity.dataSourceKey !== request.dataSource)
+      invalid('Chart query data source does not match the registered collection identity');
+    const rows = await this.executeChart(ctx, route.identity, identity, request.chart, transaction, dateContext);
+    route.assertCurrent();
+    return rows;
+  }
+
+  private async executeChart(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: ReturnType<typeof parseChartParams>,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const { measures, dimensions, filter, limit, order } = params;
     const measure = measures[0];
     const reader = this.reader('list', ctx, source, authenticated);
     const formatted = dimensions.some(({ format }) => format !== undefined);

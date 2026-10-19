@@ -1,6 +1,7 @@
 import type { Collection, Database, Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { parseChartQueryParams } from './chart-query-params';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessEntryReadService, type AccessEntryReadOperation } from './entry-reads';
@@ -10,7 +11,7 @@ import { collectRelatedReadPaths } from './read-paths';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
 import { resolveResourceReadRoute } from './resource-read-routing';
 import { captureRelatedReadPermission, captureRootReadContext, type AccessRootReadContext } from './root-read-context';
-import { invalid } from './write-support';
+import { cloneDeep, invalid } from './write-support';
 
 export type { AccessRootReadContext } from './root-read-context';
 
@@ -22,7 +23,7 @@ export type AccessRelatedReadContextResolver = (
 ) => AccessRootReadContext | null;
 
 /**
- * Internal handler for prepared root list/get/count actions after the complete core ACL chain.
+ * Internal handler for root reads and charts after the complete collection ACL chain.
  * No routes are registered here. The caller supplies authenticated identity and date context.
  */
 export class AccessRootReadHandler {
@@ -43,8 +44,57 @@ export class AccessRootReadHandler {
     dates?: AccessReadDateContext,
   ): Promise<void> {
     const captured = captureRootReadContext(this.db, ctx, authenticated, dates);
+    const preparation = await this.prepareRelated(ctx, captured, authorize);
+    preparation.assertCurrent();
+    await this.execute(ctx, captured, preparation.related, transaction);
+  }
+
+  /** Charts require a neutral finalized collection list decision, not the chart resource decision. */
+  async handleChartWithRelatedContexts(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    values: unknown,
+    authorize: AccessRelatedReadAuthorizer,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ): Promise<void> {
+    const captured = captureRootReadContext(this.db, ctx, authenticated, dates);
+    if (captured.action.actionName !== 'list' || Reflect.ownKeys(captured.params).length)
+      invalid('Chart reads require an unfiltered collection list context');
+    const request = parseChartQueryParams(values);
+    if (request.collection !== captured.action.resourceName)
+      invalid('Chart query does not match the authorized collection');
+    // Validate first, then clone: copying must not normalize invalid request prototypes.
+    const query = cloneDeep(values);
+    const preparation = await this.prepareRelated(
+      ctx,
+      captured,
+      authorize,
+      { filter: request.chart.filter },
+      request.dataSource,
+    );
+    preparation.assertCurrent();
+    const body = await this.reader(captured, preparation.related).chartFromQuery(
+      ctx,
+      captured.identity,
+      query,
+      transaction,
+      captured.dateContext,
+    );
+    ctx.body = body;
+  }
+
+  private async prepareRelated(
+    ctx: AccessRootReadContext,
+    captured: ReturnType<typeof captureRootReadContext>,
+    authorize: AccessRelatedReadAuthorizer,
+    params: unknown = captured.params,
+    dataSource?: string,
+  ) {
     if (!captured.permission.allowed) invalid('Root read is not authorized');
     const root = resolveResourceReadRoute(this.db, this.resolveIdentity, captured.action);
+    if (dataSource !== undefined && root.identity.dataSourceKey !== dataSource)
+      invalid('Chart query data source does not match the registered collection identity');
     const config = this.prepared.configuration(ctx, root.identity);
     if (!config) invalid('Root reads require a prepared access configuration');
     const assertCurrent = () => {
@@ -63,7 +113,7 @@ export class AccessRootReadHandler {
       this.queries,
       this.resolveIdentity,
       operation,
-      captured.params,
+      params,
       captured.dateContext,
     );
     assertCurrent();
@@ -80,7 +130,7 @@ export class AccessRootReadHandler {
       },
     );
     assertCurrent();
-    await this.execute(ctx, captured, related, transaction);
+    return { related, assertCurrent };
   }
 
   async handle(
@@ -103,8 +153,25 @@ export class AccessRootReadHandler {
     related: AccessRelatedReadContextResolver | undefined,
     transaction?: Transaction,
   ) {
-    const { action, identity, roleName, permission, params, dateContext } = captured;
-    const reads = new AccessEntryReadService(
+    const { action, identity, params, dateContext } = captured;
+    const body = await this.reader(captured, related).fromResource(
+      ctx,
+      identity,
+      action,
+      params,
+      transaction,
+      dateContext,
+    );
+    ctx.body = body;
+    if (action.actionName === 'list') ctx.paginate = true;
+  }
+
+  private reader(
+    captured: ReturnType<typeof captureRootReadContext>,
+    related: AccessRelatedReadContextResolver | undefined,
+  ) {
+    const { roleName, permission } = captured;
+    return new AccessEntryReadService(
       this.db,
       this.prepared,
       this.queries,
@@ -116,8 +183,5 @@ export class AccessRootReadHandler {
         return captureRelatedReadPermission(this.db, collection, roleName, context);
       },
     );
-    const body = await reads.fromResource(ctx, identity, action, params, transaction, dateContext);
-    ctx.body = body;
-    if (action.actionName === 'list') ctx.paginate = true;
   }
 }

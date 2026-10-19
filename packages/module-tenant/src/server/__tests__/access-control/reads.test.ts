@@ -422,6 +422,159 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         return { handler: createHandler(undefined, resolve), resolve };
       };
 
+      describe('chart handler', () => {
+        const values = () => ({
+          collection: 'documents',
+          dataSource: 'main',
+          measures: [{ field: ['amount'], aggregation: 'sum', alias: '金额' }],
+          dimensions: [] as Record<string, unknown>[],
+          filter: { project: { name: 'Zebra' } },
+          cache: { enabled: true, ttl: 60 },
+        });
+
+        it.each([false, true])('prepares related list permissions for grouped=%s statistics', async (grouped) => {
+          const target = await targetContext({ fields: ['name'] });
+          const result = await authorized();
+          const query = values();
+          if (grouped) query.dimensions = [{ field: 'tenantId', alias: '归属' }];
+          const authorize = vi.fn(async () => target);
+          await createHandler().handleChartWithRelatedContexts(result, trusted(), query, authorize);
+          expect(result.body).toEqual(grouped ? [{ 归属: 'B', 金额: 10 }] : [{ 金额: 10 }]);
+          expect(result.paginate).toBe(false);
+          expect(authorize).toHaveBeenCalledTimes(1);
+          expect(authorize.mock.calls[0]).toEqual([
+            projects,
+            ['project'],
+            { kind: 'list', context: result, source: mainIdentity, authenticated: trusted() },
+          ]);
+        });
+
+        it('retains final role fields, fixed scope and hidden role facts', async () => {
+          const acl = allowed();
+          acl.getRole('reader').grantAction('documents:view', {
+            fields: ['amount'],
+            filter: { 'project.name': '{{ ctx.state.currentUser.projectName }}' },
+          });
+          acl.addFixedParams('documents', 'list', () => ({ filter: { amount: { $gte: 15 } } }));
+          const result = await authorized('list', {}, acl);
+          const authorize = vi.fn(async () => null);
+          const query = { ...values(), filter: {} };
+          await createHandler().handleChartWithRelatedContexts(result, trusted(), query, authorize);
+          expect(result.body).toEqual([{ 金额: 20 }]);
+          expect(authorize).not.toHaveBeenCalled();
+          const sql = vi.spyOn(db.sequelize, 'query');
+          await expect(
+            createHandler().handleChartWithRelatedContexts(
+              result,
+              trusted(),
+              { ...query, dimensions: [{ field: 'name' }] },
+              authorize,
+            ),
+          ).rejects.toThrow(/authorized/);
+          expect(sql).not.toHaveBeenCalled();
+          expect(result.body).toEqual([{ 金额: 20 }]);
+        });
+
+        it.each(['collection', 'dataSource', 'action', 'filtered', 'denied'])(
+          'rejects %s authorization binding before querying or authorizing targets',
+          async (kind) => {
+            const result = await authorized(
+              kind === 'action' ? 'get' : 'list',
+              kind === 'action' ? { filterByTk: 1 } : {},
+            );
+            const query = values();
+            if (kind === 'collection') query.collection = 'projects';
+            if (kind === 'dataSource') query.dataSource = 'other';
+            if (kind === 'filtered')
+              Object.assign((result.permission as { rawParams: object }).rawParams, { filter: { id: 1 } });
+            if (kind === 'denied') Object.assign(result.permission as object, { can: false });
+            const authorize = vi.fn(async () => null);
+            const sql = vi.spyOn(db.sequelize, 'query');
+            await expect(
+              createHandler().handleChartWithRelatedContexts(result, trusted(), query, authorize),
+            ).rejects.toThrow();
+            expect(authorize).not.toHaveBeenCalled();
+            expect(sql).not.toHaveBeenCalled();
+            expect(result.body).toBe('unchanged');
+          },
+        );
+
+        it('does not query with missing target permission', async () => {
+          const result = await authorized();
+          const sql = vi.spyOn(db.sequelize, 'query');
+          await expect(
+            createHandler().handleChartWithRelatedContexts(result, trusted(), values(), async () => null),
+          ).rejects.toThrow(/authorized/);
+          expect(sql).not.toHaveBeenCalled();
+          expect(result.body).toBe('unchanged');
+        });
+
+        it('captures chart values, role, final permission and dates before awaiting authorization', async () => {
+          await docs.model.update({ occurredAt: new Date('2026-10-19T00:00:00Z') }, { where: { id: 1 } });
+          const target = await targetContext({ fields: ['name'] });
+          const result = await authorized();
+          const query = { ...values(), filter: { ...values().filter, occurredAt: { $dateOn: '{{$nDate.today}}' } } };
+          const identity = trusted();
+          const dates = { now: '2026-10-19T00:00:00Z', timezone: '+08:00' };
+          await createHandler().handleChartWithRelatedContexts(
+            result,
+            identity,
+            query,
+            async () => {
+              query.collection = 'projects';
+              query.measures[0].aggregation = 'count';
+              query.filter.project.name = 'Secret';
+              identity.tenantId = 'C';
+              identity.roleName = 'other';
+              Object.assign(result.permission as object, { can: false });
+              dates.now = '2026-10-20T00:00:00Z';
+              return target;
+            },
+            undefined,
+            dates,
+          );
+          expect(result.body).toEqual([{ 金额: 10 }]);
+        });
+
+        it('rejects a replaced configuration phase before statistics SQL', async () => {
+          const target = await targetContext();
+          const result = await authorized();
+          const sql = vi.spyOn(db.sequelize, 'query');
+          await expect(
+            createHandler().handleChartWithRelatedContexts(result, trusted(), values(), async () => {
+              adapter.release(result);
+              await adapter.prepare(result, identities);
+              sql.mockClear();
+              return target;
+            }),
+          ).rejects.toThrow(/phase/);
+          expect(sql).not.toHaveBeenCalled();
+          expect(result.body).toBe('unchanged');
+        });
+
+        it('uses the caller transaction and rechecks cache-enabled requests', async () => {
+          const result = await authorized();
+          const query = { ...values(), filter: {} };
+          const authorize = vi.fn(async () => null);
+          const transaction = await db.sequelize.transaction();
+          try {
+            await docs.model.update({ amount: 11 }, { where: { id: 1 }, transaction });
+            await createHandler().handleChartWithRelatedContexts(result, trusted(), query, authorize, transaction);
+            expect(result.body).toEqual([{ 金额: 121 }]);
+          } finally {
+            await transaction.rollback();
+          }
+          await createHandler().handleChartWithRelatedContexts(result, trusted(), query, authorize);
+          expect(result.body).toEqual([{ 金额: 120 }]);
+          Object.assign(result.permission as object, { can: false });
+          const sql = vi.spyOn(db.sequelize, 'query');
+          await expect(
+            createHandler().handleChartWithRelatedContexts(result, trusted(), query, authorize),
+          ).rejects.toThrow(/authorized/);
+          expect(sql).not.toHaveBeenCalled();
+        });
+      });
+
       describe('automatic preparation', () => {
         it.each(['list', 'get', 'count'] as const)('prepares used paths for root %s', async (kind) => {
           const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });

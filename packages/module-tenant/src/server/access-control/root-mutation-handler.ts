@@ -3,6 +3,7 @@ import type { Collection, Database } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { AccessCreationService } from './creation';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
 import { AccessMutationService } from './mutation';
@@ -30,7 +31,7 @@ function shape(input: unknown, keys: readonly string[]): asserts input is Record
   for (const key of Reflect.ownKeys(input)) data(input, key);
 }
 
-/** Internal single-record scalar update/destroy bridge. No runtime routes are registered here. */
+/** Internal single-record scalar create/update/destroy bridge. No runtime routes are registered here. */
 export class AccessRootMutationHandler {
   constructor(
     private readonly db: Database,
@@ -49,12 +50,12 @@ export class AccessRootMutationHandler {
       !/^[A-Za-z_][A-Za-z0-9_]*$/.test(resourceName) ||
       ['_', '__proto__', 'constructor', 'prototype'].includes(resourceName) ||
       typeof actionName !== 'string' ||
-      !['update', 'destroy'].includes(actionName) ||
+      !['create', 'update', 'destroy'].includes(actionName) ||
       data(ctx.action, 'sourceId') !== undefined ||
       data(ctx.action, 'resourceOf') !== undefined
     )
       invalid('Unsupported root mutation action');
-    const operation = actionName as 'update' | 'destroy';
+    const operation = actionName as 'create' | 'update' | 'destroy';
     const actor = Object.freeze(cloneDeep(authenticated));
     if (typeof actor.roleName !== 'string') invalid('Root mutations require an authenticated role');
     const permission = captureFinalActionPermission(ctx.permission, {
@@ -83,7 +84,10 @@ export class AccessRootMutationHandler {
     ] as const)
       if (Object.hasOwn(params, key) && params[key] !== expected) invalid('Mutation transport metadata does not match');
     const locator = params.filterByTk;
-    if (
+    if (operation === 'create') {
+      if (locator !== undefined || params.resourceIndex !== undefined)
+        invalid('Creation cannot supply record locators');
+    } else if (
       !(
         (typeof locator === 'string' && locator.length > 0 && locator.length <= 255) ||
         (typeof locator === 'number' && Number.isSafeInteger(locator))
@@ -95,7 +99,7 @@ export class AccessRootMutationHandler {
       (!['string', 'number'].includes(typeof params.resourceIndex) || String(params.resourceIndex) !== String(locator))
     )
       invalid('Mutation REST locator does not match its record key');
-    // Core converts update field grants into whitelist before final ACL template resolution.
+    // Core converts create/update field grants into whitelist before final ACL template resolution.
     shape(permission.params, ['whitelist', 'blacklist', 'filter', 'own']);
     const grants = cloneDeep(permission.params);
     if (Object.hasOwn(grants, 'own') && grants.own !== false)
@@ -121,9 +125,9 @@ export class AccessRootMutationHandler {
     if (!identity || identity.collectionName !== resourceName) invalid('Mutation collection identity is unavailable');
     const key = accessCollectionKey(identity);
     const model = collection.model;
-    if (collection.filterTargetKey !== model.primaryKeyAttribute)
+    if (operation !== 'create' && collection.filterTargetKey !== model.primaryKeyAttribute)
       invalid('Alternate mutation target keys require their own adapter');
-    const keys = normalizeKeys([locator], collection);
+    const keys = operation === 'create' ? [] : normalizeKeys([locator], collection);
     const config = this.prepared.configuration(ctx, identity);
     if (!config) invalid('Root mutation requires a prepared access configuration');
     if (
@@ -135,8 +139,8 @@ export class AccessRootMutationHandler {
     )
       invalid('Mutation permission contains unsupported fields');
     let values: Record<string, unknown> | undefined;
-    if (operation === 'update') {
-      validateRootValues(this.db, params.values, collection, 'update', config.ownership.enabled);
+    if (operation !== 'destroy') {
+      validateRootValues(this.db, params.values, collection, operation, config.ownership.enabled);
       const input = params.values as Record<string, unknown>;
       // Managed tenantId is retained for the service's exact anti-transfer/legacy-claim validation.
       values = Object.fromEntries(
@@ -148,7 +152,10 @@ export class AccessRootMutationHandler {
           )
           .map((field) => [field, input[field]]),
       );
-      if (!Object.keys(values).some((field) => !config.ownership.enabled || field !== 'tenantId'))
+      if (
+        operation === 'update' &&
+        !Object.keys(values).some((field) => !config.ownership.enabled || field !== 'tenantId')
+      )
         invalid('No authorized fields to update');
     } else if (params.values !== undefined) invalid('Deletion cannot supply values');
     const role = new AccessRoleFilterCompiler(this.db, this.resolveIdentity).compile(identity, filter);
@@ -158,7 +165,7 @@ export class AccessRootMutationHandler {
         !current ||
         current.collectionName !== resourceName ||
         accessCollectionKey(current) !== key ||
-        collection.filterTargetKey !== model.primaryKeyAttribute ||
+        (operation !== 'create' && collection.filterTargetKey !== model.primaryKeyAttribute) ||
         this.prepared.configuration(ctx, identity) !== config ||
         !this.queries.isCurrentCollection(identity, collection, model)
       )
@@ -166,6 +173,27 @@ export class AccessRootMutationHandler {
       role.assertCurrent();
     };
     assertCurrent();
+    if (operation === 'create') {
+      const result = await new AccessCreationService(this.db, this.prepared, this.queries).withCreatedRecords(
+        ctx,
+        identity,
+        actor,
+        { values: [values!], where: role.rootWhere ?? role.where },
+        async (plan) => {
+          assertCurrent();
+          const record = await collection.repository.create({
+            values: plan.values[0],
+            transaction: plan.transaction,
+            context: ctx,
+          });
+          assertCurrent();
+          return [record];
+        },
+        assertCurrent,
+      );
+      ctx.body = result;
+      return;
+    }
     const result = await new AccessMutationService(this.db, this.prepared, this.queries).withExistingRecords(
       ctx,
       identity,

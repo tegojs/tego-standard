@@ -45,6 +45,7 @@ export class AccessCreationService {
     authenticated: AccessIdentity,
     request: AccessCreationRequest,
     writer: (plan: AccessCreationPlan) => Promise<readonly Model[]>,
+    assertEntryCurrent?: () => void,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
@@ -68,6 +69,7 @@ export class AccessCreationService {
         if (model.rawAttributes[primary].set || setters?.[primary] || model.options.setterMethods?.[primary])
           invalid('Generated SQLite primary keys with custom setters require their own adapter');
       }
+      assertEntryCurrent?.();
     };
     current();
     if (!Array.isArray(request.values) || !request.values.length || request.values.length > 1000)

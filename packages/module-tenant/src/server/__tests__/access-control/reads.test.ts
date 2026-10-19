@@ -19,6 +19,7 @@ import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from '../../access-control/read-grants';
 import { AccessReadService } from '../../access-control/reads';
+import { prepareRelatedReadContexts } from '../../access-control/related-read-contexts';
 import type { AccessFilterReadGrant } from '../../access-control/request-filter';
 import { AccessRootReadHandler, type AccessRelatedReadContextResolver } from '../../access-control/root-read-handler';
 import { seedAclScopes } from './acl-database';
@@ -211,6 +212,45 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         const resolve = vi.fn((_collection, _path, _operation) => target);
         return { handler: createHandler(undefined, resolve), resolve };
       };
+
+      it('uses asynchronously prepared permissions for real filtered and expanded root reads', async () => {
+        const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
+        const result = await authorized('list', {
+          fields: ['id'],
+          appends: ['project'],
+          filter: { project: { name: { $includes: 'a' } } },
+        });
+        const resolve = await prepareRelatedReadContexts(
+          db,
+          (collection) => identities.find((identity) => identity.collectionName === collection.name),
+          { kind: 'list', context: result, source: mainIdentity, authenticated: trusted() },
+          [['project']],
+          async () => target,
+        );
+        Object.assign((target.permission as { parsedParams: object }).parsedParams, { fields: [], filter: {} });
+        await createHandler(undefined, resolve).handle(result, trusted());
+        expect(result.body).toEqual({
+          rows: [{ id: 1, project: { name: 'Zebra' } }],
+          count: 1,
+          page: 1,
+          pageSize: 20,
+          totalPage: 1,
+        });
+      });
+
+      it('retains root rows while asynchronously prepared target G/V hides associated data', async () => {
+        const target = await targetContext({ fields: ['name'] });
+        const result = await authorized('get', { filterByTk: 2, fields: ['id'], appends: ['project'] });
+        const resolve = await prepareRelatedReadContexts(
+          db,
+          (collection) => identities.find((identity) => identity.collectionName === collection.name),
+          { kind: 'get', context: result, source: mainIdentity, authenticated: trusted() },
+          [['project']],
+          async () => target,
+        );
+        await createHandler(undefined, resolve).handle(result, trusted());
+        expect(result.body).toEqual({ id: 2, project: null });
+      });
 
       it('expands only readable target rows while retaining every readable root and native count', async () => {
         const target = await targetContext({ fields: ['name'] });

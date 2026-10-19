@@ -85,6 +85,28 @@ function captureParams(permission: unknown, resourceName: string, actionName: st
   return params;
 }
 
+/** Capture only a neutral target list decision finalized by the existing server authorization chain. */
+export function captureRelatedReadPermission(
+  db: Database,
+  collection: Collection,
+  roleName: string,
+  related: AccessRootReadContext,
+) {
+  const action = captureAction(related, db);
+  if (action.resourceName !== collection.name || action.actionName !== 'list')
+    invalid('Related reads require the target collection list decision');
+  const granted = captureFinalReadPermission(related.permission, {
+    resourceName: action.resourceName,
+    actionName: 'list',
+    roleName,
+  });
+  if (!granted.allowed) return granted;
+  // A decision made for a filtered lookup cannot authorize arbitrary related rows.
+  if (Reflect.ownKeys(captureParams(related.permission, action.resourceName, 'list')).length)
+    invalid('Related read decisions require an unfiltered target list context');
+  return granted;
+}
+
 /**
  * Internal handler for prepared root list/get/count actions after the complete core ACL chain.
  * No routes are registered here. The caller supplies authenticated identity and date context.
@@ -125,19 +147,7 @@ export class AccessRootReadHandler {
         if (path.length === 0) return permission;
         const related = this.resolveRelatedContext?.(collection, Object.freeze([...path]), operation);
         if (related == null) return null;
-        const action = captureAction(related, this.db);
-        if (action.resourceName !== collection.name || action.actionName !== 'list')
-          invalid('Related reads require the target collection list decision');
-        const granted = captureFinalReadPermission(related.permission, {
-          resourceName: action.resourceName,
-          actionName: 'list',
-          roleName,
-        });
-        if (!granted.allowed) return granted;
-        // A decision made for a filtered lookup cannot authorize arbitrary related rows.
-        if (Reflect.ownKeys(captureParams(related.permission, action.resourceName, 'list')).length)
-          invalid('Related read decisions require an unfiltered target list context');
-        return granted;
+        return captureRelatedReadPermission(this.db, collection, roleName, related);
       },
     );
     const body = await reads.fromResource(

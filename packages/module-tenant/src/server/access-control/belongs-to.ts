@@ -1,4 +1,4 @@
-import { Op, Transaction, type Database, type Model } from '@tego/server';
+import { Op, Transaction, type Database, type Model, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
@@ -40,6 +40,11 @@ export class AccessBelongsToService {
     authenticated: AccessIdentity,
     request: BelongsToWriteRequest,
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    entry?: {
+      assertCurrent(): void;
+      /** Trusted entry callback, invoked only for a changed, non-null reference under the source lock. */
+      targetScope(): Promise<{ where?: WhereOptions }>;
+    },
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     source = { ...source };
     target = { ...target };
@@ -58,11 +63,17 @@ export class AccessBelongsToService {
       true,
     );
     const targetKey = request.targetKey === null ? null : normalizeKeys([request.targetKey], relation.target)[0];
+    const current = () => {
+      relation.current();
+      entry?.assertCurrent();
+    };
+    current();
     try {
       return await this.db.sequelize.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
         async (transaction) => {
           await validateWriteTransaction(this.db, transaction, true);
+          current();
           const sourcePlan = await this.mutations.authorizeReferenceSource(
             ctx,
             source,
@@ -74,20 +85,29 @@ export class AccessBelongsToService {
             },
             transaction,
           );
-          relation.current();
-          if (targetKey !== null)
+          current();
+          const changed = sourcePlan.records.some((record) => {
+            const existing = record.getDataValue(relation.foreignKey);
+            return (existing == null ? null : normalizeKeys([existing], relation.target)[0]) !== targetKey;
+          });
+          // Preserve low-level callers' explicit target constraints; only the finalized entry opts into
+          // treating an unchanged value as an existing reference rather than a new target selection.
+          if (targetKey !== null && (changed || !entry)) {
+            const targetScope = await entry?.targetScope();
+            current();
             await this.references.authorizeTargets(
               ctx,
               target,
               authenticated,
               {
                 keys: [targetKey],
-                where: { [Op.and]: [relation.scope ?? {}, request.targetWhere ?? {}] },
+                where: { [Op.and]: [relation.scope ?? {}, request.targetWhere ?? {}, targetScope?.where ?? {}] },
                 bind: request.targetBind,
               },
               transaction,
             );
-          relation.current();
+          }
+          current();
           const primary = relation.sourceModel.primaryKeyAttribute;
           const keys = sourcePlan.records.map((record) => record.getDataValue(primary) as string | number);
           const owners = new Map(
@@ -107,7 +127,7 @@ export class AccessBelongsToService {
           ]);
           await writer(plan);
           await validateWriteTransaction(this.db, transaction, true);
-          relation.current();
+          current();
           const after = await relation.sourceModel.unscoped().findAll(
             internalQuery({
               where: { [primary]: { [Op.in]: keys } },
@@ -122,7 +142,7 @@ export class AccessBelongsToService {
               ],
             }),
           );
-          relation.current();
+          current();
           if (after.length !== keys.length) invalid('Writer removed a relation source');
           protectedValues.verify(after);
           for (const record of after) {

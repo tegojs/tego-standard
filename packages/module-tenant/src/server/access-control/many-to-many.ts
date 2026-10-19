@@ -56,6 +56,10 @@ export class AccessManyToManyService {
     through: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: ManyToManyWriteRequest,
+    entry?: {
+      assertCurrent(): void;
+      targetScope(): Promise<{ where?: WhereOptions }>;
+    },
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     source = { ...source };
     target = { ...target };
@@ -87,6 +91,11 @@ export class AccessManyToManyService {
       through,
       request.association,
     );
+    const current = () => {
+      relation.current();
+      entry?.assertCurrent();
+    };
+    current();
     const sourceKeys = normalizeKeys(request.sourceKeys, relation.source);
     const targetKeys =
       Array.isArray(request.targetKeys) && request.targetKeys.length === 0
@@ -98,6 +107,7 @@ export class AccessManyToManyService {
         { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
         async (transaction) => {
           await validateWriteTransaction(this.db, transaction, true);
+          current();
           const plan = await this.mutations.authorizeReferenceSource(
             ctx,
             source,
@@ -109,8 +119,8 @@ export class AccessManyToManyService {
             },
             transaction,
           );
-          relation.current();
-          if (targetKeys.length)
+          current();
+          if (targetKeys.length && !entry)
             await this.references.authorizeTargets(
               ctx,
               target,
@@ -122,7 +132,7 @@ export class AccessManyToManyService {
               },
               transaction,
             );
-          relation.current();
+          current();
           const primary = relation.sourceModel.primaryKeyAttribute;
           const readLinks = async () => {
             const rows = await relation.throughModel.unscoped().findAll(
@@ -137,7 +147,7 @@ export class AccessManyToManyService {
                 limit: 10001,
               }),
             );
-            relation.current();
+            current();
             if (rows.length > 10000) invalid('Link mutation exceeds batch limit');
             const grouped = new Map(sourceKeys.map((key) => [key, new Set<string>()]));
             for (const row of rows) {
@@ -163,6 +173,23 @@ export class AccessManyToManyService {
             const remove = [...old].filter((id) => !desired.has(id));
             if (add.length || remove.length) changes.push({ record, key, add, remove });
           }
+          const additions = [...new Set(changes.flatMap((change) => change.add))];
+          if (entry && additions.length) {
+            const scope = await entry.targetScope();
+            current();
+            await this.references.authorizeTargets(
+              ctx,
+              target,
+              authenticated,
+              {
+                keys: additions,
+                where: { [Op.and]: [relation.scope ?? {}, request.targetWhere ?? {}, scope.where ?? {}] },
+                bind: request.targetBind,
+              },
+              transaction,
+            );
+            current();
+          }
           const protectedValues = snapshotProtectedValues(
             this.db,
             relation.source,
@@ -182,21 +209,24 @@ export class AccessManyToManyService {
             }),
           );
           for (const change of changes) {
+            current();
             const patch = plan.valuesFor(change.record);
             if (Object.keys(patch).length)
               await relation.source.repository.update({
                 filterByTk: change.record.getDataValue(primary),
                 values: patch,
                 transaction,
+                ...(entry ? { context: ctx } : {}),
               });
+            current();
             const repository = relation.source.repository
               .relation<BelongsToManyRepository>(request.association)
               .of(change.record.getDataValue(primary));
             for (const operation of ['remove', 'add'] as const) {
               const targetKeys = change[operation];
               if (!targetKeys.length) continue;
-              const current = () => {
-                relation.current();
+              const joinCurrent = () => {
+                current();
                 if (
                   operation === 'remove' &&
                   (this.db.referenceMap.getReferences(relation.through.name) ?? []).some(
@@ -209,7 +239,7 @@ export class AccessManyToManyService {
                     400,
                   );
               };
-              current();
+              joinCurrent();
               await guardJoinWrite(
                 this.db,
                 relation.source,
@@ -219,14 +249,14 @@ export class AccessManyToManyService {
                 relation.otherKey,
                 transaction,
                 { operation, sourceKey: change.key, targetKeys },
-                current,
-                () => repository[operation]({ tk: targetKeys, transaction }),
+                joinCurrent,
+                () => repository[operation]({ tk: targetKeys, transaction, ...(entry ? { context: ctx } : {}) }),
               );
             }
-            relation.current();
+            current();
           }
           await validateWriteTransaction(this.db, transaction, true);
-          relation.current();
+          current();
           const actual = await readLinks();
           for (const key of sourceKeys)
             if (!isDeepStrictEqual(actual.get(key), expected.get(key)))
@@ -237,7 +267,7 @@ export class AccessManyToManyService {
               transaction,
             }),
           );
-          relation.current();
+          current();
           if (after.length !== sourceKeys.length) invalid('Writer removed a relation source');
           protectedValues.verify(after);
           if (

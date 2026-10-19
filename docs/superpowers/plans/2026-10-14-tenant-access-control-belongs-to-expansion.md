@@ -34,7 +34,7 @@ load(ctx, sourceIdentity, targetIdentity, authenticated, {
 - [x] 创建服务并验证来源/目标各自 G/V/ACL、隐藏目标保留根项、重复目标、空页及空关联、明确字段投影、同库自关联、scope、默认范围和软删除。
 - [x] 验证活跃/已结束/外库事务、配置与模型失效、输入快照、错误字段和超大页拒绝，20 与 100 条页的权限 SQL 次数相同。
 - [x] 在 SQLite 与随机独立 PostgreSQL 数据库串行运行新文件和 `reference.test.ts`：`pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/belongs-to-expansion.test.ts packages/module-tenant/src/server/__tests__/access-control/reference.test.ts --maxWorkers=1 --no-file-parallelism`。
-- [ ] 严格运行时类型检查、oxlint、Prettier、module-tenant 构建与独立代码复审，更新规格，签名原子提交。
+- [x] 严格运行时类型检查、oxlint、Prettier、module-tenant 构建与独立代码复审，更新规格，签名原子提交。
 
 多值关联批量展开、跨关联筛选排序、配置界面与业务入口启用不属于本阶段。不得修改本地业务库、线上配置、依赖或核心仓库。
 

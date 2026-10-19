@@ -13,6 +13,7 @@ import {
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { AccessEntryReadService } from '../../access-control/entry-reads';
+import { captureFinalReadPermission } from '../../access-control/final-read-permission';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from '../../access-control/read-grants';
@@ -977,6 +978,82 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     });
     const chartQuery = (extra: Record<string, unknown> = {}) =>
       entryReads.chartFromQuery(ctx, auth, { ...values(), ...extra });
+
+    const coreChart = async (acl: ACL, extra: Record<string, unknown> = {}) => {
+      const context = Object.assign(ctx, {
+        state: { currentRole: 'reader', currentUser: { id: 28, projectName: 'Secret' }, currentTenant: { id: 'B' } },
+        action: {
+          resourceName: 'documents',
+          actionName: 'list',
+          params: { fields: ['name'], filter: {} },
+          mergeParams: vi.fn(),
+        },
+        get: () => '+08:00',
+        logger: { info: vi.fn() },
+        db,
+        throw: (status: number) => {
+          throw new Error(String(status));
+        },
+        permission: undefined as unknown,
+      });
+      let result: unknown;
+      await acl.middleware()(context as never, async () => {
+        permissions.set(
+          '',
+          captureFinalReadPermission(context.permission, {
+            resourceName: 'documents',
+            actionName: 'list',
+            roleName: 'reader',
+          }),
+        );
+        result = await entryReads.chartFromQuery(
+          ctx,
+          { ...auth, userId: 28, roleName: 'reader' },
+          {
+            ...values(),
+            dimensions: [],
+            ...extra,
+          },
+        );
+      });
+      return result;
+    };
+
+    it('uses finalized core list ACL, fixed scopes and hidden role facts without exposing them', async () => {
+      const acl = new ACL();
+      acl.setAvailableAction('view', { aliases: ['list', 'get'] });
+      acl.define({ role: 'reader' }).grantAction('documents:view', {
+        fields: ['amount'],
+        appends: [],
+        filter: { 'project.name': '{{ ctx.state.currentUser.projectName }}' },
+      });
+      acl.addFixedParams('documents', 'list', () => ({ filter: { amount: { $gte: 15 } } }));
+      permissions.set('project', { allowed: false, params: {} });
+      expect(await coreChart(acl)).toEqual([{ 金额: 20 }]);
+      expect(await coreChart(acl, { filter: { $or: [{ amount: 10 }, { amount: 20 }, { amount: 30 }] } })).toEqual([
+        { 金额: 20 },
+      ]);
+      await expect(coreChart(acl, { dimensions: [{ field: 'name' }] })).rejects.toThrow(/authorized/);
+      await expect(coreChart(acl, { filter: { project: { name: 'Secret' } } })).rejects.toThrow(/authorized/);
+      expect(entryResolver.mock.calls.every(([, , operation]) => operation.kind === 'list')).toBe(true);
+    });
+
+    it('keeps G/V and fixed scopes when core explicitly grants skip authorization', async () => {
+      const acl = new ACL();
+      acl.define({ role: 'reader' });
+      acl.allow('documents', 'list', () => true);
+      acl.addFixedParams('documents', 'list', () => ({ filter: { amount: { $gte: 20 } } }));
+      expect(await coreChart(acl)).toEqual([{ 金额: 110 }]);
+    });
+
+    it('does not query when the real core middleware denies the operation', async () => {
+      const acl = new ACL();
+      acl.define({ role: 'reader' });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(coreChart(acl)).rejects.toThrow('403');
+      expect(sql).not.toHaveBeenCalled();
+      expect(entryResolver).not.toHaveBeenCalled();
+    });
 
     it('accepts a complete chart envelope and applies current list permissions and G/V', async () => {
       permissions.set('', {

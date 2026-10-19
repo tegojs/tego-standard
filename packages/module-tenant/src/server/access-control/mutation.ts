@@ -205,6 +205,7 @@ export class AccessMutationService {
     authenticated: AccessIdentity,
     request: ExistingAccessMutation,
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent?: () => void,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
@@ -219,7 +220,9 @@ export class AccessMutationService {
           ...(serializable ? { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE } : {}),
         },
         async (transaction) => {
+          assertEntryCurrent?.();
           const plan = await this.authorizeExisting(ctx, identity, authenticated, request, transaction);
+          assertEntryCurrent?.();
           const primary = model.primaryKeyAttribute;
           const keys = plan.records.map((record) => record.getDataValue(primary) as string | number);
           const expected = plan.records.map(
@@ -269,6 +272,7 @@ export class AccessMutationService {
                 throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed record ownership');
             }
           }
+          assertEntryCurrent?.();
           return { keys, affected: keys.length };
         },
       );

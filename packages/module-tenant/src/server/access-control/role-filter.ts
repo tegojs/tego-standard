@@ -23,7 +23,10 @@ export class AccessRoleFilterCompiler {
     private readonly resolveCollectionIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   ) {}
 
-  compile(identity: AccessCollectionIdentity, filter: unknown): { where: WhereOptions; assertCurrent(): void } {
+  compile(
+    identity: AccessCollectionIdentity,
+    filter: unknown,
+  ): { where: WhereOptions; rootWhere?: WhereOptions; assertCurrent(): void } {
     identity = cloneDeep(identity);
     const rootKey = accessCollectionKey(identity);
     const root = this.db.getCollection(identity.collectionName);
@@ -205,6 +208,36 @@ export class AccessRoleFilterCompiler {
       }
     };
     assertCurrent();
-    return { where, assertCurrent };
+    const predicate = rootPredicate(tree);
+    const rootWhere =
+      typeof predicate === 'boolean'
+        ? predicate
+          ? {}
+          : { [root.model.primaryKeyAttribute]: { [Op.in]: [] } }
+        : predicate;
+    return { where, rootWhere, assertCurrent };
+  }
+}
+
+/** Keep scalar writes on ordinary transactions; relationship facts still use the SQL expression. */
+function rootPredicate(node: AccessFilterNode): WhereOptions | boolean | undefined {
+  switch (node.type) {
+    case 'predicate':
+      return node.where;
+    case 'all':
+    case 'any': {
+      const conjunction = node.type === 'all';
+      const children = node.children.map(rootPredicate);
+      if (children.some((child) => child === undefined)) return;
+      if (children.includes(!conjunction)) return !conjunction;
+      const clauses = children.filter((child): child is WhereOptions => typeof child !== 'boolean');
+      return clauses.length ? { [conjunction ? Op.and : Op.or]: clauses } : conjunction;
+    }
+    case 'not': {
+      const child = rootPredicate(node.child);
+      return child === undefined ? undefined : typeof child === 'boolean' ? !child : { [Op.not]: child };
+    }
+    default:
+      return;
   }
 }

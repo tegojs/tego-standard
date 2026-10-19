@@ -52,10 +52,14 @@ function selected(input: unknown, measure: boolean) {
   return { field, alias, aggregation: params.aggregation };
 }
 
-function parseOrders(input: unknown, measure: ReturnType<typeof selected>, dimensions: ReturnType<typeof selected>[]) {
-  const selectedFields = [measure, ...dimensions];
+function parseOrders(
+  input: unknown,
+  measures: ReturnType<typeof selected>[],
+  dimensions: ReturnType<typeof selected>[],
+) {
+  const selectedFields = [...measures, ...dimensions];
   const seen = new Set<string>();
-  return items(input === undefined ? [] : input, 4).map((item): AccessAggregateOrder => {
+  return items(input === undefined ? [] : input, measures.length + 3).map((item): AccessAggregateOrder => {
     const params = record(item, ['field', 'alias', 'order']);
     const fields = Array.isArray(params.field) ? items(params.field, 1) : [params.field];
     const field = fields[0];
@@ -78,8 +82,9 @@ function parseOrders(input: unknown, measure: ReturnType<typeof selected>, dimen
     const direction = params.order === undefined ? 'asc' : params.order;
     if (direction !== 'asc' && direction !== 'desc' && direction !== 'ASC' && direction !== 'DESC')
       invalid('Unsupported chart order direction');
-    return selection === measure
-      ? { by: 'value', direction: direction === 'asc' || direction === 'ASC' ? 'asc' : 'desc' }
+    const index = measures.indexOf(selection);
+    return index >= 0
+      ? { by: 'value', index, direction: direction === 'asc' || direction === 'ASC' ? 'asc' : 'desc' }
       : { by: 'field', field: selection.field, direction: direction === 'asc' || direction === 'ASC' ? 'asc' : 'desc' };
   });
 }
@@ -87,25 +92,27 @@ function parseOrders(input: unknown, measure: ReturnType<typeof selected>, dimen
 /** Internal subset of chart query values; routing, cache and trusted execution context belong to the caller. */
 export function parseChartParams(input: unknown) {
   const params = record(input, ['measures', 'dimensions', 'orders', 'filter', 'limit']);
-  const measures = items(params.measures, 1);
-  if (measures.length !== 1) invalid('Select one chart aggregate measure');
-  const measure = selected(measures[0], true);
-  if (typeof measure.aggregation !== 'string' || !['avg', 'count', 'min', 'max', 'sum'].includes(measure.aggregation))
-    invalid('Select a supported chart aggregate method');
+  const measures = items(params.measures, 10).map((input) => {
+    const measure = selected(input, true);
+    if (typeof measure.aggregation !== 'string' || !['avg', 'count', 'min', 'max', 'sum'].includes(measure.aggregation))
+      invalid('Select a supported chart aggregate method');
+    return { ...measure, aggregation: measure.aggregation };
+  });
+  if (!measures.length) invalid('Select one to ten chart aggregate measures');
   const dimensions = items(params.dimensions === undefined ? [] : params.dimensions, 3).map((item) =>
     selected(item, false),
   );
   if (
     new Set(dimensions.map((item) => item.field)).size !== dimensions.length ||
-    new Set([measure.alias, ...dimensions.map((item) => item.alias)]).size !== dimensions.length + 1
+    new Set([...measures, ...dimensions].map((item) => item.alias)).size !== dimensions.length + measures.length
   )
     invalid('Chart grouping fields and output aliases must be distinct');
-  const order = parseOrders(params.orders, measure, dimensions);
+  const order = parseOrders(params.orders, measures, dimensions);
   const limit = params.limit === undefined ? 1000 : params.limit;
   if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
     invalid('Chart group limit exceeds supported limits');
   return {
-    measure: { field: measure.field, alias: measure.alias, method: measure.aggregation },
+    measures: measures.map((measure) => ({ field: measure.field, alias: measure.alias, method: measure.aggregation })),
     dimensions: dimensions.map(({ field, alias }) => ({ field, alias })),
     order,
     filter: captureAccessFilter(params.filter === undefined ? {} : params.filter),

@@ -1,16 +1,16 @@
 import { invalid, plain } from './write-support';
 
 export type AccessAggregateOrder =
-  | { readonly by: 'value'; readonly direction: 'asc' | 'desc' }
+  | { readonly by: 'value'; readonly index?: number; readonly direction: 'asc' | 'desc' }
   | { readonly by: 'field'; readonly field: string; readonly direction: 'asc' | 'desc' };
 
 /** Capture before resolving permissions; identifiers are checked against authorized groups by the reader. */
-export function captureAggregateOrder(input: unknown): AccessAggregateOrder[] {
+export function captureAggregateOrder(input: unknown, measureCount = 1): AccessAggregateOrder[] {
   if (input === undefined) return [];
   if (
     !Array.isArray(input) ||
     Object.getPrototypeOf(input) !== Array.prototype ||
-    input.length > 4 ||
+    input.length > measureCount + 3 ||
     Reflect.ownKeys(input).length !== input.length + 1
   )
     invalid('Aggregate order must be a bounded dense array');
@@ -28,24 +28,35 @@ export function captureAggregateOrder(input: unknown): AccessAggregateOrder[] {
       Reflect.ownKeys(item).some(
         (key) =>
           typeof key !== 'string' ||
-          !['by', 'field', 'direction'].includes(key) ||
+          !['by', 'field', 'direction', 'index'].includes(key) ||
           !Object.hasOwn(Object.getOwnPropertyDescriptor(item, key)!, 'value'),
       )
     )
       invalid('Unsupported aggregate order descriptor');
     const { by, field, direction } = item;
+    const measureIndex = item.index === undefined ? 0 : item.index;
     if (
       (by !== 'field' && by !== 'value') ||
       (direction !== 'asc' && direction !== 'desc') ||
       (by === 'value'
-        ? Object.hasOwn(item, 'field')
-        : !Object.hasOwn(item, 'field') || typeof field !== 'string' || !field.length || field.length > 255)
+        ? Object.hasOwn(item, 'field') ||
+          typeof measureIndex !== 'number' ||
+          !Number.isSafeInteger(measureIndex) ||
+          measureIndex < 0 ||
+          measureIndex >= measureCount
+        : Object.hasOwn(item, 'index') ||
+          !Object.hasOwn(item, 'field') ||
+          typeof field !== 'string' ||
+          !field.length ||
+          field.length > 255)
     )
       invalid('Aggregate order requires a field or value and a supported direction');
-    const key = by === 'value' ? 'value' : `field:${field}`;
+    const key = by === 'value' ? `value:${measureIndex}` : `field:${field}`;
     if (seen.has(key)) invalid('Aggregate order targets must be distinct');
     seen.add(key);
-    result.push(by === 'value' ? { by, direction } : { by, field: field as string, direction });
+    result.push(
+      by === 'value' ? { by, index: measureIndex as number, direction } : { by, field: field as string, direction },
+    );
   }
   return result;
 }

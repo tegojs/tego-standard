@@ -236,12 +236,31 @@ export class AccessEntryReadService {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
-    const { measure, dimensions, filter, limit, order } = parseChartParams(params);
+    const { measures, dimensions, filter, limit, order } = parseChartParams(params);
+    const measure = measures[0];
+    const reader = this.reader('list', ctx, source, authenticated);
+    if (measures.length > 1) {
+      const rows = await reader.aggregateMany(ctx, source, authenticated, {
+        ...this.withDates(source, { filter }, dates),
+        transaction,
+        measures: measures.map(({ field, method }) => ({ field, method })),
+        groupBy: dimensions.map(({ field }) => field),
+        limit,
+        order,
+      });
+      return rows.map(({ key, values }) =>
+        Object.freeze(
+          Object.fromEntries([
+            ...dimensions.map(({ field, alias }) => [alias, key[field]]),
+            ...measures.map(({ alias }, index) => [alias, values[index]]),
+          ]),
+        ),
+      );
+    }
     const request = {
       ...this.withDates(source, { field: measure.field, method: measure.method, filter }, dates),
       transaction,
     };
-    const reader = this.reader('list', ctx, source, authenticated);
     if (!dimensions.length) {
       const value = await reader.aggregate(ctx, source, authenticated, request);
       return [Object.freeze(Object.fromEntries([[measure.alias, value]]))];

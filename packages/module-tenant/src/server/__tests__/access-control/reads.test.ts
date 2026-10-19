@@ -20,7 +20,7 @@ import { AccessQueryService } from '../../access-control/query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from '../../access-control/read-grants';
 import { AccessReadService } from '../../access-control/reads';
 import type { AccessFilterReadGrant } from '../../access-control/request-filter';
-import { AccessRootReadHandler } from '../../access-control/root-read-handler';
+import { AccessRootReadHandler, type AccessRelatedReadContextResolver } from '../../access-control/root-read-handler';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -157,7 +157,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     const createHandler = (
       resolveIdentity = (collection: Collection) =>
         identities.find((identity) => identity.collectionName === collection.name),
-    ) => new AccessRootReadHandler(db, adapter, queries, resolveIdentity);
+      related?: AccessRelatedReadContextResolver,
+    ) => new AccessRootReadHandler(db, adapter, queries, resolveIdentity, related);
     const allowed = () => {
       const acl = new ACL();
       acl.setAvailableAction('view', { aliases: ['list', 'get'] });
@@ -166,13 +167,13 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       acl.getRole('reader').grantAction('documents:count', {});
       return acl;
     };
-    const context = (actionName = 'list', params: Record<string, unknown> = {}) => {
+    const context = (actionName = 'list', params: Record<string, unknown> = {}, resourceName = 'documents') => {
       const resourcer = new Resourcer();
-      resourcer.define({ name: 'documents', actions: { list: {}, get: {}, count: {} } });
-      const action = resourcer.getAction('documents', actionName).clone();
-      Object.assign(action, { resourceName: 'documents', actionName, sourceId: undefined, resourceOf: undefined });
+      resourcer.define({ name: resourceName, actions: { list: {}, get: {}, count: {} } });
+      const action = resourcer.getAction(resourceName, actionName).clone();
+      Object.assign(action, { resourceName, actionName, sourceId: undefined, resourceOf: undefined });
       action.params.filterByTk = undefined;
-      action.mergeParams({ resourceName: 'documents', actionName, ...params });
+      action.mergeParams({ resourceName, actionName, ...params });
       return Object.assign(ctx, {
         db,
         action,
@@ -188,11 +189,245 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       });
     };
     const trusted = () => ({ tenantId: 'B', userId: 28, roleName: 'reader' });
-    const authorized = async (actionName = 'list', params: Record<string, unknown> = {}, acl = allowed()) => {
-      const result = context(actionName, params);
+    const authorized = async (
+      actionName = 'list',
+      params: Record<string, unknown> = {},
+      acl = allowed(),
+      resourceName = 'documents',
+    ) => {
+      const result = context(actionName, params, resourceName);
       await acl.middleware()(result as never, async () => {});
       return result;
     };
+
+    describe('related permissions', () => {
+      const targetContext = async (permission = {}, raw: Record<string, unknown> = {}, actionName = 'list') => {
+        const acl = allowed();
+        acl.getRole('reader').grantAction('projects:view', permission);
+        // Keep the target context independent: the prepared root fixture reuses ctx.
+        return { ...(await authorized(actionName, raw, acl, 'projects')) };
+      };
+      const relatedHandler = (target: Awaited<ReturnType<typeof targetContext>> | null) => {
+        const resolve = vi.fn((_collection, _path, _operation) => target);
+        return { handler: createHandler(undefined, resolve), resolve };
+      };
+
+      it('expands only readable target rows while retaining every readable root and native count', async () => {
+        const target = await targetContext({ fields: ['name'] });
+        const result = await authorized('list', { fields: ['id'], appends: ['project'], sort: ['id'] });
+        const { handler, resolve } = relatedHandler(target);
+        await handler.handle(result, trusted());
+        expect(result.body).toEqual({
+          rows: [
+            { id: 1, project: { name: 'Zebra' } },
+            { id: 2, project: null },
+            { id: 4, project: { name: 'Alpha' } },
+            { id: 5, project: null },
+          ],
+          count: 4,
+          page: 1,
+          pageSize: 20,
+          totalPage: 1,
+        });
+        expect(resolve).toHaveBeenCalledTimes(1);
+        const [collection, path, operation] = resolve.mock.calls[0];
+        expect(collection).toBe(projects);
+        expect(path).toEqual(['project']);
+        expect(Object.isFrozen(path)).toBe(true);
+        expect(operation).toMatchObject({ kind: 'list', authenticated: trusted(), source: mainIdentity });
+        expect(Object.isFrozen(operation.authenticated)).toBe(true);
+      });
+
+      it.each(['list', 'get', 'count'])(
+        'uses target list permission for related filtering during root %s',
+        async (kind) => {
+          const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
+          const result = await authorized(kind, {
+            filter: { project: { name: { $includes: 'a' } } },
+            ...(kind === 'count' ? {} : { fields: ['id'] }),
+            ...(kind === 'get' ? { filterByTk: 1 } : {}),
+          });
+          const { handler } = relatedHandler(target);
+          await handler.handle(result, trusted());
+          expect(result.body).toEqual(
+            kind === 'count'
+              ? 1
+              : kind === 'get'
+                ? { id: 1 }
+                : {
+                    rows: [{ id: 1 }],
+                    count: 1,
+                    page: 1,
+                    pageSize: 20,
+                    totalPage: 1,
+                  },
+          );
+        },
+      );
+
+      it('sorts with target role and G/V restrictions and reuses one per-path decision across query uses', async () => {
+        const target = await targetContext({ fields: ['name'], filter: { name: 'Alpha' } });
+        const result = await authorized('list', { fields: ['id'], appends: ['project'], sort: ['project.name', 'id'] });
+        const { handler, resolve } = relatedHandler(target);
+        await handler.handle(result, trusted());
+        expect(result.body).toMatchObject({
+          rows: [
+            { id: 4, project: { name: 'Alpha' } },
+            { id: 1, project: null },
+            { id: 2, project: null },
+            { id: 5, project: null },
+          ],
+          count: 4,
+        });
+        expect(resolve).toHaveBeenCalledTimes(1);
+      });
+
+      it('intersects the parent permission path with the target field grant', async () => {
+        const target = await targetContext({ fields: ['id', 'name'] });
+        const acl = allowed();
+        acl.getRole('reader').grantAction('documents:view', { fields: ['id'], appends: ['project.name'] });
+        const result = await authorized('get', { filterByTk: 1, appends: ['project'] }, acl);
+        const { handler } = relatedHandler(target);
+        await handler.handle(result, trusted());
+        expect(result.body).toEqual({ id: 1, project: { name: 'Zebra' } });
+        const forbidden = await authorized('get', { filterByTk: 1, fields: ['id', 'project.id'] }, acl);
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(handler.handle(forbidden, trusted())).rejects.toThrow(/authorized/);
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it('keeps G/V for target skip authorization', async () => {
+        const acl = allowed();
+        acl.allow('projects', 'list', () => true);
+        acl.addFixedParams('projects', 'list', () => ({ fields: ['name'] }));
+        const target = { ...(await authorized('list', {}, acl, 'projects')) };
+        const result = await authorized('get', { filterByTk: 2, appends: ['project'], fields: ['id'] });
+        await relatedHandler(target).handler.handle(result, trusted());
+        expect(result.body).toEqual({ id: 2, project: null });
+      });
+
+      it('denies absent or explicitly denied target permissions without querying', async () => {
+        const denied = await targetContext();
+        Object.assign(denied.permission as object, { can: false });
+        const result = await authorized('list', { fields: ['id'], appends: ['project'] });
+        const sql = vi.spyOn(db.sequelize, 'query');
+        for (const target of [null, denied]) {
+          await expect(relatedHandler(target).handler.handle(result, trusted())).rejects.toThrow(/authorized/);
+          expect(result.body).toBe('unchanged');
+        }
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        { filter: {} },
+        { filter: { id: 101 } },
+        { filterByTk: 101 },
+        { fields: ['name'] },
+        { appends: [] },
+        { page: 2 },
+        { tenantId: 'B' },
+      ])('does not widen a target decision made with request constraints %j', async (raw) => {
+        const target = await targetContext({}, raw);
+        const result = await authorized('list', { fields: ['id'], appends: ['project'] });
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(relatedHandler(target).handler.handle(result, trusted())).rejects.toThrow();
+        expect(result.body).toBe('unchanged');
+        expect(sql).not.toHaveBeenCalled();
+      });
+
+      it('requires the correct target database, collection, role and finalized list action', async () => {
+        const target = await targetContext();
+        const detail = await targetContext({}, { filterByTk: 101 }, 'get');
+        const result = await authorized('list', { fields: ['id'], appends: ['project'] });
+        const sql = vi.spyOn(db.sequelize, 'query');
+        for (const wrong of [
+          { ...target, db: {} as Database },
+          { ...target, action: { resourceName: 'documents', actionName: 'list' } },
+          { ...target, action: { resourceName: 'projects', actionName: 'list', sourceId: '_' } },
+          {
+            ...target,
+            permission: {
+              ...(target.permission as object),
+              can: { resource: 'projects', action: 'list', role: 'other' },
+            },
+          },
+          { ...target, permission: { ...(target.permission as object), parsedParams: undefined } },
+          { ...target, permission: { ...(target.permission as object), rawParams: undefined } },
+          detail,
+        ])
+          await expect(createHandler(undefined, () => wrong).handle(result, trusted())).rejects.toThrow();
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      });
+
+      it('captures final target params before later metadata callbacks mutate them', async () => {
+        const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
+        let captured = false;
+        const result = await authorized('list', { fields: ['id'], appends: ['project'], sort: ['id'] });
+        const handler = createHandler(
+          (collection) => {
+            if (captured)
+              Object.assign((target.permission as { parsedParams: object }).parsedParams, {
+                fields: ['id'],
+                filter: { name: 'Alpha' },
+              });
+            return identities.find((identity) => identity.collectionName === collection.name);
+          },
+          () => {
+            captured = true;
+            return target;
+          },
+        );
+        await handler.handle(result, trusted());
+        expect(result.body).toMatchObject({
+          rows: [
+            { id: 1, project: { name: 'Zebra' } },
+            { id: 2, project: null },
+            { id: 4, project: null },
+            { id: 5, project: null },
+          ],
+        });
+      });
+
+      it('captures target decisions again on a subsequent request instead of sharing grants', async () => {
+        const target = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
+        const { handler, resolve } = relatedHandler(target);
+        const first = await authorized('get', { filterByTk: 1, fields: ['id'], appends: ['project'] });
+        await handler.handle(first, trusted());
+        expect(first.body).toEqual({ id: 1, project: { name: 'Zebra' } });
+        Object.assign((target.permission as { parsedParams: object }).parsedParams, { filter: { name: 'Alpha' } });
+        const second = await authorized('get', { filterByTk: 1, fields: ['id'], appends: ['project'] });
+        await handler.handle(second, trusted());
+        expect(second.body).toEqual({ id: 1, project: null });
+        expect(resolve).toHaveBeenCalledTimes(2);
+      });
+
+      it('keeps distinct decisions for two association paths reaching the same target table', async () => {
+        docs.setField('alternateProject', { type: 'belongsTo', target: 'projects', foreignKey: 'projectId' });
+        ctx = {};
+        await adapter.prepare(ctx, identities);
+        const zebra = await targetContext({ fields: ['name'], filter: { name: 'Zebra' } });
+        const alpha = await targetContext({ fields: ['name'], filter: { name: 'Alpha' } });
+        const result = await authorized('list', {
+          fields: ['id'],
+          appends: ['project', 'alternateProject'],
+          sort: ['id'],
+        });
+        const resolve = vi.fn<AccessRelatedReadContextResolver>((_collection, path) =>
+          path[0] === 'project' ? zebra : alpha,
+        );
+        await createHandler(undefined, resolve).handle(result, trusted());
+        expect(result.body).toMatchObject({
+          rows: [
+            { id: 1, project: { name: 'Zebra' }, alternateProject: null },
+            { id: 2, project: null, alternateProject: null },
+            { id: 4, project: null, alternateProject: { name: 'Alpha' } },
+            { id: 5, project: null, alternateProject: null },
+          ],
+        });
+        expect(resolve).toHaveBeenCalledTimes(2);
+      });
+    });
 
     it('uses raw client filters and finalized hidden role facts with native pagination', async () => {
       const acl = new ACL();

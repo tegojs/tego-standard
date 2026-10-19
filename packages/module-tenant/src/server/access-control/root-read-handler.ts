@@ -3,7 +3,7 @@ import type { Collection, Database, Transaction } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
-import { AccessEntryReadService } from './entry-reads';
+import { AccessEntryReadService, type AccessEntryReadOperation } from './entry-reads';
 import { captureFinalReadPermission } from './final-read-permission';
 import type { AccessQueryService } from './query';
 import { captureReadDateContext, type AccessReadDateContext } from './read-date-filter';
@@ -17,11 +17,35 @@ export interface AccessRootReadContext {
   paginate?: boolean;
 }
 
+/** Server-finalized, unfiltered target list context for this exact request/path; never client input. */
+export type AccessRelatedReadContextResolver = (
+  collection: Collection,
+  path: readonly string[],
+  operation: AccessEntryReadOperation,
+) => AccessRootReadContext | null;
+
 function data(input: object, key: string): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(input, key);
   if (!descriptor) return;
   if (!Object.hasOwn(descriptor, 'value')) invalid('Root read context cannot contain accessors');
   return descriptor.value;
+}
+
+function captureAction(ctx: AccessRootReadContext, db: Database) {
+  if (ctx.db !== db || !ctx.action || typeof ctx.action !== 'object')
+    invalid('Root read handler does not match the resource database');
+  const resourceName = data(ctx.action, 'resourceName');
+  const actionName = data(ctx.action, 'actionName');
+  if (
+    typeof resourceName !== 'string' ||
+    !/^[A-Za-z_][A-Za-z0-9_]*$/.test(resourceName) ||
+    typeof actionName !== 'string' ||
+    !['list', 'get', 'count'].includes(actionName) ||
+    data(ctx.action, 'sourceId') !== undefined ||
+    data(ctx.action, 'resourceOf') !== undefined
+  )
+    invalid('Unsupported root read action');
+  return { resourceName, actionName };
 }
 
 /** Strip only verified core transport metadata, never arbitrary client options. */
@@ -71,6 +95,7 @@ export class AccessRootReadHandler {
     private readonly prepared: AccessAclScopeAdapter,
     private readonly queries: AccessQueryService,
     private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+    private readonly resolveRelatedContext?: AccessRelatedReadContextResolver,
   ) {}
 
   async handle(
@@ -79,26 +104,15 @@ export class AccessRootReadHandler {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ): Promise<void> {
-    if (ctx.db !== this.db || !ctx.action || typeof ctx.action !== 'object')
-      invalid('Root read handler does not match the resource database');
-    const resourceName = data(ctx.action, 'resourceName');
-    const actionName = data(ctx.action, 'actionName');
-    if (
-      typeof resourceName !== 'string' ||
-      !/^[A-Za-z_][A-Za-z0-9_]*$/.test(resourceName) ||
-      typeof actionName !== 'string' ||
-      !['list', 'get', 'count'].includes(actionName) ||
-      data(ctx.action, 'sourceId') !== undefined ||
-      data(ctx.action, 'resourceOf') !== undefined
-    )
-      invalid('Unsupported root read action');
+    const { resourceName, actionName } = captureAction(ctx, this.db);
     if (!plain(authenticated)) invalid('Root read authenticated identity is unavailable');
     const identity = Object.freeze(cloneDeep<AccessIdentity>(authenticated));
-    if (typeof identity.roleName !== 'string') invalid('Root reads require an authenticated role');
+    const roleName = identity.roleName;
+    if (typeof roleName !== 'string') invalid('Root reads require an authenticated role');
     const permission = captureFinalReadPermission(ctx.permission, {
       resourceName,
       actionName,
-      roleName: identity.roleName,
+      roleName,
     });
     const params = captureParams(ctx.permission, resourceName, actionName);
     const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
@@ -107,8 +121,24 @@ export class AccessRootReadHandler {
       this.prepared,
       this.queries,
       this.resolveIdentity,
-      // A root decision cannot authorize user access to any related table.
-      (_collection, path) => (path.length === 0 ? permission : null),
+      (collection, path, operation) => {
+        if (path.length === 0) return permission;
+        const related = this.resolveRelatedContext?.(collection, Object.freeze([...path]), operation);
+        if (related == null) return null;
+        const action = captureAction(related, this.db);
+        if (action.resourceName !== collection.name || action.actionName !== 'list')
+          invalid('Related reads require the target collection list decision');
+        const granted = captureFinalReadPermission(related.permission, {
+          resourceName: action.resourceName,
+          actionName: 'list',
+          roleName,
+        });
+        if (!granted.allowed) return granted;
+        // A decision made for a filtered lookup cannot authorize arbitrary related rows.
+        if (Reflect.ownKeys(captureParams(related.permission, action.resourceName, 'list')).length)
+          invalid('Related read decisions require an unfiltered target list context');
+        return granted;
+      },
     );
     const body = await reads.fromResource(
       ctx,

@@ -5,6 +5,7 @@ import {
   FilterParser,
   literal,
   Op,
+  Resourcer,
   type Collection,
   type Database,
   type Model,
@@ -19,6 +20,7 @@ import { AccessQueryService } from '../../access-control/query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from '../../access-control/read-grants';
 import { AccessReadService } from '../../access-control/reads';
 import type { AccessFilterReadGrant } from '../../access-control/request-filter';
+import { AccessRootReadHandler } from '../../access-control/root-read-handler';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -151,6 +153,219 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       entryResolver,
     );
   });
+  describe('root handler', () => {
+    const createHandler = (
+      resolveIdentity = (collection: Collection) =>
+        identities.find((identity) => identity.collectionName === collection.name),
+    ) => new AccessRootReadHandler(db, adapter, queries, resolveIdentity);
+    const allowed = () => {
+      const acl = new ACL();
+      acl.setAvailableAction('view', { aliases: ['list', 'get'] });
+      acl.setAvailableAction('count', {});
+      acl.define({ role: 'reader' }).grantAction('documents:view', {});
+      acl.getRole('reader').grantAction('documents:count', {});
+      return acl;
+    };
+    const context = (actionName = 'list', params: Record<string, unknown> = {}) => {
+      const resourcer = new Resourcer();
+      resourcer.define({ name: 'documents', actions: { list: {}, get: {}, count: {} } });
+      const action = resourcer.getAction('documents', actionName).clone();
+      Object.assign(action, { resourceName: 'documents', actionName, sourceId: undefined, resourceOf: undefined });
+      action.params.filterByTk = undefined;
+      action.mergeParams({ resourceName: 'documents', actionName, ...params });
+      return Object.assign(ctx, {
+        db,
+        action,
+        state: { currentRole: 'reader', currentUser: { id: 28, projectName: 'Secret' } },
+        get: () => '+08:00',
+        logger: { info: vi.fn() },
+        throw: (status: number) => {
+          throw new Error(String(status));
+        },
+        permission: undefined as unknown,
+        body: 'unchanged' as unknown,
+        paginate: false,
+      });
+    };
+    const trusted = () => ({ tenantId: 'B', userId: 28, roleName: 'reader' });
+    const authorized = async (actionName = 'list', params: Record<string, unknown> = {}, acl = allowed()) => {
+      const result = context(actionName, params);
+      await acl.middleware()(result as never, async () => {});
+      return result;
+    };
+
+    it('uses raw client filters and finalized hidden role facts with native pagination', async () => {
+      const acl = new ACL();
+      acl.setAvailableAction('view', { aliases: ['list', 'get'] });
+      acl.define({ role: 'reader' }).grantAction('documents:view', {
+        fields: ['amount'],
+        appends: [],
+        filter: { 'project.name': '{{ ctx.state.currentUser.projectName }}' },
+      });
+      acl.addFixedParams('documents', 'list', () => ({ filter: { amount: { $gte: 15 } } }));
+      const result = context('list', {
+        fields: ['amount'],
+        page: '1',
+        pageSize: '2',
+        filter: { amount: { $lte: 30 } },
+      });
+      await acl.middleware()(result as never, async () => {
+        expect(JSON.stringify(result.action.params.filter)).toContain('"project":{"name":"Secret"}');
+        await createHandler().handle(result, trusted());
+      });
+      expect(result.body).toEqual({ rows: [{ amount: 20 }], count: 1, page: 1, pageSize: 2, totalPage: 1 });
+      expect(result.paginate).toBe(true);
+    });
+
+    it('preserves root G/V and the native page count independently of page size', async () => {
+      const result = await authorized('list', { fields: ['id'], sort: ['id'], page: '2', pageSize: '2' });
+      await createHandler().handle(result, trusted());
+      expect(result.body).toEqual({ rows: [{ id: 4 }, { id: 5 }], count: 4, page: 2, pageSize: 2, totalPage: 2 });
+    });
+
+    it.each([1, 2, 3, 4, 6, 7, 99])(
+      'returns native detail or null for key %s without changing pagination',
+      async (key) => {
+        const result = await authorized('get', { filterByTk: key, fields: ['id'] });
+        await createHandler().handle(result, trusted());
+        expect(result.body).toEqual([1, 2, 4].includes(key) ? { id: key } : null);
+        expect(result.paginate).toBe(false);
+      },
+    );
+
+    it('accepts matching REST locator metadata without exposing it as query input', async () => {
+      const result = await authorized('get', { resourceIndex: '2', filterByTk: '2', fields: ['id'] });
+      await createHandler().handle(result, trusted());
+      expect(result.body).toEqual({ id: 2 });
+    });
+
+    it('returns a scalar count under independent count permission and role filtering', async () => {
+      const acl = allowed();
+      acl.getRole('reader').grantAction('documents:count', { filter: { amount: { $gte: 20 } } });
+      const result = await authorized('count', { filter: { amount: { $lte: 40 } } }, acl);
+      await createHandler().handle(result, trusted());
+      expect(result.body).toBe(2);
+      expect(result.paginate).toBe(false);
+    });
+
+    it('keeps G/V when core grants skip and rejects missing count operation permission before SQL', async () => {
+      const acl = new ACL();
+      acl.define({ role: 'reader' });
+      acl.allow('documents', 'list', () => true);
+      acl.addFixedParams('documents', 'list', () => ({ fields: ['id'], filter: { amount: { $gte: 20 } } }));
+      const result = await authorized('list', { fields: ['id'], sort: ['id'] }, acl);
+      await createHandler().handle(result, trusted());
+      expect(result.body).toMatchObject({ count: 3, rows: [{ id: 2 }, { id: 4 }, { id: 5 }] });
+      const listOnly = new ACL();
+      listOnly.setAvailableAction('view', { aliases: ['list', 'get'] });
+      listOnly.define({ role: 'reader' }).grantAction('documents:view', {});
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(authorized('count', {}, listOnly)).rejects.toThrow('403');
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it.each([{ filter: { project: { name: 'Secret' } } }, { sort: ['project.name'] }, { appends: ['project'] }])(
+      'does not reuse root authorization for related user query %j',
+      async (params) => {
+        const result = await authorized('list', params);
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(createHandler().handle(result, trusted())).rejects.toThrow(/authorized/);
+        expect(result.body).toBe('unchanged');
+        expect(sql).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      { resourceName: 'projects' },
+      { actionName: 'get' },
+      { associatedName: 'documents' },
+      { associatedIndex: '_' },
+      { resourceIndex: '1' },
+      { filterByTk: '1' },
+      { tenantId: 'C' },
+      { transaction: {} },
+      { rawParams: {} },
+      { sql: 'SELECT 1' },
+      { values: {} },
+      { unknown: undefined },
+    ])('rejects contradictory transport or unsupported inputs %j before SQL', async (extra) => {
+      const result = await authorized('list', { fields: ['id'] });
+      Object.assign((result.permission as { rawParams: object }).rawParams, extra);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(createHandler().handle(result, trusted())).rejects.toThrow();
+      expect(result.body).toBe('unchanged');
+      expect(result.paginate).toBe(false);
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('rejects conflicting REST and query keys', async () => {
+      const result = await authorized('get', { resourceIndex: '1', filterByTk: 2 });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(createHandler().handle(result, trusted())).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('requires raw params and never falls back to merged action params', async () => {
+      const result = await authorized('list', { fields: ['id'] });
+      delete (result.permission as { rawParams?: unknown }).rawParams;
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(createHandler().handle(result, trusted())).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('binds the configured database, requested root action and authenticated role', async () => {
+      const result = await authorized('list', { fields: ['id'] });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(createHandler().handle({ ...result, db: {} as Database }, trusted())).rejects.toThrow();
+      await expect(createHandler().handle(result, { ...trusted(), roleName: 'other' })).rejects.toThrow();
+      for (const action of [
+        { ...result.action, resourceName: 'documents.project' },
+        { ...result.action, sourceId: '_' },
+        { ...result.action, resourceOf: 1 },
+        { ...result.action, actionName: 'sum' },
+      ])
+        await expect(createHandler().handle({ ...result, action }, trusted())).rejects.toThrow();
+      expect(result.body).toBe('unchanged');
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('rejects raw request and identity accessors without executing them', async () => {
+      const result = await authorized('list', { fields: ['id'] });
+      const permission = result.permission as { rawParams: Record<string, unknown> };
+      const getter = vi.fn(() => ({ id: 1 }));
+      Object.defineProperty(permission.rawParams, 'filter', { get: getter, configurable: true });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(createHandler().handle(result, trusted())).rejects.toThrow();
+      delete permission.rawParams.filter;
+      await expect(
+        createHandler().handle(result, Object.defineProperty(trusted(), 'roleName', { get: getter })),
+      ).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('captures identity, raw inputs, final permission and dates before metadata callbacks', async () => {
+      await docs.model.update({ occurredAt: new Date('2026-09-16T00:00:00Z') }, { where: { id: 1 } });
+      const result = await authorized('list', {
+        fields: ['id'],
+        filter: { occurredAt: { $dateOn: '{{$nDate.today}}' } },
+      });
+      const identity = trusted();
+      const dates = { now: '2026-09-16T12:00:00.000Z', timezone: '+08:00' };
+      const handler = createHandler((collection) => {
+        identity.tenantId = 'C';
+        identity.roleName = 'other';
+        dates.now = '2026-09-17T12:00:00.000Z';
+        const permission = result.permission as { rawParams: object; parsedParams: object };
+        Object.assign(permission.rawParams, { filter: { id: 3 }, fields: ['name'] });
+        Object.assign(permission.parsedParams, { filter: { id: 3 } });
+        return identities.find((item) => item.collectionName === collection.name);
+      });
+      await handler.handle(result, identity, undefined, dates);
+      expect(result.body).toMatchObject({ rows: [{ id: 1 }], count: 1 });
+    });
+  });
+
   describe('chart params', () => {
     const chart = (extra: Record<string, unknown> = {}) =>
       entryReads.chartFromParams(ctx, mainIdentity, auth, {

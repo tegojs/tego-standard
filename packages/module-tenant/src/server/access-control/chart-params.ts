@@ -1,3 +1,4 @@
+import type { AccessAggregateOrder } from './aggregate-order';
 import { captureAccessFilter } from './filter-input';
 import { invalid, plain } from './write-support';
 
@@ -51,6 +52,38 @@ function selected(input: unknown, measure: boolean) {
   return { field, alias, aggregation: params.aggregation };
 }
 
+function parseOrders(input: unknown, measure: ReturnType<typeof selected>, dimensions: ReturnType<typeof selected>[]) {
+  const selectedFields = [measure, ...dimensions];
+  const seen = new Set<string>();
+  return items(input === undefined ? [] : input, 4).map((item): AccessAggregateOrder => {
+    const params = record(item, ['field', 'alias', 'order']);
+    const fields = Array.isArray(params.field) ? items(params.field, 1) : [params.field];
+    const field = fields[0];
+    if (
+      fields.length !== 1 ||
+      (field !== undefined &&
+        (typeof field !== 'string' || !field.length || field.length > 255 || field.includes('\0')))
+    )
+      invalid('Chart order requires a selected field or alias');
+    const candidates = selectedFields.filter((selection) =>
+      params.alias === undefined
+        ? field === selection.field || field === selection.alias
+        : params.alias === selection.alias &&
+          (field === undefined || field === selection.field || field === selection.alias),
+    );
+    if (candidates.length !== 1) invalid('Chart order must identify one selected field or alias');
+    const selection = candidates[0];
+    if (seen.has(selection.alias)) invalid('Chart order targets must be distinct');
+    seen.add(selection.alias);
+    const direction = params.order === undefined ? 'asc' : params.order;
+    if (direction !== 'asc' && direction !== 'desc' && direction !== 'ASC' && direction !== 'DESC')
+      invalid('Unsupported chart order direction');
+    return selection === measure
+      ? { by: 'value', direction: direction === 'asc' || direction === 'ASC' ? 'asc' : 'desc' }
+      : { by: 'field', field: selection.field, direction: direction === 'asc' || direction === 'ASC' ? 'asc' : 'desc' };
+  });
+}
+
 /** Internal subset of chart query values; routing, cache and trusted execution context belong to the caller. */
 export function parseChartParams(input: unknown) {
   const params = record(input, ['measures', 'dimensions', 'orders', 'filter', 'limit']);
@@ -67,13 +100,14 @@ export function parseChartParams(input: unknown) {
     new Set([measure.alias, ...dimensions.map((item) => item.alias)]).size !== dimensions.length + 1
   )
     invalid('Chart grouping fields and output aliases must be distinct');
-  if (params.orders !== undefined) items(params.orders, 0);
+  const order = parseOrders(params.orders, measure, dimensions);
   const limit = params.limit === undefined ? 1000 : params.limit;
   if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
     invalid('Chart group limit exceeds supported limits');
   return {
     measure: { field: measure.field, alias: measure.alias, method: measure.aggregation },
     dimensions: dimensions.map(({ field, alias }) => ({ field, alias })),
+    order,
     filter: captureAccessFilter(params.filter === undefined ? {} : params.filter),
     limit,
   };

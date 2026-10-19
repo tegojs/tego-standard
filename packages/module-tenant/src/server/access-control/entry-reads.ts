@@ -236,7 +236,7 @@ export class AccessEntryReadService {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
-    const { measure, dimensions, filter, limit } = parseChartParams(params);
+    const { measure, dimensions, filter, limit, order } = parseChartParams(params);
     const request = {
       ...this.withDates(source, { field: measure.field, method: measure.method, filter }, dates),
       transaction,
@@ -250,6 +250,7 @@ export class AccessEntryReadService {
       ...request,
       groupBy: dimensions.map(({ field }) => field),
       limit,
+      order,
     });
     return rows.map(({ key, value }) =>
       Object.freeze(

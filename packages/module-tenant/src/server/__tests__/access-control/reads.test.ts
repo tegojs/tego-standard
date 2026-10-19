@@ -324,6 +324,155 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       expect(await chart({ limit: 1, filter: { tenantId: 'B' } })).toEqual([{ 归属: 'B', 金额: 60 }]);
     });
 
+    it.each(['sum', 'avg', 'min', 'max', 'count'])(
+      'orders authorized %s values in SQL with NULL last',
+      async (aggregation) => {
+        await docs.model.update({ amount: null }, { where: { id: 4 } });
+        const rows = await chart({
+          measures: [{ field: 'amount', aggregation, alias: '金额' }],
+          orders: [{ field: ['金额'], order: 'desc' }],
+        });
+        expect(rows.map((row) => row.归属)).toEqual(aggregation === 'min' ? ['H', 'B', null] : ['B', 'H', null]);
+        const ascending = await chart({
+          measures: [{ field: 'amount', aggregation, alias: '金额' }],
+          orders: [{ field: 'amount', alias: '金额', order: 'ASC' }],
+        });
+        expect(ascending.map((row) => row.归属)).toEqual(
+          aggregation === 'count' ? [null, 'H', 'B'] : aggregation === 'min' ? ['B', 'H', null] : ['H', 'B', null],
+        );
+      },
+    );
+
+    it('orders selected dimensions with stable remaining group keys and default ascending direction', async () => {
+      expect((await chart({ orders: [{ field: ['归属'], order: 'DESC' }] })).map((row) => row.归属)).toEqual([
+        'H',
+        'B',
+        null,
+      ]);
+      expect((await chart({ orders: [{ alias: '金额' }] })).map((row) => row.归属)).toEqual(['H', null, 'B']);
+      await docs.model.update({ amount: 20 }, { where: { id: [1, 4, 5] } });
+      expect((await chart({ orders: [{ field: '金额', order: 'asc' }] })).map((row) => row.归属)).toEqual([
+        'H',
+        null,
+        'B',
+      ]);
+      expect(
+        await chart({
+          dimensions: [{ field: 'tenantId' }, { field: 'projectId' }],
+          orders: [
+            { field: '金额', order: 'desc' },
+            { field: 'tenantId', order: 'desc' },
+          ],
+        }),
+      ).toEqual([
+        { tenantId: 'H', projectId: 102, 金额: 20 },
+        { tenantId: 'B', projectId: 101, 金额: 20 },
+        { tenantId: 'B', projectId: null, 金额: 20 },
+        { tenantId: null, projectId: 103, 金额: 20 },
+      ]);
+    });
+
+    it('keeps aliases out of SQL and validates scalar orders without changing the scalar result', async () => {
+      const alias = '金额"; DROP TABLE documents; --';
+      const sql = vi.spyOn(db.sequelize, 'query');
+      expect(
+        (
+          await chart({
+            measures: [{ field: 'amount', aggregation: 'sum', alias }],
+            orders: [{ field: alias, order: 'desc' }],
+          })
+        ).map((row) => row.归属),
+      ).toEqual(['B', null, 'H']);
+      expect(sql.mock.calls.every(([query]) => !String(query).includes(alias))).toBe(true);
+      expect(await chart({ dimensions: [], orders: [{ field: '金额', order: 'desc' }] })).toEqual([{ 金额: 120 }]);
+    });
+
+    it('accepts the full four-order bound and disambiguates a shared input field by explicit alias', async () => {
+      expect(
+        (
+          await chart({
+            dimensions: [{ field: 'tenantId' }, { field: 'projectId' }, { field: 'enabled' }],
+            orders: [
+              { field: '金额', order: 'desc' },
+              { field: 'tenantId' },
+              { field: 'projectId' },
+              { field: 'enabled', order: 'desc' },
+            ],
+          })
+        ).map((row) => row.金额),
+      ).toEqual([50, 40, 20, 10]);
+      expect(
+        (
+          await chart({
+            dimensions: [{ field: 'amount', alias: '分组金额' }],
+            orders: [{ field: 'amount', alias: '金额', order: 'desc' }],
+          })
+        ).map((row) => row.分组金额),
+      ).toEqual([50, 40, 20, 10]);
+    });
+
+    it('captures chart order before permission callbacks and preserves role filters and caps', async () => {
+      const params = {
+        measures: [{ field: 'amount', aggregation: 'sum', alias: '金额' }],
+        dimensions: [{ field: 'tenantId', alias: '归属' }],
+        orders: [{ field: ['金额'], order: 'desc' }],
+      };
+      entryResolver.mockImplementationOnce(() => {
+        params.orders[0].field[0] = 'name';
+        params.orders[0].order = 'asc';
+        return { allowed: true, params: { fields: ['amount', 'tenantId'], filter: { amount: { $gte: 20 } } } };
+      });
+      const pending = entryReads.chartFromParams(ctx, mainIdentity, auth, params);
+      params.orders.length = 0;
+      expect(await pending).toEqual([
+        { 归属: 'B', 金额: 50 },
+        { 归属: null, 金额: 40 },
+        { 归属: 'H', 金额: 20 },
+      ]);
+      await expect(chart({ orders: [{ field: '金额', order: 'desc' }], limit: 2 })).rejects.toThrow(/limit/);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      entryResolver.mockImplementation(() => ({ allowed: true, params: { fields: ['amount'] } }));
+      await expect(chart({ orders: [{ field: '归属' }] })).rejects.toThrow(/authorized/);
+      expect(sql).not.toHaveBeenCalled();
+    });
+
+    it('rejects unknown ambiguous malformed or contradictory chart orders before SQL', async () => {
+      const getter = vi.fn(() => '金额');
+      const accessor = Object.defineProperty({}, 'field', { get: getter });
+      const arrayAccessor = Object.defineProperty(['金额'], 0, { get: getter });
+      const sparse: unknown[] = [];
+      sparse.length = 1;
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const orders of [
+        '金额',
+        sparse,
+        [accessor],
+        [{ field: arrayAccessor }],
+        [{ field: sparse }],
+        [{ field: 'name' }],
+        [{ field: ['project', 'name'] }],
+        [{ field: 'project.name' }],
+        [{ field: '金额', order: 'desc NULLS FIRST' }],
+        [{ field: '金额', order: null }],
+        [{ field: '金额', alias: '归属' }],
+        [{ alias: 'missing' }],
+        [{}],
+        [{ field: '金额', extra: true }],
+        [{ field: '金额' }, { alias: '金额' }],
+        Array.from({ length: 5 }, () => ({ field: '金额' })),
+      ])
+        await expect(chart({ orders })).rejects.toThrow();
+      await expect(
+        chart({
+          measures: [{ field: 'amount', aggregation: 'sum', alias: 'tenantId' }],
+          dimensions: [{ field: 'tenantId', alias: '归属' }],
+          orders: [{ field: 'tenantId' }],
+        }),
+      ).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+    });
+
     it('rejects unsupported chart protocols and malformed descriptors before any SQL', async () => {
       const getter = vi.fn(() => 'amount');
       const measure = Object.defineProperty({ aggregation: 'sum' }, 'field', { get: getter });
@@ -356,7 +505,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         { dimensions: [{ field: 'name', alias: '' }] },
         { dimensions: [{ field: 'name', alias: '\0' }] },
         { dimensions: [{ field: 'name', alias: 'a'.repeat(256) }] },
-        { orders: [{ field: 'amount', order: 'desc' }] },
+        { orders: [{ field: 'missing', order: 'desc' }] },
         { sql: { fields: '*' } },
         { transaction: {} },
         { collection: 'projects' },
@@ -379,6 +528,59 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         groupBy: ['tenantId'],
         ...extra,
       } as never);
+
+    it('orders grouped values or mapped group fields with stable NULL-last ties', async () => {
+      expect((await grouped({ order: [{ by: 'value', direction: 'desc' }] })).map((row) => row.key.tenantId)).toEqual([
+        'B',
+        null,
+        'H',
+      ]);
+      expect(
+        (await grouped({ order: [{ by: 'field', field: 'tenantId', direction: 'desc' }] })).map(
+          (row) => row.key.tenantId,
+        ),
+      ).toEqual(['H', 'B', null]);
+    });
+
+    it('captures grouped ordering before permission callbacks and rejects unsupported descriptors', async () => {
+      const request = {
+        method: 'sum',
+        field: 'amount',
+        groupBy: ['tenantId'],
+        order: [{ by: 'value', direction: 'desc' }],
+      };
+      entryResolver.mockImplementation(() => {
+        request.order[0].direction = 'asc';
+        return { allowed: true, params: {} };
+      });
+      expect(
+        (await entryReads.groupAggregate(ctx, mainIdentity, auth, request)).map((row) => row.key.tenantId),
+      ).toEqual(['B', null, 'H']);
+      const getter = vi.fn(() => 'value');
+      const sql = vi.spyOn(db.sequelize, 'query');
+      const sparse: unknown[] = [];
+      sparse.length = 1;
+      for (const order of [
+        'amount',
+        sparse,
+        [Object.defineProperty({}, 'by', { get: getter })],
+        [{ by: 'value' }],
+        [{ direction: 'desc' }],
+        [{ by: 'field', direction: 'desc' }],
+        [{ by: 'value', direction: 'DESC' }],
+        [{ by: 'value', direction: 'desc', field: 'name' }],
+        [{ by: 'field', field: 'name', direction: 'desc' }],
+        [{ by: 'field', field: 'amount', direction: 'desc' }],
+        [{ by: 'field', field: 'project.name', direction: 'desc' }],
+        [
+          { by: 'value', direction: 'desc' },
+          { by: 'value', direction: 'asc' },
+        ],
+      ])
+        await expect(grouped({ order })).rejects.toThrow();
+      expect(getter).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+    });
 
     it.each([
       ['sum', 60],

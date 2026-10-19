@@ -10,6 +10,7 @@ import {
 } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureAggregateOrder } from './aggregate-order';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessFilterTreeService } from './filter-tree';
@@ -54,6 +55,7 @@ export interface AccessAggregateRequest extends AccessSumRequest {
 export interface AccessGroupedAggregateRequest extends AccessAggregateRequest {
   groupBy: unknown;
   limit?: unknown;
+  order?: unknown;
 }
 
 export interface AccessGroupedAggregateResult {
@@ -268,7 +270,16 @@ export class AccessReadService {
       group: plan.groupBy.map((name) => literal(column(name))) as unknown as NonNullable<
         Parameters<typeof plan.model.findAll>[0]
       >['group'],
-      order: plan.groupBy.map((name) => literal(`${column(name)} ASC NULLS LAST`)),
+      order: [
+        ...plan.aggregateOrder.map((item) =>
+          literal(
+            `${item.by === 'value' ? qi.quoteIdentifier(alias) : column(item.field)} ${item.direction.toUpperCase()} NULLS LAST`,
+          ),
+        ),
+        ...plan.groupBy
+          .filter((name) => !plan.aggregateOrder.some((item) => item.by === 'field' && item.field === name))
+          .map((name) => literal(`${column(name)} ASC NULLS LAST`)),
+      ],
       limit: plan.limit + 1,
     });
     plan.assertCurrent();
@@ -327,7 +338,7 @@ export class AccessReadService {
           : kind === 'sum'
             ? ['field']
             : kind === 'aggregate' || kind === 'groupAggregate'
-              ? ['field', 'method', 'distinct', ...(kind === 'groupAggregate' ? ['groupBy', 'limit'] : [])]
+              ? ['field', 'method', 'distinct', ...(kind === 'groupAggregate' ? ['groupBy', 'limit', 'order'] : [])]
               : []),
     ];
     if (
@@ -340,6 +351,7 @@ export class AccessReadService {
       )
     )
       invalid('Unsupported root read request');
+    const aggregateOrder = kind === 'groupAggregate' ? captureAggregateOrder(request.order) : [];
     let method: AggregateMethod | undefined;
     let distinct = false;
     if (kind === 'aggregate' || kind === 'groupAggregate') {
@@ -445,6 +457,8 @@ export class AccessReadService {
           invalid('Grouping requires distinct authorized physical scalar fields');
         groupBy.push(name);
       }
+      if (aggregateOrder.some((item) => item.by === 'field' && !groupBy.includes(item.field)))
+        invalid('Aggregate order requires an authorized grouping field');
     }
     const limit =
       (kind === 'list' || kind === 'groupAggregate') && request.limit !== undefined
@@ -531,6 +545,7 @@ export class AccessReadService {
       method,
       distinct,
       groupBy,
+      aggregateOrder,
       limit,
       offset,
       assertCurrent,

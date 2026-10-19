@@ -1,10 +1,12 @@
 import type { Collection, Database } from '@tego/server';
 
+import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalReadPermission } from './final-read-permission';
 import { captureReadDateContext, type AccessReadDateContext } from './read-date-filter';
 import { parseResourceCountParams, parseResourceGetParams, parseResourceListParams } from './resource-read-params';
+import { resolveResourceReadRoute } from './resource-read-routing';
 import { cloneDeep, invalid, plain } from './write-support';
 
 export interface AccessRootReadContext {
@@ -40,7 +42,12 @@ function captureAction(ctx: AccessRootReadContext, db: Database) {
 }
 
 /** Strip only verified core transport metadata, never arbitrary client options. */
-function captureParams(permission: unknown, resourceName: string, actionName: 'list' | 'get' | 'count') {
+function captureParams(
+  permission: unknown,
+  resourceName: string,
+  actionName: 'list' | 'get' | 'count',
+  association?: { source: string; relation: string },
+) {
   if (!plain(permission)) invalid('Root read permission context is unavailable');
   const raw = data(permission, 'rawParams');
   if (!plain(raw)) invalid('Root reads require the original action parameters');
@@ -49,15 +56,13 @@ function captureParams(permission: unknown, resourceName: string, actionName: 'l
   for (const key of Reflect.ownKeys(raw))
     Object.defineProperty(params, key, { value: data(raw, key), writable: true, enumerable: true, configurable: true });
   for (const [key, expected] of [
-    ['resourceName', resourceName],
+    ['resourceName', association?.relation ?? resourceName],
     ['actionName', actionName],
+    ['associatedName', association?.source],
+    ['associatedIndex', association ? '_' : undefined],
   ] as const) {
     if (Object.hasOwn(params, key) && params[key] !== expected)
       invalid('Root read transport metadata does not match the requested operation');
-    delete params[key];
-  }
-  for (const key of ['associatedName', 'associatedIndex']) {
-    if (params[key] !== undefined) invalid('Association reads require a dedicated handler');
     delete params[key];
   }
   if (params.resourceIndex !== undefined) {
@@ -91,14 +96,64 @@ export function captureRootReadContext(
   dates?: AccessReadDateContext,
 ) {
   const action = captureAction(ctx, db);
+  return captureReadContext(ctx, authenticated, action, dates);
+}
+
+function captureReadContext(
+  ctx: AccessRootReadContext,
+  authenticated: AccessIdentity,
+  action: { resourceName: string; actionName: 'list' | 'get' | 'count' },
+  dates?: AccessReadDateContext,
+  association?: { source: string; relation: string },
+) {
   if (!plain(authenticated)) invalid('Root read authenticated identity is unavailable');
   const identity = Object.freeze(cloneDeep<AccessIdentity>(authenticated));
   const roleName = identity.roleName;
   if (typeof roleName !== 'string') invalid('Root reads require an authenticated role');
   const permission = captureFinalReadPermission(ctx.permission, { ...action, roleName });
-  const params = captureParams(ctx.permission, action.resourceName, action.actionName);
+  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association);
   const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
   return { action, identity, roleName, permission, params, dateContext };
+}
+
+/** Core /_/ resolves a target repository, not a concrete source record. */
+export function capturePlaceholderReadContext(
+  db: Database,
+  resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+  ctx: AccessRootReadContext,
+  authenticated: AccessIdentity,
+  dates?: AccessReadDateContext,
+) {
+  if (ctx.db !== db || !ctx.action || typeof ctx.action !== 'object')
+    invalid('Placeholder read does not match the resource database');
+  const resourceName = data(ctx.action, 'resourceName');
+  const actionName = data(ctx.action, 'actionName');
+  const resourceOf = data(ctx.action, 'resourceOf');
+  if (
+    typeof resourceName !== 'string' ||
+    resourceName.split('.').length !== 2 ||
+    typeof actionName !== 'string' ||
+    !['get', 'list'].includes(actionName) ||
+    data(ctx.action, 'sourceId') !== '_' ||
+    (resourceOf !== undefined && resourceOf !== '_')
+  )
+    invalid('Placeholder reads require an association get/list action without a concrete source');
+  const [source, relation] = resourceName.split('.');
+  if (!plain(ctx.permission)) invalid('Placeholder target permission is unavailable');
+  const targetName = data(ctx.permission, 'resourceName');
+  if (typeof targetName !== 'string') invalid('Placeholder reads require a target collection decision');
+  const captured = captureReadContext(
+    ctx,
+    authenticated,
+    { resourceName: targetName, actionName: actionName as 'get' | 'list' },
+    dates,
+    { source, relation },
+  );
+  const route = resolveResourceReadRoute(db, resolveIdentity, { resourceName, actionName, sourceId: '_' });
+  if (route.kind !== 'direct' || route.identity.collectionName !== targetName)
+    invalid('Placeholder permission does not match its actual target collection');
+  route.assertCurrent();
+  return { captured, assertCurrent: route.assertCurrent };
 }
 
 /** Capture only a neutral target list decision finalized by the existing server authorization chain. */

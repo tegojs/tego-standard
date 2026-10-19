@@ -202,6 +202,159 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       return result;
     };
 
+    describe('placeholder handler', () => {
+      const placeholder = async (actionName = 'get', params: Record<string, unknown> = {}, permission = {}) => {
+        const acl = new ACL();
+        acl.setAvailableAction('view', { aliases: ['list', 'get'] });
+        acl.define({ role: 'reader' }).grantAction('projects:view', permission);
+        const result = Object.assign(context(actionName, params, 'project'), {
+          getCurrentRepository: () => ({ targetCollection: projects }),
+        });
+        Object.assign(result.action, { resourceName: 'documents.project', sourceId: '_', resourceOf: '_' });
+        result.action.mergeParams({ associatedName: 'documents', associatedIndex: '_' });
+        await acl.middleware()(result as never, async () => {});
+        return result;
+      };
+
+      it('uses the actual target permission and reads targets without an existing source link', async () => {
+        await projects.model.create({ id: 104, name: 'Unlinked', tenantId: 'B' });
+        const result = await placeholder('get', { filterByTk: 104, fields: ['name'] }, { fields: ['name'] });
+        const authorize = vi.fn(async () => null);
+        await createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), authorize);
+        expect(result.body).toEqual({ name: 'Unlinked' });
+        expect(authorize).not.toHaveBeenCalled();
+      });
+
+      it('intersects target tenant visibility with final role filters and fields', async () => {
+        const result = await placeholder(
+          'list',
+          { fields: ['name'], sort: ['name'] },
+          { fields: ['name'], filter: { name: 'Alpha' } },
+        );
+        await createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => null);
+        expect(result.body).toEqual({ rows: [{ name: 'Alpha' }], count: 1, page: 1, pageSize: 20, totalPage: 1 });
+        expect(result.paginate).toBe(true);
+      });
+
+      it('does not expose a hidden target even when the source record is readable', async () => {
+        const result = await placeholder('get', { filterByTk: 102, fields: ['name'] });
+        await createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => null);
+        expect(result.body).toBeNull();
+      });
+
+      it('prepares nested permissions from the target and snapshots the request before awaiting', async () => {
+        projects.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'projectId' });
+        await projects.model.update({ projectId: 1 }, { where: { id: 101 } });
+        const target = { ...(await authorized('list', {}, allowed())) };
+        const result = await placeholder('get', { filterByTk: 101, fields: ['name', 'document.name'] });
+        const identity = trusted();
+        const authorize = vi.fn(async (collection, path, operation) => {
+          expect(collection).toBe(docs);
+          expect(path).toEqual(['document']);
+          expect(operation.source).toEqual(projectIdentity);
+          result.action.sourceId = '1';
+          result.action.params.filterByTk = 102;
+          identity.tenantId = 'C';
+          return target;
+        });
+        await createHandler().handlePlaceholderWithRelatedContexts(result, identity, authorize);
+        expect(result.body).toEqual({ name: 'Zebra', document: { name: 'Owned' } });
+        expect(authorize).toHaveBeenCalledOnce();
+      });
+
+      it.each<[string, { action?: object; permission?: object; raw?: object }]>([
+        ['concrete source', { action: { sourceId: 1 } }],
+        ['conflicting source', { action: { resourceOf: 1 } }],
+        ['wrong source metadata', { raw: { associatedName: 'projects' } }],
+        ['wrong source key metadata', { raw: { associatedIndex: '1' } }],
+        ['wrong relation metadata', { raw: { resourceName: 'projects' } }],
+        ['wrong permission target', { permission: { resourceName: 'project' } }],
+        ['wrong permission role', { permission: { can: { resource: 'projects', action: 'get', role: 'other' } } }],
+        ['unsupported option', { raw: { hooks: false } }],
+        ['conflicting REST locator', { raw: { resourceIndex: 102 } }],
+        ['denied target', { permission: { can: null } }],
+      ])('rejects %s before SQL and leaves the response unchanged', async (_label, change) => {
+        const result = await placeholder('get', { filterByTk: 101, fields: ['name'] });
+        const permission = result.permission as { rawParams: object };
+        Object.assign(result.action, change.action);
+        Object.assign(permission.rawParams, change.raw);
+        Object.assign(permission, change.permission);
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => null),
+        ).rejects.toThrow();
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      });
+
+      it('accepts visibility-only target rows independently of the source grant', async () => {
+        await projects.model.create({ id: 104, tenantId: 'H', name: 'Visible' });
+        const result = await placeholder('get', { filterByTk: 104, fields: ['name'] });
+        await createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => null);
+        expect(result.body).toEqual({ name: 'Visible' });
+      });
+
+      it('retains the trusted caller transaction', async () => {
+        const transaction = await db.sequelize.transaction();
+        try {
+          await projects.model.create({ id: 104, tenantId: 'B', name: 'Uncommitted' }, { transaction });
+          const result = await placeholder('get', { filterByTk: 104, fields: ['name'] });
+          await createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => null, transaction);
+          expect(result.body).toEqual({ name: 'Uncommitted' });
+        } finally {
+          await transaction.rollback();
+        }
+        expect(await projects.model.findByPk(104)).toBeNull();
+      });
+
+      it('captures final permissions and identity before resolving collection metadata', async () => {
+        const result = await placeholder('get', { filterByTk: 101, fields: ['name'] });
+        const identity = trusted();
+        const handler = createHandler((collection) => {
+          identity.tenantId = 'C';
+          const permission = result.permission as { rawParams: { filterByTk: number } };
+          permission.rawParams.filterByTk = 102;
+          return identities.find((value) => value.collectionName === collection.name);
+        });
+        await handler.handlePlaceholderWithRelatedContexts(result, identity, async () => null);
+        expect(result.body).toEqual({ name: 'Zebra' });
+      });
+
+      it('accepts matching REST transport locators', async () => {
+        const result = await placeholder('get', { filterByTk: 101, resourceIndex: '101', fields: ['name'] });
+        await createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => null);
+        expect(result.body).toEqual({ name: 'Zebra' });
+      });
+
+      it('rejects relation replacement during asynchronous authorization before SQL', async () => {
+        projects.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'projectId' });
+        const target = { ...(await authorized()) };
+        const result = await placeholder('get', { filterByTk: 101, fields: ['document.name'] });
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => {
+            docs.model.associations.project = { ...docs.model.associations.project } as never;
+            return target;
+          }),
+        ).rejects.toThrow(/association changed/);
+        expect(sql).not.toHaveBeenCalled();
+        expect(result.body).toBe('unchanged');
+      });
+
+      it('rechecks the original relation after execution before publishing the response', async () => {
+        const result = await placeholder('get', { filterByTk: 101, fields: ['name'] });
+        const find = vi.spyOn(AccessEntryReadService.prototype, 'fromResource');
+        find.mockImplementationOnce(async () => {
+          docs.model.associations.project = { ...docs.model.associations.project } as never;
+          return { name: 'Zebra' };
+        });
+        await expect(
+          createHandler().handlePlaceholderWithRelatedContexts(result, trusted(), async () => null),
+        ).rejects.toThrow(/association changed/);
+        expect(result.body).toBe('unchanged');
+      });
+    });
+
     describe('path planning', () => {
       const plan = (
         params: unknown,

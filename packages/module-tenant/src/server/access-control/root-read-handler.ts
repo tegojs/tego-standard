@@ -10,7 +10,12 @@ import type { AccessReadDateContext } from './read-date-filter';
 import { collectRelatedReadPaths } from './read-paths';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
 import { resolveResourceReadRoute } from './resource-read-routing';
-import { captureRelatedReadPermission, captureRootReadContext, type AccessRootReadContext } from './root-read-context';
+import {
+  capturePlaceholderReadContext,
+  captureRelatedReadPermission,
+  captureRootReadContext,
+  type AccessRootReadContext,
+} from './root-read-context';
 import { cloneDeep, invalid } from './write-support';
 
 export type { AccessRootReadContext } from './root-read-context';
@@ -34,6 +39,26 @@ export class AccessRootReadHandler {
     private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
     private readonly resolveRelatedContext?: AccessRelatedReadContextResolver,
   ) {}
+
+  /** Association placeholders retain target ACL constraints and reuse the direct read pipeline. */
+  async handlePlaceholderWithRelatedContexts(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    authorize: AccessRelatedReadAuthorizer,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ): Promise<void> {
+    const { captured, assertCurrent } = capturePlaceholderReadContext(
+      this.db,
+      this.resolveIdentity,
+      ctx,
+      authenticated,
+      dates,
+    );
+    const preparation = await this.prepareRelated(ctx, captured, authorize, captured.params, undefined, assertCurrent);
+    preparation.assertCurrent();
+    await this.execute(ctx, captured, preparation.related, transaction, preparation.assertCurrent);
+  }
 
   /** The authorizer returns existing finalized target decisions; it never receives merged user params. */
   async handleWithRelatedContexts(
@@ -90,6 +115,7 @@ export class AccessRootReadHandler {
     authorize: AccessRelatedReadAuthorizer,
     params: unknown = captured.params,
     dataSource?: string,
+    assertRoute?: () => void,
   ) {
     if (!captured.permission.allowed) invalid('Root read is not authorized');
     const root = resolveResourceReadRoute(this.db, this.resolveIdentity, captured.action);
@@ -98,6 +124,7 @@ export class AccessRootReadHandler {
     const config = this.prepared.configuration(ctx, root.identity);
     if (!config) invalid('Root reads require a prepared access configuration');
     const assertCurrent = () => {
+      assertRoute?.();
       root.assertCurrent();
       if (this.prepared.configuration(ctx, root.identity) !== config) invalid('Root read preparation phase changed');
     };
@@ -152,7 +179,9 @@ export class AccessRootReadHandler {
     captured: ReturnType<typeof captureRootReadContext>,
     related: AccessRelatedReadContextResolver | undefined,
     transaction?: Transaction,
+    assertCurrent?: () => void,
   ) {
+    assertCurrent?.();
     const { action, identity, params, dateContext } = captured;
     const body = await this.reader(captured, related).fromResource(
       ctx,
@@ -162,6 +191,7 @@ export class AccessRootReadHandler {
       transaction,
       dateContext,
     );
+    assertCurrent?.();
     ctx.body = body;
     if (action.actionName === 'list') ctx.paginate = true;
   }

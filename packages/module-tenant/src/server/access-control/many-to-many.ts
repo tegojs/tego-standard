@@ -59,6 +59,8 @@ export class AccessManyToManyService {
     entry?: {
       assertCurrent(): void;
       targetScope(): Promise<{ where?: WhereOptions }>;
+      /** Trusted finalized action predicates on every actual addition/removal, including set removals. */
+      authorizeChanges?(keys: string[], transaction: Transaction): Promise<void>;
     },
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     source = { ...source };
@@ -174,6 +176,11 @@ export class AccessManyToManyService {
             if (add.length || remove.length) changes.push({ record, key, add, remove });
           }
           const additions = [...new Set(changes.flatMap((change) => change.add))];
+          const changedTargets = [...new Set(changes.flatMap((change) => [...change.add, ...change.remove]))];
+          if (entry?.authorizeChanges && changedTargets.length) {
+            await entry.authorizeChanges(changedTargets, transaction);
+            current();
+          }
           if (entry && additions.length) {
             const scope = await entry.targetScope();
             current();

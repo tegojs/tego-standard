@@ -1,12 +1,13 @@
-import type { Collection, Database } from '@tego/server';
+import { Op, type Collection, type Database, type Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureAssociationLinkInput, captureAssociationSourcePermission } from './association-link-input';
 import { resolveBelongsTo } from './association-metadata';
 import { AccessBelongsToService } from './belongs-to';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { captureAccessFilter } from './filter-input';
-import { captureFinalActionPermission } from './final-action-permission';
+import { captureFinalActionPermission, type AccessFinalActionPermission } from './final-action-permission';
 import { AccessManyToManyService } from './many-to-many';
 import { resolveManyToMany } from './many-to-many-metadata';
 import { accessMetadataGuard } from './metadata-snapshot';
@@ -16,7 +17,7 @@ import { AccessReadGrantAdapter } from './read-grants';
 import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
-import { cloneDeep, invalid, normalizeKeys, plain } from './write-support';
+import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
 
 function data(input: object, key: PropertyKey): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(input, key);
@@ -31,7 +32,7 @@ function shape(input: unknown, keys: readonly string[]): asserts input is Record
   for (const key of Reflect.ownKeys(input)) data(input, key);
 }
 
-/** Internal root update with one reference field; never edits targets or registers routes. */
+/** Internal reference mutations; never edit targets or register routes. */
 export class AccessReferenceMutationHandler {
   constructor(
     private readonly db: Database,
@@ -59,7 +60,6 @@ export class AccessReferenceMutationHandler {
       invalid('Only root reference updates are supported');
     const actor = Object.freeze(cloneDeep(authenticated));
     if (typeof actor.roleName !== 'string') invalid('Reference updates require an authenticated role');
-    const roleName = actor.roleName;
     const permission = captureFinalActionPermission(ctx.permission, {
       resourceName,
       actionName: 'update',
@@ -100,22 +100,65 @@ export class AccessReferenceMutationHandler {
     const name = Reflect.ownKeys(params.values)[0];
     if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) invalid('Invalid association name');
     const value = data(params.values, name);
-    shape(permission.params, ['whitelist', 'blacklist', 'filter', 'own']);
-    if (permission.params.own !== undefined && permission.params.own !== false)
-      invalid('Own-record mutation permissions must be finalized');
-    const names = (input: unknown) => {
-      if (input === undefined) return;
-      const fields = captureAccessFilter(input);
-      if (
-        !Array.isArray(fields) ||
-        fields.some((field) => typeof field !== 'string') ||
-        new Set(fields).size !== fields.length
-      )
-        invalid('Reference field grants must be distinct field names');
-      return fields as string[];
-    };
-    const whitelist = names(permission.params.whitelist);
-    const blacklist = names(permission.params.blacklist);
+    const rawValues = data(raw, 'values');
+    return this.execute(
+      ctx,
+      actor,
+      {
+        resourceName,
+        name,
+        value,
+        sourceKey: params.filterByTk,
+        originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
+      },
+      authorizeTarget,
+      permission,
+    );
+  }
+
+  async handleAssociation(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    authorizeSource: (
+      collection: Collection,
+      operation: 'add' | 'remove' | 'set',
+    ) => Promise<AccessRootReadContext | null>,
+    authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
+  ): Promise<void> {
+    const captured = captureAssociationLinkInput(this.db, ctx, authenticated);
+    return this.execute(
+      ctx,
+      captured.actor,
+      captured,
+      authorizeTarget,
+      undefined,
+      authorizeSource,
+      captured.permission,
+    );
+  }
+
+  private async execute(
+    ctx: AccessRootReadContext,
+    actor: AccessIdentity,
+    input: {
+      resourceName: string;
+      name: string;
+      value: unknown;
+      sourceKey: string | number;
+      originalValue?: unknown;
+      operation?: 'add' | 'remove' | 'set';
+      targetName?: string;
+    },
+    authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
+    sourcePermission?: Readonly<AccessFinalActionPermission>,
+    authorizeSource?: (
+      collection: Collection,
+      operation: 'add' | 'remove' | 'set',
+    ) => Promise<AccessRootReadContext | null>,
+    targetPermission?: Readonly<AccessFinalActionPermission>,
+  ): Promise<void> {
+    const { resourceName, name, value } = input;
+    const roleName = actor.roleName!;
     const source = this.db.getCollection(resourceName);
     const field = source?.getField(name);
     const association = source?.model.associations[name];
@@ -125,7 +168,9 @@ export class AccessReferenceMutationHandler {
       !field ||
       !target ||
       field.target !== target.name ||
-      !['BelongsTo', 'BelongsToMany'].includes(association.associationType)
+      !['BelongsTo', 'BelongsToMany'].includes(association.associationType) ||
+      (input.operation !== undefined &&
+        (association.associationType !== 'BelongsToMany' || target.name !== input.targetName))
     )
       invalid('Reference requires a registered reference field');
     const multiple = association.associationType === 'BelongsToMany';
@@ -155,21 +200,11 @@ export class AccessReferenceMutationHandler {
           name,
         )
       : resolveBelongsTo(this.db, this.prepared, this.queries, ctx, sourceIdentity, targetIdentity, name, true);
-    if (
-      (whitelist !== undefined && !whitelist.includes(name)) ||
-      blacklist?.includes(name) ||
-      (!multiple && blacklist?.includes(relation.foreignKey))
-    )
-      invalid('Association field is not writable');
-    for (const entry of [...(whitelist ?? []), ...(blacklist ?? [])])
-      if (!Object.hasOwn(source.model.rawAttributes, entry) && !Object.hasOwn(source.model.associations, entry))
-        invalid('Reference permission contains unsupported fields');
-    const keys = normalizeKeys([params.filterByTk], source);
+    const keys = normalizeKeys([input.sourceKey], source);
     let targetKey: string | null = null;
     let targetKeys: string[] = [];
     if (multiple) {
-      const rawValues = data(raw, 'values');
-      const original = plain(rawValues) ? data(rawValues, name) : undefined;
+      const original = input.operation ? value : input.originalValue;
       if (
         !Array.isArray(original) ||
         Object.getPrototypeOf(original) !== Array.prototype ||
@@ -186,7 +221,8 @@ export class AccessReferenceMutationHandler {
       targetKey = value === null ? null : normalizeKeys([value], target)[0];
     }
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
-    const role = compiler.compile(sourceIdentity, captureAccessFilter(permission.params.filter ?? {}));
+    let role: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
+    let targetRole: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
     const metadata = accessMetadataGuard(
       this.db,
       [
@@ -199,7 +235,8 @@ export class AccessReferenceMutationHandler {
     const assertCurrent = () => {
       relation.current();
       metadata();
-      role.assertCurrent();
+      role?.assertCurrent();
+      targetRole?.assertCurrent();
       assertTargetCurrent?.();
       if (
         source.getField(name) !== field ||
@@ -223,8 +260,79 @@ export class AccessReferenceMutationHandler {
       }
     };
     assertCurrent();
+    if (authorizeSource) {
+      const related = await authorizeSource(source, input.operation!);
+      assertCurrent();
+      sourcePermission = captureAssociationSourcePermission(this.db, source, roleName, input.operation!, related);
+    }
+    if (!sourcePermission?.allowed) invalid('Reference source permission is unavailable');
+    const checkFields = (
+      permission: Readonly<AccessFinalActionPermission>,
+      collection: Collection,
+      required: string,
+      alias?: string,
+    ) => {
+      shape(
+        permission.params,
+        input.operation
+          ? ['fields', 'whitelist', 'blacklist', 'filter', 'own']
+          : ['whitelist', 'blacklist', 'filter', 'own'],
+      );
+      if (permission.params.own !== undefined && permission.params.own !== false)
+        invalid('Own-record mutation permissions must be finalized');
+      for (const kind of ['fields', 'whitelist', 'blacklist']) {
+        const value = permission.params[kind];
+        if (value === undefined) continue;
+        const fields = captureAccessFilter(value);
+        if (
+          !Array.isArray(fields) ||
+          fields.some((field) => typeof field !== 'string') ||
+          new Set(fields).size !== fields.length
+        )
+          invalid('Reference field grants must be distinct field names');
+        for (const field of fields)
+          if (
+            !Object.hasOwn(collection.model.rawAttributes, field) &&
+            !Object.hasOwn(collection.model.associations, field)
+          )
+            invalid('Reference permission contains unsupported fields');
+        if (
+          kind === 'blacklist'
+            ? fields.includes(required) || (alias !== undefined && fields.includes(alias))
+            : !fields.includes(required)
+        )
+          invalid('Reference field is not authorized');
+      }
+      return compiler.compile(
+        collection === source ? sourceIdentity : targetIdentity,
+        captureAccessFilter(permission.params.filter ?? {}),
+      );
+    };
+    role = checkFields(sourcePermission, source, name, multiple ? undefined : relation.foreignKey);
+    if (targetPermission) targetRole = checkFields(targetPermission, target, target.model.primaryKeyAttribute);
+    assertCurrent();
     const entry = {
       assertCurrent,
+      ...(targetRole
+        ? {
+            authorizeChanges: async (keys: string[], transaction: Transaction) => {
+              assertCurrent();
+              const primary = target.model.primaryKeyAttribute;
+              const records = await target.model.unscoped().findAll(
+                internalQuery({
+                  attributes: [primary],
+                  where: { [Op.and]: [{ [primary]: { [Op.in]: keys } }, targetRole!.rootWhere ?? targetRole!.where] },
+                  transaction,
+                  limit: keys.length,
+                }),
+              );
+              assertCurrent();
+              // Actual additions plus removals can exceed the request's individual key limit.
+              const actual = new Set(records.map((record) => normalizeKeys([record.getDataValue(primary)], target)[0]));
+              if (actual.size !== keys.length || keys.some((key) => !actual.has(key))) unavailable();
+            },
+          }
+        : {}),
       targetScope: async () => {
         assertCurrent();
         const related = await authorizeTarget(target);
@@ -257,7 +365,7 @@ export class AccessReferenceMutationHandler {
         actor,
         {
           association: name,
-          operation: 'set',
+          operation: input.operation ?? 'set',
           sourceKeys: keys,
           targetKeys,
           sourceWhere: role.rootWhere ?? role.where,

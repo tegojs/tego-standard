@@ -119,18 +119,31 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized many-
     }
   });
 
-  async function context(params: object = {}, grant: object = {}, resourceName = 'documents', actionName = 'update') {
+  async function context(
+    params: object = {},
+    grant: object = {},
+    resourceName = 'documents',
+    actionName = 'update',
+    route?: { resourceName: string; sourceId: string | number },
+  ) {
     const acl = new ACL();
     acl.setAvailableAction('update', {});
     acl.setAvailableAction('list', {});
+    for (const name of ['add', 'remove', 'set']) acl.setAvailableAction(name, {});
     acl.define({ role: 'editor' }).grantAction(`${resourceName}:${actionName}`, grant);
     const resourcer = new Resourcer();
-    resourcer.define({ name: resourceName, actions: { update: {}, list: {} } });
+    resourcer.define({ name: resourceName, actions: { update: {}, list: {}, add: {}, remove: {}, set: {} } });
     const action = resourcer.getAction(resourceName, actionName).clone();
-    Object.assign(action, { resourceName, actionName, sourceId: undefined, resourceOf: undefined });
+    Object.assign(action, {
+      resourceName: route?.resourceName ?? resourceName,
+      actionName,
+      sourceId: route ? String(route.sourceId) : undefined,
+      resourceOf: route ? String(route.sourceId) : undefined,
+    });
     action.mergeParams({
       resourceName,
       actionName,
+      ...(route ? { associatedName: 'documents', associatedIndex: String(route.sourceId) } : {}),
       ...(actionName === 'update' ? { filterByTk: 3, values: { projects: [101] } } : {}),
       ...params,
     });
@@ -156,9 +169,328 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized many-
     return handler.handle(ctx, auth(), async () => related);
   };
   const linked = async (id = 3) =>
-    (await through.model.findAll({ where: { documentId: id }, order: [['projectId', 'ASC']] })).map((row) =>
-      Number(row.getDataValue('projectId')),
+    (
+      await through.model.findAll({
+        attributes: ['projectId'],
+        where: { documentId: id },
+        order: [['projectId', 'ASC']],
+      })
+    ).map((row) => Number(row.getDataValue('projectId')));
+
+  describe('independent link actions', () => {
+    const association = (
+      operation = 'add',
+      params: object = { values: [101] },
+      grant: object = {},
+      sourceId: string | number = 3,
+    ) => context(params, grant, 'projects', operation, { resourceName: 'documents.projects', sourceId });
+    const run = async (ctx: Awaited<ReturnType<typeof context>>, sourceGrant = {}, targetGrant = {}) => {
+      const source = await context({}, sourceGrant, 'documents', ctx.action.actionName);
+      const read = await target(targetGrant);
+      return handler.handleAssociation(
+        ctx,
+        auth(),
+        async () => source,
+        async () => read,
+      );
+    };
+    pg('adds using independent source action and target read grants', async () => {
+      const ctx = await association();
+      await run(ctx, { fields: ['projects'], filter: { name: 'Owned' } }, { fields: ['id'] });
+      expect(await linked()).toEqual([101, 103]);
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect((await projects.model.findByPk(101))!.get('tenantId')).toBe('H');
+    });
+    pg('accepts core undefined locators on neutral source decisions', async () => {
+      const ctx = await association();
+      const source = await context({}, {}, 'documents', 'add');
+      (source.permission as { rawParams: Record<string, unknown> }).rawParams.filterByTk = undefined;
+      const read = await target();
+      await handler.handleAssociation(
+        ctx,
+        auth(),
+        async () => source,
+        async () => read,
+      );
+      expect(await linked()).toEqual([101, 103]);
+    });
+    pg('removes hidden old references without a target list decision', async () => {
+      await through.model.update({ projectId: 102 }, { where: { documentId: 3 } });
+      const ctx = await association('remove', { filterByTk: 102 });
+      const source = await context({}, {}, 'documents', 'remove');
+      const read = vi.fn(async () => null);
+      await handler.handleAssociation(ctx, auth(), async () => source, read);
+      expect(read).not.toHaveBeenCalled();
+      expect(await linked()).toEqual([]);
+      expect(await projects.model.count()).toBe(4);
+    });
+    pg('sets and clears without mutating target ownership', async () => {
+      await run(await association('set', { filterByTks: [101, 104] }));
+      expect(await linked()).toEqual([101, 104]);
+      await run(await association('set', { values: [] }));
+      expect(await linked()).toEqual([]);
+      expect((await projects.model.findByPk(104))!.get('tenantId')).toBeNull();
+    });
+    pg('keeps unchanged hidden references without extra read authorization', async () => {
+      await through.model.update({ projectId: 102 }, { where: { documentId: 3 } });
+      const ctx = await association('add', { values: [102] });
+      const source = await context({}, {}, 'documents', 'add');
+      const read = vi.fn(async () => null);
+      await handler.handleAssociation(ctx, auth(), async () => source, read);
+      expect(read).not.toHaveBeenCalled();
+      expect(ctx.body).toEqual({ keys: [], affected: 0 });
+    });
+    pg('enforces target action conditions on removed and implicitly removed links', async () => {
+      for (const operation of ['remove', 'set']) {
+        const ctx = await association(
+          operation,
+          { values: operation === 'set' ? [101] : [103] },
+          { filter: { name: 'Visible' } },
+        );
+        await expect(run(ctx)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        expect(await linked()).toEqual([103]);
+        expect(ctx.body).toBe('unchanged');
+      }
+    });
+    pg('does not borrow target permission for source conditions or ownership', async () => {
+      await expect(run(await association(), { filter: { name: 'Other' } })).rejects.toMatchObject({
+        code: 'ACCESS_RECORD_UNAVAILABLE',
+      });
+      await expect(run(await association('add', { values: [103] }, {}, 1))).rejects.toMatchObject({
+        code: 'ACCESS_RECORD_UNAVAILABLE',
+      });
+      expect(await linked()).toEqual([103]);
+      expect(await linked(1)).toEqual([]);
+    });
+    pg('rejects hidden added targets before changing connections', async () => {
+      await expect(run(await association('set', { values: [101, 102] }))).rejects.toMatchObject({
+        code: 'ACCESS_RECORD_UNAVAILABLE',
+      });
+      expect(await linked()).toEqual([103]);
+    });
+    pg('captures request and identity before asynchronous source authorization', async () => {
+      const ctx = await association();
+      const source = await context({}, {}, 'documents', 'add');
+      const read = await target();
+      const actor = auth();
+      await handler.handleAssociation(
+        ctx,
+        actor,
+        async () => {
+          ctx.action.actionName = 'set';
+          (ctx.permission as { rawParams: { values: number[] } }).rawParams.values = [102];
+          actor.tenantId = 'C';
+          return source;
+        },
+        async () => read,
+      );
+      expect(await linked()).toEqual([101, 103]);
+    });
+    pg('rejects preparation ending during source authorization', async () => {
+      const ctx = await association();
+      const source = await context({}, {}, 'documents', 'add');
+      await expect(
+        handler.handleAssociation(
+          ctx,
+          auth(),
+          async () => {
+            adapter.release(ctx);
+            return source;
+          },
+          async () => null,
+        ),
+      ).rejects.toThrow();
+      expect(await linked()).toEqual([103]);
+    });
+    pg('rejects through metadata drift during source authorization', async () => {
+      const ctx = await association();
+      const source = await context({}, {}, 'documents', 'add');
+      await expect(
+        handler.handleAssociation(
+          ctx,
+          auth(),
+          async () => {
+            through.setField('note', { type: 'string' });
+            return source;
+          },
+          async () => null,
+        ),
+      ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([103]);
+    });
+    pg('claims only editable historical sources', async () => {
+      const config = configFor({
+        type: 'any',
+        children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+      });
+      await store.save(
+        mainIdentity,
+        { ...config, revision: (await store.read(mainIdentity))!.revision },
+        { userId: 28 },
+      );
+      await run(await association('add', { values: [104] }, {}, 5));
+      expect((await docs.model.findByPk(5))!.get('tenantId')).toBe('B');
+      expect((await projects.model.findByPk(104))!.get('tenantId')).toBeNull();
+      expect(await linked(5)).toEqual([104]);
+    });
+    it.each(['role', 'action', 'resource', 'database', 'filtered', 'locator', 'denied'])(
+      'rejects invalid source context %s',
+      async (kind) => {
+        const ctx = await association();
+        const source = await context({}, {}, 'documents', 'add');
+        const permission = source.permission as { can: { role: string } | false; rawParams: Record<string, unknown> };
+        if (kind === 'role') (permission.can as { role: string }).role = 'other';
+        if (kind === 'action') source.action.actionName = 'remove';
+        if (kind === 'resource') source.action.resourceName = 'projects';
+        if (kind === 'database') Object.assign(source, { db: {} });
+        if (kind === 'filtered') permission.rawParams.filter = { name: 'Owned' };
+        if (kind === 'locator') permission.rawParams.filterByTk = 3;
+        if (kind === 'denied') permission.can = false;
+        await expect(
+          handler.handleAssociation(
+            ctx,
+            auth(),
+            async () => source,
+            async () => null,
+          ),
+        ).rejects.toThrow();
+        expect(await linked()).toEqual([103]);
+      },
     );
+    it.each([{ fields: ['name'] }, { blacklist: ['projects'] }])(
+      'requires source field permission %j',
+      async (grant) => {
+        await expect(run(await association(), grant)).rejects.toThrow();
+        expect(await linked()).toEqual([103]);
+      },
+    );
+    it.each([
+      { values: [101], filterByTk: 103 },
+      { values: [{ id: 101 }] },
+      { values: [] },
+      { values: [101], filter: {} },
+      { values: [101], associatedIndex: 1 },
+      { values: [101], resourceName: 'documents' },
+      { values: [101], transaction: {} },
+      { values: [101], updateAssociationValues: ['projects'] },
+    ])('rejects unsupported association input %j', async (params) => {
+      await expect(run(await association('add', params))).rejects.toThrow();
+      expect(await linked()).toEqual([103]);
+    });
+    it('rejects placeholder source writes', async () => {
+      await expect(run(await association('set', { values: [] }, {}, '_'))).rejects.toThrow();
+    });
+    it('rejects a target action bound to another role', async () => {
+      const ctx = await association();
+      (ctx.permission as { can: { role: string } }).can.role = 'other';
+      await expect(run(ctx)).rejects.toThrow();
+    });
+    it.each([{ fields: ['name'] }, { whitelist: ['name'] }, { blacklist: ['id'] }, { own: true }, { limit: 1 }])(
+      'rejects unsupported target action grants %j',
+      async (grant) => {
+        await expect(run(await association('add', { values: [101] }, grant))).rejects.toMatchObject({
+          code: 'INVALID_ACCESS_MUTATION',
+        });
+        expect(await linked()).toEqual([103]);
+      },
+    );
+    it.each(['denied', 'resource', 'action'])('rejects invalid target action binding %s', async (kind) => {
+      const ctx = await association();
+      const permission = ctx.permission as { can: unknown; resourceName: string; actionName: string };
+      if (kind === 'denied') permission.can = false;
+      if (kind === 'resource') permission.resourceName = 'documents';
+      if (kind === 'action') permission.actionName = 'set';
+      await expect(run(ctx)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([103]);
+    });
+    pg('captures target operation conditions before asynchronous source authorization', async () => {
+      const ctx = await association('remove', { values: [103] }, { filter: { name: 'Visible' } });
+      const source = await context({}, {}, 'documents', 'remove');
+      await expect(
+        handler.handleAssociation(
+          ctx,
+          auth(),
+          async () => {
+            (ctx.permission as { parsedParams: { filter: object } }).parsedParams.filter = {};
+            return source;
+          },
+          async () => null,
+        ),
+      ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await linked()).toEqual([103]);
+    });
+    pg('applies target action conditions as well as independent list conditions to additions', async () => {
+      await expect(
+        run(await association('add', { values: [101] }, { filter: { name: 'Owned' } })),
+      ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await linked()).toEqual([103]);
+    });
+    pg('authorizes a combined change set larger than the request key limit', async () => {
+      const old = Array.from({ length: 600 }, (_, index) => 2000 + index);
+      const added = Array.from({ length: 600 }, (_, index) => 3000 + index);
+      await projects.model.bulkCreate([...old, ...added].map((id) => ({ id, tenantId: 'B', name: 'Owned' })));
+      await through.model.destroy({ where: { documentId: 3 } });
+      await through.model.bulkCreate(old.map((projectId) => ({ documentId: 3, projectId })));
+      const ctx = await association('set', { values: added }, { filter: { name: 'Owned' } });
+      await run(ctx);
+      expect(await linked()).toEqual(added);
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    });
+    pg('rejects identity changes while resolving target list permission and rolls back', async () => {
+      const ctx = await association();
+      const source = await context({}, {}, 'documents', 'add');
+      const read = await target();
+      await expect(
+        handler.handleAssociation(
+          ctx,
+          auth(),
+          async () => source,
+          async () => {
+            throughIdentity.collectionKey = 'replacement';
+            return read;
+          },
+        ),
+      ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([103]);
+    });
+    pg('does not claim a historical source when an added target fails authorization', async () => {
+      const config = configFor({
+        type: 'any',
+        children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+      });
+      await store.save(
+        mainIdentity,
+        { ...config, revision: (await store.read(mainIdentity))!.revision },
+        { userId: 28 },
+      );
+      await expect(run(await association('add', { values: [102] }, {}, 5))).rejects.toMatchObject({
+        code: 'ACCESS_RECORD_UNAVAILABLE',
+      });
+      expect((await docs.model.findByPk(5))!.get('tenantId')).toBeNull();
+      expect(await linked(5)).toEqual([]);
+    });
+    pg('rolls back independent association actions when preparation ends in the final persisted query', async () => {
+      const ctx = await association();
+      const source = await context({}, {}, 'documents', 'add');
+      const read = await target();
+      const original = docs.model.findAll.bind(docs.model);
+      vi.spyOn(docs.model, 'findAll').mockImplementation(async (...args) => {
+        const records = await original(...args);
+        const options = args[0] as { transaction?: unknown; lock?: unknown; attributes?: unknown };
+        if (options?.transaction && !options.lock && !options.attributes) adapter.release(ctx);
+        return records;
+      });
+      await expect(
+        handler.handleAssociation(
+          ctx,
+          auth(),
+          async () => source,
+          async () => read,
+        ),
+      ).rejects.toMatchObject({ code: 'INVALID_ACCESS_CONFIG_WRITE' });
+      expect(await linked()).toEqual([103]);
+    });
+  });
 
   pg('replaces references using source write and target read permissions without changing targets', async () => {
     const ctx = await context({ values: { projects: [101, 104] } }, { fields: ['projects'] });

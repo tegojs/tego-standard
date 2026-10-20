@@ -2,6 +2,7 @@ import React from 'react';
 import { APIClientProvider } from '@tachybase/client';
 import { act, fireEvent, render, waitFor } from '@tachybase/test/client';
 
+import type { AccessConfig } from '../../server/access-control/types';
 import { TenantMigrationPreview } from '../TenantMigrationPreview';
 
 const collection = { name: 'documents', title: 'Documents' };
@@ -14,11 +15,32 @@ const report = (tenancy = 'tenantScoped', options: object = {}) => ({
     revision: 0,
     ownership: { enabled: tenancy !== 'shared' },
     rules: [
-      { id: 'legacy-mode', category: 'ownership', enabled: true },
+      {
+        id: 'legacy-mode',
+        name: 'Legacy mode',
+        category: 'ownership',
+        enabled: true,
+        subject: { type: 'constant', value: true },
+        condition: { type: 'constant', value: false },
+      },
       ...(tenancy !== 'shared'
         ? [
-            { id: 'legacy-data-visibility', category: 'visibility', enabled: true },
-            { id: 'legacy-data-ownership', category: 'ownership', enabled: true },
+            {
+              id: 'legacy-data-visibility',
+              name: 'Legacy visibility',
+              category: 'visibility',
+              enabled: true,
+              subject: { type: 'constant', value: false },
+              condition: { type: 'constant', value: true },
+            },
+            {
+              id: 'legacy-data-ownership',
+              name: 'Legacy ownership',
+              category: 'ownership',
+              enabled: true,
+              subject: { type: 'constant', value: false },
+              condition: { type: 'constant', value: true },
+            },
           ]
         : []),
     ],
@@ -42,6 +64,89 @@ function fixture(request = vi.fn().mockResolvedValue({ data: { data: report() } 
 }
 
 describe('tenant migration preview drawer', () => {
+  it.each(['shared', 'tenantScoped', 'tenantInherited'])(
+    'edits and validates a disposable %s migration draft',
+    async (mode) => {
+      const original = report(mode);
+      const snapshot = JSON.parse(JSON.stringify(original));
+      const request = vi
+        .fn()
+        .mockResolvedValueOnce({ data: { data: original } })
+        .mockImplementation(async ({ data }) => ({
+          data: { data: { identity: original.identity, config: data.config } },
+        }));
+      const { view } = fixture(request);
+      const { findByText, getByRole, getAllByRole, queryByRole } = render(view());
+      expect(queryByRole('button', { name: 'Edit migration draft' })).not.toBeInTheDocument();
+      await findByText('This is a migration draft. No new rules have been saved or enabled.');
+      fireEvent.click(await findByText('Edit migration draft'));
+      expect(getByRole('switch', { name: 'Manage actual tenant ownership' })).toHaveAttribute(
+        'aria-checked',
+        String(mode !== 'shared'),
+      );
+      fireEvent.change(getAllByRole('textbox', { name: 'Rule name' })[0], { target: { value: 'Adjusted rule' } });
+      expect(request).toHaveBeenCalledOnce();
+      fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+      await findByText('Draft validation passed. Changes have not been saved or enabled.');
+      expect(request.mock.calls[1][0]).toMatchObject({
+        url: 'tenants:validateAccessConfig',
+        method: 'post',
+        data: {
+          dataSourceKey: 'main',
+          collectionName: 'documents',
+          config: {
+            ...original.draft,
+            rules: original.draft.rules.map((rule, index) => (index === 0 ? { ...rule, name: 'Adjusted rule' } : rule)),
+          },
+        },
+      });
+      expect(original).toEqual(snapshot);
+      fireEvent.click(getByRole('button', { name: 'Discard draft' }));
+      fireEvent.click(getByRole('button', { name: 'Edit migration draft' }));
+      expect(getAllByRole('textbox', { name: 'Rule name' })[0]).toHaveValue('Legacy mode');
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(['refresh', 'role', 'collection', 'close'])('discards pending migration validation on %s', async (change) => {
+    let finish!: (value: unknown) => void;
+    let submitted!: AccessConfig;
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { data: report('shared') } })
+      .mockImplementationOnce(({ data }) => {
+        submitted = data.config;
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      })
+      .mockResolvedValue({ data: { data: report('shared') } });
+    const { api, view } = fixture(request);
+    const { findByText, getByRole, queryByRole, queryByText, rerender, unmount } = render(view());
+    await findByText('All records remain subject to role permissions.');
+    fireEvent.click(getByRole('button', { name: 'Edit migration draft' }));
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    const signal = request.mock.calls[1][0].signal as AbortSignal;
+    if (change === 'refresh') fireEvent.click(getByRole('button', { name: 'Refresh preview' }));
+    else if (change === 'role') {
+      api.auth.role = 'other';
+      rerender(view());
+    } else if (change === 'collection') rerender(view({ name: 'other', title: 'Other' }));
+    else unmount();
+    expect(signal.aborted).toBe(true);
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    await act(async () => finish({ data: { data: { identity: report().identity, config: submitted } } }));
+    expect(queryByText('Draft validation passed. Changes have not been saved or enabled.')).not.toBeInTheDocument();
+    if (change === 'role') {
+      await findByText('All records remain subject to role permissions.');
+      api.auth.role = 'manager';
+      rerender(view());
+      await findByText('All records remain subject to role permissions.');
+      expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    }
+  });
+
   it('requests the authoritative preview and selected role actions without writing', async () => {
     const { request, view } = fixture();
     const { findByText, queryByRole } = render(view());

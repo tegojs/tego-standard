@@ -6,6 +6,7 @@ import { Alert, Button, Descriptions, Drawer, Space, Spin, Table, Tag, Typograph
 import type { AccessMigrationPreview } from '../server/access-control/migration-preview';
 import { useTenantTranslation } from './locale';
 import type { TenantRecord } from './tenant-tree';
+import { TenantAccessConfigDraft } from './TenantAccessConfigDraft';
 
 interface TenantMigrationPreviewProps {
   collection: { name: string; title?: string };
@@ -37,13 +38,15 @@ const modeDescriptions = {
   tenantInherited: 'Records owned by the current tenant or its descendants remain subject to role permissions.',
 };
 
-/** A read-only report. There is deliberately no save, activation or business-record operation here. */
+/** Preview and disposable editing only; no save, activation or business-record operation. */
 export function TenantMigrationPreview({ collection, tenants, onClose }: TenantMigrationPreviewProps) {
   const api = useAPIClient();
   const { t } = useTenantTranslation();
   const role = api.auth?.role || undefined;
   const [refresh, setRefresh] = useState(0);
+  const [editingKey, setEditingKey] = useState<string>();
   const key = JSON.stringify([collection.name, role, refresh]);
+  useEffect(() => setEditingKey(undefined), [key]);
   const [result, setResult] = useState<PreviewState>();
   const current = result?.key === key ? result : undefined;
   const loading = !current;
@@ -177,6 +180,21 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
               <Typography.Text>
                 {t('No current role was available, so role conditions were not inspected.')}
               </Typography.Text>
+            )}
+            {editingKey === key ? (
+              <>
+                <Typography.Paragraph type="secondary">
+                  {t('The report above reflects the original configuration, not your draft changes.')}
+                </Typography.Paragraph>
+                <TenantAccessConfigDraft
+                  key={key}
+                  identity={report.identity}
+                  config={report.draft}
+                  onClose={() => setEditingKey(undefined)}
+                />
+              </>
+            ) : (
+              <Button onClick={() => setEditingKey(key)}>{t('Edit migration draft')}</Button>
             )}
           </>
         ) : null}

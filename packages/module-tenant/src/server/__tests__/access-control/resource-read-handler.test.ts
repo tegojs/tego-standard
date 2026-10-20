@@ -674,6 +674,108 @@ describe.skipIf(!postgresUrl)('unified internal resource reads', () => {
     expect(ctx.body).toBe(100);
   });
 
+  it.each(['list', 'get', 'count', 'sum', 'chart'])(
+    'retains target role dependencies across later authorization for root %s',
+    async (entry) => {
+      const relation = children.model.associations.document as unknown as { scope?: unknown };
+      relation.scope = { name: 'Hidden' };
+      const filter = { children: { name: 'Owned' }, primary: { name: 'Owned' } };
+      const ctx = await context(
+        'documents',
+        entry === 'chart' ? 'list' : entry,
+        entry === 'chart'
+          ? {}
+          : { filter, ...(entry === 'get' ? { filterByTk: 1 } : entry === 'sum' ? { field: 'amount' } : {}) },
+      );
+      const sql = vi.spyOn(db.sequelize, 'query');
+      const resolve: AccessRelatedReadAuthorizer = async (collection, path) => {
+        if (path[0] === 'children') return neutral(collection, { filter: { document: { id: 1 } } });
+        await Promise.resolve();
+        delete relation.scope;
+        return neutral(collection);
+      };
+      const pending =
+        entry === 'chart'
+          ? handler.handleChartWithRelatedContexts(
+              ctx,
+              actor(),
+              {
+                collection: 'documents',
+                dataSource: 'main',
+                measures: [{ field: ['amount'], aggregation: 'sum', alias: 'total' }],
+                dimensions: [],
+                filter,
+              },
+              resolve,
+            )
+          : run(ctx, resolve);
+      await expect(pending).rejects.toThrow(/metadata changed/);
+      expect(sql).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+
+  it.each(['list', 'get'])('retains nested target role dependencies for placeholder %s', async (kind) => {
+    const relation = docs.model.associations.child as unknown as { scope?: unknown };
+    relation.scope = { name: 'Hidden' };
+    const ctx = await context(
+      'documents.children',
+      kind,
+      { fields: ['id', 'document.id', 'document.primary.id'], ...(kind === 'get' ? { filterByTk: 101 } : {}) },
+      {},
+      '_',
+    );
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(
+      run(ctx, async (collection, path) => {
+        if (path.length === 1) return neutral(collection, { filter: { child: { id: 101 } } });
+        await Promise.resolve();
+        delete relation.scope;
+        return neutral(collection);
+      }),
+    ).rejects.toThrow(/metadata changed/);
+    expect(sql).not.toHaveBeenCalled();
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it.each(['unified', 'preauthorized source'])(
+    'retains %s role dependencies while preparing concrete association reads',
+    async (entry) => {
+      const relation = docs.model.associations.primary as unknown as { scope?: unknown };
+      relation.scope = { name: 'Hidden' };
+      const source = await neutral(docs, { filter: { primary: { id: 101 } } });
+      const ctx = await context('documents.children', 'list', { fields: ['id', 'document.id'] }, {}, 1);
+      const resolve: AccessRelatedReadAuthorizer = async (collection, path) => {
+        if (!path.length) return source;
+        await Promise.resolve();
+        delete relation.scope;
+        return neutral(collection);
+      };
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(
+        entry === 'unified'
+          ? run(ctx, resolve)
+          : handler.handleAssociationWithRelatedContexts(ctx, actor(), source, resolve),
+      ).rejects.toThrow(/metadata changed/);
+      expect(sql).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+
+  it.each(['Owned', 'Hidden'])('preserves stable source role relationship scope %s', async (name) => {
+    (docs.model.associations.primary as unknown as { scope?: unknown }).scope = { name };
+    const source = await neutral(docs, { filter: { primary: { id: 101 } } });
+    const ctx = await context('documents.children', 'list', { fields: ['id'], sort: 'id' }, {}, 1);
+    const pending = run(ctx, (collection, path) => (path.length ? neutral(collection) : Promise.resolve(source)));
+    if (name === 'Hidden') {
+      await expect(pending).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(ctx.body).toBe('unchanged');
+    } else {
+      await pending;
+      expect(ctx.body).toMatchObject({ rows: [{ id: 101 }, { id: 102 }], count: 2 });
+    }
+  });
+
   it('checks captured relation metadata after execution before publishing', async () => {
     const ctx = await context('documents.children', 'list', { fields: ['id'] }, {}, 1);
     vi.spyOn(AccessEntryReadService.prototype, 'fromResource').mockImplementationOnce(async () => {

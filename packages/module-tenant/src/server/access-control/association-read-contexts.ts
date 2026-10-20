@@ -1,15 +1,13 @@
 import type { Collection, Database } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
-import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
+import type { AccessCollectionIdentity } from './config-store';
 import type { AccessEntryReadOperation } from './entry-reads';
 import type { AccessQueryService } from './query';
-import { AccessReadGrantAdapter } from './read-grants';
 import { collectRelatedReadPaths } from './read-paths';
-import { captureReadPreparationMetadata } from './read-preparation-metadata';
+import { captureReadPermissionMetadata, captureReadPreparationMetadata } from './read-preparation-metadata';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
 import { resolveResourceReadRoute } from './resource-read-routing';
-import { AccessRoleFilterCompiler } from './role-filter';
 import type { AccessRootReadContext, captureAssociationReadContext } from './root-read-context';
 import { invalid } from './write-support';
 
@@ -52,16 +50,13 @@ export function captureAssociationReadPreparation(
   if (plan.sourceCollection.model.associations[relation].associationType === 'BelongsToMany')
     paths.push([relation, '$through']);
   const metadata = captureReadPreparationMetadata(db, prepared, resolveIdentity, ctx, plan.sourceCollection, paths);
-  const role = new AccessReadGrantAdapter(db, (collection) => {
-    const identity = resolveIdentity(collection);
-    return identity && accessCollectionKey(identity);
-  }).capturePlan(target.identity, captured.permission, new AccessRoleFilterCompiler(db, resolveIdentity));
+  const role = captureReadPermissionMetadata(db, resolveIdentity, target.identity, captured.permission);
   if (!role) invalid('Association target read is not authorized');
   const assertCurrent = () => {
     assertSourceCurrent();
     target.assertCurrent();
     metadata();
-    role.assertCurrent();
+    role();
   };
   assertCurrent();
   return Object.freeze({ operation, paths: Object.freeze(paths.map((path) => Object.freeze(path))), assertCurrent });

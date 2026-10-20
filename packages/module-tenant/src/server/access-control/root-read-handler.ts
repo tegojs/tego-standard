@@ -3,17 +3,15 @@ import type { Collection, Database, Transaction } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureAssociationReadPreparation, prepareAssociationReadContexts } from './association-read-contexts';
 import { parseChartQueryParams } from './chart-query-params';
-import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
+import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessEntryReadService, type AccessEntryReadOperation } from './entry-reads';
 import type { AccessQueryService } from './query';
 import type { AccessReadDateContext } from './read-date-filter';
-import { AccessReadGrantAdapter } from './read-grants';
 import { collectRelatedReadPaths } from './read-paths';
-import { captureReadPreparationMetadata } from './read-preparation-metadata';
+import { captureReadPermissionMetadata, captureReadPreparationMetadata } from './read-preparation-metadata';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
 import { resolveResourceReadRoute } from './resource-read-routing';
-import { AccessRoleFilterCompiler } from './role-filter';
 import {
   captureAssociationReadContext,
   capturePlaceholderReadContext,
@@ -144,11 +142,14 @@ export class AccessRootReadHandler {
     if (source.action.resourceName !== sourceCollection.name || !captured.permission.allowed)
       invalid('Association source or target read is not authorized');
     const config = this.prepared.configuration(ctx, plan.identity);
+    const sourceRole = captureReadPermissionMetadata(this.db, this.resolveIdentity, plan.identity, source.permission);
+    if (!sourceRole) invalid('Association source read is not authorized');
     const assertCurrent = () => {
       assertEntryCurrent?.();
       plan.assertCurrent();
       if (this.prepared.configuration(ctx, plan.identity) !== config)
         invalid('Association read preparation phase changed');
+      sourceRole();
     };
     const preparation = authorize
       ? await prepareAssociationReadContexts(
@@ -313,15 +314,12 @@ export class AccessRootReadHandler {
       this.db.getCollection(root.identity.collectionName),
       paths,
     );
-    const role = new AccessReadGrantAdapter(this.db, (collection) => {
-      const identity = this.resolveIdentity(collection);
-      return identity && accessCollectionKey(identity);
-    }).capturePlan(root.identity, captured.permission, new AccessRoleFilterCompiler(this.db, this.resolveIdentity));
+    const role = captureReadPermissionMetadata(this.db, this.resolveIdentity, root.identity, captured.permission);
     if (!role) invalid('Root read is not authorized');
     const assertCurrent = () => {
       assertRouteCurrent();
       metadata();
-      role.assertCurrent();
+      role();
     };
     assertCurrent();
     const related = await prepareRelatedReadContexts(

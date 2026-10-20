@@ -3,6 +3,7 @@ import type { Collection, Database } from '@tego/server';
 
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessEntryReadOperation } from './entry-reads';
+import { captureReadPermissionMetadata } from './read-preparation-metadata';
 import { resolveResourceReadRoute } from './resource-read-routing';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
 import type { AccessRelatedReadContextResolver } from './root-read-handler';
@@ -16,6 +17,7 @@ export type AccessRelatedReadAuthorizer = (
 
 interface RelatedPath {
   collection: Collection;
+  identity: AccessCollectionIdentity;
   path: readonly string[];
   through?: Collection;
   assertCurrent(): void;
@@ -82,6 +84,7 @@ export async function prepareRelatedReadContexts(
   const nodes = new Map<string, RelatedPath>();
   nodes.set('[]', {
     collection: db.getCollection(root.identity.collectionName),
+    identity: root.identity,
     path: Object.freeze([]),
     assertCurrent: root.assertCurrent,
   });
@@ -132,6 +135,7 @@ export async function prepareRelatedReadContexts(
       const assertRelation = assertCurrent;
       nodes.set(key, {
         collection: target,
+        identity: route.identity,
         path: Object.freeze(prefix),
         through,
         assertCurrent: () => {
@@ -141,8 +145,10 @@ export async function prepareRelatedReadContexts(
       });
     }
   }
+  const permissions: Array<() => void> = [];
   const assertCurrent = () => {
     for (const node of nodes.values()) node.assertCurrent();
+    for (const permission of permissions) permission();
   };
   const contexts = new Map<string, AccessRootReadContext | null>();
   for (const [key, node] of nodes) {
@@ -150,6 +156,10 @@ export async function prepareRelatedReadContexts(
     assertCurrent();
     const context = await authorize(node.collection, node.path, captured);
     const permission = context == null ? null : captureRelatedReadPermission(db, node.collection, roleName, context);
+    if (permission) {
+      const metadata = captureReadPermissionMetadata(db, resolveIdentity, node.identity, permission);
+      if (metadata) permissions.push(metadata);
+    }
     assertCurrent();
     if (!permission) {
       contexts.set(key, null);

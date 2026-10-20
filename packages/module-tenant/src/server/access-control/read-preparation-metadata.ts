@@ -1,10 +1,25 @@
 import type { Collection, Database } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
-import type { AccessCollectionIdentity } from './config-store';
+import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import { accessMetadataGuard } from './metadata-snapshot';
+import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
 import { resolveResourceReadRoute } from './resource-read-routing';
+import { AccessRoleFilterCompiler } from './role-filter';
 import { invalid } from './write-support';
+
+/** Retain the dependencies of a finalized decision before any later authorization can suspend. */
+export function captureReadPermissionMetadata(
+  db: Database,
+  resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+  identity: AccessCollectionIdentity,
+  permission: AccessEntryReadPermission,
+) {
+  return new AccessReadGrantAdapter(db, (collection) => {
+    const resolved = resolveIdentity(collection);
+    return resolved && accessCollectionKey(resolved);
+  }).capturePlan(identity, permission, new AccessRoleFilterCompiler(db, resolveIdentity))?.assertCurrent;
+}
 
 /** Bind only participating models, relationship paths and G/V dependencies before awaiting authorization. */
 export function captureReadPreparationMetadata(

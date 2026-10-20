@@ -132,6 +132,62 @@ describe('related read context preparation', () => {
   });
 
   it.each([
+    ['role relation scope', 'preparation'],
+    ['role relation scope', 'consumption'],
+    ['role dependency scope', 'preparation'],
+    ['role dependency scope', 'consumption'],
+    ['permission append path', 'preparation'],
+    ['permission append path', 'consumption'],
+  ])('retains finalized %s metadata during %s', async (dependency, stage) => {
+    const relation = projects.model.associations.documents as unknown as { scope?: unknown };
+    const model = docs.model as unknown as { _scope: unknown };
+    if (dependency === 'role dependency scope') model._scope = { where: { name: 'Visible' } };
+    else relation.scope = { name: 'Visible' };
+    const change = () => {
+      if (dependency === 'role dependency scope') model._scope = {};
+      else delete relation.scope;
+    };
+    const first = await finalized(
+      projects,
+      dependency === 'permission append path'
+        ? { appends: ['documents.name'] }
+        : { filter: { documents: { name: 'Visible' } } },
+    );
+    const sql = vi.spyOn(db.sequelize, 'query');
+    const pending = prepare([['project'], ['alternate']], async (collection, path) => {
+      if (path[0] === 'project') return first;
+      await Promise.resolve();
+      if (stage === 'preparation') change();
+      return finalized(collection);
+    });
+    if (stage === 'preparation') await expect(pending).rejects.toThrow(/metadata changed/);
+    else {
+      const resolve = await pending;
+      change();
+      expect(() => resolve.assertCurrent()).toThrow(/metadata changed/);
+      expect(() => resolve(projects, ['project'], operation)).toThrow(/metadata changed/);
+    }
+    expect(sql).not.toHaveBeenCalled();
+  });
+
+  it('captures role-only metadata when its final decision is returned', async () => {
+    db.collection({ name: 'facts', fields: [{ name: 'name', type: 'string' }] });
+    projects.setField('fact', { type: 'belongsTo', target: 'facts' });
+    const relation = projects.model.associations.fact as unknown as { scope?: unknown };
+    relation.scope = { name: 'Hidden' };
+    const sql = vi.spyOn(db.sequelize, 'query');
+    const resolve = await prepare([['project']], async (collection) => {
+      await Promise.resolve();
+      delete relation.scope;
+      return finalized(collection, { filter: { fact: { name: 'Visible' } } });
+    });
+    expect(resolveParams(resolve(projects, ['project'], operation)).params).toEqual({
+      filter: { fact: { name: 'Visible' } },
+    });
+    expect(sql).not.toHaveBeenCalled();
+  });
+
+  it.each([
     { kind: 'get' },
     { context: {} },
     { authenticated: { tenantId: 'C', userId: 28, roleName: 'reader' } },

@@ -17,7 +17,15 @@ import { AccessReadGrantAdapter } from './read-grants';
 import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
-import { cloneDeep, internalQuery, invalid, normalizeKeys, plain, unavailable } from './write-support';
+import {
+  cloneDeep,
+  internalQuery,
+  invalid,
+  normalizeKeys,
+  plain,
+  unavailable,
+  validateRootValues,
+} from './write-support';
 
 function data(input: object, key: PropertyKey): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(input, key);
@@ -95,9 +103,12 @@ export class AccessReferenceMutationHandler {
           String(params.resourceIndex) !== String(params.filterByTk)))
     )
       invalid('Reference update requires a single matching source key');
-    if (!plain(params.values) || Reflect.ownKeys(params.values).length !== 1)
-      invalid('Reference updates require exactly one association');
-    const name = Reflect.ownKeys(params.values)[0];
+    if (!plain(params.values) || Reflect.ownKeys(params.values).some((key) => typeof key !== 'string'))
+      invalid('Reference updates require named field values');
+    const source = this.db.getCollection(resourceName);
+    const names = Object.keys(params.values).filter((key) => Object.hasOwn(source?.model.associations ?? {}, key));
+    if (names.length !== 1) invalid('Reference updates require exactly one association');
+    const name = names[0];
     if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) invalid('Invalid association name');
     const value = data(params.values, name);
     const rawValues = data(raw, 'values');
@@ -110,6 +121,7 @@ export class AccessReferenceMutationHandler {
         value,
         sourceKey: params.filterByTk,
         originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
+        sourceValues: Object.fromEntries(Object.entries(params.values).filter(([key]) => key !== name)),
       },
       authorizeTarget,
       permission,
@@ -148,6 +160,7 @@ export class AccessReferenceMutationHandler {
       originalValue?: unknown;
       operation?: 'add' | 'remove' | 'set';
       targetName?: string;
+      sourceValues?: Record<string, unknown>;
     },
     authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
     sourcePermission?: Readonly<AccessFinalActionPermission>,
@@ -174,6 +187,8 @@ export class AccessReferenceMutationHandler {
     )
       invalid('Reference requires a registered reference field');
     const multiple = association.associationType === 'BelongsToMany';
+    if (multiple && input.sourceValues && Reflect.ownKeys(input.sourceValues).length)
+      invalid('Mixed many-to-many updates require their own adapter');
     const sourceIdentity = cloneDeep(this.resolveIdentity(source));
     const targetIdentity = cloneDeep(this.resolveIdentity(target));
     if (
@@ -309,6 +324,19 @@ export class AccessReferenceMutationHandler {
       );
     };
     role = checkFields(sourcePermission, source, name, multiple ? undefined : relation.foreignKey);
+    let sourceValues: Record<string, unknown> | undefined;
+    if (input.sourceValues && Reflect.ownKeys(input.sourceValues).length) {
+      validateRootValues(this.db, input.sourceValues, source, 'update', relation.sourceConfig.ownership.enabled);
+      const { whitelist, blacklist } = sourcePermission.params as { whitelist?: string[]; blacklist?: string[] };
+      const values = Object.fromEntries(
+        Object.entries(input.sourceValues).filter(
+          ([field]) =>
+            ((whitelist === undefined || whitelist.includes(field)) && !blacklist?.includes(field)) ||
+            (relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+        ),
+      );
+      if (Object.keys(values).length) sourceValues = values;
+    }
     if (targetPermission) targetRole = checkFields(targetPermission, target, target.model.primaryKeyAttribute);
     assertCurrent();
     const entry = {
@@ -386,7 +414,7 @@ export class AccessReferenceMutationHandler {
       sourceIdentity,
       targetIdentity,
       actor,
-      { association: name, sourceKeys: keys, targetKey, sourceWhere: role.rootWhere ?? role.where },
+      { association: name, sourceKeys: keys, targetKey, sourceWhere: role.rootWhere ?? role.where, sourceValues },
       async (plan) => {
         assertCurrent();
         for (const record of plan.records) {

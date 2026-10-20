@@ -1,4 +1,4 @@
-import { ACL, Resourcer, type Collection, type Database } from '@tego/server';
+import { ACL, Resourcer, type Collection, type Database, type Model } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { AccessBelongsToMutationHandler } from '../../access-control/belongs-to-mutation-handler';
@@ -35,6 +35,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
         { name: 'id', type: 'integer', primaryKey: true },
         { name: 'tenantId', type: 'string' },
         { name: 'name', type: 'string' },
+        { name: 'occurredAt', type: 'date' },
         { name: 'projectId', type: 'integer' },
       ],
     });
@@ -168,6 +169,192 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     expect((await read()).projectId).toBe(104);
     expect((await projects.model.findByPk(104))!.get('tenantId')).toBeNull();
   });
+  pg('saves scalar fields and a readable reference together using the old source role condition', async () => {
+    const ctx = await context(
+      'documents',
+      'update',
+      { values: { project: 101, name: 'Changed' } },
+      { fields: ['project', 'name'], filter: { name: 'Owned' } },
+    );
+    await execute(ctx, { fields: ['id'] });
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    expect(await read()).toMatchObject({ name: 'Changed', projectId: 101, tenantId: 'B' });
+    expect((await projects.model.findByPk(101))!.get('name')).toBe('Visible');
+  });
+  pg('filters scalar fields with finalized source whitelist and blacklist', async () => {
+    for (const grant of [{ fields: ['project'] }, { blacklist: ['name'] }]) {
+      const ctx = await context('documents', 'update', { values: { project: 101, name: 'Forbidden' } }, grant);
+      await execute(ctx);
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 101 });
+    }
+  });
+  pg('edits scalars without rereading an unchanged hidden reference', async () => {
+    await docs.model.update({ projectId: 102 }, { where: { id: 3 } });
+    const ctx = await context('documents', 'update', { values: { project: 102, name: 'Changed' } });
+    const authorize = vi.fn(async () => null);
+    await handler.handle(ctx, auth(), authorize);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(await read()).toMatchObject({ name: 'Changed', projectId: 102 });
+  });
+  pg('does not persist scalar edits when the new reference is denied', async () => {
+    const ctx = await context('documents', 'update', { values: { project: 102, name: 'Changed' } });
+    await expect(execute(ctx)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+    expect(ctx.body).toBe('unchanged');
+  });
+  pg('rolls back scalar edits and references when a repository hook fails', async () => {
+    const ctx = await context('documents', 'update', { values: { project: 101, name: 'Changed' } });
+    const error = new Error('mixed hook failure');
+    db.on('documents.afterUpdate', async () => {
+      throw error;
+    });
+    await expect(execute(ctx)).rejects.toBe(error);
+    expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+  });
+  pg('retains managed ownership validation even when field grants exclude tenantId', async () => {
+    const ctx = await context(
+      'documents',
+      'update',
+      { values: { project: 101, name: 'Changed', tenantId: 'C' } },
+      { fields: ['project', 'name'] },
+    );
+    await expect(execute(ctx)).rejects.toMatchObject({ code: 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN' });
+    expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, tenantId: 'B' });
+  });
+  pg('claims a historical source only with the successful mixed update', async () => {
+    const config = configFor({
+      type: 'any',
+      children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+    });
+    await store.save(mainIdentity, { ...config, revision: (await store.read(mainIdentity))!.revision }, { userId: 28 });
+    const ctx = await context('documents', 'update', {
+      filterByTk: 5,
+      values: { project: 104, name: 'Claimed', tenantId: null },
+    });
+    await execute(ctx);
+    expect(await read(5)).toMatchObject({ name: 'Claimed', projectId: 104, tenantId: 'B' });
+    expect((await projects.model.findByPk(104))!.get('tenantId')).toBeNull();
+  });
+  pg('rolls back the whole mixed edit on metadata drift after persistence', async () => {
+    const ctx = await context('documents', 'update', { values: { project: 101, name: 'Changed' } });
+    db.on('documents.afterUpdate', async () => {
+      docs.options.filterTargetKey = 'projectId';
+    });
+    await expect(execute(ctx)).rejects.toThrow('locator changed');
+    expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+  });
+  pg('does not claim historical data when filtered scalars and the reference make no change', async () => {
+    const config = configFor({
+      type: 'any',
+      children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+    });
+    await store.save(mainIdentity, { ...config, revision: (await store.read(mainIdentity))!.revision }, { userId: 28 });
+    for (const grant of [{ fields: ['project'] }, { fields: ['project', 'name'] }]) {
+      const ctx = await context(
+        'documents',
+        'update',
+        { filterByTk: 5, values: { project: 103, name: 'Legacy', tenantId: null } },
+        grant,
+      );
+      await execute(ctx);
+      expect(await read(5)).toMatchObject({ tenantId: null, name: 'Legacy', projectId: 103 });
+      expect(ctx.body).toEqual({ keys: [], affected: 0 });
+    }
+  });
+  pg('allows an authorized mixed update to leave its old ownership condition', async () => {
+    const config = configFor({
+      type: 'all',
+      children: [
+        ownerCondition,
+        {
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'field', path: 'name' },
+          right: { type: 'literal', value: 'Owned' },
+        },
+      ],
+    });
+    await store.save(mainIdentity, { ...config, revision: (await store.read(mainIdentity))!.revision }, { userId: 28 });
+    const ctx = await context('documents', 'update', { values: { project: 101, name: 'Changed' } });
+    await execute(ctx);
+    expect(await read()).toMatchObject({ name: 'Changed', projectId: 101, tenantId: 'B' });
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+  });
+  pg('does not claim a historical source when a date is resubmitted as its JSON string', async () => {
+    const config = configFor({
+      type: 'any',
+      children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+    });
+    await store.save(mainIdentity, { ...config, revision: (await store.read(mainIdentity))!.revision }, { userId: 28 });
+    const date = '2026-10-20T00:00:00.000Z';
+    await docs.model.update({ occurredAt: date }, { where: { id: 5 } });
+    const ctx = await context('documents', 'update', { filterByTk: 5, values: { project: 103, occurredAt: date } });
+    await execute(ctx);
+    expect(await read(5)).toMatchObject({ tenantId: null, occurredAt: new Date(date) });
+    expect(ctx.body).toEqual({ keys: [], affected: 0 });
+  });
+  for (const kind of ['attribute', 'model']) {
+    pg(`does not invoke ${kind} setters while predicting a mixed no-op`, async () => {
+      const config = configFor({
+        type: 'any',
+        children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+      });
+      await store.save(
+        mainIdentity,
+        { ...config, revision: (await store.read(mainIdentity))!.revision },
+        { userId: 28 },
+      );
+      const setter = vi.fn(function (this: Model, value: unknown) {
+        this.setDataValue('name', `${value}!`);
+      });
+      if (kind === 'attribute') docs.model.rawAttributes.name.set = setter;
+      else docs.model.options.setterMethods = { name: setter };
+      docs.model.refreshAttributes();
+      await docs.repository.update({ filterByTk: 3, values: { name: 'Legacy', projectId: 103 } });
+      const normalCalls = setter.mock.calls.length;
+      const normalName = (await read()).name;
+      setter.mockClear();
+      const ctx = await context('documents', 'update', { filterByTk: 5, values: { project: 103, name: 'Legacy' } });
+      await execute(ctx);
+      expect(setter).toHaveBeenCalledTimes(normalCalls);
+      expect(await read(5)).toMatchObject({ tenantId: 'B', name: normalName, projectId: 103 });
+    });
+  }
+  pg('uses the captured mixed patch and identity across asynchronous target authorization', async () => {
+    const ctx = await context('documents', 'update', { values: { project: 101, name: 'Changed' } });
+    const related = await target();
+    const actor = auth();
+    await handler.handle(ctx, actor, async () => {
+      const permission = ctx.permission as { rawParams: { values: object }; parsedParams: object };
+      Object.assign(permission.rawParams.values, { project: 102, name: 'Tampered', tenantId: 'C' });
+      Object.assign(permission.parsedParams, { blacklist: ['name', 'project'] });
+      actor.tenantId = 'C';
+      return related;
+    });
+    expect(await read()).toMatchObject({ name: 'Changed', projectId: 101, tenantId: 'B' });
+  });
+  pg('rolls back a historical mixed claim when a repository hook fails', async () => {
+    const config = configFor({
+      type: 'any',
+      children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+    });
+    await store.save(mainIdentity, { ...config, revision: (await store.read(mainIdentity))!.revision }, { userId: 28 });
+    const ctx = await context('documents', 'update', { filterByTk: 5, values: { project: 104, name: 'Claimed' } });
+    const error = new Error('claim hook failure');
+    db.on('documents.afterUpdate', async () => {
+      throw error;
+    });
+    await expect(execute(ctx)).rejects.toBe(error);
+    expect(await read(5)).toMatchObject({ tenantId: null, name: 'Legacy', projectId: 103 });
+    expect(ctx.body).toBe('unchanged');
+  });
+  it('rejects multiple associations in a scalar update', async () => {
+    docs.setField('otherProject', { type: 'belongsTo', target: 'projects', foreignKey: 'otherProjectId' });
+    await docs.model.sync({ alter: true });
+    const ctx = await context('documents', 'update', { values: { project: 101, otherProject: 103, name: 'Changed' } });
+    await expect(execute(ctx)).rejects.toThrow('exactly one association');
+    expect((await read()).name).toBe('Owned');
+  });
   pg('claims only a historical source whose ownership rule permits editing', async () => {
     const config = configFor({
       type: 'any',
@@ -297,8 +484,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     { values: { project: { id: 101, name: 'edit' } } },
     { values: { project: [101] } },
     { values: { projectId: 101 } },
-    { values: { project: 101, name: 'edit' } },
-    { values: { project: 101, tenantId: 'C' } },
+    { values: { project: 101, projectId: 102 } },
+    { values: { project: 101, unknown: 'edit' } },
     { filter: {}, values: { project: 101 } },
     { appends: ['project'], values: { project: 101 } },
     { filterByTk: [3], values: { project: 101 } },

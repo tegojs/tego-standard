@@ -21,9 +21,11 @@ export interface BelongsToWriteRequest
   extends Pick<BelongsToReadRequest, 'association' | 'sourceWhere' | 'sourceBind' | 'targetWhere' | 'targetBind'> {
   sourceKeys: Array<string | number>;
   targetKey: string | number | null;
+  /** Scalar source patch, already sanitized by the entry's finalized field permissions. */
+  sourceValues?: Record<string, unknown>;
 }
 
-/** Changes only a source foreign key. Target edits/deletes need a separate G write plan. */
+/** Changes a source reference and optional scalar patch. Never edits the target. */
 export class AccessBelongsToService {
   constructor(
     private readonly db: Database,
@@ -74,17 +76,21 @@ export class AccessBelongsToService {
         async (transaction) => {
           await validateWriteTransaction(this.db, transaction, true);
           current();
-          const sourcePlan = await this.mutations.authorizeReferenceSource(
-            ctx,
-            source,
-            authenticated,
-            {
-              keys: request.sourceKeys,
-              where: request.sourceWhere,
-              bind: request.sourceBind,
-            },
-            transaction,
-          );
+          const sourceRequest = {
+            keys: request.sourceKeys,
+            where: request.sourceWhere,
+            bind: request.sourceBind,
+          };
+          const sourcePlan =
+            request.sourceValues === undefined
+              ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
+              : await this.mutations.authorizeExisting(
+                  ctx,
+                  source,
+                  authenticated,
+                  { ...sourceRequest, operation: 'update', values: request.sourceValues },
+                  transaction,
+                );
           current();
           const changed = sourcePlan.records.some((record) => {
             const existing = record.getDataValue(relation.foreignKey);
@@ -108,6 +114,35 @@ export class AccessBelongsToService {
             );
           }
           current();
+          // A finalized form save with no business change must not claim a historical source.
+          // Low-level callers retain their existing explicit write/target-validation contract.
+          const scalarValues = Object.fromEntries(
+            Object.entries(request.sourceValues ?? {}).filter(
+              ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+            ),
+          );
+          if (
+            entry &&
+            !changed &&
+            !sourcePlan.records.some((record) => {
+              // Custom setters may have business effects; never invoke them twice to predict a write.
+              if (
+                Object.keys(scalarValues).some(
+                  (field) =>
+                    relation.sourceModel.rawAttributes[field].set ||
+                    relation.sourceModel.options.setterMethods?.[field],
+                )
+              )
+                return true;
+              const candidate = relation.sourceModel.build(cloneDeep(record.dataValues), {
+                isNewRecord: false,
+                raw: true,
+              });
+              candidate.set(cloneDeep(scalarValues));
+              return candidate.changed() !== false;
+            })
+          )
+            return { keys: [], affected: 0 };
           const primary = relation.sourceModel.primaryKeyAttribute;
           const keys = sourcePlan.records.map((record) => record.getDataValue(primary) as string | number);
           const owners = new Map(

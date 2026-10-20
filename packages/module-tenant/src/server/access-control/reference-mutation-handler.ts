@@ -3,7 +3,7 @@ import { Op, type Collection, type Database, type Transaction } from '@tego/serv
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureAssociationLinkInput, captureAssociationSourcePermission } from './association-link-input';
 import { resolveBelongsTo } from './association-metadata';
-import { AccessBelongsToService } from './belongs-to';
+import { AccessBelongsToService, MAX_REFERENCE_UPDATES } from './belongs-to';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { captureAccessFilter } from './filter-input';
@@ -105,12 +105,16 @@ export class AccessReferenceMutationHandler {
       invalid('Reference update requires a single matching source key');
     if (!plain(params.values) || Reflect.ownKeys(params.values).some((key) => typeof key !== 'string'))
       invalid('Reference updates require named field values');
+    const submitted = params.values;
     const source = this.db.getCollection(resourceName);
-    const names = Object.keys(params.values).filter((key) => Object.hasOwn(source?.model.associations ?? {}, key));
-    if (names.length !== 1) invalid('Reference updates require exactly one association');
+    const names = Object.keys(submitted).filter((key) => Object.hasOwn(source?.model.associations ?? {}, key));
+    if (!names.length || names.length > MAX_REFERENCE_UPDATES)
+      invalid('Reference updates require between 1 and 20 associations');
+    if (names.length > 1 && names.some((name) => source!.model.associations[name].associationType !== 'BelongsTo'))
+      invalid('Multiple reference updates support only BelongsTo associations');
     const name = names[0];
     if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) invalid('Invalid association name');
-    const value = data(params.values, name);
+    const value = data(submitted, name);
     const rawValues = data(raw, 'values');
     return this.execute(
       ctx,
@@ -121,7 +125,8 @@ export class AccessReferenceMutationHandler {
         value,
         sourceKey: params.filterByTk,
         originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
-        sourceValues: Object.fromEntries(Object.entries(params.values).filter(([key]) => key !== name)),
+        references: names.map((name) => ({ name, value: data(submitted, name) })),
+        sourceValues: Object.fromEntries(Object.entries(submitted).filter(([key]) => !names.includes(key))),
       },
       authorizeTarget,
       permission,
@@ -161,6 +166,7 @@ export class AccessReferenceMutationHandler {
       operation?: 'add' | 'remove' | 'set';
       targetName?: string;
       sourceValues?: Record<string, unknown>;
+      references?: Array<{ name: string; value: unknown }>;
     },
     authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
     sourcePermission?: Readonly<AccessFinalActionPermission>,
@@ -214,7 +220,6 @@ export class AccessReferenceMutationHandler {
         )
       : resolveBelongsTo(this.db, this.prepared, this.queries, ctx, sourceIdentity, targetIdentity, name, true);
     const keys = normalizeKeys([input.sourceKey], source);
-    let targetKey: string | null = null;
     let targetKeys: string[] = [];
     if (multiple) {
       const original = input.operation ? value : input.originalValue;
@@ -228,11 +233,32 @@ export class AccessReferenceMutationHandler {
       )
         invalid('Reference values must be a bounded dense key array');
       targetKeys = value.length ? normalizeKeys(value, target) : [];
-    } else {
-      if (value !== null && typeof value !== 'string' && typeof value !== 'number')
-        invalid('Reference values must be a target key or null');
-      targetKey = value === null ? null : normalizeKeys([value], target)[0];
     }
+    // Capture every selected reference before any asynchronous permission callback or source lock.
+    const references = multiple
+      ? []
+      : (input.references ?? [{ name, value }]).map(({ name: selectedName, value }) => {
+          const field = source.getField(selectedName);
+          const association = source.model.associations[selectedName];
+          const target = association && this.db.modelCollection.get(association.target);
+          const identity = target && cloneDeep(this.resolveIdentity(target));
+          if (!target || !field || field.target !== target.name || !identity || identity.collectionName !== target.name)
+            invalid('Reference collection identity is unavailable');
+          const relation = resolveBelongsTo(
+            this.db,
+            this.prepared,
+            this.queries,
+            ctx,
+            sourceIdentity,
+            identity,
+            selectedName,
+            true,
+          );
+          if (value !== null && typeof value !== 'string' && typeof value !== 'number')
+            invalid('Reference values must be a target key or null');
+          const targetKey = value === null ? null : normalizeKeys([value], target)[0];
+          return { name: selectedName, field, target, identity, relation, targetKey };
+        });
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
     let role: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
     let targetRole: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
@@ -240,17 +266,24 @@ export class AccessReferenceMutationHandler {
       this.db,
       [
         { model: source.model, config: relation.sourceConfig },
-        { model: target.model, config: this.prepared.configuration(ctx, targetIdentity)! },
+        ...(multiple
+          ? [{ model: target.model, config: this.prepared.configuration(ctx, targetIdentity)! }]
+          : references.map(({ relation }) => ({ model: relation.targetModel, config: relation.targetConfig }))),
       ],
-      [{ model: source.model, path: [name] }],
+      (multiple ? [name] : references.map(({ name }) => name)).map((name) => ({ model: source.model, path: [name] })),
     );
-    let assertTargetCurrent: (() => void) | undefined;
+    const targetGuards = new Map<number, () => void>();
     const assertCurrent = () => {
       relation.current();
+      for (const reference of references) {
+        reference.relation.current();
+        if (source.getField(reference.name) !== reference.field || reference.field.target !== reference.target.name)
+          invalid('Reference source field changed');
+      }
       metadata();
       role?.assertCurrent();
       targetRole?.assertCurrent();
-      assertTargetCurrent?.();
+      for (const guard of targetGuards.values()) guard();
       if (
         source.getField(name) !== field ||
         field.target !== target.name ||
@@ -262,6 +295,7 @@ export class AccessReferenceMutationHandler {
         [target, targetIdentity],
       ];
       if (multiple) identities.push([through!, throughIdentity!]);
+      else for (const reference of references) identities.push([reference.target, reference.identity]);
       for (const [collection, expected] of identities) {
         const actual = this.resolveIdentity(collection);
         if (
@@ -282,8 +316,8 @@ export class AccessReferenceMutationHandler {
     const checkFields = (
       permission: Readonly<AccessFinalActionPermission>,
       collection: Collection,
-      required: string,
-      alias?: string,
+      required: readonly string[],
+      aliases: readonly string[] = [],
     ) => {
       shape(
         permission.params,
@@ -311,8 +345,8 @@ export class AccessReferenceMutationHandler {
             invalid('Reference permission contains unsupported fields');
         if (
           kind === 'blacklist'
-            ? fields.includes(required) || (alias !== undefined && fields.includes(alias))
-            : !fields.includes(required)
+            ? [...required, ...aliases].some((field) => fields.includes(field))
+            : required.some((field) => !fields.includes(field))
         )
           invalid('Reference field is not authorized');
       }
@@ -321,7 +355,12 @@ export class AccessReferenceMutationHandler {
         captureAccessFilter(permission.params.filter ?? {}),
       );
     };
-    role = checkFields(sourcePermission, source, name, multiple ? undefined : relation.foreignKey);
+    role = checkFields(
+      sourcePermission,
+      source,
+      multiple ? [name] : references.map(({ name }) => name),
+      references.map(({ relation }) => relation.foreignKey),
+    );
     let sourceValues: Record<string, unknown> | undefined;
     if (input.sourceValues && Reflect.ownKeys(input.sourceValues).length) {
       validateRootValues(this.db, input.sourceValues, source, 'update', relation.sourceConfig.ownership.enabled);
@@ -335,7 +374,7 @@ export class AccessReferenceMutationHandler {
       );
       if (Object.keys(values).length) sourceValues = values;
     }
-    if (targetPermission) targetRole = checkFields(targetPermission, target, target.model.primaryKeyAttribute);
+    if (targetPermission) targetRole = checkFields(targetPermission, target, [target.model.primaryKeyAttribute]);
     assertCurrent();
     const entry = {
       assertCurrent,
@@ -359,19 +398,21 @@ export class AccessReferenceMutationHandler {
             },
           }
         : {}),
-      targetScope: async () => {
+      targetScope: async (index = 0) => {
         assertCurrent();
-        const related = await authorizeTarget(target);
+        const selectedTarget = multiple ? target : references[index].target;
+        const selectedIdentity = multiple ? targetIdentity : references[index].identity;
+        const related = await authorizeTarget(selectedTarget);
         assertCurrent();
         if (!related) invalid('Reference target is not authorized');
-        const decision = captureRelatedReadPermission(this.db, target, roleName, related);
+        const decision = captureRelatedReadPermission(this.db, selectedTarget, roleName, related);
         const plan = new AccessReadGrantAdapter(this.db, (collection) => {
           const resolved = this.resolveIdentity(collection);
           return resolved && accessCollectionKey(resolved);
-        }).capturePlan(targetIdentity, decision, compiler);
-        if (!plan || !plan.grant.fields.includes(target.model.primaryKeyAttribute))
+        }).capturePlan(selectedIdentity, decision, compiler);
+        if (!plan || !plan.grant.fields.includes(selectedTarget.model.primaryKeyAttribute))
           invalid('Reference target key is not readable');
-        assertTargetCurrent = plan.assertCurrent;
+        targetGuards.set(index, plan.assertCurrent);
         assertCurrent();
         return { where: plan.grant.where };
       },
@@ -408,12 +449,20 @@ export class AccessReferenceMutationHandler {
       new AccessMutationService(this.db, this.prepared, this.queries),
       new AccessReferenceService(this.db, this.prepared, this.queries),
     );
-    const result = await links.withReference(
+    const result = await links.withReferences(
       ctx,
       sourceIdentity,
-      targetIdentity,
       actor,
-      { association: name, sourceKeys: keys, targetKey, sourceWhere: role.rootWhere ?? role.where, sourceValues },
+      {
+        sourceKeys: keys,
+        sourceWhere: role.rootWhere ?? role.where,
+        sourceValues,
+        references: references.map(({ name, identity, targetKey }) => ({
+          association: name,
+          target: identity,
+          targetKey,
+        })),
+      },
       async (plan) => {
         assertCurrent();
         for (const record of plan.records) {

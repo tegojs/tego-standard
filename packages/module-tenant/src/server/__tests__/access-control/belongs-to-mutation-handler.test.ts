@@ -1,10 +1,13 @@
 import { ACL, Resourcer, type Collection, type Database, type Model } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
+import { AccessBelongsToService } from '../../access-control/belongs-to';
 import { AccessBelongsToMutationHandler } from '../../access-control/belongs-to-mutation-handler';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
+import { AccessMutationService } from '../../access-control/mutation';
 import { AccessQueryService } from '../../access-control/query';
+import { AccessReferenceService } from '../../access-control/references';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -12,19 +15,23 @@ import { configFor, ownerCondition } from './fixtures';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 const projectIdentity = { ...mainIdentity, collectionKey: 'projects-key', collectionName: 'projects' };
+const customerIdentity = { ...mainIdentity, collectionKey: 'customers-key', collectionName: 'customers' };
 
 describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belongs-to mutations (%s)', (dialect) => {
   let db: Database;
   let docs: Collection;
   let projects: Collection;
+  let customers: Collection | undefined;
   let store: AccessConfigStore;
   let adapter: AccessAclScopeAdapter;
   let handler: AccessBelongsToMutationHandler;
   const auth = () => ({ tenantId: 'B', roleName: 'editor', userId: 28 });
-  const identity = (collection: Collection) => (collection === docs ? mainIdentity : projectIdentity);
+  const identity = (collection: Collection) =>
+    collection === docs ? mainIdentity : collection === customers ? customerIdentity : projectIdentity;
   const pg = (name: string, run: () => Promise<void>) => it.skipIf(dialect !== 'postgres')(name, run);
 
   beforeEach(async () => {
+    customers = undefined;
     db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl!) : sqliteDatabase();
     await seedConfigStore(db);
     await seedAclScopes(db);
@@ -146,7 +153,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
         throw new Error(String(status));
       },
     };
-    await adapter.prepare(ctx, [mainIdentity, projectIdentity]);
+    await adapter.prepare(ctx, [mainIdentity, projectIdentity, ...(customers ? [customerIdentity] : [])]);
     await acl.middleware()(ctx as never, async () => {});
     return ctx;
   }
@@ -348,12 +355,15 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     expect(await read(5)).toMatchObject({ tenantId: null, name: 'Legacy', projectId: 103 });
     expect(ctx.body).toBe('unchanged');
   });
-  it('rejects multiple associations in a scalar update', async () => {
+  pg('saves two independently authorized references and scalar fields atomically', async () => {
     docs.setField('otherProject', { type: 'belongsTo', target: 'projects', foreignKey: 'otherProjectId' });
     await docs.model.sync({ alter: true });
     const ctx = await context('documents', 'update', { values: { project: 101, otherProject: 103, name: 'Changed' } });
-    await expect(execute(ctx)).rejects.toThrow('exactly one association');
-    expect((await read()).name).toBe('Owned');
+    const authorize = vi.fn(() => target({ fields: ['id'] }));
+    await handler.handle(ctx, auth(), authorize);
+    expect(authorize).toHaveBeenCalledTimes(2);
+    expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B', projectId: 101, otherProjectId: 103 });
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
   });
   pg('claims only a historical source whose ownership rule permits editing', async () => {
     const config = configFor({
@@ -497,6 +507,338 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     expect(ctx.body).toBe('unchanged');
     expect((await read()).projectId).toBe(103);
   });
+  it('rejects the 21st submitted reference before SQL or target authorization', async () => {
+    const values: Record<string, number> = { project: 101 };
+    for (let index = 0; index < 20; index++) {
+      const name = `project${index}`;
+      docs.setField(name, { type: 'belongsTo', target: 'projects', foreignKey: `projectId${index}` });
+      values[name] = 103;
+    }
+    const ctx = await context('documents', 'update', { values });
+    const decision = vi.fn(async () => null);
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/between 1 and 20/i);
+    expect(sql).not.toHaveBeenCalled();
+    expect(decision).not.toHaveBeenCalled();
+  });
+  it('rejects mixed relationship types before SQL or target authorization', async () => {
+    docs.setField('children', { type: 'hasMany', target: 'projects', foreignKey: 'documentId' });
+    const ctx = await context('documents', 'update', { values: { project: 101, children: [103] } });
+    const decision = vi.fn(async () => null);
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/only BelongsTo/i);
+    expect(sql).not.toHaveBeenCalled();
+    expect(decision).not.toHaveBeenCalled();
+  });
+
+  describe.skipIf(dialect !== 'postgres')('multiple references', () => {
+    beforeEach(async () => {
+      customers = db.collection({
+        name: 'customers',
+        timestamps: false,
+        fields: [
+          { name: 'id', type: 'integer', primaryKey: true },
+          { name: 'tenantId', type: 'string' },
+          { name: 'name', type: 'string' },
+        ],
+      });
+      await customers.model.sync();
+      await customers.model.bulkCreate([
+        { id: 201, tenantId: 'H', name: 'Visible' },
+        { id: 202, tenantId: 'C', name: 'Hidden' },
+        { id: 203, tenantId: 'B', name: 'Owned' },
+        { id: 204, tenantId: null, name: 'Legacy' },
+      ]);
+      docs.setField('customer', { type: 'belongsTo', target: 'customers', foreignKey: 'customerId' });
+      await docs.model.sync({ alter: true });
+      await docs.model.update({ customerId: 203 }, { where: {} });
+      await db.getRepository('collections').create({ values: { key: 'customers-key', name: 'customers' } });
+      await store.save(customerIdentity, { ...(await store.read(projectIdentity))!, revision: 0 }, { userId: 28 });
+    });
+    const multipleContext = (values: object = { name: 'Changed', project: 101, customer: 201 }, grant: object = {}) =>
+      context('documents', 'update', { values }, grant);
+    const authorize = (collection: Collection) => context(collection.name, 'list', {}, { fields: ['id'] });
+    const allowLegacyEditing = async () => {
+      const config = configFor({
+        type: 'any',
+        children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+      });
+      await store.save(
+        mainIdentity,
+        { ...config, revision: (await store.read(mainIdentity))!.revision },
+        { userId: 28 },
+      );
+    };
+
+    it('checks independent targets and filters scalar input using finalized field grants', async () => {
+      const ctx = await multipleContext(undefined, { fields: ['project', 'customer'] });
+      const decision = vi.fn(authorize);
+      await handler.handle(ctx, auth(), decision);
+      expect(decision.mock.calls.map(([collection]) => collection.name)).toEqual(['projects', 'customers']);
+      expect(await read()).toMatchObject({ tenantId: 'B', name: 'Owned', projectId: 101, customerId: 201 });
+      expect((await projects.model.findByPk(101))!.get('tenantId')).toBe('H');
+      expect((await customers!.model.findByPk(201))!.get('tenantId')).toBe('H');
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    });
+    it('rejects all scalar and reference edits when the second target is hidden', async () => {
+      const ctx = await multipleContext({ name: 'Changed', project: 101, customer: 202 });
+      await expect(handler.handle(ctx, auth(), authorize)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+      expect(ctx.body).toBe('unchanged');
+    });
+    it('applies the second relationship scope independently of its readable target', async () => {
+      (docs.model.associations.customer as typeof docs.model.associations.customer & { scope: object }).scope = {
+        name: 'Owned',
+      };
+      const ctx = await multipleContext();
+      await expect(handler.handle(ctx, auth(), authorize)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+    });
+    it('saves exactly 20 independently authorized references', async () => {
+      const values: Record<string, number> = { project: 101, customer: 201 };
+      const expected: Record<string, number> = { projectId: 101, customerId: 201 };
+      for (let index = 0; index < 18; index++) {
+        const name = `project${index}`;
+        const foreignKey = `projectId${index}`;
+        docs.setField(name, { type: 'belongsTo', target: 'projects', foreignKey });
+        values[name] = index % 2 === 0 ? 101 : 103;
+        expected[foreignKey] = values[name];
+      }
+      await docs.model.sync({ alter: true });
+      const ctx = await multipleContext(values, { fields: Object.keys(values) });
+      const decision = vi.fn(authorize);
+      await handler.handle(ctx, auth(), decision);
+      expect(decision).toHaveBeenCalledTimes(20);
+      expect(await read()).toMatchObject({ tenantId: 'B', ...expected });
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    });
+    it('does not borrow the first target role condition for the second', async () => {
+      const ctx = await multipleContext();
+      await expect(
+        handler.handle(ctx, auth(), (collection) =>
+          context(
+            collection.name,
+            'list',
+            {},
+            { fields: ['id'], filter: { name: collection === projects ? 'Visible' : 'Owned' } },
+          ),
+        ),
+      ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+    });
+    it.each(['denied', 'hidden key', 'wrong role', 'filtered lookup'])(
+      'requires an independent final second target grant: %s',
+      async (kind) => {
+        const ctx = await multipleContext();
+        await expect(
+          handler.handle(ctx, auth(), async (collection) => {
+            if (collection === projects) return authorize(collection);
+            if (kind === 'denied') return null;
+            const related = await context(
+              collection.name,
+              'list',
+              kind === 'filtered lookup' ? { filter: { id: 201 } } : {},
+              { fields: kind === 'hidden key' ? ['name'] : ['id'] },
+            );
+            if (kind === 'wrong role') (related.permission as { can: { role: string } }).can.role = 'other';
+            return related;
+          }),
+        ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+        expect(ctx.body).toBe('unchanged');
+      },
+    );
+    it.each([{ fields: ['project', 'name'] }, { blacklist: ['customerId'] }, { blacklist: ['customer'] }])(
+      'requires source permission for every submitted reference: %j',
+      async (grant) => {
+        const ctx = await multipleContext(undefined, grant);
+        const decision = vi.fn(authorize);
+        await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/field is not authorized/i);
+        expect(decision).not.toHaveBeenCalled();
+        expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+      },
+    );
+    it('retains unchanged hidden references while editing a scalar field', async () => {
+      await docs.model.update({ projectId: 102, customerId: 202 }, { where: { id: 3 } });
+      const ctx = await multipleContext({ name: 'Changed', project: 102, customer: 202 });
+      const decision = vi.fn(async () => null);
+      await handler.handle(ctx, auth(), decision);
+      expect(decision).not.toHaveBeenCalled();
+      expect(await read()).toMatchObject({ name: 'Changed', projectId: 102, customerId: 202 });
+    });
+    it('clears hidden references without requiring old target read permission', async () => {
+      await docs.model.update({ projectId: 102, customerId: 202 }, { where: { id: 3 } });
+      const ctx = await multipleContext({ project: null, customer: null });
+      const decision = vi.fn(async () => null);
+      await handler.handle(ctx, auth(), decision);
+      expect(decision).not.toHaveBeenCalled();
+      expect(await read()).toMatchObject({ projectId: null, customerId: null });
+    });
+    it('checks only the changed non-null second reference when the first is cleared', async () => {
+      const ctx = await multipleContext({ project: null, customer: 201 });
+      const decision = vi.fn(authorize);
+      await handler.handle(ctx, auth(), decision);
+      expect(decision.mock.calls.map(([collection]) => collection.name)).toEqual(['customers']);
+      expect(await read()).toMatchObject({ projectId: null, customerId: 201 });
+    });
+    it('uses the old source role condition and permits a successful edit to leave it', async () => {
+      const ctx = await multipleContext(undefined, {
+        filter: { project: { name: 'Owned' }, customer: { name: 'Owned' } },
+      });
+      await handler.handle(ctx, auth(), authorize);
+      expect(await read()).toMatchObject({ name: 'Changed', projectId: 101, customerId: 201 });
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    });
+    it('does not borrow source visibility to grant update', async () => {
+      const ctx = await context('documents', 'update', { filterByTk: 1, values: { project: 101, customer: 201 } });
+      const decision = vi.fn(authorize);
+      await expect(handler.handle(ctx, auth(), decision)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(decision).not.toHaveBeenCalled();
+      expect(await read(1)).toMatchObject({ projectId: 103, customerId: 203 });
+    });
+    it('claims only a changed historical source and never its historical targets', async () => {
+      await allowLegacyEditing();
+      const ctx = await context('documents', 'update', {
+        filterByTk: 5,
+        values: { project: 104, customer: 204, name: 'Claimed' },
+      });
+      await handler.handle(ctx, auth(), authorize);
+      expect(await read(5)).toMatchObject({ name: 'Claimed', tenantId: 'B', projectId: 104, customerId: 204 });
+      expect((await projects.model.findByPk(104))!.get('tenantId')).toBeNull();
+      expect((await customers!.model.findByPk(204))!.get('tenantId')).toBeNull();
+    });
+    it('does not write or claim an unchanged historical source', async () => {
+      await allowLegacyEditing();
+      const ctx = await context('documents', 'update', {
+        filterByTk: 5,
+        values: { project: 103, customer: 203, name: 'Legacy' },
+      });
+      const decision = vi.fn(async () => null);
+      const write = vi.spyOn(docs.repository, 'update');
+      await handler.handle(ctx, auth(), decision);
+      expect(write).not.toHaveBeenCalled();
+      expect(decision).not.toHaveBeenCalled();
+      expect(await read(5)).toMatchObject({ tenantId: null, name: 'Legacy', projectId: 103, customerId: 203 });
+      expect(ctx.body).toEqual({ keys: [], affected: 0 });
+    });
+    it('keeps historical sources read-only without G', async () => {
+      const ctx = await context('documents', 'update', { filterByTk: 5, values: { project: 104, customer: 204 } });
+      await expect(handler.handle(ctx, auth(), authorize)).rejects.toMatchObject({ code: 'LEGACY_DATA_READ_ONLY' });
+      expect(await read(5)).toMatchObject({ tenantId: null, projectId: 103, customerId: 203 });
+    });
+    it('preserves all captured input and identity across the first target decision', async () => {
+      const ctx = await multipleContext();
+      const actor = auth();
+      await handler.handle(ctx, actor, async (collection) => {
+        actor.tenantId = 'C';
+        (ctx.permission as { rawParams: { values: object } }).rawParams.values = {
+          name: 'Tampered',
+          project: 102,
+          customer: 202,
+        };
+        return authorize(collection);
+      });
+      expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B', projectId: 101, customerId: 201 });
+    });
+    it('captures later metadata before awaiting the first target decision', async () => {
+      const ctx = await multipleContext();
+      const decision = vi.fn(async (collection: Collection) => {
+        docs.model.associations.customer = { ...docs.model.associations.customer } as never;
+        return authorize(collection);
+      });
+      await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/association|metadata/i);
+      expect(decision).toHaveBeenCalledTimes(1);
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+    });
+    it('rechecks earlier metadata after authorizing the later target', async () => {
+      const ctx = await multipleContext();
+      await expect(
+        handler.handle(ctx, auth(), async (collection) => {
+          if (collection === customers)
+            docs.model.associations.project = { ...docs.model.associations.project } as never;
+          return authorize(collection);
+        }),
+      ).rejects.toThrow(/association|metadata/i);
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+    });
+    it('rolls back the claim and all fields when a hook changes the second authorized FK', async () => {
+      await allowLegacyEditing();
+      const ctx = await context('documents', 'update', {
+        filterByTk: 5,
+        values: { name: 'Claimed', project: 101, customer: 201 },
+      });
+      docs.model.addHook('beforeUpdate', 'second-reference', (record) => record.setDataValue('customerId', 203));
+      await expect(handler.handle(ctx, auth(), authorize)).rejects.toThrow(/authorized foreign key/i);
+      expect(await read(5)).toMatchObject({ tenantId: null, name: 'Legacy', projectId: 103, customerId: 203 });
+      expect(ctx.body).toBe('unchanged');
+    });
+    it('rolls back all fields when a hook changes an unrelated relationship key', async () => {
+      docs.setField('otherProject', { type: 'belongsTo', target: 'projects', foreignKey: 'otherProjectId' });
+      await docs.model.sync({ alter: true });
+      const ctx = await multipleContext();
+      docs.model.addHook('beforeUpdate', 'unrelated-reference', (record) => record.setDataValue('otherProjectId', 101));
+      await expect(handler.handle(ctx, auth(), authorize)).rejects.toThrow(/protected relationship key/i);
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203, otherProjectId: null });
+    });
+    it('rolls back repository errors without publishing afterCommit notifications', async () => {
+      const ctx = await multipleContext();
+      const notification = vi.fn();
+      const error = new Error('multiple reference hook failure');
+      db.on('documents.afterUpdate', async (_record, options) => {
+        options.transaction.afterCommit(notification);
+        throw error;
+      });
+      await expect(handler.handle(ctx, auth(), authorize)).rejects.toBe(error);
+      expect(notification).not.toHaveBeenCalled();
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+    });
+    it.each([{ customer: { id: 201 } }, { customer: [201] }, { customer: 201, customerId: 202 }])(
+      'rejects nested and raw second reference values before SQL: %j',
+      async (invalid) => {
+        const ctx = await multipleContext({ project: 101, ...invalid });
+        const decision = vi.fn(authorize);
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow();
+        expect(decision).not.toHaveBeenCalled();
+        expect(sql).not.toHaveBeenCalled();
+      },
+    );
+    it.each(['null', 'empty', 'duplicate', 'sparse', 'oversized'])(
+      'rejects an invalid trusted reference list before invoking the writer: %s',
+      async (kind) => {
+        const ctx = await multipleContext();
+        const queries = new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection)));
+        const service = new AccessBelongsToService(
+          db,
+          adapter,
+          queries,
+          new AccessMutationService(db, adapter, queries),
+          new AccessReferenceService(db, adapter, queries),
+        );
+        const reference = { association: 'project', target: projectIdentity, targetKey: 101 };
+        const sparse = [reference, reference];
+        delete sparse[1];
+        const references =
+          kind === 'null'
+            ? null
+            : kind === 'empty'
+              ? []
+              : kind === 'duplicate'
+                ? [reference, reference]
+                : kind === 'sparse'
+                  ? sparse
+                  : Array(21).fill(reference);
+        const writer = vi.fn(async () => {});
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(
+          service.withReferences(ctx, mainIdentity, auth(), { sourceKeys: [3], references }, writer),
+        ).rejects.toThrow();
+        expect(writer).not.toHaveBeenCalled();
+        expect(sql).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   it('does not run writes on unsupported dialects', async () => {
     if (dialect === 'postgres') return;
     const ctx = await context();

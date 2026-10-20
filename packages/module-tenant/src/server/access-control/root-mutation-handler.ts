@@ -4,6 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessCreationService } from './creation';
+import { assertCreationKeyArray } from './creation-links';
 import { prepareCreationReferences, type AccessCreationTargetAuthorizer } from './creation-reference';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
@@ -80,6 +81,17 @@ export class AccessRootMutationHandler {
       'filterByTk',
       'values',
     ]);
+    // cloneDeep deliberately normalizes array prototypes; validate raw selections first.
+    const rawValues = data(raw, 'values');
+    if (operation === 'create' && plain(rawValues))
+      for (const name of Reflect.ownKeys(rawValues)) {
+        const value = data(rawValues, name);
+        if (
+          typeof name === 'string' &&
+          this.db.getCollection(resourceName)?.model.associations[name]?.associationType === 'BelongsToMany'
+        )
+          assertCreationKeyArray(value);
+      }
     const params = cloneDeep(raw);
     for (const [key, expected] of [
       ['resourceName', resourceName],
@@ -202,7 +214,12 @@ export class AccessRootMutationHandler {
         ctx,
         identity,
         actor,
-        { values: [values!], where: role.rootWhere ?? role.where, references: target },
+        {
+          values: [values!],
+          where: role.rootWhere ?? role.where,
+          references: target?.references,
+          links: target?.links,
+        },
         async (plan) => {
           assertCurrent();
           const record = await collection.repository.create({

@@ -5,6 +5,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
 import type { AccessCollectionIdentity } from './config-store';
 import { resolveActiveAccessTenant, type AccessIdentity } from './context';
+import { prepareCreationLinks, type AccessCreationLink } from './creation-links';
 import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
@@ -41,6 +42,8 @@ export interface AccessCreationRequest {
   reference?: AccessCreationReference;
   /** Multiple references are validated and persisted atomically with the single new record. */
   references?: AccessCreationReference[];
+  /** Trusted, independently authorized selections of existing targets through pure join tables. */
+  links?: AccessCreationLink[];
 }
 
 export interface AccessCreationPlan {
@@ -66,6 +69,7 @@ export class AccessCreationService {
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
+    const original = request;
     request = cloneDeep(request);
     const config = this.prepared.configuration(ctx, identity);
     if (!config) invalid('Collection has not migrated to access control');
@@ -108,6 +112,23 @@ export class AccessCreationService {
       return { reference, relation, key };
     });
     const expectedReferences = new Map(plans.map((plan) => [plan.relation.foreignKey, plan]));
+    const links = request.links === undefined ? [] : request.links;
+    if (
+      !Array.isArray(links) ||
+      (request.links !== undefined && Object.getPrototypeOf(original.links) !== Array.prototype) ||
+      links.length + plans.length > MAX_CREATION_REFERENCES ||
+      Reflect.ownKeys(links).length !== links.length + 1 ||
+      Array.from({ length: links.length }, (_, index) => index).some((index) => !Object.hasOwn(links, index))
+    )
+      invalid('Creation references and links require a bounded dense list');
+    for (const link of links) {
+      if (!plain(link) || typeof link.association !== 'string' || names.has(link.association))
+        invalid('Creation references must have distinct registered association names');
+      names.add(link.association);
+    }
+    const linkPlan = links.length
+      ? prepareCreationLinks(this.db, this.prepared, this.queries, ctx, identity, links, original.links!)
+      : undefined;
     const metadata =
       plans.length > 0 &&
       accessMetadataGuard(
@@ -121,6 +142,7 @@ export class AccessCreationService {
     const current = () => {
       for (const { relation } of plans) relation.current();
       if (metadata) metadata();
+      linkPlan?.current();
       if (
         this.prepared.configuration(ctx, identity) !== config ||
         !this.queries.isCurrentCollection(identity, collection, model)
@@ -139,7 +161,8 @@ export class AccessCreationService {
     if (!Array.isArray(request.values) || !request.values.length || request.values.length > 1000)
       invalid('Create between 1 and 1000 explicit records');
     if (model.primaryKeyAttributes.length !== 1) invalid('Creation requires a single primary key');
-    if (plans.length && (request.values.length !== 1 || this.db.sequelize.getDialect() !== 'postgres'))
+    const related = plans.length > 0 || links.length > 0;
+    if (related && (request.values.length !== 1 || this.db.sequelize.getDialect() !== 'postgres'))
       throw new AccessMutationError(
         'UNSUPPORTED_ACCESS_MUTATION',
         'Reference creation requires one record and PostgreSQL',
@@ -152,7 +175,7 @@ export class AccessCreationService {
         (model.rawAttributes[field].type as { key?: string }).key !== 'VIRTUAL' &&
         !(config.ownership.enabled && field === 'tenantId'),
     );
-    const serializable = plans.length > 0 || requiresSerializable(config, request, collection);
+    const serializable = related || requiresSerializable(config, request, collection);
     try {
       return await this.db.sequelize.transaction(
         {
@@ -189,6 +212,10 @@ export class AccessCreationService {
             );
             current();
           }
+          if (linkPlan) {
+            await linkPlan.authorize(authenticated, transaction);
+            current();
+          }
           const receipts = new Map<Model, string | number>();
           let unexpectedInserts = false;
           const hookName = `tenant-access-creation-${randomUUID()}`;
@@ -197,6 +224,11 @@ export class AccessCreationService {
           this.db.sequelize.addHook('afterQuery', hookName, (options, query) => {
             if (options.transaction !== transaction || options.type !== 'INSERT') return;
             const instance = (query as unknown as { instance?: Model }).instance;
+            const queryModel = (options as typeof options & { model?: typeof model }).model;
+            if (linkPlan && queryModel === model && !(instance instanceof model)) {
+              unexpectedInserts = true;
+              return;
+            }
             if (!(instance instanceof model)) return;
             // afterQuery also runs on failed INSERTs: do not mask the original database error.
             if (receipts.has(instance) || receipts.size >= values.length) {
@@ -215,69 +247,80 @@ export class AccessCreationService {
                 transaction,
               }),
             );
+            await validateWriteTransaction(this.db, transaction, serializable);
+            current();
+            if (
+              !Array.isArray(records) ||
+              records.length !== values.length ||
+              records.some((record) => !(record instanceof model) || record.isNewRecord)
+            )
+              invalid('Creation writer must return all saved target models');
+            if (
+              unexpectedInserts ||
+              receipts.size !== records.length ||
+              records.some((record) => !receipts.has(record) || record.getDataValue(primary) !== receipts.get(record))
+            )
+              invalid('Creation results must match the actual INSERT receipts');
+            const keys = records.map((record) => receipts.get(record)!);
+            const normalized = normalizeKeys(keys, collection);
+            if (normalized.length !== keys.length) invalid('Creation writer returned duplicate record keys');
+            if (linkPlan) {
+              await linkPlan.persist(normalized[0], transaction, current);
+              await validateWriteTransaction(this.db, transaction, serializable);
+              current();
+            }
+            const targetWhere = { [primary]: { [Op.in]: normalized } };
+            // Verify raw persisted ownership; presentation getters and returned Model fields are not authoritative.
+            const stored = await model.unscoped().findAll(
+              internalQuery({
+                where: targetWhere,
+                transaction,
+                attributes: [...new Set([primary, ...(config.ownership.enabled ? ['tenantId'] : []), ...blocked])],
+              }),
+            );
+            current();
+            if (stored.length !== keys.length) invalid('Creation writer did not persist all target records');
+            if (
+              stored.some((record) =>
+                blocked.some((field) => {
+                  const value = record.getDataValue(field);
+                  const expected = expectedReferences.get(field);
+                  return expected
+                    ? expected.key === null
+                      ? value != null
+                      : value == null || normalizeKeys([value], expected.relation.target)[0] !== expected.key
+                    : value != null;
+                }),
+              )
+            )
+              invalid('Persisted association values require their own write adapters');
+            if (config.ownership.enabled && stored.some((record) => record.getDataValue('tenantId') !== tenant))
+              throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed record ownership');
+            const scoped = await this.queries.scopeQuery(
+              ctx,
+              identity,
+              authenticated,
+              {
+                where: request.where === undefined ? targetWhere : { [Op.and]: [targetWhere, request.where] },
+                bind: request.bind,
+                transaction,
+              },
+              'ownership',
+            );
+            if (!scoped || scoped.config !== config) invalid('Creation access phase changed');
+            const allowed = await model.findAll(internalQuery({ ...scoped.query, attributes: [primary] }));
+            current();
+            if (allowed.length !== keys.length) unavailable();
+            if (linkPlan) {
+              await linkPlan.verify(normalized[0], transaction);
+              current();
+            }
+            if (unexpectedInserts || receipts.size !== records.length)
+              invalid('Creation results must match the actual INSERT receipts');
+            return { keys, affected: keys.length };
           } finally {
             this.db.sequelize.removeHook('afterQuery', hookName);
           }
-          await validateWriteTransaction(this.db, transaction, serializable);
-          current();
-          if (
-            !Array.isArray(records) ||
-            records.length !== values.length ||
-            records.some((record) => !(record instanceof model) || record.isNewRecord)
-          )
-            invalid('Creation writer must return all saved target models');
-          if (
-            unexpectedInserts ||
-            receipts.size !== records.length ||
-            records.some((record) => !receipts.has(record) || record.getDataValue(primary) !== receipts.get(record))
-          )
-            invalid('Creation results must match the actual INSERT receipts');
-          const keys = records.map((record) => receipts.get(record)!);
-          const normalized = normalizeKeys(keys, collection);
-          if (normalized.length !== keys.length) invalid('Creation writer returned duplicate record keys');
-          const targetWhere = { [primary]: { [Op.in]: normalized } };
-          // Verify raw persisted ownership; presentation getters and returned Model fields are not authoritative.
-          const stored = await model.unscoped().findAll(
-            internalQuery({
-              where: targetWhere,
-              transaction,
-              attributes: [...new Set([primary, ...(config.ownership.enabled ? ['tenantId'] : []), ...blocked])],
-            }),
-          );
-          current();
-          if (stored.length !== keys.length) invalid('Creation writer did not persist all target records');
-          if (
-            stored.some((record) =>
-              blocked.some((field) => {
-                const value = record.getDataValue(field);
-                const expected = expectedReferences.get(field);
-                return expected
-                  ? expected.key === null
-                    ? value != null
-                    : value == null || normalizeKeys([value], expected.relation.target)[0] !== expected.key
-                  : value != null;
-              }),
-            )
-          )
-            invalid('Persisted association values require their own write adapters');
-          if (config.ownership.enabled && stored.some((record) => record.getDataValue('tenantId') !== tenant))
-            throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed record ownership');
-          const scoped = await this.queries.scopeQuery(
-            ctx,
-            identity,
-            authenticated,
-            {
-              where: request.where === undefined ? targetWhere : { [Op.and]: [targetWhere, request.where] },
-              bind: request.bind,
-              transaction,
-            },
-            'ownership',
-          );
-          if (!scoped || scoped.config !== config) invalid('Creation access phase changed');
-          const allowed = await model.findAll(internalQuery({ ...scoped.query, attributes: [primary] }));
-          current();
-          if (allowed.length !== keys.length) unavailable();
-          return { keys, affected: keys.length };
         },
       );
     } catch (error) {

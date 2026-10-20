@@ -4,7 +4,9 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import { MAX_CREATION_REFERENCES, type AccessCreationReference } from './creation';
+import { assertCreationKeyArray, type AccessCreationLink } from './creation-links';
 import type { AccessFinalActionPermission } from './final-action-permission';
+import { resolveManyToMany } from './many-to-many-metadata';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
 import { AccessReadGrantAdapter } from './read-grants';
@@ -32,9 +34,12 @@ export function prepareCreationReferences(
   const collection = db.getCollection(source.collectionName);
   const names = Object.keys(values).filter((name) => Object.hasOwn(collection.model.associations, name));
   if (!names.length) return;
-  if (names.length > MAX_CREATION_REFERENCES) invalid('Creation supports at most 20 BelongsTo references');
+  if (names.length > MAX_CREATION_REFERENCES) invalid('Creation supports at most 20 references');
+  const selected = names.map((name) => ({ name, type: collection.model.associations[name].associationType }));
+  if (selected.some(({ type }) => !['BelongsTo', 'BelongsToMany'].includes(type)))
+    invalid('Creation supports BelongsTo and BelongsToMany references');
   // Prepare every path before awaiting any target decision, including paths whose value is null.
-  const references = names.map((name) => {
+  const references = selected.map(({ name, type }) => {
     const field = collection.getField(name);
     const association = collection.model.associations[name];
     const target = db.modelCollection.get(association.target);
@@ -47,16 +52,31 @@ export function prepareCreationReferences(
       targetIdentity.collectionName !== target.name
     )
       invalid('Creation reference identity is unavailable');
-    const relation = resolveBelongsTo(db, prepared, queries, ctx, source, targetIdentity, name, true);
+    const multiple = type === 'BelongsToMany';
+    const throughModel = (association as unknown as { through?: { model?: Collection['model'] } }).through?.model;
+    const through = throughModel && db.modelCollection.get(throughModel);
+    const throughIdentity = multiple && through ? cloneDeep(resolveIdentity(through)) : undefined;
+    if (multiple && (!through || !throughIdentity || throughIdentity.collectionName !== through.name))
+      invalid('Creation link identity is unavailable');
+    const relation = multiple
+      ? resolveManyToMany(db, prepared, queries, ctx, source, targetIdentity, throughIdentity!, name)
+      : resolveBelongsTo(db, prepared, queries, ctx, source, targetIdentity, name, true);
     const key = values[name];
-    if (key !== null && typeof key !== 'string' && typeof key !== 'number')
+    if (!multiple && key !== null && typeof key !== 'string' && typeof key !== 'number')
       invalid('Creation references require a target key or null');
-    const targetKey = key === null ? null : normalizeKeys([key], target)[0];
+    if (multiple) assertCreationKeyArray(key);
+    const keys = multiple
+      ? (key as Array<string | number>).length
+        ? normalizeKeys(key, target)
+        : []
+      : key === null
+        ? []
+        : normalizeKeys([key], target);
     const { whitelist, blacklist } = permission.params as { whitelist?: string[]; blacklist?: string[] };
     if (
       (whitelist !== undefined && !whitelist.includes(name)) ||
       blacklist?.includes(name) ||
-      blacklist?.includes(relation.foreignKey)
+      (!multiple && blacklist?.includes(relation.foreignKey))
     )
       invalid('Creation reference field is not authorized');
     delete values[name];
@@ -64,7 +84,7 @@ export function prepareCreationReferences(
       db,
       [
         { model: relation.sourceModel, config: relation.sourceConfig },
-        { model: relation.targetModel, config: relation.targetConfig },
+        { model: relation.targetModel, config: prepared.configuration(ctx, targetIdentity)! },
       ],
       [{ model: relation.sourceModel, path: [name] }],
     );
@@ -74,21 +94,31 @@ export function prepareCreationReferences(
       metadata();
       assertTargetCurrent?.();
       const actual = resolveIdentity(target);
+      const actualThrough = multiple && through ? resolveIdentity(through) : undefined;
       if (
         !actual ||
         actual.collectionName !== target.name ||
         accessCollectionKey(actual) !== accessCollectionKey(targetIdentity) ||
         collection.getField(name) !== field ||
-        field.target !== target.name
+        field.target !== target.name ||
+        collection.model.associations[name]?.associationType !== type ||
+        (multiple &&
+          (!actualThrough ||
+            actualThrough.collectionName !== through!.name ||
+            accessCollectionKey(actualThrough) !== accessCollectionKey(throughIdentity!)))
       )
         invalid('Creation reference entry identity changed');
     };
     assertCurrent();
     return {
       assertCurrent,
-      async resolve(): Promise<AccessCreationReference> {
+      async resolve(): Promise<{ reference?: AccessCreationReference; link?: AccessCreationLink }> {
         assertCurrent();
-        if (targetKey === null) return { association: name, target: targetIdentity, key: null };
+        const result = (where?: AccessCreationReference['where']) =>
+          multiple
+            ? { link: { association: name, target: targetIdentity, through: throughIdentity!, keys, where } }
+            : { reference: { association: name, target: targetIdentity, key: keys[0] ?? null, where } };
+        if (!keys.length) return result();
         const related = await authorize(target);
         assertCurrent();
         if (!related) invalid('Creation reference target is not authorized');
@@ -102,7 +132,7 @@ export function prepareCreationReferences(
           invalid('Creation reference target key is not readable');
         assertTargetCurrent = plan.assertCurrent;
         assertCurrent();
-        return { association: name, target: targetIdentity, key: targetKey, where: plan.grant.where };
+        return result(plan.grant.where);
       },
     };
   });
@@ -112,11 +142,16 @@ export function prepareCreationReferences(
     names,
     values,
     assertCurrent,
-    async resolve(): Promise<AccessCreationReference[]> {
-      const result: AccessCreationReference[] = [];
+    async resolve(): Promise<{ references: AccessCreationReference[]; links: AccessCreationLink[] }> {
+      const result: { references: AccessCreationReference[]; links: AccessCreationLink[] } = {
+        references: [],
+        links: [],
+      };
       for (const reference of references) {
         assertCurrent();
-        result.push(await reference.resolve());
+        const resolved = await reference.resolve();
+        if (resolved.reference) result.references.push(resolved.reference);
+        if (resolved.link) result.links.push(resolved.link);
         assertCurrent();
       }
       return result;

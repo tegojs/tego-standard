@@ -14,12 +14,22 @@ import {
   internalQuery,
   invalid,
   normalizeKeys,
+  plain,
   requiresSerializable,
   rootWriteBlockedFields,
   unavailable,
   validateRootValues,
   validateWriteTransaction,
 } from './write-support';
+
+export const MAX_CREATION_REFERENCES = 20;
+
+export interface AccessCreationReference {
+  association: string;
+  target: AccessCollectionIdentity;
+  key: string | number | null;
+  where?: WhereOptions;
+}
 
 export interface AccessCreationRequest {
   /** Already filtered by the entry's action and field permissions. Root fields only. */
@@ -28,12 +38,9 @@ export interface AccessCreationRequest {
   where?: WhereOptions;
   bind?: Record<string, unknown>;
   /** Trusted entry's independently finalized target grant; never accepted from client values. */
-  reference?: {
-    association: string;
-    target: AccessCollectionIdentity;
-    key: string | number | null;
-    where?: WhereOptions;
-  };
+  reference?: AccessCreationReference;
+  /** Multiple references are validated and persisted atomically with the single new record. */
+  references?: AccessCreationReference[];
 }
 
 export interface AccessCreationPlan {
@@ -66,10 +73,28 @@ export class AccessCreationService {
     if (!collection || collection.db !== this.db) invalid('Creation collection identity is unavailable');
     const model = collection.model;
     const primary = model.primaryKeyAttribute;
-    const reference = request.reference;
-    const relation =
-      reference &&
-      resolveBelongsTo(
+    if (request.reference !== undefined && request.references !== undefined)
+      invalid('Supply either a single reference or a reference list');
+    const references =
+      request.references === undefined
+        ? request.reference === undefined
+          ? []
+          : [request.reference]
+        : request.references;
+    if (
+      !Array.isArray(references) ||
+      Object.getPrototypeOf(references) !== Array.prototype ||
+      references.length > MAX_CREATION_REFERENCES ||
+      Reflect.ownKeys(references).length !== references.length + 1 ||
+      Array.from({ length: references.length }, (_, index) => index).some((index) => !Object.hasOwn(references, index))
+    )
+      invalid('Creation references require a bounded dense list');
+    const names = new Set<string>();
+    const plans = references.map((reference) => {
+      if (!plain(reference) || typeof reference.association !== 'string' || names.has(reference.association))
+        invalid('Creation references must have distinct registered association names');
+      names.add(reference.association);
+      const relation = resolveBelongsTo(
         this.db,
         this.prepared,
         this.queries,
@@ -79,20 +104,23 @@ export class AccessCreationService {
         reference.association,
         true,
       );
-    const referenceKey = relation && reference.key !== null ? normalizeKeys([reference.key], relation.target)[0] : null;
+      const key = reference.key === null ? null : normalizeKeys([reference.key], relation.target)[0];
+      return { reference, relation, key };
+    });
+    const expectedReferences = new Map(plans.map((plan) => [plan.relation.foreignKey, plan]));
     const metadata =
-      relation &&
+      plans.length > 0 &&
       accessMetadataGuard(
         this.db,
         [
-          { model: relation.sourceModel, config: relation.sourceConfig },
-          { model: relation.targetModel, config: relation.targetConfig },
+          { model, config },
+          ...plans.map(({ relation }) => ({ model: relation.targetModel, config: relation.targetConfig })),
         ],
-        [{ model, path: [reference.association] }],
+        plans.map(({ reference }) => ({ model, path: [reference.association] })),
       );
     const current = () => {
-      relation?.current();
-      metadata?.();
+      for (const { relation } of plans) relation.current();
+      if (metadata) metadata();
       if (
         this.prepared.configuration(ctx, identity) !== config ||
         !this.queries.isCurrentCollection(identity, collection, model)
@@ -111,7 +139,7 @@ export class AccessCreationService {
     if (!Array.isArray(request.values) || !request.values.length || request.values.length > 1000)
       invalid('Create between 1 and 1000 explicit records');
     if (model.primaryKeyAttributes.length !== 1) invalid('Creation requires a single primary key');
-    if (reference && (request.values.length !== 1 || this.db.sequelize.getDialect() !== 'postgres'))
+    if (plans.length && (request.values.length !== 1 || this.db.sequelize.getDialect() !== 'postgres'))
       throw new AccessMutationError(
         'UNSUPPORTED_ACCESS_MUTATION',
         'Reference creation requires one record and PostgreSQL',
@@ -124,7 +152,7 @@ export class AccessCreationService {
         (model.rawAttributes[field].type as { key?: string }).key !== 'VIRTUAL' &&
         !(config.ownership.enabled && field === 'tenantId'),
     );
-    const serializable = !!reference || requiresSerializable(config, request, collection);
+    const serializable = plans.length > 0 || requiresSerializable(config, request, collection);
     try {
       return await this.db.sequelize.transaction(
         {
@@ -146,16 +174,17 @@ export class AccessCreationService {
                 );
               row.tenantId = tenant;
             }
-            if (relation) row[relation.foreignKey] = reference.key;
+            for (const { reference, relation } of plans) row[relation.foreignKey] = reference.key;
             return row;
           });
           current();
-          if (relation && referenceKey !== null) {
+          for (const { reference, relation, key } of plans) {
+            if (key === null) continue;
             await new AccessReferenceService(this.db, this.prepared, this.queries).authorizeTargets(
               ctx,
               reference.target,
               authenticated,
-              { keys: [referenceKey], where: { [Op.and]: [relation.scope ?? {}, reference.where ?? {}] } },
+              { keys: [key], where: { [Op.and]: [relation.scope ?? {}, reference.where ?? {}] } },
               transaction,
             );
             current();
@@ -221,10 +250,11 @@ export class AccessCreationService {
             stored.some((record) =>
               blocked.some((field) => {
                 const value = record.getDataValue(field);
-                return relation && field === relation.foreignKey
-                  ? referenceKey === null
+                const expected = expectedReferences.get(field);
+                return expected
+                  ? expected.key === null
                     ? value != null
-                    : value == null || normalizeKeys([value], relation.target)[0] !== referenceKey
+                    : value == null || normalizeKeys([value], expected.relation.target)[0] !== expected.key
                   : value != null;
               }),
             )

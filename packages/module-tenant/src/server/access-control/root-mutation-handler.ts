@@ -4,7 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessCreationService } from './creation';
-import { prepareCreationReference, type AccessCreationTargetAuthorizer } from './creation-reference';
+import { prepareCreationReferences, type AccessCreationTargetAuthorizer } from './creation-reference';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
 import { AccessMutationService } from './mutation';
@@ -137,7 +137,7 @@ export class AccessRootMutationHandler {
     if (!config) invalid('Root mutation requires a prepared access configuration');
     const reference =
       operation === 'create' && authorizeTarget
-        ? prepareCreationReference(
+        ? prepareCreationReferences(
             this.db,
             this.prepared,
             this.queries,
@@ -153,7 +153,7 @@ export class AccessRootMutationHandler {
     if (
       [...(fields ?? []), ...(blacklist ?? [])].some(
         (field) =>
-          field !== reference?.name &&
+          !reference?.names.includes(field) &&
           (!Object.hasOwn(model.rawAttributes, field) ||
             (model.rawAttributes[field].type as { key?: string }).key === 'VIRTUAL'),
       )
@@ -202,7 +202,7 @@ export class AccessRootMutationHandler {
         ctx,
         identity,
         actor,
-        { values: [values!], where: role.rootWhere ?? role.where, reference: target },
+        { values: [values!], where: role.rootWhere ?? role.where, references: target },
         async (plan) => {
           assertCurrent();
           const record = await collection.repository.create({

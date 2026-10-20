@@ -6,6 +6,7 @@ import { NAMESPACE, TENANT_IMPERSONATION_SNIPPET } from '../constants';
 import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
 import { createAccessMigrationPreview } from './actions/preview-access-migration';
+import { createAccessConfigRead } from './actions/read-access-config';
 import switchTenant from './actions/switch-tenant';
 import tenantsCollection from './collections/tenants';
 import tenantUsersCollection from './collections/tenantUsers';
@@ -787,6 +788,7 @@ export class PluginTenantServer extends Plugin {
     this.app.resourcer.registerActionHandler('tenants:current', currentTenant);
     this.app.resourcer.registerActionHandler('tenants:switch', switchTenant);
     this.app.resourcer.registerActionHandler('tenants:previewAccessMigration', createAccessMigrationPreview(this.app));
+    this.app.resourcer.registerActionHandler('tenants:readAccessConfig', createAccessConfigRead(this.app));
 
     this.app.use(
       async (ctx, next) => {

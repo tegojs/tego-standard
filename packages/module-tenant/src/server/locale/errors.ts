@@ -4,6 +4,8 @@ export const TENANT_ERROR_MESSAGES = {
   tenantSelectionRequired: 'Please select a tenant before continuing.',
   authenticationRequired: 'Please sign in to access tenant data.',
   accessPreviewInvalid: 'Unable to preview this collection. Check the selected collection and role actions.',
+  accessConfigReadInvalid: 'Unable to read access rules. Check the selected data source and collection.',
+  accessConfigReadConflict: 'The collection or access rules changed. Refresh and try again.',
   accessPreviewConflict:
     'The collection or permissions changed, or this collection already uses the new access rules. Refresh and try again.',
   accessPreviewUnavailable: 'The selected data source or collection is unavailable. Refresh and select it again.',

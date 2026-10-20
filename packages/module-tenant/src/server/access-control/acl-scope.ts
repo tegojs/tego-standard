@@ -1,12 +1,24 @@
 import { isDeepStrictEqual } from 'node:util';
-import { getRoleActionScope } from '@tachybase/module-acl';
+import { getRoleActionScope, type RoleActionScope } from '@tachybase/module-acl';
 import type { ACL, ACLRole, Database } from '@tego/server';
 
+import { canDelegateBuiltinTenantScope, readBuiltinTenantScopeId } from './builtin-tenant-scope';
 import { AccessConfigError } from './config-errors';
 import type { AccessCollectionIdentity, AccessConfigStore } from './config-store';
 import type { AccessConfig } from './types';
 
 type ActionParams = ReturnType<ACLRole['getActionParams']>;
+
+/** Scope treatment only, not an effective ACL decision or permission to migrate. */
+export interface AccessRoleScopePreview {
+  dataSourceKey: string;
+  role: string;
+  resource: string;
+  action: string;
+  treatment: 'delegate-builtin-scope' | 'retain-role-scope' | 'no-direct-resource-grant';
+  params?: ActionParams;
+  scope?: RoleActionScope;
+}
 
 /** Structural contract while standard still depends on the previous core release. */
 export interface AccessActionParamsContext {
@@ -70,7 +82,7 @@ export class AccessAclScopeAdapter {
         configs.set(identity.collectionName, { identity, config: await snapshot.read(identity) });
       }
       const builtinScopeId = [...configs.values()].some(({ config }) => config)
-        ? await this.builtinScopeId()
+        ? await readBuiltinTenantScopeId(this.db, this.dataSourceKey)
         : undefined;
       if (this.requests.get(ctx) !== phase) {
         throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Access request phase has ended');
@@ -87,25 +99,40 @@ export class AccessAclScopeAdapter {
     this.requests.delete(ctx);
   }
 
-  private async builtinScopeId(): Promise<unknown> {
-    if (this.dataSourceKey !== 'main') return;
-    const collection = this.db.getCollection('dataSourcesRolesResourcesScopes');
-    if (!collection) return;
-    // The scope key is not unique. Ambiguity must preserve the original ACL restriction.
-    const scopes = await collection.model.findAll({
-      where: { dataSourceKey: 'main', key: 'tenant' },
-      limit: 2,
-      useMaster: true,
-    });
-    if (scopes.length !== 1) return;
-    const scope = scopes[0];
-    const resourceName = scope.get('resourceName');
+  /** Read-only administrator tooling. It does not prepare a phase, register a resolver or save rules. */
+  async previewRoleScope(roleName: string, resource: string, action: string): Promise<AccessRoleScopePreview> {
     if (
-      (resourceName !== undefined && resourceName !== null && resourceName !== '') ||
-      !isDeepStrictEqual(scope.get('scope'), { tenantId: '{{ ctx.state.currentTenant.id }}' })
+      ![roleName, resource, action].every(
+        (value) => typeof value === 'string' && value.length > 0 && value.length <= 255,
+      )
     )
-      return;
-    return scope.get('id');
+      throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid role scope inspection identity');
+    const base = { dataSourceKey: this.dataSourceKey, role: roleName, resource, action };
+    const role = this.acl.getRole(roleName);
+    const directParams = () => {
+      const current = role?.getResource(resource);
+      return current?.actions.get(current.actions.has(action) ? action : this.acl.resolveActionAlias(action));
+    };
+    const original = directParams();
+    if (!original) return { ...base, treatment: 'no-direct-resource-grant' };
+    const params = structuredClone(original);
+    const scope = getRoleActionScope(role, resource, action);
+    const builtinScopeId = await readBuiltinTenantScopeId(this.db, this.dataSourceKey);
+    if (
+      this.acl.getRole(roleName) !== role ||
+      directParams() !== original ||
+      !isDeepStrictEqual(original, params) ||
+      !isDeepStrictEqual(getRoleActionScope(role, resource, action), scope)
+    )
+      throw new AccessConfigError('ACCESS_CONFIG_CONFLICT', 'Role scope changed; reload the migration preview', 409);
+    return {
+      ...base,
+      treatment: canDelegateBuiltinTenantScope(this.dataSourceKey, builtinScopeId, scope, params)
+        ? 'delegate-builtin-scope'
+        : 'retain-role-scope',
+      params,
+      scope,
+    };
   }
 
   /** The query adapter must compile this same snapshot, never re-read configuration mid-phase. */
@@ -130,19 +157,7 @@ export class AccessAclScopeAdapter {
     if (!config) return params;
     const scope = getRoleActionScope(this.acl.getRole(context.role), context.resource, context.action);
     // Only the global, unchanged scope created by ensureTenantAclScope is a built-in template.
-    if (
-      !scope ||
-      phase.builtinScopeId === undefined ||
-      !isDeepStrictEqual(scope.scopeId, phase.builtinScopeId) ||
-      this.dataSourceKey !== 'main' ||
-      scope.scopeCollection !== 'dataSourcesRolesResourcesScopes' ||
-      scope.dataSourceKey !== this.dataSourceKey ||
-      scope.key !== 'tenant' ||
-      (scope.resourceName !== undefined && scope.resourceName !== null && scope.resourceName !== '') ||
-      !isDeepStrictEqual(scope.filter, { tenantId: '{{ ctx.state.currentTenant.id }}' }) ||
-      !isDeepStrictEqual(params.filter, scope.filter)
-    )
-      return params;
+    if (!canDelegateBuiltinTenantScope(this.dataSourceKey, phase.builtinScopeId, scope, params)) return params;
     const delegated = { ...params };
     delete delegated.filter;
     return delegated;

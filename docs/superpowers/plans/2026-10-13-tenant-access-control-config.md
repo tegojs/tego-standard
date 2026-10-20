@@ -76,3 +76,15 @@ await store.save(identity, { ...editedConfig, revision: config?.revision ?? 0 },
 - [x] 运行聚焦回归、模块构建、lint、格式检查；完成独立审查。转换草案不代表已经迁移，角色 ACL、自定义范围及实际入口仍需迁移预览核查。
 
 本轮分批覆盖 7 个测试文件，348 项通过、6 项按数据库能力跳过。SQLite 保留三种模式的查询对照；涉及租户层级的写入按既有契约拒绝，并验证 writer 未执行且数据不变，成功认领与删除限制由 PostgreSQL 验证。模块构建、新增实现的严格类型检查、3 个 TypeScript 文件的 oxlint 与 Prettier 检查通过；独立审查无阻断项。测试库已删除，业务数据及配置未变。
+
+## 6. 迁移前的角色范围检查
+
+文件：`access-control/builtin-tenant-scope.ts`、`access-control/acl-scope.ts`、`__tests__/access-control/acl-scope-preview.test.ts`。
+
+- [x] 先验证未迁移表也能只读检查角色范围，测试缺失的 `previewRoleScope(role, resource, action)` 方法失败。
+- [x] 原样提取内置范围的数据库识别与匹配条件，供运行时委托和预览共同使用，不改变现有授权行为。只有主数据源中唯一、全局、内容未变、来源 ID 一致的系统租户范围可以委托。
+- [x] 预览逐个显式资源操作报告 `delegate-builtin-scope`、`retain-role-scope` 或 `no-direct-resource-grant`，附数据源、角色、资源、操作和独立的原始参数/来源快照。不把报告当作最终权限、保存授权或迁移许可；策略和动态允许仍由原入口决定。
+- [x] 验证自定义与同名范围、重复/替换/失效来源、外部同名表、别名、无直接授权、请求内异步改动、参数未被修改、数据库没有写入。查询期间角色被替换或授权改变时拒绝发布过期预览。
+- [x] 运行 SQLite 和独立 PostgreSQL 的预览测试、原 ACL 委托及配置转换回归、模块构建、lint、格式检查；完成独立审查。不注册业务接口或启用业务表。
+
+本轮 178 项通过，其中新增预览 50 项、原 ACL 委托 24 项、旧配置转换 84 项、配置保存 20 项。5 项核心扩展接口契约测试因当前安装核心没有 resolver 接口而跳过，不能据此宣称实际核心接入已验证。模块构建、两个实现文件的严格类型检查、3 个 TypeScript 文件的 oxlint 和 Prettier 通过；独立审查无阻断项。独立测试库已删除，原业务配置、运行时注册和依赖均未改变。

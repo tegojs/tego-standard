@@ -3,10 +3,10 @@ import type { Collection, Database } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessEntryReadOperation } from './entry-reads';
-import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
 import { AccessReadGrantAdapter } from './read-grants';
 import { collectRelatedReadPaths } from './read-paths';
+import { captureReadPreparationMetadata } from './read-preparation-metadata';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
 import { resolveResourceReadRoute } from './resource-read-routing';
 import { AccessRoleFilterCompiler } from './role-filter';
@@ -51,50 +51,7 @@ export function captureAssociationReadPreparation(
   const paths = [[relation], ...nested.map((path) => [relation, ...path])];
   if (plan.sourceCollection.model.associations[relation].associationType === 'BelongsToMany')
     paths.push([relation, '$through']);
-  const roots: Parameters<typeof accessMetadataGuard>[1] = [];
-  const checks: Array<() => void> = [];
-  const collections = new Set<Collection>();
-  const captureCollection = (collection: Collection | undefined) => {
-    if (!collection) invalid('Association read metadata collection is unavailable');
-    if (collections.has(collection)) return;
-    collections.add(collection);
-    const route = resolveResourceReadRoute(db, resolveIdentity, { resourceName: collection.name, actionName: 'list' });
-    const config = prepared.configuration(ctx, route.identity);
-    if (!config) invalid('Association reads require prepared collection configurations');
-    roots.push({ model: collection.model, config });
-    checks.push(() => {
-      route.assertCurrent();
-      if (prepared.configuration(ctx, route.identity) !== config) invalid('Association read preparation phase changed');
-    });
-  };
-  captureCollection(plan.sourceCollection);
-  for (const path of paths) {
-    let collection = plan.sourceCollection;
-    for (const part of path) {
-      if (part === '$through') break;
-      const association = collection.model.associations[part] as (typeof collection.model.associations)[string] & {
-        through?: { model?: Collection['model'] };
-      };
-      if (!association) invalid('Association read metadata path is unavailable');
-      const through = association.through;
-      const throughModel = through?.model;
-      checks.push(() => {
-        if (association.through !== through || through?.model !== throughModel)
-          invalid('Related preparation through model changed');
-      });
-      if (throughModel) captureCollection(db.modelCollection.get(throughModel));
-      collection = db.modelCollection.get(association.target)!;
-      captureCollection(collection);
-    }
-  }
-  const metadata = accessMetadataGuard(
-    db,
-    roots,
-    paths.map((path) => ({
-      model: plan.sourceCollection.model,
-      path: path.at(-1) === '$through' ? path.slice(0, -1) : path,
-    })),
-  );
+  const metadata = captureReadPreparationMetadata(db, prepared, resolveIdentity, ctx, plan.sourceCollection, paths);
   const role = new AccessReadGrantAdapter(db, (collection) => {
     const identity = resolveIdentity(collection);
     return identity && accessCollectionKey(identity);
@@ -103,7 +60,6 @@ export function captureAssociationReadPreparation(
   const assertCurrent = () => {
     assertSourceCurrent();
     target.assertCurrent();
-    for (const check of checks) check();
     metadata();
     role.assertCurrent();
   };

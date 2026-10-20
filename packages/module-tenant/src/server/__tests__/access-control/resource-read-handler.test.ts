@@ -538,6 +538,142 @@ describe.skipIf(!postgresUrl)('unified internal resource reads', () => {
     },
   );
 
+  it.each(['list', 'get', 'count', 'sum', 'placeholder', 'chart'])(
+    'captures relationship scope before awaiting target authorization for %s',
+    async (entry) => {
+      const placeholder = entry === 'placeholder';
+      const root = placeholder ? children : docs;
+      const relationName = placeholder ? 'document' : 'children';
+      const relation = root.model.associations[relationName] as unknown as { scope?: unknown };
+      relation.scope = { name: 'Visible' };
+      const filter = { [relationName]: { name: 'Visible' } };
+      const ctx = await context(
+        placeholder ? 'documents.children' : 'documents',
+        ['placeholder', 'chart'].includes(entry) ? 'list' : entry,
+        entry === 'chart'
+          ? {}
+          : { filter, ...(entry === 'get' ? { filterByTk: 1 } : entry === 'sum' ? { field: 'amount' } : {}) },
+        {},
+        placeholder ? '_' : undefined,
+      );
+      const sql = vi.spyOn(db.sequelize, 'query');
+      const resolve: AccessRelatedReadAuthorizer = async (collection) => {
+        await Promise.resolve();
+        delete relation.scope;
+        return neutral(collection);
+      };
+      const result =
+        entry === 'chart'
+          ? handler.handleChartWithRelatedContexts(
+              ctx,
+              actor(),
+              {
+                collection: 'documents',
+                dataSource: 'main',
+                measures: [{ field: ['amount'], aggregation: 'sum', alias: 'total' }],
+                dimensions: [],
+                filter,
+              },
+              resolve,
+            )
+          : run(ctx, resolve);
+      await expect(result).rejects.toThrow(/metadata changed/);
+      expect(sql).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+
+  it.each(['root role filter', 'root access rule', 'target access rule', 'through access rule'])(
+    'captures %s metadata before awaiting root related authorization',
+    async (mode) => {
+      const through = mode === 'through access rule';
+      const collection = through ? db.getCollection('links') : mode === 'target access rule' ? children : docs;
+      if (through) collection.setField('child', { type: 'belongsTo', target: 'children', foreignKey: 'childId' });
+      const relationName = through ? 'child' : collection === children ? 'document' : 'primary';
+      const relation = collection.model.associations[relationName] as unknown as { scope?: unknown };
+      relation.scope = { name: 'Visible' };
+      if (mode.endsWith('access rule')) {
+        const config = (await store.read(identity(collection)))!;
+        await store.save(
+          identity(collection),
+          {
+            ...config,
+            rules: [
+              ...config.rules,
+              {
+                id: 'related-visibility',
+                name: 'Related visibility',
+                enabled: true,
+                category: 'visibility',
+                subject: { type: 'constant', value: true },
+                condition: { type: 'exists', path: relationName, condition: { type: 'constant', value: true } },
+              },
+            ],
+          },
+          { userId: 28 },
+        );
+      }
+      const ctx = await context(
+        'documents',
+        'list',
+        { fields: ['id'], filter: { [through ? 'selections' : 'children']: { name: 'Visible' } } },
+        mode === 'root role filter' ? { filter: { primary: { name: 'Visible' } } } : {},
+      );
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(
+        run(ctx, async (target) => {
+          await Promise.resolve();
+          delete relation.scope;
+          return neutral(target);
+        }),
+      ).rejects.toThrow(/metadata changed/);
+      expect(sql).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+
+  it('captures participating model scopes before awaiting root related authorization', async () => {
+    const model = children.model as unknown as { _scope: unknown };
+    model._scope = { where: { name: 'Visible' } };
+    const ctx = await context('documents', 'list', { filter: { children: { name: 'Visible' } } });
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(
+      run(ctx, async (collection) => {
+        await Promise.resolve();
+        model._scope = {};
+        return neutral(collection);
+      }),
+    ).rejects.toThrow(/metadata changed/);
+    expect(sql).not.toHaveBeenCalled();
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it('captures many-to-many through scopes before awaiting root related authorization', async () => {
+    const relation = docs.model.associations.selections as unknown as { through: { scope?: unknown } };
+    relation.through.scope = { childId: 102 };
+    const ctx = await context('documents', 'sum', { field: 'amount', filter: { selections: { name: 'Visible' } } });
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(
+      run(ctx, async (collection) => {
+        await Promise.resolve();
+        delete relation.through.scope;
+        return neutral(collection);
+      }),
+    ).rejects.toThrow(/metadata changed/);
+    expect(sql).not.toHaveBeenCalled();
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it('does not bind unrelated models while preparing root related authorization', async () => {
+    const ctx = await context('documents', 'sum', { field: 'amount', filter: { children: { name: 'Visible' } } });
+    await run(ctx, async (collection) => {
+      await Promise.resolve();
+      (db.getCollection('links').model as unknown as { _scope: unknown })._scope = { where: { childId: 103 } };
+      return neutral(collection);
+    });
+    expect(ctx.body).toBe(100);
+  });
+
   it('checks captured relation metadata after execution before publishing', async () => {
     const ctx = await context('documents.children', 'list', { fields: ['id'] }, {}, 1);
     vi.spyOn(AccessEntryReadService.prototype, 'fromResource').mockImplementationOnce(async () => {

@@ -3,14 +3,17 @@ import type { Collection, Database, Transaction } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureAssociationReadPreparation, prepareAssociationReadContexts } from './association-read-contexts';
 import { parseChartQueryParams } from './chart-query-params';
-import type { AccessCollectionIdentity } from './config-store';
+import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessEntryReadService, type AccessEntryReadOperation } from './entry-reads';
 import type { AccessQueryService } from './query';
 import type { AccessReadDateContext } from './read-date-filter';
+import { AccessReadGrantAdapter } from './read-grants';
 import { collectRelatedReadPaths } from './read-paths';
+import { captureReadPreparationMetadata } from './read-preparation-metadata';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
 import { resolveResourceReadRoute } from './resource-read-routing';
+import { AccessRoleFilterCompiler } from './role-filter';
 import {
   captureAssociationReadContext,
   capturePlaceholderReadContext,
@@ -282,7 +285,7 @@ export class AccessRootReadHandler {
       invalid('Chart query data source does not match the registered collection identity');
     const config = this.prepared.configuration(ctx, root.identity);
     if (!config) invalid('Root reads require a prepared access configuration');
-    const assertCurrent = () => {
+    const assertRouteCurrent = () => {
       assertRoute?.();
       root.assertCurrent();
       if (this.prepared.configuration(ctx, root.identity) !== config) invalid('Root read preparation phase changed');
@@ -302,6 +305,24 @@ export class AccessRootReadHandler {
       params,
       captured.dateContext,
     );
+    const metadata = captureReadPreparationMetadata(
+      this.db,
+      this.prepared,
+      this.resolveIdentity,
+      ctx,
+      this.db.getCollection(root.identity.collectionName),
+      paths,
+    );
+    const role = new AccessReadGrantAdapter(this.db, (collection) => {
+      const identity = this.resolveIdentity(collection);
+      return identity && accessCollectionKey(identity);
+    }).capturePlan(root.identity, captured.permission, new AccessRoleFilterCompiler(this.db, this.resolveIdentity));
+    if (!role) invalid('Root read is not authorized');
+    const assertCurrent = () => {
+      assertRouteCurrent();
+      metadata();
+      role.assertCurrent();
+    };
     assertCurrent();
     const related = await prepareRelatedReadContexts(
       this.db,
@@ -316,8 +337,8 @@ export class AccessRootReadHandler {
       },
     );
     const assertPreparedCurrent = () => {
-      assertCurrent();
       related.assertCurrent();
+      assertCurrent();
     };
     assertPreparedCurrent();
     return { related, assertCurrent: assertPreparedCurrent };

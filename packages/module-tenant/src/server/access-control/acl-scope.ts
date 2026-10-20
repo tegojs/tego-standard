@@ -14,6 +14,44 @@ export interface AccessRoleScopeSelection {
   action: string;
 }
 
+function validName(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 255;
+}
+
+/** Copy the bounded selection before any asynchronous request work, without evaluating accessors. */
+export function snapshotRoleScopeSelections(selections: unknown): AccessRoleScopeSelection[] {
+  const invalid = (): never => {
+    throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid role scope inspection identity');
+  };
+  if (
+    !Array.isArray(selections) ||
+    Object.getPrototypeOf(selections) !== Array.prototype ||
+    selections.length > 1000 ||
+    Reflect.ownKeys(selections).length !== selections.length + 1
+  )
+    return invalid();
+  return Array.from({ length: selections.length }, (_, index) => {
+    const descriptor = Object.getOwnPropertyDescriptor(selections, String(index));
+    if (!descriptor || !Object.hasOwn(descriptor, 'value')) return invalid();
+    const entry: unknown = descriptor.value;
+    if (
+      !entry ||
+      typeof entry !== 'object' ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(entry)) ||
+      Reflect.ownKeys(entry).length !== 2
+    )
+      return invalid();
+    const fields = Object.getOwnPropertyDescriptors(entry);
+    if (
+      !['role', 'action'].every(
+        (name) => Object.hasOwn(fields, name) && Object.hasOwn(fields[name], 'value') && validName(fields[name].value),
+      )
+    )
+      return invalid();
+    return { role: fields.role.value, action: fields.action.value };
+  });
+}
+
 /** Scope treatment only, not an effective ACL decision or permission to migrate. */
 export interface AccessRoleScopePreview {
   dataSourceKey: string;
@@ -111,39 +149,9 @@ export class AccessAclScopeAdapter {
 
   /** Capture a bounded explicit selection together. This is an inspection snapshot, never an authorization lease. */
   captureRoleScopes(resource: string, selections: readonly AccessRoleScopeSelection[]) {
-    const validName = (value: unknown) => typeof value === 'string' && value.length > 0 && value.length <= 255;
-    const invalid = (): never => {
+    if (!validName(resource))
       throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid role scope inspection identity');
-    };
-    if (
-      !validName(resource) ||
-      !Array.isArray(selections) ||
-      Object.getPrototypeOf(selections) !== Array.prototype ||
-      selections.length > 1000 ||
-      Reflect.ownKeys(selections).length !== selections.length + 1
-    )
-      invalid();
-    const entries = Array.from({ length: selections.length }, (_, index) => {
-      const descriptor = Object.getOwnPropertyDescriptor(selections, String(index));
-      if (!descriptor || !Object.hasOwn(descriptor, 'value')) invalid();
-      const entry: unknown = descriptor!.value;
-      if (
-        !entry ||
-        typeof entry !== 'object' ||
-        ![Object.prototype, null].includes(Object.getPrototypeOf(entry)) ||
-        Reflect.ownKeys(entry).length !== 2
-      )
-        return invalid();
-      const fields = Object.getOwnPropertyDescriptors(entry);
-      if (
-        !['role', 'action'].every(
-          (name) =>
-            Object.hasOwn(fields, name) && Object.hasOwn(fields[name], 'value') && validName(fields[name].value),
-        )
-      )
-        return invalid();
-      const roleName: string = fields.role.value;
-      const action: string = fields.action.value;
+    const entries = snapshotRoleScopeSelections(selections).map(({ role: roleName, action }) => {
       const role = this.acl.getRole(roleName);
       const directParams = () => {
         const current = role?.getResource(resource);

@@ -64,7 +64,7 @@ function effectiveSettings(collection: Collection): EffectiveLegacySettings {
   } as EffectiveLegacySettings;
 }
 
-/** Internal read-only tooling. The eventual HTTP adapter must authenticate the administrator independently. */
+/** Read-only tooling. The calling adapter must authenticate the administrator independently. */
 export class AccessMigrationPreviewService {
   private readonly source: PreviewDataSource;
 

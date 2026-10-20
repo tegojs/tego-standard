@@ -3,6 +3,10 @@ import { NAMESPACE } from '../../constants';
 export const TENANT_ERROR_MESSAGES = {
   tenantSelectionRequired: 'Please select a tenant before continuing.',
   authenticationRequired: 'Please sign in to access tenant data.',
+  accessPreviewInvalid: 'Unable to preview this collection. Check the selected collection and role actions.',
+  accessPreviewConflict:
+    'The collection or permissions changed, or this collection already uses the new access rules. Refresh and try again.',
+  accessPreviewUnavailable: 'The selected data source or collection is unavailable. Refresh and select it again.',
   tenantAccessDenied:
     'You do not have access to the selected tenant. Select an available tenant or contact an administrator.',
   tenantUnavailable:

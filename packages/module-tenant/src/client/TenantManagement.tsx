@@ -6,6 +6,7 @@ import { App, Button, Card, Divider, Drawer, Form, Input, Select, Space, Switch,
 import { useTenantTranslation } from './locale';
 import { TENANCY_MODE_OPTIONS, type TenancyMode } from './tenant-configurable-properties';
 import { buildTenantTree, getTenantParentOptions, loadTenantRecords, type TenantRecord } from './tenant-tree';
+import { TenantMigrationPreview } from './TenantMigrationPreview';
 
 export { loadTenantRecords } from './tenant-tree';
 
@@ -656,6 +657,7 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
   const [savingCollectionNames, setSavingCollectionNames] = useState<Set<string>>(() => new Set());
   const [collectionKeyword, setCollectionKeyword] = useState('');
   const [collectionPagination, setCollectionPagination] = useState({ current: 1, pageSize: 10 });
+  const [previewCollection, setPreviewCollection] = useState<TenantCollectionRecord | null>(null);
   const requestCanceledRef = useRef(false);
 
   useEffect(() => {
@@ -826,8 +828,30 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
               />
             ),
           },
+          {
+            title: t('Actions'),
+            key: 'actions',
+            render: (_, record) => (
+              <Button
+                data-tenant-migration-preview
+                type="link"
+                disabled={savingCollectionNames.has(record.name)}
+                onClick={() => setPreviewCollection(record)}
+              >
+                {t('Preview migration')}
+              </Button>
+            ),
+          },
         ]}
       />
+      {previewCollection ? (
+        <TenantMigrationPreview
+          key={previewCollection.name}
+          collection={previewCollection}
+          tenants={tenants}
+          onClose={() => setPreviewCollection(null)}
+        />
+      ) : null}
     </Space>
   );
 };

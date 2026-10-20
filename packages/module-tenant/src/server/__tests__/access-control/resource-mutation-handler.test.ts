@@ -171,6 +171,22 @@ describe.skipIf(!postgresUrl)('unified internal resource mutations', () => {
   const row = async (name = 'documents', id = 3) => (await db.getCollection(name).model.findByPk(id))?.toJSON();
   const links = async () =>
     (await db.getCollection('document_projects').model.findAll()).map((record) => Number(record.get('projectId')));
+  async function roleAssociation(name: string, scope: string) {
+    const target = db.getCollection(name);
+    target.setField('fact', { type: 'belongsTo', target: 'documents', foreignKey: 'factId' });
+    await db.sync();
+    await target.model.update({ factId: 3 }, { where: { id: 101 } });
+    const relation = target.model.associations.fact as unknown as { scope?: unknown };
+    relation.scope = { name: scope };
+    const ctx = await context(
+      name,
+      'set',
+      { values: name === 'profiles' ? 101 : [101] },
+      { filter: { fact: { id: 3 } } },
+      '3',
+    );
+    return { ctx, relation };
+  }
 
   it('creates scalar records and assigns the current owner', async () => {
     const ctx = await context('documents', 'create', { values: { name: 'New' } });
@@ -269,6 +285,51 @@ describe.skipIf(!postgresUrl)('unified internal resource mutations', () => {
     await run(remove);
     if (name === 'projects') expect(await links()).toEqual([]);
     else expect((await row(name, 101)).documentId).toBeNull();
+  });
+  it.each(['projects', 'children', 'profiles'])(
+    'retains the finalized %s target role dependencies during source authorization',
+    async (name) => {
+      const { ctx, relation } = await roleAssociation(name, 'Hidden');
+      const source = await context('documents', 'set');
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(
+        run(ctx, {
+          ...decisions(),
+          source: async () => {
+            await Promise.resolve();
+            delete relation.scope;
+            return source;
+          },
+        }),
+      ).rejects.toThrow(/metadata changed/);
+      expect(sql).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+      sql.mockRestore();
+      expect(await links()).toEqual([]);
+      if (name !== 'projects') expect((await row(name, 101)).documentId).toBeNull();
+    },
+  );
+  it.each([
+    ['projects', 'Owned'],
+    ['projects', 'Hidden'],
+    ['children', 'Owned'],
+    ['children', 'Hidden'],
+    ['profiles', 'Owned'],
+    ['profiles', 'Hidden'],
+  ])('preserves stable %s target role scope %s', async (name, scope) => {
+    const { ctx } = await roleAssociation(name, scope);
+    const pending = run(ctx);
+    if (scope === 'Hidden') {
+      await expect(pending).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(ctx.body).toBe('unchanged');
+      expect(await links()).toEqual([]);
+      if (name !== 'projects') expect((await row(name, 101)).documentId).toBeNull();
+    } else {
+      await pending;
+      if (name === 'projects') expect(await links()).toEqual([101]);
+      else expect(await row(name, 101)).toMatchObject({ documentId: 3, tenantId: 'B' });
+      expect(ctx.body).toMatchObject({ affected: 1 });
+    }
   });
   it.each(['projects', 'children'])('dispatches concrete %s add actions', async (name) => {
     await run(await context(name, 'add', { values: [101] }, {}, '3'));

@@ -359,12 +359,6 @@ export class AccessReferenceMutationHandler {
       }
     };
     assertCurrent();
-    if (authorizeSource) {
-      const related = await authorizeSource(source, input.operation!);
-      assertCurrent();
-      sourcePermission = captureAssociationSourcePermission(this.db, source, roleName, input.operation!, related);
-    }
-    if (!sourcePermission?.allowed) invalid('Reference source permission is unavailable');
     const checkFields = (
       permission: Readonly<AccessFinalActionPermission>,
       collection: Collection,
@@ -407,6 +401,15 @@ export class AccessReferenceMutationHandler {
         captureAccessFilter(permission.params.filter ?? {}),
       );
     };
+    // Retain the finalized target decision before awaiting independent source authorization.
+    if (targetPermission) targetRole = checkFields(targetPermission, target, [target.model.primaryKeyAttribute]);
+    assertCurrent();
+    if (authorizeSource) {
+      const related = await authorizeSource(source, input.operation!);
+      assertCurrent();
+      sourcePermission = captureAssociationSourcePermission(this.db, source, roleName, input.operation!, related);
+    }
+    if (!sourcePermission?.allowed) invalid('Reference source permission is unavailable');
     role = checkFields(
       sourcePermission,
       source,
@@ -426,7 +429,6 @@ export class AccessReferenceMutationHandler {
       );
       if (Object.keys(values).length) sourceValues = values;
     }
-    if (targetPermission) targetRole = checkFields(targetPermission, target, [target.model.primaryKeyAttribute]);
     assertCurrent();
     const entry = {
       assertCurrent,

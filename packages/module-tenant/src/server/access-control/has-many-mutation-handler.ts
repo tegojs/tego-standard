@@ -327,14 +327,16 @@ export class AccessTargetForeignKeyMutationHandler {
     current();
     const sourceKey = normalizeKeys([input.sourceKey], source)[0];
     const targetKeys = input.value.length ? normalizeKeys(input.value, target) : [];
+    // Retain the finalized target decision before awaiting independent source authorization.
+    const targetWhere = rootPermission
+      ? undefined
+      : compile(input.permission!, target, [target.model.primaryKeyAttribute], true);
+    current();
     const related = rootPermission ? undefined : await authorizeSource!(source, operation);
     current();
     const sourcePermission =
       rootPermission ?? captureAssociationSourcePermission(this.db, source, roleName, operation, related);
     const sourceWhere = compile(sourcePermission, source, [name], !rootPermission);
-    const targetWhere = rootPermission
-      ? undefined
-      : compile(input.permission!, target, [target.model.primaryKeyAttribute], true);
     let sourceValues: Record<string, unknown> | undefined;
     if (rootPermission) {
       const grants = sourcePermission.params as { whitelist?: string[]; blacklist?: string[] };

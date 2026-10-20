@@ -9,6 +9,11 @@ import type { AccessConfig } from './types';
 
 type ActionParams = ReturnType<ACLRole['getActionParams']>;
 
+export interface AccessRoleScopeSelection {
+  role: string;
+  action: string;
+}
+
 /** Scope treatment only, not an effective ACL decision or permission to migrate. */
 export interface AccessRoleScopePreview {
   dataSourceKey: string;
@@ -101,37 +106,90 @@ export class AccessAclScopeAdapter {
 
   /** Read-only administrator tooling. It does not prepare a phase, register a resolver or save rules. */
   async previewRoleScope(roleName: string, resource: string, action: string): Promise<AccessRoleScopePreview> {
-    if (
-      ![roleName, resource, action].every(
-        (value) => typeof value === 'string' && value.length > 0 && value.length <= 255,
-      )
-    )
+    return (await this.captureRoleScopes(resource, [{ role: roleName, action }]).read())[0];
+  }
+
+  /** Capture a bounded explicit selection together. This is an inspection snapshot, never an authorization lease. */
+  captureRoleScopes(resource: string, selections: readonly AccessRoleScopeSelection[]) {
+    const validName = (value: unknown) => typeof value === 'string' && value.length > 0 && value.length <= 255;
+    const invalid = (): never => {
       throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid role scope inspection identity');
-    const base = { dataSourceKey: this.dataSourceKey, role: roleName, resource, action };
-    const role = this.acl.getRole(roleName);
-    const directParams = () => {
-      const current = role?.getResource(resource);
-      return current?.actions.get(current.actions.has(action) ? action : this.acl.resolveActionAlias(action));
     };
-    const original = directParams();
-    if (!original) return { ...base, treatment: 'no-direct-resource-grant' };
-    const params = structuredClone(original);
-    const scope = getRoleActionScope(role, resource, action);
-    const builtinScopeId = await readBuiltinTenantScopeId(this.db, this.dataSourceKey);
     if (
-      this.acl.getRole(roleName) !== role ||
-      directParams() !== original ||
-      !isDeepStrictEqual(original, params) ||
-      !isDeepStrictEqual(getRoleActionScope(role, resource, action), scope)
+      !validName(resource) ||
+      !Array.isArray(selections) ||
+      Object.getPrototypeOf(selections) !== Array.prototype ||
+      selections.length > 1000 ||
+      Reflect.ownKeys(selections).length !== selections.length + 1
     )
-      throw new AccessConfigError('ACCESS_CONFIG_CONFLICT', 'Role scope changed; reload the migration preview', 409);
+      invalid();
+    const entries = Array.from({ length: selections.length }, (_, index) => {
+      const descriptor = Object.getOwnPropertyDescriptor(selections, String(index));
+      if (!descriptor || !Object.hasOwn(descriptor, 'value')) invalid();
+      const entry: unknown = descriptor!.value;
+      if (
+        !entry ||
+        typeof entry !== 'object' ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(entry)) ||
+        Reflect.ownKeys(entry).length !== 2
+      )
+        return invalid();
+      const fields = Object.getOwnPropertyDescriptors(entry);
+      if (
+        !['role', 'action'].every(
+          (name) =>
+            Object.hasOwn(fields, name) && Object.hasOwn(fields[name], 'value') && validName(fields[name].value),
+        )
+      )
+        return invalid();
+      const roleName: string = fields.role.value;
+      const action: string = fields.action.value;
+      const role = this.acl.getRole(roleName);
+      const directParams = () => {
+        const current = role?.getResource(resource);
+        return current?.actions.get(current.actions.has(action) ? action : this.acl.resolveActionAlias(action));
+      };
+      const original = directParams();
+      const params = structuredClone(original);
+      const scope = getRoleActionScope(role, resource, action);
+      return { roleName, action, role, directParams, original, params, scope };
+    });
+    const assertCurrent = () => {
+      for (const entry of entries) {
+        if (
+          this.acl.getRole(entry.roleName) !== entry.role ||
+          entry.directParams() !== entry.original ||
+          !isDeepStrictEqual(entry.original, entry.params) ||
+          !isDeepStrictEqual(getRoleActionScope(entry.role, resource, entry.action), entry.scope)
+        )
+          throw new AccessConfigError(
+            'ACCESS_CONFIG_CONFLICT',
+            'Role scope changed; reload the migration preview',
+            409,
+          );
+      }
+    };
     return {
-      ...base,
-      treatment: canDelegateBuiltinTenantScope(this.dataSourceKey, builtinScopeId, scope, params)
-        ? 'delegate-builtin-scope'
-        : 'retain-role-scope',
-      params,
-      scope,
+      assertCurrent,
+      read: async (): Promise<AccessRoleScopePreview[]> => {
+        assertCurrent();
+        const builtinScopeId = entries.some((entry) => entry.original)
+          ? await readBuiltinTenantScopeId(this.db, this.dataSourceKey)
+          : undefined;
+        assertCurrent();
+        return entries.map(({ roleName, action, original, params, scope }) => ({
+          dataSourceKey: this.dataSourceKey,
+          role: roleName,
+          resource,
+          action,
+          treatment: !original
+            ? 'no-direct-resource-grant'
+            : canDelegateBuiltinTenantScope(this.dataSourceKey, builtinScopeId, scope, params!)
+              ? 'delegate-builtin-scope'
+              : 'retain-role-scope',
+          ...(original ? { params: structuredClone(params), scope: structuredClone(scope) } : {}),
+        }));
+      },
     };
   }
 

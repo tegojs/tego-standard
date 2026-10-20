@@ -201,4 +201,58 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('role scope migr
     });
     await expect(preview('member', name as string)).rejects.toMatchObject({ code: 'INVALID_ACCESS_CONFIG_WRITE' });
   });
+
+  it('captures all requested role grants before awaiting and reads the built-in source once', async () => {
+    acl.define({ role: 'other' });
+    acl.getRole('other').grantAction('documents:view', { filter: { name: 'mine' } });
+    const queries = vi.spyOn(db.getCollection('dataSourcesRolesResourcesScopes').model, 'findAll');
+    const captured = adapter.captureRoleScopes('documents', [
+      { role: 'member', action: 'list' },
+      { role: 'other', action: 'get' },
+      { role: 'missing', action: 'list' },
+    ]);
+    const reports = await captured.read();
+    expect(reports.map((item) => item.treatment)).toEqual([
+      'delegate-builtin-scope',
+      'retain-role-scope',
+      'no-direct-resource-grant',
+    ]);
+    expect(queries).toHaveBeenCalledTimes(1);
+    acl.getRole('other').grantAction('documents:view', { filter: { name: 'changed' } });
+    expect(() => captured.assertCurrent()).toThrow();
+  });
+
+  it('rejects a new grant for an initially missing role while inspecting another role', async () => {
+    const model = db.getCollection('dataSourcesRolesResourcesScopes').model;
+    const findAll = model.findAll.bind(model);
+    const captured = adapter.captureRoleScopes('documents', [
+      { role: 'member', action: 'list' },
+      { role: 'missing', action: 'get' },
+    ]);
+    vi.spyOn(model, 'findAll').mockImplementationOnce(async (options) => {
+      acl.define({ role: 'missing' });
+      acl.getRole('missing').grantAction('documents:view', {});
+      return findAll(options);
+    });
+    await expect(captured.read()).rejects.toMatchObject({ code: 'ACCESS_CONFIG_CONFLICT' });
+  });
+
+  it.each([
+    { name: 'null', selections: null },
+    { name: 'sparse', selections: Object.assign([], { length: 1 }) },
+    { name: 'invalid action', selections: [{ role: 'member', action: '' }] },
+    { name: 'oversized', selections: Array(1001).fill({ role: 'member', action: 'list' }) },
+  ])('rejects malformed or unbounded role selections: $name', ({ selections }) => {
+    expect(() => adapter.captureRoleScopes('documents', selections)).toThrowError(
+      expect.objectContaining({ code: 'INVALID_ACCESS_CONFIG_WRITE' }),
+    );
+  });
+
+  it('rejects accessor selections without invoking them', () => {
+    const getter = vi.fn(() => 'member');
+    const selection = { action: 'list' };
+    Object.defineProperty(selection, 'role', { get: getter, enumerable: true });
+    expect(() => adapter.captureRoleScopes('documents', [selection as { role: string; action: string }])).toThrow();
+    expect(getter).not.toHaveBeenCalled();
+  });
 });

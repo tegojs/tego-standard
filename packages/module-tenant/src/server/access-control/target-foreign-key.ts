@@ -11,6 +11,7 @@ import { guardRelationshipUpdate } from './relationship-write-guard';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
 import {
   cloneDeep,
+  hasPersistedChanges,
   internalQuery,
   invalid,
   normalizeKeys,
@@ -23,6 +24,8 @@ export interface TargetForeignKeyWriteRequest {
   association: string;
   operation: 'add' | 'remove' | 'set';
   sourceKey: string | number;
+  /** Root form patch, already sanitized by finalized field ACL; presence requests a source result. */
+  sourceValues?: Record<string, unknown>;
   targetKeys: Array<string | number>;
   sourceWhere?: WhereOptions;
   sourceBind?: Record<string, unknown>;
@@ -59,7 +62,12 @@ export abstract class AccessTargetForeignKeyService {
     authenticated: AccessIdentity,
     request: TargetForeignKeyWriteRequest,
     entry?: TargetForeignKeyMutationEntry,
-  ): Promise<{ keys: Array<string | number>; affected: number }> {
+  ): Promise<{
+    keys: Array<string | number>;
+    affected: number;
+    /** Present only for root form patches, with the persisted source key. */
+    sourceResult?: { keys: Array<string | number>; affected: number };
+  }> {
     source = { ...source };
     target = { ...target };
     authenticated = { ...authenticated };
@@ -70,6 +78,7 @@ export abstract class AccessTargetForeignKeyService {
       'association',
       'operation',
       'sourceKey',
+      'sourceValues',
       'targetKeys',
       'sourceWhere',
       'sourceBind',
@@ -114,13 +123,17 @@ export abstract class AccessTargetForeignKeyService {
         async (transaction) => {
           await validateWriteTransaction(this.db, transaction, true);
           current();
-          const sourcePlan = await this.mutations.authorizeReferenceSource(
-            ctx,
-            source,
-            authenticated,
-            { keys: [sourceKey], where: request.sourceWhere, bind: request.sourceBind },
-            transaction,
-          );
+          const sourceRequest = { keys: [sourceKey], where: request.sourceWhere, bind: request.sourceBind };
+          const sourcePlan =
+            request.sourceValues !== undefined && Object.keys(request.sourceValues).length
+              ? await this.mutations.authorizeExisting(
+                  ctx,
+                  source,
+                  authenticated,
+                  { ...sourceRequest, operation: 'update', values: request.sourceValues },
+                  transaction,
+                )
+              : await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction);
           current();
           const primary = relation.targetModel.primaryKeyAttribute;
           const candidateWhere = {
@@ -180,23 +193,35 @@ export abstract class AccessTargetForeignKeyService {
               selected.has(key) && request.operation !== 'remove' ? sourceKey : before === sourceKey ? null : before;
             if (value !== before) changes.push({ record, key, value });
           }
-          if (!changes.length) return { keys: [], affected: 0 };
-          const scope = await entry?.targetWriteScope();
-          current();
-          const targetPlan = await this.mutations.authorizeReferenceSource(
-            ctx,
-            target,
-            authenticated,
-            {
-              keys: changes.map((change) => change.key),
-              where: scope ? { [Op.and]: [request.targetWhere ?? {}, scope.where ?? {}] } : request.targetWhere,
-              bind: request.targetBind,
-            },
-            transaction,
+          const beforeSource = sourcePlan.records[0];
+          const scalars = Object.fromEntries(
+            Object.entries(request.sourceValues ?? {}).filter(
+              ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+            ),
           );
+          if (!changes.length && !hasPersistedChanges(beforeSource, scalars))
+            return {
+              keys: [],
+              affected: 0,
+              ...(request.sourceValues === undefined ? {} : { sourceResult: { keys: [], affected: 0 } }),
+            };
+          const scope = changes.length ? await entry?.targetWriteScope() : undefined;
+          current();
+          const targetPlan = changes.length
+            ? await this.mutations.authorizeReferenceSource(
+                ctx,
+                target,
+                authenticated,
+                {
+                  keys: changes.map((change) => change.key),
+                  where: scope ? { [Op.and]: [request.targetWhere ?? {}, scope.where ?? {}] } : request.targetWhere,
+                  bind: request.targetBind,
+                },
+                transaction,
+              )
+            : undefined;
           current();
           const changedByKey = new Map(changes.map((change) => [change.key, change]));
-          const beforeSource = sourcePlan.records[0];
           const sourcePatch = sourcePlan.valuesFor(beforeSource);
           const sourceOwner = sourcePatch.tenantId ?? beforeSource.getDataValue('tenantId');
           const sourceProtected = snapshotProtectedValues(
@@ -205,14 +230,15 @@ export abstract class AccessTargetForeignKeyService {
             sourcePlan.records,
             relation.sourceConfig.ownership.enabled ? ['tenantId'] : [],
           );
-          const targetProtected = snapshotProtectedValues(this.db, relation.target, targetPlan.records, [
+          const targetRecords = targetPlan?.records ?? [];
+          const targetProtected = snapshotProtectedValues(this.db, relation.target, targetRecords, [
             relation.foreignKey,
             ...(relation.targetConfig.ownership.enabled ? ['tenantId'] : []),
           ]);
           const targetOwners = new Map(
-            targetPlan.records.map((record) => [
+            targetRecords.map((record) => [
               normalizeKeys([record.getDataValue(primary)], relation.target)[0],
-              targetPlan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
+              targetPlan!.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
             ]),
           );
           if (Object.keys(sourcePatch).length)
@@ -234,7 +260,7 @@ export abstract class AccessTargetForeignKeyService {
           current();
           const writeOrder =
             this.associationType === 'HasOne'
-              ? [...targetPlan.records].sort(
+              ? [...targetRecords].sort(
                   (left, right) =>
                     Number(
                       changedByKey.get(normalizeKeys([left.getDataValue(primary)], relation.target)[0])!.value !== null,
@@ -244,7 +270,7 @@ export abstract class AccessTargetForeignKeyService {
                         null,
                     ),
                 )
-              : targetPlan.records;
+              : targetRecords;
           for (const record of writeOrder) {
             const key = normalizeKeys([record.getDataValue(primary)], relation.target)[0];
             await guardRelationshipUpdate(
@@ -257,7 +283,7 @@ export abstract class AccessTargetForeignKeyService {
               () =>
                 relation.target.repository.update({
                   filterByTk: record.getDataValue(primary),
-                  values: { ...targetPlan.valuesFor(record), [relation.foreignKey]: changedByKey.get(key)!.value },
+                  values: { ...targetPlan!.valuesFor(record), [relation.foreignKey]: changedByKey.get(key)!.value },
                   transaction,
                   ...(entry ? { context: ctx } : {}),
                 }),
@@ -294,8 +320,16 @@ export abstract class AccessTargetForeignKeyService {
               invalid('Writer did not set the authorized child foreign key');
           }
           return {
-            keys: targetPlan.records.map((record) => record.getDataValue(primary) as string | number),
+            keys: targetRecords.map((record) => record.getDataValue(primary) as string | number),
             affected: changes.length,
+            ...(request.sourceValues === undefined
+              ? {}
+              : {
+                  sourceResult: {
+                    keys: [beforeSource.getDataValue(relation.sourceModel.primaryKeyAttribute) as string | number],
+                    affected: 1,
+                  },
+                }),
           };
         },
       );

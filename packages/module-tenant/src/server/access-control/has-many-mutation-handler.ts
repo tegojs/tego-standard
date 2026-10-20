@@ -5,7 +5,7 @@ import { captureAssociationLinkInput, captureAssociationSourcePermission } from 
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { captureAccessFilter } from './filter-input';
-import type { AccessFinalActionPermission } from './final-action-permission';
+import { captureFinalActionPermission, type AccessFinalActionPermission } from './final-action-permission';
 import { AccessHasManyService } from './has-many';
 import { AccessHasOneService } from './has-one';
 import { accessMetadataGuard } from './metadata-snapshot';
@@ -16,7 +16,14 @@ import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
-import { cloneDeep, invalid, normalizeKeys, plain } from './write-support';
+import { cloneDeep, invalid, normalizeKeys, plain, validateRootValues } from './write-support';
+
+function data(input: object, key: PropertyKey): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(input, key);
+  if (!descriptor) return;
+  if (!Object.hasOwn(descriptor, 'value')) invalid('Child mutation input cannot contain accessors');
+  return descriptor.value;
+}
 
 /** Internal concrete foreign-key association actions with independent child write decisions. */
 export class AccessTargetForeignKeyMutationHandler {
@@ -39,6 +46,140 @@ export class AccessTargetForeignKeyMutationHandler {
     authorizeRead: (collection: Collection) => Promise<AccessRootReadContext | null>,
   ): Promise<void> {
     const input = captureAssociationLinkInput(this.db, ctx, authenticated, this.associationType);
+    return this.execute(ctx, input, authorizeUpdate, authorizeRead, authorizeSource);
+  }
+
+  /** Root form update of ordinary fields and one target-FK selection. Does not register routes. */
+  async handleRoot(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    authorizeUpdate: (collection: Collection) => Promise<AccessRootReadContext | null>,
+    authorizeRead: (collection: Collection) => Promise<AccessRootReadContext | null>,
+  ): Promise<void> {
+    if (ctx.db !== this.db || !ctx.action || typeof ctx.action !== 'object' || !plain(authenticated))
+      invalid('Root child mutation context is unavailable');
+    const resourceName = data(ctx.action, 'resourceName');
+    if (
+      typeof resourceName !== 'string' ||
+      !/^[A-Za-z_][A-Za-z0-9_]*$/.test(resourceName) ||
+      ['_', '__proto__', 'constructor', 'prototype'].includes(resourceName) ||
+      data(ctx.action, 'actionName') !== 'update' ||
+      data(ctx.action, 'sourceId') !== undefined ||
+      data(ctx.action, 'resourceOf') !== undefined
+    )
+      invalid('Root child mutations require a root update');
+    const actor = Object.freeze(cloneDeep(authenticated));
+    if (typeof actor.roleName !== 'string') invalid('Root child mutations require an authenticated role');
+    const permission = captureFinalActionPermission(ctx.permission, {
+      resourceName,
+      actionName: 'update',
+      roleName: actor.roleName,
+    });
+    if (!permission.allowed || !plain(ctx.permission)) invalid('Root child update is not authorized');
+    const raw = data(ctx.permission, 'rawParams');
+    const allowed = [
+      'resourceName',
+      'actionName',
+      'associatedName',
+      'associatedIndex',
+      'resourceIndex',
+      'filterByTk',
+      'values',
+    ];
+    if (!plain(raw) || Reflect.ownKeys(raw).some((key) => typeof key !== 'string' || !allowed.includes(key)))
+      invalid('Unsupported root child parameters');
+    for (const key of Reflect.ownKeys(raw)) data(raw, key);
+    const submitted = data(raw, 'values');
+    if (!plain(submitted)) invalid('Root child update requires named values');
+    for (const key of Reflect.ownKeys(submitted)) {
+      if (typeof key !== 'string') invalid('Root child values require field names');
+      data(submitted, key);
+    }
+    const params = cloneDeep(raw);
+    for (const [key, expected] of [
+      ['resourceName', resourceName],
+      ['actionName', 'update'],
+      ['associatedName', undefined],
+      ['associatedIndex', undefined],
+    ] as const)
+      if (Object.hasOwn(params, key) && params[key] !== expected)
+        invalid('Root child transport metadata does not match');
+    const source = this.db.getCollection(resourceName);
+    const sourceKey = params.filterByTk;
+    if (
+      !source ||
+      !(
+        (typeof sourceKey === 'string' && sourceKey.length > 0 && sourceKey.length <= 255) ||
+        (typeof sourceKey === 'number' && Number.isSafeInteger(sourceKey))
+      ) ||
+      (params.resourceIndex !== undefined &&
+        (!['string', 'number'].includes(typeof params.resourceIndex) ||
+          String(params.resourceIndex) !== String(sourceKey)))
+    )
+      invalid('Root child update requires one matching source key');
+    const values = params.values as Record<string, unknown>;
+    const names = Object.keys(values).filter((key) => Object.hasOwn(source.model.associations, key));
+    if (names.length !== 1 || source.model.associations[names[0]].associationType !== this.associationType)
+      invalid('Root child update requires one registered target foreign-key selection');
+    const name = names[0];
+    const value = values[name];
+    const original = data(submitted, name);
+    if (this.associationType === 'HasMany') {
+      if (
+        !Array.isArray(original) ||
+        Object.getPrototypeOf(original) !== Array.prototype ||
+        original.length > 1000 ||
+        Reflect.ownKeys(original).length !== original.length + 1 ||
+        Array.from({ length: original.length }, (_, index) => index).some((index) => !Object.hasOwn(original, index))
+      )
+        invalid('Root children require a bounded dense key array');
+      for (let index = 0; index < original.length; index++) data(original, String(index));
+    } else if (value !== null && typeof value !== 'string' && typeof value !== 'number')
+      invalid('Root HasOne selection requires one key or null');
+    return this.execute(
+      ctx,
+      {
+        actor,
+        name,
+        resourceName,
+        operation: 'set',
+        sourceKey,
+        value:
+          this.associationType === 'HasMany'
+            ? (value as Array<string | number>)
+            : value === null
+              ? []
+              : [value as string | number],
+        sourceValues: Object.fromEntries(Object.entries(values).filter(([key]) => key !== name)),
+      },
+      authorizeUpdate,
+      authorizeRead,
+      undefined,
+      permission,
+    );
+  }
+
+  private async execute(
+    ctx: AccessRootReadContext,
+    input: {
+      actor: AccessIdentity;
+      name: string;
+      resourceName: string;
+      targetName?: string;
+      operation: 'add' | 'remove' | 'set';
+      sourceKey: string | number;
+      value: Array<string | number>;
+      permission?: Readonly<AccessFinalActionPermission>;
+      sourceValues?: Record<string, unknown>;
+    },
+    authorizeUpdate: (collection: Collection) => Promise<AccessRootReadContext | null>,
+    authorizeRead: (collection: Collection) => Promise<AccessRootReadContext | null>,
+    authorizeSource?: (
+      collection: Collection,
+      operation: 'add' | 'remove' | 'set',
+    ) => Promise<AccessRootReadContext | null>,
+    rootPermission?: Readonly<AccessFinalActionPermission>,
+  ): Promise<void> {
     const { actor, name, operation } = input;
     const roleName = actor.roleName;
     if (typeof roleName !== 'string') invalid('Child mutations require an authenticated role');
@@ -51,7 +192,7 @@ export class AccessTargetForeignKeyMutationHandler {
       !field ||
       !target ||
       field.target !== target.name ||
-      target.name !== input.targetName ||
+      (input.targetName !== undefined && target.name !== input.targetName) ||
       association.associationType !== this.associationType
     )
       invalid('Child mutations require a registered foreign-key association field');
@@ -74,6 +215,8 @@ export class AccessTargetForeignKeyMutationHandler {
       name,
       this.associationType,
     );
+    if (rootPermission && Object.keys(input.sourceValues!).length)
+      validateRootValues(this.db, input.sourceValues, source, 'update', relation.sourceConfig.ownership.enabled);
     const inverseNames = () =>
       Object.entries(target.model.associations)
         .filter(([, entry]) => {
@@ -184,11 +327,26 @@ export class AccessTargetForeignKeyMutationHandler {
     current();
     const sourceKey = normalizeKeys([input.sourceKey], source)[0];
     const targetKeys = input.value.length ? normalizeKeys(input.value, target) : [];
-    const related = await authorizeSource(source, operation);
+    const related = rootPermission ? undefined : await authorizeSource!(source, operation);
     current();
-    const sourcePermission = captureAssociationSourcePermission(this.db, source, roleName, operation, related);
-    const sourceWhere = compile(sourcePermission, source, [name], true);
-    const targetWhere = compile(input.permission, target, [target.model.primaryKeyAttribute], true);
+    const sourcePermission =
+      rootPermission ?? captureAssociationSourcePermission(this.db, source, roleName, operation, related);
+    const sourceWhere = compile(sourcePermission, source, [name], !rootPermission);
+    const targetWhere = rootPermission
+      ? undefined
+      : compile(input.permission!, target, [target.model.primaryKeyAttribute], true);
+    let sourceValues: Record<string, unknown> | undefined;
+    if (rootPermission) {
+      const grants = sourcePermission.params as { whitelist?: string[]; blacklist?: string[] };
+      sourceValues = Object.fromEntries(
+        Object.entries(input.sourceValues!).filter(
+          ([field]) =>
+            ((grants.whitelist === undefined || grants.whitelist.includes(field)) &&
+              !grants.blacklist?.includes(field)) ||
+            (relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+        ),
+      );
+    }
     current();
     const entry = {
       assertCurrent: current,
@@ -228,7 +386,7 @@ export class AccessTargetForeignKeyMutationHandler {
               sourceIdentity,
               targetIdentity,
               actor,
-              { association: name, sourceKey, sourceWhere, targetWhere },
+              { association: name, sourceKey, sourceWhere, targetWhere, sourceValues },
               entry,
             )
           : await new AccessHasOneService(this.db, this.prepared, this.queries, mutations, references).withTarget(
@@ -236,7 +394,14 @@ export class AccessTargetForeignKeyMutationHandler {
               sourceIdentity,
               targetIdentity,
               actor,
-              { association: name, sourceKey, targetKey: targetKeys[0], sourceWhere, targetWhere },
+              {
+                association: name,
+                sourceKey,
+                targetKey: targetKeys[0] ?? null,
+                sourceWhere,
+                targetWhere,
+                sourceValues,
+              },
               entry,
             )
         : await new AccessHasManyService(this.db, this.prepared, this.queries, mutations, references).withChildren(
@@ -244,11 +409,11 @@ export class AccessTargetForeignKeyMutationHandler {
             sourceIdentity,
             targetIdentity,
             actor,
-            { association: name, operation, sourceKey, targetKeys, sourceWhere, targetWhere },
+            { association: name, operation, sourceKey, targetKeys, sourceWhere, targetWhere, sourceValues },
             entry,
           );
     current();
-    ctx.body = result;
+    ctx.body = rootPermission ? result.sourceResult : result;
   }
 }
 

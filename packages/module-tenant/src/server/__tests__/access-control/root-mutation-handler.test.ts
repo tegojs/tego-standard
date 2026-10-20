@@ -140,6 +140,191 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     expect(await read()).toBeUndefined();
   });
 
+  it.each(['update', 'destroy'])(
+    'applies %s to every explicitly selected authorized record once',
+    async (operation) => {
+      await docs.model.create({ id: 6, tenantId: 'B', name: 'Owned', amount: 60 });
+      const write = vi.spyOn(docs.repository, operation as 'update' | 'destroy');
+      const ctx = await context(
+        operation,
+        {
+          filterByTk: ['006', 3, '03', 6],
+          ...(operation === 'update' ? { values: { name: 'Submitted', amount: 999 } } : {}),
+        },
+        { ...(operation === 'update' ? { fields: ['name'] } : {}), filter: { name: 'Owned' } },
+      );
+      await handler.handle(ctx, auth());
+      expect(ctx.body).toEqual({ keys: [3, 6], affected: 2 });
+      expect(write).toHaveBeenCalledTimes(2);
+      for (const id of [3, 6])
+        if (operation === 'update')
+          expect(await read(id)).toMatchObject({ name: 'Submitted', amount: id === 3 ? 30 : 60, tenantId: 'B' });
+        else expect(await read(id)).toBeUndefined();
+    },
+  );
+
+  it.each([1, 1000])('accepts %i explicit keys before normalization and deduplication', async (size) => {
+    const ctx = await context('update', { filterByTk: Array(size).fill(3), values: { name: 'Changed' } });
+    const write = vi.spyOn(docs.repository, 'update');
+    await handler.handle(ctx, auth());
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+  });
+
+  it.each(['update', 'destroy'])('refuses the whole %s selection if any record is unavailable', async (operation) => {
+    for (const id of [1, 4, 99]) {
+      const ctx = await context(operation, {
+        filterByTk: [3, id],
+        ...(operation === 'update' ? { values: { name: 'Bad' } } : {}),
+      });
+      const write = vi.spyOn(docs.repository, operation as 'update' | 'destroy');
+      await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(write).not.toHaveBeenCalled();
+      expect(await read()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect(ctx.body).toBe('unchanged');
+      write.mockRestore();
+    }
+  });
+
+  it.each(['update', 'destroy'])('checks the role filter for every selected %s record', async (operation) => {
+    await docs.model.create({ id: 6, tenantId: 'B', name: 'Other', amount: 60 });
+    const ctx = await context(
+      operation,
+      { filterByTk: [3, 6], ...(operation === 'update' ? { values: { name: 'Bad' } } : {}) },
+      { filter: { name: 'Owned' } },
+    );
+    const write = vi.spyOn(docs.repository, operation as 'update' | 'destroy');
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    expect(write).not.toHaveBeenCalled();
+    expect(await read()).toMatchObject({ name: 'Owned' });
+    expect(await read(6)).toMatchObject({ name: 'Other' });
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it('claims an allowed historical record together with ordinary selected records', async () => {
+    await configure(configFor({ type: 'constant', value: true }));
+    const ctx = await context('update', { filterByTk: [3, 5], values: { name: 'Changed' } });
+    await handler.handle(ctx, auth());
+    expect(ctx.body).toEqual({ keys: [3, 5], affected: 2 });
+    for (const id of [3, 5]) expect(await read(id)).toMatchObject({ name: 'Changed', tenantId: 'B' });
+  });
+
+  it.each(['update', 'destroy'])(
+    'keeps the whole %s selection unchanged for read-only historical data',
+    async (operation) => {
+      const ctx = await context(operation, {
+        filterByTk: [3, 5],
+        ...(operation === 'update' ? { values: { name: 'Bad' } } : {}),
+      });
+      await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'LEGACY_DATA_READ_ONLY' });
+      expect(await read()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect(await read(5)).toMatchObject({ name: 'Legacy', tenantId: null });
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+
+  it.each(['update', 'destroy'])(
+    'rolls back earlier %s writes when the last selected record fails',
+    async (operation) => {
+      await docs.model.create({ id: 6, tenantId: 'B', name: 'Owned', amount: 60 });
+      const notifications = vi.fn();
+      docs.model.addHook(
+        operation === 'update' ? 'afterUpdate' : 'afterDestroy',
+        'batch-failure',
+        (record, options) => {
+          options.transaction.afterCommit(notifications);
+          if (record.get('id') === 6) throw new Error('last record failed');
+        },
+      );
+      const ctx = await context(operation, {
+        filterByTk: [6, 3],
+        ...(operation === 'update' ? { values: { name: 'Bad' } } : {}),
+      });
+      const write = vi.spyOn(docs.repository, operation as 'update' | 'destroy');
+      await expect(handler.handle(ctx, auth())).rejects.toThrow('last record failed');
+      expect(write).toHaveBeenCalledTimes(2);
+      for (const id of [3, 6]) expect(await read(id)).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect(notifications).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+
+  it('preserves each selected owner under a broader ownership rule', async () => {
+    await configure(configFor({ type: 'constant', value: true }));
+    const ctx = await context('update', { filterByTk: [3, 4], values: { name: 'Changed' } });
+    await handler.handle(ctx, auth());
+    expect(await read(3)).toMatchObject({ name: 'Changed', tenantId: 'B' });
+    expect(await read(4)).toMatchObject({ name: 'Changed', tenantId: 'C' });
+  });
+
+  it('rolls back all selected writes when a later hook changes persisted ownership', async () => {
+    await docs.model.create({ id: 6, tenantId: 'B', name: 'Owned', amount: 60 });
+    const notifications = vi.fn();
+    docs.model.addHook('afterUpdate', 'batch-transfer', async (record, options) => {
+      options.transaction.afterCommit(notifications);
+      if (record.get('id') === 6)
+        await docs.model.update(
+          { tenantId: 'C' },
+          { where: { id: 6 }, transaction: options.transaction, hooks: false },
+        );
+    });
+    const ctx = await context('update', { filterByTk: [3, 6], values: { name: 'Changed' } });
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN' });
+    for (const id of [3, 6]) expect(await read(id)).toMatchObject({ name: 'Owned', tenantId: 'B' });
+    expect(notifications).not.toHaveBeenCalled();
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it('rejects ownership transfers for the whole selection even when filtered from field grants', async () => {
+    await configure(configFor({ type: 'constant', value: true }));
+    const ctx = await context(
+      'update',
+      { filterByTk: [3, 4], values: { name: 'Bad', tenantId: 'B' } },
+      { fields: ['name'] },
+    );
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN' });
+    expect(await read(3)).toMatchObject({ name: 'Owned', tenantId: 'B' });
+    expect(await read(4)).toMatchObject({ name: 'Hidden', tenantId: 'C' });
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it.each([
+    'prototype',
+    'sparse',
+    'accessor',
+    'extra',
+    'symbol',
+    'empty',
+    'oversized',
+    'object',
+    'nested',
+    'unsafe',
+    'long',
+  ])('rejects a %s key array before SQL without evaluating getters', async (kind) => {
+    const locator: unknown[] = [3];
+    const getter = vi.fn(() => 3);
+    if (kind === 'prototype') Object.setPrototypeOf(locator, null);
+    if (kind === 'sparse') locator.length = 2;
+    if (kind === 'accessor') Object.defineProperty(locator, 0, { get: getter });
+    if (kind === 'extra') Object.defineProperty(locator, 'extra', { value: 3 });
+    if (kind === 'symbol') Object.defineProperty(locator, Symbol('extra'), { value: 3 });
+    if (kind === 'empty') locator.length = 0;
+    if (kind === 'oversized') locator.length = 1001;
+    if (kind === 'object') locator[0] = {};
+    if (kind === 'nested') locator[0] = [3];
+    if (kind === 'unsafe') locator[0] = Number.MAX_SAFE_INTEGER + 1;
+    if (kind === 'long') locator[0] = '3'.repeat(256);
+    const ctx = await context('update', { values: { name: 'Bad' } });
+    // Preserve the original shape at the finalized handler boundary, before any core cloning.
+    (ctx.permission as { rawParams: { filterByTk: unknown } }).rawParams.filterByTk = locator;
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+    expect(sql).not.toHaveBeenCalled();
+    expect(getter).not.toHaveBeenCalled();
+    expect(ctx.body).toBe('unchanged');
+  });
+
   it.each(['update', 'destroy'])('does not let visibility grant %s', async (operation) => {
     const ctx = await context(operation, {
       filterByTk: 1,
@@ -260,7 +445,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
 
   it.each([
     { filterByTk: undefined },
-    { filterByTk: [3, 4] },
+    { filterByTk: [3, 4], resourceIndex: 3 },
+    { filterByTk: [3], resourceIndex: 3 },
     { filterByTk: '_' },
     { filter: { id: 3 } },
     { updateAssociationValues: ['tenant'] },

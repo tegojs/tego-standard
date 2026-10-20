@@ -208,6 +208,23 @@ describe.skipIf(!postgresUrl)('unified internal resource mutations', () => {
     expect(await row('children', 101)).toBeUndefined();
     expect(ctx.body).toEqual({ keys: [101], affected: 1 });
   });
+  it('dispatches explicitly selected scalar updates without related authorization', async () => {
+    const ctx = await context('documents', 'update', { filterByTk: [6, 3], values: { name: 'Edited' } });
+    const read = vi.fn(async () => null);
+    const update = vi.fn(async () => null);
+    const source = vi.fn(async () => null);
+    await run(ctx, { read, update, source });
+    expect(ctx.body).toEqual({ keys: [3, 6], affected: 2 });
+    for (const id of [3, 6]) expect(await row('documents', id)).toMatchObject({ name: 'Edited', tenantId: 'B' });
+    for (const callback of [read, update, source]) expect(callback).not.toHaveBeenCalled();
+  });
+  it('dispatches explicitly selected deletes through the scalar service', async () => {
+    await db.getCollection('children').model.update({ tenantId: 'B' }, { where: { id: 102 } });
+    const ctx = await context('children', 'destroy', { filterByTk: [102, 101] });
+    await run(ctx);
+    expect(ctx.body).toEqual({ keys: [101, 102], affected: 2 });
+    for (const id of [101, 102]) expect(await row('children', id)).toBeUndefined();
+  });
   it('preserves the existing refusal of cascaded deletion', async () => {
     const ctx = await context('documents', 'destroy', { filterByTk: 6 });
     await expect(run(ctx)).rejects.toMatchObject({ code: 'UNSUPPORTED_ACCESS_MUTATION' });

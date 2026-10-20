@@ -33,7 +33,7 @@ function shape(input: unknown, keys: readonly string[]): asserts input is Record
   for (const key of Reflect.ownKeys(input)) data(input, key);
 }
 
-/** Internal single-record scalar create/update/destroy bridge. No runtime routes are registered here. */
+/** Internal root creation and explicit-key scalar mutation bridge. No runtime routes are registered here. */
 export class AccessRootMutationHandler {
   constructor(
     private readonly db: Database,
@@ -82,6 +82,20 @@ export class AccessRootMutationHandler {
       'values',
     ]);
     // cloneDeep deliberately normalizes array prototypes; validate raw selections first.
+    const rawLocator = data(raw, 'filterByTk');
+    if (Array.isArray(rawLocator)) {
+      if (
+        Object.getPrototypeOf(rawLocator) !== Array.prototype ||
+        !rawLocator.length ||
+        rawLocator.length > 1000 ||
+        Reflect.ownKeys(rawLocator).length !== rawLocator.length + 1
+      )
+        invalid('Record selections require between 1 and 1000 dense keys');
+      for (let index = 0; index < rawLocator.length; index++) {
+        if (!Object.hasOwn(rawLocator, index)) invalid('Record selections cannot contain holes');
+        data(rawLocator, String(index));
+      }
+    }
     const rawValues = data(raw, 'values');
     if (operation === 'create' && plain(rawValues))
       for (const name of Reflect.ownKeys(rawValues)) {
@@ -101,19 +115,25 @@ export class AccessRootMutationHandler {
     ] as const)
       if (Object.hasOwn(params, key) && params[key] !== expected) invalid('Mutation transport metadata does not match');
     const locator = params.filterByTk;
+    const locators = Array.isArray(locator) ? locator : [locator];
     if (operation === 'create') {
       if (locator !== undefined || params.resourceIndex !== undefined)
         invalid('Creation cannot supply record locators');
     } else if (
-      !(
-        (typeof locator === 'string' && locator.length > 0 && locator.length <= 255) ||
-        (typeof locator === 'number' && Number.isSafeInteger(locator))
+      locators.some(
+        (key) =>
+          !(
+            (typeof key === 'string' && key.length > 0 && key.length <= 255) ||
+            (typeof key === 'number' && Number.isSafeInteger(key))
+          ),
       )
     )
-      invalid('Supply a single explicit record key');
+      invalid('Supply explicit scalar record keys');
     if (
       params.resourceIndex !== undefined &&
-      (!['string', 'number'].includes(typeof params.resourceIndex) || String(params.resourceIndex) !== String(locator))
+      (Array.isArray(locator) ||
+        !['string', 'number'].includes(typeof params.resourceIndex) ||
+        String(params.resourceIndex) !== String(locator))
     )
       invalid('Mutation REST locator does not match its record key');
     // Core converts create/update field grants into whitelist before final ACL template resolution.
@@ -144,7 +164,7 @@ export class AccessRootMutationHandler {
     const model = collection.model;
     if (operation !== 'create' && collection.filterTargetKey !== model.primaryKeyAttribute)
       invalid('Alternate mutation target keys require their own adapter');
-    const keys = operation === 'create' ? [] : normalizeKeys([locator], collection);
+    const keys = operation === 'create' ? [] : normalizeKeys(locators, collection);
     const config = this.prepared.configuration(ctx, identity);
     if (!config) invalid('Root mutation requires a prepared access configuration');
     const reference =

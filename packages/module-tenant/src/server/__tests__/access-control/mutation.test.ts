@@ -2,13 +2,14 @@ import { ACL, literal, Op, Transaction, type Collection, type Database } from '@
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey } from '../../access-control/config-store';
+import { draftLegacyAccessConfig } from '../../access-control/legacy-config';
 import { AccessMutationService } from '../../access-control/mutation';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessConfig } from '../../access-control/types';
 import { seedAclScopes } from './acl-database';
 import { configStore, mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, seedDatabase, sqliteDatabase } from './database';
-import { configFor, exampleConfig, ownerCondition, participantCondition } from './fixtures';
+import { configFor, documents, exampleConfig, ownerCondition, participantCondition } from './fixtures';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 
@@ -133,6 +134,81 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('existing access
   it('updates owned records and returns a minimal success without re-reading the response', async () => {
     expect(await update([3], { name: 'edited' })).toEqual({ keys: [3], affected: 1 });
     expect(await read(3)).toMatchObject({ tenantId: 'B', name: 'edited' });
+  });
+
+  describe.each(['tenantScoped', 'tenantInherited'])('converted legacy configuration (%s)', (tenancy) => {
+    // Hierarchy-dependent writes require PostgreSQL's serializable authorization contract.
+    const writeTest = it.skipIf(dialect === 'sqlite' && tenancy === 'tenantInherited');
+    async function legacy(editable: boolean) {
+      await configure(
+        draftLegacyAccessConfig(
+          {
+            tenancy,
+            legacyDataTenantIds: ['B', 'C'],
+            allowEditingLegacyData: editable,
+          },
+          documents,
+        ),
+      );
+    }
+
+    writeTest('keeps historical records read-only when editing is disabled', async () => {
+      await legacy(false);
+      await expect(update([5], { name: 'edited' })).rejects.toMatchObject({ code: 'LEGACY_DATA_READ_ONLY' });
+      expect(await read(5)).toMatchObject({ tenantId: null, name: 'D5' });
+    });
+
+    writeTest('claims on first edit and no longer shares the claimed record with other legacy readers', async () => {
+      await legacy(true);
+      await update([5], { name: 'claimed', tenantId: null });
+      expect(await read(5)).toMatchObject({ tenantId: 'B', name: 'claimed' });
+      const scoped = await queries.scopeQuery(ctx, mainIdentity, { tenantId: 'C' });
+      expect((await docs.model.findAll(scoped.query)).map((record) => record.get('id'))).not.toContain(5);
+      await expect(update([5], { name: 'stolen' }, 'C')).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await read(5)).toMatchObject({ tenantId: 'B', name: 'claimed' });
+    });
+
+    writeTest('does not permit direct deletion even when historical editing is enabled', async () => {
+      await legacy(true);
+      const writer = vi.fn();
+      await expect(
+        service.withExistingRecords(
+          ctx,
+          mainIdentity,
+          { tenantId: 'B' },
+          {
+            operation: 'destroy',
+            keys: [5],
+          },
+          writer,
+        ),
+      ).rejects.toMatchObject({ code: 'LEGACY_DATA_READ_ONLY' });
+      expect(writer).not.toHaveBeenCalled();
+      expect(await read(5)).toMatchObject({ tenantId: null, name: 'D5' });
+    });
+
+    it.runIf(dialect === 'sqlite' && tenancy === 'tenantInherited')(
+      'rejects unsupported hierarchy writes before invoking the writer',
+      async () => {
+        await legacy(true);
+        const writer = vi.fn();
+        await expect(
+          service.withExistingRecords(
+            ctx,
+            mainIdentity,
+            { tenantId: 'B' },
+            {
+              operation: 'update',
+              keys: [5],
+              values: { name: 'edited' },
+            },
+            writer,
+          ),
+        ).rejects.toMatchObject({ code: 'UNSUPPORTED_ACCESS_MUTATION' });
+        expect(writer).not.toHaveBeenCalled();
+        expect(await read(5)).toMatchObject({ tenantId: null, name: 'D5' });
+      },
+    );
   });
 
   it('does not give writable access to records matched only by visibility', async () => {

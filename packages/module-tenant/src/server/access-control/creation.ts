@@ -2,10 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { Op, Transaction, type Database, type Model, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { resolveBelongsTo } from './association-metadata';
 import type { AccessCollectionIdentity } from './config-store';
 import { resolveActiveAccessTenant, type AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
+import { AccessReferenceService } from './references';
 import {
   cloneDeep,
   internalQuery,
@@ -24,6 +27,13 @@ export interface AccessCreationRequest {
   /** Server-parsed role conditions; never a replacement for create action permission. */
   where?: WhereOptions;
   bind?: Record<string, unknown>;
+  /** Trusted entry's independently finalized target grant; never accepted from client values. */
+  reference?: {
+    association: string;
+    target: AccessCollectionIdentity;
+    key: string | number | null;
+    where?: WhereOptions;
+  };
 }
 
 export interface AccessCreationPlan {
@@ -56,7 +66,33 @@ export class AccessCreationService {
     if (!collection || collection.db !== this.db) invalid('Creation collection identity is unavailable');
     const model = collection.model;
     const primary = model.primaryKeyAttribute;
+    const reference = request.reference;
+    const relation =
+      reference &&
+      resolveBelongsTo(
+        this.db,
+        this.prepared,
+        this.queries,
+        ctx,
+        identity,
+        reference.target,
+        reference.association,
+        true,
+      );
+    const referenceKey = relation && reference.key !== null ? normalizeKeys([reference.key], relation.target)[0] : null;
+    const metadata =
+      relation &&
+      accessMetadataGuard(
+        this.db,
+        [
+          { model: relation.sourceModel, config: relation.sourceConfig },
+          { model: relation.targetModel, config: relation.targetConfig },
+        ],
+        [{ model, path: [reference.association] }],
+      );
     const current = () => {
+      relation?.current();
+      metadata?.();
       if (
         this.prepared.configuration(ctx, identity) !== config ||
         !this.queries.isCurrentCollection(identity, collection, model)
@@ -75,6 +111,12 @@ export class AccessCreationService {
     if (!Array.isArray(request.values) || !request.values.length || request.values.length > 1000)
       invalid('Create between 1 and 1000 explicit records');
     if (model.primaryKeyAttributes.length !== 1) invalid('Creation requires a single primary key');
+    if (reference && (request.values.length !== 1 || this.db.sequelize.getDialect() !== 'postgres'))
+      throw new AccessMutationError(
+        'UNSUPPORTED_ACCESS_MUTATION',
+        'Reference creation requires one record and PostgreSQL',
+        400,
+      );
     for (const values of request.values)
       validateRootValues(this.db, values, collection, 'create', config.ownership.enabled);
     const blocked = [...rootWriteBlockedFields(this.db, collection, 'create')].filter(
@@ -82,7 +124,7 @@ export class AccessCreationService {
         (model.rawAttributes[field].type as { key?: string }).key !== 'VIRTUAL' &&
         !(config.ownership.enabled && field === 'tenantId'),
     );
-    const serializable = requiresSerializable(config, request, collection);
+    const serializable = !!reference || requiresSerializable(config, request, collection);
     try {
       return await this.db.sequelize.transaction(
         {
@@ -104,9 +146,20 @@ export class AccessCreationService {
                 );
               row.tenantId = tenant;
             }
+            if (relation) row[relation.foreignKey] = reference.key;
             return row;
           });
           current();
+          if (relation && referenceKey !== null) {
+            await new AccessReferenceService(this.db, this.prepared, this.queries).authorizeTargets(
+              ctx,
+              reference.target,
+              authenticated,
+              { keys: [referenceKey], where: { [Op.and]: [relation.scope ?? {}, reference.where ?? {}] } },
+              transaction,
+            );
+            current();
+          }
           const receipts = new Map<Model, string | number>();
           let unexpectedInserts = false;
           const hookName = `tenant-access-creation-${randomUUID()}`;
@@ -164,7 +217,18 @@ export class AccessCreationService {
           );
           current();
           if (stored.length !== keys.length) invalid('Creation writer did not persist all target records');
-          if (stored.some((record) => blocked.some((field) => record.getDataValue(field) != null)))
+          if (
+            stored.some((record) =>
+              blocked.some((field) => {
+                const value = record.getDataValue(field);
+                return relation && field === relation.foreignKey
+                  ? referenceKey === null
+                    ? value != null
+                    : value == null || normalizeKeys([value], relation.target)[0] !== referenceKey
+                  : value != null;
+              }),
+            )
+          )
             invalid('Persisted association values require their own write adapters');
           if (config.ownership.enabled && stored.some((record) => record.getDataValue('tenantId') !== tenant))
             throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed record ownership');

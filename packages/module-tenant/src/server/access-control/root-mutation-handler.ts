@@ -4,6 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessCreationService } from './creation';
+import { prepareCreationReference, type AccessCreationTargetAuthorizer } from './creation-reference';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
 import { AccessMutationService } from './mutation';
@@ -40,7 +41,11 @@ export class AccessRootMutationHandler {
     private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   ) {}
 
-  async handle(ctx: AccessRootMutationContext, authenticated: AccessIdentity): Promise<void> {
+  async handle(
+    ctx: AccessRootMutationContext,
+    authenticated: AccessIdentity,
+    authorizeTarget?: AccessCreationTargetAuthorizer,
+  ): Promise<void> {
     if (ctx.db !== this.db || !ctx.action || typeof ctx.action !== 'object' || !plain(authenticated))
       invalid('Root mutation database or authenticated context is unavailable');
     const resourceName = data(ctx.action, 'resourceName');
@@ -130,18 +135,34 @@ export class AccessRootMutationHandler {
     const keys = operation === 'create' ? [] : normalizeKeys([locator], collection);
     const config = this.prepared.configuration(ctx, identity);
     if (!config) invalid('Root mutation requires a prepared access configuration');
+    const reference =
+      operation === 'create' && authorizeTarget
+        ? prepareCreationReference(
+            this.db,
+            this.prepared,
+            this.queries,
+            this.resolveIdentity,
+            ctx,
+            identity,
+            params.values,
+            permission,
+            actor.roleName,
+            authorizeTarget,
+          )
+        : undefined;
     if (
       [...(fields ?? []), ...(blacklist ?? [])].some(
         (field) =>
-          !Object.hasOwn(model.rawAttributes, field) ||
-          (model.rawAttributes[field].type as { key?: string }).key === 'VIRTUAL',
+          field !== reference?.name &&
+          (!Object.hasOwn(model.rawAttributes, field) ||
+            (model.rawAttributes[field].type as { key?: string }).key === 'VIRTUAL'),
       )
     )
       invalid('Mutation permission contains unsupported fields');
     let values: Record<string, unknown> | undefined;
     if (operation !== 'destroy') {
-      validateRootValues(this.db, params.values, collection, operation, config.ownership.enabled);
-      const input = params.values as Record<string, unknown>;
+      const input = (reference?.values ?? params.values) as Record<string, unknown>;
+      validateRootValues(this.db, input, collection, operation, config.ownership.enabled);
       // Managed tenantId is retained for the service's exact anti-transfer/legacy-claim validation.
       values = Object.fromEntries(
         Object.keys(input)
@@ -171,14 +192,17 @@ export class AccessRootMutationHandler {
       )
         invalid('Mutation entry identity or preparation phase changed');
       role.assertCurrent();
+      reference?.assertCurrent();
     };
     assertCurrent();
     if (operation === 'create') {
+      const target = await reference?.resolve();
+      assertCurrent();
       const result = await new AccessCreationService(this.db, this.prepared, this.queries).withCreatedRecords(
         ctx,
         identity,
         actor,
-        { values: [values!], where: role.rootWhere ?? role.where },
+        { values: [values!], where: role.rootWhere ?? role.where, reference: target },
         async (plan) => {
           assertCurrent();
           const record = await collection.repository.create({

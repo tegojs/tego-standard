@@ -19,6 +19,7 @@ import type { AccessQueryService } from './query';
 import type { AccessReferenceService } from './references';
 import {
   cloneDeep,
+  hasPersistedChanges,
   internalQuery,
   invalid,
   normalizeKeys,
@@ -35,6 +36,8 @@ export interface ManyToManyWriteRequest {
   /** Server-parsed predicates; entry adapters also check action and field permissions. */
   sourceWhere?: WhereOptions;
   sourceBind?: Record<string, unknown>;
+  /** Sanitized scalar patch authorized by the same finalized root update permission. */
+  sourceValues?: Record<string, unknown>;
   targetWhere?: WhereOptions;
   targetBind?: Record<string, unknown>;
 }
@@ -77,6 +80,7 @@ export class AccessManyToManyService {
       'targetKeys',
       'sourceWhere',
       'sourceBind',
+      'sourceValues',
       'targetWhere',
       'targetBind',
     ];
@@ -110,17 +114,21 @@ export class AccessManyToManyService {
         async (transaction) => {
           await validateWriteTransaction(this.db, transaction, true);
           current();
-          const plan = await this.mutations.authorizeReferenceSource(
-            ctx,
-            source,
-            authenticated,
-            {
-              keys: sourceKeys,
-              where: request.sourceWhere,
-              bind: request.sourceBind,
-            },
-            transaction,
-          );
+          const sourceRequest = {
+            keys: sourceKeys,
+            where: request.sourceWhere,
+            bind: request.sourceBind,
+          };
+          const plan =
+            request.sourceValues === undefined
+              ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
+              : await this.mutations.authorizeExisting(
+                  ctx,
+                  source,
+                  authenticated,
+                  { ...sourceRequest, operation: 'update', values: request.sourceValues },
+                  transaction,
+                );
           current();
           if (targetKeys.length && !entry)
             await this.references.authorizeTargets(
@@ -203,7 +211,23 @@ export class AccessManyToManyService {
             plan.records,
             relation.sourceConfig.ownership.enabled ? ['tenantId'] : [],
           );
-          const changed = new Set(changes.map((change) => change.key));
+          const linkChanges = new Map(changes.map((change) => [change.key, change]));
+          const patches = new Map<string, Record<string, unknown>>();
+          for (const record of plan.records) {
+            const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
+            const values = plan.valuesFor(record);
+            const scalarValues = Object.fromEntries(
+              Object.entries(values).filter(
+                ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+              ),
+            );
+            const scalarChanged = hasPersistedChanges(record, scalarValues);
+            const patch: Record<string, unknown> = scalarChanged ? scalarValues : {};
+            if (relation.sourceConfig.ownership.enabled && record.getDataValue('tenantId') == null)
+              patch.tenantId = values.tenantId;
+            if (linkChanges.has(key) || scalarChanged) patches.set(key, patch);
+          }
+          const changed = new Set(patches.keys());
           const owners = new Map(
             plan.records.map((record) => {
               const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
@@ -215,50 +239,55 @@ export class AccessManyToManyService {
               ];
             }),
           );
-          for (const change of changes) {
+          for (const record of plan.records) {
+            const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
+            if (!patches.has(key)) continue;
+            const change = linkChanges.get(key);
             current();
-            const patch = plan.valuesFor(change.record);
+            const patch = patches.get(key)!;
             if (Object.keys(patch).length)
               await relation.source.repository.update({
-                filterByTk: change.record.getDataValue(primary),
+                filterByTk: record.getDataValue(primary),
                 values: patch,
                 transaction,
                 ...(entry ? { context: ctx } : {}),
               });
             current();
-            const repository = relation.source.repository
-              .relation<BelongsToManyRepository>(request.association)
-              .of(change.record.getDataValue(primary));
-            for (const operation of ['remove', 'add'] as const) {
-              const targetKeys = change[operation];
-              if (!targetKeys.length) continue;
-              const joinCurrent = () => {
-                current();
-                if (
-                  operation === 'remove' &&
-                  (this.db.referenceMap.getReferences(relation.through.name) ?? []).some(
-                    (reference) => !['NO ACTION', 'RESTRICT'].includes(reference.onDelete),
+            if (change) {
+              const repository = relation.source.repository
+                .relation<BelongsToManyRepository>(request.association)
+                .of(record.getDataValue(primary));
+              for (const operation of ['remove', 'add'] as const) {
+                const targetKeys = change[operation];
+                if (!targetKeys.length) continue;
+                const joinCurrent = () => {
+                  current();
+                  if (
+                    operation === 'remove' &&
+                    (this.db.referenceMap.getReferences(relation.through.name) ?? []).some(
+                      (reference) => !['NO ACTION', 'RESTRICT'].includes(reference.onDelete),
+                    )
                   )
-                )
-                  throw new AccessMutationError(
-                    'UNSUPPORTED_ACCESS_MUTATION',
-                    'Cascaded join writes require their own adapters',
-                    400,
-                  );
-              };
-              joinCurrent();
-              await guardJoinWrite(
-                this.db,
-                relation.source,
-                relation.target,
-                relation.through,
-                relation.foreignKey,
-                relation.otherKey,
-                transaction,
-                { operation, sourceKey: change.key, targetKeys },
-                joinCurrent,
-                () => repository[operation]({ tk: targetKeys, transaction, ...(entry ? { context: ctx } : {}) }),
-              );
+                    throw new AccessMutationError(
+                      'UNSUPPORTED_ACCESS_MUTATION',
+                      'Cascaded join writes require their own adapters',
+                      400,
+                    );
+                };
+                joinCurrent();
+                await guardJoinWrite(
+                  this.db,
+                  relation.source,
+                  relation.target,
+                  relation.through,
+                  relation.foreignKey,
+                  relation.otherKey,
+                  transaction,
+                  { operation, sourceKey: key, targetKeys },
+                  joinCurrent,
+                  () => repository[operation]({ tk: targetKeys, transaction, ...(entry ? { context: ctx } : {}) }),
+                );
+              }
             }
             current();
           }
@@ -287,8 +316,10 @@ export class AccessManyToManyService {
           )
             throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed source ownership');
           return {
-            keys: changes.map((change) => change.record.getDataValue(primary) as string | number),
-            affected: changes.length,
+            keys: plan.records
+              .filter((record) => patches.has(normalizeKeys([record.getDataValue(primary)], relation.source)[0]))
+              .map((record) => record.getDataValue(primary) as string | number),
+            affected: patches.size,
           };
         },
       );

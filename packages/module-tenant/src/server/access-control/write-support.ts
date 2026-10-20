@@ -1,5 +1,13 @@
 import { isDeepStrictEqual } from 'node:util';
-import { Op, Transaction, type Collection, type Database, type Model, type WhereOptions } from '@tego/server';
+import {
+  Op,
+  Transaction,
+  type Collection,
+  type Database,
+  type Model,
+  type ModelStatic,
+  type WhereOptions,
+} from '@tego/server';
 
 import { AccessMutationError } from './mutation-errors';
 import type { AccessCondition, AccessConfig } from './types';
@@ -272,4 +280,14 @@ export function snapshotProtectedValues(
       }
     },
   };
+}
+
+/** Check ORM-normalized values without running custom setters on the authorized record. */
+export function hasPersistedChanges(record: Model, values: Record<string, unknown>): boolean {
+  const model = record.constructor as ModelStatic<Model>;
+  if (Object.keys(values).some((field) => model.rawAttributes[field].set || model.options.setterMethods?.[field]))
+    return true;
+  const candidate = model.build(cloneDeep(record.dataValues), { isNewRecord: false, raw: true });
+  candidate.set(cloneDeep(values));
+  return candidate.changed() !== false;
 }

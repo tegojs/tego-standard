@@ -10,6 +10,7 @@ import type { AccessQueryService } from './query';
 import type { AccessReferenceService, BelongsToReadRequest } from './references';
 import {
   cloneDeep,
+  hasPersistedChanges,
   internalQuery,
   invalid,
   normalizeKeys,
@@ -121,27 +122,7 @@ export class AccessBelongsToService {
               ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
             ),
           );
-          if (
-            entry &&
-            !changed &&
-            !sourcePlan.records.some((record) => {
-              // Custom setters may have business effects; never invoke them twice to predict a write.
-              if (
-                Object.keys(scalarValues).some(
-                  (field) =>
-                    relation.sourceModel.rawAttributes[field].set ||
-                    relation.sourceModel.options.setterMethods?.[field],
-                )
-              )
-                return true;
-              const candidate = relation.sourceModel.build(cloneDeep(record.dataValues), {
-                isNewRecord: false,
-                raw: true,
-              });
-              candidate.set(cloneDeep(scalarValues));
-              return candidate.changed() !== false;
-            })
-          )
+          if (entry && !changed && !sourcePlan.records.some((record) => hasPersistedChanges(record, scalarValues)))
             return { keys: [], affected: 0 };
           const primary = relation.sourceModel.primaryKeyAttribute;
           const keys = sourcePlan.records.map((record) => record.getDataValue(primary) as string | number);

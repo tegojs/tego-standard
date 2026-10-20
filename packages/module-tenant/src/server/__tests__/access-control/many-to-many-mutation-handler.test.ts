@@ -501,6 +501,83 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized many-
     expect((await projects.model.findByPk(101))!.get('tenantId')).toBe('H');
     expect((await projects.model.findByPk(104))!.get('tenantId')).toBeNull();
   });
+  pg('saves scalar fields and one many-to-many reference in the same authorized update', async () => {
+    const ctx = await context(
+      { values: { projects: [101], name: 'Changed' } },
+      { fields: ['projects', 'name'], filter: { name: 'Owned' } },
+    );
+    await execute(ctx, { fields: ['id'] });
+    expect(await linked()).toEqual([101]);
+    expect((await docs.model.findByPk(3))!.get()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+    expect((await projects.model.findByPk(101))!.get()).toMatchObject({ name: 'Visible', tenantId: 'H' });
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+  });
+  pg('filters scalar fields without blocking the authorized link change', async () => {
+    const ctx = await context({ values: { projects: [101], name: 'Ignored' } }, { fields: ['projects'] });
+    await execute(ctx, { fields: ['id'] });
+    expect(await linked()).toEqual([101]);
+    expect((await docs.model.findByPk(3))!.get('name')).toBe('Owned');
+  });
+  pg('updates scalar fields while retaining unchanged hidden references', async () => {
+    await through.model.update({ projectId: 102 }, { where: { documentId: 3 } });
+    const ctx = await context({ values: { projects: [102], name: 'Changed' } });
+    const authorize = vi.fn(async () => null);
+    await handler.handle(ctx, auth(), authorize);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(await linked()).toEqual([102]);
+    expect((await docs.model.findByPk(3))!.get('name')).toBe('Changed');
+  });
+  pg('does not commit scalar fields when a new target is denied', async () => {
+    const ctx = await context({ values: { projects: [102], name: 'Changed' } });
+    await expect(execute(ctx)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    expect(await linked()).toEqual([103]);
+    expect((await docs.model.findByPk(3))!.get('name')).toBe('Owned');
+    expect(ctx.body).toBe('unchanged');
+  });
+  pg('claims an editable historical source for a scalar-only mixed update', async () => {
+    const config = configFor({
+      type: 'any',
+      children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+    });
+    await store.save(mainIdentity, { ...config, revision: (await store.read(mainIdentity))!.revision }, { userId: 28 });
+    const ctx = await context({ filterByTk: 5, values: { projects: [], name: 'Claimed' } });
+    await handler.handle(ctx, auth(), async () => null);
+    expect(await linked(5)).toEqual([]);
+    expect((await docs.model.findByPk(5))!.get()).toMatchObject({ tenantId: 'B', name: 'Claimed' });
+    expect(ctx.body).toEqual({ keys: [5], affected: 1 });
+  });
+  pg('does not claim historical data when scalar and link values are unchanged', async () => {
+    const config = configFor({
+      type: 'any',
+      children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+    });
+    await store.save(mainIdentity, { ...config, revision: (await store.read(mainIdentity))!.revision }, { userId: 28 });
+    const ctx = await context({ filterByTk: 5, values: { projects: [], name: 'Legacy', tenantId: null } });
+    await handler.handle(ctx, auth(), async () => null);
+    expect(await linked(5)).toEqual([]);
+    expect((await docs.model.findByPk(5))!.get('tenantId')).toBeNull();
+    expect(ctx.body).toEqual({ keys: [], affected: 0 });
+  });
+  pg('rolls back scalar and link changes when a join hook fails', async () => {
+    const ctx = await context({ values: { projects: [101], name: 'Changed' } });
+    const error = new Error('mixed join hook failure');
+    through.model.addHook('afterBulkCreate', () => {
+      throw error;
+    });
+    await expect(execute(ctx)).rejects.toBe(error);
+    expect(await linked()).toEqual([103]);
+    expect((await docs.model.findByPk(3))!.get('name')).toBe('Owned');
+    expect(ctx.body).toBe('unchanged');
+  });
+  pg('allows a mixed update to leave its previous source role condition', async () => {
+    const ctx = await context(
+      { values: { projects: [101], name: 'Changed' } },
+      { fields: ['projects', 'name'], filter: { name: 'Owned' } },
+    );
+    await execute(ctx, { fields: ['id'] });
+    expect(await linked()).toEqual([101]);
+    expect((await docs.model.findByPk(3))!.get('name')).toBe('Changed');
+  });
   pg('authorizes only added targets while preserving hidden existing references', async () => {
     await through.model.update({ projectId: 102 }, { where: { documentId: 3 } });
     const ctx = await context({ values: { projects: [102, 101] } });
@@ -660,7 +737,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized many-
     { values: { projects: 101 } },
     { values: { projects: [{ id: 101 }] } },
     { values: { projects: [true] } },
-    { values: { projects: [101], name: 'changed' } },
+    { values: { projects: [101], unknown: 'changed' } },
     { values: { projects: [101], tenantId: 'C' } },
     { filterByTk: [3] },
     { filter: {} },

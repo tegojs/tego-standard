@@ -187,8 +187,6 @@ export class AccessReferenceMutationHandler {
     )
       invalid('Reference requires a registered reference field');
     const multiple = association.associationType === 'BelongsToMany';
-    if (multiple && input.sourceValues && Reflect.ownKeys(input.sourceValues).length)
-      invalid('Mixed many-to-many updates require their own adapter');
     const sourceIdentity = cloneDeep(this.resolveIdentity(source));
     const targetIdentity = cloneDeep(this.resolveIdentity(target));
     if (
@@ -397,6 +395,7 @@ export class AccessReferenceMutationHandler {
           sourceKeys: keys,
           targetKeys,
           sourceWhere: role.rootWhere ?? role.where,
+          sourceValues,
         },
         entry,
       );

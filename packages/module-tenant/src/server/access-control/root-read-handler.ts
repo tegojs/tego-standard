@@ -1,7 +1,7 @@
 import type { Collection, Database, Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
-import { prepareAssociationReadContexts } from './association-read-contexts';
+import { captureAssociationReadPreparation, prepareAssociationReadContexts } from './association-read-contexts';
 import { parseChartQueryParams } from './chart-query-params';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
@@ -42,6 +42,52 @@ export class AccessRootReadHandler {
     private readonly resolveRelatedContext?: AccessRelatedReadContextResolver,
   ) {}
 
+  /** Route finalized reads without replacing the target's actual action decision. */
+  async handleResourceWithRelatedContexts(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    authorize: AccessRelatedReadAuthorizer,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ): Promise<void> {
+    if (ctx.db !== this.db || !ctx.action || typeof ctx.action !== 'object')
+      invalid('Resource read does not match the resource database');
+    const resource = Object.getOwnPropertyDescriptor(ctx.action, 'resourceName');
+    if (!resource || !Object.hasOwn(resource, 'value') || typeof resource.value !== 'string')
+      invalid('Resource reads require a resource name');
+    if (!resource.value.includes('.')) {
+      await this.handleWithRelatedContexts(ctx, authenticated, authorize, transaction, dates);
+      return;
+    }
+    const sourceId = Object.getOwnPropertyDescriptor(ctx.action, 'sourceId');
+    if (sourceId && !Object.hasOwn(sourceId, 'value')) invalid('Resource reads cannot contain source accessors');
+    if (sourceId?.value === '_') {
+      await this.handlePlaceholderWithRelatedContexts(ctx, authenticated, authorize, transaction, dates);
+      return;
+    }
+    // Capture target input and identity before awaiting the independent source decision.
+    const plan = captureAssociationReadContext(this.db, this.resolveIdentity, ctx, authenticated, dates);
+    if (!plan.captured.permission.allowed) invalid('Association target read is not authorized');
+    const preparation = captureAssociationReadPreparation(
+      this.db,
+      this.prepared,
+      this.queries,
+      this.resolveIdentity,
+      ctx,
+      plan,
+      plan.assertCurrent,
+    );
+    const { operation, assertCurrent } = preparation;
+    assertCurrent();
+    const sourceContext = await authorize(plan.sourceCollection, Object.freeze([]), operation);
+    assertCurrent();
+    if (sourceContext == null) invalid('Association reads require an authorized source context');
+    const source = captureRootReadContext(this.db, sourceContext, plan.captured.identity, plan.captured.dateContext);
+    if (source.action.actionName !== 'list' || Reflect.ownKeys(source.params).length || !source.permission.allowed)
+      invalid('Association reads require a neutral authorized source list context');
+    await this.executeCapturedAssociation(ctx, source, plan, transaction, authorize, preparation);
+  }
+
   /** Concrete sources and targets retain separate finalized ACL decisions and G/V scopes. */
   async handleAssociation(
     ctx: AccessRootReadContext,
@@ -78,11 +124,25 @@ export class AccessRootReadHandler {
     if (source.action.actionName !== 'list' || Reflect.ownKeys(source.params).length || !source.permission.allowed)
       invalid('Association reads require a neutral authorized source list context');
     const plan = captureAssociationReadContext(this.db, this.resolveIdentity, ctx, source.identity, source.dateContext);
+    await this.executeCapturedAssociation(ctx, source, plan, transaction, authorize);
+  }
+
+  private async executeCapturedAssociation(
+    ctx: AccessRootReadContext,
+    source: ReturnType<typeof captureRootReadContext>,
+    plan: ReturnType<typeof captureAssociationReadContext>,
+    transaction?: Transaction,
+    authorize?: AccessRelatedReadAuthorizer,
+    capturedPreparation?: ReturnType<typeof captureAssociationReadPreparation>,
+  ) {
+    const assertEntryCurrent = capturedPreparation?.assertCurrent;
+    assertEntryCurrent?.();
     const { captured, sourceCollection, targetCollection, relation } = plan;
     if (source.action.resourceName !== sourceCollection.name || !captured.permission.allowed)
       invalid('Association source or target read is not authorized');
     const config = this.prepared.configuration(ctx, plan.identity);
     const assertCurrent = () => {
+      assertEntryCurrent?.();
       plan.assertCurrent();
       if (this.prepared.configuration(ctx, plan.identity) !== config)
         invalid('Association read preparation phase changed');
@@ -97,6 +157,7 @@ export class AccessRootReadHandler {
           plan,
           authorize,
           assertCurrent,
+          capturedPreparation,
         )
       : undefined;
     const related = preparation?.related ?? this.resolveRelatedContext;

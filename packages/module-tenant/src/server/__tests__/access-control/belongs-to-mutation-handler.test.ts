@@ -526,7 +526,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     const ctx = await context('documents', 'update', { values: { project: 101, children: [103] } });
     const decision = vi.fn(async () => null);
     const sql = vi.spyOn(db.sequelize, 'query');
-    await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/only BelongsTo/i);
+    await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/same relationship type/i);
     expect(sql).not.toHaveBeenCalled();
     expect(decision).not.toHaveBeenCalled();
   });

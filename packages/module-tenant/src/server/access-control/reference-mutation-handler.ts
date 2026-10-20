@@ -110,8 +110,14 @@ export class AccessReferenceMutationHandler {
     const names = Object.keys(submitted).filter((key) => Object.hasOwn(source?.model.associations ?? {}, key));
     if (!names.length || names.length > MAX_REFERENCE_UPDATES)
       invalid('Reference updates require between 1 and 20 associations');
-    if (names.length > 1 && names.some((name) => source!.model.associations[name].associationType !== 'BelongsTo'))
-      invalid('Multiple reference updates support only BelongsTo associations');
+    if (
+      names.length > 1 &&
+      names.some(
+        (name) =>
+          source!.model.associations[name].associationType !== source!.model.associations[names[0]].associationType,
+      )
+    )
+      invalid('Multiple reference updates require the same relationship type');
     const name = names[0];
     if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) invalid('Invalid association name');
     const value = data(submitted, name);
@@ -125,7 +131,11 @@ export class AccessReferenceMutationHandler {
         value,
         sourceKey: params.filterByTk,
         originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
-        references: names.map((name) => ({ name, value: data(submitted, name) })),
+        references: names.map((name) => ({
+          name,
+          value: data(submitted, name),
+          originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
+        })),
         sourceValues: Object.fromEntries(Object.entries(submitted).filter(([key]) => !names.includes(key))),
       },
       authorizeTarget,
@@ -166,7 +176,7 @@ export class AccessReferenceMutationHandler {
       operation?: 'add' | 'remove' | 'set';
       targetName?: string;
       sourceValues?: Record<string, unknown>;
-      references?: Array<{ name: string; value: unknown }>;
+      references?: Array<{ name: string; value: unknown; originalValue?: unknown }>;
     },
     authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
     sourcePermission?: Readonly<AccessFinalActionPermission>,
@@ -220,20 +230,53 @@ export class AccessReferenceMutationHandler {
         )
       : resolveBelongsTo(this.db, this.prepared, this.queries, ctx, sourceIdentity, targetIdentity, name, true);
     const keys = normalizeKeys([input.sourceKey], source);
-    let targetKeys: string[] = [];
-    if (multiple) {
-      const original = input.operation ? value : input.originalValue;
-      if (
-        !Array.isArray(original) ||
-        Object.getPrototypeOf(original) !== Array.prototype ||
-        !Array.isArray(value) ||
-        value.length > 1000 ||
-        Reflect.ownKeys(value).length !== value.length + 1 ||
-        Array.from({ length: value.length }, (_, index) => index).some((index) => !Object.hasOwn(value, index))
-      )
-        invalid('Reference values must be a bounded dense key array');
-      targetKeys = value.length ? normalizeKeys(value, target) : [];
-    }
+    const linkReferences = multiple
+      ? (input.references ?? [{ name, value, originalValue: input.originalValue }]).map(
+          ({ name: selectedName, value, originalValue }) => {
+            const field = source.getField(selectedName);
+            const association = source.model.associations[selectedName];
+            const target = association && this.db.modelCollection.get(association.target);
+            const identity = target && cloneDeep(this.resolveIdentity(target));
+            const throughModel = (association as unknown as { through?: { model?: Collection['model'] } })?.through
+              ?.model;
+            const through = throughModel && this.db.modelCollection.get(throughModel);
+            const throughIdentity = through && cloneDeep(this.resolveIdentity(through));
+            if (
+              !target ||
+              !field ||
+              field.target !== target.name ||
+              !identity ||
+              identity.collectionName !== target.name ||
+              !through ||
+              !throughIdentity ||
+              throughIdentity.collectionName !== through.name
+            )
+              invalid('Reference link identity is unavailable');
+            const relation = resolveManyToMany(
+              this.db,
+              this.prepared,
+              this.queries,
+              ctx,
+              sourceIdentity,
+              identity,
+              throughIdentity,
+              selectedName,
+            );
+            const original = input.operation ? value : originalValue;
+            if (
+              !Array.isArray(original) ||
+              Object.getPrototypeOf(original) !== Array.prototype ||
+              !Array.isArray(value) ||
+              value.length > 1000 ||
+              Reflect.ownKeys(value).length !== value.length + 1 ||
+              Array.from({ length: value.length }, (_, index) => index).some((index) => !Object.hasOwn(value, index))
+            )
+              invalid('Reference values must be a bounded dense key array');
+            const targetKeys = value.length ? normalizeKeys(value, target) : [];
+            return { name: selectedName, field, target, identity, through, throughIdentity, relation, targetKeys };
+          },
+        )
+      : [];
     // Capture every selected reference before any asynchronous permission callback or source lock.
     const references = multiple
       ? []
@@ -267,14 +310,22 @@ export class AccessReferenceMutationHandler {
       [
         { model: source.model, config: relation.sourceConfig },
         ...(multiple
-          ? [{ model: target.model, config: this.prepared.configuration(ctx, targetIdentity)! }]
+          ? linkReferences.map(({ target, identity }) => ({
+              model: target.model,
+              config: this.prepared.configuration(ctx, identity)!,
+            }))
           : references.map(({ relation }) => ({ model: relation.targetModel, config: relation.targetConfig }))),
       ],
-      (multiple ? [name] : references.map(({ name }) => name)).map((name) => ({ model: source.model, path: [name] })),
+      (multiple ? linkReferences : references).map(({ name }) => ({ model: source.model, path: [name] })),
     );
     const targetGuards = new Map<number, () => void>();
     const assertCurrent = () => {
       relation.current();
+      for (const reference of linkReferences) {
+        reference.relation.current();
+        if (source.getField(reference.name) !== reference.field || reference.field.target !== reference.target.name)
+          invalid('Reference source field changed');
+      }
       for (const reference of references) {
         reference.relation.current();
         if (source.getField(reference.name) !== reference.field || reference.field.target !== reference.target.name)
@@ -294,7 +345,9 @@ export class AccessReferenceMutationHandler {
         [source, sourceIdentity],
         [target, targetIdentity],
       ];
-      if (multiple) identities.push([through!, throughIdentity!]);
+      if (multiple)
+        for (const reference of linkReferences)
+          identities.push([reference.target, reference.identity], [reference.through, reference.throughIdentity]);
       else for (const reference of references) identities.push([reference.target, reference.identity]);
       for (const [collection, expected] of identities) {
         const actual = this.resolveIdentity(collection);
@@ -358,7 +411,7 @@ export class AccessReferenceMutationHandler {
     role = checkFields(
       sourcePermission,
       source,
-      multiple ? [name] : references.map(({ name }) => name),
+      (multiple ? linkReferences : references).map(({ name }) => name),
       references.map(({ relation }) => relation.foreignKey),
     );
     let sourceValues: Record<string, unknown> | undefined;
@@ -400,8 +453,9 @@ export class AccessReferenceMutationHandler {
         : {}),
       targetScope: async (index = 0) => {
         assertCurrent();
-        const selectedTarget = multiple ? target : references[index].target;
-        const selectedIdentity = multiple ? targetIdentity : references[index].identity;
+        const selected = multiple ? linkReferences[index] : references[index];
+        const selectedTarget = selected.target;
+        const selectedIdentity = selected.identity;
         const related = await authorizeTarget(selectedTarget);
         assertCurrent();
         if (!related) invalid('Reference target is not authorized');
@@ -424,21 +478,32 @@ export class AccessReferenceMutationHandler {
         this.queries,
         new AccessMutationService(this.db, this.prepared, this.queries),
         new AccessReferenceService(this.db, this.prepared, this.queries),
-      ).withLinks(
+      ).withLinkSets(
         ctx,
         sourceIdentity,
-        targetIdentity,
-        throughIdentity!,
         actor,
         {
-          association: name,
-          operation: input.operation ?? 'set',
           sourceKeys: keys,
-          targetKeys,
           sourceWhere: role.rootWhere ?? role.where,
           sourceValues,
+          links: linkReferences.map(({ name, identity, throughIdentity, targetKeys }) => ({
+            association: name,
+            target: identity,
+            through: throughIdentity,
+            operation: input.operation ?? 'set',
+            targetKeys,
+          })),
         },
-        entry,
+        {
+          assertCurrent: entry.assertCurrent,
+          targetScope: entry.targetScope,
+          ...(entry.authorizeChanges
+            ? {
+                authorizeChanges: (_index: number, keys: string[], transaction: Transaction) =>
+                  entry.authorizeChanges!(keys, transaction),
+              }
+            : {}),
+        },
       );
       return;
     }

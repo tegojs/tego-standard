@@ -13,6 +13,7 @@ import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { guardJoinWrite } from './join-write-guard';
 import { resolveManyToMany } from './many-to-many-metadata';
+import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessMutationService } from './mutation';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
@@ -42,7 +43,18 @@ export interface ManyToManyWriteRequest {
   targetBind?: Record<string, unknown>;
 }
 
-/** Only changes join rows and an optional legacy-source claim; never edits/deletes targets. */
+export interface ManyToManyLinkSet
+  extends Pick<ManyToManyWriteRequest, 'association' | 'operation' | 'targetKeys' | 'targetWhere' | 'targetBind'> {
+  target: AccessCollectionIdentity;
+  through: AccessCollectionIdentity;
+}
+
+export interface ManyToManyLinkSetsRequest
+  extends Pick<ManyToManyWriteRequest, 'sourceKeys' | 'sourceWhere' | 'sourceBind' | 'sourceValues'> {
+  links: ManyToManyLinkSet[];
+}
+
+/** Changes pure join rows and an optional source patch; never edits/deletes targets. */
 export class AccessManyToManyService {
   constructor(
     private readonly db: Database,
@@ -71,8 +83,6 @@ export class AccessManyToManyService {
     through = { ...through };
     authenticated = { ...authenticated };
     request = cloneDeep(request);
-    if (this.db.sequelize.getDialect() !== 'postgres')
-      throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Relationship writes require PostgreSQL', 400);
     const allowed = [
       'association',
       'operation',
@@ -86,28 +96,143 @@ export class AccessManyToManyService {
     ];
     if (!plain(request) || Reflect.ownKeys(request).some((key) => typeof key !== 'string' || !allowed.includes(key)))
       invalid('Unsupported link mutation input');
-    if (!['add', 'remove', 'set'].includes(request.operation)) invalid('Unsupported link operation');
-    const relation = resolveManyToMany(
-      this.db,
-      this.prepared,
-      this.queries,
+    return this.withLinkSets(
       ctx,
       source,
-      target,
-      through,
-      request.association,
+      authenticated,
+      {
+        sourceKeys: request.sourceKeys,
+        sourceWhere: request.sourceWhere,
+        sourceBind: request.sourceBind,
+        sourceValues: request.sourceValues,
+        links: [
+          {
+            target,
+            through,
+            association: request.association,
+            operation: request.operation,
+            targetKeys: request.targetKeys,
+            targetWhere: request.targetWhere,
+            targetBind: request.targetBind,
+          },
+        ],
+      },
+      entry && {
+        assertCurrent: () => entry.assertCurrent(),
+        targetScope: () => entry.targetScope(),
+        ...(entry.authorizeChanges
+          ? {
+              authorizeChanges: (_index: number, keys: string[], transaction: Transaction) =>
+                entry.authorizeChanges!(keys, transaction),
+            }
+          : {}),
+      },
+    );
+  }
+
+  async withLinkSets(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ManyToManyLinkSetsRequest,
+    entry?: {
+      assertCurrent(): void;
+      targetScope(index: number): Promise<{ where?: WhereOptions }>;
+      authorizeChanges?(index: number, keys: string[], transaction: Transaction): Promise<void>;
+    },
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    source = { ...source };
+    authenticated = { ...authenticated };
+    const original = request;
+    request = cloneDeep(request);
+    if (this.db.sequelize.getDialect() !== 'postgres')
+      throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Relationship writes require PostgreSQL', 400);
+    if (
+      !plain(request) ||
+      Reflect.ownKeys(request).some(
+        (key) =>
+          typeof key !== 'string' ||
+          !['sourceKeys', 'sourceWhere', 'sourceBind', 'sourceValues', 'links'].includes(key),
+      )
+    )
+      invalid('Unsupported link mutation input');
+    if (
+      !Array.isArray(request.links) ||
+      Object.getPrototypeOf(original.links) !== Array.prototype ||
+      !request.links.length ||
+      request.links.length > 20 ||
+      Reflect.ownKeys(request.links).length !== request.links.length + 1 ||
+      Array.from({ length: request.links.length }, (_, index) => index).some(
+        (index) => !Object.hasOwn(request.links, index),
+      )
+    )
+      invalid('Link updates require between 1 and 20 entries in a dense list');
+    const names = new Set<string>();
+    const joins = new Set<ReturnType<typeof resolveManyToMany>['throughModel']>();
+    const sets = request.links.map((link, index) => {
+      if (
+        !plain(link) ||
+        typeof link.association !== 'string' ||
+        names.has(link.association) ||
+        Reflect.ownKeys(link).some(
+          (key) =>
+            typeof key !== 'string' ||
+            !['target', 'through', 'association', 'operation', 'targetKeys', 'targetWhere', 'targetBind'].includes(key),
+        )
+      )
+        invalid('Link updates require distinct registered association names');
+      names.add(link.association);
+      if (!['add', 'remove', 'set'].includes(link.operation)) invalid('Unsupported link operation');
+      const relation = resolveManyToMany(
+        this.db,
+        this.prepared,
+        this.queries,
+        ctx,
+        source,
+        link.target,
+        link.through,
+        link.association,
+      );
+      if (joins.has(relation.throughModel)) invalid('Link updates cannot replace overlapping join tables');
+      joins.add(relation.throughModel);
+      if (
+        !Array.isArray(link.targetKeys) ||
+        Object.getPrototypeOf(original.links[index].targetKeys) !== Array.prototype ||
+        Reflect.ownKeys(link.targetKeys).length !== link.targetKeys.length + 1 ||
+        Array.from({ length: link.targetKeys.length }, (_, index) => index).some(
+          (index) => !Object.hasOwn(link.targetKeys, index),
+        )
+      )
+        invalid('Link targets require a dense key array');
+      const targetKeys = link.targetKeys.length ? normalizeKeys(link.targetKeys, relation.target) : [];
+      return { index, link, relation, targetKeys };
+    });
+    const relation = sets[0].relation;
+    const metadata = accessMetadataGuard(
+      this.db,
+      [
+        { model: relation.sourceModel, config: relation.sourceConfig },
+        ...sets.map(({ link, relation }) => ({
+          model: relation.targetModel,
+          config: this.prepared.configuration(ctx, link.target)!,
+        })),
+      ],
+      sets.map(({ link }) => ({ model: relation.sourceModel, path: [link.association] })),
     );
     const current = () => {
-      relation.current();
+      for (const set of sets) set.relation.current();
+      metadata();
       entry?.assertCurrent();
     };
     current();
     const sourceKeys = normalizeKeys(request.sourceKeys, relation.source);
-    const targetKeys =
-      Array.isArray(request.targetKeys) && request.targetKeys.length === 0
-        ? []
-        : normalizeKeys(request.targetKeys, relation.target);
-    if (sourceKeys.length * targetKeys.length > 10000) invalid('Link mutation exceeds batch limit');
+    if (sourceKeys.length * sets.reduce((total, set) => total + set.targetKeys.length, 0) > 10000)
+      invalid('Link mutation exceeds batch limit');
+    const ordered = [...sets].sort((a, b) => {
+      const left = a.link.through.collectionKey;
+      const right = b.link.through.collectionKey;
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
     try {
       return await this.db.sequelize.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
@@ -130,21 +255,23 @@ export class AccessManyToManyService {
                   transaction,
                 );
           current();
-          if (targetKeys.length && !entry)
-            await this.references.authorizeTargets(
-              ctx,
-              target,
-              authenticated,
-              {
-                keys: targetKeys,
-                where: { [Op.and]: [relation.scope ?? {}, request.targetWhere ?? {}] },
-                bind: request.targetBind,
-              },
-              transaction,
-            );
+          for (const { link, relation, targetKeys } of ordered) {
+            if (targetKeys.length && !entry)
+              await this.references.authorizeTargets(
+                ctx,
+                link.target,
+                authenticated,
+                {
+                  keys: targetKeys,
+                  where: { [Op.and]: [relation.scope ?? {}, link.targetWhere ?? {}] },
+                  bind: link.targetBind,
+                },
+                transaction,
+              );
+          }
           current();
           const primary = relation.sourceModel.primaryKeyAttribute;
-          const readLinks = async () => {
+          const readLinks = async (relation: ReturnType<typeof resolveManyToMany>) => {
             const rows = await relation.throughModel.unscoped().findAll(
               internalQuery({
                 where: { [relation.foreignKey]: { [Op.in]: sourceKeys } },
@@ -169,41 +296,53 @@ export class AccessManyToManyService {
             }
             return grouped;
           };
-          const before = await readLinks();
-          const expected = new Map<string, Set<string>>();
-          const changes: Array<{ record: Model; key: string; add: string[]; remove: string[] }> = [];
-          for (const record of plan.records) {
-            const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
-            const old = before.get(key)!;
-            const desired = request.operation === 'set' ? new Set(targetKeys) : new Set(old);
-            if (request.operation === 'add') for (const id of targetKeys) desired.add(id);
-            if (request.operation === 'remove') for (const id of targetKeys) desired.delete(id);
-            expected.set(key, desired);
-            const add = [...desired].filter((id) => !old.has(id));
-            const remove = [...old].filter((id) => !desired.has(id));
-            if (add.length || remove.length) changes.push({ record, key, add, remove });
-          }
-          const additions = [...new Set(changes.flatMap((change) => change.add))];
-          const changedTargets = [...new Set(changes.flatMap((change) => [...change.add, ...change.remove]))];
-          if (entry?.authorizeChanges && changedTargets.length) {
-            await entry.authorizeChanges(changedTargets, transaction);
-            current();
-          }
-          if (entry && additions.length) {
-            const scope = await entry.targetScope();
-            current();
-            await this.references.authorizeTargets(
-              ctx,
-              target,
-              authenticated,
-              {
-                keys: additions,
-                where: { [Op.and]: [relation.scope ?? {}, request.targetWhere ?? {}, scope.where ?? {}] },
-                bind: request.targetBind,
-              },
-              transaction,
-            );
-            current();
+          let existingCount = 0;
+          const plans: Array<{
+            link: ManyToManyLinkSet;
+            relation: ReturnType<typeof resolveManyToMany>;
+            expected: Map<string, Set<string>>;
+            changes: Map<string, { record: Model; key: string; add: string[]; remove: string[] }>;
+          }> = [];
+          for (const { index, link, relation, targetKeys } of ordered) {
+            const before = await readLinks(relation);
+            existingCount += [...before.values()].reduce((total, keys) => total + keys.size, 0);
+            if (existingCount > 10000) invalid('Link mutation exceeds batch limit');
+            const expected = new Map<string, Set<string>>();
+            const changes: Array<{ record: Model; key: string; add: string[]; remove: string[] }> = [];
+            for (const record of plan.records) {
+              const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
+              const old = before.get(key)!;
+              const desired = link.operation === 'set' ? new Set(targetKeys) : new Set(old);
+              if (link.operation === 'add') for (const id of targetKeys) desired.add(id);
+              if (link.operation === 'remove') for (const id of targetKeys) desired.delete(id);
+              expected.set(key, desired);
+              const add = [...desired].filter((id) => !old.has(id));
+              const remove = [...old].filter((id) => !desired.has(id));
+              if (add.length || remove.length) changes.push({ record, key, add, remove });
+            }
+            const additions = [...new Set(changes.flatMap((change) => change.add))];
+            const changedTargets = [...new Set(changes.flatMap((change) => [...change.add, ...change.remove]))];
+            if (entry?.authorizeChanges && changedTargets.length) {
+              await entry.authorizeChanges(index, changedTargets, transaction);
+              current();
+            }
+            if (entry && additions.length) {
+              const scope = await entry.targetScope(index);
+              current();
+              await this.references.authorizeTargets(
+                ctx,
+                link.target,
+                authenticated,
+                {
+                  keys: additions,
+                  where: { [Op.and]: [relation.scope ?? {}, link.targetWhere ?? {}, scope.where ?? {}] },
+                  bind: link.targetBind,
+                },
+                transaction,
+              );
+              current();
+            }
+            plans.push({ link, relation, expected, changes: new Map(changes.map((change) => [change.key, change])) });
           }
           const protectedValues = snapshotProtectedValues(
             this.db,
@@ -211,7 +350,7 @@ export class AccessManyToManyService {
             plan.records,
             relation.sourceConfig.ownership.enabled ? ['tenantId'] : [],
           );
-          const linkChanges = new Map(changes.map((change) => [change.key, change]));
+          const linkChanges = new Set(plans.flatMap((plan) => [...plan.changes.keys()]));
           const patches = new Map<string, Record<string, unknown>>();
           for (const record of plan.records) {
             const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
@@ -242,7 +381,6 @@ export class AccessManyToManyService {
           for (const record of plan.records) {
             const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
             if (!patches.has(key)) continue;
-            const change = linkChanges.get(key);
             current();
             const patch = patches.get(key)!;
             if (Object.keys(patch).length)
@@ -253,9 +391,11 @@ export class AccessManyToManyService {
                 ...(entry ? { context: ctx } : {}),
               });
             current();
-            if (change) {
+            for (const { link, relation, changes } of plans) {
+              const change = changes.get(key);
+              if (!change) continue;
               const repository = relation.source.repository
-                .relation<BelongsToManyRepository>(request.association)
+                .relation<BelongsToManyRepository>(link.association)
                 .of(record.getDataValue(primary));
               for (const operation of ['remove', 'add'] as const) {
                 const targetKeys = change[operation];
@@ -293,10 +433,12 @@ export class AccessManyToManyService {
           }
           await validateWriteTransaction(this.db, transaction, true);
           current();
-          const actual = await readLinks();
-          for (const key of sourceKeys)
-            if (!isDeepStrictEqual(actual.get(key), expected.get(key)))
-              invalid('Writer changed unauthorized connections');
+          for (const { relation, expected } of plans) {
+            const actual = await readLinks(relation);
+            for (const key of sourceKeys)
+              if (!isDeepStrictEqual(actual.get(key), expected.get(key)))
+                invalid('Writer changed unauthorized connections');
+          }
           const after = await relation.sourceModel.unscoped().findAll(
             internalQuery({
               where: { [primary]: { [Op.in]: sourceKeys } },

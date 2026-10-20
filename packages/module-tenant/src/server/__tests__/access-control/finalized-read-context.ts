@@ -12,6 +12,7 @@ export async function finalizedReadContext(
   const acl = new ACL();
   acl.setAvailableAction('view', { aliases: ['get', 'list'] });
   acl.setAvailableAction('count', {});
+  acl.setAvailableAction('sum', {});
   const [source, relation] = resourceName.split('.');
   const collection = relation
     ? db.getCollection(db.getCollection(source).getField(relation).target)

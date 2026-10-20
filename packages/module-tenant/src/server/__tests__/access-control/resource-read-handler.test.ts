@@ -41,6 +41,7 @@ describe.skipIf(!postgresUrl)('unified internal resource reads', () => {
           { name: 'id', type: 'integer', primaryKey: true },
           { name: 'tenantId', type: 'string' },
           { name: 'name', type: 'string' },
+          { name: 'amount', type: 'integer' },
         ],
       });
     docs = db.getCollection('documents');
@@ -74,11 +75,11 @@ describe.skipIf(!postgresUrl)('unified internal resource reads', () => {
       { id: 'C', parentId: 'H', enabled: true },
     ]);
     await docs.model.bulkCreate([
-      { id: 1, tenantId: 'B', name: 'Owned' },
-      { id: 2, tenantId: 'H', name: 'Visible' },
-      { id: 3, tenantId: 'C', name: 'Hidden' },
-      { id: 4, tenantId: 'B', name: 'Single' },
-      { id: 5, tenantId: null, name: 'Legacy' },
+      { id: 1, tenantId: 'B', name: 'Owned', amount: 100 },
+      { id: 2, tenantId: 'H', name: 'Visible', amount: 200 },
+      { id: 3, tenantId: 'C', name: 'Hidden', amount: 300 },
+      { id: 4, tenantId: 'B', name: 'Single', amount: 400 },
+      { id: 5, tenantId: null, name: 'Legacy', amount: 500 },
     ]);
     await children.model.bulkCreate([
       { id: 101, documentId: 1, tenantId: 'B', name: 'Owned' },
@@ -169,6 +170,110 @@ describe.skipIf(!postgresUrl)('unified internal resource reads', () => {
     );
     expect(ctx.paginate).toBe(kind === 'list');
     expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it('sums the same G/V root set as listing without replacing its actual permission', async () => {
+    const ctx = await context('documents', 'sum', { field: 'amount' });
+    const resolve = vi.fn(async () => null);
+    await run(ctx, resolve);
+    expect(ctx.body).toBe(1200);
+    expect(ctx.paginate).toBe(false);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it('intersects sum action role conditions and the original request filter', async () => {
+    const ctx = await context(
+      'documents',
+      'sum',
+      { field: 'amount', filter: { id: { $in: [1, 2, 3] } } },
+      { fields: ['amount', 'id'], filter: { id: { $ne: 1 } } },
+    );
+    await run(ctx);
+    expect(ctx.body).toBe(200);
+  });
+
+  it.each(['children', 'selections'])('sums each root once when filtering by readable %s', async (relation) => {
+    const ctx = await context('documents', 'sum', {
+      field: 'amount',
+      filter: { [relation]: { name: { $in: ['Owned', 'Visible'] } } },
+    });
+    const resolve = vi.fn(authorize);
+    await run(ctx, resolve);
+    expect(ctx.body).toBe(relation === 'children' ? 700 : 100);
+    expect(resolve.mock.calls.map(([, path]) => path)).toEqual(
+      relation === 'selections' ? [['selections'], ['selections', '$through']] : [['children']],
+    );
+    expect(resolve.mock.calls.every(([, , operation]) => operation.kind === 'sum')).toBe(true);
+  });
+
+  it('cannot use a hidden target to match sum filters', async () => {
+    const ctx = await context('documents', 'sum', { field: 'amount', filter: { children: { name: 'Hidden' } } });
+    await run(ctx);
+    expect(ctx.body).toBeNull();
+  });
+
+  it('retains independently finalized target role conditions for sum filters', async () => {
+    const ctx = await context('documents', 'sum', { field: 'amount', filter: { children: { name: 'Visible' } } });
+    await run(ctx, (collection) => neutral(collection, { fields: ['name'], filter: { name: 'Owned' } }));
+    expect(ctx.body).toBeNull();
+  });
+
+  it('captures the sum field and filter before asynchronous target authorization', async () => {
+    const ctx = await context('documents', 'sum', { field: 'amount', filter: { children: { name: 'Visible' } } });
+    await run(ctx, async (collection) => {
+      await Promise.resolve();
+      Object.assign((ctx.permission as { rawParams: object }).rawParams, { field: 'id', filter: {} });
+      return neutral(collection);
+    });
+    expect(ctx.body).toBe(100);
+  });
+
+  it.each(['amount field denied', 'wrong action', 'target decision missing'])('rejects sum with %s', async (mode) => {
+    const ctx = await context(
+      'documents',
+      'sum',
+      { field: 'amount', ...(mode === 'target decision missing' ? { filter: { children: { name: 'Owned' } } } : {}) },
+      mode === 'amount field denied' ? { fields: ['id'] } : {},
+    );
+    if (mode === 'wrong action') Object.assign(ctx.permission!, { actionName: 'list' });
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(run(ctx, async () => null)).rejects.toThrow();
+    expect(sql).not.toHaveBeenCalled();
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it.each([{ appends: ['children'] }, { pageSize: 20 }, { filterByTk: 1 }])(
+    'rejects non-summary sum parameters %j',
+    async (extra) => {
+      const ctx = await context('documents', 'sum', { field: 'amount', ...extra });
+      const resolve = vi.fn(authorize);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(run(ctx, resolve)).rejects.toThrow();
+      expect(resolve).not.toHaveBeenCalled();
+      expect(sql).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+
+  it.each([1, '_'])('does not turn association sum source %s into a direct root sum', async (source) => {
+    const ctx = await context('documents.children', 'sum', { field: 'amount' }, {}, source);
+    const resolve = vi.fn(authorize);
+    const sql = vi.spyOn(db.sequelize, 'query');
+    await expect(run(ctx, resolve)).rejects.toThrow();
+    expect(resolve).not.toHaveBeenCalled();
+    expect(sql).not.toHaveBeenCalled();
+    expect(ctx.body).toBe('unchanged');
+  });
+
+  it('keeps the caller transaction for finalized sum execution', async () => {
+    const ctx = await context('documents', 'sum', { field: 'amount' });
+    await db.sequelize.transaction(async (transaction) => {
+      await docs.model.update({ amount: 900 }, { where: { id: 1 }, transaction });
+      const sum = vi.spyOn(docs.model, 'sum');
+      await handler.handleResourceWithRelatedContexts(ctx, actor(), authorize, transaction);
+      expect(sum).toHaveBeenCalledWith('amount', expect.objectContaining({ transaction }));
+      expect(ctx.body).toBe(2000);
+    });
   });
 
   it('prepares root expansion permissions without asking for a substitute root decision', async () => {

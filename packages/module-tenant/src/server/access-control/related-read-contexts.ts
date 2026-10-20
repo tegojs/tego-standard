@@ -61,7 +61,7 @@ export async function prepareRelatedReadContexts(
     !plain(operation) ||
     !operation.context ||
     typeof operation.context !== 'object' ||
-    !['list', 'get', 'count'].includes(operation.kind) ||
+    !['list', 'get', 'count', 'sum'].includes(operation.kind) ||
     !plain(operation.source) ||
     !plain(operation.authenticated)
   )

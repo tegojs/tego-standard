@@ -9,7 +9,12 @@ import type { AccessQueryService } from './query';
 import { captureReadDateContext, resolveReadDateFilter, type AccessReadDateContext } from './read-date-filter';
 import { AccessReadSelectionParser } from './read-selection';
 import { AccessRequestFilterParser, type AccessFilterReadGrant } from './request-filter';
-import { parseResourceCountParams, parseResourceGetParams, parseResourceListParams } from './resource-read-params';
+import {
+  parseResourceCountParams,
+  parseResourceGetParams,
+  parseResourceListParams,
+  parseResourceSumParams,
+} from './resource-read-params';
 import { resolveResourceReadRoute } from './resource-read-routing';
 import { AccessSortService } from './sort';
 import { cloneDeep, invalid, plain } from './write-support';
@@ -29,7 +34,7 @@ export function collectRelatedReadPaths(
     Reflect.ownKeys(operation).some(
       (key) => !Object.hasOwn(Object.getOwnPropertyDescriptor(operation, key)!, 'value'),
     ) ||
-    !['list', 'get', 'count'].includes(operation.kind) ||
+    !['list', 'get', 'count', 'sum'].includes(operation.kind) ||
     !operation.context ||
     typeof operation.context !== 'object' ||
     !plain(operation.source) ||
@@ -51,7 +56,9 @@ export function collectRelatedReadPaths(
       ? parseResourceListParams(params)
       : captured.kind === 'get'
         ? parseResourceGetParams(params)
-        : parseResourceCountParams(params);
+        : captured.kind === 'sum'
+          ? parseResourceSumParams(params)
+          : parseResourceCountParams(params);
   // The parsers capture lists without normalizing invalid prototypes; capture JSON before callbacks too.
   const filter = captureAccessFilter(request.filter === undefined ? {} : request.filter);
   const root = resolveResourceReadRoute(db, resolveIdentity, {
@@ -120,7 +127,7 @@ export function collectRelatedReadPaths(
     if (node.collection !== collection) invalid('Read path does not match its registered collection');
     return node.view;
   };
-  if (captured.kind !== 'count') {
+  if (captured.kind === 'list' || captured.kind === 'get') {
     const selection = Object.fromEntries(
       ['fields', 'appends', 'except']
         .filter((key) => Object.hasOwn(request, key))

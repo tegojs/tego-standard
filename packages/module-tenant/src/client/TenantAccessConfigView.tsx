@@ -5,6 +5,7 @@ import { Alert, Button, Card, Descriptions, Drawer, Space, Spin, Tag, Typography
 
 import type { AccessCondition, AccessConfig, AccessOperand, ContextPath } from '../server/access-control/types';
 import { useTenantTranslation } from './locale';
+import { TenantAccessConfigDraft } from './TenantAccessConfigDraft';
 
 interface SavedConfig {
   identity: { dataSourceKey: string; collectionName: string; collectionKey: string };
@@ -114,7 +115,9 @@ export function TenantAccessConfigView({
   const { t } = useTenantTranslation();
   const role = api.auth?.role || undefined;
   const [refresh, setRefresh] = useState(0);
+  const [editingKey, setEditingKey] = useState<string>();
   const key = JSON.stringify([collection.name, role, refresh]);
+  useEffect(() => setEditingKey(undefined), [key]);
   const [result, setResult] = useState<{ key: string; report?: SavedConfig; error?: string }>();
   const current = result?.key === key ? result : undefined;
   const loading = !current;
@@ -183,6 +186,16 @@ export function TenantAccessConfigView({
         ) : null}
         {config ? (
           <>
+            {editingKey === key ? (
+              <TenantAccessConfigDraft
+                key={key}
+                identity={current!.report!.identity}
+                config={config}
+                onClose={() => setEditingKey(undefined)}
+              />
+            ) : (
+              <Button onClick={() => setEditingKey(key)}>{t('Edit rule draft')}</Button>
+            )}
             <Descriptions bordered size="small" column={1}>
               <Descriptions.Item label={t('Configuration revision')}>{config.revision}</Descriptions.Item>
               <Descriptions.Item label={t('Structure version')}>{config.schemaVersion}</Descriptions.Item>

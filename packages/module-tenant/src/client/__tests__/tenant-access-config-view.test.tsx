@@ -39,6 +39,54 @@ function fixture(request = vi.fn().mockResolvedValue(report())) {
 }
 
 describe('saved tenant access rules', () => {
+  it('discards a pending draft when the active role changes', async () => {
+    let resolveValidation!: (value: unknown) => void;
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(report())
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveValidation = resolve;
+          }),
+      )
+      .mockResolvedValue(report());
+    const { api, view } = fixture(request);
+    const { findByText, getByRole, rerender, queryByRole, queryByText } = render(view());
+    await findByText('Branch documents');
+    fireEvent.click(getByRole('button', { name: 'Edit rule draft' }));
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    const signal = request.mock.calls[1][0].signal as AbortSignal;
+    api.auth.role = 'other-manager';
+    rerender(view());
+    expect(signal.aborted).toBe(true);
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    await findByText('Branch documents');
+    await act(async () => resolveValidation(report()));
+    expect(queryByText('Draft validation passed. Changes have not been saved or enabled.')).not.toBeInTheDocument();
+    api.auth.role = 'manager';
+    rerender(view());
+    await findByText('Branch documents');
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+  });
+
+  it('opens a disposable draft, refreshes saved rules and discards unsaved changes', async () => {
+    const { request, view } = fixture();
+    const { findByText, getByRole, queryByRole } = render(view());
+    await findByText('Branch documents');
+    fireEvent.click(getByRole('button', { name: 'Edit rule draft' }));
+    fireEvent.change(getByRole('textbox', { name: 'Rule name' }), { target: { value: 'Unsaved' } });
+    expect(request).toHaveBeenCalledOnce();
+    fireEvent.click(getByRole('button', { name: 'Refresh saved rules' }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    await findByText('Branch documents');
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    fireEvent.click(getByRole('button', { name: 'Edit rule draft' }));
+    expect(getByRole('textbox', { name: 'Rule name' })).toHaveValue('Branch documents');
+    fireEvent.click(getByRole('button', { name: 'Discard draft' }));
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+  });
+
   it('reads saved rules and version without exposing save or activation controls', async () => {
     const { request, view } = fixture();
     const { findByText, getByText, queryByRole } = render(view());

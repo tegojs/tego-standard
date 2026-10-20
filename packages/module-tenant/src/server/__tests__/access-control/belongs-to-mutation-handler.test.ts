@@ -521,12 +521,12 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     expect(sql).not.toHaveBeenCalled();
     expect(decision).not.toHaveBeenCalled();
   });
-  it('rejects mixed relationship types before SQL or target authorization', async () => {
+  it('rejects target-foreign-key relationship types before SQL or target authorization', async () => {
     docs.setField('children', { type: 'hasMany', target: 'projects', foreignKey: 'documentId' });
     const ctx = await context('documents', 'update', { values: { project: 101, children: [103] } });
     const decision = vi.fn(async () => null);
     const sql = vi.spyOn(db.sequelize, 'query');
-    await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/same relationship type/i);
+    await expect(handler.handle(ctx, auth(), decision)).rejects.toThrow(/BelongsTo or BelongsToMany/i);
     expect(sql).not.toHaveBeenCalled();
     expect(decision).not.toHaveBeenCalled();
   });

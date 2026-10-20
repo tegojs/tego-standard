@@ -9,6 +9,8 @@ import {
 } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { resolveBelongsTo } from './association-metadata';
+import { MAX_REFERENCE_UPDATES, type BelongsToReferenceUpdate } from './belongs-to';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { guardJoinWrite } from './join-write-guard';
@@ -52,6 +54,8 @@ export interface ManyToManyLinkSet
 export interface ManyToManyLinkSetsRequest
   extends Pick<ManyToManyWriteRequest, 'sourceKeys' | 'sourceWhere' | 'sourceBind' | 'sourceValues'> {
   links: ManyToManyLinkSet[];
+  /** Existing single-value references saved with the same source authorization and transaction. */
+  references?: BelongsToReferenceUpdate[];
 }
 
 /** Changes pure join rows and an optional source patch; never edits/deletes targets. */
@@ -138,6 +142,7 @@ export class AccessManyToManyService {
     entry?: {
       assertCurrent(): void;
       targetScope(index: number): Promise<{ where?: WhereOptions }>;
+      referenceScope?(index: number): Promise<{ where?: WhereOptions }>;
       authorizeChanges?(index: number, keys: string[], transaction: Transaction): Promise<void>;
     },
   ): Promise<{ keys: Array<string | number>; affected: number }> {
@@ -152,7 +157,7 @@ export class AccessManyToManyService {
       Reflect.ownKeys(request).some(
         (key) =>
           typeof key !== 'string' ||
-          !['sourceKeys', 'sourceWhere', 'sourceBind', 'sourceValues', 'links'].includes(key),
+          !['sourceKeys', 'sourceWhere', 'sourceBind', 'sourceValues', 'links', 'references'].includes(key),
       )
     )
       invalid('Unsupported link mutation input');
@@ -160,7 +165,7 @@ export class AccessManyToManyService {
       !Array.isArray(request.links) ||
       Object.getPrototypeOf(original.links) !== Array.prototype ||
       !request.links.length ||
-      request.links.length > 20 ||
+      request.links.length > MAX_REFERENCE_UPDATES ||
       Reflect.ownKeys(request.links).length !== request.links.length + 1 ||
       Array.from({ length: request.links.length }, (_, index) => index).some(
         (index) => !Object.hasOwn(request.links, index),
@@ -208,6 +213,48 @@ export class AccessManyToManyService {
       return { index, link, relation, targetKeys };
     });
     const relation = sets[0].relation;
+    if (
+      request.references !== undefined &&
+      (!Array.isArray(request.references) ||
+        Object.getPrototypeOf(original.references) !== Array.prototype ||
+        request.references.length + sets.length > MAX_REFERENCE_UPDATES ||
+        Reflect.ownKeys(request.references).length !== request.references.length + 1 ||
+        Array.from({ length: request.references.length }, (_, index) => index).some(
+          (index) => !Object.hasOwn(request.references, index),
+        ))
+    )
+      invalid('Mixed reference updates require a bounded dense list');
+    if (request.references?.length && entry && !entry.referenceScope)
+      invalid('Mixed reference updates require independent reference permissions');
+    const foreignKeys = new Set<string>();
+    const references = (request.references ?? []).map((reference) => {
+      if (
+        !plain(reference) ||
+        typeof reference.association !== 'string' ||
+        names.has(reference.association) ||
+        Reflect.ownKeys(reference).some(
+          (key) =>
+            typeof key !== 'string' ||
+            !['association', 'target', 'targetKey', 'targetWhere', 'targetBind'].includes(key),
+        )
+      )
+        invalid('Reference updates require distinct registered association names');
+      names.add(reference.association);
+      const relation = resolveBelongsTo(
+        this.db,
+        this.prepared,
+        this.queries,
+        ctx,
+        source,
+        reference.target,
+        reference.association,
+        true,
+      );
+      if (foreignKeys.has(relation.foreignKey)) invalid('Reference updates cannot replace overlapping foreign keys');
+      foreignKeys.add(relation.foreignKey);
+      const targetKey = reference.targetKey === null ? null : normalizeKeys([reference.targetKey], relation.target)[0];
+      return { reference, relation, targetKey };
+    });
     const metadata = accessMetadataGuard(
       this.db,
       [
@@ -216,11 +263,15 @@ export class AccessManyToManyService {
           model: relation.targetModel,
           config: this.prepared.configuration(ctx, link.target)!,
         })),
+        ...references.map(({ relation }) => ({ model: relation.targetModel, config: relation.targetConfig })),
       ],
-      sets.map(({ link }) => ({ model: relation.sourceModel, path: [link.association] })),
+      [...sets.map(({ link }) => link.association), ...references.map(({ reference }) => reference.association)].map(
+        (association) => ({ model: relation.sourceModel, path: [association] }),
+      ),
     );
     const current = () => {
       for (const set of sets) set.relation.current();
+      for (const reference of references) reference.relation.current();
       metadata();
       entry?.assertCurrent();
     };
@@ -255,6 +306,33 @@ export class AccessManyToManyService {
                   transaction,
                 );
           current();
+          const referenceChanges = new Set<string>();
+          for (const [index, { reference, relation, targetKey }] of references.entries()) {
+            const changed = plan.records.filter((record) => {
+              const old = record.getDataValue(relation.foreignKey);
+              return (old == null ? null : normalizeKeys([old], relation.target)[0]) !== targetKey;
+            });
+            for (const record of changed)
+              referenceChanges.add(
+                normalizeKeys([record.getDataValue(relation.sourceModel.primaryKeyAttribute)], relation.source)[0],
+              );
+            if (targetKey !== null && (changed.length || !entry)) {
+              const scope = await entry?.referenceScope?.(index);
+              current();
+              await this.references.authorizeTargets(
+                ctx,
+                reference.target,
+                authenticated,
+                {
+                  keys: [targetKey],
+                  where: { [Op.and]: [relation.scope ?? {}, reference.targetWhere ?? {}, scope?.where ?? {}] },
+                  bind: reference.targetBind,
+                },
+                transaction,
+              );
+              current();
+            }
+          }
           for (const { link, relation, targetKeys } of ordered) {
             if (targetKeys.length && !entry)
               await this.references.authorizeTargets(
@@ -344,12 +422,10 @@ export class AccessManyToManyService {
             }
             plans.push({ link, relation, expected, changes: new Map(changes.map((change) => [change.key, change])) });
           }
-          const protectedValues = snapshotProtectedValues(
-            this.db,
-            relation.source,
-            plan.records,
-            relation.sourceConfig.ownership.enabled ? ['tenantId'] : [],
-          );
+          const protectedValues = snapshotProtectedValues(this.db, relation.source, plan.records, [
+            ...references.map(({ relation }) => relation.foreignKey),
+            ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
+          ]);
           const linkChanges = new Set(plans.flatMap((plan) => [...plan.changes.keys()]));
           const patches = new Map<string, Record<string, unknown>>();
           for (const record of plan.records) {
@@ -364,7 +440,9 @@ export class AccessManyToManyService {
             const patch: Record<string, unknown> = scalarChanged ? scalarValues : {};
             if (relation.sourceConfig.ownership.enabled && record.getDataValue('tenantId') == null)
               patch.tenantId = values.tenantId;
-            if (linkChanges.has(key) || scalarChanged) patches.set(key, patch);
+            if (referenceChanges.has(key))
+              for (const { relation, targetKey } of references) patch[relation.foreignKey] = targetKey;
+            if (linkChanges.has(key) || scalarChanged || referenceChanges.has(key)) patches.set(key, patch);
           }
           const changed = new Set(patches.keys());
           const owners = new Map(
@@ -448,6 +526,12 @@ export class AccessManyToManyService {
           current();
           if (after.length !== sourceKeys.length) invalid('Writer removed a relation source');
           protectedValues.verify(after);
+          for (const record of after)
+            for (const { relation, targetKey } of references) {
+              const actual = record.getDataValue(relation.foreignKey);
+              if ((actual == null ? null : normalizeKeys([actual], relation.target)[0]) !== targetKey)
+                invalid('Writer did not set the authorized foreign key');
+            }
           if (
             relation.sourceConfig.ownership.enabled &&
             after.some(

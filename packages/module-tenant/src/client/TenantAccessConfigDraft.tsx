@@ -5,6 +5,7 @@ import { Alert, Button, Card, Form, Input, Select, Space, Switch, Typography } f
 
 import type { AccessConfig, AccessRule } from '../server/access-control/types';
 import { useTenantTranslation } from './locale';
+import { TenantAccessConditionEditor } from './TenantAccessConditionEditor';
 
 interface DraftProps {
   identity: { dataSourceKey: string; collectionName: string; collectionKey: string };
@@ -95,7 +96,9 @@ export function TenantAccessConfigDraft({ identity, config, onClose }: DraftProp
           message={t('Draft changes stay in this window. Validation does not save or enable them.')}
         />
         <Typography.Paragraph>
-          {t('Edit rule names, categories and status here. Rule conditions remain as shown in the saved rules.')}
+          {t(
+            'Edit rule settings and conditions here. Field and association paths are checked by the server when validating the draft.',
+          )}
         </Typography.Paragraph>
         <Form layout="vertical" disabled={pending}>
           <Form.Item label={t('Manage actual tenant ownership')}>
@@ -130,6 +133,23 @@ export function TenantAccessConfigDraft({ identity, config, onClose }: DraftProp
                   aria-label={t('Rule enabled')}
                   checked={rule.enabled}
                   onChange={(enabled) => changeRule(index, { enabled })}
+                />
+              </Form.Item>
+              <Form.Item label={t('Visitor conditions')}>
+                <TenantAccessConditionEditor
+                  value={rule.subject}
+                  label={t('Visitor conditions')}
+                  subject
+                  disabled={pending}
+                  onChange={(subject) => changeRule(index, { subject })}
+                />
+              </Form.Item>
+              <Form.Item label={t('Record conditions')}>
+                <TenantAccessConditionEditor
+                  value={rule.condition}
+                  label={t('Record conditions')}
+                  disabled={pending}
+                  onChange={(condition) => changeRule(index, { condition })}
                 />
               </Form.Item>
             </Card>

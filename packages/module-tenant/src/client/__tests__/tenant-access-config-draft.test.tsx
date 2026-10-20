@@ -36,6 +36,25 @@ function fixture(
 }
 
 describe('tenant access rule draft', () => {
+  it('validates edited record conditions and clears an earlier validation result', async () => {
+    const { request, view } = fixture();
+    const { getByRole, findByText, queryByText } = render(view());
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    fireEvent.change(getByRole('textbox', { name: 'Record conditions / Field path' }), {
+      target: { value: 'projectId' },
+    });
+    expect(queryByText('Draft validation passed. Changes have not been saved or enabled.')).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledOnce();
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    expect(request.mock.calls[1][0].data.config.rules[0].condition).toEqual({
+      type: 'isNull',
+      operand: { type: 'field', path: 'projectId' },
+    });
+    expect(config.rules[0].condition).toEqual({ type: 'isNull', operand: { type: 'field', path: 'tenantId' } });
+  });
+
   it('edits a local copy, preserves rule conditions and base revision, and only validates', async () => {
     const { request, view } = fixture();
     const { getByRole, findByText, queryByRole } = render(view());
@@ -109,6 +128,7 @@ describe('tenant access rule draft', () => {
     expect(getByRole('switch', { name: 'Manage actual tenant ownership' })).toBeDisabled();
     expect(getByRole('switch', { name: 'Rule enabled' })).toBeDisabled();
     expect(getByRole('combobox', { name: 'Rule category' })).toBeDisabled();
+    expect(getByRole('textbox', { name: 'Record conditions / Field path' })).toBeDisabled();
     fireEvent.click(getByRole('button', { name: 'Validate draft' }));
     expect(request).toHaveBeenCalledOnce();
   });

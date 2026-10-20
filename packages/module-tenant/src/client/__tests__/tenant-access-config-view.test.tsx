@@ -39,6 +39,41 @@ function fixture(request = vi.fn().mockResolvedValue(report())) {
 }
 
 describe('saved tenant access rules', () => {
+  it('starts an unconfigured collection with a disposable empty draft at revision zero', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(report(null))
+      .mockImplementation(async ({ data }) => report(data.config));
+    const { view } = fixture(request);
+    const { findByText, getByRole, queryByRole } = render(view());
+    expect(queryByRole('button', { name: 'Create rule draft' })).not.toBeInTheDocument();
+    await findByText('No access rules have been saved for this collection.');
+    fireEvent.click(getByRole('button', { name: 'Create rule draft' }));
+    expect(getByRole('switch', { name: 'Manage actual tenant ownership' })).toBeChecked();
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledOnce();
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    expect(request.mock.calls[1][0]).toMatchObject({
+      url: 'tenants:validateAccessConfig',
+      data: {
+        dataSourceKey: 'main',
+        collectionName: 'documents',
+        config: {
+          schemaVersion: 1,
+          revision: 0,
+          ownership: { enabled: true },
+          rules: [],
+        },
+      },
+    });
+    fireEvent.click(getByRole('button', { name: 'Add rule' }));
+    fireEvent.click(getByRole('button', { name: 'Discard draft' }));
+    fireEvent.click(getByRole('button', { name: 'Create rule draft' }));
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
   it('discards a pending draft when the active role changes', async () => {
     let resolveValidation!: (value: unknown) => void;
     const request = vi

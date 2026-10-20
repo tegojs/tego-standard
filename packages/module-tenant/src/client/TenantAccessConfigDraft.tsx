@@ -35,6 +35,8 @@ export function TenantAccessConfigDraft({ identity, config, onClose }: DraftProp
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ success?: boolean; error?: string }>();
   const request = useRef<AbortController>();
+  const ruleIds = useRef(new Set(config.rules.map((rule) => rule.id)));
+  const ruleSequence = useRef(0);
   useEffect(() => () => request.current?.abort(), []);
 
   const change = (value: AccessConfig) => {
@@ -46,6 +48,28 @@ export function TenantAccessConfigDraft({ identity, config, onClose }: DraftProp
       ...draft,
       rules: draft.rules.map((rule, position) => (index === position ? { ...rule, ...values } : rule)),
     });
+  const addRule = () => {
+    if (pending || draft.rules.length >= 100) return;
+    let id: string;
+    do {
+      id = `rule-${++ruleSequence.current}`;
+    } while (ruleIds.current.has(id));
+    ruleIds.current.add(id);
+    change({
+      ...draft,
+      rules: [
+        ...draft.rules,
+        {
+          id,
+          name: t('New rule'),
+          enabled: false,
+          category: 'visibility',
+          subject: { type: 'constant', value: false },
+          condition: { type: 'constant', value: false },
+        },
+      ],
+    });
+  };
   const discard = () => {
     request.current?.abort();
     onClose();
@@ -109,7 +133,22 @@ export function TenantAccessConfigDraft({ identity, config, onClose }: DraftProp
             />
           </Form.Item>
           {draft.rules.map((rule, index) => (
-            <Card key={rule.id} size="small" title={rule.id} style={{ marginBottom: 12 }}>
+            <Card
+              key={rule.id}
+              size="small"
+              title={rule.id}
+              style={{ marginBottom: 12 }}
+              extra={
+                <Button
+                  danger
+                  disabled={pending}
+                  aria-label={`${t('Remove rule')} ${rule.id}`}
+                  onClick={() => change({ ...draft, rules: draft.rules.filter((_, position) => position !== index) })}
+                >
+                  {t('Remove rule')}
+                </Button>
+              }
+            >
               <Form.Item label={t('Rule name')}>
                 <Input
                   aria-label={t('Rule name')}
@@ -154,6 +193,9 @@ export function TenantAccessConfigDraft({ identity, config, onClose }: DraftProp
               </Form.Item>
             </Card>
           ))}
+          <Button disabled={pending || draft.rules.length >= 100} onClick={addRule}>
+            {t('Add rule')}
+          </Button>
         </Form>
         <Typography.Paragraph>{t('Visibility rules never grant editing or deletion.')}</Typography.Paragraph>
         <Space>

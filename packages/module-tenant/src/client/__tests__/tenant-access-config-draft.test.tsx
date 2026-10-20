@@ -24,18 +24,85 @@ const config: AccessConfig = {
 
 function fixture(
   request = vi.fn().mockImplementation(async ({ data }) => ({ data: { data: { identity, config: data.config } } })),
+  initialConfig = config,
 ) {
   const api = { auth: { role: 'manager' }, request };
   const close = vi.fn();
   const view = () => (
     <APIClientProvider apiClient={api as never}>
-      <TenantAccessConfigDraft identity={identity} config={config} onClose={close} />
+      <TenantAccessConfigDraft identity={identity} config={initialConfig} onClose={close} />
     </APIClientProvider>
   );
   return { request, close, view };
 }
 
 describe('tenant access rule draft', () => {
+  it('adds disabled non-matching rules with stable unique IDs without automatic requests', async () => {
+    const initial = { ...config, rules: [{ ...config.rules[0], id: 'rule-1' }] };
+    const { request, view } = fixture(undefined, initial);
+    const { getByRole, findByText, queryByText } = render(view());
+    fireEvent.click(getByRole('button', { name: 'Add rule' }));
+    expect(request).not.toHaveBeenCalled();
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    const added = request.mock.calls[0][0].data.config.rules[1];
+    expect(added).toMatchObject({
+      name: 'New rule',
+      enabled: false,
+      category: 'visibility',
+      subject: { type: 'constant', value: false },
+      condition: { type: 'constant', value: false },
+    });
+    expect(added.id).not.toBe('rule-1');
+    fireEvent.click(getByRole('button', { name: `Remove rule ${added.id}` }));
+    expect(queryByText('Draft validation passed. Changes have not been saved or enabled.')).not.toBeInTheDocument();
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    expect(request.mock.calls[1][0].data.config.rules).toEqual(initial.rules);
+    fireEvent.click(getByRole('button', { name: 'Add rule' }));
+    expect(queryByText('Draft validation passed. Changes have not been saved or enabled.')).not.toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(2);
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    const next = request.mock.calls[2][0].data.config;
+    expect(next.revision).toBe(7);
+    expect(next.rules[0]).toEqual(initial.rules[0]);
+    expect(next.rules[1].id).not.toBe(added.id);
+    expect(next.rules[1].id).not.toBe('rule-1');
+    expect(initial.rules).toHaveLength(1);
+  });
+
+  it('removes the last rule locally and validates an empty rule list', async () => {
+    const { request, view } = fixture();
+    const { getByRole, findByText, queryByRole } = render(view());
+    fireEvent.click(getByRole('button', { name: 'Remove rule branch' }));
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    expect(request).not.toHaveBeenCalled();
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    expect(request.mock.calls[0][0].data.config).toEqual({ ...config, rules: [] });
+    expect(config.rules).toHaveLength(1);
+  });
+
+  it('limits the draft to 100 rules and allows adding after removal', () => {
+    const rules = Array.from({ length: 100 }, (_, index) => ({
+      ...config.rules[0],
+      id: `rule-${index}`,
+      subject: { type: 'constant' as const, value: false },
+      condition: { type: 'constant' as const, value: false },
+    }));
+    const { request, view } = fixture(undefined, { ...config, rules });
+    const { container } = render(view());
+    const add = () =>
+      Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Add rule');
+    expect(add()).toBeDisabled();
+    fireEvent.click(container.querySelector('button[aria-label="Remove rule rule-0"]')!);
+    expect(add()).not.toBeDisabled();
+    fireEvent.click(add()!);
+    expect(add()).toBeDisabled();
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it('validates edited record conditions and clears an earlier validation result', async () => {
     const { request, view } = fixture();
     const { getByRole, findByText, queryByText } = render(view());
@@ -129,6 +196,8 @@ describe('tenant access rule draft', () => {
     expect(getByRole('switch', { name: 'Rule enabled' })).toBeDisabled();
     expect(getByRole('combobox', { name: 'Rule category' })).toBeDisabled();
     expect(getByRole('textbox', { name: 'Record conditions / Field path' })).toBeDisabled();
+    expect(getByRole('button', { name: 'Add rule' })).toBeDisabled();
+    expect(getByRole('button', { name: 'Remove rule branch' })).toBeDisabled();
     fireEvent.click(getByRole('button', { name: 'Validate draft' }));
     expect(request).toHaveBeenCalledOnce();
   });

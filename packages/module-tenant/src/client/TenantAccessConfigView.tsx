@@ -182,7 +182,19 @@ export function TenantAccessConfigView({
         {loading ? <Spin aria-label={t('Loading saved rules')} /> : null}
         {current?.error ? <Alert type="error" showIcon message={current.error} /> : null}
         {config === null ? (
-          <Typography.Text>{t('No access rules have been saved for this collection.')}</Typography.Text>
+          <>
+            <Typography.Text>{t('No access rules have been saved for this collection.')}</Typography.Text>
+            {editingKey === key ? (
+              <TenantAccessConfigDraft
+                key={key}
+                identity={current!.report!.identity}
+                config={{ schemaVersion: 1, revision: 0, ownership: { enabled: true }, rules: [] }}
+                onClose={() => setEditingKey(undefined)}
+              />
+            ) : (
+              <Button onClick={() => setEditingKey(key)}>{t('Create rule draft')}</Button>
+            )}
+          </>
         ) : null}
         {config ? (
           <>

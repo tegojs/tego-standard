@@ -1,4 +1,5 @@
 {
+  "Access rule validation failed. Check rule conditions and collection fields.": "访问规则校验失败。请检查规则条件和数据表字段。",
   "Action": "操作",
   "Actions": "操作",
   "Add": "添加",

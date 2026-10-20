@@ -8,6 +8,7 @@ import currentTenant from './actions/current-tenant';
 import { createAccessMigrationPreview } from './actions/preview-access-migration';
 import { createAccessConfigRead } from './actions/read-access-config';
 import switchTenant from './actions/switch-tenant';
+import { createAccessConfigValidation } from './actions/validate-access-config';
 import tenantsCollection from './collections/tenants';
 import tenantUsersCollection from './collections/tenantUsers';
 import usersCollection from './collections/users';
@@ -789,6 +790,7 @@ export class PluginTenantServer extends Plugin {
     this.app.resourcer.registerActionHandler('tenants:switch', switchTenant);
     this.app.resourcer.registerActionHandler('tenants:previewAccessMigration', createAccessMigrationPreview(this.app));
     this.app.resourcer.registerActionHandler('tenants:readAccessConfig', createAccessConfigRead(this.app));
+    this.app.resourcer.registerActionHandler('tenants:validateAccessConfig', createAccessConfigValidation(this.app));
 
     this.app.use(
       async (ctx, next) => {

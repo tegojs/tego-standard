@@ -1,7 +1,11 @@
 import { pathToFileURL } from 'node:url';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
-import { ACL, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
+import { ACL, CacheManager, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
 
+import {
+  createChartQuery,
+  type ChartQueryResolver,
+} from '../../../../../plugin-block-charts/src/server/actions/query-entry';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { AccessChartQueryHandler } from '../../access-control/chart-query-handler';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -33,6 +37,8 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
   let identityKeys: Map<string, string>;
   let entryError: unknown;
   let dates: AccessReadDateContext | undefined;
+  let legacyMode: boolean;
+  let resolveEntry: ChartQueryResolver | undefined;
   const identity = (collection: Collection) => ({
     ...mainIdentity,
     collectionName: collection.name,
@@ -56,6 +62,8 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     identityKeys = new Map();
     entryError = undefined;
     dates = undefined;
+    legacyMode = false;
+    resolveEntry = undefined;
     app = mockServer({
       acl: false,
       registerActions: true,
@@ -63,6 +71,10 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
       resourcer: { prefix: '/api' },
     });
     const db = app.db;
+    // This lightweight server has no plugin load phase; install the real memory cache explicitly.
+    const cacheManager = new CacheManager();
+    Object.defineProperty(app, 'cacheManager', { value: cacheManager });
+    await cacheManager.createCache({ name: 'data-visualization', store: 'memory', ttl: 30000, max: 100 });
     await seedConfigStore(db);
     await seedAclScopes(db);
     await seedDatabase(db);
@@ -176,54 +188,61 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     app.resourcer.define({
       name: 'charts',
       actions: {
-        query: async (resourceContext) => {
-          const ctx = resourceContext as Context & { permission: unknown };
-          if (!ctx.action || !('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
-          const decisions: AccessRootReadContext[] = [];
-          const authorize = async (target: Collection) => {
-            const resourcer = new Resourcer();
-            resourcer.define({ name: target.name, actions: { list: {} } });
-            const action = resourcer.getAction(target.name, 'list').clone();
-            Object.assign(action, { resourceName: target.name, actionName: 'list' });
-            action.mergeParams({ resourceName: target.name, actionName: 'list', filterByTk: undefined });
-            const decision = {
-              db,
-              action,
-              permission: undefined as unknown,
-              state: ctx.state,
-              get: ctx.get.bind(ctx),
-              logger: ctx.logger,
-              throw: ctx.throw.bind(ctx),
-              body: undefined as unknown,
-            };
-            decisions.push(decision);
-            await adapter.prepare(decision, identities());
-            await acl.middleware()(decision as never, async () => {});
-            return decision;
-          };
-          try {
-            beforeEntry?.(ctx);
-            await charts.handle(
-              ctx,
-              ctx.state.accessTestActor,
-              {
-                source: async (collection) => {
-                  const decision = await authorize(collection);
-                  await beforeSource?.(ctx);
-                  return decision;
+        query: createChartQuery((ctx) =>
+          resolveEntry
+            ? resolveEntry(ctx)
+            : legacyMode
+              ? undefined
+              : async (resourceContext) => {
+                  const ctx = resourceContext as Context & { permission: unknown };
+                  if (!ctx.action || !('permission' in ctx))
+                    throw new Error('ACL middleware did not finalize this request');
+                  const decisions: AccessRootReadContext[] = [];
+                  const authorize = async (target: Collection) => {
+                    const resourcer = new Resourcer();
+                    resourcer.define({ name: target.name, actions: { list: {} } });
+                    const action = resourcer.getAction(target.name, 'list').clone();
+                    Object.assign(action, { resourceName: target.name, actionName: 'list' });
+                    action.mergeParams({ resourceName: target.name, actionName: 'list', filterByTk: undefined });
+                    const decision = {
+                      db,
+                      action,
+                      permission: undefined as unknown,
+                      state: ctx.state,
+                      get: ctx.get.bind(ctx),
+                      logger: ctx.logger,
+                      throw: ctx.throw.bind(ctx),
+                      body: undefined as unknown,
+                    };
+                    decisions.push(decision);
+                    await adapter.prepare(decision, identities());
+                    await acl.middleware()(decision as never, async () => {});
+                    return decision;
+                  };
+                  try {
+                    beforeEntry?.(ctx);
+                    await charts.handle(
+                      ctx,
+                      ctx.state.accessTestActor,
+                      {
+                        source: async (collection) => {
+                          const decision = await authorize(collection);
+                          await beforeSource?.(ctx);
+                          return decision;
+                        },
+                        related: authorize,
+                      },
+                      undefined,
+                      dates,
+                    );
+                  } catch (error) {
+                    entryError = error;
+                    throw error;
+                  } finally {
+                    for (const decision of decisions) adapter.release(decision);
+                  }
                 },
-                related: authorize,
-              },
-              undefined,
-              dates,
-            );
-          } catch (error) {
-            entryError = error;
-            throw error;
-          } finally {
-            for (const decision of decisions) adapter.release(decision);
-          }
-        },
+        ),
       },
     });
   });
@@ -260,6 +279,136 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     const response = await query();
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ data: [{ 金额: 400 }] });
+  });
+
+  async function warmLegacyCache() {
+    await grant('documents', ['id', 'name', 'amount', 'tenantId', 'participants'], {});
+    const input = { ...values(), cache: { enabled: true, ttl: 60 }, refresh: false };
+    legacyMode = true;
+    const warmed = await query(input);
+    expect(warmed.status).toBe(200);
+    expect(warmed.body).toEqual({ data: [{ 金额: 2100 }] });
+    await app.db.getCollection('documents').model.update({ amount: 333 }, { where: { id: 3 } });
+    // A second old-path request must really use the cache, rather than just repeat the query.
+    const cached = await query(input);
+    expect(cached.status).toBe(200);
+    expect(cached.body).toEqual({ data: [{ 金额: 2100 }] });
+    legacyMode = false;
+    return input;
+  }
+
+  it('bypasses a warmed real legacy cache without replacing or invalidating its entries', async () => {
+    const input = await warmLegacyCache();
+    const scoped = await query(input);
+    expect(scoped.status).toBe(200);
+    expect(scoped.body).toEqual({ data: [{ 金额: 433 }] });
+    legacyMode = true;
+    const cached = await query(input);
+    expect(cached.status).toBe(200);
+    expect(cached.body).toEqual({ data: [{ 金额: 2100 }] });
+  });
+
+  it('preserves refresh and uncached behavior for requests explicitly left on the old path', async () => {
+    const input = await warmLegacyCache();
+    legacyMode = true;
+    const refreshed = await query({ ...input, refresh: true });
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.body).toEqual({ data: [{ 金额: 2133 }] });
+    await app.db.getCollection('documents').model.update({ amount: 444 }, { where: { id: 3 } });
+    const cached = await query(input);
+    expect(cached.status).toBe(200);
+    expect(cached.body).toEqual({ data: [{ 金额: 2133 }] });
+    const uncached = await query({ ...input, cache: { enabled: false, ttl: 60 } });
+    expect(uncached.status).toBe(200);
+    expect(uncached.body).toEqual({ data: [{ 金额: 2244 }] });
+  });
+
+  it.each([null, false, Promise.resolve(undefined)])(
+    'rejects invalid server selection without using cached data: %s',
+    async (selection) => {
+      const input = await warmLegacyCache();
+      resolveEntry = (() => selection) as unknown as ChartQueryResolver;
+      const response = await query(input);
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+    },
+  );
+
+  it('does not use cached data after server query selection fails', async () => {
+    const input = await warmLegacyCache();
+    resolveEntry = () => {
+      throw new Error('Server query selection failed');
+    };
+    const response = await query(input);
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('handles a rejected asynchronous selection without an unhandled rejection or cached response', async () => {
+    const input = await warmLegacyCache();
+    resolveEntry = (async () => {
+      throw new Error('Asynchronous query selection failed');
+    }) as unknown as ChartQueryResolver;
+    const response = await query(input);
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('rejects an asynchronously selected executor without running it', async () => {
+    const input = await warmLegacyCache();
+    let executed = false;
+    resolveEntry = (async () => async () => {
+      executed = true;
+    }) as unknown as ChartQueryResolver;
+    const response = await query(input);
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+    expect(executed).toBe(false);
+  });
+
+  it('does not fall through when a selected executor publishes no body', async () => {
+    const input = await warmLegacyCache();
+    resolveEntry = () => async () => {};
+    const response = await query(input);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({});
+  });
+
+  it('rechecks rule changes even when an old-path cache entry exists', async () => {
+    const input = await warmLegacyCache();
+    const config = (await store.read(mainIdentity))!;
+    await store.save(mainIdentity, { ...config, rules: [] }, { userId: 28 });
+    const response = await query(input);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 金额: null }] });
+  });
+
+  it('rechecks field grants instead of exposing an old cached measure', async () => {
+    const input = await warmLegacyCache();
+    await grant('documents', ['id', 'name'], {});
+    const response = await query(input);
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('does not fall back to a warm legacy cache when the selected executor throws', async () => {
+    const input = await warmLegacyCache();
+    const failure = new Error('Independent source authorization failed');
+    beforeSource = () => {
+      throw failure;
+    };
+    const response = await query(input);
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+    expect(entryError).toBe(failure);
+  });
+
+  it('keeps server tenant selection independent of warmed cache metadata and client routing hints', async () => {
+    const input = await warmLegacyCache();
+    principal = { ...principal, tenantId: 'C' };
+    const response = await query(input).set('x-tenant-id', 'B');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 金额: 1000 }] });
   });
 
   it('counts the same readable roots as the resource list', async () => {

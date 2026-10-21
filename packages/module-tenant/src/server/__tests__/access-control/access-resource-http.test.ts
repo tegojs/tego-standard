@@ -1,21 +1,22 @@
 import { pathToFileURL } from 'node:url';
-import { mockServer, type MockServer } from '@tachybase/test';
+import { mockServer, supertest, type MockServer } from '@tachybase/test';
 import { ACL, type Collection, type Context } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey } from '../../access-control/config-store';
 import { AccessQueryService } from '../../access-control/query';
+import { AccessRootMutationHandler } from '../../access-control/root-mutation-handler';
 import { AccessRootReadHandler } from '../../access-control/root-read-handler';
 import { grantStoredScope, seedAclScopes } from './acl-database';
 import { configStore, mainIdentity, seedConfigStore } from './config-database';
 import { seedDatabase } from './database';
-import { exampleConfig } from './fixtures';
+import { configFor, exampleConfig } from './fixtures';
 
 const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_ENTRY;
 const coreAvailable = coreEntry || 'registerActionParamsResolver' in ACL.prototype;
 
 /** Isolated HTTP/ACL integration, not an authentication or production plugin activation fixture. */
-describe.skipIf(!coreAvailable)('tenant access model over real HTTP reads', () => {
+describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', () => {
   let app: MockServer;
   let acl: ACL;
   let adapter: AccessAclScopeAdapter;
@@ -65,6 +66,7 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP reads', () =
       type: 'hasMany',
       target: 'participants',
       foreignKey: 'documentId',
+      onDelete: 'RESTRICT',
     });
     const tenants = db.collection({
       name: 'tenants',
@@ -93,6 +95,9 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP reads', () =
     unregister = adapter.register();
     const queries = new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection)));
     const handler = new AccessRootReadHandler(db, adapter, queries, (collection) =>
+      collection.name === 'documents' ? identity(collection) : undefined,
+    );
+    const writer = new AccessRootMutationHandler(db, adapter, queries, (collection) =>
       collection.name === 'documents' ? identity(collection) : undefined,
     );
     principal = { tenantId: 'B', roleName: 'member', userId: 28 };
@@ -126,6 +131,12 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP reads', () =
         ]),
       ),
     });
+    for (const action of ['update', 'destroy'])
+      app.resourcer.registerActionHandler(`documents:${action}`, async (resourceContext) => {
+        const ctx = resourceContext as Context & { permission: unknown };
+        if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
+        await writer.handle(ctx, ctx.state.accessTestActor);
+      });
   });
 
   afterEach(async () => {
@@ -256,5 +267,159 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP reads', () =
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual([{ id: 3 }]);
     expect(response.body.meta.count).toBe(1);
+  });
+
+  async function grantMutation(operation: 'update' | 'destroy', filter?: Record<string, unknown>) {
+    const scopeRepo = app.db.getRepository('dataSourcesRolesResourcesScopes');
+    const scope = filter
+      ? await scopeRepo.create({ values: { key: `custom-${operation}`, dataSourceKey: 'main', scope: filter } })
+      : await scopeRepo.findOne({ filter: { key: 'tenant', dataSourceKey: 'main' } });
+    const action = await app.db.getRepository('dataSourcesRolesResourcesScopesActions').create({
+      values: { name: operation, fields: operation === 'update' ? ['name'] : [], scopeId: scope.get('id') },
+    });
+    await action.writeToACL({
+      acl,
+      role: acl.getRole('member'),
+      resourceName: 'documents',
+      associationFieldsActions: {},
+      grantHelper: {},
+    });
+  }
+
+  const record = async (id: number) => (await app.db.getCollection('documents').model.findByPk(id))?.get();
+
+  it('commits an owned record update using actual write field permissions', async () => {
+    await grantMutation('update');
+    const response = await app
+      .agent()
+      .resource('documents')
+      .update({ filterByTk: 3, values: { name: 'Changed', amount: 999 } });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await record(3)).toMatchObject({ name: 'Changed', amount: 300, tenantId: 'B' });
+  });
+
+  it('commits deletion of an owned record', async () => {
+    await grantMutation('destroy');
+    const response = await app.agent().resource('documents').destroy({ filterByTk: 3 });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await record(3)).toBeUndefined();
+  });
+
+  it.each(['update', 'destroy'] as const)('does not let V-only access authorize %s', async (operation) => {
+    await grantMutation(operation);
+    const visible = await app
+      .agent()
+      .resource('documents')
+      .get({ filterByTk: 1, fields: ['id'] });
+    expect(visible.status).toBe(200);
+    expect(visible.body).toEqual({ data: { id: 1 } });
+    const response = await app
+      .agent()
+      .resource('documents')
+      [operation]({
+        filterByTk: 1,
+        ...(operation === 'update' ? { values: { name: 'Forbidden' } } : {}),
+      });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await record(1)).toMatchObject({ name: 'D1', tenantId: 'H' });
+  });
+
+  it('does not allow model ownership to grant a missing update operation', async () => {
+    const response = await app
+      .agent()
+      .resource('documents')
+      .update({ filterByTk: 3, values: { name: 'Forbidden' } });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await record(3)).toMatchObject({ name: 'D3', tenantId: 'B' });
+  });
+
+  it('rejects ordinary ownership transfers even if tenantId is not a writable field', async () => {
+    await grantMutation('update');
+    const response = await app
+      .agent()
+      .resource('documents')
+      .update({ filterByTk: 3, values: { name: 'Forbidden', tenantId: 'C' } });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await record(3)).toMatchObject({ name: 'D3', tenantId: 'B' });
+  });
+
+  it('rejects the entire HTTP selection when one record is outside G', async () => {
+    await grantMutation('update');
+    const response = await supertest(app.callback())
+      .post('/api/documents:update?filterByTk[]=3&filterByTk[]=1')
+      .send({ name: 'Forbidden' });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await record(3)).toMatchObject({ name: 'D3', tenantId: 'B' });
+    expect(await record(1)).toMatchObject({ name: 'D1', tenantId: 'H' });
+  });
+
+  it('rolls back an actual repository write if a hook fails', async () => {
+    await grantMutation('update');
+    app.db.on('documents.afterUpdate', async () => {
+      throw new Error('HTTP mutation rollback fixture');
+    });
+    const response = await app
+      .agent()
+      .resource('documents')
+      .update({ filterByTk: 3, values: { name: 'Uncommitted' } });
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await record(3)).toMatchObject({ name: 'D3', tenantId: 'B' });
+  });
+
+  it('returns success when a committed update exits its original role range', async () => {
+    await grantMutation('update', { name: 'D3' });
+    const response = await app
+      .agent()
+      .resource('documents')
+      .update({ filterByTk: 3, values: { name: 'Submitted' } });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await record(3)).toMatchObject({ name: 'Submitted', tenantId: 'B' });
+    const again = await app
+      .agent()
+      .resource('documents')
+      .update({ filterByTk: 3, values: { name: 'Forbidden' } });
+    expect(again.status).toBe(403);
+    expect(await record(3)).toMatchObject({ name: 'Submitted', tenantId: 'B' });
+  });
+
+  it('claims an allowed legacy record on its first committed HTTP edit', async () => {
+    await grantMutation('update');
+    const saved = (await store.read(mainIdentity))!;
+    await store.save(
+      mainIdentity,
+      {
+        ...saved,
+        rules: [
+          ...saved.rules,
+          {
+            ...configFor({ type: 'isNull', operand: { type: 'field', path: 'tenantId' } }).rules[0],
+            id: 'claim-legacy',
+          },
+        ],
+      },
+      { userId: 28 },
+    );
+    const response = await app
+      .agent()
+      .resource('documents')
+      .update({ filterByTk: 5, values: { name: 'Claimed', tenantId: null } });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [5], affected: 1 } });
+    expect(await record(5)).toMatchObject({ name: 'Claimed', tenantId: 'B' });
+    principal = { ...principal, tenantId: 'C' };
+    const hidden = await app
+      .agent()
+      .resource('documents')
+      .get({ filterByTk: 5, fields: ['id'] });
+    expect(hidden.status).toBe(200);
+    expect(hidden.body).toEqual({ data: null });
   });
 });

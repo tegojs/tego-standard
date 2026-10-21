@@ -140,6 +140,30 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     expect(await read()).toBeUndefined();
   });
 
+  it.each([{ fields: [] }, { fields: ['name'] }, { fields: ['owner'] }])(
+    'accepts destroy field metadata $fields without requiring a write whitelist',
+    async ({ fields }) => {
+      docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+      const ctx = await context('destroy', {}, { fields });
+      await handler.handle(ctx, auth());
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await read()).toBeUndefined();
+    },
+  );
+
+  it.each([null, 'name', [1], ['name', 'name'], ['missing']].map((fields) => ({ fields })))(
+    'rejects invalid destroy field metadata $fields before SQL',
+    async ({ fields }) => {
+      const ctx = await context('destroy');
+      Object.assign(ctx.permission as object, { parsedParams: { fields } });
+      const sql = vi.spyOn(db.sequelize, 'query');
+      await expect(handler.handle(ctx, auth())).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+    },
+  );
+
   it.each(['update', 'destroy'])(
     'applies %s to every explicitly selected authorized record once',
     async (operation) => {

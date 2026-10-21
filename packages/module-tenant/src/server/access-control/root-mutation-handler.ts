@@ -136,8 +136,14 @@ export class AccessRootMutationHandler {
         String(params.resourceIndex) !== String(locator))
     )
       invalid('Mutation REST locator does not match its record key');
-    // Core converts create/update field grants into whitelist before final ACL template resolution.
-    shape(permission.params, ['whitelist', 'blacklist', 'filter', 'own']);
+    // Core converts create/update fields to whitelist, but retains fields as metadata for destroy.
+    shape(permission.params, [
+      'whitelist',
+      'blacklist',
+      'filter',
+      'own',
+      ...(operation === 'destroy' ? ['fields'] : []),
+    ]);
     const grants = cloneDeep(permission.params);
     if (Object.hasOwn(grants, 'own') && grants.own !== false)
       invalid('Own-record mutation permissions must be finalized');
@@ -154,6 +160,7 @@ export class AccessRootMutationHandler {
     };
     const fields = fieldNames(grants.whitelist);
     const blacklist = fieldNames(grants.blacklist);
+    const destroyFields = fieldNames(grants.fields);
     const filter = captureAccessFilter(grants.filter === undefined ? {} : grants.filter);
     const collection = this.db.getCollection(resourceName);
     if (!collection || collection.db !== this.db || this.db.modelCollection.get(collection.model) !== collection)
@@ -162,6 +169,12 @@ export class AccessRootMutationHandler {
     if (!identity || identity.collectionName !== resourceName) invalid('Mutation collection identity is unavailable');
     const key = accessCollectionKey(identity);
     const model = collection.model;
+    if (
+      destroyFields?.some(
+        (field) => !Object.hasOwn(model.rawAttributes, field) && !Object.hasOwn(model.associations, field),
+      )
+    )
+      invalid('Mutation permission contains unsupported fields');
     if (operation !== 'create' && collection.filterTargetKey !== model.primaryKeyAttribute)
       invalid('Alternate mutation target keys require their own adapter');
     const keys = operation === 'create' ? [] : normalizeKeys(locators, collection);

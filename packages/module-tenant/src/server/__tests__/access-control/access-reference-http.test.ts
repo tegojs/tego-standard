@@ -15,6 +15,7 @@ import { isolatedPostgresDatabase } from './database';
 import { configFor, ownerCondition } from './fixtures';
 
 const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_ENTRY;
+const coreResourcerEntry = process.env.TENANT_ACCESS_CORE_RESOURCER_ENTRY;
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 const coreAvailable = coreEntry || 'registerActionParamsResolver' in ACL.prototype;
 const actor = { tenantId: 'B', roleName: 'editor', userId: 28 };
@@ -40,6 +41,11 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     const database = isolated.options;
     await isolated.close();
     app = mockServer({ acl: false, registerActions: true, database, resourcer: { prefix: '/api' } });
+    if (coreResourcerEntry) {
+      // Exercise the real built core router on this fixture only, without changing installed dependencies.
+      const { Resourcer: CoreResourcer } = await import(/* @vite-ignore */ pathToFileURL(coreResourcerEntry).href);
+      app.resourcer.restApiMiddleware = CoreResourcer.prototype.restApiMiddleware;
+    }
     const db = app.db;
     await seedConfigStore(db);
     await seedAclScopes(db);
@@ -355,18 +361,93 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     expect(await row('projects', 103)).toEqual({ id: 103, name: 'Hidden', tenantId: 'C' });
   });
 
-  it.each([undefined, []])('does not clear links when core omits the target selector: %j', async (body) => {
+  it.each([undefined, {}])('does not clear links when no target selector was sent: %j', async (body) => {
     await grantLink('set');
     await seedLinks([101, 103]);
     acl.getRole('editor').revokeAction('projects:view');
-    // Core currently omits an empty JSON array from action params, just like an absent body.
-    // Keep this fail-closed until the owning transport preserves an explicit empty selector.
     const request = supertest(app.callback()).post('/api/documents/3/projects:set');
     const response = await (body === undefined ? request : request.send(body));
     expect(response.status).toBe(400);
     expect(response.body).not.toHaveProperty('data');
     expect(await links()).toEqual([101, 103]);
     expect(await app.db.getCollection('projects').model.count()).toBe(3);
+  });
+
+  it.skipIf(!!coreResourcerEntry)('retains links when the installed core drops an empty array body', async () => {
+    await grantLink('set');
+    await seedLinks([101, 103]);
+    const response = await link('set', []);
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([101, 103]);
+  });
+
+  describe.skipIf(!coreResourcerEntry)('explicit empty selector transport', () => {
+    it('clears links without requiring target list permission or changing the targets', async () => {
+      await grantLink('set');
+      await seedLinks([101, 103]);
+      acl.getRole('editor').revokeAction('projects:view');
+      const response = await link('set', []);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await links()).toEqual([]);
+      expect(await row('projects', 101)).toEqual({ id: 101, name: 'Owned', tenantId: 'B' });
+      expect(await row('projects', 103)).toEqual({ id: 103, name: 'Hidden', tenantId: 'C' });
+      expect(await app.db.getCollection('projects').model.count()).toBe(3);
+    });
+
+    it.each(['documents', 'projects'])('requires the independent set grant on %s to clear links', async (resource) => {
+      await grantLink('set');
+      await seedLinks([101]);
+      acl.getRole('editor').revokeAction(`${resource}:set`);
+      const response = await link('set', []);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await links()).toEqual([101]);
+    });
+
+    it('does not clear a source that is only visible', async () => {
+      await grantLink('set');
+      await seedLinks([101], 4);
+      const response = await link('set', [], 4);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await links()).toEqual([101]);
+    });
+
+    it('checks target set conditions on every removed link', async () => {
+      await grantLink('set');
+      await grant('projects', 'set', ['id'], { id: 101 });
+      await seedLinks([101, 103]);
+      const response = await link('set', []);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await links()).toEqual([101, 103]);
+    });
+
+    it('rejects an empty body array combined with a query selector', async () => {
+      await grantLink('set');
+      await seedLinks([101]);
+      const response = await supertest(app.callback()).post('/api/documents/3/projects:set?filterByTk=101').send([]);
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await links()).toEqual([101]);
+    });
+
+    it('restores cleared links when a post-delete hook fails', async () => {
+      await grantLink('set');
+      await seedLinks([101, 103]);
+      let observed: unknown;
+      app.db.getCollection('document_projects').model.addHook('afterBulkDestroy', async (options) => {
+        observed = await app.db.getCollection('document_projects').model.count({ transaction: options.transaction });
+        throw new Error('HTTP empty set rollback fixture');
+      });
+      const response = await link('set', []);
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+      expect(observed).toBe(0);
+      expect(await links()).toEqual([101, 103]);
+    });
   });
 
   it('accepts the core array query selector on a concrete set', async () => {

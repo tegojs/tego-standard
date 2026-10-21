@@ -145,7 +145,7 @@ export class AccessReadService {
       }),
     );
     plan.assertCurrent();
-    if (complete && rows.length > plan.limit) invalid('Export exceeds the supported complete-row limit');
+    if (complete && rows.length > plan.limit) invalid('Read exceeds the supported complete-row limit');
     return rows.map((row) => this.project(row, plan.attributes));
   }
 
@@ -201,7 +201,7 @@ export class AccessReadService {
     });
     const rows = await plan.model.findAll(options);
     plan.assertCurrent();
-    if (complete && rows.length > plan.limit) invalid('Export exceeds the supported complete-row limit');
+    if (complete && rows.length > plan.limit) invalid('Read exceeds the supported complete-row limit');
     const count = withCount ? await this.rootCount(plan) : undefined;
     return {
       records: rows.map((row) => ({

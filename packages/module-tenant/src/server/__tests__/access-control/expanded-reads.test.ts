@@ -1,5 +1,6 @@
 import { ACL, type Collection, type Database } from '@tego/server';
 
+import { QueryInstruction } from '../../../../../module-workflow/src/server/instructions/QueryInstruction';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { AccessBelongsToExpansionService } from '../../access-control/belongs-to-expansion';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -166,6 +167,148 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
     entry.listExpanded(ctx, mainIdentity, auth, { attributes: ['name'], expansions, ...extra });
   const get = (key: unknown, extra = {}) =>
     entry.getExpanded(ctx, mainIdentity, auth, { key, attributes: ['name'], expansions, ...extra });
+
+  describe('workflow queries through the shared read service', () => {
+    const actor = { tenantId: 'B', roleName: 'worker' };
+    const run = (params = {}, multiple = true, transaction?) =>
+      new QueryInstruction(
+        {
+          app: { dataSourceManager: { dataSources: new Map([['main', { collectionManager: db }]]) } },
+          useDataSourceTransaction: (_name, transaction) => transaction,
+        } as any,
+        (request) => async () =>
+          entry.workflowFromParams(ctx, mainIdentity, actor, request.query, request.multiple, request.transaction),
+      ).run({ id: 1, config: { collection: 'documents', multiple, params } } as any, null, {
+        getParsedValue: (value) => value,
+        getRepositoryContext: () => ({ state: {} }),
+        transaction,
+      } as any);
+
+    it('uses ownership or visibility, role scope and node filter together', async () => {
+      permissions.set('', { allowed: true, params: { fields: ['name', 'amount'], filter: { amount: { $lte: 40 } } } });
+      const job = await run({ fields: ['name'], filter: { amount: { $gte: 20 } }, sort: [{ field: 'amount' }] });
+      expect(job.result).toEqual([{ name: 'Visible' }, { name: 'Legacy' }]);
+    });
+    it('retains node paging and sorting after isolation', async () => {
+      expect(
+        (await run({ fields: ['name'], page: 2, pageSize: 1, sort: [{ field: 'id', direction: 'desc' }] })).result,
+      ).toEqual([{ name: 'Legacy' }]);
+    });
+    it('queries the first authorized match rather than requiring a detail key', async () => {
+      const job = await run(
+        { fields: ['name'], filter: { amount: { $gte: 20 } }, sort: [{ field: 'amount', direction: 'desc' }] },
+        false,
+      );
+      expect(job.result).toEqual({ name: 'Empty' });
+    });
+    it('returns null when no authorized single match exists', async () => {
+      expect((await run({ fields: ['name'], filter: { name: 'Hidden' } }, false)).result).toBeNull();
+    });
+    it('filters nested single and multiple relations independently without dropping roots', async () => {
+      permissions.set('project', { allowed: true, params: { fields: ['name'] } });
+      permissions.set('children', { allowed: true, params: { fields: ['name'] } });
+      expect(
+        (await run({ fields: ['name'], appends: ['project.name', 'children.name'], filter: { id: { $in: [1, 2] } } }))
+          .result,
+      ).toEqual([
+        { name: 'Owned', project: { name: 'Zebra' }, children: [{ name: 'Child' }] },
+        { name: 'Visible', project: null, children: [{ name: 'Visible' }] },
+      ]);
+    });
+    it('matches only readable relation values and deduplicates many-to-many links', async () => {
+      expect((await run({ fields: ['name'], filter: { 'projects.name': 'Zebra' } })).result).toEqual([
+        { name: 'Owned' },
+      ]);
+      expect((await run({ fields: ['name'], filter: { 'project.name': 'Secret' } })).result).toEqual([]);
+    });
+    it('does not fall back to a bare repository query after permission denial', async () => {
+      permissions.set('', { allowed: false, params: {} });
+      await expect(run({ fields: ['name'] })).rejects.toThrow(/authoriz/);
+    });
+    it('enforces independently supplied target field permission', async () => {
+      permissions.set('project', { allowed: true, params: { fields: ['id'] } });
+      await expect(run({ fields: ['name'], appends: ['project.name'] })).rejects.toThrow(/authoriz/);
+    });
+    it('rejects unsupported tree queries rather than running an unrestricted query', async () => {
+      await expect(entry.workflowFromParams(ctx, mainIdentity, actor, { tree: true }, true)).rejects.toThrow();
+    });
+    it('returns all authorized roots for an unpaginated query', async () => {
+      expect((await run({ fields: ['name'], paginate: false })).result).toEqual([
+        { name: 'Owned' },
+        { name: 'Visible' },
+        { name: 'Legacy' },
+        { name: 'Empty' },
+      ]);
+    });
+    it('rejects complete root overflow before expanding relations', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 997 }, (_, index) => ({ id: 100 + index, tenantId: 'B', name: 'Extra' })),
+      );
+      await expect(run({ fields: ['name'], appends: ['children.name'], paginate: false })).rejects.toThrow(
+        /complete-row/,
+      );
+    });
+    it('accepts exactly the complete-row bound', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 996 }, (_, index) => ({ id: 100 + index, tenantId: 'B', name: 'Extra' })),
+      );
+      expect((await run({ fields: ['name'], paginate: false })).result).toHaveLength(1000);
+    });
+    it('rejects results if the prepared phase ends during the real query', async () => {
+      const original = docs.model.findAll.bind(docs.model);
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+        const rows = await original(options);
+        adapter.release(ctx);
+        return rows;
+      });
+      await expect(run({ fields: ['name'] })).rejects.toThrow(/prepared|phase/);
+    });
+    it('captures the node query and execution identity before permission callbacks', async () => {
+      const params = { fields: ['name'], filter: { name: 'Owned' }, limit: 1 };
+      const source = { ...mainIdentity };
+      const authenticated = { ...actor };
+      resolver.mockImplementationOnce(() => {
+        params.fields[0] = 'amount';
+        params.filter.name = 'Hidden';
+        authenticated.tenantId = 'C';
+        source.collectionName = 'projects';
+        return { allowed: true, params: {} };
+      });
+      expect(await entry.workflowFromParams(ctx, source, authenticated, params, true)).toEqual([{ name: 'Owned' }]);
+    });
+    it('rechecks the original phase after the shared query promise resolves', async () => {
+      const selected = (entry as any).selected.bind(entry);
+      vi.spyOn(entry as any, 'selected').mockImplementation(async (...args) => {
+        const result = await selected(...args);
+        queueMicrotask(() => adapter.release(ctx));
+        return result;
+      });
+      await expect(run({ fields: ['name'] })).rejects.toThrow(/prepared|phase/);
+    });
+    it('uses the node transaction for both root and relation reads', async () => {
+      permissions.set('project', { allowed: true, params: { fields: ['name'] } });
+      const transaction = await db.sequelize.transaction();
+      try {
+        await docs.model.update({ name: 'Draft document' }, { where: { id: 1 }, transaction });
+        await projects.model.update({ name: 'Draft project' }, { where: { id: 101 }, transaction });
+        expect(
+          (await run({ fields: ['name'], appends: ['project.name'], filter: { id: 1 } }, true, transaction)).result,
+        ).toEqual([{ name: 'Draft document', project: { name: 'Draft project' } }]);
+      } finally {
+        await transaction.rollback();
+      }
+      expect((await docs.model.findByPk(1)).get('name')).toBe('Owned');
+    });
+    it('does not claim unassigned historical data when it is only read', async () => {
+      expect((await run({ fields: ['name'], filter: { id: 4 } }, false)).result).toEqual({ name: 'Legacy' });
+      expect((await docs.model.findByPk(4)).get('tenantId')).toBeNull();
+    });
+    it('rejects a same-named collection identity from another data source', async () => {
+      await expect(
+        entry.workflowFromParams(ctx, { ...mainIdentity, dataSourceKey: 'external' }, actor, {}, true),
+      ).rejects.toThrow(/identity|data source|prepared/);
+    });
+  });
 
   describe('nested finalized permission paths', () => {
     it.each([

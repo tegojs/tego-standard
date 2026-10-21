@@ -1,4 +1,5 @@
 import type { AccessSelectedGetRequest, AccessSelectedListRequest } from './entry-reads';
+import { captureAccessFilter } from './filter-input';
 import type { AccessReadRequest, AccessSumRequest } from './reads';
 import { invalid, plain } from './write-support';
 
@@ -100,6 +101,45 @@ export function parseResourceListParams(input: unknown): AccessResourceListReque
   if (limit > 1000 || !Number.isSafeInteger(offset) || offset > 1000000)
     invalid('Resource read pagination exceeds supported limits');
   return { ...selection(params), limit, offset };
+}
+
+/** Workflow nodes have already converted page/pageSize into numeric limit/offset. */
+export function parseWorkflowQueryParams(
+  input: unknown,
+  multiple: unknown,
+): { request: AccessResourceListRequest; complete: boolean } {
+  const allowed = [...selectionKeys, 'filter', 'sort', 'limit', 'offset', 'tree'];
+  if (
+    typeof multiple !== 'boolean' ||
+    !plain(input) ||
+    Reflect.ownKeys(input).some(
+      (key) =>
+        typeof key !== 'string' ||
+        !allowed.includes(key) ||
+        !Object.hasOwn(Object.getOwnPropertyDescriptor(input, key)!, 'value'),
+    )
+  )
+    invalid('Unsupported workflow query params');
+  const params = Object.fromEntries(
+    Reflect.ownKeys(input).map((key) => [key, Object.getOwnPropertyDescriptor(input, key)!.value]),
+  );
+  const { limit, offset = 0, tree, ...rest } = params;
+  if (
+    (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000)) ||
+    typeof offset !== 'number' ||
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    offset > 1000000 ||
+    (multiple && limit === undefined && offset !== 0) ||
+    (tree !== undefined && tree !== false)
+  )
+    invalid('Unsupported workflow query options');
+  const request = parseResourceListParams({ ...rest, pageSize: limit ?? 1000 });
+  if (request.filter !== undefined) request.filter = captureAccessFilter(request.filter);
+  return {
+    request: { ...request, limit: multiple ? request.limit : 1, offset },
+    complete: multiple && limit === undefined,
+  };
 }
 
 /** Internal complete-row export only; file rendering and background batching use dedicated adapters. */

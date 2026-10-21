@@ -18,6 +18,8 @@ import type { AccessQueryService } from './query';
 import { captureReadDateContext, resolveReadDateFilter, type AccessReadDateContext } from './read-date-filter';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from './read-grants';
 import { captureReadKey } from './read-key';
+import { collectRelatedReadPaths } from './read-paths';
+import { captureReadPreparationMetadata } from './read-preparation-metadata';
 import { AccessReadSelectionParser, type AccessAssociationSelection } from './read-selection';
 import {
   AccessReadService,
@@ -39,6 +41,7 @@ import {
   parseResourceGetParams,
   parseResourceListParams,
   parseResourceSumParams,
+  parseWorkflowQueryParams,
 } from './resource-read-params';
 import { resolveResourceReadRoute } from './resource-read-routing';
 import { AccessRoleFilterCompiler } from './role-filter';
@@ -375,6 +378,64 @@ export class AccessEntryReadService {
   ) {
     const request = this.withDates(source, parseResourceListParams(params), dates);
     return this.listSelected(ctx, source, authenticated, { ...request, transaction });
+  }
+
+  /** Internal workflow query bridge. Callers supply the real execution identity and finalized list grants. */
+  async workflowFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    multiple: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    if (!plain(source) || !plain(authenticated)) invalid('Workflow query identity is unavailable');
+    const identity = cloneDeep(source);
+    const actor = cloneDeep(authenticated);
+    const parsed = parseWorkflowQueryParams(params, multiple);
+    const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
+    const { limit: _limit, offset: _offset, ...selection } = parsed.request;
+    const authorization = this.operation('list', ctx, identity, actor);
+    const paths = collectRelatedReadPaths(
+      this.db,
+      this.prepared,
+      this.queries,
+      this.resolveIdentity,
+      {
+        kind: 'list',
+        context: ctx,
+        source: identity,
+        authenticated: actor,
+      },
+      selection,
+      dateContext,
+    );
+    const collection = this.db.getCollection(identity.collectionName);
+    const assertMetadata = captureReadPreparationMetadata(
+      this.db,
+      this.prepared,
+      this.resolveIdentity,
+      ctx,
+      collection,
+      paths,
+    );
+    const request = { ...this.withDates(identity, parsed.request, dateContext), transaction };
+    assertMetadata();
+    const result = await this.selected(
+      ctx,
+      identity,
+      actor,
+      request,
+      'list',
+      false,
+      { authorization },
+      parsed.complete,
+    );
+    // The selected read returns across an await; recheck before exposing its result to the next node.
+    assertMetadata();
+    authorization.assertCurrent();
+    return multiple ? result.rows : (result.rows[0] ?? null);
   }
 
   async listPageFromParams(
@@ -851,8 +912,9 @@ export class AccessEntryReadService {
     withCount = false,
     scope?: {
       authorization: ReturnType<AccessEntryReadService['operation']>;
-      rootConstraint: AccessRootReadConstraintResolver;
+      rootConstraint?: AccessRootReadConstraintResolver;
     },
+    complete = false,
   ): Promise<AccessReadResult> {
     const selectionKeys = ['fields', 'appends', 'except'];
     const allowed = [
@@ -906,7 +968,9 @@ export class AccessEntryReadService {
           authorization.authenticated,
           expanded as AccessExpandedListRequest,
         ] as const;
-        return withCount ? reader.listWithCount(...args) : { rows: await reader.list(...args, kind === 'export') };
+        return withCount
+          ? reader.listWithCount(...args)
+          : { rows: await reader.list(...args, kind === 'export' || complete) };
       }
       const record = await reader.get(
         ctx,
@@ -934,7 +998,7 @@ export class AccessEntryReadService {
           authorization.source,
           authorization.authenticated,
           input as AccessListRequest,
-          kind === 'export',
+          kind === 'export' || complete,
         ),
       };
     }

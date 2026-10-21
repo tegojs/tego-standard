@@ -44,7 +44,7 @@ import { Instruction, InstructionInterface } from './instructions';
 import CalculationInstruction from './instructions/CalculationInstruction';
 import ConditionInstruction from './instructions/ConditionInstruction';
 import CreateInstruction from './instructions/CreateInstruction';
-import DestroyInstruction from './instructions/DestroyInstruction';
+import DestroyInstruction, { type WorkflowDestroyResolver } from './instructions/DestroyInstruction';
 import EndInstruction from './instructions/EndInstruction';
 import QueryInstruction, { type WorkflowQueryResolver } from './instructions/QueryInstruction';
 import SelectInstruction from './instructions/SelectInstruction';
@@ -66,6 +66,8 @@ type CachedEvent = [WorkflowModel, any, { context?: any } & Transactionable];
 export interface WorkflowPluginOptions extends PluginOptions {
   /** Server bootstrap only; selected executors own read authorization and querying. */
   queryResolver?: WorkflowQueryResolver;
+  /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
+  destroyResolver?: WorkflowDestroyResolver;
 }
 
 function extractTenantContext(context: any, options: any = {}) {
@@ -251,7 +253,7 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('end', EndInstruction);
     this.registerInstruction('create', CreateInstruction);
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
-    this.registerInstruction('destroy', DestroyInstruction);
+    this.registerInstruction('destroy', new DestroyInstruction(this, this.options.destroyResolver));
     this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
     this.registerInstruction('select', SelectInstruction);
     this.registerInstruction('update', UpdateInstruction);

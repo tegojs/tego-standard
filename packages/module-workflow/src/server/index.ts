@@ -8,6 +8,11 @@ export { default } from './Plugin';
 export { default as PluginWorkflow } from './Plugin';
 export type { WorkflowPluginOptions } from './Plugin';
 export type {
+  WorkflowDestroyRequest,
+  WorkflowDestroyExecutor,
+  WorkflowDestroyResolver,
+} from './instructions/DestroyInstruction';
+export type {
   WorkflowQueryRequest,
   WorkflowQueryResult,
   WorkflowQueryExecutor,

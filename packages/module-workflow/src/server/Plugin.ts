@@ -46,7 +46,7 @@ import ConditionInstruction from './instructions/ConditionInstruction';
 import CreateInstruction from './instructions/CreateInstruction';
 import DestroyInstruction from './instructions/DestroyInstruction';
 import EndInstruction from './instructions/EndInstruction';
-import QueryInstruction from './instructions/QueryInstruction';
+import QueryInstruction, { type WorkflowQueryResolver } from './instructions/QueryInstruction';
 import SelectInstruction from './instructions/SelectInstruction';
 import UpdateInstruction from './instructions/UpdateInstruction';
 import UpdateOrCreateInstruction from './instructions/UpdateOrCreateInstruction';
@@ -62,6 +62,11 @@ type ID = number | string;
 type Pending = [ExecutionModel, JobModel?, Transactionable?];
 
 type CachedEvent = [WorkflowModel, any, { context?: any } & Transactionable];
+
+export interface WorkflowPluginOptions extends PluginOptions {
+  /** Server bootstrap only; selected executors own read authorization and querying. */
+  queryResolver?: WorkflowQueryResolver;
+}
 
 function extractTenantContext(context: any, options: any = {}) {
   const state = [options.context?.state, options.httpContext?.state].find(
@@ -97,6 +102,7 @@ function extractAuthContext(context: any, options: any = {}) {
   Services: [WorkflowRemoteCodeFetcher],
 })
 export default class PluginWorkflowServer extends Plugin {
+  declare options: WorkflowPluginOptions;
   instructions: Registry<InstructionInterface> = new Registry();
   triggers: Registry<Trigger> = new Registry();
   functions: Registry<CustomFunction> = new Registry();
@@ -111,7 +117,7 @@ export default class PluginWorkflowServer extends Plugin {
   private loggerCache: LRUCache<string, Logger>;
   private meter = null;
 
-  constructor(app: Application, options?: PluginOptions) {
+  constructor(app: Application, options?: WorkflowPluginOptions) {
     super(app, options);
     this.addFeature(PluginSql);
     this.addFeature(PluginRequest);
@@ -246,7 +252,7 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('create', CreateInstruction);
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
     this.registerInstruction('destroy', DestroyInstruction);
-    this.registerInstruction('query', QueryInstruction);
+    this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
     this.registerInstruction('select', SelectInstruction);
     this.registerInstruction('update', UpdateInstruction);
 

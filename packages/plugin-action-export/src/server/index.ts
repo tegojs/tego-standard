@@ -17,6 +17,9 @@ import {
   normalizeExportColumns,
 } from './utils';
 
+export { createExportXlsx, renderExportXlsx } from './actions';
+export type { ExportXlsxExecutor, ExportXlsxResolver, ExportXlsxRenderInput } from './actions';
+
 type ExportTenantContext = {
   currentTenant?: any;
   currentTenantId?: string | number;

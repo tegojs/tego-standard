@@ -1,7 +1,11 @@
+import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
 import { ACL, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
 
+import { createExportXlsx } from '../../../../../plugin-action-export/src/server/actions/export-entry';
+import { renderExportXlsx } from '../../../../../plugin-action-export/src/server/actions/render-xlsx';
+import { normalizeExportColumns } from '../../../../../plugin-action-export/src/server/utils';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
@@ -14,6 +18,11 @@ import { configFor, exampleConfig } from './fixtures';
 
 const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_ENTRY;
 const coreAvailable = coreEntry || 'registerActionParamsResolver' in ACL.prototype;
+const xlsx = createRequire(new URL('../../../../../plugin-action-export/package.json', import.meta.url))(
+  'node-xlsx',
+) as {
+  parse(data: Buffer): Array<{ data: unknown[][] }>;
+};
 
 /** Internal export rows over real HTTP/ACL; no production authentication or XLSX activation. */
 describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
@@ -24,6 +33,8 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
   let unregister: (() => void) | undefined;
   let principal: { tenantId: string; roleName: string; userId: number };
   let beforeRelated: (() => Promise<void>) | undefined;
+  let exportEntry: ReturnType<typeof createExportXlsx> | undefined;
+  let read: (ctx: Context & { permission: unknown }) => Promise<void>;
   const identity = (collection: Collection) => ({
     ...mainIdentity,
     collectionName: collection.name,
@@ -49,6 +60,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
 
   beforeEach(async () => {
     beforeRelated = undefined;
+    exportEntry = undefined;
     app = mockServer({
       acl: false,
       registerActions: true,
@@ -158,34 +170,38 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       { tag: 'access-export-preparation', after: 'auth' },
     );
     app.resourcer.use(acl.middleware(), { tag: 'access-export-acl', after: 'access-export-preparation' });
+    read = async (resourceContext: Context & { permission: unknown }) => {
+      const decisions: Array<Context & { permission: unknown }> = [];
+      try {
+        await reader.handleResourceWithRelatedContexts(
+          resourceContext,
+          resourceContext.state.accessTestActor,
+          async (collection) => {
+            await beforeRelated?.();
+            const resourcer = new Resourcer();
+            resourcer.define({ name: collection.name, actions: { list: {} } });
+            const target = resourcer.getAction(collection.name, 'list').clone();
+            Object.assign(target, { resourceName: collection.name, actionName: 'list' });
+            target.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
+            const ctx = Object.assign(Object.create(resourceContext), { action: target, permission: undefined });
+            decisions.push(ctx);
+            await adapter.prepare(ctx, identities());
+            await acl.middleware()(ctx, async () => {});
+            return ctx;
+          },
+        );
+      } finally {
+        for (const decision of decisions) adapter.release(decision);
+      }
+    };
     app.resourcer.define({
       name: 'documents',
       actions: Object.fromEntries(
         ['list', 'export'].map((action) => [
           action,
-          async (resourceContext: Context & { permission: unknown }) => {
-            const decisions: Array<Context & { permission: unknown }> = [];
-            try {
-              await reader.handleResourceWithRelatedContexts(
-                resourceContext,
-                resourceContext.state.accessTestActor,
-                async (collection) => {
-                  await beforeRelated?.();
-                  const resourcer = new Resourcer();
-                  resourcer.define({ name: collection.name, actions: { list: {} } });
-                  const target = resourcer.getAction(collection.name, 'list').clone();
-                  Object.assign(target, { resourceName: collection.name, actionName: 'list' });
-                  target.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
-                  const ctx = Object.assign(Object.create(resourceContext), { action: target, permission: undefined });
-                  decisions.push(ctx);
-                  await adapter.prepare(ctx, identities());
-                  await acl.middleware()(ctx, async () => {});
-                  return ctx;
-                },
-              );
-            } finally {
-              for (const decision of decisions) adapter.release(decision);
-            }
+          async (ctx: Context & { permission: unknown }, next) => {
+            if (action === 'export' && exportEntry) await exportEntry(ctx, next);
+            else await read(ctx);
           },
         ]),
       ),
@@ -203,6 +219,171 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       .agent()
       .resource('documents')
       .export({ fields: ['id'], sort: ['id'], ...params });
+
+  /** Test-only caller adaptation: file options stay outside the finalized read request. */
+  async function scopedFile(ctx: Context & { permission: unknown }) {
+    const permission = ctx.permission as { rawParams: Record<string, unknown> };
+    const { columns, title, ...params } = permission.rawParams;
+    const readContext = Object.create(ctx, {
+      permission: { value: { ...permission, rawParams: params }, writable: true },
+      body: { value: undefined, writable: true },
+    });
+    const normalized = normalizeExportColumns(columns);
+    await adapter.prepare(readContext, identities());
+    try {
+      await read(readContext);
+    } finally {
+      adapter.release(readContext);
+    }
+    const collection = ctx.db.getCollection('documents');
+    await renderExportXlsx(ctx, {
+      collection,
+      columns: normalized,
+      data: readContext.body.map((row: Record<string, unknown>) =>
+        collection.model.build(row, {
+          raw: true,
+          isNewRecord: false,
+          include: [{ association: collection.model.associations.participants }],
+        }),
+      ),
+      title: title as string,
+      tenantId: ctx.state.accessTestActor.tenantId,
+    });
+  }
+
+  function fileRequest(params: Record<string, unknown> = {}) {
+    const { fields = ['id'], sort = ['id'], columns = ['id'], filter, ...rest } = params;
+    return supertest(app.callback())
+      .get('/api/documents:export')
+      .query({
+        title: 'Scoped export',
+        ...rest,
+        'fields[]': fields,
+        'sort[]': sort,
+        columns: JSON.stringify(columns),
+        ...(filter === undefined ? {} : { filter: JSON.stringify(filter) }),
+      })
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on('end', () => done(null, Buffer.concat(chunks)));
+        response.on('error', done);
+      });
+  }
+
+  describe('optional XLSX entry', () => {
+    it('renders only scoped rows through the real exporter and keeps download headers', async () => {
+      exportEntry = createExportXlsx(() => scopedFile);
+      acl.getRole('reader').revokeAction('documents:list');
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('application/octet-stream');
+      expect(response.headers['content-disposition']).toContain('Scoped%20export_B.xlsx');
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+    });
+
+    it('uses independently readable association rows in the Excel cells', async () => {
+      exportEntry = createExportXlsx(() => scopedFile);
+      const response = await fileRequest({
+        fields: ['id', 'participants.id'],
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'id'],
+        [1, '1,2'],
+        [3, ''],
+      ]);
+    });
+
+    it('keeps the existing exporter when the server explicitly leaves the request unhandled', async () => {
+      exportEntry = createExportXlsx(() => undefined);
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [3], [4], [5], [6]]);
+    });
+
+    it.each(['documents:export', 'participants:list'])(
+      'does not publish a file without the independent permission %s',
+      async (permission) => {
+        exportEntry = createExportXlsx(() => scopedFile);
+        acl.getRole('reader').revokeAction(permission);
+        const response = await fileRequest({
+          fields: ['id', 'participants.id'],
+          columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+        });
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('rejects overflow before rendering instead of falling back to a worker or old query', async () => {
+      exportEntry = createExportXlsx(() => scopedFile);
+      await app.db
+        .getCollection('documents')
+        .model.bulkCreate(
+          Array.from({ length: 999 }, (_, index) => ({ id: 100 + index, tenantId: 'B', name: 'Owned', amount: 1 })),
+        );
+      const response = await fileRequest();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not run the old query when a selected executor produces no response', async () => {
+      exportEntry = createExportXlsx(() => async () => {});
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+      expect(JSON.parse(response.body.toString())).toEqual({});
+    });
+
+    it.each(['selection', 'execution'])('propagates %s failures without publishing an old file', async (phase) => {
+      exportEntry = createExportXlsx(() => {
+        if (phase === 'selection') throw new Error('Export selection failed');
+        return async () => {
+          throw new Error('Export execution failed');
+        };
+      });
+      const response = await fileRequest();
+      expect(response.status).toBe(500);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it.each([null, {}, Promise.resolve(undefined), Promise.resolve(scopedFile)])(
+      'rejects invalid or asynchronous selection without falling back: %j',
+      async (selected) => {
+        exportEntry = createExportXlsx((() => selected) as unknown as Parameters<typeof createExportXlsx>[0]);
+        const response = await fileRequest();
+        expect(response.status).toBe(500);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('consumes an asynchronous selection rejection without falling back or masking its error', async () => {
+      exportEntry = createExportXlsx((async () => {
+        throw new Error('Async export selection failed');
+      }) as unknown as Parameters<typeof createExportXlsx>[0]);
+      const response = await fileRequest();
+      expect(response.status).toBe(500);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it.each(['selection', 'execution', 'async selection'])(
+      'preserves the original %s error at the execution boundary',
+      async (phase) => {
+        const error = new Error('Export failed');
+        const handler = createExportXlsx((() => {
+          if (phase === 'selection') throw error;
+          if (phase === 'async selection') return Promise.reject(error);
+          return async () => {
+            throw error;
+          };
+        }) as Parameters<typeof createExportXlsx>[0]);
+        await expect(handler({} as Context, async () => {})).rejects.toBe(error);
+      },
+    );
+  });
 
   it('exports all owned or visible roots once using export permission rather than list scope', async () => {
     const list = await app

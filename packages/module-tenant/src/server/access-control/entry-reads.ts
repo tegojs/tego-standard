@@ -390,6 +390,21 @@ export class AccessEntryReadService {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
+    const result = await this.workflowReadFromParams(ctx, source, authenticated, params, multiple, transaction, dates);
+    result.assertCurrent();
+    return result.value;
+  }
+
+  /** Retain the original authorization checks across a caller's final response/execution await. */
+  async workflowReadFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    multiple: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
     if (!plain(source) || !plain(authenticated)) invalid('Workflow query identity is unavailable');
     const identity = cloneDeep(source);
     const actor = cloneDeep(authenticated);
@@ -433,9 +448,12 @@ export class AccessEntryReadService {
       parsed.complete,
     );
     // The selected read returns across an await; recheck before exposing its result to the next node.
-    assertMetadata();
-    authorization.assertCurrent();
-    return multiple ? result.rows : (result.rows[0] ?? null);
+    const assertCurrent = () => {
+      assertMetadata();
+      authorization.assertCurrent();
+    };
+    assertCurrent();
+    return { value: multiple ? result.rows : (result.rows[0] ?? null), assertCurrent };
   }
 
   async listPageFromParams(

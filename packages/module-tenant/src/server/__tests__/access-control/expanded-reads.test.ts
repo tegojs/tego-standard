@@ -10,6 +10,7 @@ import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessEntryReadPermission } from '../../access-control/read-grants';
 import { AccessTargetForeignKeyExpansionService } from '../../access-control/target-foreign-key-expansion';
+import { AccessWorkflowQueryHandler } from '../../access-control/workflow-query-handler';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -177,7 +178,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
           useDataSourceTransaction: (_name, transaction) => transaction,
         } as any,
         (request) => async () =>
-          entry.workflowFromParams(ctx, mainIdentity, actor, request.query, request.multiple, request.transaction),
+          new AccessWorkflowQueryHandler(db, entry, identity).handle({ ...request, context: ctx }, actor),
       ).run({ id: 1, config: { collection: 'documents', multiple, params } } as any, null, {
         getParsedValue: (value) => value,
         getRepositoryContext: () => ({ state: {} }),
@@ -307,6 +308,80 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
       await expect(
         entry.workflowFromParams(ctx, { ...mainIdentity, dataSourceKey: 'external' }, actor, {}, true),
       ).rejects.toThrow(/identity|data source|prepared/);
+    });
+
+    const request = () => ({
+      dataSourceName: 'main',
+      collectionName: docs.name,
+      collection: docs,
+      multiple: true,
+      query: { fields: ['name'] },
+      context: ctx,
+    });
+    it.each([
+      { dataSourceName: 'external' },
+      { collectionName: 'projects' },
+      { collection: undefined },
+      { context: null },
+    ])('rejects a query bound to a different runtime target %j', async (change) => {
+      await expect(
+        new AccessWorkflowQueryHandler(db, entry, identity).handle({ ...request(), ...change } as any, actor),
+      ).rejects.toThrow(/workflow|identity|context/i);
+    });
+    it('does not accept a same-named collection object from a different database', async () => {
+      const other = sqliteDatabase();
+      try {
+        const impostor = other.collection({ name: docs.name });
+        await expect(
+          new AccessWorkflowQueryHandler(db, entry, identity).handle({ ...request(), collection: impostor }, actor),
+        ).rejects.toThrow(/workflow|identity/i);
+      } finally {
+        await other.close();
+      }
+    });
+    it('captures query and actor before collection identity callbacks', async () => {
+      const input = { ...request(), query: { fields: ['name'], filter: { name: 'Owned' } } };
+      const principal = { ...actor };
+      const resolve = (collection: Collection) => {
+        input.query.filter.name = 'Hidden';
+        principal.tenantId = 'C';
+        return identity(collection);
+      };
+      expect(await new AccessWorkflowQueryHandler(db, entry, resolve).handle(input, principal)).toEqual([
+        { name: 'Owned' },
+      ]);
+    });
+    it('rejects request accessors without evaluating their getter', async () => {
+      const input = Object.defineProperty(request(), 'collection', {
+        get() {
+          throw new Error('Getter must not execute');
+        },
+      });
+      await expect(new AccessWorkflowQueryHandler(db, entry, identity).handle(input, actor)).rejects.toThrow(
+        /accessors/,
+      );
+    });
+    it('rechecks the runtime target after the unified service resolves', async () => {
+      const read = entry.workflowReadFromParams.bind(entry);
+      vi.spyOn(entry, 'workflowReadFromParams').mockImplementation(async (...args) => {
+        const result = await read(...args);
+        queueMicrotask(() => db.collections.delete(docs.name));
+        return result;
+      });
+      await expect(new AccessWorkflowQueryHandler(db, entry, identity).handle(request(), actor)).rejects.toThrow(
+        /workflow|identity/i,
+      );
+    });
+    it('rejects results when the prepared phase ends as the unified service returns', async () => {
+      const read = entry.workflowReadFromParams.bind(entry);
+      vi.spyOn(entry, 'workflowReadFromParams').mockImplementation(async (...args) => {
+        const result = await read(...args);
+        queueMicrotask(() => adapter.release(ctx));
+        return result;
+      });
+      await expect(new AccessWorkflowQueryHandler(db, entry, identity).handle(request(), actor)).rejects.toThrow(
+        /prepared|phase/,
+      );
     });
   });
 

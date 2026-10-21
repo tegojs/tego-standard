@@ -206,7 +206,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
           ]),
         ),
       });
-    for (const relation of ['project', 'projects'])
+    for (const relation of ['project', 'projects', 'children', 'profile'])
       for (const action of ['get', 'list', 'count'])
         app.resourcer.registerActionHandler(`documents.${relation}:${action}`, (ctx) =>
           execute(ctx as Context & { permission: unknown }, 'read'),
@@ -762,6 +762,235 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
           { userId: 28 },
         );
       }
+    });
+
+    describe('target foreign-key reads', () => {
+      const read = (relation: string, action: string, source: number | string = 3, query: object = {}) =>
+        supertest(app.callback()).get(`/api/documents/${source}/${relation}:${action}`).query(query);
+
+      beforeEach(async () => {
+        await grant('documents', 'view', ['id', 'name', 'children', 'profile']);
+        for (const name of ['children', 'profiles']) {
+          await grant(name, 'view', ['id', 'name']);
+          await app.db.getCollection(name).model.update({ documentId: null }, { where: { id: 205 } });
+        }
+        await app.db.getCollection('children').model.update({ documentId: 3 }, { where: { id: [201, 202, 203] } });
+        await app.db.getCollection('profiles').model.update({ documentId: 3 }, { where: { id: 202 } });
+        await app.db.getCollection('profiles').model.update({ documentId: 4 }, { where: { id: 203 } });
+      });
+
+      it('expands readable children and profiles without losing roots with hidden references', async () => {
+        const response = await app
+          .agent()
+          .resource('documents')
+          .list({ fields: ['id', 'children.id', 'profile.id'], sort: ['id'] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+          data: [
+            { id: 3, children: [{ id: 201 }, { id: 202 }], profile: { id: 202 } },
+            { id: 4, children: [], profile: null },
+          ],
+          meta: { count: 2, page: 1, pageSize: 20, totalPage: 1 },
+        });
+      });
+
+      it('filters concrete children lists by target visibility', async () => {
+        const response = await read('children', 'list', 3, { 'fields[]': ['id'], sort: 'id' });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+          data: [{ id: 201 }, { id: 202 }],
+          meta: { count: 2, page: 1, pageSize: 20, totalPage: 1 },
+        });
+      });
+
+      it.each([3, 4])('gets the readable profile of source %s', async (source) => {
+        const response = await read('profile', 'get', source, { 'fields[]': ['id'] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: source === 3 ? { id: 202 } : null });
+      });
+
+      it.each([
+        ['children', { id: 202 }],
+        ['profile', { id: 202 }],
+      ] as const)('reads a visible-only linked target through %s without claiming it', async (relation, expected) => {
+        const response = await read(relation, 'get', 3, { filterByTk: 202, 'fields[]': ['id'] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: expected });
+        expect(await row(relation === 'children' ? 'children' : 'profiles', 202)).toEqual({
+          id: 202,
+          name: 'Visible',
+          tenantId: 'H',
+          documentId: 3,
+        });
+      });
+
+      it('does not reveal a hidden or unlinked target through children:get', async () => {
+        for (const filterByTk of [203, 205]) {
+          const response = await read('children', 'get', 3, { filterByTk, 'fields[]': ['id'] });
+          expect(response.status).toBe(200);
+          expect(response.body).toEqual({ data: null });
+        }
+      });
+
+      it('locates the single profile by its source rather than a supplied target key', async () => {
+        const response = await read('profile', 'get', 3, { filterByTk: 205, 'fields[]': ['id'] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { id: 202 } });
+      });
+
+      it.each(['children', 'profile'])(
+        'requires the source association field for concrete %s reads',
+        async (relation) => {
+          await grant('documents', 'view', ['id', 'name']);
+          const response = await read(relation, 'get', 3, { filterByTk: 202, 'fields[]': ['id'] });
+          expect(response.status).toBe(400);
+          expect(response.body).not.toHaveProperty('data');
+        },
+      );
+
+      it.each(['children', 'profile'])(
+        'requires the independent source action for concrete %s reads',
+        async (relation) => {
+          acl.getRole('editor').revokeAction('documents:view');
+          const response = await read(relation, 'get', 3, { filterByTk: 202, 'fields[]': ['id'] });
+          expect(response.status).toBe(403);
+          expect(response.body).not.toHaveProperty('data');
+        },
+      );
+
+      it.each(['children', 'profile'])('retains source role conditions for concrete %s reads', async (relation) => {
+        await grant('documents', 'view', ['id', relation], { id: 4 });
+        const response = await read(relation, 'get', 3, { filterByTk: 202, 'fields[]': ['id'] });
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+      });
+
+      it.each(['children', 'profile'])('rejects concrete %s reads from a hidden source', async (relation) => {
+        await app.db.getCollection('documents').model.update({ name: 'Hidden', tenantId: 'C' }, { where: { id: 3 } });
+        const response = await read(relation, 'get', 3, { filterByTk: 202, 'fields[]': ['id'] });
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+      });
+
+      it.each([
+        ['children', 'children'],
+        ['profile', 'profiles'],
+      ] as const)('reads %s from a visible-only source', async (relation, target) => {
+        await app.db.getCollection(target).model.update({ documentId: null }, { where: { id: 203 } });
+        await app.db.getCollection(target).model.update({ documentId: 4 }, { where: { id: 201 } });
+        const response = await read(relation, 'get', 4, { filterByTk: 201, 'fields[]': ['id'] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { id: 201 } });
+        expect(await row('documents', 4)).toEqual({ id: 4, name: 'Visible', tenantId: 'H', projectId: null });
+      });
+
+      it.each([
+        ['children', 'children'],
+        ['profile', 'profiles'],
+      ] as const)('keeps target field restrictions on %s expansion', async (relation, target) => {
+        await grant(target, 'view', ['id']);
+        const response = await app
+          .agent()
+          .resource('documents')
+          .get({ filterByTk: 3, fields: ['id', `${relation}.name`] });
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+      });
+
+      it.each([
+        ['children', 'children'],
+        ['profile', 'profiles'],
+      ] as const)('keeps independent target role conditions on %s reads', async (relation, target) => {
+        await grant(target, 'view', ['id', 'name'], { id: 201 });
+        const response = await read(relation, 'get', 3, { filterByTk: 202, 'fields[]': ['id'] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: null });
+        const placeholder = await read(relation, 'get', '_', { filterByTk: 202, 'fields[]': ['id'] });
+        expect(placeholder.status).toBe(200);
+        expect(placeholder.body).toEqual({ data: null });
+      });
+
+      it.each(['children', 'profile'])(
+        'reads /_/ %s without source permission while filtering target visibility',
+        async (relation) => {
+          acl.getRole('editor').revokeAction('documents:view');
+          const detail = await read(relation, 'get', '_', { filterByTk: 202, 'fields[]': ['id'] });
+          expect(detail.status).toBe(200);
+          expect(detail.body).toEqual({ data: { id: 202 } });
+          const list = await read(relation, 'list', '_', { 'fields[]': ['id'], sort: 'id' });
+          expect(list.status).toBe(200);
+          expect(list.body).toEqual({
+            data: [{ id: 201 }, { id: 202 }, { id: 205 }],
+            meta: { count: 3, page: 1, pageSize: 20, totalPage: 1 },
+          });
+        },
+      );
+
+      it.each([
+        ['children', 'children'],
+        ['profile', 'profiles'],
+      ] as const)('requires the target action on both concrete and /_/ %s reads', async (relation, target) => {
+        acl.getRole('editor').revokeAction(`${target}:view`);
+        for (const source of [3, '_']) {
+          const response = await read(relation, 'get', source, { filterByTk: 202, 'fields[]': ['id'] });
+          expect(response.status).toBe(403);
+          expect(response.body).not.toHaveProperty('data');
+        }
+      });
+
+      it.each(['children', 'profile'])('uses readable %s for root filtering and count', async (relation) => {
+        for (const [name, expected] of [
+          ['Visible', [{ id: 3 }]],
+          ['Hidden', []],
+        ] as const) {
+          const filter = { [relation]: { name } };
+          const list = await app
+            .agent()
+            .resource('documents')
+            .list({ fields: ['id'], filter });
+          const count = await app.agent().resource('documents').count({ filter });
+          expect(list.status).toBe(200);
+          expect(list.body.data).toEqual(expected);
+          expect(list.body.meta.count).toBe(expected.length);
+          expect(count.status).toBe(200);
+          expect(count.body).toEqual({ data: expected.length });
+        }
+      });
+
+      it('counts only readable targets on concrete children requests', async () => {
+        const response = await read('children', 'count');
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: 2 });
+      });
+
+      it('rejects unsupported concrete single-profile count requests', async () => {
+        const response = await read('profile', 'count');
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+      });
+
+      it('applies concrete children filters and pagination before counting returned pages', async () => {
+        const visible = await read('children', 'list', 3, {
+          'fields[]': ['id'],
+          filter: JSON.stringify({ name: 'Visible' }),
+        });
+        expect(visible.status).toBe(200);
+        expect(visible.body.data).toEqual([{ id: 202 }]);
+        expect(visible.body.meta.count).toBe(1);
+        const secondPage = await read('children', 'list', 3, { 'fields[]': ['id'], sort: 'id', pageSize: 1, page: 2 });
+        expect(secondPage.status).toBe(200);
+        expect(secondPage.body).toEqual({
+          data: [{ id: 202 }],
+          meta: { count: 2, page: 2, pageSize: 1, totalPage: 2 },
+        });
+      });
+
+      it('returns null for a genuinely absent profile', async () => {
+        await app.db.getCollection('profiles').model.update({ documentId: null }, { where: { id: 202 } });
+        const response = await read('profile', 'get', 3, { 'fields[]': ['id'] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: null });
+      });
     });
 
     const selected = async (target: string, source = 3) =>

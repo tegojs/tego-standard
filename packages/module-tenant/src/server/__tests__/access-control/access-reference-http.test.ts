@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { mockServer, type MockServer } from '@tachybase/test';
+import { mockServer, supertest, type MockServer } from '@tachybase/test';
 import { ACL, Resourcer, type Collection, type Context } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
@@ -152,41 +152,46 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
           ]),
         ),
       });
-    app.resourcer.registerActionHandler('documents:update', async (resourceContext) => {
-      const ctx = resourceContext as Context & { permission: unknown };
+    const mutate = async (ctx: Context & { permission: unknown }) => {
       if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
       const related: AccessRootReadContext[] = [];
+      const authorize = async (collection: Collection, actionName: 'list' | 'add' | 'remove' | 'set') => {
+        // A separate neutral root decision, using the same persisted role grants and ACL middleware.
+        // Never forward the original request's fields, filter, key or values to this decision.
+        const resourcer = new Resourcer();
+        resourcer.define({ name: collection.name, actions: { [actionName]: {} } });
+        const action = resourcer.getAction(collection.name, actionName).clone();
+        Object.assign(action, { resourceName: collection.name, actionName });
+        action.mergeParams({ resourceName: collection.name, actionName, filterByTk: undefined });
+        const decision = {
+          db,
+          action,
+          permission: undefined as unknown,
+          state: ctx.state,
+          get: ctx.get.bind(ctx),
+          logger: ctx.logger,
+          throw: ctx.throw.bind(ctx),
+        };
+        related.push(decision);
+        await adapter.prepare(decision, identities());
+        await acl.middleware()(decision as never, async () => {});
+        return decision;
+      };
       try {
         await writer.handle(ctx, actor, {
-          read: async (collection) => {
-            // A separate neutral list decision, using the same persisted role grants and ACL middleware.
-            // Never forward the source request's fields, filter, key or values to the target decision.
-            const resourcer = new Resourcer();
-            resourcer.define({ name: collection.name, actions: { list: {} } });
-            const action = resourcer.getAction(collection.name, 'list').clone();
-            Object.assign(action, { resourceName: collection.name, actionName: 'list' });
-            action.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
-            const decision = {
-              db,
-              action,
-              permission: undefined as unknown,
-              state: ctx.state,
-              get: ctx.get.bind(ctx),
-              logger: ctx.logger,
-              throw: ctx.throw.bind(ctx),
-            };
-            related.push(decision);
-            await adapter.prepare(decision, identities());
-            await acl.middleware()(decision as never, async () => {});
-            return decision;
-          },
+          read: (collection) => authorize(collection, 'list'),
           update: async () => null,
-          source: async () => null,
+          source: authorize,
         });
       } finally {
         for (const decision of related) adapter.release(decision);
       }
-    });
+    };
+    for (const path of [
+      'documents:update',
+      ...['add', 'remove', 'set'].map((operation) => `documents.projects:${operation}`),
+    ])
+      app.resourcer.registerActionHandler(path, (ctx) => mutate(ctx as Context & { permission: unknown }));
   });
 
   afterEach(async () => {
@@ -199,7 +204,12 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     }
   });
 
-  async function grant(resourceName: string, name: 'view' | 'update', fields: string[], filter?: object) {
+  async function grant(
+    resourceName: string,
+    name: 'view' | 'update' | 'add' | 'remove' | 'set',
+    fields: string[],
+    filter?: object,
+  ) {
     const db = app.db;
     const scopeId = filter
       ? (
@@ -226,6 +236,192 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       Number(record.get('projectId')),
     );
   const update = (values: object, id = 3) => app.agent().resource('documents').update({ filterByTk: id, values });
+  async function grantLink(operation: 'add' | 'remove' | 'set') {
+    acl.setAvailableAction(operation, {});
+    await grant('documents', operation, ['projects']);
+    await grant('projects', operation, ['id']);
+  }
+  const link = (operation: 'add' | 'remove' | 'set', values: number[], source: string | number = 3) =>
+    supertest(app.callback()).post(`/api/documents/${source}/projects:${operation}`).send(values);
+  const seedLinks = (ids: number[], source = 3) =>
+    app.db
+      .getCollection('document_projects')
+      .model.bulkCreate(ids.map((projectId) => ({ documentId: source, projectId })));
+
+  it.each([
+    { operation: 'add', before: [], after: [102] },
+    { operation: 'remove', before: [101, 102], after: [101] },
+    { operation: 'set', before: [101], after: [102] },
+  ] as const)(
+    'handles the concrete $operation route without changing the target',
+    async ({ operation, before, after }) => {
+      await grantLink(operation);
+      await seedLinks([...before]);
+      const response = await link(operation, [102]);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await links()).toEqual(after);
+      expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+    },
+  );
+
+  it.each(['add', 'remove', 'set'] as const)(
+    'denies concrete %s on a source that is only visible',
+    async (operation) => {
+      await grantLink(operation);
+      await seedLinks([101], 4);
+      const response = await link(operation, [operation === 'remove' ? 101 : 102], 4);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await links()).toEqual([101]);
+      expect(await row('documents', 4)).toEqual({ id: 4, name: 'Visible', tenantId: 'H', projectId: null });
+    },
+  );
+
+  it.each([
+    ['add', 'documents'],
+    ['remove', 'documents'],
+    ['set', 'documents'],
+    ['add', 'projects'],
+    ['remove', 'projects'],
+    ['set', 'projects'],
+  ] as const)('requires the concrete %s grant on %s independently', async (operation, resource) => {
+    await grantLink(operation);
+    await seedLinks([101]);
+    acl.getRole('editor').revokeAction(`${resource}:${operation}`);
+    const response = await link(operation, [operation === 'remove' ? 101 : 102]);
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([101]);
+  });
+
+  it('retains the independent source action filter on concrete additions', async () => {
+    await grantLink('add');
+    await grant('documents', 'add', ['projects'], { name: 'Other' });
+    const response = await link('add', [102]);
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([]);
+  });
+
+  it.each(['remove', 'set'] as const)('checks target action conditions on links removed by %s', async (operation) => {
+    await grantLink(operation);
+    await grant('projects', operation, ['id'], { id: 102 });
+    await seedLinks([101]);
+    const response = await link(operation, [operation === 'remove' ? 101 : 102]);
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([101]);
+  });
+
+  it('retains the target list scope when adding a visible reference', async () => {
+    await grantLink('add');
+    await grant('projects', 'view', ['id'], { id: 101 });
+    const response = await link('add', [102]);
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([]);
+  });
+
+  it.each(['add', 'set'] as const)('rejects hidden additions in concrete %s', async (operation) => {
+    await grantLink(operation);
+    await seedLinks([101]);
+    const response = await link(operation, [102, 103]);
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([101]);
+  });
+
+  it('removes an unreadable old target without requiring list permission or changing it', async () => {
+    await grantLink('remove');
+    await seedLinks([103]);
+    acl.getRole('editor').revokeAction('projects:view');
+    const response = await supertest(app.callback()).post('/api/documents/3/projects:remove?filterByTk=103');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await links()).toEqual([]);
+    expect(await row('projects', 103)).toEqual({ id: 103, name: 'Hidden', tenantId: 'C' });
+  });
+
+  it('preserves an unchanged unreadable link without requiring list permission', async () => {
+    await grantLink('add');
+    await seedLinks([103]);
+    acl.getRole('editor').revokeAction('projects:view');
+    const response = await link('add', [103]);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [], affected: 0 } });
+    expect(await links()).toEqual([103]);
+    expect(await row('projects', 103)).toEqual({ id: 103, name: 'Hidden', tenantId: 'C' });
+  });
+
+  it.each([undefined, []])('does not clear links when core omits the target selector: %j', async (body) => {
+    await grantLink('set');
+    await seedLinks([101, 103]);
+    acl.getRole('editor').revokeAction('projects:view');
+    // Core currently omits an empty JSON array from action params, just like an absent body.
+    // Keep this fail-closed until the owning transport preserves an explicit empty selector.
+    const request = supertest(app.callback()).post('/api/documents/3/projects:set');
+    const response = await (body === undefined ? request : request.send(body));
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([101, 103]);
+    expect(await app.db.getCollection('projects').model.count()).toBe(3);
+  });
+
+  it('accepts the core array query selector on a concrete set', async () => {
+    await grantLink('set');
+    const response = await supertest(app.callback()).post(
+      '/api/documents/3/projects:set?filterByTks[]=101&filterByTks[]=102',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await links()).toEqual([101, 102]);
+  });
+
+  it('rejects competing body and query selectors without changing links', async () => {
+    await grantLink('set');
+    await seedLinks([101]);
+    const response = await supertest(app.callback()).post('/api/documents/3/projects:set?filterByTk=101').send([102]);
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([101]);
+  });
+
+  it('does not treat the read placeholder as a writable concrete source', async () => {
+    await grantLink('add');
+    const response = await link('add', [102], '_');
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([]);
+  });
+
+  it.each(['documents', 'projects'])('requires concrete action field permissions on %s', async (resource) => {
+    await grantLink('add');
+    await grant(resource, 'add', ['name']);
+    const response = await link('add', [102]);
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await links()).toEqual([]);
+  });
+
+  it('rolls back removals and insertions when a concrete set hook fails', async () => {
+    await grantLink('set');
+    await seedLinks([101]);
+    let observed: unknown;
+    app.db.getCollection('document_projects').model.addHook('afterBulkCreate', async (_records, options) => {
+      observed = (
+        await app.db.getCollection('document_projects').model.findAll({ transaction: options.transaction })
+      ).map((record) => Number(record.get('projectId')));
+      throw new Error('HTTP concrete set rollback fixture');
+    });
+    const response = await link('set', [102]);
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+    expect(observed).toEqual([102]);
+    expect(await links()).toEqual([101]);
+    expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+  });
 
   it('links a visible-only target without claiming or changing that target', async () => {
     const visible = await app.agent().resource('projects').get({ filterByTk: 102 });

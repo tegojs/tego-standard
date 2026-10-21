@@ -16,6 +16,7 @@ import {
   captureAssociationReadContext,
   capturePlaceholderReadContext,
   captureRelatedReadPermission,
+  captureRootExportReadContext,
   captureRootReadContext,
   type AccessRootReadContext,
 } from './root-read-context';
@@ -234,6 +235,36 @@ export class AccessRootReadHandler {
     const preparation = await this.prepareRelated(ctx, captured, authorize);
     preparation.assertCurrent();
     await this.execute(ctx, captured, preparation.related, transaction, preparation.assertCurrent);
+  }
+
+  /** Return authorized file inputs without cloning the prepared context or publishing an intermediate response. */
+  async readExportWithRelatedContexts(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    authorize: AccessRelatedReadAuthorizer,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const { captured, columns, title } = captureRootExportReadContext(this.db, ctx, authenticated, dates);
+    const preparation = await this.prepareRelated(ctx, captured, authorize);
+    preparation.assertCurrent();
+    const data = await this.reader(captured, preparation.related).fromResource(
+      ctx,
+      captured.identity,
+      captured.action,
+      captured.params,
+      transaction,
+      captured.dateContext,
+    );
+    preparation.assertCurrent();
+    if (!Array.isArray(data)) invalid('File exports require a complete row result');
+    return {
+      collection: this.db.getCollection(captured.action.resourceName),
+      data: data as Record<string, unknown>[],
+      columns,
+      title,
+      tenantId: captured.identity.tenantId,
+    };
   }
 
   /** Charts require a neutral finalized collection list decision, not the chart resource decision. */

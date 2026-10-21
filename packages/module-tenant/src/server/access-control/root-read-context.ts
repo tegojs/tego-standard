@@ -1,3 +1,4 @@
+import { captureExportXlsxRequest } from '@tachybase/plugin-action-export';
 import type { Collection, Database } from '@tego/server';
 
 import type { AccessCollectionIdentity } from './config-store';
@@ -116,14 +117,39 @@ function captureReadContext(
   association?: { source: string; relation: string; index: string | number },
   single = false,
 ) {
+  const authorization = captureReadAuthorization(ctx, authenticated, action);
+  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association, single);
+  const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
+  return { action, ...authorization, params, dateContext };
+}
+
+function captureReadAuthorization(
+  ctx: AccessRootReadContext,
+  authenticated: AccessIdentity,
+  action: { resourceName: string; actionName: string },
+) {
   if (!plain(authenticated)) invalid('Root read authenticated identity is unavailable');
   const identity = Object.freeze(cloneDeep<AccessIdentity>(authenticated));
   const roleName = identity.roleName;
   if (typeof roleName !== 'string') invalid('Root reads require an authenticated role');
   const permission = captureFinalReadPermission(ctx.permission, { ...action, roleName });
-  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association, single);
+  return { identity, roleName, permission };
+}
+
+/** File presentation is captured separately; authorization still belongs to this original request phase. */
+export function captureRootExportReadContext(
+  db: Database,
+  ctx: AccessRootReadContext,
+  authenticated: AccessIdentity,
+  dates?: AccessReadDateContext,
+) {
+  const action = captureAction(ctx, db);
+  if (action.actionName !== 'export') invalid('File exports require a root export action');
+  const authorization = captureReadAuthorization(ctx, authenticated, action);
+  const file = captureExportXlsxRequest(data(ctx.permission as object, 'rawParams'));
+  const params = captureParams({ rawParams: file.params }, action.resourceName, 'export');
   const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
-  return { action, identity, roleName, permission, params, dateContext };
+  return { captured: { action, ...authorization, params, dateContext }, columns: file.columns, title: file.title };
 }
 
 /** Core /_/ resolves a target repository, not a concrete source record. */

@@ -8,12 +8,12 @@ import {
   createExportXlsx,
   type ExportXlsxResolver,
 } from '../../../../../plugin-action-export/src/server/actions/export-entry';
-import { captureExportXlsxRequest } from '../../../../../plugin-action-export/src/server/actions/export-request';
 import { renderExportXlsx } from '../../../../../plugin-action-export/src/server/actions/render-xlsx';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
+import type { AccessRelatedReadAuthorizer } from '../../access-control/related-read-contexts';
 import { AccessRootReadHandler } from '../../access-control/root-read-handler';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
@@ -37,8 +37,12 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
   let unregister: (() => void) | undefined;
   let principal: { tenantId: string; roleName: string; userId: number };
   let beforeRelated: (() => Promise<void>) | undefined;
+  let beforeFileRead: ((ctx: Context & { permission: unknown }) => Promise<void>) | undefined;
   let exportEntry: ReturnType<typeof createExportXlsx> | undefined;
   let read: (ctx: Context & { permission: unknown }) => Promise<void>;
+  let readFile: (
+    ctx: Context & { permission: unknown },
+  ) => ReturnType<AccessRootReadHandler['readExportWithRelatedContexts']>;
   const identity = (collection: Collection) => ({
     ...mainIdentity,
     collectionName: collection.name,
@@ -64,6 +68,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
 
   beforeEach(async () => {
     beforeRelated = undefined;
+    beforeFileRead = undefined;
     exportEntry = undefined;
     app = mockServer({
       acl: false,
@@ -174,30 +179,35 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       { tag: 'access-export-preparation', after: 'auth' },
     );
     app.resourcer.use(acl.middleware(), { tag: 'access-export-acl', after: 'access-export-preparation' });
-    read = async (resourceContext: Context & { permission: unknown }) => {
+    const withRelated = async <T>(
+      resourceContext: Context & { permission: unknown },
+      execute: (authorize: AccessRelatedReadAuthorizer) => Promise<T>,
+    ) => {
       const decisions: Array<Context & { permission: unknown }> = [];
       try {
-        await reader.handleResourceWithRelatedContexts(
-          resourceContext,
-          resourceContext.state.accessTestActor,
-          async (collection) => {
-            await beforeRelated?.();
-            const resourcer = new Resourcer();
-            resourcer.define({ name: collection.name, actions: { list: {} } });
-            const target = resourcer.getAction(collection.name, 'list').clone();
-            Object.assign(target, { resourceName: collection.name, actionName: 'list' });
-            target.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
-            const ctx = Object.assign(Object.create(resourceContext), { action: target, permission: undefined });
-            decisions.push(ctx);
-            await adapter.prepare(ctx, identities());
-            await acl.middleware()(ctx, async () => {});
-            return ctx;
-          },
-        );
+        return await execute(async (collection) => {
+          await beforeRelated?.();
+          const resourcer = new Resourcer();
+          resourcer.define({ name: collection.name, actions: { list: {} } });
+          const target = resourcer.getAction(collection.name, 'list').clone();
+          Object.assign(target, { resourceName: collection.name, actionName: 'list' });
+          target.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
+          const ctx = Object.assign(Object.create(resourceContext), { action: target, permission: undefined });
+          decisions.push(ctx);
+          await adapter.prepare(ctx, identities());
+          await acl.middleware()(ctx, async () => {});
+          return ctx;
+        });
       } finally {
         for (const decision of decisions) adapter.release(decision);
       }
     };
+    read = (ctx) =>
+      withRelated(ctx, (authorize) =>
+        reader.handleResourceWithRelatedContexts(ctx, ctx.state.accessTestActor, authorize),
+      );
+    readFile = (ctx) =>
+      withRelated(ctx, (authorize) => reader.readExportWithRelatedContexts(ctx, ctx.state.accessTestActor, authorize));
     app.resourcer.define({
       name: 'documents',
       actions: Object.fromEntries(
@@ -224,25 +234,14 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       .resource('documents')
       .export({ fields: ['id'], sort: ['id'], ...params });
 
-  /** Test-only caller adaptation: file options stay outside the finalized read request. */
+  /** Only model reconstruction and rendering remain caller-owned in this test fixture. */
   async function scopedFile(ctx: Context & { permission: unknown }) {
-    const permission = ctx.permission as { rawParams: Record<string, unknown> };
-    const { columns, title, params } = captureExportXlsxRequest(permission.rawParams);
-    const readContext = Object.create(ctx, {
-      permission: { value: { ...permission, rawParams: params }, writable: true },
-      body: { value: undefined, writable: true },
-    });
-    await adapter.prepare(readContext, identities());
-    try {
-      await read(readContext);
-    } finally {
-      adapter.release(readContext);
-    }
-    const collection = ctx.db.getCollection('documents');
+    await beforeFileRead?.(ctx);
+    const { collection, data, columns, title, tenantId } = await readFile(ctx);
     await renderExportXlsx(ctx, {
       collection,
       columns,
-      data: readContext.body.map((row: Record<string, unknown>) =>
+      data: data.map((row) =>
         collection.model.build(row, {
           raw: true,
           isNewRecord: false,
@@ -250,7 +249,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
         }),
       ),
       title,
-      tenantId: ctx.state.accessTestActor.tenantId,
+      tenantId,
     });
   }
 
@@ -311,6 +310,77 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
         ['编号', '参与方'],
         [1, '1,2'],
       ]);
+    });
+
+    it('uses the original prepared rule snapshot and loads changed rules only on the next request', async () => {
+      beforeFileRead = async () => {
+        beforeFileRead = undefined;
+        const config = (await store.read(mainIdentity))!;
+        await store.save(mainIdentity, { ...config, rules: [] }, { userId: 28 });
+      };
+      const response = await pageFileRequest({ columns: ['id'] });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+      const next = await pageFileRequest({ columns: ['id'] });
+      expect(next.status).toBe(200);
+      expect(xlsx.parse(next.body)[0].data).toEqual([['id']]);
+    });
+
+    it('cannot resurrect a request whose prepared phase has already ended', async () => {
+      beforeFileRead = async (ctx) => adapter.release(ctx);
+      const response = await pageFileRequest({ columns: ['id'] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not publish a file after the original phase ends during related authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => adapter.release(ctx);
+      };
+      const response = await pageFileRequest({ columns: [{ dataIndex: ['participants', 'id'] }] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('captures file options, final permission and filename tenant before related authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => {
+          const permission = ctx.permission as {
+            rawParams: { title: string; values: { columns: Array<{ dataIndex: string[] }> } };
+            parsedParams: { filter: unknown };
+          };
+          permission.rawParams.title = 'Changed title';
+          permission.rawParams.values.columns[0].dataIndex[0] = 'amount';
+          permission.parsedParams.filter = { id: 4 };
+          ctx.state.accessTestActor.tenantId = 'C';
+        };
+      };
+      const response = await pageFileRequest({
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'id'],
+        [1, '1,2'],
+        [3, ''],
+      ]);
+    });
+
+    it('returns authorized rows without writing an intermediate HTTP body', async () => {
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          const originalBody = ctx.body;
+          const result = await readFile(ctx);
+          ctx.body = { unchanged: ctx.body === originalBody, rows: result.data, tenant: result.tenantId };
+        },
+      });
+      const response = await pageFileRequest({ columns: ['id'] });
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.toString())).toEqual({
+        data: [{ id: 1 }, { id: 3 }],
+        meta: { unchanged: true, tenant: 'B' },
+      });
     });
 
     it('does not export a forbidden column merely because fields only requests a permitted one', async () => {

@@ -344,7 +344,9 @@ export class AccessEntryReadService {
         ? this.listAssociationPageFromParams(...args)
         : route.actionName === 'get'
           ? this.getAssociationFromParams(...args)
-          : this.countAssociationFromParams(...args));
+          : route.actionName === 'export'
+            ? this.exportAssociationFromParams(...args)
+            : this.countAssociationFromParams(...args));
       route.assertCurrent();
       return result;
     }
@@ -402,6 +404,39 @@ export class AccessEntryReadService {
   ) {
     const request = this.withDates(source, parseResourceExportParams(params), dates);
     const result = await this.selected(ctx, source, authenticated, { ...request, transaction }, 'export');
+    return result.rows;
+  }
+
+  /** Complete target export within a separately authorized concrete source relation. */
+  async exportAssociationFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    descriptor: unknown,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const { request, authorization, scope } = this.associationSelection(
+      'export',
+      ctx,
+      source,
+      authenticated,
+      descriptor,
+      () => parseResourceExportParams(params),
+      transaction,
+      dates,
+    );
+    const result = await this.selected(
+      ctx,
+      authorization.source,
+      authorization.authenticated,
+      request,
+      'export',
+      false,
+      scope,
+    );
+    authorization.assertCurrent();
     return result.rows;
   }
 
@@ -591,7 +626,7 @@ export class AccessEntryReadService {
   }
 
   private associationSelection<T extends { filter?: unknown; key?: string | number }>(
-    kind: 'list' | 'get' | 'count' | 'sum' | 'aggregate',
+    kind: 'list' | 'get' | 'count' | 'sum' | 'aggregate' | 'export',
     ctx: object,
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,

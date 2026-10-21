@@ -70,6 +70,15 @@ export class AccessRootReadHandler {
     }
     // Capture target input and identity before awaiting the independent source decision.
     const plan = captureAssociationReadContext(this.db, this.resolveIdentity, ctx, authenticated, dates);
+    const { source, preparation } = await this.prepareAssociationSource(ctx, plan, authorize);
+    await this.executeCapturedAssociation(ctx, source, plan, transaction, authorize, preparation);
+  }
+
+  private async prepareAssociationSource(
+    ctx: AccessRootReadContext,
+    plan: ReturnType<typeof captureAssociationReadContext>,
+    authorize: AccessRelatedReadAuthorizer,
+  ) {
     if (!plan.captured.permission.allowed) invalid('Association target read is not authorized');
     const preparation = captureAssociationReadPreparation(
       this.db,
@@ -88,7 +97,7 @@ export class AccessRootReadHandler {
     const source = captureRootReadContext(this.db, sourceContext, plan.captured.identity, plan.captured.dateContext);
     if (source.action.actionName !== 'list' || Reflect.ownKeys(source.params).length || !source.permission.allowed)
       invalid('Association reads require a neutral authorized source list context');
-    await this.executeCapturedAssociation(ctx, source, plan, transaction, authorize, preparation);
+    return { source, preparation };
   }
 
   /** Concrete sources and targets retain separate finalized ACL decisions and G/V scopes. */
@@ -131,6 +140,27 @@ export class AccessRootReadHandler {
   }
 
   private async executeCapturedAssociation(
+    ctx: AccessRootReadContext,
+    source: ReturnType<typeof captureRootReadContext>,
+    plan: ReturnType<typeof captureAssociationReadContext>,
+    transaction?: Transaction,
+    authorize?: AccessRelatedReadAuthorizer,
+    capturedPreparation?: ReturnType<typeof captureAssociationReadPreparation>,
+  ) {
+    const { body, assertCurrent } = await this.readCapturedAssociation(
+      ctx,
+      source,
+      plan,
+      transaction,
+      authorize,
+      capturedPreparation,
+    );
+    assertCurrent();
+    ctx.body = body;
+    if (plan.action.actionName === 'list') ctx.paginate = true;
+  }
+
+  private async readCapturedAssociation(
     ctx: AccessRootReadContext,
     source: ReturnType<typeof captureRootReadContext>,
     plan: ReturnType<typeof captureAssociationReadContext>,
@@ -200,8 +230,7 @@ export class AccessRootReadHandler {
       captured.dateContext,
     );
     assertReady();
-    ctx.body = body;
-    if (plan.action.actionName === 'list') ctx.paginate = true;
+    return { body, assertCurrent: assertReady };
   }
 
   /** Association placeholders retain target ACL constraints and reuse the direct read pipeline. */
@@ -246,13 +275,27 @@ export class AccessRootReadHandler {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
-    const { captured, columns, title, assertCurrent } = captureExportReadContext(
+    const { captured, columns, title, assertCurrent, association } = captureExportReadContext(
       this.db,
       this.resolveIdentity,
       ctx,
       authenticated,
       dates,
     );
+    if (association) {
+      const { source, preparation } = await this.prepareAssociationSource(ctx, association, authorize);
+      const result = await this.readCapturedAssociation(ctx, source, association, transaction, authorize, preparation);
+      result.assertCurrent();
+      if (!Array.isArray(result.body)) invalid('File exports require a complete row result');
+      return {
+        collection: association.targetCollection,
+        data: result.body as Record<string, unknown>[],
+        columns,
+        title,
+        tenantId: captured.identity.tenantId,
+        assertCurrent: result.assertCurrent,
+      };
+    }
     const preparation = await this.prepareRelated(ctx, captured, authorize, captured.params, undefined, assertCurrent);
     preparation.assertCurrent();
     const data = await this.reader(captured, preparation.related).fromResource(

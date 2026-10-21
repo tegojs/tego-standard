@@ -148,18 +148,34 @@ export function captureExportReadContext(
     ctx.action && typeof ctx.action === 'object' && data(ctx.action, 'sourceId') === '_'
       ? capturePlaceholderAction(db, ctx, ['export'])
       : undefined;
-  const action = placeholder?.action ?? captureAction(ctx, db);
+  const concrete =
+    !placeholder &&
+    ctx.action &&
+    typeof ctx.action === 'object' &&
+    typeof data(ctx.action, 'resourceName') === 'string' &&
+    (data(ctx.action, 'resourceName') as string).includes('.')
+      ? captureAssociationAction(db, ctx, ['export'])
+      : undefined;
+  const action = placeholder?.action ?? concrete?.targetAction ?? captureAction(ctx, db);
   if (action.actionName !== 'export') invalid('File exports require an export action');
   const authorization = captureReadAuthorization(ctx, authenticated, action);
   const file = captureExportXlsxRequest(data(ctx.permission as object, 'rawParams'));
-  const params = captureParams({ rawParams: file.params }, action.resourceName, 'export', placeholder?.association);
+  const params = captureParams(
+    { rawParams: file.params },
+    action.resourceName,
+    'export',
+    placeholder?.association ?? concrete?.association,
+  );
   const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
+  const captured = { action, ...authorization, params, dateContext };
+  const association = concrete && captureAssociationRoute(db, resolveIdentity, concrete, captured);
   const assertCurrent = placeholder && capturePlaceholderRoute(db, resolveIdentity, placeholder);
   return {
-    captured: { action, ...authorization, params, dateContext },
+    captured,
     columns: file.columns,
     title: file.title,
     assertCurrent,
+    association,
   };
 }
 
@@ -226,6 +242,16 @@ export function captureAssociationReadContext(
   authenticated: AccessIdentity,
   dates?: AccessReadDateContext,
 ) {
+  const descriptor = captureAssociationAction(db, ctx, ['get', 'list', 'count']);
+  const captured = captureReadContext(ctx, authenticated, descriptor.targetAction, dates, descriptor.association, true);
+  return captureAssociationRoute(db, resolveIdentity, descriptor, captured);
+}
+
+function captureAssociationAction(
+  db: Database,
+  ctx: AccessRootReadContext,
+  actions: readonly ('get' | 'list' | 'count' | 'export')[],
+) {
   if (ctx.db !== db || !ctx.action || typeof ctx.action !== 'object')
     invalid('Association read does not match the resource database');
   const resourceName = data(ctx.action, 'resourceName');
@@ -237,7 +263,7 @@ export function captureAssociationReadContext(
     resourceName.length > 511 ||
     resourceName.split('.').length !== 2 ||
     typeof actionName !== 'string' ||
-    !['get', 'list', 'count'].includes(actionName) ||
+    !actions.includes(actionName as 'get' | 'list' | 'count' | 'export') ||
     sourceId === '_' ||
     !(
       (typeof sourceId === 'string' && sourceId.length > 0 && sourceId.length <= 512) ||
@@ -245,20 +271,31 @@ export function captureAssociationReadContext(
     ) ||
     (resourceOf !== undefined && resourceOf !== sourceId)
   )
-    invalid('Association reads require a concrete source and a get/list/count action');
+    invalid('Association reads require a concrete source and a supported action');
   if (!plain(ctx.permission)) invalid('Association target permission is unavailable');
   const targetName = data(ctx.permission, 'resourceName');
   if (typeof targetName !== 'string') invalid('Association reads require a target collection decision');
   const [source, relation] = resourceName.split('.');
-  const captured = captureReadContext(
-    ctx,
-    authenticated,
-    { resourceName: targetName, actionName: actionName as 'get' | 'list' | 'count' },
-    dates,
-    { source, relation, index: sourceId },
-    true,
-  );
   const action = { resourceName, actionName, sourceId };
+  return {
+    action,
+    targetAction: { resourceName: targetName, actionName: actionName as 'get' | 'list' | 'count' | 'export' },
+    association: { source, relation, index: sourceId },
+  };
+}
+
+function captureAssociationRoute(
+  db: Database,
+  resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+  descriptor: ReturnType<typeof captureAssociationAction>,
+  captured: ReturnType<typeof captureReadContext>,
+) {
+  const {
+    action,
+    association: { source, relation },
+    targetAction: { resourceName: targetName },
+  } = descriptor;
+  const { resourceName, actionName } = action;
   const route = resolveResourceReadRoute(db, resolveIdentity, action);
   const target = resolveResourceReadRoute(db, resolveIdentity, { resourceName, actionName: 'get', sourceId: '_' });
   if (route.kind !== 'association' || target.identity.collectionName !== targetName)

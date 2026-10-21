@@ -88,7 +88,7 @@ export async function prepareAssociationReadContexts(
     paths,
     async (collection, path, op) => {
       assertCurrent();
-      // This node already has its final get/list/count decision; execution never uses a substitute list grant.
+      // This node already has its final action decision; execution never uses a substitute list grant.
       if (path.length === 1) {
         if (path[0] !== relation || collection !== targetCollection) invalid('Association permission target changed');
         return null;

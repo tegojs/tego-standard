@@ -10,6 +10,7 @@ import {
 } from '../../../../../plugin-action-export/src/server/actions/export-entry';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessRelatedReadAuthorizer } from '../../access-control/related-read-contexts';
@@ -43,12 +44,14 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
     ctx: Context & { permission: unknown },
   ) => ReturnType<AccessRootReadHandler['readExportWithRelatedContexts']>;
   let exportFile: (ctx: Context & { permission: unknown }) => Promise<void>;
+  let extraCollections: string[];
   const identity = (collection: Collection) => ({
     ...mainIdentity,
     collectionName: collection.name,
     collectionKey: `${collection.name}-key`,
   });
-  const identities = () => ['documents', 'participants'].map((name) => identity(app.db.getCollection(name)));
+  const identities = () =>
+    ['documents', 'participants', ...extraCollections].map((name) => identity(app.db.getCollection(name)));
 
   async function grant(resource: string, action: string, fields: string[], filter: object = {}) {
     const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
@@ -70,6 +73,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
     beforeRelated = undefined;
     beforeFileRead = undefined;
     exportEntry = undefined;
+    extraCollections = [];
     app = mockServer({
       acl: false,
       registerActions: true,
@@ -732,7 +736,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       expect(response.headers).not.toHaveProperty('content-disposition');
     });
 
-    it('does not treat a concrete association export as a direct target export', async () => {
+    it('does not treat a concrete association export without source authorization as a direct target export', async () => {
       const response = await pageFileRequest({ columns: ['id'] }, {}, '/api/documents/1/participants:export');
       expect(response.status).toBe(400);
       expect(response.headers).not.toHaveProperty('content-disposition');
@@ -765,6 +769,326 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       const response = await request();
       expect(response.status).toBe(400);
       expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+  });
+
+  describe('concrete association file exports', () => {
+    const request = (
+      source = 1,
+      body: Record<string, unknown> = { columns: ['id'] },
+      query: Record<string, unknown> = {},
+    ) => pageFileRequest(body, query, `/api/documents/${source}/participants:export`);
+
+    beforeEach(async () => {
+      app.resourcer.define({ name: 'documents.participants', actions: { export: {} } });
+      await grant('documents', 'list', ['id', 'participants']);
+      await grant('participants', 'export', ['id', 'businessTenant', 'canView']);
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+    });
+
+    it('exports only linked visible targets without borrowing source export or target list permission', async () => {
+      acl.getRole('reader').revokeAction('documents:export');
+      acl.getRole('reader').revokeAction('participants:list');
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2]]);
+    });
+
+    it('preserves an empty relation instead of exporting every visible target', async () => {
+      const response = await request(3);
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id']]);
+    });
+
+    it('intersects the target export role filter with the request and the source relation', async () => {
+      await grant('participants', 'export', ['id', 'canView'], { id: { $in: [2, 4] } });
+      const response = await request(1, { columns: ['id'] }, { filter: JSON.stringify({ canView: true }) });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [2]]);
+    });
+
+    it.each([2, 4, 6, 999])(
+      'rejects an inaccessible or missing source %s even when targets are readable',
+      async (source) => {
+        const response = await request(source);
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it.each(['documents:list', 'participants:export'])('requires the independent %s action', async (action) => {
+      acl.getRole('reader').revokeAction(action);
+      const response = await request();
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('requires the source association field even when source rows are visible', async () => {
+      await grant('documents', 'list', ['id']);
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('retains source role row restrictions independently of target export permission', async () => {
+      await grant('documents', 'list', ['id', 'participants'], { id: 3 });
+      const response = await request();
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('rejects target columns outside the final export field permission', async () => {
+      await grant('participants', 'export', ['id']);
+      const response = await request(1, { columns: ['businessTenant'] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('keeps source, actor, columns and target permission captured before asynchronous source authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => {
+          beforeRelated = undefined;
+          Object.assign(ctx.action, { sourceId: '_', resourceName: 'documents.other' });
+          const permission = ctx.permission as {
+            rawParams: { values: { columns: string[] }; title: string };
+            parsedParams: { filter: unknown };
+          };
+          permission.rawParams.values.columns[0] = 'businessTenant';
+          permission.rawParams.title = 'Changed';
+          permission.parsedParams.filter = { id: 4 };
+          ctx.state.accessTestActor.tenantId = 'C';
+        };
+      };
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2]]);
+    });
+
+    it('does not publish a file when the original phase ends during source authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => adapter.release(ctx);
+      };
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('rechecks the source relation after asynchronous formatting', async () => {
+      const formatting = await duringNameFormatting(
+        async () => {
+          const associations = app.db.getCollection('documents').model.associations;
+          const relation = associations.participants;
+          associations.participants = Object.assign(Object.create(Object.getPrototypeOf(relation)), relation);
+        },
+        'participants',
+        'businessTenant',
+      );
+      try {
+        const response = await request(1, { columns: ['id', 'businessTenant'] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('does not publish a file when the original phase ends during nested authorization', async () => {
+      app.db
+        .getCollection('participants')
+        .setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+      await grant('participants', 'export', ['id', 'document']);
+      await grant('documents', 'list', ['id', 'name', 'participants']);
+      beforeFileRead = async (ctx) => {
+        let decisions = 0;
+        beforeRelated = async () => {
+          if (++decisions === 2) adapter.release(ctx);
+        };
+      };
+      const response = await request(1, { columns: ['id', { dataIndex: ['document', 'name'] }] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('returns association export rows without writing an intermediate response', async () => {
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          const originalBody = ctx.body;
+          const result = await readFile(ctx);
+          ctx.body = { unchanged: ctx.body === originalBody, rows: result.data };
+        },
+      });
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.toString())).toEqual({ data: [{ id: 1 }, { id: 2 }], meta: { unchanged: true } });
+    });
+
+    it('rejects mismatched concrete transport metadata', async () => {
+      beforeFileRead = async (ctx) => {
+        (ctx.permission as { rawParams: Record<string, unknown> }).rawParams.associatedIndex = '_';
+      };
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it.each(['hasOne', 'belongsTo'])(
+      'does not expand concrete %s exports into a target collection export',
+      async (type) => {
+        app.db
+          .getCollection('documents')
+          .setField('singleParticipant', { type, target: 'participants', foreignKey: 'documentId' });
+        app.resourcer.define({ name: 'documents.singleParticipant', actions: { export: {} } });
+        const response = await pageFileRequest({ columns: ['id'] }, {}, '/api/documents/1/singleParticipant:export');
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it.each(['list', 'get', 'count'])(
+      'preserves ordinary concrete association %s after sharing preparation',
+      async (action) => {
+        acl.setAvailableAction(action, {});
+        await grant('participants', action, ['id']);
+        app.resourcer.define({ name: 'documents.participants', actions: { [action]: read } });
+        const response = await supertest(app.callback())
+          .get(`/api/documents/1/participants:${action}`)
+          .query(
+            action === 'count'
+              ? {}
+              : { 'fields[]': ['id'], ...(action === 'get' ? { filterByTk: 1 } : { sort: 'id' }) },
+          );
+        expect(response.status).toBe(200);
+        expect(response.body.data).toEqual(
+          action === 'count' ? 2 : action === 'get' ? { id: 1 } : [{ id: 1 }, { id: 2 }],
+        );
+        if (action === 'list') expect(response.body.meta.count).toBe(2);
+      },
+    );
+
+    it('rechecks ordinary association authorization immediately before publishing after the shared async read', async () => {
+      app.resourcer.define({ name: 'documents.participants', actions: { list: read } });
+      const fromResource = AccessEntryReadService.prototype.fromResource;
+      // Keep the actual query; end the original phase between helper completion and response publication.
+      const query = vi.spyOn(AccessEntryReadService.prototype, 'fromResource').mockImplementationOnce(async function (
+        ...args
+      ) {
+        const result = await fromResource.apply(this, args);
+        queueMicrotask(() => queueMicrotask(() => adapter.release(args[0])));
+        return result;
+      });
+      try {
+        const response = await supertest(app.callback())
+          .get('/api/documents/1/participants:list')
+          .query({ 'fields[]': ['id'] });
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+      } finally {
+        query.mockRestore();
+      }
+    });
+
+    it('authorizes nested target expansion independently while preserving the concrete connection set', async () => {
+      app.db
+        .getCollection('participants')
+        .setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+      await grant('participants', 'export', ['id', 'document']);
+      await grant('documents', 'list', ['id', 'name', 'participants']);
+      const response = await request(1, { columns: ['id', { dataIndex: ['document', 'name'] }] });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'name'],
+        [1, 'D1'],
+        [2, 'D1'],
+      ]);
+    });
+
+    it('refuses complete exports over the bound without returning a truncated file', async () => {
+      await app.db
+        .getCollection('participants')
+        .model.bulkCreate(
+          Array.from({ length: 998 }, (_, index) => ({ id: 100 + index, documentId: 1, canView: true })),
+        );
+      const complete = await request();
+      expect(complete.status).toBe(200);
+      expect(xlsx.parse(complete.body)[0].data).toHaveLength(1001);
+      await app.db.getCollection('participants').model.create({ id: 1098, documentId: 1, canView: true });
+      const overflow = await request();
+      expect(overflow.status).toBe(400);
+      expect(overflow.headers).not.toHaveProperty('content-disposition');
+    });
+
+    describe('many-to-many connections', () => {
+      const members = () => pageFileRequest({ columns: ['id'] }, {}, '/api/documents/1/members:export');
+      beforeEach(async () => {
+        const links = app.db.collection({
+          name: 'memberships',
+          timestamps: false,
+          fields: [
+            { name: 'id', type: 'integer', primaryKey: true },
+            { name: 'documentId', type: 'integer' },
+            { name: 'participantId', type: 'integer' },
+            { name: 'canView', type: 'boolean' },
+          ],
+        });
+        app.db.getCollection('documents').setField('members', {
+          type: 'belongsToMany',
+          target: 'participants',
+          through: 'memberships',
+          foreignKey: 'documentId',
+          otherKey: 'participantId',
+          constraints: false,
+          throughUnique: false,
+        });
+        await links.model.sync();
+        await links.model.bulkCreate([
+          { id: 1, documentId: 1, participantId: 1, canView: true },
+          { id: 2, documentId: 1, participantId: 1, canView: true },
+          { id: 3, documentId: 1, participantId: 2, canView: false },
+          { id: 4, documentId: 1, participantId: 3, canView: true },
+          { id: 5, documentId: 3, participantId: 4, canView: true },
+        ]);
+        extraCollections.push('memberships');
+        const key = identity(links);
+        await app.db.getRepository('collections').create({ values: { key: key.collectionKey, name: links.name } });
+        await store.save(
+          key,
+          {
+            ...configFor({
+              type: 'compare',
+              operator: 'eq',
+              left: { type: 'field', path: 'canView' },
+              right: { type: 'literal', value: true },
+            }),
+            revision: 0,
+            ownership: { enabled: false },
+          },
+          { userId: 28 },
+        );
+        await grant('memberships', 'list', []);
+        await grant('documents', 'list', ['id', 'participants', 'members']);
+        app.resourcer.define({ name: 'documents.members', actions: { export: {} } });
+      });
+
+      it('requires independently visible targets and connections, deduplicating repeated links', async () => {
+        const response = await members();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1]]);
+      });
+
+      it('does not use target export permission as through list permission', async () => {
+        acl.getRole('reader').revokeAction('memberships:list');
+        const response = await members();
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      });
+
+      it('retains independent through role filters', async () => {
+        await grant('memberships', 'list', [], { participantId: 2 });
+        const response = await members();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id']]);
+      });
     });
   });
 

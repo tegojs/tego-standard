@@ -11,6 +11,9 @@ export type {
   WorkflowDestroyRequest,
   WorkflowDestroyExecutor,
   WorkflowDestroyResolver,
+  WorkflowDestroyTransactionRequest,
+  WorkflowDestroyTransactionOptions,
+  WorkflowDestroyTransactionOptionsResolver,
 } from './instructions/DestroyInstruction';
 export type {
   WorkflowQueryRequest,

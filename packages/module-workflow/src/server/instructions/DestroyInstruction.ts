@@ -1,4 +1,6 @@
-import { parseCollectionName, type ICollection, type Transaction } from '@tego/server';
+import { parseCollectionName, Transaction, type ICollection } from '@tego/server';
+
+import type { TransactionOptions } from 'sequelize';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
@@ -24,6 +26,29 @@ export type WorkflowDestroyExecutor = (request: WorkflowDestroyRequest) => Promi
 /** Server-only synchronous selection; the executor owns authorization, deletion and post-write checks. */
 export type WorkflowDestroyResolver = (request: WorkflowDestroyRequest) => WorkflowDestroyExecutor | undefined;
 
+export type WorkflowDestroyTransactionRequest = Omit<WorkflowDestroyRequest, 'transaction'>;
+export type WorkflowDestroyTransactionOptions = Pick<TransactionOptions, 'type' | 'isolationLevel'>;
+/** Server-only synchronous planning, before creating a node-owned transaction; does not authorize deletion. */
+export type WorkflowDestroyTransactionOptionsResolver = (
+  request: WorkflowDestroyTransactionRequest,
+) => WorkflowDestroyTransactionOptions | undefined;
+
+function captureTransactionOptions(input: object): WorkflowDestroyTransactionOptions {
+  const result: WorkflowDestroyTransactionOptions = {};
+  for (const key of Reflect.ownKeys(input)) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, key)!;
+    if (!['type', 'isolationLevel'].includes(key as string) || !Object.hasOwn(descriptor, 'value'))
+      throw new TypeError('Invalid destroy transaction options');
+    const value: unknown = descriptor.value;
+    const allowed = key === 'type' ? Object.values(Transaction.TYPES) : Object.values(Transaction.ISOLATION_LEVELS);
+    if (value !== undefined && !allowed.some((option) => option === value))
+      throw new TypeError('Invalid destroy transaction options');
+    if (key === 'type') result.type = value as TransactionOptions['type'];
+    else result.isolationLevel = value as TransactionOptions['isolationLevel'];
+  }
+  return result;
+}
+
 /**
  * Runs the destroy instruction workflow instruction.
  */
@@ -31,10 +56,14 @@ export class DestroyInstruction extends Instruction {
   constructor(
     workflow: Plugin,
     private readonly resolve?: WorkflowDestroyResolver,
+    private readonly transactionOptions?: WorkflowDestroyTransactionOptionsResolver,
   ) {
     super(workflow);
     if (resolve !== undefined && typeof resolve !== 'function') {
       throw new TypeError('Destroy resolver must be a function');
+    }
+    if (transactionOptions !== undefined && typeof transactionOptions !== 'function') {
+      throw new TypeError('Destroy transaction options must be a function');
     }
   }
 
@@ -58,10 +87,36 @@ export class DestroyInstruction extends Instruction {
       },
       stack: Array.from(new Set([...(baseRepositoryContext.stack || []), ...(optionContext.stack || [])])),
     };
+    const processorTransaction = processor.transaction;
+    let transactionOptions: WorkflowDestroyTransactionOptions | undefined;
+    // Existing transactions belong to the caller and cannot be planned, replaced or upgraded here.
+    if (this.transactionOptions && !this.workflow.useDataSourceTransaction(dataSourceName, processorTransaction)) {
+      const planned = this.transactionOptions(
+        Object.freeze({
+          dataSourceName,
+          collectionName,
+          collection: targetCollection,
+          params: options,
+          context: baseRepositoryContext,
+        }),
+      );
+      if (planned !== undefined) {
+        if (
+          !planned ||
+          typeof planned !== 'object' ||
+          ![Object.prototype, null].includes(Object.getPrototypeOf(planned))
+        ) {
+          // Consume accidental asynchronous planners; they never become fallback or implicit default options.
+          await planned;
+          throw new TypeError('Invalid destroy transaction options');
+        }
+        transactionOptions = captureTransactionOptions(planned);
+      }
+    }
     const result = await withWorkflowDataSourceTransaction(
       this.workflow,
       dataSourceName,
-      processor.transaction,
+      processorTransaction,
       async (transaction) => {
         const request: WorkflowDestroyRequest = Object.freeze({
           dataSourceName,
@@ -107,6 +162,7 @@ export class DestroyInstruction extends Instruction {
         }
         return destroyed;
       },
+      transactionOptions,
     );
 
     return {

@@ -45,7 +45,10 @@ import { Instruction, InstructionInterface } from './instructions';
 import CalculationInstruction from './instructions/CalculationInstruction';
 import ConditionInstruction from './instructions/ConditionInstruction';
 import CreateInstruction from './instructions/CreateInstruction';
-import DestroyInstruction, { type WorkflowDestroyResolver } from './instructions/DestroyInstruction';
+import DestroyInstruction, {
+  type WorkflowDestroyResolver,
+  type WorkflowDestroyTransactionOptionsResolver,
+} from './instructions/DestroyInstruction';
 import EndInstruction from './instructions/EndInstruction';
 import QueryInstruction, { type WorkflowQueryResolver } from './instructions/QueryInstruction';
 import SelectInstruction from './instructions/SelectInstruction';
@@ -69,6 +72,8 @@ export interface WorkflowPluginOptions extends PluginOptions {
   queryResolver?: WorkflowQueryResolver;
   /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
   destroyResolver?: WorkflowDestroyResolver;
+  /** Server bootstrap only; plans new delete-node transaction settings without granting delete access. */
+  destroyTransactionOptions?: WorkflowDestroyTransactionOptionsResolver;
 }
 
 function extractTenantContext(context: any, options: any = {}) {
@@ -254,7 +259,10 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('end', EndInstruction);
     this.registerInstruction('create', CreateInstruction);
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
-    this.registerInstruction('destroy', new DestroyInstruction(this, this.options.destroyResolver));
+    this.registerInstruction(
+      'destroy',
+      new DestroyInstruction(this, this.options.destroyResolver, this.options.destroyTransactionOptions),
+    );
     this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
     this.registerInstruction('select', SelectInstruction);
     this.registerInstruction('update', UpdateInstruction);

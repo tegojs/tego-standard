@@ -15,7 +15,7 @@ import { AccessQueryService } from '../../access-control/query';
 import { AccessWorkflowDestroyHandler } from '../../access-control/workflow-destroy-handler';
 import { configFor, ownerCondition } from './fixtures';
 
-/** Actual Plugin/Processor, isolated SQLite, fixture-supplied identity/grants and adequate transaction defaults. */
+/** Actual Plugin/Processor, isolated SQLite and fixture-supplied identity/grants. */
 describe('unified ownership deletion in actual workflow executions', () => {
   let app: MockServer;
   let plugin: PluginWorkflow;
@@ -29,7 +29,7 @@ describe('unified ownership deletion in actual workflow executions', () => {
 
   beforeAll(async () => {
     app = await createMockServer({
-      database: { dialect: 'sqlite', storage: ':memory:', transactionType: Transaction.TYPES.IMMEDIATE },
+      database: { dialect: 'sqlite', storage: ':memory:' },
       plugins: [
         'error-handler',
         'collection',
@@ -37,6 +37,7 @@ describe('unified ownership deletion in actual workflow executions', () => {
         [
           'workflow',
           {
+            destroyTransactionOptions: () => ({ type: Transaction.TYPES.IMMEDIATE }),
             destroyResolver: () => async (request) => {
               await adapter.prepare(request.context, [identity]);
               try {
@@ -98,6 +99,8 @@ describe('unified ownership deletion in actual workflow executions', () => {
     app.db.on('accessDestroyDocuments.afterDestroy', async (deleted) => {
       if (failAfterDelete && deleted.get('id') === 3) throw new Error('business hook rejected deletion');
     });
+    // Startup captures this callback; later option edits cannot replace the installed policy.
+    plugin.options.destroyTransactionOptions = () => undefined;
   });
 
   beforeEach(async () => {
@@ -127,16 +130,16 @@ describe('unified ownership deletion in actual workflow executions', () => {
     await app?.destroy();
   });
 
-  async function execute(params: object) {
+  async function execute(params: object, transaction?: Transaction) {
     await workflow.createNode({ type: 'destroy', config: { collection: docs.name, params } });
     await plugin.trigger(
       workflow,
       { state: { currentTenantId: 'C' } },
-      { context: { state: { currentTenantId: 'B' } } },
+      { context: { state: { currentTenantId: 'B' } }, transaction },
     );
-    const [execution] = await workflow.getExecutions();
-    const [job] = await execution.getJobs();
-    const ids = (await docs.model.findAll({ order: [['id', 'ASC']] })).map((row) => row.get('id'));
+    const [execution] = await workflow.getExecutions({ transaction });
+    const [job] = await execution.getJobs({ transaction });
+    const ids = (await docs.model.findAll({ order: [['id', 'ASC']], transaction })).map((row) => row.get('id'));
     return { execution, job, ids };
   }
 
@@ -181,6 +184,21 @@ describe('unified ownership deletion in actual workflow executions', () => {
     expect(job.status).toBe(JOB_STATUS.ERROR);
     expect(job.result.message).toMatch(/not authorized/);
     expect(ids).toEqual([1, 2, 3, 4]);
+  });
+
+  it('rejects an insufficient inherited transaction instead of replacing it with a planned transaction', async () => {
+    const transaction = await app.db.sequelize.transaction({ type: Transaction.TYPES.DEFERRED });
+    try {
+      const { execution, job, ids } = await execute({ filter: {} }, transaction);
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.status).toBe(JOB_STATUS.ERROR);
+      expect(job.result.message).toBe('SQLite mutations require an immediate write transaction');
+      expect(ids).toEqual([1, 2, 3, 4]);
+      expect(await docs.model.count({ transaction })).toBe(4);
+    } finally {
+      await transaction.rollback();
+    }
+    expect(await docs.model.count()).toBe(4);
   });
 
   it('rolls back earlier roots when a later business hook fails', async () => {

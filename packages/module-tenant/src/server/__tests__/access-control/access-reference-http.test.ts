@@ -197,6 +197,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       }
     };
     for (const path of [
+      'documents:create',
       'documents:update',
       ...['add', 'remove', 'set'].map((operation) => `documents.projects:${operation}`),
       ...['add', 'remove', 'set'].map((operation) => `documents.children:${operation}`),
@@ -217,7 +218,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
 
   async function grant(
     resourceName: string,
-    name: 'view' | 'update' | 'add' | 'remove' | 'set',
+    name: 'view' | 'create' | 'update' | 'add' | 'remove' | 'set',
     fields: string[],
     filter?: object,
   ) {
@@ -258,6 +259,219 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     app.db
       .getCollection('document_projects')
       .model.bulkCreate(ids.map((projectId) => ({ documentId: source, projectId })));
+
+  describe('creation with existing references', () => {
+    beforeEach(async () => {
+      acl.setAvailableAction('create', {});
+      await grant('documents', 'create', ['name', 'project', 'projects']);
+    });
+
+    const create = (values: object) => app.agent().resource('documents').create({ values });
+    const newRows = () => app.db.getCollection('documents').model.findAll({ where: { name: 'Created' } });
+
+    it('allows omitted association grants when creating only ordinary fields', async () => {
+      const response = await create({ name: 'Created' });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [expect.any(Number)], affected: 1 } });
+      const id = response.body.data.keys[0];
+      expect(await row('documents', id)).toEqual({ id, name: 'Created', tenantId: 'B', projectId: null });
+      expect(await links()).toEqual([]);
+    });
+
+    it('allows omitted association grants when updating only ordinary fields', async () => {
+      await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 3 } });
+      await seedLinks([103]);
+      acl.getRole('editor').revokeAction('projects:view');
+      const response = await update({ name: 'Edited' });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await row()).toEqual({ id: 3, name: 'Edited', tenantId: 'B', projectId: 103 });
+      expect(await links()).toEqual([103]);
+      expect(await row('projects', 103)).toEqual({ id: 103, name: 'Hidden', tenantId: 'C' });
+    });
+
+    it.each([{ project: 102 }, { projects: [101, 102] }, { project: 102, projects: [101, 102] }])(
+      'creates an owned record with readable existing references: %j',
+      async (references) => {
+        const response = await create({ name: 'Created', ...references });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [expect.any(Number)], affected: 1 } });
+        const id = response.body.data.keys[0];
+        expect(await row('documents', id)).toEqual({
+          id,
+          name: 'Created',
+          tenantId: 'B',
+          projectId: references.project ?? null,
+        });
+        expect(await links()).toEqual(references.projects ?? []);
+        const read = await app.agent().resource('documents').get({ filterByTk: id });
+        expect(read.status).toBe(200);
+        expect(read.body.data).toEqual({ id, name: 'Created' });
+        expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+        expect(await app.db.getCollection('projects').model.count()).toBe(3);
+      },
+    );
+
+    it.each([{ project: 103 }, { projects: [101, 103] }])(
+      'does not persist a record or links when a target is hidden: %j',
+      async (references) => {
+        const response = await create({ name: 'Created', ...references });
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await newRows()).toHaveLength(0);
+        expect(await links()).toEqual([]);
+        expect(await row('projects', 103)).toEqual({ id: 103, name: 'Hidden', tenantId: 'C' });
+      },
+    );
+
+    it('requires list authorization for non-empty references', async () => {
+      acl.getRole('editor').revokeAction('projects:view');
+      const response = await create({ name: 'Created', project: 102, projects: [101] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await newRows()).toHaveLength(0);
+      expect(await links()).toEqual([]);
+    });
+
+    it('does not require target write permission to reference a visible target', async () => {
+      acl.getRole('editor').revokeAction('projects:update');
+      const response = await create({ name: 'Created', project: 102, projects: [102] });
+      expect(response.status).toBe(200);
+      expect(await links()).toEqual([102]);
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+    });
+
+    it('requires the source create operation', async () => {
+      acl.getRole('editor').revokeAction('documents:create');
+      const response = await create({ name: 'Created', project: 102, projects: [101] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+    });
+
+    it.each(['project', 'projects'] as const)('requires the submitted %s field grant', async (field) => {
+      await grant('documents', 'create', ['name']);
+      const response = await create({ name: 'Created', [field]: field === 'project' ? 102 : [102] });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+    });
+
+    it('requires the referenced primary key to be readable', async () => {
+      await grant('projects', 'view', ['name']);
+      const response = await create({ name: 'Created', project: 102, projects: [101] });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+    });
+
+    it('retains the target custom role filter', async () => {
+      await grant('projects', 'view', ['id'], { id: 101 });
+      const response = await create({ name: 'Created', project: 102, projects: [101] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+    });
+
+    it('allows null and empty selections without target list permission', async () => {
+      acl.getRole('editor').revokeAction('projects:view');
+      const response = await create({ name: 'Created', project: null, projects: [] });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [expect.any(Number)], affected: 1 } });
+      const id = response.body.data.keys[0];
+      expect(await row('documents', id)).toEqual({ id, name: 'Created', tenantId: 'B', projectId: null });
+      expect(await links()).toEqual([]);
+      expect(await app.db.getCollection('projects').model.count()).toBe(3);
+    });
+
+    it('does not claim a readable historical target', async () => {
+      await app.db.getCollection('projects').model.update({ tenantId: null }, { where: { id: 102 } });
+      const response = await create({ name: 'Created', project: 102, projects: [102] });
+      expect(response.status).toBe(200);
+      expect(await links()).toEqual([102]);
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: null });
+    });
+
+    it('does not let source visibility grant creation', async () => {
+      const source = identity(app.db.getCollection('documents'));
+      const config = (await store.read(source))!;
+      await store.save(
+        source,
+        { ...configFor({ type: 'constant', value: true }, 'visibility'), revision: config.revision },
+        { userId: 28 },
+      );
+      const response = await create({ name: 'Created', project: 102, projects: [101] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+    });
+
+    it('evaluates source role conditions against persisted links', async () => {
+      await grant('documents', 'create', ['name', 'project', 'projects'], { projects: { id: 101 } });
+      const denied = await create({ name: 'Created', project: 102, projects: [102] });
+      expect(denied.status).toBe(403);
+      expect(denied.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+      const allowed = await create({ name: 'Created', project: 102, projects: [101, 102] });
+      expect(allowed.status).toBe(200);
+      expect(await links()).toEqual([101, 102]);
+      expect(await app.db.getCollection('documents').model.count()).toBe(3);
+    });
+
+    it('rejects forged ownership without leaving a new record or links', async () => {
+      const response = await create({ name: 'Created', tenantId: 'C', project: 102, projects: [101] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+    });
+
+    it('rejects nested target edits rather than silently creating or changing a target', async () => {
+      const response = await create({ name: 'Created', project: { id: 102, name: 'Changed' }, projects: [101] });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await app.db.getCollection('projects').model.count()).toBe(3);
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+      expect(await links()).toEqual([]);
+    });
+
+    it('rolls back a persisted source and inserted links when a join hook fails', async () => {
+      let observed: unknown;
+      app.db.getCollection('document_projects').model.addHook('afterBulkCreate', async (_records, options) => {
+        const created = await app.db.getCollection('documents').model.findOne({
+          where: { name: 'Created' },
+          transaction: options.transaction,
+        });
+        const inserted = await app.db.getCollection('document_projects').model.findAll({
+          order: [['projectId', 'ASC']],
+          transaction: options.transaction,
+        });
+        observed = {
+          source: created && {
+            name: created.get('name'),
+            tenantId: created.get('tenantId'),
+            projectId: created.get('projectId'),
+          },
+          links: inserted.map((record) => Number(record.get('projectId'))),
+        };
+        throw new Error('HTTP creation rollback fixture');
+      });
+      const response = await create({ name: 'Created', project: 102, projects: [101, 102] });
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+      expect(observed).toEqual({ source: { name: 'Created', tenantId: 'B', projectId: 102 }, links: [101, 102] });
+      expect(await app.db.getCollection('documents').model.count()).toBe(2);
+      expect(await links()).toEqual([]);
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+    });
+  });
 
   describe('target foreign-key writes', () => {
     beforeEach(async () => {

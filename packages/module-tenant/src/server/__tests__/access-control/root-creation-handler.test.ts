@@ -137,6 +137,16 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     expect(await rows()).toMatchObject([{ name: 'Created', amount: 10 }]);
   });
 
+  it.each(['whitelist', 'blacklist'])('accepts an omitted association in the finalized %s', async (fieldList) => {
+    docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+    const ctx = await context();
+    Object.assign((ctx.permission as { parsedParams: object }).parsedParams, {
+      [fieldList]: fieldList === 'whitelist' ? ['name', 'owner'] : ['owner'],
+    });
+    await handler.handle(ctx, auth());
+    expect(await rows()).toMatchObject([{ name: 'Created', tenantId: 'B' }]);
+  });
+
   it.each([undefined, null, 'B'])('assigns active ownership for client tenantId %s', async (tenantId) => {
     const ctx = await context({ values: { name: 'Created', tenantId } }, { fields: ['name'] });
     await handler.handle(ctx, auth());

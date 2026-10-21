@@ -198,7 +198,7 @@ export class AccessRootMutationHandler {
     if (
       [...(fields ?? []), ...(blacklist ?? [])].some(
         (field) =>
-          !reference?.names.includes(field) &&
+          !Object.hasOwn(model.associations, field) &&
           (!Object.hasOwn(model.rawAttributes, field) ||
             (model.rawAttributes[field].type as { key?: string }).key === 'VIRTUAL'),
       )

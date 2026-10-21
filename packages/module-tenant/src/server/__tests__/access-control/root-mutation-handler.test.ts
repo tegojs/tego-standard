@@ -140,6 +140,16 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     expect(await read()).toBeUndefined();
   });
 
+  it.each(['whitelist', 'blacklist'])('accepts an omitted association in the finalized %s', async (fieldList) => {
+    docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+    const ctx = await context('update', { values: { name: 'Changed' } });
+    Object.assign((ctx.permission as { parsedParams: object }).parsedParams, {
+      [fieldList]: fieldList === 'whitelist' ? ['name', 'owner'] : ['owner'],
+    });
+    await handler.handle(ctx, auth());
+    expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B', amount: 30 });
+  });
+
   it.each([{ fields: [] }, { fields: ['name'] }, { fields: ['owner'] }])(
     'accepts destroy field metadata $fields without requiring a write whitelist',
     async ({ fields }) => {

@@ -132,13 +132,20 @@ export class AccessReadService {
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: AccessListRequest,
+    complete = false,
   ): Promise<ReadRecord[]> {
     const plan = await this.plan(ctx, source, authenticated, request, 'list');
     plan.assertCurrent();
     const rows = await plan.model.findAll(
-      internalQuery({ ...plan.query, attributes: plan.attributes, limit: plan.limit, offset: plan.offset }),
+      internalQuery({
+        ...plan.query,
+        attributes: plan.attributes,
+        limit: plan.limit + (complete ? 1 : 0),
+        offset: plan.offset,
+      }),
     );
     plan.assertCurrent();
+    if (complete && rows.length > plan.limit) invalid('Export exceeds the supported complete-row limit');
     return rows.map((row) => this.project(row, plan.attributes));
   }
 
@@ -179,8 +186,10 @@ export class AccessReadService {
     request: AccessListRequest | AccessGetRequest,
     kind: 'list' | 'get',
     withCount = false,
+    complete = false,
   ) {
     if (withCount && kind !== 'list') invalid('Paged counts require a list operation');
+    if (complete && (kind !== 'list' || withCount)) invalid('Complete rows require an uncounted list operation');
     const plan = await this.plan(ctx, source, authenticated, request, kind, true);
     const primary = plan.model.primaryKeyAttribute;
     if (plan.model.primaryKeyAttributes.length !== 1) invalid('Assembly requires a single root primary key');
@@ -188,10 +197,11 @@ export class AccessReadService {
     const options = internalQuery({
       ...plan.query,
       attributes: [...new Set([primary, ...plan.attributes])],
-      ...(kind === 'list' ? { limit: plan.limit, offset: plan.offset } : { limit: 1 }),
+      ...(kind === 'list' ? { limit: plan.limit + (complete ? 1 : 0), offset: plan.offset } : { limit: 1 }),
     });
     const rows = await plan.model.findAll(options);
     plan.assertCurrent();
+    if (complete && rows.length > plan.limit) invalid('Export exceeds the supported complete-row limit');
     const count = withCount ? await this.rootCount(plan) : undefined;
     return {
       records: rows.map((row) => ({

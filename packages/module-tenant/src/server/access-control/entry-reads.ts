@@ -35,6 +35,7 @@ import type { AccessFilterReadGrant } from './request-filter';
 import {
   parseResourceAssociationGetParams,
   parseResourceCountParams,
+  parseResourceExportParams,
   parseResourceGetParams,
   parseResourceListParams,
   parseResourceSumParams,
@@ -66,7 +67,7 @@ export interface AccessSelectedGetRequest extends Omit<AccessGetRequest, 'attrib
 type ExpansionKind = 'expandBelongsTo' | 'expandTargetForeignKey' | 'expandManyToMany';
 
 export interface AccessEntryReadOperation {
-  readonly kind: 'list' | 'get' | 'count' | 'sum' | 'aggregate' | 'groupAggregate' | ExpansionKind;
+  readonly kind: 'list' | 'get' | 'count' | 'sum' | 'export' | 'aggregate' | 'groupAggregate' | ExpansionKind;
   readonly context: object;
   readonly source: Readonly<AccessCollectionIdentity>;
   readonly authenticated: Readonly<AccessIdentity>;
@@ -354,7 +355,9 @@ export class AccessEntryReadService {
         ? this.getFromParams(...args)
         : route.actionName === 'count'
           ? this.countFromParams(...args)
-          : this.sumFromParams(...args));
+          : route.actionName === 'export'
+            ? this.exportFromParams(...args)
+            : this.sumFromParams(...args));
     route.assertCurrent();
     return result;
   }
@@ -386,6 +389,20 @@ export class AccessEntryReadService {
     const result = await this.selected(ctx, source, authenticated, { ...request, transaction }, 'list', true);
     if (result.count === undefined) invalid('Selected page is missing its root count');
     return { rows: result.rows, count: result.count, page, pageSize, totalPage: Math.ceil(result.count / pageSize) };
+  }
+
+  /** Complete, bounded rows under the finalized export decision; never a silently truncated page. */
+  async exportFromParams(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    params: unknown,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ) {
+    const request = this.withDates(source, parseResourceExportParams(params), dates);
+    const result = await this.selected(ctx, source, authenticated, { ...request, transaction }, 'export');
+    return result.rows;
   }
 
   /** Internal concrete-source multi-record relation bridge; no business resource route is installed here. */
@@ -795,7 +812,7 @@ export class AccessEntryReadService {
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: AccessSelectedListRequest | AccessSelectedGetRequest,
-    kind: 'list' | 'get',
+    kind: 'list' | 'get' | 'export',
     withCount = false,
     scope?: {
       authorization: ReturnType<AccessEntryReadService['operation']>;
@@ -807,7 +824,7 @@ export class AccessEntryReadService {
       ...selectionKeys,
       'filter',
       'transaction',
-      ...(kind === 'list' ? ['sort', 'limit', 'offset'] : ['key', 'keyField']),
+      ...(kind !== 'get' ? ['sort', 'limit', 'offset'] : ['key', 'keyField']),
     ];
     if (
       !plain(request) ||
@@ -847,14 +864,14 @@ export class AccessEntryReadService {
         scope?.rootConstraint,
       );
       const expanded = { ...input, expansions: selection.expansions.map(project) };
-      if (kind === 'list') {
+      if (kind !== 'get') {
         const args = [
           ctx,
           authorization.source,
           authorization.authenticated,
           expanded as AccessExpandedListRequest,
         ] as const;
-        return withCount ? reader.listWithCount(...args) : { rows: await reader.list(...args) };
+        return withCount ? reader.listWithCount(...args) : { rows: await reader.list(...args, kind === 'export') };
       }
       const record = await reader.get(
         ctx,
@@ -872,12 +889,18 @@ export class AccessEntryReadService {
       authorization.assertCurrent,
       scope?.rootConstraint,
     );
-    if (kind === 'list') {
+    if (kind !== 'get') {
       if (withCount) {
         return reader.listWithCount(ctx, authorization.source, authorization.authenticated, input as AccessListRequest);
       }
       return {
-        rows: await reader.list(ctx, authorization.source, authorization.authenticated, input as AccessListRequest),
+        rows: await reader.list(
+          ctx,
+          authorization.source,
+          authorization.authenticated,
+          input as AccessListRequest,
+          kind === 'export',
+        ),
       };
     }
     const record = await reader.get(ctx, authorization.source, authorization.authenticated, input as AccessGetRequest);

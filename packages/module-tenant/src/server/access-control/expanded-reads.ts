@@ -67,8 +67,9 @@ export class AccessExpandedReadService {
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: AccessExpandedListRequest,
+    complete = false,
   ) {
-    return (await this.read(ctx, source, authenticated, request, 'list')).rows;
+    return (await this.read(ctx, source, authenticated, request, 'list', false, complete)).rows;
   }
 
   async listWithCount(
@@ -98,6 +99,7 @@ export class AccessExpandedReadService {
     request: AccessExpandedListRequest | AccessExpandedGetRequest,
     kind: 'list' | 'get',
     withCount = false,
+    complete = false,
   ): Promise<AccessReadResult> {
     const allowed = [
       'attributes',
@@ -319,7 +321,7 @@ export class AccessExpandedReadService {
       resolveGrant,
       current,
       this.resolveRootConstraint,
-    ).page(ctx, source, authenticated, rootRequest, kind, withCount);
+    ).page(ctx, source, authenticated, rootRequest, kind, withCount, complete);
     const assertCurrent = () => {
       current();
       page.assertCurrent();

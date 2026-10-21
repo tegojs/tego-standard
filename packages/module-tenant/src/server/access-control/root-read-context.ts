@@ -8,6 +8,7 @@ import { captureReadDateContext, type AccessReadDateContext } from './read-date-
 import {
   parseResourceAssociationGetParams,
   parseResourceCountParams,
+  parseResourceExportParams,
   parseResourceListParams,
   parseResourceSumParams,
 } from './resource-read-params';
@@ -38,19 +39,19 @@ function captureAction(ctx: AccessRootReadContext, db: Database) {
     typeof resourceName !== 'string' ||
     !/^[A-Za-z_][A-Za-z0-9_]*$/.test(resourceName) ||
     typeof actionName !== 'string' ||
-    !['list', 'get', 'count', 'sum'].includes(actionName) ||
+    !['list', 'get', 'count', 'sum', 'export'].includes(actionName) ||
     data(ctx.action, 'sourceId') !== undefined ||
     data(ctx.action, 'resourceOf') !== undefined
   )
     invalid('Unsupported root read action');
-  return { resourceName, actionName: actionName as 'list' | 'get' | 'count' | 'sum' };
+  return { resourceName, actionName: actionName as 'list' | 'get' | 'count' | 'sum' | 'export' };
 }
 
 /** Strip only verified core transport metadata, never arbitrary client options. */
 function captureParams(
   permission: unknown,
   resourceName: string,
-  actionName: 'list' | 'get' | 'count' | 'sum',
+  actionName: 'list' | 'get' | 'count' | 'sum' | 'export',
   association?: { source: string; relation: string; index: string | number },
   single = false,
 ) {
@@ -88,6 +89,7 @@ function captureParams(
   // Core sets this own undefined property even for lists and counts.
   if (params.filterByTk === undefined) delete params.filterByTk;
   if (actionName === 'list') parseResourceListParams(params);
+  else if (actionName === 'export') parseResourceExportParams(params);
   else if (actionName === 'get') parseResourceAssociationGetParams(params, single);
   else if (actionName === 'sum') parseResourceSumParams(params);
   else parseResourceCountParams(params);
@@ -109,7 +111,7 @@ export function captureRootReadContext(
 function captureReadContext(
   ctx: AccessRootReadContext,
   authenticated: AccessIdentity,
-  action: { resourceName: string; actionName: 'list' | 'get' | 'count' | 'sum' },
+  action: { resourceName: string; actionName: 'list' | 'get' | 'count' | 'sum' | 'export' },
   dates?: AccessReadDateContext,
   association?: { source: string; relation: string; index: string | number },
   single = false,

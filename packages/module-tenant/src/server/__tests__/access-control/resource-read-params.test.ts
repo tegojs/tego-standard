@@ -1,12 +1,46 @@
 import {
   parseResourceAssociationGetParams,
   parseResourceCountParams,
+  parseResourceExportParams,
   parseResourceGetParams,
   parseResourceListParams,
   parseResourceSumParams,
 } from '../../access-control/resource-read-params';
 
 describe('resource read params', () => {
+  describe('complete export params', () => {
+    it('captures selections and sort without accepting pagination controls', () => {
+      const fields = ['id', 'project.name'];
+      const result = parseResourceExportParams({ fields, sort: '-id,name' });
+      fields[0] = 'secret';
+      expect(result).toEqual({ fields: ['id', 'project.name'], sort: ['-id', 'name'], limit: 1000, offset: 0 });
+    });
+    it.each(['fields', 'appends', 'except', 'sort'])(
+      'rejects invalid %s arrays without evaluating accessors',
+      (key) => {
+        const getter = vi.fn(() => 'id');
+        for (const value of [
+          Array(1),
+          Object.setPrototypeOf(['id'], {}),
+          Object.defineProperty(['id'], '0', { get: getter }),
+          Object.assign(['id'], { other: 'secret' }),
+        ])
+          expect(() => parseResourceExportParams({ [key]: value })).toThrow();
+        expect(getter).not.toHaveBeenCalled();
+      },
+    );
+    it('rejects inherited input, hidden unsupported keys and accessors before reading them', () => {
+      const getter = vi.fn(() => ['id']);
+      for (const value of [
+        Object.create({ fields: ['id'] }),
+        Object.defineProperty({}, 'fields', { get: getter }),
+        Object.defineProperty({}, 'limit', { value: 1 }),
+        { [Symbol('export')]: true },
+      ])
+        expect(() => parseResourceExportParams(value)).toThrow();
+      expect(getter).not.toHaveBeenCalled();
+    });
+  });
   describe('association detail params', () => {
     it('requires an explicit HasMany key and preserves its scalar value', () => {
       expect(parseResourceAssociationGetParams({ fields: ['name'], filterByTk: '9007199254740993' }, false)).toEqual({

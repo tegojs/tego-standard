@@ -3,7 +3,7 @@ import type { Collection, Database } from '@tego/server';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import { invalid, plain } from './write-support';
 
-type ResourceReadAction = 'list' | 'get' | 'count' | 'sum';
+type ResourceReadAction = 'list' | 'get' | 'count' | 'sum' | 'export';
 
 interface ResourceReadRouteBase {
   /** Authorization root: the target for direct reads, or the source for concrete relationships. */
@@ -44,7 +44,7 @@ export function resolveResourceReadRoute(
     typeof resourceName !== 'string' ||
     resourceName.length > 511 ||
     typeof actionName !== 'string' ||
-    !['list', 'get', 'count', 'sum'].includes(actionName)
+    !['list', 'get', 'count', 'sum', 'export'].includes(actionName)
   )
     invalid('Unsupported resource read action or name');
   const parts = resourceName.split('.');

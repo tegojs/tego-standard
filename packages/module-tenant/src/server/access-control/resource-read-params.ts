@@ -33,14 +33,18 @@ function names(input: unknown, sort = false): string[] {
   return result;
 }
 
-function capture(input: unknown, kind: 'list' | 'get' | 'count' | 'sum'): Record<string, unknown> {
+function capture(input: unknown, kind: 'list' | 'get' | 'count' | 'sum' | 'export'): Record<string, unknown> {
   const allowed =
     kind === 'count' || kind === 'sum'
       ? ['filter', ...(kind === 'sum' ? ['field'] : [])]
       : [
           ...selectionKeys,
           'filter',
-          ...(kind === 'list' ? ['sort', 'page', 'pageSize', 'paginate', 'tree'] : ['filterByTk']),
+          ...(kind === 'export'
+            ? ['sort']
+            : kind === 'list'
+              ? ['sort', 'page', 'pageSize', 'paginate', 'tree']
+              : ['filterByTk']),
         ];
   if (
     !plain(input) ||
@@ -96,6 +100,11 @@ export function parseResourceListParams(input: unknown): AccessResourceListReque
   if (limit > 1000 || !Number.isSafeInteger(offset) || offset > 1000000)
     invalid('Resource read pagination exceeds supported limits');
   return { ...selection(params), limit, offset };
+}
+
+/** Internal complete-row export only; file rendering and background batching use dedicated adapters. */
+export function parseResourceExportParams(input: unknown): AccessResourceListRequest {
+  return { ...selection(capture(input, 'export')), limit: 1000, offset: 0 };
 }
 
 export function parseResourceGetParams(input: unknown): AccessSelectedGetRequest & { key: string | number } {

@@ -156,11 +156,18 @@ describe('unified tenant queries in actual workflow executions', () => {
       config: { collection: 'accessWorkflowDocuments', multiple: true, ...config },
       ...extra,
     });
-  async function execute(tenantId: string | null = 'B') {
+  async function execute(tenantId: string | null = 'B', human = true) {
     await plugin.trigger(
       workflow,
-      { state: { currentTenantId: 'C', currentRole: 'admin' } },
-      { context: { state: { currentTenantId: tenantId, currentRole: 'worker', currentUser: { id: 28 } } } },
+      { state: { currentTenantId: 'C', currentRole: 'admin', currentUser: { id: 99 } } },
+      {
+        context: {
+          state: {
+            currentTenantId: tenantId,
+            ...(human ? { currentRole: 'worker', currentUser: { id: 28 } } : {}),
+          },
+        },
+      },
     );
     const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
     return { execution, jobs: await execution.getJobs({ order: [['id', 'ASC']] }) };
@@ -181,6 +188,88 @@ describe('unified tenant queries in actual workflow executions', () => {
     await node({ params: { fields: ['name'], sort: [{ field: 'id' }] } });
     expect((await execute()).jobs[0].result).toEqual([{ name: 'Owned' }, { name: 'Visible' }]);
     expect((await execute('C')).jobs[0].result).toEqual([{ name: 'Visible' }, { name: 'Hidden' }]);
+  });
+  it('runs an authorized automatic query with only a trusted tenant and independently scoped associations', async () => {
+    await node({ params: { fields: ['name'], appends: ['project.name'], sort: [{ field: 'id' }] } });
+    const { execution, jobs } = await execute('B', false);
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(jobs[0].result).toEqual([
+      { name: 'Owned', project: { name: 'Local project' } },
+      { name: 'Visible', project: null },
+    ]);
+    expect(execution.get('tenantContext')).toMatchObject({ currentTenantId: 'B' });
+    expect(execution.get('authContext')).toBeNull();
+  });
+  it('does not require tenant or human identity for explicitly shared query rules', async () => {
+    const target = identities.get('accessWorkflowDocuments')!;
+    const original = (await store.read(target))!;
+    try {
+      await store.save(
+        target,
+        { ...configFor({ type: 'constant', value: true }), revision: original.revision },
+        { userId: 28 },
+      );
+      await node({ params: { fields: ['name'] } });
+      const { execution, jobs } = await execute(null, false);
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(jobs[0].result).toEqual([{ name: 'Owned' }, { name: 'Visible' }, { name: 'Hidden' }]);
+      expect(execution.get('tenantContext')).toBeNull();
+      expect(execution.get('authContext')).toBeNull();
+    } finally {
+      const current = (await store.read(target))!;
+      await store.save(target, { ...original, revision: current.revision }, { userId: 28 });
+    }
+  });
+  it.each(['', 'project'])('requires final operation authorization without a human identity: %s', async (path) => {
+    permissions.set(path, { allowed: false, params: {} });
+    await node({ params: { fields: ['name'], appends: ['project.name'] } });
+    const { execution, jobs } = await execute('B', false);
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(jobs[0].status).toBe(JOB_STATUS.ERROR);
+    expect(jobs[0].result.message).toMatch(/authoriz/);
+    expect(jobs[0].result).not.toHaveProperty('0');
+  });
+  it.each([
+    ['accessWorkflowDocuments', 'role.name', 'worker'],
+    ['accessWorkflowDocuments', 'user.id', '28'],
+    ['accessWorkflowProjects', 'role.name', 'worker'],
+    ['accessWorkflowProjects', 'user.id', '28'],
+  ] as const)('rejects missing rule context without borrowing event identity: %s %s', async (name, path, value) => {
+    const target = identities.get(name)!;
+    const original = (await store.read(target))!;
+    try {
+      const rules = original.rules.map((rule) => ({
+        ...rule,
+        subject: {
+          type: 'compare' as const,
+          operator: 'eq' as const,
+          left: { type: 'context' as const, path },
+          right: { type: 'literal' as const, value },
+        },
+      }));
+      await store.save(target, { ...original, rules }, { userId: 28 });
+      await node({ params: { fields: ['name'], appends: ['project.name'] } });
+      const authorized = await execute();
+      expect(authorized.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(authorized.jobs[0].result).toEqual([
+        { name: 'Owned', project: { name: 'Local project' } },
+        { name: 'Visible', project: null },
+      ]);
+      const { execution, jobs } = await execute('B', false);
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(jobs[0].status).toBe(JOB_STATUS.ERROR);
+      expect(jobs[0].result.message).toContain(`Missing or invalid trusted context: ${path}`);
+      expect(jobs[0].result).not.toHaveProperty('0');
+    } finally {
+      const current = (await store.read(target))!;
+      await store.save(target, { ...original, revision: current.revision }, { userId: 28 });
+    }
+  });
+  it('rejects an automatic query without its required trusted tenant', async () => {
+    await node({ params: { fields: ['name'] } });
+    const { execution, jobs } = await execute(null, false);
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(jobs[0].result.message).toContain('Missing or invalid trusted context: tenant.id');
   });
   it('applies the finalized role filter in addition to ownership and visibility', async () => {
     permissions.set('', { allowed: true, params: { fields: ['name', 'amount'], filter: { amount: { $lt: 20 } } } });

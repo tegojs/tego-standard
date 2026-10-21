@@ -1493,6 +1493,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       const sql = vi.spyOn(db.sequelize, 'query');
       await expect(createHandler().handle({ ...result, db: {} as Database }, trusted())).rejects.toThrow();
       await expect(createHandler().handle(result, { ...trusted(), roleName: 'other' })).rejects.toThrow();
+      await expect(createHandler().handle(result, { tenantId: 'B' })).rejects.toThrow(/authenticated role/);
       for (const action of [
         { ...result.action, resourceName: 'documents.project' },
         { ...result.action, sourceId: '_' },

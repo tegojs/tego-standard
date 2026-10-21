@@ -210,6 +210,11 @@ describe('related read context preparation', () => {
     expect(resolveParams(resolve(projects, ['alternate'], operation)).allowed).toBe(false);
   });
 
+  it('still requires an authenticated role to prepare final HTTP target permissions', async () => {
+    operation = { ...operation, authenticated: { tenantId: 'B' } };
+    await expect(prepare([['project']])).rejects.toThrow(/role/);
+  });
+
   it('rejects constrained contexts and propagates authorization failures', async () => {
     await expect(prepare([['project']], (collection) => finalized(collection, {}, { filter: {} }))).rejects.toThrow();
     const failure = new Error('authorization failed');

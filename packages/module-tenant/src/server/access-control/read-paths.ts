@@ -50,8 +50,7 @@ export function collectRelatedReadPaths(
     authenticated: cloneDeep(operation.authenticated),
   };
   const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
-  if (typeof captured.authenticated.roleName !== 'string' || !captured.authenticated.roleName.length)
-    invalid('Read path planning requires an authenticated role');
+  // Planning is metadata-only. Entry authorization and enabled rules validate the identity they require.
   const request =
     captured.kind === 'export'
       ? parseResourceExportParams(params)

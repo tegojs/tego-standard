@@ -1,10 +1,18 @@
-import type { Collection, Context, Model } from '@tego/server';
+import type { Collection, Database, Model } from '@tego/server';
 
 import dayjs from 'dayjs';
 import xlsx from 'node-xlsx';
 
 import render from '../renders';
 import { buildExportDownloadName, normalizeExportColumns } from '../utils';
+
+/** File formatting needs database metadata and response methods, never an authorization context. */
+export interface ExportXlsxRenderContext {
+  db: Database;
+  get(name: string): string;
+  set(headers: Record<string, string>): void;
+  body?: unknown;
+}
 
 export interface ExportXlsxRenderInput {
   collection: Collection;
@@ -40,7 +48,7 @@ function exportIncludes(collection: Collection, paths: readonly string[][]): Exp
 }
 
 /** Adapt already authorized rows to existing cell formatters without issuing business queries. */
-export async function renderExportXlsxRows(ctx: Context, input: ExportXlsxRowsInput): Promise<void> {
+export async function renderExportXlsxRows(ctx: ExportXlsxRenderContext, input: ExportXlsxRowsInput): Promise<void> {
   const include = exportIncludes(
     input.collection,
     input.columns.map((column) => column.dataIndex),
@@ -50,7 +58,7 @@ export async function renderExportXlsxRows(ctx: Context, input: ExportXlsxRowsIn
 }
 
 /** Reuse existing cell formatting without reloading or expanding the supplied records. */
-export async function renderExportXlsx(ctx: Context, input: ExportXlsxRenderInput): Promise<void> {
+export async function renderExportXlsx(ctx: ExportXlsxRenderContext, input: ExportXlsxRenderInput): Promise<void> {
   const { collection, columns, data, title, tenantId } = input;
   const collectionFields = columns.map((col) => collection.fields.get(col.dataIndex[0]));
   const { rows, ranges } = await render(

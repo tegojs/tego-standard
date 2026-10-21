@@ -1,3 +1,4 @@
+import { renderExportXlsxRows, type ExportXlsxRenderContext } from '@tachybase/plugin-action-export';
 import type { Collection, Database, Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
@@ -264,7 +265,32 @@ export class AccessRootReadHandler {
       columns,
       title,
       tenantId: captured.identity.tenantId,
+      assertCurrent: preparation.assertCurrent,
     };
+  }
+
+  /** Stage file output and publish only while the original authorization and metadata remain valid. */
+  async handleExportWithRelatedContexts(
+    ctx: AccessRootReadContext & ExportXlsxRenderContext,
+    authenticated: AccessIdentity,
+    authorize: AccessRelatedReadAuthorizer,
+    transaction?: Transaction,
+    dates?: AccessReadDateContext,
+  ): Promise<void> {
+    const timezone = ctx.get('x-timezone');
+    const input = await this.readExportWithRelatedContexts(ctx, authenticated, authorize, transaction, dates);
+    const headers: Record<string, string> = {};
+    // This is a file response buffer, not a cloned/prepared ACL context.
+    const output: ExportXlsxRenderContext = {
+      db: this.db,
+      get: () => timezone,
+      set: (values) => Object.assign(headers, values),
+    };
+    input.assertCurrent();
+    await renderExportXlsxRows(output, input);
+    input.assertCurrent();
+    ctx.body = output.body;
+    ctx.set(headers);
   }
 
   /** Charts require a neutral finalized collection list decision, not the chart resource decision. */

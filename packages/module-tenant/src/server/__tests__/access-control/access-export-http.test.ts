@@ -8,7 +8,6 @@ import {
   createExportXlsx,
   type ExportXlsxResolver,
 } from '../../../../../plugin-action-export/src/server/actions/export-entry';
-import { renderExportXlsxRows } from '../../../../../plugin-action-export/src/server/actions/render-xlsx';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
@@ -43,6 +42,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
   let readFile: (
     ctx: Context & { permission: unknown },
   ) => ReturnType<AccessRootReadHandler['readExportWithRelatedContexts']>;
+  let exportFile: (ctx: Context & { permission: unknown }) => Promise<void>;
   const identity = (collection: Collection) => ({
     ...mainIdentity,
     collectionName: collection.name,
@@ -208,6 +208,10 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       );
     readFile = (ctx) =>
       withRelated(ctx, (authorize) => reader.readExportWithRelatedContexts(ctx, ctx.state.accessTestActor, authorize));
+    exportFile = (ctx) =>
+      withRelated(ctx, (authorize) =>
+        reader.handleExportWithRelatedContexts(ctx, ctx.state.accessTestActor, authorize),
+      );
     app.resourcer.define({
       name: 'documents',
       actions: Object.fromEntries(
@@ -237,7 +241,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
   /** The caller chooses file rendering; the prepared read handler owns row authorization. */
   async function scopedFile(ctx: Context & { permission: unknown }) {
     await beforeFileRead?.(ctx);
-    await renderExportXlsxRows(ctx, await readFile(ctx));
+    await exportFile(ctx);
   }
 
   function fileRequest(params: Record<string, unknown> = {}) {
@@ -273,6 +277,45 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
         response.on('end', () => done(null, Buffer.concat(chunks)));
         response.on('error', done);
       });
+  }
+
+  async function duringNameFormatting(change: (ctx: Context & { permission: unknown }) => Promise<void>) {
+    const schemas = app.db.collection({
+      name: 'uiSchemas',
+      timestamps: false,
+      autoGenId: false,
+      fields: [
+        { name: 'uid', type: 'string', primaryKey: true },
+        { name: 'enum', type: 'json' },
+      ],
+    });
+    await schemas.model.sync();
+    await schemas.repository.create({
+      values: {
+        uid: 'export-names',
+        enum: [
+          { value: 'D1', label: 'First' },
+          { value: 'D3', label: 'Third' },
+        ],
+      },
+    });
+    app.db.getCollection('documents').setField('name', {
+      type: 'string',
+      interface: 'select',
+      uiSchemaUid: 'export-names',
+    });
+    let active: Context & { permission: unknown };
+    beforeFileRead = async (ctx) => {
+      active = ctx;
+    };
+    const repository = schemas.repository;
+    const findById = repository.findById;
+    // Preserve the real metadata read and change the lifecycle while the formatter is suspended.
+    return vi.spyOn(repository, 'findById').mockImplementationOnce(async function (...args) {
+      const schema = await findById.apply(this, args);
+      await change(active);
+      return schema;
+    });
   }
 
   describe('page export request adaptation', () => {
@@ -327,6 +370,129 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       const response = await pageFileRequest({ columns: [{ dataIndex: ['participants', 'id'] }] });
       expect(response.status).toBe(400);
       expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not publish a file when its prepared phase ends during cell formatting', async () => {
+      const formatting = await duringNameFormatting(async (ctx) => adapter.release(ctx));
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('does not publish a file when its prepared phase is replaced during cell formatting', async () => {
+      const formatting = await duringNameFormatting(async (ctx) => {
+        adapter.release(ctx);
+        await adapter.prepare(ctx, identities());
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('rechecks participating association metadata after asynchronous cell formatting', async () => {
+      const formatting = await duringNameFormatting(async () => {
+        Object.assign(app.db.getCollection('documents').model.associations.participants, { scope: { canView: false } });
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name', { dataIndex: ['participants', 'id'] }] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('keeps the real response untouched until the rendered file passes its final lifecycle check', async () => {
+      const formatting = await duringNameFormatting(async (ctx) => adapter.release(ctx));
+      const original = { marker: 'not a file' };
+      let observed: { body: unknown; disposition: string } | undefined;
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          ctx.body = original;
+          try {
+            await scopedFile(ctx);
+          } catch (error) {
+            observed = { body: ctx.body, disposition: ctx.response.get('content-disposition') };
+            throw error;
+          }
+        },
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(response.status).toBe(400);
+        expect(observed?.body).toBe(original);
+        expect(observed?.disposition).toBe('');
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('preserves the original formatting failure without publishing a partial file', async () => {
+      const failure = new Error('Formatting metadata failed');
+      const formatting = await duringNameFormatting(async () => {
+        throw failure;
+      });
+      let caught: unknown;
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          try {
+            await scopedFile(ctx);
+          } catch (error) {
+            caught = error;
+            throw error;
+          }
+        },
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(caught).toBe(failure);
+        expect(response.status).toBe(500);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('captures the file timezone before asynchronous related authorization', async () => {
+      await app.db.sequelize.query('ALTER TABLE access_documents ADD COLUMN occurred_at DATETIME');
+      app.db.getCollection('documents').setField('occurredAt', {
+        type: 'date',
+        field: 'occurred_at',
+        interface: 'datetime',
+        uiSchema: {
+          'x-component-props': { dateFormat: 'YYYY-MM-DD', timeFormat: 'HH:mm:ss', showTime: true },
+        },
+      });
+      await app.db.getCollection('documents').model.update(
+        { occurredAt: new Date('2026-10-21T00:00:00Z') },
+        {
+          where: { id: 1 },
+        },
+      );
+      await grant('documents', 'export', ['id', 'occurredAt', 'participants']);
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => {
+          ctx.req.headers['x-timezone'] = '+00:00';
+        };
+      };
+      const response = await pageFileRequest(
+        { columns: [{ dataIndex: ['occurredAt'] }, { dataIndex: ['participants', 'id'] }] },
+        { filter: JSON.stringify({ id: 1 }) },
+      ).set('x-timezone', '+08:00');
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['occurredAt', 'id'],
+        ['2026-10-21 08:00:00', '1,2'],
+      ]);
     });
 
     it('captures file options, final permission and filename tenant before related authorization', async () => {

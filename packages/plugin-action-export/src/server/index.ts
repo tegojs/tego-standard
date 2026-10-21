@@ -28,6 +28,7 @@ export type {
   ExportXlsxExecutor,
   ExportXlsxResolver,
   ExportXlsxRenderInput,
+  ExportXlsxRenderContext,
   ExportXlsxRowsInput,
   ExportXlsxColumn,
   ExportXlsxRequest,

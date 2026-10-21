@@ -45,10 +45,10 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
       tableName: 'access_documents',
       timestamps: false,
       fields: [
-        { name: 'id', type: 'integer', primaryKey: true },
+        { name: 'id', type: 'integer', primaryKey: true, autoIncrement: true },
         { name: 'tenantId', type: 'string', field: 'tenant_id' },
         { name: 'name', type: 'string' },
-        { name: 'amount', type: 'integer' },
+        { name: 'amount', type: 'integer', defaultValue: 10 },
       ],
     });
     db.collection({
@@ -131,7 +131,7 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
         ]),
       ),
     });
-    for (const action of ['update', 'destroy'])
+    for (const action of ['create', 'update', 'destroy'])
       app.resourcer.registerActionHandler(`documents:${action}`, async (resourceContext) => {
         const ctx = resourceContext as Context & { permission: unknown };
         if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
@@ -269,13 +269,13 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
     expect(response.body.meta.count).toBe(1);
   });
 
-  async function grantMutation(operation: 'update' | 'destroy', filter?: Record<string, unknown>) {
+  async function grantMutation(operation: 'create' | 'update' | 'destroy', filter?: Record<string, unknown>) {
     const scopeRepo = app.db.getRepository('dataSourcesRolesResourcesScopes');
     const scope = filter
       ? await scopeRepo.create({ values: { key: `custom-${operation}`, dataSourceKey: 'main', scope: filter } })
       : await scopeRepo.findOne({ filter: { key: 'tenant', dataSourceKey: 'main' } });
     const action = await app.db.getRepository('dataSourcesRolesResourcesScopesActions').create({
-      values: { name: operation, fields: operation === 'update' ? ['name'] : [], scopeId: scope.get('id') },
+      values: { name: operation, fields: operation === 'destroy' ? [] : ['name'], scopeId: scope.get('id') },
     });
     await action.writeToACL({
       acl,
@@ -421,5 +421,107 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
       .get({ filterByTk: 5, fields: ['id'] });
     expect(hidden.status).toBe(200);
     expect(hidden.body).toEqual({ data: null });
+  });
+
+  it.each(['B', 'C'])('creates with server tenant %s, permitted fields and model defaults', async (tenantId) => {
+    await grantMutation('create');
+    principal = { ...principal, tenantId };
+    const response = await app
+      .agent()
+      .resource('documents')
+      .create({ values: { name: 'Created', amount: 999 } });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [7], affected: 1 } });
+    expect(await record(7)).toEqual({ id: 7, name: 'Created', amount: 10, tenantId });
+    const detail = await app
+      .agent()
+      .resource('documents')
+      .get({ filterByTk: 7, fields: ['id'] });
+    expect(detail.status).toBe(200);
+    expect(detail.body).toEqual({ data: { id: 7 } });
+    principal = { ...principal, tenantId: tenantId === 'B' ? 'C' : 'B' };
+    const hidden = await app
+      .agent()
+      .resource('documents')
+      .get({ filterByTk: 7, fields: ['id'] });
+    expect(hidden.status).toBe(200);
+    expect(hidden.body).toEqual({ data: null });
+  });
+
+  it('does not grant create through ownership alone', async () => {
+    const response = await app
+      .agent()
+      .resource('documents')
+      .create({ values: { name: 'Forbidden' } });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('documents').model.count()).toBe(6);
+  });
+
+  it('does not use visibility to authorize a new record', async () => {
+    await grantMutation('create');
+    const saved = (await store.read(mainIdentity))!;
+    await store.save(
+      mainIdentity,
+      {
+        ...configFor({ type: 'constant', value: true }, 'visibility'),
+        revision: saved.revision,
+      },
+      { userId: 28 },
+    );
+    const response = await app
+      .agent()
+      .resource('documents')
+      .create({ values: { name: 'Forbidden' } });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('documents').model.count()).toBe(6);
+  });
+
+  it('rejects a forged create owner outside the field whitelist', async () => {
+    await grantMutation('create');
+    const response = await app
+      .agent()
+      .resource('documents')
+      .create({ values: { name: 'Forbidden', tenantId: 'C' } });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('documents').model.count()).toBe(6);
+  });
+
+  it('checks create role conditions against persisted defaults', async () => {
+    await grantMutation('create', { amount: { $gte: 20 } });
+    const response = await app
+      .agent()
+      .resource('documents')
+      .create({ values: { name: 'Forbidden', amount: 999 } });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('documents').model.count()).toBe(6);
+  });
+
+  it('commits a create matching its role conditions and ownership', async () => {
+    await grantMutation('create', { amount: 10 });
+    const response = await app
+      .agent()
+      .resource('documents')
+      .create({ values: { name: 'Allowed' } });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [7], affected: 1 } });
+    expect(await record(7)).toEqual({ id: 7, name: 'Allowed', amount: 10, tenantId: 'B' });
+  });
+
+  it('does not publish or persist a create when an after-create hook fails', async () => {
+    await grantMutation('create');
+    app.db.on('documents.afterCreate', async () => {
+      throw new Error('HTTP creation rollback fixture');
+    });
+    const response = await app
+      .agent()
+      .resource('documents')
+      .create({ values: { name: 'Uncommitted' } });
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('documents').model.count()).toBe(6);
   });
 });

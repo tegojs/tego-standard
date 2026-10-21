@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
-import { ACL, Resourcer, type Collection, type Context } from '@tego/server';
+import { ACL, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -118,8 +118,16 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     const CoreACL = coreEntry ? (await import(/* @vite-ignore */ pathToFileURL(coreEntry).href)).ACL : ACL;
     acl = new CoreACL();
     app.mainDataSource.acl = acl;
+    // Match module-acl's beforeGrantAction field normalization; do not fabricate final permissions.
+    acl.beforeGrantAction((ctx) => {
+      const collection = db.getCollection(ctx.resourceName);
+      const fields = ctx.params.fields as string[] | undefined;
+      if (!collection || !fields || !['view', 'export'].includes(acl.resolveActionAlias(ctx.actionName))) return;
+      const appends = fields.filter((name) => collection.getField(name) instanceof RelationField);
+      ctx.params = { ...ctx.params, fields: fields.filter((name) => !appends.includes(name)), appends };
+    });
     acl.define({ role: 'editor' });
-    acl.setAvailableAction('view', { aliases: ['get', 'list'] });
+    acl.setAvailableAction('view', { aliases: ['get', 'list', 'count'] });
     acl.setAvailableAction('update', {});
     tenantScopeId = (
       await db.getRepository('dataSourcesRolesResourcesScopes').create({
@@ -149,19 +157,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       { tag: 'access-reference-preparation', after: 'auth' },
     );
     app.resourcer.use(acl.middleware(), { tag: 'access-reference-acl', after: 'access-reference-preparation' });
-    for (const name of ['documents', 'projects'])
-      app.resourcer.define({
-        name,
-        actions: Object.fromEntries(
-          ['get', 'list'].map((action) => [
-            action,
-            async (ctx: Context & { permission: unknown }) => {
-              await reader.handleResourceWithRelatedContexts(ctx, actor, async () => null);
-            },
-          ]),
-        ),
-      });
-    const mutate = async (ctx: Context & { permission: unknown }) => {
+    const execute = async (ctx: Context & { permission: unknown }, mode: 'read' | 'write') => {
       if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
       const related: AccessRootReadContext[] = [];
       const authorize = async (collection: Collection, actionName: 'list' | 'update' | 'add' | 'remove' | 'set') => {
@@ -187,15 +183,34 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
         return decision;
       };
       try {
-        await writer.handle(ctx, actor, {
-          read: (collection) => authorize(collection, 'list'),
-          update: (collection) => authorize(collection, 'update'),
-          source: authorize,
-        });
+        if (mode === 'read') {
+          await reader.handleResourceWithRelatedContexts(ctx, actor, (collection) => authorize(collection, 'list'));
+        } else {
+          await writer.handle(ctx, actor, {
+            read: (collection) => authorize(collection, 'list'),
+            update: (collection) => authorize(collection, 'update'),
+            source: authorize,
+          });
+        }
       } finally {
         for (const decision of related) adapter.release(decision);
       }
     };
+    for (const name of ['documents', 'projects'])
+      app.resourcer.define({
+        name,
+        actions: Object.fromEntries(
+          ['get', 'list', 'count'].map((action) => [
+            action,
+            (ctx: Context & { permission: unknown }) => execute(ctx, 'read'),
+          ]),
+        ),
+      });
+    for (const relation of ['project', 'projects'])
+      for (const action of ['get', 'list', 'count'])
+        app.resourcer.registerActionHandler(`documents.${relation}:${action}`, (ctx) =>
+          execute(ctx as Context & { permission: unknown }, 'read'),
+        );
     for (const path of [
       'documents:create',
       'documents:update',
@@ -203,7 +218,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       ...['add', 'remove', 'set'].map((operation) => `documents.children:${operation}`),
       ...['remove', 'set'].map((operation) => `documents.profile:${operation}`),
     ])
-      app.resourcer.registerActionHandler(path, (ctx) => mutate(ctx as Context & { permission: unknown }));
+      app.resourcer.registerActionHandler(path, (ctx) => execute(ctx as Context & { permission: unknown }, 'write'));
   });
 
   afterEach(async () => {
@@ -259,6 +274,219 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     app.db
       .getCollection('document_projects')
       .model.bulkCreate(ids.map((projectId) => ({ documentId: source, projectId })));
+
+  describe('association reads', () => {
+    const concrete = (relation: string, action: string, source: number | string = 3, query: object = {}) =>
+      supertest(app.callback()).get(`/api/documents/${source}/${relation}:${action}`).query(query);
+    const configureLinks = async (readable: boolean) => {
+      const key = identity(app.db.getCollection('document_projects'));
+      const current = (await store.read(key))!;
+      await store.save(
+        key,
+        {
+          ...configFor({ type: 'constant', value: readable }),
+          ownership: { enabled: false },
+          revision: current.revision,
+        },
+        { userId: 28 },
+      );
+    };
+    beforeEach(async () => {
+      await grant('documents', 'view', ['id', 'name', 'project', 'projects']);
+      await grant('document_projects', 'view', ['documentId', 'projectId']);
+      await store.save(
+        identity(app.db.getCollection('document_projects')),
+        { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 0 },
+        { userId: 28 },
+      );
+      await app.db.getCollection('documents').model.update({ projectId: 101 }, { where: { id: 3 } });
+      await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 4 } });
+      await seedLinks([101, 102, 103]);
+    });
+
+    it('expands readable references while retaining roots with hidden references', async () => {
+      const response = await app
+        .agent()
+        .resource('documents')
+        .list({
+          fields: ['id', 'project.name', 'projects.id'],
+          sort: ['id'],
+        });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        data: [
+          { id: 3, project: { name: 'Owned' }, projects: [{ id: 101 }, { id: 102 }] },
+          { id: 4, project: null, projects: [] },
+        ],
+        meta: { count: 2, page: 1, pageSize: 20, totalPage: 1 },
+      });
+    });
+
+    it('filters concrete many-to-many lists by target visibility', async () => {
+      const response = await supertest(app.callback())
+        .get('/api/documents/3/projects:list')
+        .query({ 'fields[]': ['id'], sort: 'id' });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        data: [{ id: 101 }, { id: 102 }],
+        meta: { count: 2, page: 1, pageSize: 20, totalPage: 1 },
+      });
+    });
+
+    it('treats the placeholder as direct target access without source or through permission', async () => {
+      acl.getRole('editor').revokeAction('documents:view');
+      acl.getRole('editor').revokeAction('document_projects:view');
+      const response = await supertest(app.callback())
+        .get('/api/documents/_/projects:get')
+        .query({ filterByTk: 102, 'fields[]': ['id'] });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { id: 102 } });
+    });
+
+    it('uses the same readable relation set for filtering lists and counts', async () => {
+      const filter = { projects: { name: 'Visible' } };
+      const list = await app
+        .agent()
+        .resource('documents')
+        .list({ fields: ['id'], filter });
+      const count = await app.agent().resource('documents').count({ filter });
+      expect(list.status).toBe(200);
+      expect(list.body.data).toEqual([{ id: 3 }]);
+      expect(list.body.meta.count).toBe(1);
+      expect(count.status).toBe(200);
+      expect(count.body).toEqual({ data: 1 });
+    });
+
+    it.each([101, 102, 103])('gets concrete linked target %s only when readable', async (id) => {
+      const response = await concrete('projects', 'get', 3, { filterByTk: id, 'fields[]': ['id'] });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: id === 103 ? null : { id } });
+    });
+
+    it.each([3, 4])('reads a single reference from source %s without losing the readable source', async (id) => {
+      const response = await concrete('project', 'get', id, { 'fields[]': ['id'] });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: id === 3 ? { id: 101 } : null });
+      const source = await app
+        .agent()
+        .resource('documents')
+        .get({ filterByTk: id, fields: ['id'] });
+      expect(source.status).toBe(200);
+      expect(source.body).toEqual({ data: { id } });
+    });
+
+    it('does not reveal an unlinked readable target', async () => {
+      const response = await concrete('projects', 'get', 4, { filterByTk: 101, 'fields[]': ['id'] });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: null });
+    });
+
+    it('retains the actual target role filter for concrete and placeholder requests', async () => {
+      await grant('projects', 'view', ['id', 'name'], { id: 101 });
+      const linked = await concrete('projects', 'list', 3, { 'fields[]': ['id'] });
+      expect(linked.status).toBe(200);
+      expect(linked.body.data).toEqual([{ id: 101 }]);
+      expect(linked.body.meta.count).toBe(1);
+      const direct = await concrete('project', 'get', '_', { filterByTk: 102, 'fields[]': ['id'] });
+      expect(direct.status).toBe(200);
+      expect(direct.body).toEqual({ data: null });
+    });
+
+    it('does not expose a target field omitted from its independent role grant', async () => {
+      await grant('projects', 'view', ['id']);
+      const response = await app
+        .agent()
+        .resource('documents')
+        .get({ filterByTk: 3, fields: ['id', 'project.name'] });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('requires source association field permission for concrete access', async () => {
+      await grant('documents', 'view', ['id', 'name']);
+      const response = await concrete('projects', 'list', 3, { 'fields[]': ['id'] });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('requires the independently finalized source list operation', async () => {
+      acl.getRole('editor').revokeAction('documents:view');
+      const response = await concrete('projects', 'list', 3, { 'fields[]': ['id'] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('rejects a source outside its custom role range', async () => {
+      await grant('documents', 'view', ['id', 'projects'], { id: 4 });
+      const response = await concrete('projects', 'list', 3, { 'fields[]': ['id'] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('does not reveal associations from a hidden source', async () => {
+      await app.db.getCollection('documents').model.update({ name: 'Hidden', tenantId: 'C' }, { where: { id: 3 } });
+      const response = await concrete('projects', 'list', 3, { 'fields[]': ['id'] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it.each(['project', 'projects'])('keeps target visibility on /_/ %s list', async (relation) => {
+      const response = await concrete(relation, 'list', '_', { 'fields[]': ['id'], sort: 'id' });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([{ id: 101 }, { id: 102 }]);
+      expect(response.body.meta.count).toBe(2);
+    });
+
+    it.each(['project', 'projects'])('denies /_/ %s when the target operation is missing', async (relation) => {
+      acl.getRole('editor').revokeAction('projects:view');
+      const response = await concrete(relation, 'get', '_', { filterByTk: 102, 'fields[]': ['id'] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('excludes unreadable links from expansion, concrete lists, root filtering and count', async () => {
+      await configureLinks(false);
+      const detail = await app
+        .agent()
+        .resource('documents')
+        .get({ filterByTk: 3, fields: ['id', 'projects.id'] });
+      const associated = await concrete('projects', 'list', 3, { 'fields[]': ['id'] });
+      const filter = { projects: { id: 101 } };
+      const roots = await app
+        .agent()
+        .resource('documents')
+        .list({ fields: ['id'], filter });
+      const count = await app.agent().resource('documents').count({ filter });
+      expect(detail.status).toBe(200);
+      expect(detail.body).toEqual({ data: { id: 3, projects: [] } });
+      expect(associated.status).toBe(200);
+      expect(associated.body.data).toEqual([]);
+      expect(associated.body.meta.count).toBe(0);
+      expect(roots.status).toBe(200);
+      expect(roots.body.data).toEqual([]);
+      expect(roots.body.meta.count).toBe(0);
+      expect(count.status).toBe(200);
+      expect(count.body).toEqual({ data: 0 });
+    });
+
+    it('requires the through collection operation instead of treating it as a public join', async () => {
+      acl.getRole('editor').revokeAction('document_projects:view');
+      const response = await concrete('projects', 'list', 3, { 'fields[]': ['id'] });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('cannot match roots by a hidden target even though the raw link exists', async () => {
+      const response = await app
+        .agent()
+        .resource('documents')
+        .list({ fields: ['id'], filter: { projects: { id: 103 } } });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([]);
+      expect(response.body.meta.count).toBe(0);
+      expect(await links()).toEqual([101, 102, 103]);
+    });
+  });
 
   describe('creation with existing references', () => {
     beforeEach(async () => {

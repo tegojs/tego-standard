@@ -207,6 +207,32 @@ export class AccessMutationService {
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
     assertEntryCurrent?: () => void,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
+    return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent);
+  }
+
+  /** The caller owns commit/rollback, including rollback after any authorization or post-write error. */
+  async withExistingRecordsInTransaction(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation,
+    transaction: Transaction,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent?: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (!transaction) invalid('An active root write transaction is required');
+    return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent, transaction);
+  }
+
+  private async writeExisting(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent?: () => void,
+    inheritedTransaction?: Transaction,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
     request = cloneDeep(request);
@@ -214,67 +240,69 @@ export class AccessMutationService {
     const model = collection.model;
     const serializable = requiresSerializable(config, request, collection);
     try {
+      const execute = async (transaction: Transaction) => {
+        assertEntryCurrent?.();
+        const plan = await this.authorizeExisting(ctx, identity, authenticated, request, transaction);
+        assertEntryCurrent?.();
+        const primary = model.primaryKeyAttribute;
+        const keys = plan.records.map((record) => record.getDataValue(primary) as string | number);
+        const expected = plan.records.map(
+          (record) => plan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
+        );
+        const protectedValues =
+          request.operation === 'update'
+            ? snapshotProtectedValues(this.db, collection, plan.records, config.ownership.enabled ? ['tenantId'] : [])
+            : undefined;
+        await writer(plan);
+        await validateWriteTransaction(this.db, transaction, serializable);
+        if (
+          this.prepared.configuration(ctx, identity) !== config ||
+          !this.queries.isCurrentCollection(identity, collection, model)
+        )
+          invalid('Mutation access phase changed during write');
+        const after = await model.unscoped().findAll(
+          internalQuery({
+            where: { [primary]: { [Op.in]: keys } },
+            transaction,
+            attributes: [
+              ...new Set([
+                primary,
+                ...(config.ownership.enabled ? ['tenantId'] : []),
+                ...(protectedValues?.fields ?? []),
+              ]),
+            ],
+          }),
+        );
+        if (
+          this.prepared.configuration(ctx, identity) !== config ||
+          !this.queries.isCurrentCollection(identity, collection, model)
+        )
+          invalid('Mutation collection identity changed');
+        if (request.operation === 'destroy') {
+          if (after.length) invalid('Writer did not delete all authorized targets');
+        } else {
+          if (after.length !== keys.length) invalid('Writer removed an update target');
+          protectedValues!.verify(after);
+          if (config.ownership.enabled) {
+            const owners = new Map(keys.map((key, i) => [String(key), expected[i]]));
+            if (
+              after.some(
+                (record) => record.getDataValue('tenantId') !== owners.get(String(record.getDataValue(primary))),
+              )
+            )
+              throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed record ownership');
+          }
+        }
+        assertEntryCurrent?.();
+        return { keys, affected: keys.length };
+      };
+      if (inheritedTransaction !== undefined) return await execute(inheritedTransaction);
       return await this.db.sequelize.transaction(
         {
           type: Transaction.TYPES.IMMEDIATE,
           ...(serializable ? { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE } : {}),
         },
-        async (transaction) => {
-          assertEntryCurrent?.();
-          const plan = await this.authorizeExisting(ctx, identity, authenticated, request, transaction);
-          assertEntryCurrent?.();
-          const primary = model.primaryKeyAttribute;
-          const keys = plan.records.map((record) => record.getDataValue(primary) as string | number);
-          const expected = plan.records.map(
-            (record) => plan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
-          );
-          const protectedValues =
-            request.operation === 'update'
-              ? snapshotProtectedValues(this.db, collection, plan.records, config.ownership.enabled ? ['tenantId'] : [])
-              : undefined;
-          await writer(plan);
-          await validateWriteTransaction(this.db, transaction, serializable);
-          if (
-            this.prepared.configuration(ctx, identity) !== config ||
-            !this.queries.isCurrentCollection(identity, collection, model)
-          )
-            invalid('Mutation access phase changed during write');
-          const after = await model.unscoped().findAll(
-            internalQuery({
-              where: { [primary]: { [Op.in]: keys } },
-              transaction,
-              attributes: [
-                ...new Set([
-                  primary,
-                  ...(config.ownership.enabled ? ['tenantId'] : []),
-                  ...(protectedValues?.fields ?? []),
-                ]),
-              ],
-            }),
-          );
-          if (
-            this.prepared.configuration(ctx, identity) !== config ||
-            !this.queries.isCurrentCollection(identity, collection, model)
-          )
-            invalid('Mutation collection identity changed');
-          if (request.operation === 'destroy') {
-            if (after.length) invalid('Writer did not delete all authorized targets');
-          } else {
-            if (after.length !== keys.length) invalid('Writer removed an update target');
-            protectedValues!.verify(after);
-            if (config.ownership.enabled) {
-              const owners = new Map(keys.map((key, i) => [String(key), expected[i]]));
-              if (
-                after.some(
-                  (record) => record.getDataValue('tenantId') !== owners.get(String(record.getDataValue(primary))),
-                )
-              )
-                throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed record ownership');
-            }
-          }
-          assertEntryCurrent?.();
-          return { keys, affected: keys.length };
-        },
+        execute,
       );
     } catch (error) {
       const conflict = error as { original?: { code?: string }; parent?: { code?: string } };

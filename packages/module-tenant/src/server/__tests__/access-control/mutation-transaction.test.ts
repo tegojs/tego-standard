@@ -1,5 +1,7 @@
 import { ACL, Transaction, type Collection, type Database } from '@tego/server';
 
+import { withWorkflowDataSourceTransaction } from '../../../../../module-workflow/src/server/helpers/tenant-context';
+import PluginWorkflow from '../../../../../module-workflow/src/server/Plugin';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey } from '../../access-control/config-store';
 import { AccessMutationService } from '../../access-control/mutation';
@@ -255,5 +257,55 @@ describe('existing mutations in a caller-owned transaction', () => {
       await transaction.rollback();
     }
     expect(await exists()).toBe(true);
+  });
+
+  describe('workflow-owned transaction boundary', () => {
+    function execute(keys = [3], writer?, inherited?: Transaction) {
+      const workflow = {
+        app: { dataSourceManager: { dataSources: new Map([['main', { collectionManager: { db } }]]) } },
+        useDataSourceTransaction: PluginWorkflow.prototype.useDataSourceTransaction,
+      };
+      return withWorkflowDataSourceTransaction(
+        workflow,
+        'main',
+        inherited,
+        (transaction) => remove(transaction, keys, writer),
+        { type: Transaction.TYPES.IMMEDIATE },
+      );
+    }
+
+    it('commits an ownership-authorized deletion through the shared workflow transaction', async () => {
+      expect(await execute()).toEqual({ keys: [3], affected: 1 });
+      expect(await exists()).toBe(false);
+      expect(await exists(4)).toBe(true);
+    });
+
+    it('rolls back repository writes if unified post-write verification fails', async () => {
+      await expect(
+        execute([3], async (plan) => {
+          await docs.repository.destroy({ filterByTk: 3, transaction: plan.transaction });
+          adapter.release(ctx);
+        }),
+      ).rejects.toMatchObject({ code: 'INVALID_ACCESS_CONFIG_WRITE' });
+      expect(await exists()).toBe(true);
+    });
+
+    it('does not treat visibility-only access as ownership deletion permission', async () => {
+      await expect(execute([1])).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await exists(1)).toBe(true);
+      expect(await docs.repository.count()).toBe(6);
+    });
+
+    it('rejects an insufficient inherited workflow transaction without committing earlier caller writes', async () => {
+      const transaction = await db.sequelize.transaction({ type: Transaction.TYPES.DEFERRED });
+      try {
+        await docs.model.update({ name: 'pending caller change' }, { where: { id: 3 }, transaction });
+        await expect(execute([3], undefined, transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((await docs.model.findByPk(3, { transaction })).get('name')).toBe('pending caller change');
+      } finally {
+        await transaction.rollback();
+      }
+      expect((await docs.model.findByPk(3)).get('name')).toBe('D3');
+    });
   });
 });

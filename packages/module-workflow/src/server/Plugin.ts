@@ -13,6 +13,7 @@ import {
 } from '@tego/server';
 
 import { LRUCache } from 'lru-cache';
+import type { TransactionOptions } from 'sequelize';
 
 import initActions from './actions';
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
@@ -686,7 +687,12 @@ export default class PluginWorkflowServer extends Plugin {
     return processor;
   }
 
-  useDataSourceTransaction(dataSourceName = 'main', transaction, create = false) {
+  useDataSourceTransaction(
+    dataSourceName = 'main',
+    transaction,
+    create = false,
+    options?: Pick<TransactionOptions, 'type' | 'isolationLevel'>,
+  ) {
     // @ts-ignore
     const { db } = this.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager;
     if (!db) {
@@ -696,7 +702,13 @@ export default class PluginWorkflowServer extends Plugin {
       return transaction;
     }
     if (create) {
-      return db.sequelize.transaction();
+      // Server callers may request stronger isolation; inherited transactions remain untouched.
+      return options === undefined
+        ? db.sequelize.transaction()
+        : db.sequelize.transaction({
+            ...(options.type === undefined ? {} : { type: options.type }),
+            ...(options.isolationLevel === undefined ? {} : { isolationLevel: options.isolationLevel }),
+          });
     }
   }
 }

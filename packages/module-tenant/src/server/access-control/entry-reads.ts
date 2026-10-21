@@ -257,7 +257,15 @@ export class AccessEntryReadService {
     });
     if (route.kind !== 'direct' || route.identity.dataSourceKey !== request.dataSource)
       invalid('Chart query data source does not match the registered collection identity');
-    const rows = await this.executeChart(ctx, route.identity, identity, request.chart, transaction, dateContext);
+    const rows = await this.executeChart(
+      ctx,
+      route.identity,
+      identity,
+      request.chart,
+      transaction,
+      dateContext,
+      request.take,
+    );
     route.assertCurrent();
     return rows;
   }
@@ -269,13 +277,14 @@ export class AccessEntryReadService {
     params: ReturnType<typeof parseChartParams>,
     transaction?: Transaction,
     dates?: AccessReadDateContext,
+    take?: number,
   ) {
     const { measures, dimensions, filter, limit, order } = params;
     const measure = measures[0];
     const reader = this.reader('list', ctx, source, authenticated);
     const formatted = dimensions.some(({ format }) => format !== undefined);
     if (formatted && dates === undefined) invalid('Chart date grouping requires a trusted date context');
-    if (measures.length > 1 || formatted) {
+    if (measures.length > 1 || formatted || take !== undefined) {
       const request = this.withDates(source, { filter }, dates);
       const groupBy = dimensions.map(({ field, format }) =>
         format === undefined ? field : { field, format, timezone: dates!.timezone },
@@ -285,7 +294,7 @@ export class AccessEntryReadService {
         transaction,
         measures: measures.map(({ field, method }) => ({ field, method })),
         groupBy,
-        limit,
+        ...(take === undefined ? { limit } : { take }),
         order,
       });
       return rows.map(({ key, values }) =>

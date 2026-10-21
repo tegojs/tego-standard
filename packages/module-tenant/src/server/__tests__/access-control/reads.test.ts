@@ -2530,6 +2530,24 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       ]);
     });
 
+    it('applies display count after trusted date grouping and authorized aggregation', async () => {
+      await docs.model.update({ occurredAt: new Date('2026-09-15T16:00:00Z') }, { where: { id: [1, 2, 3] } });
+      expect(
+        await entryReads.chartFromQuery(
+          ctx,
+          auth,
+          {
+            ...values(),
+            dimensions: [{ field: 'occurredAt', alias: '日期', format: 'YYYY-MM-DD' }],
+            orders: [{ alias: '日期', order: 'asc' }],
+            limit: 1,
+          },
+          undefined,
+          { now: '2026-09-16T12:00:00.000Z', timezone: '+08:00' },
+        ),
+      ).toEqual([{ 日期: '2026-09-16', 金额: 30 }]);
+    });
+
     it('rejects data source or root collection mismatches without SQL or permission callbacks', async () => {
       const sql = vi.spyOn(db.sequelize, 'query');
       for (const extra of [
@@ -2605,6 +2623,11 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         { sql: { fields: '*' } },
         { dates: { now: '2026-01-01T00:00:00.000Z', timezone: '+00:00' } },
         { raw: true },
+        { limit: -1 },
+        { limit: 1.5 },
+        { limit: '1' },
+        { limit: 2001 },
+        { take: 1 },
         Object.defineProperty({}, 'collection', { enumerable: true, get: getter }),
       ]) {
         // Preserve descriptors, including non-data properties, rather than invoking getters through object spread.
@@ -2626,6 +2649,53 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         ],
         ...extra,
       });
+
+    it('selects bounded top groups in SQL while preserving complete group aggregates', async () => {
+      const find = vi.spyOn(docs.model, 'findAll');
+      expect(
+        await batch({
+          groupBy: ['tenantId'],
+          order: [{ by: 'value', index: 0, direction: 'desc' }],
+          take: 1,
+        }),
+      ).toEqual([{ key: { tenantId: 'B' }, values: [60, 2] }]);
+      expect(find.mock.calls[0][0]!.limit).toBe(1);
+      // The ordinary completeness contract must continue rejecting a partial result.
+      await expect(batch({ groupBy: ['tenantId'], limit: 2 })).rejects.toThrow(/limit/);
+    });
+
+    it('captures top group count before permission callbacks change the request', async () => {
+      const request = {
+        measures: [{ field: 'amount', method: 'sum' }],
+        groupBy: ['tenantId'],
+        order: [{ by: 'value', index: 0, direction: 'desc' }],
+        take: 1,
+      };
+      const original = resolver.getMockImplementation()!;
+      resolver.mockImplementationOnce((...args) => {
+        request.take = 3;
+        return original(...args);
+      });
+      expect(await reads.aggregateMany(ctx, mainIdentity, auth, request)).toEqual([
+        { key: { tenantId: 'B' }, values: [60] },
+      ]);
+    });
+
+    it('rejects invalid or ambiguous top group bounds before SQL', async () => {
+      const sql = vi.spyOn(db.sequelize, 'query');
+      for (const extra of [
+        { take: 0 },
+        { take: -1 },
+        { take: 1.5 },
+        { take: '1' },
+        { take: null },
+        { take: 2001 },
+        { take: Infinity },
+        { take: 1, limit: 2 },
+      ])
+        await expect(batch({ groupBy: ['tenantId'], ...extra })).rejects.toThrow();
+      expect(sql).not.toHaveBeenCalled();
+    });
 
     it('computes distinct measures independently while sharing authorized groups', async () => {
       await docs.model.update({ amount: 10 }, { where: { id: 5 } });

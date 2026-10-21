@@ -309,14 +309,69 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     });
   });
 
-  it('rejects groups beyond the completeness bound instead of publishing partial statistics', async () => {
+  it('returns the first requested groups after ordering the complete readable root set', async () => {
     const response = await query({
       ...values(),
       dimensions: [{ field: 'tenantId', alias: '归属' }],
+      orders: [{ field: 'amount', alias: '金额', order: 'desc' }],
       limit: 1,
     });
-    expect(response.status).toBe(400);
-    expect(response.body).not.toHaveProperty('data');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 归属: 'B', 金额: 300 }] });
+  });
+
+  it('limits grouped multiple measures without limiting the records used in each group', async () => {
+    await app.db.getCollection('documents').model.create({ id: 10, tenantId: 'B', amount: 50 });
+    const response = await query({
+      ...values(),
+      measures: [
+        { field: 'amount', aggregation: 'sum', alias: '金额' },
+        { field: 'id', aggregation: 'count', alias: '数量' },
+      ],
+      dimensions: [{ field: 'tenantId', alias: '归属' }],
+      orders: [{ alias: '金额', order: 'desc' }],
+      limit: 1,
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 归属: 'B', 金额: 350, 数量: 2 }] });
+  });
+
+  it('does not limit the source records of a scalar chart', async () => {
+    const response = await query({ ...values(), limit: 1 });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 金额: 400 }] });
+  });
+
+  it('captures display count before awaiting independent collection authorization', async () => {
+    beforeSource = (ctx) => {
+      const permission = ctx.permission as { rawParams: { values: { limit: number } } };
+      permission.rawParams.values.limit = 2;
+    };
+    const response = await query({
+      ...values(),
+      dimensions: [{ field: 'tenantId', alias: '归属' }],
+      orders: [{ alias: '金额', order: 'desc' }],
+      limit: 1,
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 归属: 'B', 金额: 300 }] });
+  });
+
+  it.each([undefined, null, 0, 2000])('uses the existing 2000 group display limit: %s', async (limit) => {
+    await app.db
+      .getCollection('documents')
+      .model.bulkCreate(Array.from({ length: 2001 }, (_, index) => ({ id: 100 + index, tenantId: 'B', amount: 1 })));
+    const response = await query({
+      ...values(),
+      dimensions: [{ field: 'id', alias: '编号' }],
+      orders: [{ field: 'id', alias: '编号', order: 'asc' }],
+      ...(limit === undefined ? {} : { limit }),
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(2000);
+    expect(response.body.data[0]).toEqual({ 编号: 1, 金额: 100 });
+    expect(response.body.data[1]).toEqual({ 编号: 3, 金额: 300 });
+    expect(response.body.data[1999]).toEqual({ 编号: 2097, 金额: 1 });
   });
 
   it('intersects request filters with ownership and visibility', async () => {
@@ -587,6 +642,11 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     { sql: { fields: '*' } },
     { measures: [{ field: ['participants', 'id'], aggregation: 'count', alias: '数量' }] },
     { measures: [{ field: ['amount'], aggregation: 'median', alias: '金额' }] },
+    { limit: -1 },
+    { limit: 1.5 },
+    { limit: '1' },
+    { limit: 2001 },
+    { take: 1 },
   ])('rejects unsupported chart input without publishing data: %j', async (extra) => {
     const response = await query({ ...values(), ...extra });
     expect(response.status).toBe(400);

@@ -19,8 +19,12 @@ function capture(input: unknown, keys: readonly string[]): Record<string, unknow
 
 /** Validate the existing envelope, but never use client cache metadata to bypass live authorization. */
 export function parseChartQueryParams(input: unknown) {
-  const queryKeys = ['measures', 'dimensions', 'orders', 'filter', 'limit'];
-  const params = capture(input, ['collection', 'dataSource', 'uid', 'cache', 'refresh', ...queryKeys]);
+  const queryKeys = ['measures', 'dimensions', 'orders', 'filter'];
+  const params = capture(input, ['collection', 'dataSource', 'uid', 'cache', 'refresh', 'limit', ...queryKeys]);
+  // Existing chart limit is presentation top-N, not the internal complete-result bound.
+  const take = params.limit === undefined || params.limit === null || params.limit === 0 ? 2000 : params.limit;
+  if (typeof take !== 'number' || !Number.isSafeInteger(take) || take < 1 || take > 2000)
+    invalid('Chart display limit exceeds supported limits');
   const dataSource = params.dataSource === undefined ? 'main' : params.dataSource;
   const collection = params.collection;
   if (
@@ -55,6 +59,7 @@ export function parseChartQueryParams(input: unknown) {
   return {
     dataSource,
     collection,
+    take,
     chart: parseChartParams(
       Object.fromEntries(queryKeys.filter((key) => Object.hasOwn(params, key)).map((key) => [key, params[key]])),
     ),

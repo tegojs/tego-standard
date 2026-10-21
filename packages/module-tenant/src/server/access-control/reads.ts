@@ -68,7 +68,10 @@ export interface AccessGroupedAggregateResult {
 export interface AccessMultiAggregateRequest extends AccessReadRequest {
   measures: unknown;
   groupBy?: unknown;
+  /** Complete-result bound; overflow rejects the query. Mutually exclusive with take. */
   limit?: unknown;
+  /** Explicit top-group selection after SQL aggregation and ordering, at most 2000 groups. */
+  take?: unknown;
   order?: unknown;
 }
 
@@ -334,7 +337,7 @@ export class AccessReadService {
           .filter((name) => !plan.aggregateOrder.some((item) => item.by === 'field' && item.field === name))
           .map((name) => literal(`${groupColumns.get(name)!} ASC NULLS LAST`)),
       ],
-      limit: plan.groupBy.length ? plan.limit + 1 : 1,
+      limit: plan.groupBy.length ? plan.limit + (plan.truncateGroups ? 0 : 1) : 1,
     });
     plan.assertCurrent();
     if (rows.length > plan.limit) invalid('Grouped aggregate exceeds its group limit');
@@ -398,7 +401,7 @@ export class AccessReadService {
           : kind === 'sum'
             ? ['field']
             : kind === 'aggregateMany'
-              ? ['measures', 'groupBy', 'limit', 'order']
+              ? ['measures', 'groupBy', 'limit', 'take', 'order']
               : kind === 'aggregate' || kind === 'groupAggregate'
                 ? ['field', 'method', 'distinct', ...(kind === 'groupAggregate' ? ['groupBy', 'limit', 'order'] : [])]
                 : []),
@@ -414,6 +417,9 @@ export class AccessReadService {
     )
       invalid('Unsupported root read request');
     const requestedLimit = request.limit;
+    const requestedTake = kind === 'aggregateMany' ? request.take : undefined;
+    if (requestedTake !== undefined && requestedLimit !== undefined)
+      invalid('Aggregate take and completeness limit cannot be combined');
     const requestedOffset = request.offset;
     const measures = kind === 'aggregateMany' ? captureAggregateMeasures(request.measures) : [];
     const aggregateOrder =
@@ -536,17 +542,19 @@ export class AccessReadService {
       }
     }
     const limit =
-      (kind === 'list' || kind === 'groupAggregate' || kind === 'aggregateMany') && requestedLimit !== undefined
-        ? requestedLimit
-        : kind === 'groupAggregate' || kind === 'aggregateMany'
-          ? 1000
-          : 20;
+      requestedTake !== undefined
+        ? requestedTake
+        : (kind === 'list' || kind === 'groupAggregate' || kind === 'aggregateMany') && requestedLimit !== undefined
+          ? requestedLimit
+          : kind === 'groupAggregate' || kind === 'aggregateMany'
+            ? 1000
+            : 20;
     const offset = kind === 'list' && requestedOffset !== undefined ? requestedOffset : 0;
     if (
       typeof limit !== 'number' ||
       !Number.isSafeInteger(limit) ||
       limit < 1 ||
-      limit > 1000 ||
+      limit > (requestedTake === undefined ? 1000 : 2000) ||
       typeof offset !== 'number' ||
       !Number.isSafeInteger(offset) ||
       offset < 0 ||
@@ -624,6 +632,7 @@ export class AccessReadService {
       groups,
       aggregateOrder,
       limit,
+      truncateGroups: requestedTake !== undefined,
       offset,
       assertCurrent,
     };

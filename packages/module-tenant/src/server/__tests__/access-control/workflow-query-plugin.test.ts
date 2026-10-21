@@ -1,7 +1,10 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
-import { ACL, type Collection } from '@tego/server';
+import { ACL, type Collection, type Context } from '@tego/server';
 
+import { waitForWorkflowIdle, waitForWorkflowJobFast } from '../../../../../module-workflow/src/server/__tests__/utils';
+import { retry as retryExecution } from '../../../../../module-workflow/src/server/actions/executions';
 import { EXECUTION_STATUS, JOB_STATUS } from '../../../../../module-workflow/src/server/constants';
+import type DelayInstruction from '../../../../../module-workflow/src/server/features/delay/DelayInstruction';
 import type PluginWorkflow from '../../../../../module-workflow/src/server/Plugin';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessConfigHistory } from '../../access-control/config-history';
@@ -144,6 +147,8 @@ describe('unified tenant queries in actual workflow executions', () => {
     });
   });
   afterEach(async () => {
+    (plugin.instructions.get('delay') as DelayInstruction).unload();
+    await waitForWorkflowIdle(app);
     await workflow?.update({ enabled: false });
   });
   afterAll(async () => {
@@ -157,6 +162,8 @@ describe('unified tenant queries in actual workflow executions', () => {
       ...extra,
     });
   async function execute(tenantId: string | null = 'B', human = true) {
+    const queued = !plugin.isWorkflowSync(workflow);
+    const [previous] = queued ? await workflow.getExecutions({ order: [['id', 'DESC']], limit: 1 }) : [];
     await plugin.trigger(
       workflow,
       { state: { currentTenantId: 'C', currentRole: 'admin', currentUser: { id: 99 } } },
@@ -169,8 +176,71 @@ describe('unified tenant queries in actual workflow executions', () => {
         },
       },
     );
+    if (queued)
+      await waitForWorkflowJobFast(
+        workflow,
+        (execution) => {
+          expect(execution.id).not.toBe(previous?.id);
+        },
+        { executionOptions: { order: [['id', 'DESC']] } },
+      );
+    await waitForWorkflowIdle(app);
     const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
     return { execution, jobs: await execution.getJobs({ order: [['id', 'ASC']] }) };
+  }
+
+  const delayInstruction = () => plugin.instructions.get('delay') as DelayInstruction;
+  async function pauseBeforeQuery(human: boolean, queued = false) {
+    if (queued) await workflow.update({ sync: false });
+    const first = await node({ params: { fields: ['name'], appends: ['project.name'] } });
+    const delay = await workflow.createNode({
+      type: 'delay',
+      config: { duration: 60000, endStatus: JOB_STATUS.RESOLVED },
+      upstreamId: first.id,
+    });
+    const last = await node({ params: { fields: ['name'], appends: ['project.name'] } }, { upstreamId: delay.id });
+    await first.update({ downstreamId: delay.id });
+    await delay.update({ downstreamId: last.id });
+    const result = await execute('B', human);
+    delayInstruction().unload();
+    expect(result.execution.status).toBe(EXECUTION_STATUS.STARTED);
+    expect(result.jobs.map((job) => job.status)).toEqual([JOB_STATUS.RESOLVED, JOB_STATUS.PENDING]);
+    expect(result.jobs[0].result).toEqual([
+      { name: 'Owned', project: { name: 'Local project' } },
+      { name: 'Visible', project: null },
+    ]);
+    return { ...result, delay };
+  }
+  async function restoreDelay(delay: { update(values: object): Promise<unknown> }) {
+    // Reload persisted pending jobs through the real delay lifecycle, without a long wall-clock wait.
+    await delay.update({ config: { duration: 0, endStatus: JOB_STATUS.RESOLVED } });
+    await delayInstruction().load();
+    await waitForWorkflowJobFast(workflow, (execution, jobs) => {
+      expect(execution.status).not.toBe(EXECUTION_STATUS.STARTED);
+      expect(jobs).toHaveLength(3);
+    });
+    await waitForWorkflowIdle(app);
+    const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+    return { execution, jobs: await execution.getJobs({ order: [['id', 'ASC']] }) };
+  }
+  function retryContext(executionId: number, tenantId = 'H') {
+    return {
+      app,
+      db: app.db,
+      tego: { pm: { get: () => plugin }, logger: app.logger },
+      state: {
+        currentTenantId: tenantId,
+        currentTenancyMode: 'tenantInherited',
+        currentTenantDescendantIds: tenantId === 'H' ? ['B', 'C'] : [],
+        currentRole: 'reviewer',
+        currentUser: { id: 77 },
+      },
+      action: { resourceName: 'executions', actionName: 'retry', params: { filterByTk: executionId } },
+      t: (message: string) => message,
+      throw(status: number, message?: string) {
+        throw Object.assign(new Error(message ?? String(status)), { status });
+      },
+    } as unknown as Context;
   }
 
   it('persists ownership and visibility results with independently filtered associations', async () => {
@@ -324,5 +394,187 @@ describe('unified tenant queries in actual workflow executions', () => {
       const current = (await store.read(target))!;
       await store.save(target, { ...original, revision: current.revision }, { userId: 28 });
     }
+  });
+
+  describe('persisted delay and retry phases', () => {
+    it.each([
+      { human: true, queued: false },
+      { human: false, queued: false },
+      { human: true, queued: true },
+      { human: false, queued: true },
+    ])('restores identity and reloads rules after a delay: human=$human queued=$queued', async ({ human, queued }) => {
+      const { delay } = await pauseBeforeQuery(human, queued);
+      const target = identities.get('accessWorkflowDocuments')!;
+      const original = (await store.read(target))!;
+      try {
+        const owner = original.rules[0];
+        await store.save(
+          target,
+          {
+            ...original,
+            rules: [
+              {
+                ...owner,
+                subject: human
+                  ? {
+                      type: 'all',
+                      children: [
+                        {
+                          type: 'compare',
+                          operator: 'eq',
+                          left: { type: 'context', path: 'role.name' },
+                          right: { type: 'literal', value: 'worker' },
+                        },
+                        {
+                          type: 'compare',
+                          operator: 'eq',
+                          left: { type: 'context', path: 'user.id' },
+                          right: { type: 'literal', value: '28' },
+                        },
+                      ],
+                    }
+                  : owner.subject,
+              },
+            ],
+          },
+          { userId: 28 },
+        );
+        const { execution, jobs } = await restoreDelay(delay);
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(jobs).toHaveLength(3);
+        expect(jobs[2].result).toEqual([{ name: 'Owned', project: { name: 'Local project' } }]);
+        expect(execution.get('tenantContext')).toMatchObject({ currentTenantId: 'B' });
+        expect(execution.get('authContext')).toEqual(human ? { currentRole: 'worker', currentUserId: 28 } : null);
+      } finally {
+        const current = (await store.read(target))!;
+        await store.save(target, { ...original, revision: current.revision }, { userId: 28 });
+      }
+    });
+
+    it('reloads related collection rules without removing readable roots after a delay', async () => {
+      const { delay } = await pauseBeforeQuery(false);
+      const target = identities.get('accessWorkflowProjects')!;
+      const original = (await store.read(target))!;
+      try {
+        await store.save(target, { ...original, rules: [] }, { userId: 28 });
+        const { execution, jobs } = await restoreDelay(delay);
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(jobs[2].result).toEqual([
+          { name: 'Owned', project: null },
+          { name: 'Visible', project: null },
+        ]);
+      } finally {
+        const current = (await store.read(target))!;
+        await store.save(target, { ...original, revision: current.revision }, { userId: 28 });
+      }
+    });
+
+    it.each(['', 'project'])('rechecks revoked operation permission after a delay: %s', async (path) => {
+      const { delay } = await pauseBeforeQuery(false);
+      permissions.set(path, { allowed: false, params: {} });
+      const { execution, jobs } = await restoreDelay(delay);
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(jobs).toHaveLength(3);
+      expect(jobs[2].status).toBe(JOB_STATUS.ERROR);
+      expect(jobs[2].result.message).toMatch(/authoriz/);
+      expect(jobs[2].result).not.toHaveProperty('0');
+    });
+
+    it('rejects a tenant disabled while an automatic execution was paused', async () => {
+      const { delay } = await pauseBeforeQuery(false);
+      const tenants = app.db.getCollection('tenants').model;
+      await tenants.update({ enabled: false }, { where: { id: 'B' } });
+      try {
+        const { execution, jobs } = await restoreDelay(delay);
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(jobs[2].status).toBe(JOB_STATUS.ERROR);
+        expect(jobs[2].result.message).toMatch(/tenant.*disabled/i);
+        expect(jobs[2].result).not.toHaveProperty('0');
+      } finally {
+        await tenants.update({ enabled: true }, { where: { id: 'B' } });
+      }
+    });
+
+    it('retries with the requesting actor and current rules while preserving the descendant execution tenant', async () => {
+      permissions.set('', { allowed: false, params: {} });
+      await node({ params: { fields: ['name'] } });
+      const originalRun = await execute();
+      expect(originalRun.execution.status).toBe(EXECUTION_STATUS.ERROR);
+      permissions.set('', { allowed: true, params: { fields: ['name'] } });
+      const target = identities.get('accessWorkflowDocuments')!;
+      const original = (await store.read(target))!;
+      try {
+        await store.save(
+          target,
+          {
+            ...original,
+            rules: [
+              {
+                ...original.rules[0],
+                subject: {
+                  type: 'all',
+                  children: [
+                    {
+                      type: 'compare',
+                      operator: 'eq',
+                      left: { type: 'context', path: 'role.name' },
+                      right: { type: 'literal', value: 'reviewer' },
+                    },
+                    {
+                      type: 'compare',
+                      operator: 'eq',
+                      left: { type: 'context', path: 'user.id' },
+                      right: { type: 'literal', value: '77' },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          { userId: 28 },
+        );
+        const ctx = retryContext(originalRun.execution.id);
+        await retryExecution(ctx, async () => {});
+        await waitForWorkflowIdle(app);
+        const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+        const [job] = await execution.getJobs();
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result).toEqual([{ name: 'Owned' }]);
+        expect(execution.id).not.toBe(originalRun.execution.id);
+        expect(ctx.body).toMatchObject({ id: execution.id, tenantId: 'B' });
+        expect(execution.get('tenantContext')).toMatchObject({ currentTenantId: 'B' });
+        expect(execution.get('authContext')).toMatchObject({ currentRole: 'reviewer', currentUserId: 77 });
+        await originalRun.execution.reload();
+        expect(originalRun.execution.get('authContext')).toMatchObject({ currentRole: 'worker', currentUserId: 28 });
+        expect(await workflow.countExecutions()).toBe(2);
+      } finally {
+        const current = (await store.read(target))!;
+        await store.save(target, { ...original, revision: current.revision }, { userId: 28 });
+      }
+    });
+
+    it('does not fall back to an unrestricted query when retry authorization is denied', async () => {
+      permissions.set('', { allowed: false, params: {} });
+      await node({ params: { fields: ['name'] } });
+      const original = await execute('B', false);
+      const ctx = retryContext(original.execution.id);
+      await retryExecution(ctx, async () => {});
+      const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+      const [job] = await execution.getJobs();
+      expect(execution.id).not.toBe(original.execution.id);
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.status).toBe(JOB_STATUS.ERROR);
+      expect(job.result.message).toMatch(/authoriz/);
+      expect(job.result).not.toHaveProperty('0');
+    });
+
+    it('rejects retry from an unrelated tenant without creating another execution', async () => {
+      await node({ params: { fields: ['name'] } });
+      const original = await execute();
+      await expect(retryExecution(retryContext(original.execution.id, 'C'), async () => {})).rejects.toMatchObject({
+        status: 404,
+      });
+      expect(await workflow.countExecutions()).toBe(1);
+    });
   });
 });

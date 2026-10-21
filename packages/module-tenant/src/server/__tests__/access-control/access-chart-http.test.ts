@@ -6,6 +6,7 @@ import {
   createChartQuery,
   type ChartQueryResolver,
 } from '../../../../../plugin-block-charts/src/server/actions/query-entry';
+import DataVisualizationPlugin from '../../../../../plugin-block-charts/src/server/plugin';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { AccessChartQueryHandler } from '../../access-control/chart-query-handler';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -39,6 +40,7 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
   let dates: AccessReadDateContext | undefined;
   let legacyMode: boolean;
   let resolveEntry: ChartQueryResolver | undefined;
+  let selectChartQuery: ChartQueryResolver;
   const identity = (collection: Collection) => ({
     ...mainIdentity,
     collectionName: collection.name,
@@ -185,65 +187,63 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
         },
       },
     });
+    selectChartQuery = (ctx) =>
+      resolveEntry
+        ? resolveEntry(ctx)
+        : legacyMode
+          ? undefined
+          : async (resourceContext) => {
+              const ctx = resourceContext as Context & { permission: unknown };
+              if (!ctx.action || !('permission' in ctx))
+                throw new Error('ACL middleware did not finalize this request');
+              const decisions: AccessRootReadContext[] = [];
+              const authorize = async (target: Collection) => {
+                const resourcer = new Resourcer();
+                resourcer.define({ name: target.name, actions: { list: {} } });
+                const action = resourcer.getAction(target.name, 'list').clone();
+                Object.assign(action, { resourceName: target.name, actionName: 'list' });
+                action.mergeParams({ resourceName: target.name, actionName: 'list', filterByTk: undefined });
+                const decision = {
+                  db,
+                  action,
+                  permission: undefined as unknown,
+                  state: ctx.state,
+                  get: ctx.get.bind(ctx),
+                  logger: ctx.logger,
+                  throw: ctx.throw.bind(ctx),
+                  body: undefined as unknown,
+                };
+                decisions.push(decision);
+                await adapter.prepare(decision, identities());
+                await acl.middleware()(decision as never, async () => {});
+                return decision;
+              };
+              try {
+                beforeEntry?.(ctx);
+                await charts.handle(
+                  ctx,
+                  ctx.state.accessTestActor,
+                  {
+                    source: async (collection) => {
+                      const decision = await authorize(collection);
+                      await beforeSource?.(ctx);
+                      return decision;
+                    },
+                    related: authorize,
+                  },
+                  undefined,
+                  dates,
+                );
+              } catch (error) {
+                entryError = error;
+                throw error;
+              } finally {
+                for (const decision of decisions) adapter.release(decision);
+              }
+            };
     app.resourcer.define({
       name: 'charts',
-      actions: {
-        query: createChartQuery((ctx) =>
-          resolveEntry
-            ? resolveEntry(ctx)
-            : legacyMode
-              ? undefined
-              : async (resourceContext) => {
-                  const ctx = resourceContext as Context & { permission: unknown };
-                  if (!ctx.action || !('permission' in ctx))
-                    throw new Error('ACL middleware did not finalize this request');
-                  const decisions: AccessRootReadContext[] = [];
-                  const authorize = async (target: Collection) => {
-                    const resourcer = new Resourcer();
-                    resourcer.define({ name: target.name, actions: { list: {} } });
-                    const action = resourcer.getAction(target.name, 'list').clone();
-                    Object.assign(action, { resourceName: target.name, actionName: 'list' });
-                    action.mergeParams({ resourceName: target.name, actionName: 'list', filterByTk: undefined });
-                    const decision = {
-                      db,
-                      action,
-                      permission: undefined as unknown,
-                      state: ctx.state,
-                      get: ctx.get.bind(ctx),
-                      logger: ctx.logger,
-                      throw: ctx.throw.bind(ctx),
-                      body: undefined as unknown,
-                    };
-                    decisions.push(decision);
-                    await adapter.prepare(decision, identities());
-                    await acl.middleware()(decision as never, async () => {});
-                    return decision;
-                  };
-                  try {
-                    beforeEntry?.(ctx);
-                    await charts.handle(
-                      ctx,
-                      ctx.state.accessTestActor,
-                      {
-                        source: async (collection) => {
-                          const decision = await authorize(collection);
-                          await beforeSource?.(ctx);
-                          return decision;
-                        },
-                        related: authorize,
-                      },
-                      undefined,
-                      dates,
-                    );
-                  } catch (error) {
-                    entryError = error;
-                    throw error;
-                  } finally {
-                    for (const decision of decisions) adapter.release(decision);
-                  }
-                },
-        ),
-      },
+      actions: { query: createChartQuery(selectChartQuery) },
     });
   });
 
@@ -296,6 +296,197 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     legacyMode = false;
     return input;
   }
+
+  function registerChartPlugin(options: { queryResolver?: ChartQueryResolver } = {}) {
+    const plugin = new DataVisualizationPlugin(app, { name: 'data-visualization', ...options });
+    plugin.beforeLoad();
+    return plugin;
+  }
+
+  describe('plugin registered chart entry', () => {
+    it('selects the scoped executor before the real legacy cache', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      const response = await query(input);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: 433 }] });
+    });
+
+    it('preserves the original cache, refresh and disabled-cache behavior without a resolver', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin();
+      const cached = await query(input);
+      expect(cached.status).toBe(200);
+      expect(cached.body).toEqual({ data: [{ 金额: 2100 }] });
+      const refreshed = await query({ ...input, refresh: true });
+      expect(refreshed.status).toBe(200);
+      expect(refreshed.body).toEqual({ data: [{ 金额: 2133 }] });
+      await app.db.getCollection('documents').model.update({ amount: 444 }, { where: { id: 3 } });
+      const uncached = await query({ ...input, cache: { enabled: false } });
+      expect(uncached.status).toBe(200);
+      expect(uncached.body).toEqual({ data: [{ 金额: 2244 }] });
+      const retained = await query(input);
+      expect(retained.status).toBe(200);
+      expect(retained.body).toEqual({ data: [{ 金额: 2133 }] });
+    });
+
+    it('preserves the old route when a configured resolver explicitly declines the request', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: () => undefined });
+      const response = await query(input);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: 2100 }] });
+    });
+
+    it('keeps the registered resolver when the startup options are later replaced', async () => {
+      const input = await warmLegacyCache();
+      const plugin = registerChartPlugin({ queryResolver: selectChartQuery });
+      plugin.options.queryResolver = () => undefined;
+      const response = await query(input);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: 433 }] });
+    });
+
+    it('does not activate a late resolver on an originally unconfigured plugin', async () => {
+      const input = await warmLegacyCache();
+      const plugin = registerChartPlugin();
+      plugin.options.queryResolver = selectChartQuery;
+      const response = await query(input);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: 2100 }] });
+    });
+
+    it('retains the plugin logged-in grant while independently restricting source records', async () => {
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      acl.getRole('editor').revokeAction('charts:query');
+      const response = await query();
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: 400 }] });
+    });
+
+    it('does not treat the logged-in chart grant as source collection authorization', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      acl.getRole('editor').revokeAction('documents:view');
+      const response = await query(input);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('keeps the source role scope after the logged-in chart grant', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      await grant('documents', ['id', 'name', 'amount', 'tenantId', 'participants'], { id: 1 });
+      const response = await query(input);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: 100 }] });
+    });
+
+    it('rechecks measure field authorization instead of publishing warmed cache data', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      await grant('documents', ['id', 'name'], {});
+      const response = await query(input);
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('checks related collection access independently and preserves internal authorization facts', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      acl.getRole('editor').revokeAction('participants:view');
+      const filtered = await query({ ...input, filter: { participants: { businessTenant: 'B' } } });
+      expect(filtered.status).toBe(403);
+      expect(filtered.body).not.toHaveProperty('data');
+      const unfiltered = await query(input);
+      expect(unfiltered.status).toBe(200);
+      expect(unfiltered.body).toEqual({ data: [{ 金额: 433 }] });
+    });
+
+    it('rechecks current rules after plugin registration', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      const config = (await store.read(mainIdentity))!;
+      await store.save(mainIdentity, { ...config, rules: [] }, { userId: 28 });
+      const response = await query(input);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: null }] });
+    });
+
+    it('uses the server tenant rather than client headers and cached chart identity', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      principal = { ...principal, tenantId: 'C' };
+      const response = await query(input).set('x-tenant-id', 'B');
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: [{ 金额: 1000 }] });
+    });
+
+    it('does not fall back to the cache when the registered selector fails', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      resolveEntry = () => {
+        throw new Error('Registered chart selection failed');
+      };
+      const response = await query(input);
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('does not fall back after the registered executor fails', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      const failure = new Error('Registered collection authorization failed');
+      beforeSource = () => {
+        throw failure;
+      };
+      const response = await query(input);
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+      expect(entryError).toBe(failure);
+    });
+
+    it('handles an accidentally asynchronous registered selection without an unhandled rejection', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({
+        queryResolver: (async () => {
+          throw new Error('Async registered selection failed');
+        }) as unknown as ChartQueryResolver,
+      });
+      const response = await query(input);
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it('does not fall back when the registered executor returns no response', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: () => async () => {} });
+      const response = await query(input);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({});
+    });
+
+    it('does not accept client values as plugin startup configuration', async () => {
+      const input = await warmLegacyCache();
+      registerChartPlugin({ queryResolver: selectChartQuery });
+      const response = await query({ ...input, queryResolver: null });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+    });
+
+    it.each([null, false, 'query', {}])(
+      'rejects invalid startup selection before replacing the route: %s',
+      async (selection) => {
+        const input = await warmLegacyCache();
+        expect(() => registerChartPlugin({ queryResolver: selection as unknown as ChartQueryResolver })).toThrow(
+          TypeError,
+        );
+        const response = await query(input);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: [{ 金额: 433 }] });
+      },
+    );
+  });
 
   it('bypasses a warmed real legacy cache without replacing or invalidating its entries', async () => {
     const input = await warmLegacyCache();

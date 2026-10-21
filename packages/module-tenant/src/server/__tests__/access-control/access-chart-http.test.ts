@@ -3,13 +3,13 @@ import { mockServer, supertest, type MockServer } from '@tachybase/test';
 import { ACL, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
-import { parseChartQueryParams } from '../../access-control/chart-query-params';
+import { AccessChartQueryHandler } from '../../access-control/chart-query-handler';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
+import type { AccessReadDateContext } from '../../access-control/read-date-filter';
 import type { AccessRootReadContext } from '../../access-control/root-read-context';
 import { AccessRootReadHandler } from '../../access-control/root-read-handler';
-import { invalid } from '../../access-control/write-support';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
 import { seedDatabase } from './database';
@@ -17,6 +17,7 @@ import { configFor, exampleConfig, participantCondition } from './fixtures';
 
 const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_ENTRY;
 const coreAvailable = coreEntry || 'registerActionParamsResolver' in ACL.prototype;
+type ChartContext = Context & { permission: unknown };
 
 /** Real HTTP/ACL with isolated SQLite data and server fixture identities, not real authentication. */
 describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () => {
@@ -27,10 +28,15 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
   let unregister: (() => void) | undefined;
   let principal: { tenantId: string; roleName: string; userId: number };
   let tenantScopeId: number;
+  let beforeEntry: ((ctx: ChartContext) => void) | undefined;
+  let beforeSource: ((ctx: ChartContext) => void | Promise<void>) | undefined;
+  let identityKeys: Map<string, string>;
+  let entryError: unknown;
+  let dates: AccessReadDateContext | undefined;
   const identity = (collection: Collection) => ({
     ...mainIdentity,
     collectionName: collection.name,
-    collectionKey: `${collection.name}-key`,
+    collectionKey: identityKeys.get(collection.name) ?? `${collection.name}-key`,
   });
   const identities = () => ['documents', 'participants'].map((name) => identity(app.db.getCollection(name)));
   const values = () => ({
@@ -45,6 +51,11 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
   const query = (input: object = values()) => supertest(app.callback()).post('/api/charts:query').send(input);
 
   beforeEach(async () => {
+    beforeEntry = undefined;
+    beforeSource = undefined;
+    identityKeys = new Map();
+    entryError = undefined;
+    dates = undefined;
     app = mockServer({
       acl: false,
       registerActions: true,
@@ -151,6 +162,7 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     app.resourcer.use(acl.middleware(), { tag: 'chart-access-acl', after: 'chart-access-preparation' });
     const queries = new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection)));
     const reader = new AccessRootReadHandler(db, adapter, queries, identity);
+    const charts = new AccessChartQueryHandler(db, reader, identity);
     app.resourcer.define({
       name: 'documents',
       actions: {
@@ -167,12 +179,6 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
         query: async (resourceContext) => {
           const ctx = resourceContext as Context & { permission: unknown };
           if (!ctx.action || !('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
-          // Capture validated HTTP values before independently authorizing the selected collection.
-          const parsed = parseChartQueryParams(ctx.action.params.values);
-          const input = structuredClone(ctx.action.params.values);
-          const collection = db.collections.get(parsed.collection);
-          if (!collection || !identities().some((key) => key.collectionName === collection.name))
-            invalid('Chart collection is unavailable');
           const decisions: AccessRootReadContext[] = [];
           const authorize = async (target: Collection) => {
             const resourcer = new Resourcer();
@@ -196,9 +202,24 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
             return decision;
           };
           try {
-            const source = await authorize(collection);
-            await reader.handleChartWithRelatedContexts(source, ctx.state.accessTestActor, input, authorize);
-            ctx.body = source.body;
+            beforeEntry?.(ctx);
+            await charts.handle(
+              ctx,
+              ctx.state.accessTestActor,
+              {
+                source: async (collection) => {
+                  const decision = await authorize(collection);
+                  await beforeSource?.(ctx);
+                  return decision;
+                },
+                related: authorize,
+              },
+              undefined,
+              dates,
+            );
+          } catch (error) {
+            entryError = error;
+            throw error;
           } finally {
             for (const decision of decisions) adapter.release(decision);
           }
@@ -458,6 +479,106 @@ describe.skipIf(!coreAvailable)('chart statistics over real HTTP resources', () 
     const response = await query().set('x-tenant-id', 'C').set('x-role', 'root');
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ data: [{ 金额: 400 }] });
+  });
+
+  it.each([{ filter: { amount: { $gte: 200 } } }, { own: true }, { fields: ['amount'] }, { limit: 1 }])(
+    'rejects chart operation constraints that cannot be transferred to collection reads: %j',
+    async (params) => {
+      acl.addFixedParams('charts', 'query', () => params);
+      const response = await query();
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(entryError).toMatchObject({ message: 'Unsupported chart operation permission constraints' });
+    },
+  );
+
+  it.each(['resourceName', 'actionName', 'role'] as const)(
+    'rejects a mismatched finalized chart permission %s',
+    async (key) => {
+      beforeEntry = (ctx) => {
+        const permission = ctx.permission as { resourceName: string; actionName: string; can: { role: string } };
+        if (key === 'role') permission.can.role = 'other-role';
+        else permission[key] = 'other-operation';
+      };
+      const response = await query();
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(entryError).toMatchObject({ message: expect.stringMatching(/permission.*(?:operation|binding)/) });
+    },
+  );
+
+  it('rejects a non-chart resource descriptor despite a valid chart decision', async () => {
+    beforeEntry = (ctx) => {
+      ctx.action.resourceName = 'documents';
+    };
+    const response = await query();
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(entryError).toMatchObject({ message: 'Chart entry requires an authenticated charts:query operation' });
+  });
+
+  it('rejects extra resource query conditions instead of silently dropping them', async () => {
+    const response = await query().query({ filter: JSON.stringify({ id: 4 }) });
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(entryError).toMatchObject({ message: 'Unsupported chart entry parameters' });
+  });
+
+  it('captures the original chart input and actor before awaiting source authorization', async () => {
+    beforeSource = async (ctx) => {
+      await Promise.resolve();
+      const permission = ctx.permission as { rawParams: { values: { filter: object; collection: string } } };
+      permission.rawParams.values.filter = { id: 4 };
+      permission.rawParams.values.collection = 'participants';
+      ctx.state.accessTestActor.tenantId = 'C';
+      ctx.state.accessTestActor.roleName = 'other-role';
+    };
+    const response = await query();
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 金额: 400 }] });
+  });
+
+  it('rejects replacement of the persistent collection identity during source authorization', async () => {
+    beforeSource = () => {
+      identityKeys.set('documents', 'replacement-document-key');
+    };
+    const response = await query();
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(entryError).toMatchObject({ message: 'Chart collection identity changed during authorization' });
+  });
+
+  it('captures the date context before awaiting source authorization', async () => {
+    const suppliedDates = { now: '2026-10-21T12:00:00.000Z', timezone: '+08:00' };
+    dates = suppliedDates;
+    beforeSource = () => {
+      suppliedDates.now = 'invalid';
+      suppliedDates.timezone = 'invalid';
+    };
+    const response = await query();
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ 金额: 400 }] });
+  });
+
+  it('does not publish an aggregate if collection identity changes after its SQL executes', async () => {
+    let executedAggregate = false;
+    const sequelize = app.db.sequelize;
+    sequelize.addHook('afterQuery', 'replace-chart-identity', (_options, sqlQuery) => {
+      const sql = String((sqlQuery as { sql?: string }).sql ?? '');
+      if (/\bsum\s*\(/i.test(sql) && sql.includes('access_documents')) {
+        executedAggregate = true;
+        identityKeys.set('documents', 'replacement-document-key');
+      }
+    });
+    try {
+      const response = await query();
+      expect(executedAggregate).toBe(true);
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(entryError).toBeInstanceOf(Error);
+    } finally {
+      sequelize.removeHook('afterQuery', 'replace-chart-identity');
+    }
   });
 
   it.each([

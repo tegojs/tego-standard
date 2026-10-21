@@ -8,7 +8,7 @@ import {
   createExportXlsx,
   type ExportXlsxResolver,
 } from '../../../../../plugin-action-export/src/server/actions/export-entry';
-import { renderExportXlsx } from '../../../../../plugin-action-export/src/server/actions/render-xlsx';
+import { renderExportXlsxRows } from '../../../../../plugin-action-export/src/server/actions/render-xlsx';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
@@ -234,23 +234,10 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       .resource('documents')
       .export({ fields: ['id'], sort: ['id'], ...params });
 
-  /** Only model reconstruction and rendering remain caller-owned in this test fixture. */
+  /** The caller chooses file rendering; the prepared read handler owns row authorization. */
   async function scopedFile(ctx: Context & { permission: unknown }) {
     await beforeFileRead?.(ctx);
-    const { collection, data, columns, title, tenantId } = await readFile(ctx);
-    await renderExportXlsx(ctx, {
-      collection,
-      columns,
-      data: data.map((row) =>
-        collection.model.build(row, {
-          raw: true,
-          isNewRecord: false,
-          include: [{ association: collection.model.associations.participants }],
-        }),
-      ),
-      title,
-      tenantId,
-    });
+    await renderExportXlsxRows(ctx, await readFile(ctx));
   }
 
   function fileRequest(params: Record<string, unknown> = {}) {
@@ -566,6 +553,47 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
       expect(xlsx.parse(response.body)[0].data).toEqual([
         ['id', 'id'],
         [1, '1,2'],
+        [3, ''],
+      ]);
+    });
+
+    it('renders authorized relations under any registered alias without hard-coded includes', async () => {
+      app.db.getCollection('documents').setField('viewers', {
+        type: 'hasMany',
+        target: 'participants',
+        foreignKey: 'documentId',
+      });
+      await grant('documents', 'export', ['id', 'viewers']);
+      exportEntry = createExportXlsx(() => scopedFile);
+      const response = await fileRequest({
+        fields: ['id'],
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['viewers', 'businessTenant'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'businessTenant'],
+        [1, 'B,B'],
+        [3, ''],
+      ]);
+    });
+
+    it('renders nested authorized association values without requiring their primary keys', async () => {
+      app.db.getCollection('participants').setField('document', {
+        type: 'belongsTo',
+        target: 'documents',
+        foreignKey: 'documentId',
+      });
+      await grant('participants', 'list', ['businessTenant', 'document']);
+      await grant('documents', 'list', ['name']);
+      exportEntry = createExportXlsx(() => scopedFile);
+      const response = await fileRequest({
+        fields: ['id'],
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'document', 'name'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'name'],
+        [1, 'D1,D1'],
         [3, ''],
       ]);
     });

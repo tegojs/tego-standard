@@ -17,11 +17,18 @@ import {
   normalizeExportColumns,
 } from './utils';
 
-export { captureExportXlsxRequest, createExportXlsx, renderExportXlsx, ExportXlsxRequestError } from './actions';
+export {
+  captureExportXlsxRequest,
+  createExportXlsx,
+  renderExportXlsx,
+  renderExportXlsxRows,
+  ExportXlsxRequestError,
+} from './actions';
 export type {
   ExportXlsxExecutor,
   ExportXlsxResolver,
   ExportXlsxRenderInput,
+  ExportXlsxRowsInput,
   ExportXlsxColumn,
   ExportXlsxRequest,
 } from './actions';

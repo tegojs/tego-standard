@@ -15,6 +15,40 @@ export interface ExportXlsxRenderInput {
   tenantId?: string | number | null;
 }
 
+export interface ExportXlsxRowsInput extends Omit<ExportXlsxRenderInput, 'data'> {
+  /** Authorized projections only; this renderer does not grant access or reload omitted values. */
+  data: readonly Record<string, unknown>[];
+}
+
+interface ExportInclude {
+  association: Collection['model']['associations'][string];
+  include: ExportInclude[];
+}
+
+function exportIncludes(collection: Collection, paths: readonly string[][]): ExportInclude[] {
+  const relations = new Map<string, string[][]>();
+  for (const [name, ...rest] of paths) {
+    if (!Object.hasOwn(collection.model.associations, name)) continue;
+    const nested = relations.get(name) ?? [];
+    if (rest.length) nested.push(rest);
+    relations.set(name, nested);
+  }
+  return Array.from(relations, ([name, nested]) => ({
+    association: collection.model.associations[name],
+    include: exportIncludes(collection.db.getCollection(collection.getField(name).target), nested),
+  }));
+}
+
+/** Adapt already authorized rows to existing cell formatters without issuing business queries. */
+export async function renderExportXlsxRows(ctx: Context, input: ExportXlsxRowsInput): Promise<void> {
+  const include = exportIncludes(
+    input.collection,
+    input.columns.map((column) => column.dataIndex),
+  );
+  const data = input.collection.model.bulkBuild([...input.data], { raw: true, isNewRecord: false, include });
+  await renderExportXlsx(ctx, { ...input, data });
+}
+
 /** Reuse existing cell formatting without reloading or expanding the supplied records. */
 export async function renderExportXlsx(ctx: Context, input: ExportXlsxRenderInput): Promise<void> {
   const { collection, columns, data, title, tenantId } = input;

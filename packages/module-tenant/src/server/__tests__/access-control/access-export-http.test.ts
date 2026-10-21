@@ -3,7 +3,11 @@ import { pathToFileURL } from 'node:url';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
 import { ACL, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
 
-import { createExportXlsx } from '../../../../../plugin-action-export/src/server/actions/export-entry';
+import ExportPlugin from '../../../../../plugin-action-export/src/server';
+import {
+  createExportXlsx,
+  type ExportXlsxResolver,
+} from '../../../../../plugin-action-export/src/server/actions/export-entry';
 import { renderExportXlsx } from '../../../../../plugin-action-export/src/server/actions/render-xlsx';
 import { normalizeExportColumns } from '../../../../../plugin-action-export/src/server/utils';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
@@ -271,6 +275,134 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
         response.on('error', done);
       });
   }
+
+  async function registerExportPlugin(options: { exportResolver?: ExportXlsxResolver } = {}) {
+    const plugin = new ExportPlugin(app, { name: 'export', ...options });
+    await plugin.beforeLoad();
+    await plugin.load();
+    return plugin;
+  }
+
+  describe('plugin registered XLSX entry', () => {
+    beforeEach(() => {
+      app.resourcer.define({ name: 'documents', actions: { export: {} } });
+    });
+
+    it('uses the server-selected scoped exporter with independent export permission', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      acl.getRole('reader').revokeAction('documents:list');
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain('Scoped%20export_B.xlsx');
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+    });
+
+    it.each([{}, { exportResolver: () => undefined }])(
+      'preserves the original exporter when startup configuration does not select it: %j',
+      async (options) => {
+        await registerExportPlugin(options);
+        const response = await fileRequest();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [3], [4], [5], [6]]);
+      },
+    );
+
+    it('keeps the registered resolver after startup options are replaced', async () => {
+      const plugin = await registerExportPlugin({ exportResolver: () => scopedFile });
+      plugin.options.exportResolver = () => undefined;
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+    });
+
+    it('does not enable a resolver added after registration', async () => {
+      const plugin = await registerExportPlugin();
+      plugin.options.exportResolver = () => scopedFile;
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [3], [4], [5], [6]]);
+    });
+
+    it.each(['documents:export', 'participants:list'])(
+      'does not publish a file after revoking %s',
+      async (permission) => {
+        await registerExportPlugin({ exportResolver: () => scopedFile });
+        acl.getRole('reader').revokeAction(permission);
+        const response = await fileRequest({
+          fields: ['id', 'participants.id'],
+          columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+        });
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('retains the independent export role filter', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      await grant('documents', 'export', ['id'], { id: 1 });
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1]]);
+    });
+
+    it('rechecks rules for each file after registration', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      expect(xlsx.parse((await fileRequest()).body)[0].data).toEqual([['id'], [1], [3]]);
+      const config = (await store.read(mainIdentity))!;
+      await store.save(mainIdentity, { ...config, rules: [] }, { userId: 28 });
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id']]);
+    });
+
+    it('uses the current server tenant instead of the client header', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      principal = { ...principal, tenantId: 'C' };
+      const response = await fileRequest().set('x-tenant-id', 'B');
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain('Scoped%20export_C.xlsx');
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [4], [6]]);
+    });
+
+    it.each(['selection', 'execution', 'async selection'])(
+      'does not fall back to the old exporter on registered %s failure',
+      async (phase) => {
+        await registerExportPlugin({
+          exportResolver: (() => {
+            if (phase === 'selection') throw new Error('Selection failed');
+            if (phase === 'async selection') return Promise.reject(new Error('Async selection failed'));
+            return async () => {
+              throw new Error('Execution failed');
+            };
+          }) as ExportXlsxResolver,
+        });
+        const response = await fileRequest();
+        expect(response.status).toBe(500);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('does not fall back when the registered executor produces no response', async () => {
+      await registerExportPlugin({ exportResolver: () => async () => {} });
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+      expect(JSON.parse(response.body.toString())).toEqual({});
+    });
+
+    it.each([null, false, 'export', {}])(
+      'rejects invalid startup configuration before replacing the registered exporter: %j',
+      async (resolve) => {
+        await registerExportPlugin({ exportResolver: () => scopedFile });
+        await expect(
+          registerExportPlugin({ exportResolver: resolve as unknown as ExportXlsxResolver }),
+        ).rejects.toThrow(TypeError);
+        const response = await fileRequest();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+      },
+    );
+  });
 
   describe('optional XLSX entry', () => {
     it('renders only scoped rows through the real exporter and keeps download headers', async () => {

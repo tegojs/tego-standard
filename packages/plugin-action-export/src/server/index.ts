@@ -17,8 +17,14 @@ import {
   normalizeExportColumns,
 } from './utils';
 
-export { createExportXlsx, renderExportXlsx } from './actions';
-export type { ExportXlsxExecutor, ExportXlsxResolver, ExportXlsxRenderInput } from './actions';
+export { captureExportXlsxRequest, createExportXlsx, renderExportXlsx, ExportXlsxRequestError } from './actions';
+export type {
+  ExportXlsxExecutor,
+  ExportXlsxResolver,
+  ExportXlsxRenderInput,
+  ExportXlsxColumn,
+  ExportXlsxRequest,
+} from './actions';
 
 type ExportTenantContext = {
   currentTenant?: any;

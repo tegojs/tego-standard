@@ -8,8 +8,8 @@ import {
   createExportXlsx,
   type ExportXlsxResolver,
 } from '../../../../../plugin-action-export/src/server/actions/export-entry';
+import { captureExportXlsxRequest } from '../../../../../plugin-action-export/src/server/actions/export-request';
 import { renderExportXlsx } from '../../../../../plugin-action-export/src/server/actions/render-xlsx';
-import { normalizeExportColumns } from '../../../../../plugin-action-export/src/server/utils';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
@@ -227,12 +227,11 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
   /** Test-only caller adaptation: file options stay outside the finalized read request. */
   async function scopedFile(ctx: Context & { permission: unknown }) {
     const permission = ctx.permission as { rawParams: Record<string, unknown> };
-    const { columns, title, ...params } = permission.rawParams;
+    const { columns, title, params } = captureExportXlsxRequest(permission.rawParams);
     const readContext = Object.create(ctx, {
       permission: { value: { ...permission, rawParams: params }, writable: true },
       body: { value: undefined, writable: true },
     });
-    const normalized = normalizeExportColumns(columns);
     await adapter.prepare(readContext, identities());
     try {
       await read(readContext);
@@ -242,7 +241,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
     const collection = ctx.db.getCollection('documents');
     await renderExportXlsx(ctx, {
       collection,
-      columns: normalized,
+      columns,
       data: readContext.body.map((row: Record<string, unknown>) =>
         collection.model.build(row, {
           raw: true,
@@ -250,7 +249,7 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
           include: [{ association: collection.model.associations.participants }],
         }),
       ),
-      title: title as string,
+      title,
       tenantId: ctx.state.accessTestActor.tenantId,
     });
   }
@@ -275,6 +274,78 @@ describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
         response.on('error', done);
       });
   }
+
+  function pageFileRequest(body: Record<string, unknown>, query: Record<string, unknown> = {}) {
+    return supertest(app.callback())
+      .post('/api/documents:export')
+      .query({ title: '页面导出', sort: 'id', ...query })
+      .send(body)
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on('end', () => done(null, Buffer.concat(chunks)));
+        response.on('error', done);
+      });
+  }
+
+  describe('page export request adaptation', () => {
+    beforeEach(async () => {
+      app.resourcer.define({ name: 'documents', actions: { export: {} } });
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+    });
+
+    it('exports requested nested columns from the real page POST without explicit fields', async () => {
+      const response = await pageFileRequest(
+        {
+          columns: [
+            { dataIndex: ['id'], title: '编号' },
+            { dataIndex: ['participants', 'id'], title: '参与方' },
+          ],
+        },
+        { appends: 'participants', filter: JSON.stringify({ id: 1 }) },
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['编号', '参与方'],
+        [1, '1,2'],
+      ]);
+    });
+
+    it('does not export a forbidden column merely because fields only requests a permitted one', async () => {
+      await grant('documents', 'export', ['id']);
+      const response = await pageFileRequest({ columns: ['amount'] }, { 'fields[]': ['id'] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('checks the related permission needed only by a POST column', async () => {
+      acl.getRole('reader').revokeAction('participants:list');
+      const response = await pageFileRequest({ columns: [{ dataIndex: ['participants', 'id'] }] });
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('uses body columns and query title with the existing exporter precedence', async () => {
+      const response = await pageFileRequest(
+        { columns: [{ dataIndex: ['amount'], defaultTitle: '金额' }], title: 'Body title' },
+        { columns: JSON.stringify(['id']), filter: JSON.stringify({ id: 3 }) },
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([['金额'], [300]]);
+    });
+
+    it.each([
+      { columns: ['id'], tenantId: 'C' },
+      { columns: ['id'], permission: { skip: true } },
+    ])('rejects unsupported body values rather than discarding them: %j', async (body) => {
+      const response = await pageFileRequest(body);
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+  });
 
   async function registerExportPlugin(options: { exportResolver?: ExportXlsxResolver } = {}) {
     const plugin = new ExportPlugin(app, { name: 'export', ...options });

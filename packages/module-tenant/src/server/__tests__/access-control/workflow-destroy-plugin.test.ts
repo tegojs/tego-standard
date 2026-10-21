@@ -13,6 +13,7 @@ import {
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessWorkflowDestroyHandler } from '../../access-control/workflow-destroy-handler';
+import { captureWorkflowAccessIdentity } from '../../access-control/workflow-identity';
 import { configFor, ownerCondition } from './fixtures';
 
 /** Actual Plugin/Processor, isolated SQLite and fixture-supplied identity/grants. */
@@ -39,6 +40,7 @@ describe('unified ownership deletion in actual workflow executions', () => {
           {
             destroyTransactionOptions: () => ({ type: Transaction.TYPES.IMMEDIATE }),
             destroyResolver: () => async (request) => {
+              const authenticated = captureWorkflowAccessIdentity(request.context);
               await adapter.prepare(request.context, [identity]);
               try {
                 const handler = new AccessWorkflowDestroyHandler(
@@ -51,7 +53,7 @@ describe('unified ownership deletion in actual workflow executions', () => {
                     return permission;
                   },
                 );
-                return await handler.handle(request, { tenantId: request.context.state.currentTenantId });
+                return await handler.handle(request, authenticated);
               } finally {
                 adapter.release(request.context);
               }

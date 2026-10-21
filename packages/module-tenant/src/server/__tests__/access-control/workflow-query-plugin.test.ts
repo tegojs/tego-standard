@@ -17,6 +17,7 @@ import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessEntryReadPermission } from '../../access-control/read-grants';
+import { captureWorkflowAccessIdentity } from '../../access-control/workflow-identity';
 import { AccessWorkflowQueryHandler } from '../../access-control/workflow-query-handler';
 import { configFor, ownerCondition } from './fixtures';
 
@@ -44,15 +45,10 @@ describe('unified tenant queries in actual workflow executions', () => {
           'workflow',
           {
             queryResolver: () => async (request) => {
+              const authenticated = captureWorkflowAccessIdentity(request.context);
               await adapter.prepare(request.context, [...identities.values()]);
               try {
-                // This is test-only composition, not a new production authentication or ACL evaluator.
-                const state = request.context.state;
-                const authenticated = {
-                  tenantId: state.currentTenantId,
-                  roleName: state.currentRole,
-                  userId: state.currentUserId,
-                };
+                // Final permissions and phase composition remain fixture inputs.
                 const reader = new AccessEntryReadService(
                   app.db,
                   adapter,
@@ -258,6 +254,56 @@ describe('unified tenant queries in actual workflow executions', () => {
     await node({ params: { fields: ['name'], sort: [{ field: 'id' }] } });
     expect((await execute()).jobs[0].result).toEqual([{ name: 'Owned' }, { name: 'Visible' }]);
     expect((await execute('C')).jobs[0].result).toEqual([{ name: 'Visible' }, { name: 'Hidden' }]);
+  });
+  it('uses the persisted actor when transient caller user and role differ', async () => {
+    const target = identities.get('accessWorkflowDocuments')!;
+    const original = (await store.read(target))!;
+    try {
+      await store.save(
+        target,
+        {
+          ...original,
+          rules: original.rules.map((rule) => ({
+            ...rule,
+            subject: {
+              type: 'all',
+              children: [
+                {
+                  type: 'compare',
+                  operator: 'eq',
+                  left: { type: 'context', path: 'user.id' },
+                  right: { type: 'literal', value: '28' },
+                },
+                {
+                  type: 'compare',
+                  operator: 'eq',
+                  left: { type: 'context', path: 'role.name' },
+                  right: { type: 'literal', value: 'worker' },
+                },
+              ],
+            },
+          })),
+        },
+        { userId: 28 },
+      );
+      await node({ params: { fields: ['name'], sort: [{ field: 'id' }] } });
+      await plugin.trigger(
+        workflow,
+        { state: { currentUserId: 99, currentRole: 'admin', currentTenantId: 'C' } },
+        {
+          httpContext: { state: { currentRole: 'worker', currentUser: { id: 28 }, currentTenantId: 'B' } },
+          context: { state: { currentRole: 'other', currentUser: { id: 99 }, currentTenantId: 'B' } },
+        },
+      );
+      const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+      const [job] = await execution.getJobs();
+      expect(execution.get('authContext')).toEqual({ currentRole: 'worker', currentUserId: 28 });
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual([{ name: 'Owned' }, { name: 'Visible' }]);
+    } finally {
+      const current = (await store.read(target))!;
+      await store.save(target, { ...original, revision: current.revision }, { userId: 28 });
+    }
   });
   it('runs an authorized automatic query with only a trusted tenant and independently scoped associations', async () => {
     await node({ params: { fields: ['name'], appends: ['project.name'], sort: [{ field: 'id' }] } });

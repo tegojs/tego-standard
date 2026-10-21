@@ -25,6 +25,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
   let app: MockServer;
   let acl: ACL;
   let adapter: AccessAclScopeAdapter;
+  let store: AccessConfigStore;
   let unregister: (() => void) | undefined;
   let tenantScopeId: number;
   const identity = (collection: Collection) => ({
@@ -33,7 +34,9 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     collectionKey: `${collection.name}-key`,
   });
   const identities = () =>
-    ['documents', 'projects', 'document_projects'].map((name) => identity(app.db.getCollection(name)));
+    ['documents', 'projects', 'document_projects', 'children', 'profiles']
+      .filter((name) => app.db.collections.has(name))
+      .map((name) => identity(app.db.getCollection(name)));
 
   beforeEach(async () => {
     // Validate the dedicated local URL before passing its options to MockServer's database factory.
@@ -80,7 +83,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     });
     await db.sync();
     await db.getCollection('tenants').model.create({ id: 'B', enabled: true });
-    const store = new AccessConfigStore(db, (value) =>
+    store = new AccessConfigStore(db, (value) =>
       resolveModelMetadata(db.getCollection(value.collectionName), {
         resolveCollectionKey: (collection) => accessCollectionKey(identity(collection)),
       }),
@@ -161,7 +164,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     const mutate = async (ctx: Context & { permission: unknown }) => {
       if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
       const related: AccessRootReadContext[] = [];
-      const authorize = async (collection: Collection, actionName: 'list' | 'add' | 'remove' | 'set') => {
+      const authorize = async (collection: Collection, actionName: 'list' | 'update' | 'add' | 'remove' | 'set') => {
         // A separate neutral root decision, using the same persisted role grants and ACL middleware.
         // Never forward the original request's fields, filter, key or values to this decision.
         const resourcer = new Resourcer();
@@ -186,7 +189,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       try {
         await writer.handle(ctx, actor, {
           read: (collection) => authorize(collection, 'list'),
-          update: async () => null,
+          update: (collection) => authorize(collection, 'update'),
           source: authorize,
         });
       } finally {
@@ -196,6 +199,8 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     for (const path of [
       'documents:update',
       ...['add', 'remove', 'set'].map((operation) => `documents.projects:${operation}`),
+      ...['add', 'remove', 'set'].map((operation) => `documents.children:${operation}`),
+      ...['remove', 'set'].map((operation) => `documents.profile:${operation}`),
     ])
       app.resourcer.registerActionHandler(path, (ctx) => mutate(ctx as Context & { permission: unknown }));
   });
@@ -253,6 +258,338 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     app.db
       .getCollection('document_projects')
       .model.bulkCreate(ids.map((projectId) => ({ documentId: source, projectId })));
+
+  describe('target foreign-key writes', () => {
+    beforeEach(async () => {
+      const db = app.db;
+      const docs = db.getCollection('documents');
+      for (const [name, association, type] of [
+        ['children', 'children', 'hasMany'],
+        ['profiles', 'profile', 'hasOne'],
+      ] as const) {
+        db.collection({
+          name,
+          timestamps: false,
+          fields: [
+            { name: 'id', type: 'integer', primaryKey: true },
+            { name: 'tenantId', type: 'string' },
+            { name: 'name', type: 'string' },
+            { name: 'documentId', type: 'integer', field: 'document_id' },
+          ],
+        });
+        docs.setField(association, { type, target: name, foreignKey: 'documentId' });
+        const target = db.getCollection(name);
+        target.setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+        await db.getRepository('collections').create({ values: { key: `${name}-key`, name } });
+        await grant(name, 'view', ['id']);
+        await grant(name, 'update', ['document']);
+      }
+      await db.sync();
+      for (const name of ['children', 'profiles'])
+        await db.getCollection(name).model.bulkCreate([
+          { id: 201, name: 'Owned', tenantId: 'B', documentId: null },
+          { id: 202, name: 'Visible', tenantId: 'H', documentId: null },
+          { id: 203, name: 'Hidden', tenantId: 'C', documentId: null },
+          { id: 205, name: 'Owned', tenantId: 'B', documentId: 3 },
+        ]);
+      await grant('documents', 'update', ['name', 'children', 'profile']);
+      // Visibility is deliberately separate from ownership, including on the modified targets.
+      for (const name of ['children', 'profiles']) {
+        const target = identity(db.getCollection(name));
+        const config = { ...configFor(ownerCondition), revision: 0 };
+        await store.save(
+          target,
+          {
+            ...config,
+            rules: [
+              ...config.rules,
+              {
+                ...configFor(
+                  {
+                    type: 'compare',
+                    operator: 'eq',
+                    left: { type: 'field', path: 'name' },
+                    right: { type: 'literal', value: 'Visible' },
+                  },
+                  'visibility',
+                ).rules[0],
+                id: 'visible',
+              },
+            ],
+          },
+          { userId: 28 },
+        );
+      }
+    });
+
+    const selected = async (target: string, source = 3) =>
+      (
+        await app.db.getCollection(target).model.findAll({
+          where: { documentId: source },
+          order: [['id', 'ASC']],
+        })
+      ).map((record) => Number(record.get('id')));
+    async function grantChild(association: 'children' | 'profile', operation: 'add' | 'remove' | 'set') {
+      acl.setAvailableAction(operation, {});
+      await grant('documents', operation, [association]);
+      await grant(association === 'children' ? 'children' : 'profiles', operation, ['id']);
+    }
+    const childRequest = (
+      association: 'children' | 'profile',
+      operation: 'add' | 'remove' | 'set',
+      id?: number,
+      source: number | string = 3,
+    ) =>
+      supertest(app.callback()).post(
+        `/api/documents/${source}/${association}:${operation}${id === undefined ? '' : `?filterByTk=${id}`}`,
+      );
+
+    it.each([
+      { association: 'children', target: 'children', operation: 'add', id: 201, expected: [201, 205], changed: [201] },
+      { association: 'children', target: 'children', operation: 'remove', id: 205, expected: [], changed: [205] },
+      { association: 'children', target: 'children', operation: 'set', id: 201, expected: [201], changed: [201, 205] },
+      { association: 'profile', target: 'profiles', operation: 'set', id: 201, expected: [201], changed: [201, 205] },
+      { association: 'profile', target: 'profiles', operation: 'remove', id: undefined, expected: [], changed: [205] },
+    ] as const)('writes only the foreign key through $association:$operation', async (test) => {
+      await grantChild(test.association, test.operation);
+      const response = await childRequest(test.association, test.operation, test.id);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: test.changed, affected: test.changed.length } });
+      expect(await selected(test.target)).toEqual(test.expected);
+      expect(await row(test.target, 201)).toEqual({
+        id: 201,
+        tenantId: 'B',
+        name: 'Owned',
+        documentId: test.operation === 'remove' ? null : 3,
+      });
+      expect(await row(test.target, 205)).toEqual({
+        id: 205,
+        tenantId: 'B',
+        name: 'Owned',
+        documentId: test.operation === 'add' ? 3 : null,
+      });
+      expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+    });
+
+    it.each([
+      ['children', 'children'],
+      ['profile', 'profiles'],
+    ] as const)('rejects a visible-only target in %s:set', async (association, target) => {
+      await grantChild(association, 'set');
+      const response = await childRequest(association, 'set', 202);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await selected(target)).toEqual([205]);
+      expect(await row(target, 202)).toEqual({ id: 202, tenantId: 'H', name: 'Visible', documentId: null });
+    });
+
+    describe.each([
+      ['children', 'children', [201]],
+      ['profile', 'profiles', 201],
+    ] as const)('%s authorization and atomicity', (association, target, selection) => {
+      it('keeps a visible-only source read-only', async () => {
+        await grantChild(association, 'set');
+        const response = await childRequest(association, 'set', 201, 4);
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target, 4)).toEqual([]);
+        expect(await selected(target)).toEqual([205]);
+        expect(await row('documents', 4)).toEqual({ id: 4, name: 'Visible', tenantId: 'H', projectId: null });
+      });
+
+      it.each(['documents', 'target', 'update'] as const)(
+        'requires the independent %s operation grant',
+        async (decision) => {
+          await grantChild(association, 'set');
+          acl
+            .getRole('editor')
+            .revokeAction(
+              decision === 'update' ? `${target}:update` : `${decision === 'documents' ? 'documents' : target}:set`,
+            );
+          const response = await childRequest(association, 'set', 201);
+          expect(response.status).toBe(403);
+          expect(response.body).not.toHaveProperty('data');
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
+        },
+      );
+
+      it('requires field permission for the child foreign key', async () => {
+        await grantChild(association, 'set');
+        await grant(target, 'update', ['name']);
+        const response = await childRequest(association, 'set', 201);
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target)).toEqual([205]);
+        expect((await row(target, 201)).documentId).toBeNull();
+      });
+
+      it('requires field permission for the source association', async () => {
+        await grantChild(association, 'set');
+        await grant('documents', 'set', ['name']);
+        const response = await childRequest(association, 'set', 201);
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target)).toEqual([205]);
+      });
+
+      it('retains the source action filter', async () => {
+        await grantChild(association, 'set');
+        await grant('documents', 'set', [association], { id: 4 });
+        const response = await childRequest(association, 'set', 201);
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target)).toEqual([205]);
+      });
+
+      it.each(['set', 'update'] as const)(
+        'checks the %s role filter on implicitly detached children',
+        async (action) => {
+          await grantChild(association, 'set');
+          await grant(target, action, action === 'set' ? ['id'] : ['document'], { id: 201 });
+          const response = await childRequest(association, 'set', 201);
+          expect(response.status).toBe(403);
+          expect(response.body).not.toHaveProperty('data');
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
+        },
+      );
+
+      it('retains list conditions for the selected child', async () => {
+        await grantChild(association, 'set');
+        await grant(target, 'view', ['id'], { id: 205 });
+        const response = await childRequest(association, 'set', 201);
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target)).toEqual([205]);
+      });
+
+      it('requires list permission even for an explicitly selected unchanged child', async () => {
+        await grantChild(association, 'set');
+        acl.getRole('editor').revokeAction(`${target}:view`);
+        const response = await childRequest(association, 'set', 205);
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target)).toEqual([205]);
+      });
+
+      it('does not require child update permission for a true no-op', async () => {
+        await grantChild(association, 'set');
+        acl.getRole('editor').revokeAction(`${target}:update`);
+        const response = await childRequest(association, 'set', 205);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [], affected: 0 } });
+        expect(await selected(target)).toEqual([205]);
+      });
+
+      it('saves source scalars and a child selection together', async () => {
+        const response = await update({ name: 'Edited', [association]: selection });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await selected(target)).toEqual([201]);
+        expect(await row()).toEqual({ id: 3, name: 'Edited', tenantId: 'B', projectId: null });
+        expect(await row(target, 201)).toEqual({ id: 201, name: 'Owned', tenantId: 'B', documentId: 3 });
+        expect(await row(target, 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: null });
+      });
+
+      it('rejects implicit detachment of a visible-only child before changing source scalars', async () => {
+        await app.db.getCollection(target).model.update({ tenantId: 'H', name: 'Visible' }, { where: { id: 205 } });
+        const response = await update({ name: 'Must not persist', [association]: selection });
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+        expect(await selected(target)).toEqual([205]);
+        expect(await row(target, 205)).toEqual({ id: 205, name: 'Visible', tenantId: 'H', documentId: 3 });
+        expect((await row(target, 201)).documentId).toBeNull();
+      });
+
+      it('rejects hidden selections without persisting the source edit', async () => {
+        const response = await update({
+          name: 'Must not persist',
+          [association]: association === 'children' ? [203] : 203,
+        });
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target)).toEqual([205]);
+        expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+        expect(await row(target, 203)).toEqual({ id: 203, name: 'Hidden', tenantId: 'C', documentId: null });
+      });
+
+      it('restores the source and both foreign keys after a post-write hook fails', async () => {
+        let observed: unknown;
+        app.db.getCollection(target).model.addHook('afterUpdate', async (_record, options) => {
+          const children = await app.db.getCollection(target).model.findAll({
+            where: { id: [201, 205] },
+            order: [['id', 'ASC']],
+            transaction: options.transaction,
+          });
+          if (children[0]?.get('documentId') !== 3 || children[1]?.get('documentId') !== null) return;
+          const source = await app.db
+            .getCollection('documents')
+            .model.findByPk(3, { transaction: options.transaction });
+          observed = { source: source?.toJSON(), children: children.map((child) => child.toJSON()) };
+          throw new Error('HTTP child rollback fixture');
+        });
+        const response = await update({ name: 'Edited', [association]: selection });
+        expect(response.status).toBe(500);
+        expect(response.body).not.toHaveProperty('data');
+        expect(observed).toEqual({
+          source: { id: 3, name: 'Edited', tenantId: 'B', projectId: null },
+          children: [
+            { id: 201, name: 'Owned', tenantId: 'B', documentId: 3 },
+            { id: 205, name: 'Owned', tenantId: 'B', documentId: null },
+          ],
+        });
+        expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+        expect(await row(target, 201)).toEqual({ id: 201, name: 'Owned', tenantId: 'B', documentId: null });
+        expect(await row(target, 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: 3 });
+      });
+    });
+
+    it('removes the current HasOne child without list permission', async () => {
+      await grantChild('profile', 'remove');
+      acl.getRole('editor').revokeAction('profiles:view');
+      const response = await childRequest('profile', 'remove');
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [205], affected: 1 } });
+      expect(await row('profiles', 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: null });
+    });
+
+    it.each([
+      ['children', 'children'],
+      ['profile', 'profiles'],
+    ] as const)('rejects the read placeholder as a %s write source', async (association, target) => {
+      await grantChild(association, 'set');
+      const response = await childRequest(association, 'set', 201, '_');
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await selected(target)).toEqual([205]);
+      expect((await row(target, 201)).documentId).toBeNull();
+    });
+
+    it.each([
+      { association: 'children', target: 'children', id: undefined },
+      { association: 'profile', target: 'profiles', id: 205 },
+    ] as const)('rejects invalid remove selectors for $association', async ({ association, target, id }) => {
+      await grantChild(association, 'remove');
+      const response = await childRequest(association, 'remove', id);
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await selected(target)).toEqual([205]);
+    });
+
+    it.skipIf(!coreResourcerEntry)(
+      'clears HasMany children with an explicit empty body without list permission',
+      async () => {
+        await grantChild('children', 'set');
+        acl.getRole('editor').revokeAction('children:view');
+        const response = await childRequest('children', 'set').send([]);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [205], affected: 1 } });
+        expect(await row('children', 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: null });
+      },
+    );
+  });
 
   it.each([
     { operation: 'add', before: [], after: [102] },

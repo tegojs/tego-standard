@@ -25,7 +25,7 @@ describe('internal resource read routing', () => {
   afterEach(async () => {
     await db.close();
   });
-  it.each(['list', 'get', 'count', 'sum'])('selects a root target for %s', (actionName) => {
+  it.each(['list', 'get', 'count', 'sum', 'export'])('selects a root target for %s', (actionName) => {
     const route = resolveResourceReadRoute(db, resolveIdentity, { resourceName: 'targets', actionName });
     expect(route.identity).toEqual(identity);
     expect(route.kind).toBe('direct');
@@ -35,7 +35,7 @@ describe('internal resource read routing', () => {
   it.each(['parent', 'children', 'single', 'links'])(
     'selects the actual %s target without resolving source authorization',
     (association) => {
-      for (const actionName of ['list', 'get']) {
+      for (const actionName of ['list', 'get', 'export']) {
         const route = resolveResourceReadRoute(db, resolveIdentity, {
           resourceName: `sources.${association}`,
           sourceId: '_',
@@ -136,6 +136,8 @@ describe('internal resource read routing', () => {
       ['single', 'count'],
       ['children', 'sum'],
       ['links', 'sum'],
+      ['children', 'export'],
+      ['links', 'export'],
     ])
       expect(() =>
         resolveResourceReadRoute(db, resolveConcreteIdentity, {

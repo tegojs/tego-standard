@@ -58,14 +58,14 @@ export function resolveResourceReadRoute(
     ) ||
     (parts.length === 1
       ? sourceId !== undefined
-      : !['list', 'get', 'count'].includes(actionName) ||
+      : !(sourceId === '_' ? ['list', 'get', 'export'] : ['list', 'get', 'count']).includes(actionName) ||
         (sourceId === '_' && actionName === 'count') ||
         !(
           (typeof sourceId === 'string' && sourceId.length > 0 && sourceId.length <= 512) ||
           (typeof sourceId === 'number' && Number.isSafeInteger(sourceId))
         ))
   )
-    invalid('Only root reads and bounded association get/list/count are supported');
+    invalid('Only root reads, placeholder get/list/export and bounded association get/list/count are supported');
   const concrete = parts.length === 2 && sourceId !== '_';
   const source = db.collections.get(parts[0]);
   if (!source || source.db !== db || source.name !== parts[0] || source.model.sequelize !== db.sequelize)

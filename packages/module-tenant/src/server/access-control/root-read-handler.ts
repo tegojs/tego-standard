@@ -15,9 +15,9 @@ import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './
 import { resolveResourceReadRoute } from './resource-read-routing';
 import {
   captureAssociationReadContext,
+  captureExportReadContext,
   capturePlaceholderReadContext,
   captureRelatedReadPermission,
-  captureRootExportReadContext,
   captureRootReadContext,
   type AccessRootReadContext,
 } from './root-read-context';
@@ -246,8 +246,14 @@ export class AccessRootReadHandler {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
-    const { captured, columns, title } = captureRootExportReadContext(this.db, ctx, authenticated, dates);
-    const preparation = await this.prepareRelated(ctx, captured, authorize);
+    const { captured, columns, title, assertCurrent } = captureExportReadContext(
+      this.db,
+      this.resolveIdentity,
+      ctx,
+      authenticated,
+      dates,
+    );
+    const preparation = await this.prepareRelated(ctx, captured, authorize, captured.params, undefined, assertCurrent);
     preparation.assertCurrent();
     const data = await this.reader(captured, preparation.related).fromResource(
       ctx,

@@ -137,28 +137,36 @@ function captureReadAuthorization(
 }
 
 /** File presentation is captured separately; authorization still belongs to this original request phase. */
-export function captureRootExportReadContext(
-  db: Database,
-  ctx: AccessRootReadContext,
-  authenticated: AccessIdentity,
-  dates?: AccessReadDateContext,
-) {
-  const action = captureAction(ctx, db);
-  if (action.actionName !== 'export') invalid('File exports require a root export action');
-  const authorization = captureReadAuthorization(ctx, authenticated, action);
-  const file = captureExportXlsxRequest(data(ctx.permission as object, 'rawParams'));
-  const params = captureParams({ rawParams: file.params }, action.resourceName, 'export');
-  const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
-  return { captured: { action, ...authorization, params, dateContext }, columns: file.columns, title: file.title };
-}
-
-/** Core /_/ resolves a target repository, not a concrete source record. */
-export function capturePlaceholderReadContext(
+export function captureExportReadContext(
   db: Database,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   ctx: AccessRootReadContext,
   authenticated: AccessIdentity,
   dates?: AccessReadDateContext,
+) {
+  const placeholder =
+    ctx.action && typeof ctx.action === 'object' && data(ctx.action, 'sourceId') === '_'
+      ? capturePlaceholderAction(db, ctx, ['export'])
+      : undefined;
+  const action = placeholder?.action ?? captureAction(ctx, db);
+  if (action.actionName !== 'export') invalid('File exports require an export action');
+  const authorization = captureReadAuthorization(ctx, authenticated, action);
+  const file = captureExportXlsxRequest(data(ctx.permission as object, 'rawParams'));
+  const params = captureParams({ rawParams: file.params }, action.resourceName, 'export', placeholder?.association);
+  const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
+  const assertCurrent = placeholder && capturePlaceholderRoute(db, resolveIdentity, placeholder);
+  return {
+    captured: { action, ...authorization, params, dateContext },
+    columns: file.columns,
+    title: file.title,
+    assertCurrent,
+  };
+}
+
+function capturePlaceholderAction(
+  db: Database,
+  ctx: AccessRootReadContext,
+  actions: readonly ('get' | 'list' | 'export')[],
 ) {
   if (ctx.db !== db || !ctx.action || typeof ctx.action !== 'object')
     invalid('Placeholder read does not match the resource database');
@@ -169,27 +177,45 @@ export function capturePlaceholderReadContext(
     typeof resourceName !== 'string' ||
     resourceName.split('.').length !== 2 ||
     typeof actionName !== 'string' ||
-    !['get', 'list'].includes(actionName) ||
+    !actions.includes(actionName as 'get' | 'list' | 'export') ||
     data(ctx.action, 'sourceId') !== '_' ||
     (resourceOf !== undefined && resourceOf !== '_')
   )
-    invalid('Placeholder reads require an association get/list action without a concrete source');
+    invalid('Unsupported placeholder read action or source');
   const [source, relation] = resourceName.split('.');
   if (!plain(ctx.permission)) invalid('Placeholder target permission is unavailable');
   const targetName = data(ctx.permission, 'resourceName');
   if (typeof targetName !== 'string') invalid('Placeholder reads require a target collection decision');
-  const captured = captureReadContext(
-    ctx,
-    authenticated,
-    { resourceName: targetName, actionName: actionName as 'get' | 'list' },
-    dates,
-    { source, relation, index: '_' },
-  );
-  const route = resolveResourceReadRoute(db, resolveIdentity, { resourceName, actionName, sourceId: '_' });
-  if (route.kind !== 'direct' || route.identity.collectionName !== targetName)
+  return {
+    action: { resourceName: targetName, actionName: actionName as 'get' | 'list' | 'export' },
+    descriptor: { resourceName, actionName, sourceId: '_' },
+    association: { source, relation, index: '_' },
+  };
+}
+
+function capturePlaceholderRoute(
+  db: Database,
+  resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+  placeholder: ReturnType<typeof capturePlaceholderAction>,
+) {
+  const route = resolveResourceReadRoute(db, resolveIdentity, placeholder.descriptor);
+  if (route.kind !== 'direct' || route.identity.collectionName !== placeholder.action.resourceName)
     invalid('Placeholder permission does not match its actual target collection');
   route.assertCurrent();
-  return { captured, assertCurrent: route.assertCurrent };
+  return route.assertCurrent;
+}
+
+/** Core /_/ resolves a target repository, not a concrete source record. */
+export function capturePlaceholderReadContext(
+  db: Database,
+  resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+  ctx: AccessRootReadContext,
+  authenticated: AccessIdentity,
+  dates?: AccessReadDateContext,
+) {
+  const placeholder = capturePlaceholderAction(db, ctx, ['get', 'list']);
+  const captured = captureReadContext(ctx, authenticated, placeholder.action, dates, placeholder.association);
+  return { captured, assertCurrent: capturePlaceholderRoute(db, resolveIdentity, placeholder) };
 }
 
 /** A concrete association's final ACL decision belongs to the target, never to its source. */

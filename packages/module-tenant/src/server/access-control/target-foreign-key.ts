@@ -1,8 +1,10 @@
+import { isDeepStrictEqual } from 'node:util';
 import { Op, Transaction, type Database, type Model, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessMutationService } from './mutation';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
@@ -42,6 +44,8 @@ export interface TargetForeignKeyMutationEntry {
   assertCurrent(): void;
   targetReadScope(): Promise<{ where?: WhereOptions }>;
   targetWriteScope(): Promise<{ where?: WhereOptions }>;
+  /** Explicit lifecycle stage after every relation write, before final verification. */
+  afterPersist?(): Promise<void>;
 }
 
 /** Changes target foreign keys; all actual child writes are authorized against their old G. */
@@ -75,6 +79,9 @@ export abstract class AccessTargetForeignKeyService {
     request = cloneDeep(request);
     if (this.db.sequelize.getDialect() !== 'postgres')
       throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Relationship writes require PostgreSQL', 400);
+    const afterPersist = entry?.afterPersist;
+    if (afterPersist !== undefined && typeof afterPersist !== 'function')
+      invalid('A persistence stage must be a function');
     const allowed = [
       'association',
       'operation',
@@ -101,8 +108,19 @@ export abstract class AccessTargetForeignKeyService {
       request.association,
       this.associationType,
     );
+    const stageMetadata = afterPersist
+      ? accessMetadataGuard(
+          this.db,
+          [
+            { model: relation.sourceModel, config: relation.sourceConfig },
+            { model: relation.targetModel, config: relation.targetConfig },
+          ],
+          [{ model: relation.sourceModel, path: [request.association] }],
+        )
+      : undefined;
     const current = () => {
       relation.current();
+      stageMetadata?.();
       entry?.assertCurrent();
     };
     current();
@@ -238,7 +256,8 @@ export abstract class AccessTargetForeignKeyService {
             targetPlan!.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
           ]),
         );
-        if (Object.keys(sourcePatch).length)
+        // Explicit lifecycle callers also capture a source event for relation-only changes.
+        if (Object.keys(sourcePatch).length || afterPersist)
           await guardRelationshipUpdate(
             this.db,
             [relation.source, relation.target],
@@ -253,6 +272,7 @@ export abstract class AccessTargetForeignKeyService {
                 transaction,
                 ...(entry ? { context: ctx } : {}),
               }),
+            !Object.keys(sourcePatch).length,
           );
         current();
         const writeOrder =
@@ -286,6 +306,45 @@ export abstract class AccessTargetForeignKeyService {
           );
           current();
         }
+        const stageFields = afterPersist
+          ? [
+              ...new Set([
+                primary,
+                relation.foreignKey,
+                ...snapshotProtectedValues(this.db, relation.target, []).fields,
+                ...(relation.targetConfig.ownership.enabled ? ['tenantId'] : []),
+              ]),
+            ]
+          : [];
+        const readStageTargets = async () => {
+          const rows = await relation.targetModel.unscoped().findAll(
+            internalQuery({
+              where: {
+                [Op.or]: [
+                  { [relation.foreignKey]: sourceKey },
+                  { [primary]: { [Op.in]: records.map((record) => record.getDataValue(primary)) } },
+                ],
+              },
+              transaction,
+              attributes: stageFields,
+              order: [[primary, 'ASC'] as [string, string]],
+              limit: 1001,
+            }),
+          );
+          current();
+          if (rows.length > 1000) invalid('Child persistence stage exceeds batch limit');
+          return rows;
+        };
+        const stageRows = afterPersist ? await readStageTargets() : undefined;
+        const stageProtected = stageRows && snapshotProtectedValues(this.db, relation.target, stageRows);
+        const stageState = (rows: readonly Model[]) =>
+          rows.map((record) => [
+            record.getDataValue(primary),
+            record.getDataValue(relation.foreignKey),
+            ...(relation.targetConfig.ownership.enabled ? [record.getDataValue('tenantId')] : []),
+          ]);
+        const expectedStage = stageRows && cloneDeep(stageState(stageRows));
+        await afterPersist?.call(entry);
         await validateWriteTransaction(this.db, transaction, true);
         current();
         const afterSource = await relation.sourceModel.unscoped().findAll(
@@ -314,6 +373,12 @@ export abstract class AccessTargetForeignKeyService {
           const raw = record.getDataValue(relation.foreignKey);
           if ((raw == null ? null : normalizeKeys([raw], relation.source)[0]) !== changedByKey.get(key)!.value)
             invalid('Writer did not set the authorized child foreign key');
+        }
+        if (stageProtected) {
+          const actual = await readStageTargets();
+          if (!isDeepStrictEqual(stageState(actual), expectedStage))
+            invalid('Persistence stage changed authorized child connections or ownership');
+          stageProtected.verify(actual);
         }
         return {
           keys: targetRecords.map((record) => record.getDataValue(primary) as string | number),

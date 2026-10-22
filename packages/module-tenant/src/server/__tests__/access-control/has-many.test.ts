@@ -221,6 +221,301 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-many
         entry,
       );
 
+    describe('post-persistence lifecycle stage', () => {
+      const entry = (afterPersist: () => Promise<void>) => ({
+        assertCurrent() {},
+        targetReadScope: async () => ({}),
+        targetWriteScope: async () => ({}),
+        afterPersist,
+      });
+      it('observes the complete source patch and connected targets before the caller commits', async () => {
+        const transaction = await begin();
+        let observed;
+        try {
+          const result = await update(
+            transaction,
+            { operation: 'set', targetKeys: [101, 106], sourceValues: { name: 'Changed' } },
+            entry(async () => {
+              const rows = await children.model.findAll({
+                where: { documentId: 3 },
+                order: [['id', 'ASC']],
+                transaction,
+              });
+              observed = {
+                keys: rows.map((row) => row.getDataValue('id')),
+                name: (await docs.model.findByPk(3, { transaction })).getDataValue('name'),
+              };
+            }),
+          );
+          expect(result.affected).toBe(3);
+          expect(observed).toEqual({ keys: [101, 106], name: 'Changed' });
+          expect(await linked()).toEqual([105]);
+          await transaction.commit();
+        } finally {
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual([101, 106]);
+      });
+      it('preserves a stage failure and rolls back prior writes, connections and pending notifications', async () => {
+        const original = new Error('persisted stage failed');
+        const transaction = await begin();
+        let notifications = 0;
+        try {
+          await docs.model.update({ name: 'Prior' }, { where: { id: 3 }, transaction });
+          await expect(
+            update(
+              transaction,
+              {},
+              entry(async () => {
+                transaction.afterCommit(() => {
+                  notifications++;
+                });
+                throw original;
+              }),
+            ),
+          ).rejects.toBe(original);
+          expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+        } finally {
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual([105]);
+        expect((await parent(3)).getDataValue('name')).toBe('Owned');
+        expect(notifications).toBe(0);
+      });
+      it.each(['sourceOwner', 'changedOwner', 'retainedOwner', 'add', 'remove'] as const)(
+        'rejects stage tampering with %s and preserves the old state on rollback',
+        async (part) => {
+          const transaction = await begin();
+          try {
+            await expect(
+              update(
+                transaction,
+                {},
+                entry(async () => {
+                  if (part === 'sourceOwner')
+                    await docs.model.update({ tenantId: 'C' }, { where: { id: 3 }, transaction, hooks: false });
+                  else if (part === 'changedOwner' || part === 'retainedOwner')
+                    await children.model.update(
+                      { tenantId: 'C' },
+                      { where: { id: part === 'changedOwner' ? 101 : 105 }, transaction, hooks: false },
+                    );
+                  else
+                    await children.model.update(
+                      { documentId: part === 'add' ? 3 : null },
+                      { where: { id: part === 'add' ? 103 : 105 }, transaction, hooks: false },
+                    );
+                }),
+              ),
+            ).rejects.toMatchObject({ name: 'AccessMutationError' });
+          } finally {
+            await finish(transaction);
+          }
+          expect(await linked()).toEqual([105]);
+          expect((await parent(3)).getDataValue('tenantId')).toBe('B');
+          expect((await child(101)).getDataValue('tenantId')).toBe('B');
+          expect((await child(105)).getDataValue('tenantId')).toBe('B');
+        },
+      );
+      it.each([false, true])('captures a source association lifecycle for explicit stage=%s', async (staged) => {
+        let observed = 0;
+        const listener = () => {
+          observed++;
+        };
+        db.on('documents.afterUpdateWithAssociations', listener);
+        const transaction = await begin();
+        try {
+          await update(transaction, {}, staged ? entry(async () => {}) : undefined);
+          expect(observed).toBe(staged ? 1 : 0);
+          await transaction.commit();
+        } finally {
+          db.off('documents.afterUpdateWithAssociations', listener);
+          await finish(transaction);
+        }
+      });
+      it('does not run a stage or claim legacy records for an unchanged association', async () => {
+        await configure(mainIdentity, withLegacy);
+        await children.model.update({ documentId: 5 }, { where: { id: 101 } });
+        let calls = 0;
+        const transaction = await begin();
+        try {
+          expect(
+            await update(
+              transaction,
+              { sourceKey: 5 },
+              entry(async () => {
+                calls++;
+              }),
+            ),
+          ).toEqual({ keys: [], affected: 0 });
+          await transaction.commit();
+        } finally {
+          await finish(transaction);
+        }
+        expect(calls).toBe(0);
+        expect((await parent(5)).getDataValue('tenantId')).toBeNull();
+      });
+      it('runs a stage for scalar-only changes even when the association is unchanged', async () => {
+        const transaction = await begin();
+        let calls = 0;
+        try {
+          await update(
+            transaction,
+            { targetKeys: [105], sourceValues: { name: 'Changed' } },
+            entry(async () => {
+              calls++;
+            }),
+          );
+          expect(calls).toBe(1);
+          await transaction.commit();
+        } finally {
+          await finish(transaction);
+        }
+        expect((await parent(3)).getDataValue('name')).toBe('Changed');
+      });
+      it.each([null, true])('rejects an invalid stage %j before writing', async (afterPersist) => {
+        const transaction = await begin();
+        try {
+          await expect(
+            update(transaction, {}, entry(afterPersist as unknown as () => Promise<void>)),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        } finally {
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual([105]);
+      });
+      it('rejects an ended preparation after the persistence stage', async () => {
+        const transaction = await begin();
+        try {
+          await expect(
+            update(
+              transaction,
+              {},
+              entry(async () => {
+                adapter.release(ctx);
+              }),
+            ),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_CONFIG_WRITE' });
+        } finally {
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual([105]);
+      });
+      it('rolls back a persistence failure when the service owns the transaction', async () => {
+        const original = new Error('owned transaction stage failed');
+        await expect(
+          service.withChildren(
+            ctx,
+            mainIdentity,
+            childIdentity,
+            authenticated,
+            { association: 'children', sourceKey: 3, operation: 'set', targetKeys: [101] },
+            entry(async () => {
+              throw original;
+            }),
+          ),
+        ).rejects.toBe(original);
+        expect(await linked()).toEqual([105]);
+        expect((await child(101)).getDataValue('documentId')).toBeNull();
+      });
+      it('rejects a stage changing another protected key on a retained child', async () => {
+        children.setField('backup', { type: 'belongsTo', target: 'documents', foreignKey: 'backupId' });
+        await children.model.sync({ alter: true });
+        const transaction = await begin();
+        try {
+          await expect(
+            update(
+              transaction,
+              {},
+              entry(async () => {
+                await children.model.update({ backupId: 4 }, { where: { id: 105 }, transaction, hooks: false });
+              }),
+            ),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        } finally {
+          await finish(transaction);
+        }
+        expect((await child(105)).getDataValue('backupId')).toBeNull();
+        expect(await linked()).toEqual([105]);
+      });
+      it('rejects a persistence stage hiding a foreign-key change behind an in-place column remap', async () => {
+        children.setField('shadowDocumentId', { type: 'integer' });
+        await children.model.sync({ alter: true });
+        const attribute = children.model.rawAttributes.documentId;
+        const column = attribute.field;
+        const transaction = await begin();
+        try {
+          await expect(
+            update(
+              transaction,
+              {},
+              entry(async () => {
+                await children.model.update(
+                  { shadowDocumentId: 3 },
+                  { where: { id: [101, 105] }, transaction, hooks: false },
+                );
+                await children.model.update({ documentId: null }, { where: { id: 101 }, transaction, hooks: false });
+                attribute.field = 'shadowDocumentId';
+              }),
+            ),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        } finally {
+          attribute.field = column;
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual([105]);
+        expect((await child(101)).getDataValue('documentId')).toBeNull();
+      });
+      it('bounds the complete verification set before invoking the persistence stage', async () => {
+        await children.model.bulkCreate(
+          Array.from({ length: 999 }, (_, index) => ({
+            id: 2000 + index,
+            tenantId: 'B',
+            name: 'Existing',
+            documentId: 3,
+          })),
+        );
+        const transaction = await begin();
+        let invoked = false;
+        try {
+          await expect(
+            update(
+              transaction,
+              {},
+              entry(async () => {
+                invoked = true;
+              }),
+            ),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        } finally {
+          await finish(transaction);
+        }
+        expect(invoked).toBe(false);
+        expect((await child(101)).getDataValue('documentId')).toBeNull();
+        expect(await children.model.count({ where: { documentId: 3 } })).toBe(1000);
+      });
+      it('still rejects nested target writes from an empty source patch hook', async () => {
+        docs.model.addHook('beforeUpdate', async (_record, options) => {
+          await children.model.update(
+            { documentId: 3 },
+            { where: { id: 103 }, transaction: options.transaction, hooks: false },
+          );
+        });
+        const transaction = await begin();
+        try {
+          await expect(
+            update(
+              transaction,
+              {},
+              entry(async () => {}),
+            ),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        } finally {
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual([105]);
+      });
+    });
+
     it.each([false, true])('leaves all writes and notifications pending for caller commit=%s', async (commit) => {
       const transaction = await begin();
       let notified = 0;

@@ -322,6 +322,62 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-one 
         { association: 'profile', sourceKey: 3, targetKey, ...extra },
         transaction,
       );
+    it('exposes a completed single-target replacement in its persistence stage', async () => {
+      const transaction = await db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
+      let observed;
+      try {
+        await service.withTargetInTransaction(
+          ctx,
+          mainIdentity,
+          target,
+          authenticated,
+          { association: 'profile', sourceKey: 3, targetKey: 101 },
+          transaction,
+          {
+            assertCurrent() {},
+            targetReadScope: async () => ({}),
+            targetWriteScope: async () => ({}),
+            afterPersist: async () => {
+              observed = (await profiles.model.findAll({ where: { documentId: 3 }, transaction })).map((row) =>
+                row.getDataValue('id'),
+              );
+            },
+          },
+        );
+        expect(observed).toEqual([101]);
+        await transaction.commit();
+      } finally {
+        if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+      }
+      expect(await linked()).toEqual([101]);
+    });
+    it('rejects a persistence stage creating a second single target and rolls back both edits', async () => {
+      const transaction = await db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
+      try {
+        await expect(
+          service.withTargetInTransaction(
+            ctx,
+            mainIdentity,
+            target,
+            authenticated,
+            { association: 'profile', sourceKey: 3, targetKey: 101 },
+            transaction,
+            {
+              assertCurrent() {},
+              targetReadScope: async () => ({}),
+              targetWriteScope: async () => ({}),
+              afterPersist: async () => {
+                await profiles.model.update({ documentId: 3 }, { where: { id: 106 }, transaction, hooks: false });
+              },
+            },
+          ),
+        ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await linked()).toEqual([105]);
+      expect((await profile(106)).getDataValue('documentId')).toBe(4);
+    });
     it.each([false, true])('keeps replacement and both target writes pending for caller commit=%s', async (commit) => {
       const transaction = await db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
       let notifications = 0;

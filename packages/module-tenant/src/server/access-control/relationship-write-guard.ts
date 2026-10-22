@@ -13,6 +13,7 @@ export async function guardRelationshipUpdate(
   transaction: Transaction,
   current: () => void,
   writer: () => Promise<unknown>,
+  allowNoWrite = false,
 ) {
   const active = new AsyncLocalStorage<boolean>();
   const name = `tenant-access-child-${randomUUID()}`;
@@ -37,7 +38,8 @@ export async function guardRelationshipUpdate(
   });
   try {
     await active.run(true, writer);
-    if (writes !== 1) invalid('Relationship writer bypassed the guarded instance update');
+    if (writes !== 1 && !(allowNoWrite && writes === 0))
+      invalid('Relationship writer bypassed the guarded instance update');
   } finally {
     db.sequelize.removeHook('beforeQuery', name);
     active.disable();

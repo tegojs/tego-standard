@@ -9,6 +9,12 @@
 
 
 
+## [1.6.67] - 2026-10-22
+
+### 🐛 修复
+
+- **docker**: remove stale npm dependencies before upgrading Node (@TomyJan)
+
 ## [1.6.66] - 2026-10-22
 
 ### 🐛 修复
@@ -3380,7 +3386,8 @@
 - 更新自述文件 ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.66...HEAD
+[未发布]: https://github.com/tegojs/tego-standard/compare/v1.6.67...HEAD
+[1.6.67]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.67
 [1.6.66]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.66
 [1.6.65]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.65
 [1.6.64]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.64

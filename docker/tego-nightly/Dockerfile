@@ -3,7 +3,8 @@ FROM node:22.23.4-bookworm AS node-runtime
 
 FROM tegojs/tego-node-pg:latest AS base
 
-# Keep the PostgreSQL tools and replace the inherited Node runtime.
+# Keep PostgreSQL tools, but remove old package managers before copying Node.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack
 COPY --from=node-runtime /usr/local/ /usr/local/
 ENV NODE_VERSION=22.23.4
 RUN test "$(node --version)" = "v${NODE_VERSION}"

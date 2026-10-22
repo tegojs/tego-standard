@@ -203,7 +203,12 @@ export class AccessWorkflowRootHandler {
       data(request, 'params'),
     );
     const metadata = accessMetadataGuard(this.db, [], [{ model: target.collection.model, path: [] }]);
-    return this.prepared.withPrepared(operation.context, [target.source], () =>
+    const sources = [
+      ...new Map(
+        [target.source, ...input.references.targets].map((source) => [accessCollectionKey(source), source]),
+      ).values(),
+    ];
+    return this.prepared.withPrepared(operation.context, sources, () =>
       executeWorkflowScalarWrite(this.db, this.prepared, this.queries, {
         action,
         context: operation.context,

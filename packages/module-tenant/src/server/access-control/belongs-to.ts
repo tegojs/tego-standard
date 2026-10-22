@@ -231,29 +231,34 @@ export class AccessBelongsToService {
             ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
           ),
         );
-        if (
-          entry &&
-          !changes.some(Boolean) &&
-          !sourcePlan.records.some((record) => hasPersistedChanges(record, scalarValues))
-        )
-          return { keys: [], affected: 0 };
+        const records = entry
+          ? sourcePlan.records.filter(
+              (record) =>
+                hasPersistedChanges(record, scalarValues) ||
+                references.some(({ relation, targetKey }) => {
+                  const existing = record.getDataValue(relation.foreignKey);
+                  return (existing == null ? null : normalizeKeys([existing], relation.target)[0]) !== targetKey;
+                }),
+            )
+          : sourcePlan.records;
+        if (!records.length) return { keys: [], affected: 0 };
         const primary = relation.sourceModel.primaryKeyAttribute;
-        const keys = sourcePlan.records.map((record) => record.getDataValue(primary) as string | number);
+        const keys = records.map((record) => record.getDataValue(primary) as string | number);
         const owners = new Map(
-          sourcePlan.records.map((record) => [
+          records.map((record) => [
             String(record.getDataValue(primary)),
             sourcePlan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
           ]),
         );
         const plan: ExistingAccessWritePlan = Object.freeze({
-          records: sourcePlan.records,
+          records: Object.freeze(records),
           transaction,
           valuesFor: (record: Model) => ({
             ...sourcePlan.valuesFor(record),
             ...Object.fromEntries(references.map(({ relation, targetKey }) => [relation.foreignKey, targetKey])),
           }),
         });
-        const protectedValues = snapshotProtectedValues(this.db, relation.source, sourcePlan.records, [
+        const protectedValues = snapshotProtectedValues(this.db, relation.source, records, [
           ...references.map(({ relation }) => relation.foreignKey),
           ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
         ]);

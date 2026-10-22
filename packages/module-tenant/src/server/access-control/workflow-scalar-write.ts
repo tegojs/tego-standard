@@ -2,14 +2,17 @@ import { isDeepStrictEqual } from 'node:util';
 import { Op, type Collection, type Database, type Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { AccessBelongsToService } from './belongs-to';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessCreationService } from './creation';
 import { accessMetadataGuard } from './metadata-snapshot';
-import { AccessMutationService } from './mutation';
+import { AccessMutationService, type ExistingAccessWritePlan } from './mutation';
 import type { AccessQueryService } from './query';
+import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureWorkflowDestroyParams } from './workflow-destroy-handler';
+import { captureWorkflowWriteReferences } from './workflow-write-references';
 import {
   cloneDeep,
   internalQuery,
@@ -37,7 +40,7 @@ export interface AccessWorkflowUpdateResult {
   data: Record<string, unknown>[];
 }
 
-/** Capture only scalar writes; relation/reference/attachment payloads require their own adapters. */
+/** Capture ordinary fields and existing single-value references; other relationships need separate adapters. */
 export function captureWorkflowScalarWrite(
   db: Database,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
@@ -58,9 +61,11 @@ export function captureWorkflowScalarWrite(
       raw.appends.length)
   )
     invalid('Workflow write associations require their own adapter');
-  const values = params.values;
+  const references = captureWorkflowWriteReferences(db, resolveIdentity, collection, params.values);
+  const values = references.values;
   // Ownership handling is checked again against the prepared configuration before writing.
-  validateRootValues(db, values, collection, action, true);
+  if (action === 'create' || Object.keys(values).length || !references.items.length)
+    validateRootValues(db, values, collection, action, true);
   const fields = Object.keys(values).map((name) => {
     const field = collection.getField(name);
     if (field?.options.interface === 'attachment') invalid('Workflow attachment fields require their own adapter');
@@ -68,6 +73,7 @@ export function captureWorkflowScalarWrite(
   });
   const protectedFields = [...rootWriteBlockedFields(db, collection, action)].sort();
   const assertCurrent = () => {
+    references.assertCurrent();
     if (
       fields.some(
         ({ name, field, interface: kind }) => collection.getField(name) !== field || field?.options.interface !== kind,
@@ -91,7 +97,14 @@ export function captureWorkflowScalarWrite(
         )
       : undefined;
   const condition = new AccessRoleFilterCompiler(db, resolveIdentity);
-  return { values: values as Record<string, unknown>, selection, condition, assertCurrent, assertProtectionCurrent };
+  return {
+    values: values as Record<string, unknown>,
+    references,
+    selection,
+    condition,
+    assertCurrent,
+    assertProtectionCurrent,
+  };
 }
 
 /** Called only after the root handler has verified the original live configured create/update operation. */
@@ -121,7 +134,8 @@ export async function executeWorkflowScalarWrite(
   const primary = model.primaryKeyAttribute;
   if (model.primaryKeyAttributes.length !== 1 || collection.filterTargetKey !== primary)
     invalid('Workflow writes require a single primary target key');
-  validateRootValues(db, input.values, collection, action, config.ownership.enabled);
+  if (action === 'create' || Object.keys(input.values).length || !input.references.items.length)
+    validateRootValues(db, input.values, collection, action, config.ownership.enabled);
   const condition = action === 'update' ? input.condition.compile(source, input.selection!.requestFilter) : undefined;
   if (condition && condition.rootWhere === undefined)
     invalid('Workflow write relationship filters require their own adapter');
@@ -139,7 +153,7 @@ export async function executeWorkflowScalarWrite(
     if (prepared.configuration(context, source) !== config) invalid('Workflow write preparation phase changed');
     condition?.assertCurrent();
   };
-  const serializable = requiresSerializable(config, { where }, collection);
+  const serializable = input.references.items.length > 0 || requiresSerializable(config, { where }, collection);
   await validateWriteTransaction(db, transaction, serializable);
   assertCurrent();
   let keys: Array<string | number>;
@@ -148,7 +162,7 @@ export async function executeWorkflowScalarWrite(
       context,
       source,
       authenticated,
-      { values: [input.values] },
+      { values: [input.values], references: input.references.items },
       transaction!,
       async (plan) => {
         assertCurrent();
@@ -164,7 +178,10 @@ export async function executeWorkflowScalarWrite(
     );
     keys = result.keys;
   } else {
-    if (!Object.keys(input.values).some((name) => !config.ownership.enabled || name !== 'tenantId'))
+    if (
+      !input.references.items.length &&
+      !Object.keys(input.values).some((name) => !config.ownership.enabled || name !== 'tenantId')
+    )
       invalid('No ordinary workflow fields to update');
     const explicit = input.selection!.params.filterByTk;
     if (explicit !== undefined) keys = normalizeKeys(Array.isArray(explicit) ? explicit : [explicit], collection);
@@ -194,27 +211,54 @@ export async function executeWorkflowScalarWrite(
         collection,
       );
     }
-    const result = await new AccessMutationService(db, prepared, queries).withExistingRecordsInTransaction(
-      context,
-      source,
-      authenticated,
-      { operation: 'update', keys, values: input.values, where },
-      transaction!,
-      async (plan) => {
-        for (const record of plan.records) {
-          assertCurrent();
-          await collection.repository.update({
-            filter: { [primary]: record.getDataValue(primary) },
-            values: plan.valuesFor(record),
-            transaction: plan.transaction,
-            context,
-            ...input.selection!.hookOptions,
-          });
-          assertCurrent();
-        }
-      },
-      assertCurrent,
-    );
+    const mutations = new AccessMutationService(db, prepared, queries);
+    const writer = async (plan: ExistingAccessWritePlan) => {
+      for (const record of plan.records) {
+        assertCurrent();
+        await collection.repository.update({
+          filter: { [primary]: record.getDataValue(primary) },
+          values: plan.valuesFor(record),
+          transaction: plan.transaction,
+          context,
+          ...input.selection!.hookOptions,
+        });
+        assertCurrent();
+      }
+    };
+    const result = input.references.items.length
+      ? await new AccessBelongsToService(
+          db,
+          prepared,
+          queries,
+          mutations,
+          new AccessReferenceService(db, prepared, queries),
+        ).withReferencesInTransaction(
+          context,
+          source,
+          authenticated,
+          {
+            sourceKeys: keys,
+            sourceWhere: where,
+            sourceValues: Object.keys(input.values).length ? input.values : undefined,
+            references: input.references.items.map((item) => ({
+              association: item.association,
+              target: item.target,
+              targetKey: item.key,
+            })),
+          },
+          transaction!,
+          writer,
+          { assertCurrent, targetScope: async () => ({}) },
+        )
+      : await mutations.withExistingRecordsInTransaction(
+          context,
+          source,
+          authenticated,
+          { operation: 'update', keys, values: input.values, where },
+          transaction!,
+          writer,
+          assertCurrent,
+        );
     keys = result.keys;
   }
   assertCurrent();

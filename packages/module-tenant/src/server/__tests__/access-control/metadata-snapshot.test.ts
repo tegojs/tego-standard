@@ -58,6 +58,15 @@ describe('access metadata dependencies', () => {
     db.getCollection('tenants').model.rawAttributes.name.field = 'tenantId';
     expect(verify).toThrow('metadata changed');
   });
+  it('captures schema-qualified ORM tables without cloning their formatting function', () => {
+    const model = db.getCollection('tenants').model;
+    const runtime = model as typeof model & { _schema: string };
+    runtime._schema = 'public';
+    const verify = guard();
+    expect(verify).not.toThrow();
+    runtime._schema = 'other';
+    expect(verify).toThrow('metadata changed');
+  });
   it('rejects nested association replacement', () => {
     const verify = guard();
     db.getCollection('children').setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'targetId' });

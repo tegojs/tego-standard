@@ -7,9 +7,13 @@ import { cloneDeep, invalid } from './write-support';
 function modelSnapshot(model: ModelStatic<Model>) {
   const runtime = model as unknown as { _scope: unknown; _timestampAttributes: { deletedAt?: string } };
   const deletedAt = runtime._timestampAttributes.deletedAt;
+  const table = model.getTableName();
   return cloneDeep({
     alias: model.name,
-    table: model.getTableName(),
+    table:
+      typeof table === 'string'
+        ? table
+        : { tableName: table.tableName, schema: table.schema, delimiter: table.delimiter },
     primary: model.primaryKeyAttributes,
     attributes: Object.entries(model.rawAttributes).map(([name, attribute]) => [
       name,

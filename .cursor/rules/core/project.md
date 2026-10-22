@@ -23,7 +23,7 @@ Tego (Tachybase) 是一个插件化的应用框架，支持开发者构建复杂
 - **Build Tools / 构建工具**: tegod CLI, Rsbuild
 - **Linting / 代码检查**: oxlint, Prettier
 - **Testing / 测试**: Vitest, Playwright
-- **Node.js**: >= 20.19.0
+- **Node.js**: ^22.23.4 || ^24.22.1 || >=26.12.1
 
 ## Project Structure / 项目结构
 ```

@@ -38,7 +38,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20.18.0
+          node-version: 22.23.4
       - name: Fetch all tags
         run: |
           # 确保获取所有远程 tags，用于版本比较

@@ -52,7 +52,7 @@ jobs:
         if: steps.check_branch.outputs.on_main == 'true'
         uses: actions/setup-node@v6
         with:
-          node-version: 22.14.0
+          node-version: 22.23.4
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 

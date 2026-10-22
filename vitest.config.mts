@@ -5,7 +5,7 @@ import { defineTegoVitestConfig } from '@tachybase/test/vitest';
 
 import type { Plugin } from 'vite';
 
-import { shouldSuppressViteWarning, shouldSuppressVitestConsoleOutput } from './vitest.console-filter';
+import { shouldSuppressVitestConsoleOutput, shouldSuppressViteWarning } from './vitest.console-filter';
 
 const sourceMappingURLRE = /(?:\r?\n)?\/\/# sourceMappingURL=[^\r\n]*(?:\r?\n)?$/;
 const reactZoomPanPinchDistFile = 'react-zoom-pan-pinch/dist/index.esm.js';
@@ -181,7 +181,8 @@ const workspaceServerAliases = [
   replacement: path.resolve(process.cwd(), `packages/${packageDir}/src/server/index.ts`),
 }));
 
-const testRequire = createRequire(path.resolve(process.cwd(), 'node_modules/@tachybase/test/package.json'));
+const workspaceRequire = createRequire(path.resolve(process.cwd(), 'package.json'));
+const testRequire = createRequire(workspaceRequire.resolve('@tachybase/test/package.json'));
 const testServerEntry = testRequire.resolve('@tego/server');
 const testCoreEntry = testRequire.resolve('@tego/core');
 

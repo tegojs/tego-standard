@@ -10,7 +10,7 @@ import type Plugin from '../Plugin';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
-import { captureWorkflowWritePlanningInputs } from './write-planning-snapshot';
+import { captureWorkflowWritePlanningInputs, captureWorkflowWriteValueFields } from './write-planning-snapshot';
 
 export interface WorkflowWriteRequest {
   readonly dataSourceName: string;
@@ -37,9 +37,9 @@ export type WorkflowUpdateResolver = (request: WorkflowUpdateRequest) => Workflo
 export type WorkflowWriteTransactionTarget = Pick<
   WorkflowWriteRequest,
   'dataSourceName' | 'collectionName' | 'collection'
->;
+> & { readonly valueFields?: readonly string[] };
 export type WorkflowWriteTransactionOptions = Pick<TransactionOptions, 'type' | 'isolationLevel'>;
-/** Target-only policy loading before a new transaction; never grants write authority. */
+/** Target and field-name policy loading before a new transaction; never grants write authority. */
 export type WorkflowWriteTransactionPlanner = (
   target: WorkflowWriteTransactionTarget,
 ) => WorkflowWriteTransactionOptions | undefined | Promise<WorkflowWriteTransactionOptions | undefined>;
@@ -88,11 +88,13 @@ export async function runWorkflowWriteResolver(
     const database = (manager as { db?: { sequelize?: unknown } }).db;
     const connection = database?.sequelize;
     assertPlanningInputsCurrent = captureWorkflowWritePlanningInputs(target.params, target.context);
+    const valueFields = captureWorkflowWriteValueFields(target.params);
     const planned = await transactionPlanner(
       Object.freeze({
         dataSourceName: target.dataSourceName,
         collectionName: target.collectionName,
         collection: target.collection,
+        valueFields,
       }),
     );
     if (

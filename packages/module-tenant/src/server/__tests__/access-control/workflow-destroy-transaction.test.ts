@@ -129,6 +129,58 @@ describe.each([
     expect(() => optionsFor('mysql', initialConfig(), collection)).toThrow(/dialect/i);
   });
 
+  if (_name === 'write') {
+    it('requires PostgreSQL when the actual written field is an association', async () => {
+      collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+      await expect(planner.plan({ ...target(), valueFields: ['parent'] })).rejects.toThrow(/PostgreSQL/i);
+    });
+    it('keeps ordinary fields on a collection with associations on the original plan', async () => {
+      collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+      expect(await planner.plan({ ...target(), valueFields: ['name'] })).toEqual({
+        type: Transaction.TYPES.IMMEDIATE,
+      });
+    });
+    it('selects serializable PostgreSQL options only for a write using relationships', () => {
+      expect(workflowWriteTransactionOptions('postgres', initialConfig(), collection, true)).toEqual({
+        isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+      });
+      expect(workflowWriteTransactionOptions('postgres', initialConfig(), collection, false)).toEqual({});
+    });
+    it.each([
+      'parent',
+      [undefined],
+      ['parent', 'parent'],
+      Object.assign([], { length: 1 }),
+      { 0: 'parent', length: 1 },
+    ])('rejects invalid field-name metadata %j before reading configuration', async (valueFields) => {
+      const read = vi.spyOn(store, 'read');
+      await expect(planner.plan({ ...target(), valueFields } as any)).rejects.toThrow(/field|list/i);
+      expect(read).not.toHaveBeenCalled();
+    });
+    it('does not evaluate field-name accessors', async () => {
+      let accessed = false;
+      const fields = Object.defineProperty(['parent'], '0', {
+        get() {
+          accessed = true;
+          return 'parent';
+        },
+      });
+      await expect(planner.plan({ ...target(), valueFields: fields })).rejects.toThrow(/accessors/i);
+      expect(accessed).toBe(false);
+    });
+    it('rejects relation metadata changes while loading policy', async () => {
+      collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+      const relation = collection.model.associations.parent;
+      const read = store.read.bind(store);
+      vi.spyOn(store, 'read').mockImplementation(async (source) => {
+        const config = await read(source);
+        collection.model.associations.parent = Object.create(relation);
+        return config;
+      });
+      await expect(planner.plan({ ...target(), valueFields: ['parent'] })).rejects.toThrow(/metadata changed/i);
+    });
+  }
+
   it('loads external target configuration from the primary store while planning the external database', async () => {
     const external = sqliteDatabase();
     try {

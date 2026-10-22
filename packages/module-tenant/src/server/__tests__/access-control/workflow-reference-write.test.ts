@@ -9,6 +9,7 @@ import { accessCollectionKey, AccessConfigStore } from '../../access-control/con
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessWorkflowRootHandler } from '../../access-control/workflow-root-handler';
+import { AccessWorkflowWriteTransactionPlanner } from '../../access-control/workflow-write-transaction';
 import { isolatedPostgresDatabase } from './database';
 import { configFor, ownerCondition } from './fixtures';
 
@@ -20,6 +21,10 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
   let adapter: AccessAclScopeAdapter;
   let store: AccessConfigStore;
   let handler: AccessWorkflowRootHandler;
+  let planner: AccessWorkflowWriteTransactionPlanner;
+  let planning: boolean;
+  let planningCalls: number;
+  let actualIsolation: string | undefined;
   let documents;
   let projects;
   let source;
@@ -68,12 +73,38 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
         [
           'workflow',
           {
+            createTransactionPlanner: (target) => {
+              planningCalls++;
+              return planner.plan(target);
+            },
+            updateTransactionPlanner: (target) => {
+              planningCalls++;
+              return planner.plan(target);
+            },
             createResolver: () => async (input) => {
               request = input;
+              if (planning) {
+                const [rows] = await app.db.sequelize.query(
+                  "SELECT current_setting('transaction_isolation') AS transaction_isolation",
+                  {
+                    transaction: input.transaction,
+                  },
+                );
+                actualIsolation = (rows[0] as { transaction_isolation: string }).transaction_isolation;
+              }
               return handler.create(input);
             },
             updateResolver: () => async (input) => {
               request = input;
+              if (planning) {
+                const [rows] = await app.db.sequelize.query(
+                  "SELECT current_setting('transaction_isolation') AS transaction_isolation",
+                  {
+                    transaction: input.transaction,
+                  },
+                );
+                actualIsolation = (rows[0] as { transaction_isolation: string }).transaction_isolation;
+              }
               return handler.update(input);
             },
           },
@@ -128,6 +159,7 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
       resolveModelMetadata(app.db.getCollection(source.collectionName), { resolveCollectionKey: key }),
     );
     adapter = new AccessAclScopeAdapter(new ACL(), 'main', store, app.db);
+    planner = new AccessWorkflowWriteTransactionPlanner(app.db, store, identity);
     handler = new AccessWorkflowRootHandler(
       app.db,
       adapter,
@@ -159,6 +191,9 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
   }
   beforeEach(async () => {
     tamper = failLater = release = false;
+    planning = false;
+    planningCalls = 0;
+    actualIsolation = undefined;
     request = undefined;
     await save(source, configFor(ownerCondition));
     await save(target, targetConfig());
@@ -203,26 +238,114 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
     }
   });
   const get = async (id = 1) => (await documents.model.findByPk(id))?.get({ plain: true });
-  async function execute(kind: 'create' | 'update', params: object, serializable = true) {
+  async function execute(kind: 'create' | 'update', params: object, serializable: boolean | null = true) {
     await workflow.createNode({ type: kind, config: { collection: documents.name, params } });
-    const transaction = await app.db.sequelize.transaction({
-      isolationLevel: serializable
-        ? Transaction.ISOLATION_LEVELS.SERIALIZABLE
-        : Transaction.ISOLATION_LEVELS.READ_COMMITTED,
-    });
+    const transaction =
+      serializable === null
+        ? undefined
+        : await app.db.sequelize.transaction({
+            isolationLevel: serializable
+              ? Transaction.ISOLATION_LEVELS.SERIALIZABLE
+              : Transaction.ISOLATION_LEVELS.READ_COMMITTED,
+          });
     try {
       await plugin.trigger(workflow, {}, { transaction, context: { state: { currentTenantId: 'B' } } });
       const [execution] = await workflow.getExecutions({ transaction, order: [['id', 'DESC']] });
       const [job] = await execution.getJobs({ transaction });
       const result = { status: execution.status, result: job.result };
-      if (execution.status === EXECUTION_STATUS.RESOLVED) await transaction.commit();
-      else await transaction.rollback();
+      if (transaction) {
+        if (execution.status === EXECUTION_STATUS.RESOLVED) await transaction.commit();
+        else await transaction.rollback();
+      }
       return result;
     } catch (error) {
-      if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+      if (transaction && !(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
       throw error;
     }
   }
+
+  describe('node-owned transactions planned from written fields', () => {
+    it.each([
+      ['create', 'project', 101],
+      ['update', 'project', 101],
+      ['create', 'project', null],
+      ['update', 'project', null],
+      ['create', 'parent', 1],
+      ['update', 'parent', 1],
+    ] as const)('plans %s with %s = %s using real serializable isolation', async (kind, field, key) => {
+      planning = true;
+      const job = await execute(
+        kind,
+        {
+          ...(kind === 'update' ? { filterByTk: 3 } : {}),
+          values: { ...(kind === 'create' ? { id: 100 } : {}), [field]: key },
+        },
+        null,
+      );
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(planningCalls).toBe(1);
+      expect(actualIsolation).toBe('serializable');
+      expect((request.transaction as Transaction & { finished?: string }).finished).toBe('commit');
+      expect((await get(kind === 'create' ? 100 : 3))[field === 'parent' ? 'parentId' : 'projectId']).toBe(key);
+    });
+    it.each(['create', 'update'] as const)('keeps root-only %s on the database default isolation', async (kind) => {
+      planning = true;
+      const job = await execute(
+        kind,
+        {
+          ...(kind === 'update' ? { filterByTk: 3 } : {}),
+          values: { ...(kind === 'create' ? { id: 100 } : {}), name: 'Scalar' },
+        },
+        null,
+      );
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(planningCalls).toBe(1);
+      expect(actualIsolation).toBe('read committed');
+      expect((await get(kind === 'create' ? 100 : 3)).name).toBe('Scalar');
+    });
+    it.each(['create', 'update'] as const)('does not turn %s transaction planning into target access', async (kind) => {
+      planning = true;
+      const job = await execute(
+        kind,
+        {
+          ...(kind === 'update' ? { filterByTk: 3 } : {}),
+          values: { ...(kind === 'create' ? { id: 100 } : {}), project: 102 },
+        },
+        null,
+      );
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(actualIsolation).toBe('serializable');
+      expect((request.transaction as Transaction & { finished?: string }).finished).toBe('rollback');
+      expect(await get(100)).toBeUndefined();
+      expect((await get(3)).projectId).toBe(103);
+    });
+    it.each(['create', 'update'] as const)(
+      'rolls back a planned %s after stored reference verification fails',
+      async (kind) => {
+        planning = tamper = true;
+        const job = await execute(
+          kind,
+          {
+            ...(kind === 'update' ? { filterByTk: 3 } : {}),
+            values: { ...(kind === 'create' ? { id: 100 } : {}), project: 101 },
+          },
+          null,
+        );
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect((request.transaction as Transaction & { finished?: string }).finished).toBe('rollback');
+        expect(await get(100)).toBeUndefined();
+        expect((await get(3)).projectId).toBe(103);
+      },
+    );
+    it('does not invoke planning to upgrade an insufficient caller transaction', async () => {
+      planning = true;
+      const job = await execute('update', { filterByTk: 3, values: { project: 101 } }, false);
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(planningCalls).toBe(0);
+      expect(actualIsolation).toBe('read committed');
+      expect((await get(3)).projectId).toBe(103);
+    });
+  });
 
   it.each(['create', 'update'] as const)(
     'writes %s references under the actual configured operation without manual ACL',

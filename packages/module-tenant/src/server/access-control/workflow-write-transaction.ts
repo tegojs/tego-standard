@@ -10,11 +10,17 @@ export interface AccessWorkflowWriteTransactionTarget {
   readonly dataSourceName: string;
   readonly collectionName: string;
   readonly collection: unknown;
+  readonly valueFields?: readonly string[];
 }
 
 /** Pure option selection, not a claim that a PostgreSQL transaction has been opened or verified. */
-export function workflowWriteTransactionOptions(dialect: string, config: AccessConfig, collection: Collection) {
-  const serializable = requiresSerializable(config, {}, collection);
+export function workflowWriteTransactionOptions(
+  dialect: string,
+  config: AccessConfig,
+  collection: Collection,
+  associationWrite = false,
+) {
+  const serializable = associationWrite || requiresSerializable(config, {}, collection);
   if (dialect === 'postgres') return serializable ? { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE } : {};
   if (dialect !== 'sqlite' || serializable)
     throw new AccessMutationError(
@@ -38,11 +44,11 @@ export class AccessWorkflowWriteTransactionPlanner {
       !plain(target) ||
       Reflect.ownKeys(target).some(
         (name) =>
-          !['dataSourceName', 'collectionName', 'collection'].includes(name as string) ||
+          !['dataSourceName', 'collectionName', 'collection', 'valueFields'].includes(name as string) ||
           !Object.hasOwn(Object.getOwnPropertyDescriptor(target, name)!, 'value'),
       )
     )
-      invalid('Workflow transaction planning requires a target-only descriptor');
+      invalid('Workflow transaction planning requires a target and field-name descriptor');
     const { dataSourceName, collectionName, collection: supplied } = target;
     if (typeof dataSourceName !== 'string' || typeof collectionName !== 'string')
       invalid('Workflow transaction target is unavailable');
@@ -59,7 +65,28 @@ export class AccessWorkflowWriteTransactionPlanner {
       invalid('Workflow transaction identity does not match its target');
     const source = Object.freeze(cloneDeep(identity));
     const key = accessCollectionKey(source);
-    const metadata = accessMetadataGuard(this.db, [], [{ model: collection.model, path: [] }]);
+    const input = target.valueFields;
+    if (
+      input !== undefined &&
+      (!Array.isArray(input) ||
+        Object.getPrototypeOf(input) !== Array.prototype ||
+        input.length > 10000 ||
+        Reflect.ownKeys(input).length !== input.length + 1 ||
+        Array.from({ length: input.length }, (_, index) => index).some((index) => !Object.hasOwn(input, index)))
+    )
+      invalid('Workflow planning field names require a dense list');
+    const fields = input === undefined ? [] : cloneDeep(input);
+    if (fields.some((field) => typeof field !== 'string' || !field) || new Set(fields).size !== fields.length)
+      invalid('Workflow planning field names must be distinct strings');
+    const associations = fields.filter((field) => Object.hasOwn(collection.model.associations, field));
+    const metadata = accessMetadataGuard(
+      this.db,
+      [],
+      [
+        { model: collection.model, path: [] },
+        ...associations.map((field) => ({ model: collection.model, path: [field] })),
+      ],
+    );
     const assertCurrent = () => {
       metadata();
       const current = this.resolveIdentity(collection);
@@ -69,6 +96,6 @@ export class AccessWorkflowWriteTransactionPlanner {
     const config = await this.store.read(source);
     assertCurrent();
     if (!config) invalid('Workflow transaction planning requires an explicit access configuration');
-    return workflowWriteTransactionOptions(this.db.sequelize.getDialect(), config, collection);
+    return workflowWriteTransactionOptions(this.db.sequelize.getDialect(), config, collection, associations.length > 0);
   }
 }

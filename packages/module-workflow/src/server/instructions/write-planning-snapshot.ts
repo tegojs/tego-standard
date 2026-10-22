@@ -10,6 +10,20 @@ function sameDescriptor(left?: PropertyDescriptor, right?: PropertyDescriptor) {
   );
 }
 
+/** Transaction planning needs field names, never the corresponding business values or actor. */
+export function captureWorkflowWriteValueFields(params: object): readonly string[] {
+  const descriptor = Object.getOwnPropertyDescriptor(params, 'values');
+  if (!descriptor) return Object.freeze([]);
+  if (
+    !Object.hasOwn(descriptor, 'value') ||
+    !descriptor.value ||
+    typeof descriptor.value !== 'object' ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(descriptor.value))
+  )
+    throw new TypeError('Workflow planning requires ordinary field values');
+  return Object.freeze(Object.keys(descriptor.value));
+}
+
 /** Observe resolved data properties without copying model/context internals or evaluating getters. */
 export function captureWorkflowWritePlanningInputs(params: object, context: object) {
   const checks: Array<() => boolean> = [];

@@ -230,6 +230,23 @@ describe('configured workflow scalar writes with tenant ownership', () => {
   }
 
   describe('node-owned transactions planned from current policy', () => {
+    it.each(['create', 'update'] as const)(
+      'rejects SQLite %s references during planning before execution',
+      async (kind) => {
+        planning = true;
+        const job = await execute(
+          kind,
+          { ...(kind === 'update' ? { filterByTk: 1 } : {}), values: { parent: 3 } },
+          { currentTenantId: 'B' },
+          null,
+        );
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/PostgreSQL/i);
+        expect(planningCalls).toBe(1);
+        expect(request).toBeUndefined();
+        expect((await get(1)).parentId).toBeNull();
+      },
+    );
     it.each(['create', 'update'] as const)('plans and commits %s without a caller transaction', async (kind) => {
       planning = true;
       const job = await execute(

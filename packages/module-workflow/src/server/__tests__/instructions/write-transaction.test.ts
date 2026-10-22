@@ -49,9 +49,9 @@ describe.each(['create', 'update'] as const)('workflow %s asynchronous transacti
     await db.close();
   });
 
-  const run = (resolve?, planner?, source = 'documents') =>
+  const run = (resolve?, planner?, source = 'documents', values = { name: 'Changed' }) =>
     new Instruction(workflow, resolve, planner).run(
-      { id: 9, config: { collection: source, params: { filterByTk: 1, values: { name: 'Changed' } } } } as any,
+      { id: 9, config: { collection: source, params: { filterByTk: 1, values } } } as any,
       null,
       processor,
     );
@@ -75,7 +75,7 @@ describe.each(['create', 'update'] as const)('workflow %s asynchronous transacti
   const names = async () =>
     (await collection.model.findAll({ order: [['id', 'ASC']] })).map((record) => record.get('name'));
 
-  it('awaits target-only planning before beginning the selected write transaction', async () => {
+  it('awaits planning before beginning the selected write transaction', async () => {
     const calls: string[] = [];
     const job = await run(
       (request) => {
@@ -85,7 +85,7 @@ describe.each(['create', 'update'] as const)('workflow %s asynchronous transacti
       },
       async (target) => {
         calls.push('plan');
-        expect(Object.keys(target).sort()).toEqual(['collection', 'collectionName', 'dataSourceName']);
+        expect(Object.keys(target).sort()).toEqual(['collection', 'collectionName', 'dataSourceName', 'valueFields']);
         expect(Object.isFrozen(target)).toBe(true);
         expect(target.collection).toBe(collection);
         expect(target.collectionName).toBe('documents');
@@ -108,6 +108,43 @@ describe.each(['create', 'update'] as const)('workflow %s asynchronous transacti
       async () => undefined,
     );
     expect(job.status).toBe(JOB_STATUS.RESOLVED);
+  });
+  it('passes only frozen value field names to transaction planning', async () => {
+    const job = await run(
+      () => selected,
+      async (target) => {
+        expect(target.valueFields).toEqual(['name']);
+        expect(Object.isFrozen(target.valueFields)).toBe(true);
+        expect(target.params).toBeUndefined();
+        expect(target.context).toBeUndefined();
+        expect(target.valueFields).not.toContain('Changed');
+        return { type: Transaction.TYPES.IMMEDIATE };
+      },
+    );
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(await names()).toEqual(action === 'create' ? ['Original', 'Changed'] : ['Changed']);
+  });
+  it('does not evaluate field value getters to describe a write', async () => {
+    let accessed = false;
+    const values = Object.defineProperty({}, 'name', {
+      enumerable: true,
+      get() {
+        accessed = true;
+        return 'Secret value';
+      },
+    });
+    const job = await run(
+      () => async () => (action === 'create' ? { id: 99 } : { length: 0, data: [] }),
+      async (target) => {
+        expect(target.valueFields).toEqual(['name']);
+        return { type: Transaction.TYPES.IMMEDIATE };
+      },
+      'documents',
+      values as { name: string },
+    );
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(accessed).toBe(false);
+    expect(await names()).toEqual(['Original']);
   });
   it.each([false, true])(
     'uses the planned transaction for original writes (resolver installed: %s)',

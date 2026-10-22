@@ -102,6 +102,10 @@ export class AccessAclScopeAdapter {
 
   /** One authenticated server request/execution phase; values are never taken from ctx fields. */
   async prepare(ctx: object, identities: readonly AccessCollectionIdentity[]): Promise<void> {
+    await this.preparePhase(ctx, identities);
+  }
+
+  private async preparePhase(ctx: object, identities: readonly AccessCollectionIdentity[]): Promise<RequestPhase> {
     if (!ctx || typeof ctx !== 'object' || Array.isArray(ctx)) {
       throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid access request context');
     }
@@ -132,6 +136,7 @@ export class AccessAclScopeAdapter {
       }
       phase.builtinScopeId = builtinScopeId;
       phase.configs = configs;
+      return phase;
     } catch (error) {
       if (this.requests.get(ctx) === phase) this.requests.delete(ctx);
       throw error;
@@ -140,6 +145,27 @@ export class AccessAclScopeAdapter {
 
   release(ctx: object): void {
     this.requests.delete(ctx);
+  }
+
+  /** Release only this operation's phase; an ended/replaced phase cannot publish a late result. */
+  async withPrepared<T>(
+    ctx: object,
+    identities: readonly AccessCollectionIdentity[],
+    execute: () => T | Promise<T>,
+  ): Promise<T> {
+    const phase = await this.preparePhase(ctx, identities);
+    const assertCurrent = () => {
+      if (this.requests.get(ctx) !== phase)
+        throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Access request phase has ended');
+    };
+    try {
+      assertCurrent();
+      const result = await execute();
+      assertCurrent();
+      return result;
+    } finally {
+      if (this.requests.get(ctx) === phase) this.requests.delete(ctx);
+    }
   }
 
   /** Read-only administrator tooling. It does not prepare a phase, register a resolver or save rules. */

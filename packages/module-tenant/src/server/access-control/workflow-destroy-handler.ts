@@ -48,6 +48,33 @@ function shape(input: unknown, keys: readonly string[]): asserts input is Record
   for (const key of Reflect.ownKeys(input)) data(input, key);
 }
 
+/** Capture before configuration/authentication awaits; preserve original array validation. */
+export function captureWorkflowDestroyParams(raw: unknown) {
+  shape(raw, ['filter', 'filterByTk', 'individualHooks']);
+  const locator = data(raw, 'filterByTk');
+  // cloneDeep normalizes array prototypes, so validate the original selection first.
+  if (Array.isArray(locator)) {
+    if (
+      Object.getPrototypeOf(locator) !== Array.prototype ||
+      !locator.length ||
+      locator.length > 1000 ||
+      Reflect.ownKeys(locator).length !== locator.length + 1
+    )
+      invalid('Workflow deletion requires a bounded dense key selection');
+    for (let index = 0; index < locator.length; index++) {
+      if (!Object.hasOwn(locator, index)) invalid('Workflow deletion keys cannot contain holes');
+      data(locator, String(index));
+    }
+  }
+  const requestFilter = captureAccessFilter(raw.filter === undefined ? {} : raw.filter);
+  const params = cloneDeep(raw);
+  const individualHooks = params.individualHooks;
+  if (individualHooks !== undefined && typeof individualHooks !== 'boolean')
+    invalid('Workflow individualHooks must be a boolean');
+  const hookOptions = typeof individualHooks === 'boolean' ? { individualHooks } : {};
+  return { params, requestFilter, hookOptions };
+}
+
 /** Internal only. The caller supplies trusted execution identity, final grants and an adequate root transaction. */
 export class AccessWorkflowDestroyHandler {
   constructor(
@@ -67,29 +94,7 @@ export class AccessWorkflowDestroyHandler {
     const target = data(request, 'collection');
     const context = data(request, 'context');
     const transaction = data(request, 'transaction') as Transaction | undefined;
-    const raw = data(request, 'params');
-    shape(raw, ['filter', 'filterByTk', 'individualHooks']);
-    const locator = data(raw, 'filterByTk');
-    // cloneDeep normalizes array prototypes, so validate the original selection first.
-    if (Array.isArray(locator)) {
-      if (
-        Object.getPrototypeOf(locator) !== Array.prototype ||
-        !locator.length ||
-        locator.length > 1000 ||
-        Reflect.ownKeys(locator).length !== locator.length + 1
-      )
-        invalid('Workflow deletion requires a bounded dense key selection');
-      for (let index = 0; index < locator.length; index++) {
-        if (!Object.hasOwn(locator, index)) invalid('Workflow deletion keys cannot contain holes');
-        data(locator, String(index));
-      }
-    }
-    const requestFilter = captureAccessFilter(raw.filter === undefined ? {} : raw.filter);
-    const params = cloneDeep(raw);
-    const individualHooks = params.individualHooks;
-    if (individualHooks !== undefined && typeof individualHooks !== 'boolean')
-      invalid('Workflow individualHooks must be a boolean');
-    const hookOptions = typeof individualHooks === 'boolean' ? { individualHooks } : {};
+    const { params, requestFilter, hookOptions } = captureWorkflowDestroyParams(data(request, 'params'));
     if (
       typeof dataSourceName !== 'string' ||
       typeof collectionName !== 'string' ||

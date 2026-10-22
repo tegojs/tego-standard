@@ -11,12 +11,11 @@ import {
   AccessConfigStore,
   type AccessCollectionIdentity,
 } from '../../access-control/config-store';
-import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
-import { AccessWorkflowDestroyHandler } from '../../access-control/workflow-destroy-handler';
-import { captureWorkflowAccessIdentity } from '../../access-control/workflow-identity';
-import { AccessWorkflowQueryHandler } from '../../access-control/workflow-query-handler';
+import type { AccessWorkflowDestroyRequest } from '../../access-control/workflow-destroy-handler';
+import type { AccessWorkflowQueryRequest } from '../../access-control/workflow-query-handler';
+import { AccessWorkflowRootHandler } from '../../access-control/workflow-root-handler';
 import { configFor, ownerCondition } from './fixtures';
 
 /** Actual runtime proof supplies the configured root operation; G/V remains independently enforced. */
@@ -26,6 +25,11 @@ describe('workflow runtime authority with tenant data scopes', () => {
   let adapter: AccessAclScopeAdapter;
   let queries: AccessQueryService;
   let source: AccessCollectionIdentity;
+  let store: AccessConfigStore;
+  let handler: AccessWorkflowRootHandler;
+  let lastRequest: AccessWorkflowQueryRequest | AccessWorkflowDestroyRequest;
+  let queryAsDestroy: boolean;
+  let cloneQuery: boolean;
   let workflow;
   let captured: WorkflowDataOperationAuthority[];
   let failAfterDelete: boolean;
@@ -42,47 +46,14 @@ describe('workflow runtime authority with tenant data scopes', () => {
           'workflow',
           {
             queryResolver: () => async (request) => {
-              const authority = plugin.captureDataOperationAuthority(request);
-              const authenticated = captureWorkflowAccessIdentity(authority.context);
-              captured.push(authority);
-              await adapter.prepare(request.context, [source]);
-              try {
-                const reader = new AccessEntryReadService(app.db, adapter, queries, identity, (target, path) => {
-                  authority.assertCurrent();
-                  return {
-                    allowed: authority.actionName === 'list' && target === authority.collection && path.length === 0,
-                    params: {},
-                  };
-                });
-                const result = await new AccessWorkflowQueryHandler(app.db, reader, identity).handle(
-                  request,
-                  authenticated,
-                );
-                authority.assertCurrent();
-                return result;
-              } finally {
-                adapter.release(request.context);
-              }
+              lastRequest = request;
+              if (queryAsDestroy) return handler.destroy(request as unknown as AccessWorkflowDestroyRequest);
+              return handler.query(cloneQuery ? { ...request } : request);
             },
             destroyTransactionOptions: () => ({ type: Transaction.TYPES.IMMEDIATE }),
             destroyResolver: () => async (request) => {
-              const authority = plugin.captureDataOperationAuthority(request);
-              const authenticated = captureWorkflowAccessIdentity(authority.context);
-              captured.push(authority);
-              await adapter.prepare(request.context, [source]);
-              try {
-                return await new AccessWorkflowDestroyHandler(app.db, adapter, queries, identity, (target) => {
-                  authority.assertCurrent();
-                  return {
-                    source,
-                    actionName: authority.actionName,
-                    allowed: target === authority.collection,
-                    params: {},
-                  };
-                }).handle(request, authenticated);
-              } finally {
-                adapter.release(request.context);
-              }
+              lastRequest = request;
+              return handler.destroy(request);
             },
           },
         ],
@@ -96,6 +67,7 @@ describe('workflow runtime authority with tenant data scopes', () => {
         fields: [
           { name: 'name', type: 'string' },
           { name: 'tenantId', type: 'string' },
+          { name: 'parent', type: 'belongsTo', target: 'proofDocuments', foreignKey: 'parentId' },
         ],
       },
     });
@@ -114,7 +86,7 @@ describe('workflow runtime authority with tenant data scopes', () => {
     await tenants.model.bulkCreate(['B', 'C', 'H'].map((id) => ({ id, enabled: true })));
     await app.db.collection(accessConfigHistory).model.sync();
     const stableKey = () => accessCollectionKey(source);
-    const store = new AccessConfigStore(app.db, (target) =>
+    store = new AccessConfigStore(app.db, (target) =>
       resolveModelMetadata(app.db.getCollection(target.collectionName), { resolveCollectionKey: stableKey }),
     );
     const config = configFor(ownerCondition);
@@ -133,12 +105,19 @@ describe('workflow runtime authority with tenant data scopes', () => {
     await store.save(source, { ...config, revision: 0 }, { userId: 28 });
     adapter = new AccessAclScopeAdapter(new ACL(), 'main', store, app.db);
     queries = new AccessQueryService(app.db, adapter, stableKey);
+    handler = new AccessWorkflowRootHandler(app.db, adapter, queries, identity, (request) => {
+      const authority = plugin.captureDataOperationAuthority(request);
+      captured.push(authority);
+      return authority;
+    });
     app.db.on('proofDocuments.afterDestroy', (record) => {
       if (failAfterDelete && record.get('id') === 3) throw new Error('business deletion failed');
     });
   });
   beforeEach(async () => {
     captured = [];
+    cloneQuery = false;
+    queryAsDestroy = false;
     failAfterDelete = false;
     const model = app.db.getCollection(source.collectionName).model;
     await model.destroy({ where: {}, hooks: false });
@@ -159,6 +138,7 @@ describe('workflow runtime authority with tenant data scopes', () => {
     });
   });
   afterEach(async () => {
+    vi.restoreAllMocks();
     await workflow?.update({ enabled: false });
   });
   afterAll(async () => {
@@ -167,8 +147,11 @@ describe('workflow runtime authority with tenant data scopes', () => {
 
   async function execute(type: 'query' | 'destroy', params = {}, state: object = { currentTenantId: 'B' }) {
     await workflow.createNode({ type, config: { collection: source.collectionName, multiple: true, params } });
+    return run(state);
+  }
+  async function run(state: object = { currentTenantId: 'B' }) {
     await plugin.trigger(workflow, { state: { currentTenantId: 'H', currentRole: 'root' } }, { context: { state } });
-    const [execution] = await workflow.getExecutions();
+    const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
     const [job] = await execution.getJobs();
     return { execution, job };
   }
@@ -184,6 +167,7 @@ describe('workflow runtime authority with tenant data scopes', () => {
     expect(job.result).toEqual([{ name: 'Owned' }, { name: 'Visible' }, { name: 'Second' }]);
     expect(execution.get('authContext')).toBeNull();
     expect(() => captured[0].assertCurrent()).toThrow(/authority/i);
+    expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
   });
   it('uses real destroy authority without treating visibility as permission to delete', async () => {
     const { execution, job } = await execute('destroy');
@@ -191,6 +175,7 @@ describe('workflow runtime authority with tenant data scopes', () => {
     expect(job.result).toBe(2);
     expect(await ids()).toEqual([2, 4]);
     expect(() => captured[0].assertCurrent()).toThrow(/authority/i);
+    expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
   });
   it('rejects an explicit visibility-only deletion without falling back', async () => {
     const { execution, job } = await execute('destroy', { filterByTk: 2 });
@@ -214,5 +199,164 @@ describe('workflow runtime authority with tenant data scopes', () => {
     expect(job.result.message).toBe('business deletion failed');
     expect(await ids()).toEqual([1, 2, 3, 4]);
     expect(() => captured[0].assertCurrent()).toThrow(/authority/i);
+    expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
+  });
+
+  it('rejects a copied executor request before reading configuration', async () => {
+    cloneQuery = true;
+    const read = vi.spyOn(store, 'read');
+    const { execution, job } = await execute('query');
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.result.message).toMatch(/authority/i);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('does not use a real list proof to authorize deletion', async () => {
+    queryAsDestroy = true;
+    const { execution, job } = await execute('query');
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.result.message).toMatch(/operation|authority/i);
+    expect(await ids()).toEqual([1, 2, 3, 4]);
+  });
+
+  it.each(['query', 'destroy'] as const)(
+    'requires explicit persisted configuration for %s and does not fall back',
+    async (type) => {
+      vi.spyOn(store, 'read').mockResolvedValue(null);
+      const { execution, job } = await execute(type);
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/config/i);
+      expect(await ids()).toEqual([1, 2, 3, 4]);
+      expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
+    },
+  );
+
+  it('snapshots query parameters and canonical identity before configuration reads suspend', async () => {
+    const read = store.read.bind(store);
+    vi.spyOn(store, 'read').mockImplementation(async (identity) => {
+      await Promise.resolve();
+      const request = lastRequest as AccessWorkflowQueryRequest;
+      (request.query as { filter: { name: string } }).filter.name = 'Hidden';
+      (request.context as { state: { currentTenantId: string } }).state.currentTenantId = 'C';
+      return read(identity);
+    });
+    const { execution, job } = await execute('query', { fields: ['name'], filter: { name: 'Owned' } });
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(job.result).toEqual([{ name: 'Owned' }]);
+  });
+
+  it('snapshots deletion keys before configuration reads suspend', async () => {
+    const read = store.read.bind(store);
+    vi.spyOn(store, 'read').mockImplementation(async (identity) => {
+      await Promise.resolve();
+      ((lastRequest as AccessWorkflowDestroyRequest).params as { filterByTk: number[] }).filterByTk[0] = 3;
+      return read(identity);
+    });
+    const { execution, job } = await execute('destroy', { filterByTk: [1] });
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(job.result).toBe(1);
+    expect(await ids()).toEqual([2, 3, 4]);
+  });
+
+  it('preserves configuration read errors and cleans up the failed preparation', async () => {
+    vi.spyOn(store, 'read').mockRejectedValue(new Error('configuration storage failed'));
+    const { execution, job } = await execute('query');
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.result.message).toBe('configuration storage failed');
+    expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
+  });
+
+  it.each([
+    { fields: ['name'], appends: ['parent.name'] },
+    { fields: ['name'], filter: { parent: { name: 'Hidden' } } },
+  ])('rejects relationship input instead of implicitly granting target access: %j', async (params) => {
+    const read = vi.spyOn(store, 'read');
+    const { execution, job } = await execute('query', params);
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.result.message).toMatch(/association/i);
+    expect(read.mock.calls.map(([identity]) => identity.collectionName)).toEqual(['proofDocuments']);
+    expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
+  });
+
+  it('reads fresh persisted rules for each execution instead of caching them on the handler', async () => {
+    const original = (await store.read(source))!;
+    const read = vi.spyOn(store, 'read');
+    try {
+      const before = await execute('query', { fields: ['name'], sort: [{ field: 'id' }] });
+      expect(before.job.result).toEqual([{ name: 'Owned' }, { name: 'Visible' }, { name: 'Second' }]);
+      await store.save(source, { ...original, rules: [original.rules[0]] }, { userId: 28 });
+      const after = await run();
+      expect(after.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(after.job.result).toEqual([{ name: 'Owned' }, { name: 'Second' }]);
+      expect(after.execution.id).not.toBe(before.execution.id);
+      expect(read).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.restoreAllMocks();
+      const current = (await store.read(source))!;
+      await store.save(source, { ...original, revision: current.revision }, { userId: 28 });
+    }
+  });
+
+  it.each(['query', 'destroy'] as const)(
+    'preserves identity-free automation for explicitly shared %s configuration',
+    async (type) => {
+      const original = (await store.read(source))!;
+      try {
+        await store.save(
+          source,
+          {
+            ...configFor({ type: 'constant', value: true }, type === 'query' ? 'visibility' : 'ownership'),
+            revision: original.revision,
+          },
+          { userId: 28 },
+        );
+        const params = type === 'query' ? { fields: ['name'], sort: [{ field: 'id' }] } : {};
+        const { execution, job } = await execute(type, params, {});
+        expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result).toEqual(
+          type === 'query' ? [{ name: 'Owned' }, { name: 'Visible' }, { name: 'Second' }, { name: 'Hidden' }] : 4,
+        );
+        if (type === 'destroy') expect(await ids()).toEqual([]);
+      } finally {
+        const current = (await store.read(source))!;
+        await store.save(source, { ...original, revision: current.revision }, { userId: 28 });
+      }
+    },
+  );
+
+  it.each(['query', 'destroy'] as const)('does not grant identity-free %s access for empty rules', async (type) => {
+    const original = (await store.read(source))!;
+    try {
+      await store.save(source, { ...original, ownership: { enabled: false }, rules: [] }, { userId: 28 });
+      const { execution, job } = await execute(type, {}, {});
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual(type === 'query' ? [] : 0);
+      expect(await ids()).toEqual([1, 2, 3, 4]);
+    } finally {
+      const current = (await store.read(source))!;
+      await store.save(source, { ...original, revision: current.revision }, { userId: 28 });
+    }
+  });
+
+  it('rejects a replaced query phase while preserving the replacement for its owner', async () => {
+    let replacement;
+    const resolve = queries.resolveScopes.bind(queries);
+    vi.spyOn(queries, 'resolveScopes').mockImplementation(async (...args) => {
+      if (!replacement) {
+        adapter.release(lastRequest.context);
+        await adapter.prepare(lastRequest.context, [source]);
+        replacement = adapter.configuration(lastRequest.context, source);
+      }
+      return resolve(...args);
+    });
+    try {
+      const { execution, job } = await execute('query', { fields: ['name'] });
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/phase|preparation/i);
+      expect(replacement).toBeDefined();
+      expect(adapter.configuration(lastRequest.context, source)).toBe(replacement);
+    } finally {
+      adapter.release(lastRequest.context);
+    }
   });
 });

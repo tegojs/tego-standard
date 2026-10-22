@@ -49,6 +49,7 @@ import CreateInstruction from './instructions/CreateInstruction';
 import DestroyInstruction, {
   type WorkflowDestroyResolver,
   type WorkflowDestroyTransactionOptionsResolver,
+  type WorkflowDestroyTransactionPlanner,
 } from './instructions/DestroyInstruction';
 import EndInstruction from './instructions/EndInstruction';
 import QueryInstruction, { type WorkflowQueryResolver } from './instructions/QueryInstruction';
@@ -75,6 +76,8 @@ export interface WorkflowPluginOptions extends PluginOptions {
   destroyResolver?: WorkflowDestroyResolver;
   /** Server bootstrap only; plans new delete-node transaction settings without granting delete access. */
   destroyTransactionOptions?: WorkflowDestroyTransactionOptionsResolver;
+  /** Server bootstrap only; asynchronously loads target policy before new transactions, mutually exclusive with sync options. */
+  destroyTransactionPlanner?: WorkflowDestroyTransactionPlanner;
 }
 
 function extractTenantContext(context: any, options: any = {}) {
@@ -262,7 +265,12 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
     this.registerInstruction(
       'destroy',
-      new DestroyInstruction(this, this.options.destroyResolver, this.options.destroyTransactionOptions),
+      new DestroyInstruction(
+        this,
+        this.options.destroyResolver,
+        this.options.destroyTransactionOptions,
+        this.options.destroyTransactionPlanner,
+      ),
     );
     this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
     this.registerInstruction('select', SelectInstruction);

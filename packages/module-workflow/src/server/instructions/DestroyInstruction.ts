@@ -34,6 +34,15 @@ export type WorkflowDestroyTransactionOptionsResolver = (
   request: WorkflowDestroyTransactionRequest,
 ) => WorkflowDestroyTransactionOptions | undefined;
 
+export type WorkflowDestroyTransactionTarget = Pick<
+  WorkflowDestroyRequest,
+  'dataSourceName' | 'collectionName' | 'collection'
+>;
+/** Target-only asynchronous policy loading; neither a delete request nor operation authorization. */
+export type WorkflowDestroyTransactionPlanner = (
+  target: WorkflowDestroyTransactionTarget,
+) => WorkflowDestroyTransactionOptions | undefined | Promise<WorkflowDestroyTransactionOptions | undefined>;
+
 function captureTransactionOptions(input: object): WorkflowDestroyTransactionOptions {
   const result: WorkflowDestroyTransactionOptions = {};
   for (const key of Reflect.ownKeys(input)) {
@@ -58,6 +67,7 @@ export class DestroyInstruction extends Instruction {
     workflow: Plugin,
     private readonly resolve?: WorkflowDestroyResolver,
     private readonly transactionOptions?: WorkflowDestroyTransactionOptionsResolver,
+    private readonly transactionPlanner?: WorkflowDestroyTransactionPlanner,
   ) {
     super(workflow);
     if (resolve !== undefined && typeof resolve !== 'function') {
@@ -66,6 +76,12 @@ export class DestroyInstruction extends Instruction {
     if (transactionOptions !== undefined && typeof transactionOptions !== 'function') {
       throw new TypeError('Destroy transaction options must be a function');
     }
+    if (transactionPlanner !== undefined && typeof transactionPlanner !== 'function') {
+      throw new TypeError('Destroy transaction planner must be a function');
+    }
+    if (transactionOptions && transactionPlanner) {
+      throw new TypeError('Destroy transaction planning options are mutually exclusive');
+    }
   }
 
   async run(node: FlowNodeModel, input, processor: Processor) {
@@ -73,9 +89,9 @@ export class DestroyInstruction extends Instruction {
 
     const [dataSourceName, collectionName] = parseCollectionName(collection);
 
-    const targetCollection = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collectionManager = dataSource.collectionManager;
+    const targetCollection = collectionManager.getCollection(collectionName);
     const { repository } = targetCollection;
     const options = processor.getParsedValue(params, node.id) || {};
     const baseRepositoryContext = processor.getRepositoryContext();
@@ -91,7 +107,33 @@ export class DestroyInstruction extends Instruction {
     const processorTransaction = processor.transaction;
     let transactionOptions: WorkflowDestroyTransactionOptions | undefined;
     // Existing transactions belong to the caller and cannot be planned, replaced or upgraded here.
-    if (this.transactionOptions && !this.workflow.useDataSourceTransaction(dataSourceName, processorTransaction)) {
+    if (this.transactionPlanner && !this.workflow.useDataSourceTransaction(dataSourceName, processorTransaction)) {
+      const transactionDatabase = (collectionManager as { db?: { sequelize?: unknown } }).db;
+      const transactionConnection = transactionDatabase?.sequelize;
+      const planned = await this.transactionPlanner(
+        Object.freeze({ dataSourceName, collectionName, collection: targetCollection }),
+      );
+      if (
+        this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) !== dataSource ||
+        dataSource.collectionManager !== collectionManager ||
+        (collectionManager as { db?: unknown }).db !== transactionDatabase ||
+        transactionDatabase?.sequelize !== transactionConnection ||
+        collectionManager.getCollection(collectionName) !== targetCollection
+      )
+        throw new TypeError('Destroy transaction target changed during planning');
+      if (planned !== undefined) {
+        if (
+          !planned ||
+          typeof planned !== 'object' ||
+          ![Object.prototype, null].includes(Object.getPrototypeOf(planned))
+        )
+          throw new TypeError('Invalid destroy transaction options');
+        transactionOptions = captureTransactionOptions(planned);
+      }
+    } else if (
+      this.transactionOptions &&
+      !this.workflow.useDataSourceTransaction(dataSourceName, processorTransaction)
+    ) {
       const planned = this.transactionOptions(
         Object.freeze({
           dataSourceName,

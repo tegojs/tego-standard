@@ -1,5 +1,5 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
-import { ACL, Transaction } from '@tego/server';
+import { ACL } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../../../../module-workflow/src/server/constants';
 import type { WorkflowDataOperationAuthority } from '../../../../../module-workflow/src/server/data-operation-authority';
@@ -14,6 +14,7 @@ import {
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import type { AccessWorkflowDestroyRequest } from '../../access-control/workflow-destroy-handler';
+import { AccessWorkflowDestroyTransactionPlanner } from '../../access-control/workflow-destroy-transaction';
 import type { AccessWorkflowQueryRequest } from '../../access-control/workflow-query-handler';
 import { AccessWorkflowRootHandler } from '../../access-control/workflow-root-handler';
 import { configFor, ownerCondition } from './fixtures';
@@ -27,6 +28,7 @@ describe('workflow runtime authority with tenant data scopes', () => {
   let source: AccessCollectionIdentity;
   let store: AccessConfigStore;
   let handler: AccessWorkflowRootHandler;
+  let transactionPlanner: AccessWorkflowDestroyTransactionPlanner;
   let lastRequest: AccessWorkflowQueryRequest | AccessWorkflowDestroyRequest;
   let queryAsDestroy: boolean;
   let cloneQuery: boolean;
@@ -50,7 +52,10 @@ describe('workflow runtime authority with tenant data scopes', () => {
               if (queryAsDestroy) return handler.destroy(request as unknown as AccessWorkflowDestroyRequest);
               return handler.query(cloneQuery ? { ...request } : request);
             },
-            destroyTransactionOptions: () => ({ type: Transaction.TYPES.IMMEDIATE }),
+            destroyTransactionPlanner: (request) => {
+              expect(() => plugin.captureDataOperationAuthority(request)).toThrow(/authority/i);
+              return transactionPlanner.plan(request);
+            },
             destroyResolver: () => async (request) => {
               lastRequest = request;
               return handler.destroy(request);
@@ -89,6 +94,13 @@ describe('workflow runtime authority with tenant data scopes', () => {
     store = new AccessConfigStore(app.db, (target) =>
       resolveModelMetadata(app.db.getCollection(target.collectionName), { resolveCollectionKey: stableKey }),
     );
+    transactionPlanner = new AccessWorkflowDestroyTransactionPlanner(
+      app.db,
+      new AccessConfigStore(app.db, (target) =>
+        resolveModelMetadata(app.db.getCollection(target.collectionName), { resolveCollectionKey: stableKey }),
+      ),
+      identity,
+    );
     const config = configFor(ownerCondition);
     config.rules.push({
       ...configFor(
@@ -110,6 +122,9 @@ describe('workflow runtime authority with tenant data scopes', () => {
       captured.push(authority);
       return authority;
     });
+    plugin.options.destroyTransactionPlanner = async () => {
+      throw new Error('startup policy must remain captured');
+    };
     app.db.on('proofDocuments.afterDestroy', (record) => {
       if (failAfterDelete && record.get('id') === 3) throw new Error('business deletion failed');
     });
@@ -257,6 +272,44 @@ describe('workflow runtime authority with tenant data scopes', () => {
     expect(job.result).toBe(1);
     expect(await ids()).toEqual([2, 3, 4]);
   });
+
+  it.each(['empty ownership', 'relational ownership'] as const)(
+    'rechecks %s rules changed after transaction planning',
+    async (change) => {
+      const original = (await store.read(source))!;
+      const plan = transactionPlanner.plan.bind(transactionPlanner);
+      vi.spyOn(transactionPlanner, 'plan').mockImplementation(async (target) => {
+        const options = await plan(target);
+        await store.save(
+          source,
+          {
+            ...original,
+            rules:
+              change === 'empty ownership'
+                ? []
+                : configFor({ type: 'exists', path: 'parent', condition: { type: 'constant', value: true } }).rules,
+          },
+          { userId: 28 },
+        );
+        return options;
+      });
+      try {
+        const { execution, job } = await execute('destroy');
+        if (change === 'empty ownership') {
+          expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+          expect(job.result).toBe(0);
+        } else {
+          expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+          expect(job.result.message).toMatch(/PostgreSQL/i);
+        }
+        expect(await ids()).toEqual([1, 2, 3, 4]);
+        expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
+      } finally {
+        const current = (await store.read(source))!;
+        await store.save(source, { ...original, revision: current.revision }, { userId: 28 });
+      }
+    },
+  );
 
   it('preserves configuration read errors and cleans up the failed preparation', async () => {
     vi.spyOn(store, 'read').mockRejectedValue(new Error('configuration storage failed'));

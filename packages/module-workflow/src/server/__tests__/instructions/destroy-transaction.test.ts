@@ -52,6 +52,224 @@ describe('server-selected workflow destroy transaction options', () => {
     );
   const ids = async () => (await collection.model.findAll({ order: [['id', 'ASC']] })).map((row) => row.get('id'));
 
+  describe('asynchronous target-only planning', () => {
+    const planned = (select, planner) =>
+      new DestroyInstruction(workflow, select, undefined, planner).run(
+        { id: 9, config: { collection: 'documents', params: { filterByTk: 1 } } } as any,
+        null,
+        processor,
+      );
+
+    it('awaits planning before creating a transaction and exposes only the registered target', async () => {
+      const calls: string[] = [];
+      const job = await planned(
+        (request) => {
+          calls.push('execute');
+          expect(request.transaction.options.type).toBe(Transaction.TYPES.IMMEDIATE);
+          return async () => collection.repository.destroy({ filterByTk: 1, transaction: request.transaction });
+        },
+        async (request) => {
+          calls.push('plan');
+          expect(Object.keys(request).sort()).toEqual(['collection', 'collectionName', 'dataSourceName']);
+          expect(Object.isFrozen(request)).toBe(true);
+          expect(request.collection).toBe(collection);
+          await Promise.resolve();
+          expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+          return { type: Transaction.TYPES.IMMEDIATE };
+        },
+      );
+      expect(calls).toEqual(['plan', 'execute']);
+      expect(job.result).toBe(1);
+      expect(await ids()).toEqual([2]);
+    });
+
+    it('preserves explicit database defaults when async planning returns undefined', async () => {
+      const job = await planned(
+        (request) => {
+          expect(request.transaction.options.type).toBe(Transaction.TYPES.DEFERRED);
+          return async () => 0;
+        },
+        async () => undefined,
+      );
+      expect(job.result).toBe(0);
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('propagates asynchronous planning failures without opening a transaction or selecting an executor', async () => {
+      const error = new Error('current policy unavailable');
+      const select = vi.fn(() => undefined);
+      await expect(
+        planned(select, async () => {
+          throw error;
+        }),
+      ).rejects.toBe(error);
+      expect(select).not.toHaveBeenCalled();
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('rolls back execution failures after asynchronously selecting transaction settings', async () => {
+      const error = new Error('delete verification failed');
+      await expect(
+        planned(
+          () => async (request) => {
+            await collection.repository.destroy({ filterByTk: 1, transaction: request.transaction });
+            throw error;
+          },
+          async () => ({ type: Transaction.TYPES.IMMEDIATE }),
+        ),
+      ).rejects.toBe(error);
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('never invokes async planning or replaces an inherited same-database transaction', async () => {
+      const transaction = await db.sequelize.transaction({ type: Transaction.TYPES.DEFERRED });
+      processor.transaction = transaction;
+      try {
+        const job = await planned(
+          (request) => {
+            expect(request.transaction).toBe(transaction);
+            return async () => collection.repository.destroy({ filterByTk: 1, transaction });
+          },
+          async () => {
+            throw new Error('must not plan inherited transactions');
+          },
+        );
+        expect(job.result).toBe(1);
+        expect(await collection.model.count({ transaction })).toBe(1);
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('plans an external transaction while preserving the inherited primary transaction', async () => {
+      const external = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+      const target = external.collection({ name: 'documents', fields: [{ name: 'name', type: 'string' }] });
+      await external.sync();
+      await target.model.create({ id: 1, name: 'external' });
+      workflow.app.dataSourceManager.dataSources.set('external', {
+        collectionManager: { db: external, getCollection: (name) => external.getCollection(name) },
+      });
+      const transaction = await db.sequelize.transaction();
+      processor.transaction = transaction;
+      try {
+        const job = await new DestroyInstruction(
+          workflow,
+          (request) => {
+            expect(request.transaction).not.toBe(transaction);
+            expect((request.transaction as Transaction & { options: { type: string } }).options.type).toBe(
+              Transaction.TYPES.IMMEDIATE,
+            );
+            return async () => target.repository.destroy({ filterByTk: 1, transaction: request.transaction });
+          },
+          undefined,
+          async (request) => {
+            expect(request.dataSourceName).toBe('external');
+            expect(request.collection).toBe(target);
+            await Promise.resolve();
+            return { type: Transaction.TYPES.IMMEDIATE };
+          },
+        ).run({ id: 9, config: { collection: 'external:documents', params: {} } } as any, null, processor);
+        expect(job.result).toBe(1);
+        expect(await target.model.count()).toBe(0);
+        expect(await collection.model.count({ transaction })).toBe(2);
+      } finally {
+        await transaction.rollback();
+        await external.close();
+      }
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('rejects simultaneous sync and async planning configuration', () => {
+      expect(
+        () =>
+          new DestroyInstruction(
+            workflow,
+            undefined,
+            () => undefined,
+            async () => undefined,
+          ),
+      ).toThrow(/planner|planning|transaction/i);
+    });
+
+    it.each([null, false, {}])('rejects invalid async startup configuration %j', (planner) => {
+      expect(() => new DestroyInstruction(workflow, undefined, undefined, planner as any)).toThrow(
+        /planner must be a function/i,
+      );
+    });
+
+    it('rejects async option accessors without evaluating them', async () => {
+      const getter = vi.fn(() => Transaction.TYPES.IMMEDIATE);
+      const result = Object.defineProperty({}, 'type', { get: getter });
+      await expect(
+        planned(
+          () => undefined,
+          async () => result,
+        ),
+      ).rejects.toThrow(/transaction options/i);
+      expect(getter).not.toHaveBeenCalled();
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+    });
+
+    it.each([null, true, 'IMMEDIATE', [], { type: 'INVALID' }, { extra: true }])(
+      'rejects invalid async settings %j before executing',
+      async (value) => {
+        const select = vi.fn(() => undefined);
+        await expect(planned(select, async () => value)).rejects.toThrow(/transaction options/i);
+        expect(select).not.toHaveBeenCalled();
+        expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+        expect(await ids()).toEqual([1, 2]);
+      },
+    );
+
+    it('rejects target registry replacement during asynchronous planning', async () => {
+      const source = workflow.app.dataSourceManager.dataSources.get('main');
+      const select = vi.fn(() => undefined);
+      await expect(
+        planned(select, async () => {
+          source.collectionManager.getCollection = () => undefined;
+          return { type: Transaction.TYPES.IMMEDIATE };
+        }),
+      ).rejects.toThrow(/target|collection/i);
+      expect(select).not.toHaveBeenCalled();
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('rejects transaction database replacement during asynchronous planning', async () => {
+      const source = workflow.app.dataSourceManager.dataSources.get('main');
+      const select = vi.fn(() => async () => 0);
+      await expect(
+        planned(select, async () => {
+          source.collectionManager.db = undefined;
+          return { type: Transaction.TYPES.IMMEDIATE };
+        }),
+      ).rejects.toThrow(/target|database/i);
+      expect(select).not.toHaveBeenCalled();
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('rejects transaction connection replacement during asynchronous planning', async () => {
+      const sequelize = db.sequelize;
+      const select = vi.fn(() => async () => 0);
+      try {
+        await expect(
+          planned(select, async () => {
+            db.sequelize = undefined;
+            return { type: Transaction.TYPES.IMMEDIATE };
+          }),
+        ).rejects.toThrow(/target|database/i);
+        expect(select).not.toHaveBeenCalled();
+        expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      } finally {
+        db.sequelize = sequelize;
+      }
+      expect(await ids()).toEqual([1, 2]);
+    });
+  });
+
   it('retains default transaction behavior without a server planner', async () => {
     await run(() => async (request) => {
       expect(request.transaction.options.type).toBe(Transaction.TYPES.DEFERRED);

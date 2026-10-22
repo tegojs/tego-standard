@@ -5,7 +5,6 @@ import { accessCollectionKey, type AccessCollectionIdentity } from './config-sto
 import { AccessEntryReadService } from './entry-reads';
 import type { AccessQueryService } from './query';
 import { captureReadDateContext, type AccessReadDateContext } from './read-date-filter';
-import { collectRelatedReadPaths } from './read-paths';
 import { parseWorkflowQueryParams } from './resource-read-params';
 import {
   AccessWorkflowDestroyHandler,
@@ -14,6 +13,7 @@ import {
 } from './workflow-destroy-handler';
 import { captureWorkflowAccessIdentity } from './workflow-identity';
 import { AccessWorkflowQueryHandler, type AccessWorkflowQueryRequest } from './workflow-query-handler';
+import { captureWorkflowReadPlan } from './workflow-read-plan';
 import { cloneDeep, invalid, plain } from './write-support';
 
 /** Structural contract; the installed workflow plugin supplies its live, instance-bound verifier. */
@@ -34,7 +34,7 @@ function data(input: object, name: string): unknown {
   return descriptor.value;
 }
 
-/** Internal root-only composition. It is selected explicitly, never registered or enabled by this class. */
+/** Internal workflow composition. It is selected explicitly, never registered or enabled by this class. */
 export class AccessWorkflowRootHandler {
   constructor(
     private readonly db: Database,
@@ -121,6 +121,20 @@ export class AccessWorkflowRootHandler {
     const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
     const query = { ...parsed.request, limit: parsed.complete ? undefined : parsed.request.limit };
     const target = this.target(operation);
+    const plan = captureWorkflowReadPlan(
+      this.db,
+      this.prepared,
+      this.queries,
+      this.resolveIdentity,
+      {
+        kind: 'list',
+        context: operation.context,
+        source: target.source,
+        authenticated: operation.authenticated,
+      },
+      parsed.request,
+      dateContext,
+    );
     const captured: AccessWorkflowQueryRequest = {
       dataSourceName: operation.dataSourceName,
       collectionName: operation.collectionName,
@@ -130,26 +144,12 @@ export class AccessWorkflowRootHandler {
       multiple: multiple as boolean,
       query,
     };
-    return this.prepared.withPrepared(operation.context, [target.source], async () => {
+    return this.prepared.withPrepared(operation.context, plan.sources, async () => {
       target.assertCurrent();
-      if (!this.prepared.configuration(operation.context, target.source))
-        invalid('Workflow root reads require an explicit access configuration');
-      const { limit: _limit, offset: _offset, ...selection } = parsed.request;
-      const paths = collectRelatedReadPaths(
-        this.db,
-        this.prepared,
-        this.queries,
-        this.resolveIdentity,
-        {
-          kind: 'list',
-          context: operation.context,
-          source: target.source,
-          authenticated: operation.authenticated,
-        },
-        selection,
-        dateContext,
-      );
-      if (paths.length) invalid('Workflow associations require an independent authorization adapter');
+      plan.assertCurrent();
+      for (const source of plan.sources)
+        if (!this.prepared.configuration(operation.context, source))
+          invalid('Workflow reads require explicit access configurations for all participating tables');
       const reader = new AccessEntryReadService(
         this.db,
         this.prepared,
@@ -159,8 +159,7 @@ export class AccessWorkflowRootHandler {
           target.assertCurrent();
           return {
             allowed:
-              collection === target.collection &&
-              path.length === 0 &&
+              plan.matches(collection, path) &&
               read.kind === 'list' &&
               read.context === operation.context &&
               read.source.collectionName === target.source.collectionName &&
@@ -175,6 +174,7 @@ export class AccessWorkflowRootHandler {
         dateContext,
       );
       target.assertCurrent();
+      plan.assertCurrent();
       return result;
     });
   }

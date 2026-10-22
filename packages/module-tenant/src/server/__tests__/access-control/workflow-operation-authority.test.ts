@@ -267,15 +267,26 @@ describe('workflow runtime authority with tenant data scopes', () => {
   });
 
   it.each([
-    { fields: ['name'], appends: ['parent.name'] },
-    { fields: ['name'], filter: { parent: { name: 'Hidden' } } },
-  ])('rejects relationship input instead of implicitly granting target access: %j', async (params) => {
-    const read = vi.spyOn(store, 'read');
-    const { execution, job } = await execute('query', params);
+    ['query', { fields: ['name'], sort: [{ field: 'parent.name' }] }],
+    ['destroy', { filter: { parent: { name: 'Hidden' } } }],
+  ] as const)('keeps unsupported relationship operations closed: %s', async (type, params) => {
+    const { execution, job } = await execute(type, params);
     expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-    expect(job.result.message).toMatch(/association/i);
-    expect(read.mock.calls.map(([identity]) => identity.collectionName)).toEqual(['proofDocuments']);
+    expect(job.result.message).toMatch(/association|relationship/i);
+    expect(await ids()).toEqual([1, 2, 3, 4]);
     expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
+  });
+
+  it('deduplicates configuration for a configured self association', async () => {
+    const read = vi.spyOn(store, 'read');
+    const { execution, job } = await execute('query', { fields: ['name', 'parent.name'], sort: [{ field: 'id' }] });
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(job.result).toEqual([
+      { name: 'Owned', parent: null },
+      { name: 'Visible', parent: null },
+      { name: 'Second', parent: null },
+    ]);
+    expect(read.mock.calls.map(([identity]) => identity.collectionName)).toEqual(['proofDocuments']);
   });
 
   it('reads fresh persisted rules for each execution instead of caching them on the handler', async () => {

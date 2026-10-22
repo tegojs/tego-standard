@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.66] - 2026-10-22
+
+### 🐛 Fixed
+
+- **runtime**: upgrade Node.js to patched security releases (@TomyJan)
+
 ## [1.6.65] - 2026-10-15
 
 ### ✨ Added
@@ -3374,7 +3380,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.65...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.66...HEAD
+[1.6.66]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.66
 [1.6.65]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.65
 [1.6.64]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.64
 [1.6.63]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.63

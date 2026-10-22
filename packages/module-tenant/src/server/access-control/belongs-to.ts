@@ -40,6 +40,12 @@ export interface BelongsToReferencesWriteRequest
   references: BelongsToReferenceUpdate[];
 }
 
+export interface BelongsToReferencesWriteEntry {
+  assertCurrent(): void;
+  /** Called independently for each changed, non-null reference under the source lock. */
+  targetScope(index: number): Promise<{ where?: WhereOptions }>;
+}
+
 /** Changes source references and an optional scalar patch. Never edits targets. */
 export class AccessBelongsToService {
   constructor(
@@ -94,11 +100,33 @@ export class AccessBelongsToService {
     authenticated: AccessIdentity,
     request: BelongsToReferencesWriteRequest,
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
-    entry?: {
-      assertCurrent(): void;
-      /** Called independently for each changed, non-null reference under the source lock. */
-      targetScope(index: number): Promise<{ where?: WhereOptions }>;
-    },
+    entry?: BelongsToReferencesWriteEntry,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    return this.writeReferences(ctx, source, authenticated, request, writer, entry);
+  }
+
+  /** The caller owns commit/rollback and must roll back the whole transaction on any error. */
+  async withReferencesInTransaction(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: BelongsToReferencesWriteRequest,
+    transaction: Transaction,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    entry?: BelongsToReferencesWriteEntry,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (!(transaction instanceof Transaction)) invalid('An active root write transaction is required');
+    return this.writeReferences(ctx, source, authenticated, request, writer, entry, transaction);
+  }
+
+  private async writeReferences(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: BelongsToReferencesWriteRequest,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    entry?: BelongsToReferencesWriteEntry,
+    inheritedTransaction?: Transaction,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     source = { ...source };
     authenticated = { ...authenticated };
@@ -150,122 +178,122 @@ export class AccessBelongsToService {
     };
     current();
     try {
-      return await this.db.sequelize.transaction(
-        { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
-        async (transaction) => {
-          await validateWriteTransaction(this.db, transaction, true);
-          current();
-          const sourceRequest = {
-            keys: request.sourceKeys,
-            where: request.sourceWhere,
-            bind: request.sourceBind,
-          };
-          const sourcePlan =
-            request.sourceValues === undefined
-              ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
-              : await this.mutations.authorizeExisting(
-                  ctx,
-                  source,
-                  authenticated,
-                  { ...sourceRequest, operation: 'update', values: request.sourceValues },
-                  transaction,
-                );
-          current();
-          const changes = references.map(({ relation, targetKey }) => {
-            return sourcePlan.records.some((record) => {
-              const existing = record.getDataValue(relation.foreignKey);
-              return (existing == null ? null : normalizeKeys([existing], relation.target)[0]) !== targetKey;
-            });
-          });
-          // Preserve low-level callers' explicit target constraints; only the finalized entry opts into
-          // treating an unchanged value as an existing reference rather than a new target selection.
-          for (const [index, { reference, relation, targetKey }] of references.entries()) {
-            if (targetKey !== null && (changes[index] || !entry)) {
-              const targetScope = await entry?.targetScope(index);
-              current();
-              await this.references.authorizeTargets(
+      const execute = async (transaction: Transaction) => {
+        await validateWriteTransaction(this.db, transaction, true);
+        current();
+        const sourceRequest = {
+          keys: request.sourceKeys,
+          where: request.sourceWhere,
+          bind: request.sourceBind,
+        };
+        const sourcePlan =
+          request.sourceValues === undefined
+            ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
+            : await this.mutations.authorizeExisting(
                 ctx,
-                reference.target,
+                source,
                 authenticated,
-                {
-                  keys: [targetKey],
-                  where: { [Op.and]: [relation.scope ?? {}, reference.targetWhere ?? {}, targetScope?.where ?? {}] },
-                  bind: reference.targetBind,
-                },
+                { ...sourceRequest, operation: 'update', values: request.sourceValues },
                 transaction,
               );
-              current();
-            }
-          }
-          current();
-          // A finalized form save with no business change must not claim a historical source.
-          // Low-level callers retain their existing explicit write/target-validation contract.
-          const scalarValues = Object.fromEntries(
-            Object.entries(request.sourceValues ?? {}).filter(
-              ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
-            ),
-          );
-          if (
-            entry &&
-            !changes.some(Boolean) &&
-            !sourcePlan.records.some((record) => hasPersistedChanges(record, scalarValues))
-          )
-            return { keys: [], affected: 0 };
-          const primary = relation.sourceModel.primaryKeyAttribute;
-          const keys = sourcePlan.records.map((record) => record.getDataValue(primary) as string | number);
-          const owners = new Map(
-            sourcePlan.records.map((record) => [
-              String(record.getDataValue(primary)),
-              sourcePlan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
-            ]),
-          );
-          const plan: ExistingAccessWritePlan = Object.freeze({
-            records: sourcePlan.records,
-            transaction,
-            valuesFor: (record: Model) => ({
-              ...sourcePlan.valuesFor(record),
-              ...Object.fromEntries(references.map(({ relation, targetKey }) => [relation.foreignKey, targetKey])),
-            }),
+        current();
+        const changes = references.map(({ relation, targetKey }) => {
+          return sourcePlan.records.some((record) => {
+            const existing = record.getDataValue(relation.foreignKey);
+            return (existing == null ? null : normalizeKeys([existing], relation.target)[0]) !== targetKey;
           });
-          const protectedValues = snapshotProtectedValues(this.db, relation.source, sourcePlan.records, [
-            ...references.map(({ relation }) => relation.foreignKey),
-            ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
-          ]);
-          await writer(plan);
-          await validateWriteTransaction(this.db, transaction, true);
-          current();
-          const after = await relation.sourceModel.unscoped().findAll(
-            internalQuery({
-              where: { [primary]: { [Op.in]: keys } },
+        });
+        // Preserve low-level callers' explicit target constraints; only the finalized entry opts into
+        // treating an unchanged value as an existing reference rather than a new target selection.
+        for (const [index, { reference, relation, targetKey }] of references.entries()) {
+          if (targetKey !== null && (changes[index] || !entry)) {
+            const targetScope = await entry?.targetScope(index);
+            current();
+            await this.references.authorizeTargets(
+              ctx,
+              reference.target,
+              authenticated,
+              {
+                keys: [targetKey],
+                where: { [Op.and]: [relation.scope ?? {}, reference.targetWhere ?? {}, targetScope?.where ?? {}] },
+                bind: reference.targetBind,
+              },
               transaction,
-              attributes: [
-                ...new Set([
-                  primary,
-                  ...references.map(({ relation }) => relation.foreignKey),
-                  ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
-                  ...protectedValues.fields,
-                ]),
-              ],
-            }),
-          );
-          current();
-          if (after.length !== keys.length) invalid('Writer removed a relation source');
-          protectedValues.verify(after);
-          for (const record of after) {
-            if (
-              relation.sourceConfig.ownership.enabled &&
-              record.getDataValue('tenantId') !== owners.get(String(record.getDataValue(primary)))
-            )
-              throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed source ownership');
-            for (const { relation, targetKey } of references) {
-              const actual = record.getDataValue(relation.foreignKey);
-              if ((actual == null ? null : normalizeKeys([actual], relation.target)[0]) !== targetKey)
-                invalid('Writer did not set the authorized foreign key');
-            }
+            );
+            current();
           }
-          return { keys, affected: keys.length };
-        },
-      );
+        }
+        current();
+        // A finalized form save with no business change must not claim a historical source.
+        // Low-level callers retain their existing explicit write/target-validation contract.
+        const scalarValues = Object.fromEntries(
+          Object.entries(request.sourceValues ?? {}).filter(
+            ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+          ),
+        );
+        if (
+          entry &&
+          !changes.some(Boolean) &&
+          !sourcePlan.records.some((record) => hasPersistedChanges(record, scalarValues))
+        )
+          return { keys: [], affected: 0 };
+        const primary = relation.sourceModel.primaryKeyAttribute;
+        const keys = sourcePlan.records.map((record) => record.getDataValue(primary) as string | number);
+        const owners = new Map(
+          sourcePlan.records.map((record) => [
+            String(record.getDataValue(primary)),
+            sourcePlan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
+          ]),
+        );
+        const plan: ExistingAccessWritePlan = Object.freeze({
+          records: sourcePlan.records,
+          transaction,
+          valuesFor: (record: Model) => ({
+            ...sourcePlan.valuesFor(record),
+            ...Object.fromEntries(references.map(({ relation, targetKey }) => [relation.foreignKey, targetKey])),
+          }),
+        });
+        const protectedValues = snapshotProtectedValues(this.db, relation.source, sourcePlan.records, [
+          ...references.map(({ relation }) => relation.foreignKey),
+          ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
+        ]);
+        await writer(plan);
+        await validateWriteTransaction(this.db, transaction, true);
+        current();
+        const after = await relation.sourceModel.unscoped().findAll(
+          internalQuery({
+            where: { [primary]: { [Op.in]: keys } },
+            transaction,
+            attributes: [
+              ...new Set([
+                primary,
+                ...references.map(({ relation }) => relation.foreignKey),
+                ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
+                ...protectedValues.fields,
+              ]),
+            ],
+          }),
+        );
+        current();
+        if (after.length !== keys.length) invalid('Writer removed a relation source');
+        protectedValues.verify(after);
+        for (const record of after) {
+          if (
+            relation.sourceConfig.ownership.enabled &&
+            record.getDataValue('tenantId') !== owners.get(String(record.getDataValue(primary)))
+          )
+            throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed source ownership');
+          for (const { relation, targetKey } of references) {
+            const actual = record.getDataValue(relation.foreignKey);
+            if ((actual == null ? null : normalizeKeys([actual], relation.target)[0]) !== targetKey)
+              invalid('Writer did not set the authorized foreign key');
+          }
+        }
+        return { keys, affected: keys.length };
+      };
+      return inheritedTransaction
+        ? await execute(inheritedTransaction)
+        : await this.db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE }, execute);
     } catch (error) {
       const conflict = error as { original?: { code?: string }; parent?: { code?: string } };
       if ((conflict?.original?.code ?? conflict?.parent?.code) === '40001')

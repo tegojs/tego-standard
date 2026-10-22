@@ -2,6 +2,7 @@ import { ACL, literal, Transaction, type Collection, type Database } from '@tego
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessCreationService } from '../../access-control/creation';
 import { AccessManyToManyService } from '../../access-control/many-to-many';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessMutationService } from '../../access-control/mutation';
@@ -201,6 +202,142 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access many-to-
     const finish = async (transaction) => {
       if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
     };
+    const stage = (afterPersist: () => Promise<void>) => ({
+      assertCurrent() {},
+      targetScope: async () => ({}),
+      afterPersist,
+    });
+    it('runs the persistence stage after links and scalar values are stored', async () => {
+      const transaction = await begin();
+      let observed;
+      try {
+        expect(
+          await update(
+            transaction,
+            {},
+            stage(async () => {
+              observed = { name: (await get(3, transaction)).name, projects: await linked(3, transaction) };
+            }),
+          ),
+        ).toEqual({ keys: [3], affected: 1 });
+        expect(observed).toEqual({ name: 'Caller edited', projects: [101] });
+      } finally {
+        await finish(transaction);
+      }
+    });
+    it.each(['ownership', 'connections'])('rechecks %s after the persistence stage', async (tamper) => {
+      const transaction = await begin();
+      try {
+        await expect(
+          update(
+            transaction,
+            {},
+            stage(async () => {
+              if (tamper === 'ownership')
+                await docs.model.update({ tenantId: 'C' }, { where: { id: 3 }, transaction, hooks: false });
+              else await through.model.destroy({ where: { documentId: 3 }, transaction, hooks: false });
+            }),
+          ),
+        ).rejects.toMatchObject({
+          code: tamper === 'ownership' ? 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN' : 'INVALID_ACCESS_MUTATION',
+        });
+      } finally {
+        await finish(transaction);
+      }
+      expect((await get()).tenantId).toBe('B');
+      expect(await linked()).toEqual([]);
+    });
+    it('preserves persistence stage errors for caller rollback', async () => {
+      const transaction = await begin();
+      const original = new Error('link lifecycle failed');
+      try {
+        await expect(
+          update(
+            transaction,
+            {},
+            stage(async () => {
+              throw original;
+            }),
+          ),
+        ).rejects.toBe(original);
+        expect(await linked(3, transaction)).toEqual([101]);
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([]);
+      expect((await get()).name).toBe('Owned');
+    });
+    it.each([false, true])('opts into source association lifecycle for link-only writes: %s', async (enabled) => {
+      const transaction = await begin();
+      let sourceEvents = 0;
+      db.on('documents.afterUpdateWithAssociations', () => {
+        sourceEvents++;
+      });
+      try {
+        await update(transaction, { sourceValues: undefined }, enabled ? stage(async () => {}) : undefined);
+        expect(sourceEvents).toBe(enabled ? 1 : 0);
+        expect(await linked(3, transaction)).toEqual([101]);
+      } finally {
+        await finish(transaction);
+      }
+    });
+    it('rejects an invalid persistence stage before writing scalar values or links', async () => {
+      const transaction = await begin();
+      try {
+        await expect(update(transaction, {}, stage(1 as never))).rejects.toMatchObject({
+          code: 'INVALID_ACCESS_MUTATION',
+        });
+        expect((await get(3, transaction)).name).toBe('Owned');
+        expect(await linked(3, transaction)).toEqual([]);
+      } finally {
+        await finish(transaction);
+      }
+    });
+    it.each([false, true])('preserves source individualHooks in caller transactions: %s', async (individualHooks) => {
+      const transaction = await begin();
+      const original = new Error('source row hook failed');
+      db.on('documents.afterUpdate', () => {
+        throw original;
+      });
+      try {
+        const result = update(transaction, { individualHooks });
+        if (individualHooks) await expect(result).rejects.toBe(original);
+        else await expect(result).resolves.toEqual({ keys: [3], affected: 1 });
+        expect(await linked(3, transaction)).toEqual(individualHooks ? [] : [101]);
+      } finally {
+        await finish(transaction);
+      }
+      expect((await get()).name).toBe('Owned');
+    });
+    it.each([false, true])('verifies creation connections after the persistence stage (tamper: %s)', async (tamper) => {
+      const transaction = await begin();
+      let observed;
+      try {
+        const result = new AccessCreationService(db, adapter, queries).withCreatedRecordsInTransaction(
+          ctx,
+          mainIdentity,
+          authenticated,
+          {
+            values: [{ id: 100, name: 'Created' }],
+            links: [{ association: 'projects', target, through: throughIdentity, keys: [101] }],
+          },
+          transaction,
+          async (plan) => [await docs.repository.create({ values: plan.values[0], transaction: plan.transaction })],
+          undefined,
+          async () => {
+            observed = await linked(100, transaction);
+            if (tamper) await through.model.destroy({ where: { documentId: 100 }, transaction, hooks: false });
+          },
+        );
+        if (tamper) await expect(result).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        else await expect(result).resolves.toEqual({ keys: [100], affected: 1 });
+        expect(observed).toEqual([101]);
+      } finally {
+        await finish(transaction);
+      }
+      expect(await docs.model.findByPk(100)).toBeNull();
+    });
     it('keeps scalar writes, links and notifications pending until the caller commits', async () => {
       const transaction = await begin();
       let notified = false;

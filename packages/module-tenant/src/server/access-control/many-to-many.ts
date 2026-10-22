@@ -56,6 +56,8 @@ export interface ManyToManyLinkSetsRequest
   links: ManyToManyLinkSet[];
   /** Existing single-value references saved with the same source authorization and transaction. */
   references?: BelongsToReferenceUpdate[];
+  /** Preserve a configured workflow node's source update hook behavior. */
+  individualHooks?: boolean;
 }
 
 export interface ManyToManyLinkSetsWriteEntry {
@@ -63,6 +65,8 @@ export interface ManyToManyLinkSetsWriteEntry {
   targetScope(index: number): Promise<{ where?: WhereOptions }>;
   referenceScope?(index: number): Promise<{ where?: WhereOptions }>;
   authorizeChanges?(index: number, keys: string[], transaction: Transaction): Promise<void>;
+  /** Explicit source lifecycle stage, after all links persist and before final verification. */
+  afterPersist?(): Promise<void>;
 }
 
 /** Changes pure join rows and an optional source patch; never edits/deletes targets. */
@@ -178,15 +182,28 @@ export class AccessManyToManyService {
     request = cloneDeep(request);
     if (this.db.sequelize.getDialect() !== 'postgres')
       throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Relationship writes require PostgreSQL', 400);
+    const afterPersist = entry?.afterPersist;
+    if (afterPersist !== undefined && typeof afterPersist !== 'function')
+      invalid('A persistence stage must be a function');
     if (
       !plain(request) ||
       Reflect.ownKeys(request).some(
         (key) =>
           typeof key !== 'string' ||
-          !['sourceKeys', 'sourceWhere', 'sourceBind', 'sourceValues', 'links', 'references'].includes(key),
+          ![
+            'sourceKeys',
+            'sourceWhere',
+            'sourceBind',
+            'sourceValues',
+            'links',
+            'references',
+            'individualHooks',
+          ].includes(key),
       )
     )
       invalid('Unsupported link mutation input');
+    if (request.individualHooks !== undefined && typeof request.individualHooks !== 'boolean')
+      invalid('Link source individualHooks must be a boolean');
     if (
       !Array.isArray(request.links) ||
       Object.getPrototypeOf(original.links) !== Array.prototype ||
@@ -482,12 +499,14 @@ export class AccessManyToManyService {
           if (!patches.has(key)) continue;
           current();
           const patch = patches.get(key)!;
-          if (Object.keys(patch).length)
+          // An explicit lifecycle stage also needs a source event for link-only changes.
+          if (Object.keys(patch).length || afterPersist)
             await relation.source.repository.update({
               filterByTk: record.getDataValue(primary),
               values: patch,
               transaction,
               ...(entry ? { context: ctx } : {}),
+              ...(request.individualHooks === undefined ? {} : { individualHooks: request.individualHooks }),
             });
           current();
           for (const { link, relation, changes } of plans) {
@@ -530,6 +549,7 @@ export class AccessManyToManyService {
           }
           current();
         }
+        await afterPersist?.call(entry);
         await validateWriteTransaction(this.db, transaction, true);
         current();
         for (const { relation, expected } of plans) {

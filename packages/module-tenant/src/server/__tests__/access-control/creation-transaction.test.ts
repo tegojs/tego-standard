@@ -71,7 +71,12 @@ describe('creation in a caller-owned transaction', () => {
       records.push(await docs.repository.create({ values, transaction: plan.transaction }));
     return records;
   };
-  const create = (transaction: Transaction, writer = write, assertCurrent?: () => void) =>
+  const create = (
+    transaction: Transaction,
+    writer = write,
+    assertCurrent?: () => void,
+    afterPersist?: () => Promise<void>,
+  ) =>
     service.withCreatedRecordsInTransaction(
       ctx,
       mainIdentity,
@@ -82,8 +87,68 @@ describe('creation in a caller-owned transaction', () => {
       transaction,
       writer,
       assertCurrent,
+      afterPersist,
     );
   const finished = (transaction: Transaction) => (transaction as Transaction & { finished?: string }).finished;
+
+  it('runs the persistence stage before final ownership validation', async () => {
+    const transaction = await begin();
+    let observed: string | undefined;
+    try {
+      await expect(
+        create(transaction, write, undefined, async () => {
+          observed = (await docs.model.findByPk(100, { transaction })).getDataValue('name');
+          await docs.model.update({ tenantId: 'C' }, { where: { id: 100 }, transaction, hooks: false });
+        }),
+      ).rejects.toMatchObject({ code: 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN' });
+      expect(observed).toBe('created');
+      expect(finished(transaction)).toBeUndefined();
+    } finally {
+      await transaction.rollback();
+    }
+    expect(await exists()).toBe(false);
+  });
+  it('preserves persistence stage failures for caller rollback', async () => {
+    const transaction = await begin();
+    const error = new Error('persistence listener failed');
+    try {
+      await expect(
+        create(transaction, write, undefined, async () => {
+          throw error;
+        }),
+      ).rejects.toBe(error);
+      expect(await docs.model.findByPk(100, { transaction })).not.toBeNull();
+      expect(finished(transaction)).toBeUndefined();
+    } finally {
+      await transaction.rollback();
+    }
+    expect(await exists()).toBe(false);
+  });
+  it('checks entry preparation again after the persistence stage', async () => {
+    const transaction = await begin();
+    try {
+      await expect(
+        create(transaction, write, undefined, async () => {
+          adapter.release(ctx);
+        }),
+      ).rejects.toMatchObject({ code: 'INVALID_ACCESS_CONFIG_WRITE' });
+    } finally {
+      await transaction.rollback();
+    }
+    expect(await exists()).toBe(false);
+  });
+  it('rejects an invalid persistence stage before inserting a record', async () => {
+    const transaction = await begin();
+    try {
+      await expect(create(transaction, write, undefined, 1 as never)).rejects.toMatchObject({
+        code: 'INVALID_ACCESS_MUTATION',
+      });
+      expect(await docs.model.findByPk(100, { transaction })).toBeNull();
+      expect(finished(transaction)).toBeUndefined();
+    } finally {
+      await transaction.rollback();
+    }
+  });
 
   it('keeps a valid insert pending until the caller rolls it back', async () => {
     const transaction = await begin();

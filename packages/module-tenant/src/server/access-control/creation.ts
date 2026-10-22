@@ -73,7 +73,10 @@ export class AccessCreationService {
     return this.create(ctx, identity, authenticated, request, writer, assertEntryCurrent);
   }
 
-  /** The caller owns commit/rollback and must roll back the entire transaction after any error. */
+  /**
+   * The caller owns commit/rollback and must roll back the entire transaction after any error.
+   * An optional server stage runs after connections persist, before final authorization and data checks.
+   */
   async withCreatedRecordsInTransaction(
     ctx: object,
     identity: AccessCollectionIdentity,
@@ -82,9 +85,12 @@ export class AccessCreationService {
     transaction: Transaction,
     writer: (plan: AccessCreationPlan) => Promise<readonly Model[]>,
     assertEntryCurrent?: () => void,
+    afterPersist?: () => Promise<void>,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     if (!(transaction instanceof Transaction)) invalid('An active root write transaction is required');
-    return this.create(ctx, identity, authenticated, request, writer, assertEntryCurrent, transaction);
+    if (afterPersist !== undefined && typeof afterPersist !== 'function')
+      invalid('A persistence stage must be a function');
+    return this.create(ctx, identity, authenticated, request, writer, assertEntryCurrent, transaction, afterPersist);
   }
 
   private async create(
@@ -95,6 +101,7 @@ export class AccessCreationService {
     writer: (plan: AccessCreationPlan) => Promise<readonly Model[]>,
     assertEntryCurrent?: () => void,
     inheritedTransaction?: Transaction,
+    afterPersist?: () => Promise<void>,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
@@ -298,6 +305,11 @@ export class AccessCreationService {
             if (normalized.length !== keys.length) invalid('Creation writer returned duplicate record keys');
             if (linkPlan) {
               await linkPlan.persist(normalized[0], transaction, current);
+              await validateWriteTransaction(this.db, transaction, serializable);
+              current();
+            }
+            if (afterPersist) {
+              await afterPersist();
               await validateWriteTransaction(this.db, transaction, serializable);
               current();
             }

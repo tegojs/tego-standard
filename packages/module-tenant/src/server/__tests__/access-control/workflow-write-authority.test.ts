@@ -13,6 +13,7 @@ import {
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessWorkflowRootHandler } from '../../access-control/workflow-root-handler';
+import { AccessWorkflowWriteTransactionPlanner } from '../../access-control/workflow-write-transaction';
 import { configFor, ownerCondition } from './fixtures';
 
 describe('configured workflow scalar writes with tenant ownership', () => {
@@ -22,6 +23,10 @@ describe('configured workflow scalar writes with tenant ownership', () => {
   let store: AccessConfigStore;
   let handler: AccessWorkflowRootHandler;
   let queries: AccessQueryService;
+  let planner: AccessWorkflowWriteTransactionPlanner;
+  let planning: boolean;
+  let planningCalls: number;
+  let afterPlan: (() => Promise<void>) | undefined;
   let source: AccessCollectionIdentity;
   let documents;
   let workflow;
@@ -57,6 +62,13 @@ describe('configured workflow scalar writes with tenant ownership', () => {
   };
 
   beforeAll(async () => {
+    const plan = async (target) => {
+      if (!planning) return;
+      planningCalls++;
+      const options = await planner.plan(target);
+      await afterPlan?.();
+      return options;
+    };
     app = await createMockServer({
       database: { dialect: 'sqlite', storage: ':memory:' },
       plugins: [
@@ -66,6 +78,8 @@ describe('configured workflow scalar writes with tenant ownership', () => {
         [
           'workflow',
           {
+            createTransactionPlanner: plan,
+            updateTransactionPlanner: plan,
             createResolver: () => async (input) => {
               request = input;
               intercept?.();
@@ -116,10 +130,14 @@ describe('configured workflow scalar writes with tenant ownership', () => {
       resolveModelMetadata(app.db.getCollection(target.collectionName), { resolveCollectionKey: stableKey }),
     );
     adapter = new AccessAclScopeAdapter(new ACL(), 'main', store, app.db);
+    planner = new AccessWorkflowWriteTransactionPlanner(app.db, store, identity);
     queries = new AccessQueryService(app.db, adapter, stableKey);
     handler = new AccessWorkflowRootHandler(app.db, adapter, queries, identity, (input) =>
       plugin.captureDataOperationAuthority(input),
     );
+    plugin.options.createTransactionPlanner = plugin.options.updateTransactionPlanner = () => {
+      throw new Error('startup planner was not captured');
+    };
     app.db.on(`${source.collectionName}.afterUpdate`, (record) => {
       if (failUpdate && record.get('id') === 3) throw new Error('later update failed');
       if (releaseAfterWrite) adapter.release(request.context);
@@ -138,6 +156,9 @@ describe('configured workflow scalar writes with tenant ownership', () => {
   });
   beforeEach(async () => {
     clone = wrongAction = failUpdate = tamperCreate = false;
+    planning = false;
+    planningCalls = 0;
+    afterPlan = undefined;
     intercept = undefined;
     releaseAfterWrite = false;
     request = undefined;
@@ -173,26 +194,32 @@ describe('configured workflow scalar writes with tenant ownership', () => {
     kind: 'create' | 'update',
     params: object,
     state: object = { currentTenantId: 'B' },
-    immediate = true,
+    immediate: boolean | null = true,
+    payload?: object,
   ) {
     await workflow.createNode({ type: kind, config: { collection: source.collectionName, params } });
-    const transaction = await app.db.sequelize.transaction({
-      type: immediate ? Transaction.TYPES.IMMEDIATE : Transaction.TYPES.DEFERRED,
-    });
+    const transaction =
+      immediate === null
+        ? undefined
+        : await app.db.sequelize.transaction({
+            type: immediate ? Transaction.TYPES.IMMEDIATE : Transaction.TYPES.DEFERRED,
+          });
     try {
       await plugin.trigger(
         workflow,
-        { state: { currentTenantId: 'C', currentRole: 'root' } },
+        { payload, state: { currentTenantId: 'C', currentRole: 'root' } },
         { transaction, context: { state } },
       );
       const [execution] = await workflow.getExecutions({ transaction, order: [['id', 'DESC']] });
       const [job] = await execution.getJobs({ transaction });
       const result = { status: execution.status, result: job.result };
-      if (execution.status === EXECUTION_STATUS.RESOLVED) await transaction.commit();
-      else await transaction.rollback();
+      if (transaction) {
+        if (execution.status === EXECUTION_STATUS.RESOLVED) await transaction.commit();
+        else await transaction.rollback();
+      }
       return result;
     } catch (error) {
-      if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+      if (transaction && !(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
       throw error;
     }
   }
@@ -201,6 +228,167 @@ describe('configured workflow scalar writes with tenant ownership', () => {
     const current = (await store.read(source))!;
     await store.save(source, { ...config, revision: current.revision }, { userId: 28 });
   }
+
+  describe('node-owned transactions planned from current policy', () => {
+    it.each(['create', 'update'] as const)('plans and commits %s without a caller transaction', async (kind) => {
+      planning = true;
+      const job = await execute(
+        kind,
+        {
+          ...(kind === 'update' ? { filterByTk: 1 } : {}),
+          values: { ...(kind === 'create' ? { id: 100 } : {}), name: 'Planned' },
+        },
+        { currentTenantId: 'B' },
+        null,
+      );
+      expect(job.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(planningCalls).toBe(1);
+      expect((request.transaction as Transaction & { options: { type: string } }).options.type).toBe(
+        Transaction.TYPES.IMMEDIATE,
+      );
+      expect(await get(kind === 'create' ? 100 : 1)).toMatchObject({ name: 'Planned', tenantId: 'B' });
+      expect(() => plugin.captureDataOperationAuthority(request)).toThrow(/authority/i);
+    });
+    it.each(['create', 'update'] as const)('does not grant %s when planning succeeded but G is empty', async (kind) => {
+      planning = true;
+      await saveConfig({ ...baseConfig(), rules: [] });
+      const job = await execute(
+        kind,
+        {
+          ...(kind === 'update' ? { filterByTk: 1 } : {}),
+          values: { ...(kind === 'create' ? { id: 100 } : {}), name: 'No G' },
+        },
+        { currentTenantId: 'B' },
+        null,
+      );
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(planningCalls).toBe(1);
+      expect(await get(100)).toBeUndefined();
+      expect((await get(1)).name).toBe('Owned');
+    });
+    it.each(['create', 'update'] as const)(
+      'does not replace an insufficient caller transaction for %s',
+      async (kind) => {
+        planning = true;
+        const job = await execute(
+          kind,
+          {
+            ...(kind === 'update' ? { filterByTk: 1 } : {}),
+            values: { name: 'Weak' },
+          },
+          { currentTenantId: 'B' },
+          false,
+        );
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/immediate/i);
+        expect(planningCalls).toBe(0);
+        expect((await get(1)).name).toBe('Owned');
+      },
+    );
+    it.each(['create', 'update'] as const)(
+      'stops %s before execution when current policy cannot be loaded',
+      async (kind) => {
+        planning = true;
+        vi.spyOn(store, 'read').mockRejectedValue(new Error('policy database unavailable'));
+        const job = await execute(
+          kind,
+          {
+            ...(kind === 'update' ? { filterByTk: 1 } : {}),
+            values: { name: 'No fallback' },
+          },
+          { currentTenantId: 'B' },
+          null,
+        );
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toBe('policy database unavailable');
+        expect(request === undefined).toBe(true);
+        expect((await get(1)).name).toBe('Owned');
+      },
+    );
+    it.each(['create', 'update'] as const)(
+      'rechecks stricter G after %s planning rather than trusting earlier settings',
+      async (kind) => {
+        planning = true;
+        afterPlan = async () =>
+          saveConfig(
+            configFor({
+              type: 'tenantRelation',
+              tenant: { type: 'field', path: 'tenantId' },
+              relation: 'descendant',
+              includeSelf: true,
+            }),
+          );
+        const job = await execute(
+          kind,
+          {
+            ...(kind === 'update' ? { filterByTk: 1 } : {}),
+            values: { name: 'Stale policy' },
+          },
+          { currentTenantId: 'B' },
+          null,
+        );
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/PostgreSQL/i);
+        expect((await get(1)).name).toBe('Owned');
+      },
+    );
+    it('rolls back all planned updates when a later update hook fails', async () => {
+      planning = true;
+      failUpdate = true;
+      const job = await execute('update', { values: { name: 'No partial commit' } }, { currentTenantId: 'B' }, null);
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toBe('later update failed');
+      expect((await get(1)).name).toBe('Owned');
+      expect((await get(3)).name).toBe('Second');
+    });
+    it('rolls back created data when a hook changes its ownership', async () => {
+      planning = true;
+      tamperCreate = true;
+      const job = await execute('create', { values: { id: 100, name: 'Tampered' } }, { currentTenantId: 'B' }, null);
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/changed record ownership/i);
+      expect(await get(100)).toBeUndefined();
+    });
+    it.each(['create', 'update'] as const)(
+      'rejects shared expression values changed during %s planning',
+      async (kind) => {
+        planning = true;
+        let payload;
+        const createProcessor = plugin.createProcessor.bind(plugin);
+        vi.spyOn(plugin, 'createProcessor').mockImplementation((execution, options) => {
+          const processor = createProcessor(execution, options);
+          const parse = processor.getParsedValue.bind(processor);
+          processor.getParsedValue = (...args) => {
+            const result = parse(...args);
+            if (result?.values?.name === 'Captured') {
+              payload = result.values;
+              expect(payload === execution.context.payload).toBe(true);
+            }
+            return result;
+          };
+          return processor;
+        });
+        afterPlan = async () => {
+          payload.name = 'Injected';
+        };
+        const job = await execute(
+          kind,
+          {
+            ...(kind === 'update' ? { filterByTk: 1 } : {}),
+            values: '{{$context.payload}}',
+          },
+          { currentTenantId: 'B' },
+          null,
+          { name: 'Captured' },
+        );
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/inputs changed during planning/i);
+        expect(request === undefined).toBe(true);
+        expect(await documents.model.count()).toBe(5);
+        expect((await get(1)).name).toBe('Owned');
+      },
+    );
+  });
 
   it('creates with actual defaults and current ownership using the original transaction', async () => {
     const job = await execute('create', { values: { id: 100 } });

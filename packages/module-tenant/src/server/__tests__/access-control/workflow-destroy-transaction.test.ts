@@ -4,11 +4,18 @@ import {
   AccessWorkflowDestroyTransactionPlanner,
   workflowDestroyTransactionOptions,
 } from '../../access-control/workflow-destroy-transaction';
+import {
+  AccessWorkflowWriteTransactionPlanner,
+  workflowWriteTransactionOptions,
+} from '../../access-control/workflow-write-transaction';
 import { configStore, externalIdentity, initialConfig, mainIdentity, seedConfigStore } from './config-database';
 import { sqliteDatabase } from './database';
 import { configFor, participantCondition } from './fixtures';
 
-describe('current-config workflow deletion transaction planning', () => {
+describe.each([
+  ['destroy', AccessWorkflowDestroyTransactionPlanner, workflowDestroyTransactionOptions],
+  ['write', AccessWorkflowWriteTransactionPlanner, workflowWriteTransactionOptions],
+] as const)('current-config workflow %s transaction planning', (_name, Planner, optionsFor) => {
   let db: Database;
   let collection: Collection;
   let store: ReturnType<typeof configStore>;
@@ -32,7 +39,7 @@ describe('current-config workflow deletion transaction planning', () => {
     store = configStore(db);
     await store.save(mainIdentity, initialConfig(), { userId: 28 });
     currentIdentity = { ...mainIdentity };
-    planner = new AccessWorkflowDestroyTransactionPlanner(db, store, () => currentIdentity);
+    planner = new Planner(db, store, () => currentIdentity);
   });
   afterEach(async () => {
     vi.restoreAllMocks();
@@ -109,19 +116,17 @@ describe('current-config workflow deletion transaction planning', () => {
   });
 
   it('keeps PostgreSQL root-only options unchanged and selects serializable isolation for relational G', () => {
-    expect(workflowDestroyTransactionOptions('postgres', initialConfig(), collection)).toEqual({});
-    expect(workflowDestroyTransactionOptions('postgres', configFor(participantCondition), collection)).toEqual({
+    expect(optionsFor('postgres', initialConfig(), collection)).toEqual({});
+    expect(optionsFor('postgres', configFor(participantCondition), collection)).toEqual({
       isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
     });
-    expect(
-      workflowDestroyTransactionOptions('postgres', configFor(participantCondition, 'visibility'), collection),
-    ).toEqual({});
+    expect(optionsFor('postgres', configFor(participantCondition, 'visibility'), collection)).toEqual({});
     const disabled = configFor(participantCondition);
     disabled.rules[0].enabled = false;
-    expect(workflowDestroyTransactionOptions('postgres', disabled, collection)).toEqual({});
+    expect(optionsFor('postgres', disabled, collection)).toEqual({});
   });
   it('does not choose options for unsupported write dialects', () => {
-    expect(() => workflowDestroyTransactionOptions('mysql', initialConfig(), collection)).toThrow(/dialect/i);
+    expect(() => optionsFor('mysql', initialConfig(), collection)).toThrow(/dialect/i);
   });
 
   it('loads external target configuration from the primary store while planning the external database', async () => {
@@ -130,7 +135,7 @@ describe('current-config workflow deletion transaction planning', () => {
       const documents = external.collection({ name: 'documents', fields: [{ name: 'tenantId', type: 'string' }] });
       await external.sync();
       await store.save(externalIdentity, initialConfig(), { userId: 28 });
-      const externalPlanner = new AccessWorkflowDestroyTransactionPlanner(external, store, () => externalIdentity);
+      const externalPlanner = new Planner(external, store, () => externalIdentity);
       expect(
         await externalPlanner.plan({ dataSourceName: 'external', collectionName: 'documents', collection: documents }),
       ).toEqual({ type: Transaction.TYPES.IMMEDIATE });

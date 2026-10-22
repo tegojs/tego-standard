@@ -17,7 +17,11 @@ import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
-import { runWorkflowWriteResolver, type WorkflowCreateResolver } from './write-resolver';
+import {
+  runWorkflowWriteResolver,
+  type WorkflowCreateResolver,
+  type WorkflowWriteTransactionPlanner,
+} from './write-resolver';
 
 /**
  * Runs the create instruction workflow instruction.
@@ -26,10 +30,13 @@ export class CreateInstruction extends Instruction {
   constructor(
     workflow: Plugin,
     private readonly resolve?: WorkflowCreateResolver,
+    private readonly transactionPlanner?: WorkflowWriteTransactionPlanner,
   ) {
     super(workflow);
     if (resolve !== undefined && typeof resolve !== 'function')
       throw new TypeError('Create resolver must be a function');
+    if (transactionPlanner !== undefined && typeof transactionPlanner !== 'function')
+      throw new TypeError('Create transaction planner must be a function');
   }
 
   async run(node: FlowNodeModel, input, processor: Processor) {
@@ -249,6 +256,7 @@ export class CreateInstruction extends Instruction {
       },
       this.resolve,
       runDefault,
+      this.transactionPlanner,
     );
   }
 }

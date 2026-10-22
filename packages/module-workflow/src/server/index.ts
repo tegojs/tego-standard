@@ -27,6 +27,9 @@ export type {
   WorkflowUpdateResult,
   WorkflowUpdateExecutor,
   WorkflowUpdateResolver,
+  WorkflowWriteTransactionTarget,
+  WorkflowWriteTransactionOptions,
+  WorkflowWriteTransactionPlanner,
 } from './instructions/write-resolver';
 export type {
   WorkflowQueryRequest,

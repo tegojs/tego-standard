@@ -56,7 +56,11 @@ import QueryInstruction, { type WorkflowQueryResolver } from './instructions/Que
 import SelectInstruction from './instructions/SelectInstruction';
 import UpdateInstruction from './instructions/UpdateInstruction';
 import UpdateOrCreateInstruction from './instructions/UpdateOrCreateInstruction';
-import type { WorkflowCreateResolver, WorkflowUpdateResolver } from './instructions/write-resolver';
+import type {
+  WorkflowCreateResolver,
+  WorkflowUpdateResolver,
+  WorkflowWriteTransactionPlanner,
+} from './instructions/write-resolver';
 import Processor from './Processor';
 import { WorkflowRemoteCodeFetcher } from './services/remote-code-fetcher';
 import Trigger from './triggers';
@@ -74,6 +78,9 @@ export interface WorkflowPluginOptions extends PluginOptions {
   /** Server bootstrap only; selected executors own the complete write and response projection. */
   createResolver?: WorkflowCreateResolver;
   updateResolver?: WorkflowUpdateResolver;
+  /** Target-only async planning for new node transactions; caller transactions remain unchanged. */
+  createTransactionPlanner?: WorkflowWriteTransactionPlanner;
+  updateTransactionPlanner?: WorkflowWriteTransactionPlanner;
   /** Server bootstrap only; selected executors own read authorization and querying. */
   queryResolver?: WorkflowQueryResolver;
   /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
@@ -265,7 +272,10 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('calculation', CalculationInstruction);
     this.registerInstruction('condition', ConditionInstruction);
     this.registerInstruction('end', EndInstruction);
-    this.registerInstruction('create', new CreateInstruction(this, this.options.createResolver));
+    this.registerInstruction(
+      'create',
+      new CreateInstruction(this, this.options.createResolver, this.options.createTransactionPlanner),
+    );
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
     this.registerInstruction(
       'destroy',
@@ -278,7 +288,10 @@ export default class PluginWorkflowServer extends Plugin {
     );
     this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
     this.registerInstruction('select', SelectInstruction);
-    this.registerInstruction('update', new UpdateInstruction(this, this.options.updateResolver));
+    this.registerInstruction(
+      'update',
+      new UpdateInstruction(this, this.options.updateResolver, this.options.updateTransactionPlanner),
+    );
 
     for (const [name, instruction] of Object.entries({ ...more })) {
       this.registerInstruction(name, instruction);

@@ -20,7 +20,11 @@ import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
-import { runWorkflowWriteResolver, type WorkflowUpdateResolver } from './write-resolver';
+import {
+  runWorkflowWriteResolver,
+  type WorkflowUpdateResolver,
+  type WorkflowWriteTransactionPlanner,
+} from './write-resolver';
 
 /**
  * Runs the update instruction workflow instruction.
@@ -29,10 +33,13 @@ export class UpdateInstruction extends Instruction {
   constructor(
     workflow: Plugin,
     private readonly resolve?: WorkflowUpdateResolver,
+    private readonly transactionPlanner?: WorkflowWriteTransactionPlanner,
   ) {
     super(workflow);
     if (resolve !== undefined && typeof resolve !== 'function')
       throw new TypeError('Update resolver must be a function');
+    if (transactionPlanner !== undefined && typeof transactionPlanner !== 'function')
+      throw new TypeError('Update transaction planner must be a function');
   }
 
   async run(node: FlowNodeModel, input, processor: Processor) {
@@ -289,6 +296,7 @@ export class UpdateInstruction extends Instruction {
       },
       this.resolve,
       runDefault,
+      this.transactionPlanner,
     );
   }
 }

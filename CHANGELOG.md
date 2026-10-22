@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.6.68] - 2026-10-22
+
+### 🐛 Fixed
+
+- **auth-oidc**: require verified email for account linking (@TomyJan)
+
 ## [1.6.67] - 2026-10-22
 
 ### 🐛 Fixed
@@ -3386,7 +3392,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update readme ([#1595](https://github.com/tegojs/tego-standard/pull/1595)) (@sealday)
 
 
-[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.67...HEAD
+[Unreleased]: https://github.com/tegojs/tego-standard/compare/v1.6.68...HEAD
+[1.6.68]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.68
 [1.6.67]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.67
 [1.6.66]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.66
 [1.6.65]: https://github.com/tegojs/tego-standard/releases/tag/v1.6.65

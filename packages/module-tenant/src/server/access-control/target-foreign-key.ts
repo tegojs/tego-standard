@@ -46,6 +46,8 @@ export interface TargetForeignKeyMutationEntry {
   targetWriteScope(): Promise<{ where?: WhereOptions }>;
   /** Explicit lifecycle stage after every relation write, before final verification. */
   afterPersist?(): Promise<void>;
+  /** Trusted repository-local async context; must execute and await the guarded write. */
+  withWriteContext?(side: 'source' | 'target', writer: () => Promise<void>): Promise<void>;
 }
 
 /** Changes target foreign keys; all actual child writes are authorized against their old G. */
@@ -82,6 +84,28 @@ export abstract class AccessTargetForeignKeyService {
     const afterPersist = entry?.afterPersist;
     if (afterPersist !== undefined && typeof afterPersist !== 'function')
       invalid('A persistence stage must be a function');
+    const withWriteContext = entry?.withWriteContext;
+    if (withWriteContext !== undefined && typeof withWriteContext !== 'function')
+      invalid('A repository write context must be a function');
+    const writeInContext = async (side: 'source' | 'target', writer: () => Promise<void>) => {
+      if (!withWriteContext) return writer();
+      let pending: Promise<void> | undefined;
+      let calls = 0;
+      let open = true;
+      try {
+        await withWriteContext.call(entry, side, () => {
+          if (!open || ++calls !== 1) invalid('A repository write context must execute exactly one guarded write');
+          pending = writer();
+          void pending.catch(() => {});
+          return pending;
+        });
+        if (calls !== 1 || !pending) invalid('A repository write context must execute exactly one guarded write');
+        await pending;
+      } finally {
+        open = false;
+        await pending?.catch(() => {});
+      }
+    };
     const allowed = [
       'association',
       'operation',
@@ -258,21 +282,23 @@ export abstract class AccessTargetForeignKeyService {
         );
         // Explicit lifecycle callers also capture a source event for relation-only changes.
         if (Object.keys(sourcePatch).length || afterPersist)
-          await guardRelationshipUpdate(
-            this.db,
-            [relation.source, relation.target],
-            relation.source,
-            sourceKey,
-            transaction,
-            current,
-            () =>
-              relation.source.repository.update({
-                filterByTk: beforeSource.getDataValue(relation.sourceModel.primaryKeyAttribute),
-                values: sourcePatch,
-                transaction,
-                ...(entry ? { context: ctx } : {}),
-              }),
-            !Object.keys(sourcePatch).length,
+          await writeInContext('source', () =>
+            guardRelationshipUpdate(
+              this.db,
+              [relation.source, relation.target],
+              relation.source,
+              sourceKey,
+              transaction,
+              current,
+              () =>
+                relation.source.repository.update({
+                  filterByTk: sourceKey,
+                  values: sourcePatch,
+                  transaction,
+                  ...(entry ? { context: ctx } : {}),
+                }),
+              !Object.keys(sourcePatch).length,
+            ),
           );
         current();
         const writeOrder =
@@ -289,20 +315,22 @@ export abstract class AccessTargetForeignKeyService {
             : targetRecords;
         for (const record of writeOrder) {
           const key = normalizeKeys([record.getDataValue(primary)], relation.target)[0];
-          await guardRelationshipUpdate(
-            this.db,
-            [relation.source, relation.target],
-            relation.target,
-            key,
-            transaction,
-            current,
-            () =>
-              relation.target.repository.update({
-                filterByTk: record.getDataValue(primary),
-                values: { ...targetPlan!.valuesFor(record), [relation.foreignKey]: changedByKey.get(key)!.value },
-                transaction,
-                ...(entry ? { context: ctx } : {}),
-              }),
+          await writeInContext('target', () =>
+            guardRelationshipUpdate(
+              this.db,
+              [relation.source, relation.target],
+              relation.target,
+              key,
+              transaction,
+              current,
+              () =>
+                relation.target.repository.update({
+                  filterByTk: key,
+                  values: { ...targetPlan!.valuesFor(record), [relation.foreignKey]: changedByKey.get(key)!.value },
+                  transaction,
+                  ...(entry ? { context: ctx } : {}),
+                }),
+            ),
           );
           current();
         }

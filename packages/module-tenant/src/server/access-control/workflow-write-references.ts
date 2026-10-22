@@ -7,7 +7,14 @@ import { assertCreationKeyArray, type AccessCreationLink } from './creation-link
 import { accessMetadataGuard } from './metadata-snapshot';
 import { cloneDeep, invalid, normalizeKeys, plain } from './write-support';
 
-/** Capture existing targets and pure join identities before any policy wait; never edits a target. */
+export interface AccessWorkflowChildReference {
+  association: string;
+  target: AccessCollectionIdentity;
+  kind: 'HasMany' | 'HasOne';
+  keys: string[];
+}
+
+/** Capture existing targets and their actual write locations before any policy wait. */
 export function captureWorkflowWriteReferences(
   db: Database,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
@@ -47,11 +54,12 @@ export function captureWorkflowWriteReferences(
   };
   const items: AccessCreationReference[] = [];
   const links: AccessCreationLink[] = [];
+  const children: AccessWorkflowChildReference[] = [];
   for (const name of names) {
     const relation = collection.model.associations[name];
     const field = collection.getField(name);
     if (
-      !['BelongsTo', 'BelongsToMany'].includes(relation.associationType) ||
+      !['BelongsTo', 'BelongsToMany', 'HasMany', 'HasOne'].includes(relation.associationType) ||
       !field ||
       field.options.interface === 'attachment'
     )
@@ -64,7 +72,7 @@ export function captureWorkflowWriteReferences(
       if (key !== null && typeof key !== 'string' && typeof key !== 'number')
         invalid('Nested workflow reference values require their own adapter');
       items.push({ association: name, target: identity, key: key === null ? null : normalizeKeys([key], target)[0] });
-    } else {
+    } else if (relation.associationType === 'BelongsToMany') {
       assertCreationKeyArray(key);
       const throughModel = (relation as unknown as { through?: { model?: Collection['model'] } }).through?.model;
       const through = throughModel && db.modelCollection.get(throughModel);
@@ -74,6 +82,19 @@ export function captureWorkflowWriteReferences(
         through: captureIdentity(through),
         keys: key.length ? normalizeKeys(key, target) : [],
       });
+    } else {
+      if (target === collection) invalid('Workflow child writes require distinct source and target models');
+      const kind = relation.associationType as AccessWorkflowChildReference['kind'];
+      let keys: string[];
+      if (kind === 'HasMany') {
+        assertCreationKeyArray(key);
+        keys = key.length ? normalizeKeys(key, target) : [];
+      } else {
+        if (key !== null && typeof key !== 'string' && typeof key !== 'number')
+          invalid('Workflow single-target replacements require an existing key or null');
+        keys = key === null ? [] : normalizeKeys([key], target);
+      }
+      children.push({ association: name, target: identity, kind, keys });
     }
     const kind = field.options.interface;
     checks.push(() => {
@@ -82,6 +103,8 @@ export function captureWorkflowWriteReferences(
     });
     delete values[name];
   }
+  if (children.length && names.length !== 1)
+    invalid('Workflow child replacements require one relationship field without mixed references');
   const metadata = accessMetadataGuard(
     db,
     [],
@@ -96,6 +119,7 @@ export function captureWorkflowWriteReferences(
     values,
     items,
     links,
+    children,
     targets: [...new Map(targets.map((identity) => [accessCollectionKey(identity), identity])).values()],
     assertCurrent,
   };

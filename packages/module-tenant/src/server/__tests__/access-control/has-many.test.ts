@@ -221,6 +221,93 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-many
         entry,
       );
 
+    it('updates a source and target whose primary keys are zero', async () => {
+      await docs.model.create({ id: 0, tenantId: 'B', name: 'Zero' });
+      await children.model.create({ id: 0, tenantId: 'B', name: 'Zero', documentId: null });
+      const transaction = await begin();
+      try {
+        const result = await update(transaction, {
+          sourceKey: 0,
+          targetKeys: [0],
+          sourceValues: { name: 'Changed' },
+        });
+        expect(result.sourceResult).toEqual({ keys: [0], affected: 1 });
+        await transaction.commit();
+      } finally {
+        await finish(transaction);
+      }
+      expect((await parent(0)).getDataValue('name')).toBe('Changed');
+      expect(await linked(0)).toEqual([0]);
+      expect(await linked()).toEqual([105]);
+    });
+
+    describe('repository write context boundaries', () => {
+      const scopes = (withWriteContext: TargetForeignKeyMutationEntry['withWriteContext']) => ({
+        assertCurrent() {},
+        targetReadScope: async () => ({}),
+        targetWriteScope: async () => ({}),
+        withWriteContext,
+      });
+      it('rejects a swallowed duplicate invocation without committing its first write', async () => {
+        const transaction = await begin();
+        try {
+          await expect(
+            update(
+              transaction,
+              { sourceValues: { name: 'No' } },
+              scopes(async (_side, write) => {
+                await write();
+                try {
+                  await write();
+                } catch {}
+              }),
+            ),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        } finally {
+          await finish(transaction);
+        }
+        expect((await parent(3)).getDataValue('name')).toBe('Owned');
+        expect(await linked()).toEqual([105]);
+      });
+      it('closes a skipped write callback before it can be invoked later', async () => {
+        const transaction = await begin();
+        let saved: (() => Promise<void>) | undefined;
+        try {
+          await expect(
+            update(
+              transaction,
+              { sourceValues: { name: 'No' } },
+              scopes(async (_side, write) => {
+                saved = write;
+              }),
+            ),
+          ).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        } finally {
+          await finish(transaction);
+        }
+        await expect(Promise.resolve().then(() => saved!())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((await parent(3)).getDataValue('name')).toBe('Owned');
+        expect(db.sequelize.hasHook('beforeQuery')).toBeFalsy();
+      });
+      it('waits for the guarded write even if a context forgets to await it', async () => {
+        const transaction = await begin();
+        try {
+          await update(
+            transaction,
+            { sourceValues: { name: 'Changed' } },
+            scopes(async (_side, write) => {
+              void write();
+            }),
+          );
+          await transaction.commit();
+        } finally {
+          await finish(transaction);
+        }
+        expect((await parent(3)).getDataValue('name')).toBe('Changed');
+        expect(await linked()).toEqual([101, 105]);
+      });
+    });
+
     describe('post-persistence lifecycle stage', () => {
       const entry = (afterPersist: () => Promise<void>) => ({
         assertCurrent() {},

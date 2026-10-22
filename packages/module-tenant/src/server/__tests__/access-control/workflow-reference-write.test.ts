@@ -8,6 +8,7 @@ import { accessConfigHistory } from '../../access-control/config-history';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
+import type { AccessCondition } from '../../access-control/types';
 import { AccessWorkflowRootHandler } from '../../access-control/workflow-root-handler';
 import { AccessWorkflowWriteTransactionPlanner } from '../../access-control/workflow-write-transaction';
 import { isolatedPostgresDatabase } from './database';
@@ -39,8 +40,14 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
   let transformInput: ((input) => void) | undefined;
   const joinIdentities = new Map();
   const joins = new Map();
+  const dependents = new Map();
+  const dependentIdentities = new Map();
   const identity = (collection) =>
-    collection === documents ? source : collection === projects ? target : joinIdentities.get(collection);
+    collection === documents
+      ? source
+      : collection === projects
+        ? target
+        : (joinIdentities.get(collection) ?? dependentIdentities.get(collection));
   const targetConfig = () => ({
     ...configFor(ownerCondition),
     rules: [
@@ -167,6 +174,32 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
       joins.set(name, join);
       joinIdentities.set(join, { dataSourceKey: 'main', collectionKey: row.get('key'), collectionName: join.name });
     }
+    for (const [name, type] of [
+      ['children', 'hasMany'],
+      ['profile', 'hasOne'],
+    ]) {
+      const row = await repo.create({
+        context: {},
+        values: {
+          name: `workflowReference_${name}`,
+          timestamps: false,
+          fields: [
+            { name: 'name', type: 'string' },
+            { name: 'tenantId', type: 'string' },
+          ],
+        },
+      });
+      const dependent = app.db.getCollection(`workflowReference_${name}`);
+      documents.setField(name, { type, target: dependent.name, foreignKey: 'documentId' });
+      dependent.setField('document', { type: 'belongsTo', target: documents.name, foreignKey: 'documentId' });
+      await dependent.model.sync({ alter: true });
+      dependents.set(name, dependent);
+      dependentIdentities.set(dependent, {
+        dataSourceKey: 'main',
+        collectionKey: row.get('key'),
+        collectionName: dependent.name,
+      });
+    }
     const tenants = app.db.collection({
       name: 'tenants',
       timestamps: false,
@@ -223,6 +256,10 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
     transformInput = undefined;
     await save(source, configFor(ownerCondition));
     await save(target, targetConfig());
+    for (const dependent of dependents.values()) {
+      await save(identity(dependent), targetConfig());
+      await dependent.model.destroy({ where: {}, hooks: false });
+    }
     for (const join of joins.values()) await join.model.destroy({ where: {}, hooks: false });
     await documents.model.destroy({ where: {}, hooks: false });
     await projects.model.destroy({ where: {}, hooks: false });
@@ -238,6 +275,15 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
       { id: 3, name: 'Second', tenantId: 'B', projectId: 103 },
       { id: 5, name: 'Legacy', tenantId: null },
     ]);
+    for (const dependent of dependents.values())
+      await dependent.model.bulkCreate([
+        { id: 201, name: 'Owned', tenantId: 'B', documentId: null },
+        { id: 202, name: 'Visible', tenantId: 'H', documentId: null },
+        { id: 203, name: 'Hidden', tenantId: 'C', documentId: null },
+        { id: 204, name: 'Legacy', tenantId: null, documentId: null },
+        { id: 205, name: 'Owned old', tenantId: 'B', documentId: 3 },
+        { id: 206, name: 'Owned other', tenantId: 'B', documentId: 2 },
+      ]);
     workflow = await app.db.getRepository('workflows').create({
       values: {
         title: 'Reference write',
@@ -326,6 +372,274 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
       }
     },
   );
+
+  describe.each(['children', 'profile'])('target foreign-key capability gate: %s', (name) => {
+    it.each(['source', 'target'])('rejects a missing %s lifecycle capability before any source write', async (part) => {
+      const repository = (part === 'source' ? documents : dependents.get(name)).repository;
+      const previous = Object.getOwnPropertyDescriptor(repository, 'withDeferredAssociationEvents');
+      Object.defineProperty(repository, 'withDeferredAssociationEvents', { value: undefined, configurable: true });
+      let writes = 0;
+      const listener = () => {
+        writes++;
+      };
+      app.db.on(`${documents.name}.beforeUpdate`, listener);
+      try {
+        const job = await execute('update', {
+          filterByTk: 3,
+          values: { name: 'No', [name]: name === 'children' ? [201] : 201 },
+        });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/deferred association events/i);
+        expect(writes).toBe(0);
+        expect((await get(3)).name).toBe('Second');
+        expect((await dependents.get(name).model.findByPk(201)).getDataValue('documentId')).toBeNull();
+      } finally {
+        app.db.off(`${documents.name}.beforeUpdate`, listener);
+        if (previous) Object.defineProperty(repository, 'withDeferredAssociationEvents', previous);
+        else delete repository.withDeferredAssociationEvents;
+      }
+    });
+  });
+
+  describe.runIf(supportsDeferredAssociationEvents)('target foreign-key workflow updates', () => {
+    it('sets multiple children, deduplicates equivalent keys and preserves zero', async () => {
+      const children = dependents.get('children');
+      await children.model.create({ id: 0, name: 'Owned zero', tenantId: 'B' });
+      const job = await execute('update', { filterByTk: 3, values: { children: [0, 201, '0201'] } });
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      const rows = await children.model.findAll({ where: { documentId: 3 }, order: [['id', 'ASC']] });
+      expect(rows.map((row) => row.getDataValue('id'))).toEqual([0, 201]);
+    });
+    it.each([
+      ['children', null],
+      ['children', 201],
+      ['children', [{ id: 201 }]],
+      ['children', Array.from({ length: 1001 }, () => 201)],
+      ['profile', []],
+      ['profile', { id: 201 }],
+      ['profile', '_'],
+    ])('rejects invalid %s target values %j', async (name, values) => {
+      const job = await execute('update', { filterByTk: 3, values: { [name as string]: values } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect((await dependents.get(name).model.findByPk(205)).getDataValue('documentId')).toBe(3);
+    });
+    it.each(['prototype', 'sparse', 'symbol'])('rejects an original %s child array before copying', async (part) => {
+      transformInput = (input) => {
+        const values = input.params.values.children;
+        if (part === 'prototype') Object.setPrototypeOf(values, Object.create(Array.prototype));
+        else if (part === 'sparse') delete values[0];
+        else values[Symbol('extra')] = true;
+      };
+      const job = await execute('update', { filterByTk: 3, values: { children: [201] } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect((await dependents.get('children').model.findByPk(201)).getDataValue('documentId')).toBeNull();
+    });
+    describe.each(['children', 'profile'])('%s', (name) => {
+      const value = (keys: number[]) => (name === 'children' ? keys : (keys[0] ?? null));
+      const connected = async (id = 3, transaction?) =>
+        (
+          await dependents.get(name).model.findAll({ where: { documentId: id }, order: [['id', 'ASC']], transaction })
+        ).map((row) => row.getDataValue('id'));
+      it('saves scalar fields and existing targets in a node-planned transaction', async () => {
+        planning = true;
+        const job = await execute('update', { filterByTk: 3, values: { name: 'Changed', [name]: value([201]) } }, null);
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(actualIsolation).toBe('serializable');
+        expect(await connected()).toEqual([201]);
+        expect(job.result).toMatchObject({ length: 1, data: [{ id: 3, name: 'Changed', tenantId: 'B' }] });
+        expect(job.result.data[0][name]).toBeUndefined();
+        expect((await dependents.get(name).model.findByPk(205)).getDataValue('documentId')).toBeNull();
+      });
+      it('publishes source and every target lifecycle only after the full replacement', async () => {
+        const observed: Array<{ event: string; keys: number[] }> = [];
+        const events = [
+          `${documents.name}.afterUpdateWithAssociations`,
+          `${dependents.get(name).name}.afterUpdateWithAssociations`,
+        ];
+        const listeners = events.map((event) => async (_record, options) => {
+          observed.push({ event, keys: await connected(3, options.transaction) });
+        });
+        events.forEach((event, index) => app.db.on(event, listeners[index]));
+        let job;
+        try {
+          job = await execute('update', { filterByTk: 3, values: { [name]: value([201]) } });
+        } finally {
+          events.forEach((event, index) => app.db.off(event, listeners[index]));
+        }
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(observed).toEqual([
+          { event: events[0], keys: [201] },
+          { event: events[1], keys: [201] },
+          { event: events[1], keys: [201] },
+        ]);
+      });
+      it('clears the existing target set', async () => {
+        const job = await execute('update', { filterByTk: 3, values: { [name]: value([]) } });
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result.length).toBe(1);
+        expect(await connected()).toEqual([]);
+      });
+      it('returns zero for an empty source query without checking its hidden target', async () => {
+        const empty = await execute('update', { filter: { id: 999 }, values: { [name]: value([203]) } });
+        expect(empty).toEqual({ status: EXECUTION_STATUS.RESOLVED, result: { length: 0, data: [] } });
+      });
+      it('supports a filter selecting one writable source', async () => {
+        const one = await execute('update', { filter: { id: 3 }, values: { [name]: value([201]) } });
+        expect(one.status, one.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(await connected()).toEqual([201]);
+      });
+      it('rejects creating a source with unadapted child bindings', async () => {
+        const job = await execute('create', { values: { id: 100, [name]: value([201]) } });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await get(100)).toBeUndefined();
+      });
+      it('rejects a changed target event method after the source write', async () => {
+        const repository = dependents.get(name).repository;
+        const previous = Object.getOwnPropertyDescriptor(repository, 'withDeferredAssociationEvents');
+        const listener = () => {
+          Object.defineProperty(repository, 'withDeferredAssociationEvents', {
+            value: () => Promise.resolve(),
+            configurable: true,
+          });
+        };
+        app.db.on(`${documents.name}.afterUpdate`, listener);
+        let job;
+        try {
+          job = await execute('update', { filterByTk: 3, values: { name: 'No', [name]: value([201]) } });
+        } finally {
+          app.db.off(`${documents.name}.afterUpdate`, listener);
+          if (previous) Object.defineProperty(repository, 'withDeferredAssociationEvents', previous);
+          else delete repository.withDeferredAssociationEvents;
+        }
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await connected()).toEqual([205]);
+        expect((await get(3)).name).toBe('Second');
+      });
+      it('does not update, notify or claim unchanged connections', async () => {
+        let calls = 0;
+        const listener = () => {
+          calls++;
+        };
+        app.db.on(`${documents.name}.afterUpdateWithAssociations`, listener);
+        let job;
+        try {
+          job = await execute('update', { filterByTk: 3, values: { [name]: value([205]) } });
+        } finally {
+          app.db.off(`${documents.name}.afterUpdateWithAssociations`, listener);
+        }
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result).toEqual({ length: 0, data: [] });
+        expect(calls).toBe(0);
+      });
+      it.each([202, 203, 999])('rejects changing a visibility-only, hidden or missing target %s', async (id) => {
+        const job = await execute('update', { filterByTk: 3, values: { name: 'No', [name]: value([id]) } });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await connected()).toEqual([205]);
+        expect((await get(3)).name).toBe('Second');
+      });
+      it('checks G for the old target implicitly removed by replacement', async () => {
+        await dependents.get(name).model.update({ tenantId: 'H', name: 'Visible' }, { where: { id: 205 } });
+        const job = await execute('update', { filterByTk: 3, values: { [name]: value([201]) } });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await connected()).toEqual([205]);
+      });
+      it('requires G on the source itself', async () => {
+        await save(source, configFor({ type: 'constant', value: true }, 'visibility'));
+        const job = await execute('update', { filterByTk: 3, values: { [name]: value([201]) } });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await connected()).toEqual([205]);
+      });
+      it.each([false, true])('claims historical source and target only for actual changes=%s', async (changed) => {
+        const legacy: AccessCondition = {
+          type: 'any',
+          children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+        };
+        await save(source, configFor(legacy));
+        await save(identity(dependents.get(name)), {
+          ...targetConfig(),
+          rules: [...configFor(legacy).rules, ...targetConfig().rules.filter((rule) => rule.category === 'visibility')],
+        });
+        if (!changed) await dependents.get(name).model.update({ documentId: 5 }, { where: { id: 204 } });
+        const job = await execute('update', { filterByTk: 5, values: { [name]: value([204]) } });
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect((await get(5)).tenantId).toBe(changed ? 'B' : null);
+        expect((await dependents.get(name).model.findByPk(204)).getDataValue('tenantId')).toBe(changed ? 'B' : null);
+        expect(job.result.length).toBe(changed ? 1 : 0);
+      });
+      it('rolls back both sides and notifications when a target lifecycle listener fails', async () => {
+        let notifications = 0;
+        const event = `${dependents.get(name).name}.afterUpdateWithAssociations`;
+        const listener = (_row, options) => {
+          options.transaction.afterCommit(() => {
+            notifications++;
+          });
+          throw new Error('child lifecycle failed');
+        };
+        app.db.on(event, listener);
+        let job;
+        try {
+          job = await execute('update', { filterByTk: 3, values: { name: 'No', [name]: value([201]) } });
+        } finally {
+          app.db.off(event, listener);
+        }
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toBe('child lifecycle failed');
+        expect(notifications).toBe(0);
+        expect(await connected()).toEqual([205]);
+        expect((await get(3)).name).toBe('Second');
+      });
+      it.each(['connections', 'ownership'])('rejects listener changes to %s after persistence', async (part) => {
+        const event = `${documents.name}.afterUpdateWithAssociations`;
+        const listener = async (_row, options) => {
+          if (part === 'connections')
+            await dependents
+              .get(name)
+              .model.update({ documentId: 3 }, { where: { id: 203 }, transaction: options.transaction, hooks: false });
+          else
+            await documents.model.update(
+              { tenantId: 'C' },
+              { where: { id: 3 }, transaction: options.transaction, hooks: false },
+            );
+        };
+        app.db.on(event, listener);
+        let job;
+        try {
+          job = await execute('update', { filterByTk: 3, values: { [name]: value([201]) } });
+        } finally {
+          app.db.off(event, listener);
+        }
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await connected()).toEqual([205]);
+        expect((await get(3)).tenantId).toBe('B');
+      });
+      it('captures target IDs and tenant before configuration awaits', async () => {
+        const read = store.read.bind(store);
+        vi.spyOn(store, 'read').mockImplementation(async (source) => {
+          const result = await read(source);
+          request.params.values[name] = value([203]);
+          request.context.state.currentTenantId = 'C';
+          return result;
+        });
+        const job = await execute('update', { filterByTk: 3, values: { [name]: value([201]) } });
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(await connected()).toEqual([201]);
+      });
+      it.each([
+        { filterByTk: [1, 3] },
+        { individualHooks: false },
+        { values: { project: 103 } },
+        { values: { tags: [103] } },
+      ])('refuses an unadapted batch or mixed write %j before any partial change', async (extra) => {
+        const job = await execute('update', {
+          filterByTk: 3,
+          ...extra,
+          values: { [name]: value([201]), ...('values' in extra ? extra.values : {}) },
+        });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await connected()).toEqual([205]);
+      });
+    });
+  });
 
   describe('node-owned transactions planned from written fields', () => {
     it.each([

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { Op, Transaction, type Database, type Model, type WhereOptions } from '@tego/server';
 
@@ -24,6 +25,8 @@ import {
 } from './write-support';
 
 export const MAX_CREATION_REFERENCES = 20;
+
+const creationReceipts = new AsyncLocalStorage<object>();
 
 export interface AccessCreationReference {
   association: string;
@@ -66,6 +69,32 @@ export class AccessCreationService {
     request: AccessCreationRequest,
     writer: (plan: AccessCreationPlan) => Promise<readonly Model[]>,
     assertEntryCurrent?: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    return this.create(ctx, identity, authenticated, request, writer, assertEntryCurrent);
+  }
+
+  /** The caller owns commit/rollback and must roll back the entire transaction after any error. */
+  async withCreatedRecordsInTransaction(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessCreationRequest,
+    transaction: Transaction,
+    writer: (plan: AccessCreationPlan) => Promise<readonly Model[]>,
+    assertEntryCurrent?: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (!(transaction instanceof Transaction)) invalid('An active root write transaction is required');
+    return this.create(ctx, identity, authenticated, request, writer, assertEntryCurrent, transaction);
+  }
+
+  private async create(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessCreationRequest,
+    writer: (plan: AccessCreationPlan) => Promise<readonly Model[]>,
+    assertEntryCurrent?: () => void,
+    inheritedTransaction?: Transaction,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
@@ -177,12 +206,9 @@ export class AccessCreationService {
     );
     const serializable = related || requiresSerializable(config, request, collection);
     try {
-      return await this.db.sequelize.transaction(
-        {
-          type: Transaction.TYPES.IMMEDIATE,
-          ...(serializable ? { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE } : {}),
-        },
-        async (transaction) => {
+      const execute = async (transaction: Transaction) => {
+        const receiptScope = {};
+        return creationReceipts.run(receiptScope, async () => {
           await validateWriteTransaction(this.db, transaction, serializable);
           const tenant = config.ownership.enabled
             ? await resolveActiveAccessTenant(this.db, authenticated, { transaction, lock: true })
@@ -220,9 +246,15 @@ export class AccessCreationService {
           let unexpectedInserts = false;
           const hookName = `tenant-access-creation-${randomUUID()}`;
           // Capture the dialect's INSERT result before model afterCreate hooks can change dataValues.
-          // This observer is confined to this transaction and is removed even when the writer throws.
+          // Scope receipts to this call as concurrent/nested creations may share the transaction.
+          // Remove the observer even when the writer throws.
           this.db.sequelize.addHook('afterQuery', hookName, (options, query) => {
-            if (options.transaction !== transaction || options.type !== 'INSERT') return;
+            if (
+              creationReceipts.getStore() !== receiptScope ||
+              options.transaction !== transaction ||
+              options.type !== 'INSERT'
+            )
+              return;
             const instance = (query as unknown as { instance?: Model }).instance;
             const queryModel = (options as typeof options & { model?: typeof model }).model;
             if (linkPlan && queryModel === model && !(instance instanceof model)) {
@@ -321,7 +353,15 @@ export class AccessCreationService {
           } finally {
             this.db.sequelize.removeHook('afterQuery', hookName);
           }
+        });
+      };
+      if (inheritedTransaction !== undefined) return await execute(inheritedTransaction);
+      return await this.db.sequelize.transaction(
+        {
+          type: Transaction.TYPES.IMMEDIATE,
+          ...(serializable ? { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE } : {}),
         },
+        execute,
       );
     } catch (error) {
       const conflict = error as { original?: { code?: string }; parent?: { code?: string } };

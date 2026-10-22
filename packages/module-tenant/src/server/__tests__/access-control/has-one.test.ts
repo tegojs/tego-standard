@@ -1,4 +1,4 @@
-import { ACL, Resourcer, type Collection, type Database } from '@tego/server';
+import { ACL, Resourcer, Transaction, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -310,6 +310,115 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-one 
       handleAssociation(unrestricted, { fields: ['profile'] }, { fields: ['document'], filter: { id: 101 } }),
     ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
     expect(await linked()).toEqual([105]);
+  });
+
+  describe('caller-owned single-target transactions', () => {
+    const update = (transaction: Transaction, targetKey: number | null, extra = {}) =>
+      service.withTargetInTransaction(
+        ctx,
+        mainIdentity,
+        target,
+        authenticated,
+        { association: 'profile', sourceKey: 3, targetKey, ...extra },
+        transaction,
+      );
+    it.each([false, true])('keeps replacement and both target writes pending for caller commit=%s', async (commit) => {
+      const transaction = await db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
+      let notifications = 0;
+      profiles.model.addHook('afterUpdate', (_row, options) => {
+        options.transaction.afterCommit(() => {
+          notifications++;
+        });
+      });
+      try {
+        expect(await update(transaction, 101, { sourceValues: { name: 'Changed' } })).toEqual({
+          keys: [101, 105],
+          affected: 2,
+          sourceResult: { keys: [3], affected: 1 },
+        });
+        expect(await linked()).toEqual([105]);
+        expect(notifications).toBe(0);
+        if (commit) await transaction.commit();
+        else await transaction.rollback();
+      } finally {
+        if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+      }
+      expect(await linked()).toEqual(commit ? [101] : [105]);
+      expect((await parent(3)).getDataValue('name')).toBe(commit ? 'Changed' : 'Owned');
+      expect(notifications).toBe(commit ? 2 : 0);
+    });
+    it.each(['null', 'remove'] as const)(
+      'clears the current target using %s in the caller transaction',
+      async (mode) => {
+        const transaction = await db.sequelize.transaction({
+          isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+        });
+        try {
+          const result =
+            mode === 'null'
+              ? await update(transaction, null)
+              : await service.removeTargetInTransaction(
+                  ctx,
+                  mainIdentity,
+                  target,
+                  authenticated,
+                  { association: 'profile', sourceKey: 3 },
+                  transaction,
+                );
+          expect(result).toEqual({ keys: [105], affected: 1 });
+          expect(await linked()).toEqual([105]);
+          await transaction.commit();
+        } finally {
+          if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+        }
+        expect(await linked()).toEqual([]);
+      },
+    );
+    it('does not claim or notify an unchanged legacy target', async () => {
+      await configure(target, withLegacy);
+      await profiles.model.update({ documentId: 3 }, { where: { id: 104 } });
+      await profiles.model.update({ documentId: null }, { where: { id: 105 } });
+      let notifications = 0;
+      profiles.model.addHook('afterUpdate', (_row, options) => {
+        options.transaction.afterCommit(() => {
+          notifications++;
+        });
+      });
+      const transaction = await db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
+      try {
+        expect(await update(transaction, 104)).toEqual({ keys: [], affected: 0 });
+        await transaction.commit();
+      } finally {
+        if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+      }
+      expect((await profile(104)).getDataValue('tenantId')).toBeNull();
+      expect(notifications).toBe(0);
+    });
+    it('rejects replacement when the old target has only visibility', async () => {
+      await profiles.model.update({ tenantId: 'H' }, { where: { id: 105 } });
+      const transaction = await db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
+      try {
+        await expect(update(transaction, 101)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await linked()).toEqual([105]);
+    });
+    it.each(['replace', 'remove'] as const)('rejects missing caller transaction for %s', async (mode) => {
+      const result =
+        mode === 'replace'
+          ? update(undefined, 101)
+          : service.removeTargetInTransaction(
+              ctx,
+              mainIdentity,
+              target,
+              authenticated,
+              { association: 'profile', sourceKey: 3 },
+              undefined,
+            );
+      await expect(result).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([105]);
+    });
   });
 
   it('replaces and clears a single target without transferring ownership', async () => {

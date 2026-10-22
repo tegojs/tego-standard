@@ -1,4 +1,4 @@
-import type { Database } from '@tego/server';
+import { Transaction, type Database } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
@@ -36,6 +36,32 @@ export class AccessHasOneService extends AccessTargetForeignKeyService {
     request: HasOneWriteRequest,
     entry?: TargetForeignKeyMutationEntry,
   ) {
+    return this.writeTarget(ctx, source, target, authenticated, request, entry);
+  }
+
+  /** The caller owns commit/rollback and must roll back the whole transaction on any error. */
+  async withTargetInTransaction(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: HasOneWriteRequest,
+    transaction: Transaction,
+    entry?: TargetForeignKeyMutationEntry,
+  ) {
+    if (!(transaction instanceof Transaction)) invalid('An active root write transaction is required');
+    return this.writeTarget(ctx, source, target, authenticated, request, entry, transaction);
+  }
+
+  private async writeTarget(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: HasOneWriteRequest,
+    entry?: TargetForeignKeyMutationEntry,
+    transaction?: Transaction,
+  ) {
     request = cloneDeep(request);
     if (
       !plain(request) ||
@@ -56,6 +82,7 @@ export class AccessHasOneService extends AccessTargetForeignKeyService {
         targetKeys: targetKey === null ? [] : [targetKey],
       },
       entry,
+      transaction,
     );
   }
 
@@ -66,6 +93,32 @@ export class AccessHasOneService extends AccessTargetForeignKeyService {
     authenticated: AccessIdentity,
     request: Omit<HasOneWriteRequest, 'targetKey'>,
     entry?: TargetForeignKeyMutationEntry,
+  ) {
+    return this.writeRemoval(ctx, source, target, authenticated, request, entry);
+  }
+
+  /** The caller owns commit/rollback and must roll back the whole transaction on any error. */
+  async removeTargetInTransaction(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: Omit<HasOneWriteRequest, 'targetKey'>,
+    transaction: Transaction,
+    entry?: TargetForeignKeyMutationEntry,
+  ) {
+    if (!(transaction instanceof Transaction)) invalid('An active root write transaction is required');
+    return this.writeRemoval(ctx, source, target, authenticated, request, entry, transaction);
+  }
+
+  private async writeRemoval(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    target: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: Omit<HasOneWriteRequest, 'targetKey'>,
+    entry?: TargetForeignKeyMutationEntry,
+    transaction?: Transaction,
   ) {
     request = cloneDeep(request);
     if (
@@ -82,6 +135,7 @@ export class AccessHasOneService extends AccessTargetForeignKeyService {
       authenticated,
       { ...request, operation: 'remove', targetKeys: [] },
       entry,
+      transaction,
     );
   }
 }

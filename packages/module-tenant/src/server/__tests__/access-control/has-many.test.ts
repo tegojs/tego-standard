@@ -7,6 +7,7 @@ import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessMutationService } from '../../access-control/mutation';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessReferenceService } from '../../access-control/references';
+import type { TargetForeignKeyMutationEntry } from '../../access-control/target-foreign-key';
 import type { AccessCondition, AccessConfig } from '../../access-control/types';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
@@ -182,8 +183,264 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access has-many
       await expect(mutate('add', [101])).rejects.toMatchObject({ code: 'UNSUPPORTED_ACCESS_MUTATION' });
       expect(await linked()).toEqual([105]);
     });
+    it('rejects caller-owned relationship writes on an unvalidated dialect', async () => {
+      const transaction = await db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+      try {
+        await expect(
+          service.withChildrenInTransaction(
+            ctx,
+            mainIdentity,
+            childIdentity,
+            authenticated,
+            { association: 'children', operation: 'add', sourceKey: 3, targetKeys: [101] },
+            transaction,
+          ),
+        ).rejects.toMatchObject({ code: 'UNSUPPORTED_ACCESS_MUTATION' });
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await linked()).toEqual([105]);
+    });
     return;
   }
+
+  describe('caller-owned child transactions', () => {
+    const begin = (options = {}) =>
+      db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, ...options });
+    const finish = async (transaction: Transaction) => {
+      if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+    };
+    const update = (transaction: Transaction, extra = {}, entry?: TargetForeignKeyMutationEntry) =>
+      service.withChildrenInTransaction(
+        ctx,
+        mainIdentity,
+        childIdentity,
+        authenticated,
+        { association: 'children', operation: 'add', sourceKey: 3, targetKeys: [101], ...extra },
+        transaction,
+        entry,
+      );
+
+    it.each([false, true])('leaves all writes and notifications pending for caller commit=%s', async (commit) => {
+      const transaction = await begin();
+      let notified = 0;
+      children.model.addHook('afterUpdate', (_row, options) => {
+        options.transaction.afterCommit(() => {
+          notified++;
+        });
+      });
+      try {
+        await docs.model.update({ name: 'Prior write' }, { where: { id: 3 }, transaction });
+        expect(await update(transaction, { sourceValues: { name: 'Changed' } })).toEqual({
+          keys: [101],
+          affected: 1,
+          sourceResult: { keys: [3], affected: 1 },
+        });
+        expect((await child(101)).getDataValue('documentId')).toBeNull();
+        expect((await parent(3)).getDataValue('name')).toBe('Owned');
+        expect((await children.model.findByPk(101, { transaction })).getDataValue('documentId')).toBe(3);
+        expect(notified).toBe(0);
+        if (commit) await transaction.commit();
+        else await transaction.rollback();
+      } finally {
+        await finish(transaction);
+      }
+      expect((await child(101)).getDataValue('documentId')).toBe(commit ? 3 : null);
+      expect((await parent(3)).getDataValue('name')).toBe(commit ? 'Changed' : 'Owned');
+      expect(notified).toBe(commit ? 1 : 0);
+    });
+
+    it.each([
+      ['remove', [105], [], 1],
+      ['set', [101], [101], 2],
+      ['set', [105], [105], 0],
+    ] as const)('preserves %s actual-change semantics (%j)', async (operation, targetKeys, expected, affected) => {
+      const transaction = await begin();
+      try {
+        const result = await update(transaction, { operation, targetKeys: [...targetKeys] });
+        expect(result.affected).toBe(affected);
+        await transaction.commit();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual(expected);
+    });
+
+    it.each([
+      { sourceKey: 1 },
+      { sourceKey: 4 },
+      { sourceWhere: { id: 4 } },
+      { targetKeys: [102] },
+      { targetKeys: [103] },
+      { targetKeys: [999] },
+    ])('checks source G and every changed child G: %j', async (patch) => {
+      const transaction = await begin();
+      try {
+        await expect(update(transaction, patch)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([105]);
+    });
+
+    it.each(['read', 'write'] as const)('keeps finalized target %s predicates in caller writes', async (part) => {
+      const transaction = await begin();
+      try {
+        await expect(
+          update(
+            transaction,
+            {},
+            {
+              assertCurrent() {},
+              targetReadScope: async () => ({ where: part === 'read' ? { id: 105 } : {} }),
+              targetWriteScope: async () => ({ where: part === 'write' ? { id: 105 } : {} }),
+            },
+          ),
+        ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([105]);
+    });
+
+    it('retains an unchanged visibility-only child without granting a write', async () => {
+      await children.model.update({ documentId: 3 }, { where: { id: 102 } });
+      const transaction = await begin();
+      try {
+        expect(await update(transaction, { operation: 'set', targetKeys: [102, 105] })).toEqual({
+          keys: [],
+          affected: 0,
+        });
+        await transaction.commit();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([102, 105]);
+      expect((await child(102)).getDataValue('tenantId')).toBe('H');
+    });
+
+    it('checks an implicitly removed child and rolls back earlier caller work', async () => {
+      await children.model.update({ documentId: 3 }, { where: { id: 102 } });
+      const transaction = await begin();
+      try {
+        await docs.model.update({ name: 'Prior write' }, { where: { id: 3 }, transaction });
+        await expect(update(transaction, { operation: 'set' })).rejects.toMatchObject({
+          code: 'ACCESS_RECORD_UNAVAILABLE',
+        });
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([102, 105]);
+      expect((await parent(3)).getDataValue('name')).toBe('Owned');
+    });
+
+    it.each([false, true])('claims legacy source and target only in the caller commit=%s', async (commit) => {
+      await configure(mainIdentity, withLegacy);
+      await configure(childIdentity, withLegacy);
+      const transaction = await begin();
+      try {
+        await update(transaction, { sourceKey: 5, targetKeys: [104] });
+        expect((await parent(5)).getDataValue('tenantId')).toBeNull();
+        expect((await child(104)).getDataValue('tenantId')).toBeNull();
+        if (commit) await transaction.commit();
+        else await transaction.rollback();
+      } finally {
+        await finish(transaction);
+      }
+      expect((await parent(5)).getDataValue('tenantId')).toBe(commit ? 'B' : null);
+      expect((await child(104)).getDataValue('tenantId')).toBe(commit ? 'B' : null);
+      expect((await child(104)).getDataValue('documentId')).toBe(commit ? 5 : null);
+    });
+
+    it('preserves a late hook error and leaves the transaction for caller rollback', async () => {
+      const original = new Error('later child failed');
+      let notifications = 0;
+      children.model.addHook('afterUpdate', (row, options) => {
+        options.transaction.afterCommit(() => {
+          notifications++;
+        });
+        if (row.getDataValue('id') === 106) throw original;
+      });
+      const transaction = await begin();
+      try {
+        await expect(update(transaction, { targetKeys: [101, 106], sourceValues: { name: 'Changed' } })).rejects.toBe(
+          original,
+        );
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([105]);
+      expect((await parent(3)).getDataValue('name')).toBe('Owned');
+      expect(notifications).toBe(0);
+    });
+
+    it.each(['tenantId', 'documentId'])('rechecks a hook changing child %s', async (field) => {
+      children.model.addHook('beforeUpdate', (row) => row.setDataValue(field, field === 'tenantId' ? 'C' : 4));
+      const transaction = await begin();
+      try {
+        await expect(update(transaction)).rejects.toMatchObject({
+          code: field === 'tenantId' ? 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN' : 'INVALID_ACCESS_MUTATION',
+        });
+      } finally {
+        await finish(transaction);
+      }
+      expect((await child(101)).getDataValue('tenantId')).toBe('B');
+      expect((await child(101)).getDataValue('documentId')).toBeNull();
+    });
+
+    it.each([undefined, null, {}])('rejects a missing or invalid caller transaction %j', async (transaction) => {
+      await expect(update(transaction as Transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([105]);
+    });
+    it('rejects insufficient isolation without upgrading or ending the caller transaction', async () => {
+      const transaction = await begin({ isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED });
+      try {
+        await expect(update(transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        const [rows] = await db.sequelize.query("SELECT current_setting('transaction_isolation') AS isolation", {
+          transaction,
+        });
+        expect((rows as Array<{ isolation: string }>)[0].isolation).toBe('read committed');
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([105]);
+    });
+    it('rejects read-only and nested transactions without ending the caller root', async () => {
+      const readOnly = await begin({ readOnly: true });
+      try {
+        await expect(update(readOnly)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((readOnly as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await finish(readOnly);
+      }
+      const root = await begin();
+      const nested = await db.sequelize.transaction({ transaction: root });
+      try {
+        await expect(update(nested)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((root as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await nested.rollback();
+        await finish(root);
+      }
+    });
+    it('rejects finished and different-database transactions without replacements', async () => {
+      const finished = await begin();
+      await finished.commit();
+      await expect(update(finished)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      const other = isolatedPostgresDatabase(postgresUrl!);
+      const foreign = await other.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
+      try {
+        await expect(update(foreign)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((foreign as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await foreign.rollback();
+        await other.close();
+      }
+      expect(await linked()).toEqual([105]);
+    });
+  });
 
   it('binds unassigned owned children and preserves all existing ownership', async () => {
     expect(await mutate('add', [101])).toEqual({ keys: [101], affected: 1 });

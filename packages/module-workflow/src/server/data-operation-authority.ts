@@ -24,7 +24,7 @@ const nodeExecutions = new AsyncLocalStorage<NodeExecution>();
 const authorities = new WeakMap<object, { plugin: Plugin; authority: WorkflowDataOperationAuthority }>();
 
 export interface WorkflowDataOperationAuthority {
-  readonly actionName: 'list' | 'destroy';
+  readonly actionName: 'list' | 'destroy' | 'create' | 'update';
   readonly dataSourceName: string;
   readonly collectionName: string;
   readonly collection: ICollection;

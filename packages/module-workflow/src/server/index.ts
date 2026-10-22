@@ -19,6 +19,16 @@ export type {
   WorkflowDestroyTransactionPlanner,
 } from './instructions/DestroyInstruction';
 export type {
+  WorkflowCreateRequest,
+  WorkflowCreateResult,
+  WorkflowCreateExecutor,
+  WorkflowCreateResolver,
+  WorkflowUpdateRequest,
+  WorkflowUpdateResult,
+  WorkflowUpdateExecutor,
+  WorkflowUpdateResolver,
+} from './instructions/write-resolver';
+export type {
   WorkflowQueryRequest,
   WorkflowQueryResult,
   WorkflowQueryExecutor,

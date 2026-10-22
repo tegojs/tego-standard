@@ -56,6 +56,7 @@ import QueryInstruction, { type WorkflowQueryResolver } from './instructions/Que
 import SelectInstruction from './instructions/SelectInstruction';
 import UpdateInstruction from './instructions/UpdateInstruction';
 import UpdateOrCreateInstruction from './instructions/UpdateOrCreateInstruction';
+import type { WorkflowCreateResolver, WorkflowUpdateResolver } from './instructions/write-resolver';
 import Processor from './Processor';
 import { WorkflowRemoteCodeFetcher } from './services/remote-code-fetcher';
 import Trigger from './triggers';
@@ -70,6 +71,9 @@ type Pending = [ExecutionModel, JobModel?, Transactionable?];
 type CachedEvent = [WorkflowModel, any, { context?: any } & Transactionable];
 
 export interface WorkflowPluginOptions extends PluginOptions {
+  /** Server bootstrap only; selected executors own the complete write and response projection. */
+  createResolver?: WorkflowCreateResolver;
+  updateResolver?: WorkflowUpdateResolver;
   /** Server bootstrap only; selected executors own read authorization and querying. */
   queryResolver?: WorkflowQueryResolver;
   /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
@@ -261,7 +265,7 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('calculation', CalculationInstruction);
     this.registerInstruction('condition', ConditionInstruction);
     this.registerInstruction('end', EndInstruction);
-    this.registerInstruction('create', CreateInstruction);
+    this.registerInstruction('create', new CreateInstruction(this, this.options.createResolver));
     this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
     this.registerInstruction(
       'destroy',
@@ -274,7 +278,7 @@ export default class PluginWorkflowServer extends Plugin {
     );
     this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
     this.registerInstruction('select', SelectInstruction);
-    this.registerInstruction('update', UpdateInstruction);
+    this.registerInstruction('update', new UpdateInstruction(this, this.options.updateResolver));
 
     for (const [name, instruction] of Object.entries({ ...more })) {
       this.registerInstruction(name, instruction);

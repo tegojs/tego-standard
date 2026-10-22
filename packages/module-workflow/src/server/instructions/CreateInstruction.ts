@@ -1,4 +1,4 @@
-import { Gateway, parseCollectionName, uid } from '@tego/server';
+import { Gateway, parseCollectionName, uid, type Transaction } from '@tego/server';
 
 import axios, { AxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
@@ -12,15 +12,26 @@ import {
   guardWorkflowTenantAssociationValues,
   withWorkflowDataSourceTransaction,
 } from '../helpers/tenant-context';
+import type Plugin from '../Plugin';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
+import { runWorkflowWriteResolver, type WorkflowCreateResolver } from './write-resolver';
 
 /**
  * Runs the create instruction workflow instruction.
  */
 export class CreateInstruction extends Instruction {
+  constructor(
+    workflow: Plugin,
+    private readonly resolve?: WorkflowCreateResolver,
+  ) {
+    super(workflow);
+    if (resolve !== undefined && typeof resolve !== 'function')
+      throw new TypeError('Create resolver must be a function');
+  }
+
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, params: { appends = [], ...params } = {} } = node.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
@@ -35,192 +46,209 @@ export class CreateInstruction extends Instruction {
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
     const repositoryContext = processor.getRepositoryContext();
 
-    const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
-    const token = this.workflow.app.authManager.jwt.sign({ userId });
-    const isJSON = (str) => {
-      try {
-        return JSON.parse(str);
-      } catch (e) {
-        return false;
-      }
-    };
-    //目前可处理url，json对象，base64
-    const handleResource = async (resource) => {
-      if (typeof resource === 'object' && resource?.url && resource?.filename) {
-        // 证明是系统原本的附件类型;
-        // NOTE: 这里是为了取出普通字段, 排除名称不定的中间表关联字段
-        const {
-          id,
-          createdAt,
-          updatedAt,
-          title,
-          filename,
-          extname,
-          size,
-          mimetype,
-          path,
-          meta,
-          url,
-          createById,
-          updatedById,
-          storageId,
-        } = resource || {};
-
-        return {
-          id,
-          createdAt,
-          updatedAt,
-          title,
-          filename,
-          extname,
-          size,
-          mimetype,
-          path,
-          meta,
-          url,
-          createById,
-          updatedById,
-          storageId,
-        };
-      }
-
-      const parseRes = isJSON(resource);
-      const config: AxiosRequestConfig<any> = {
-        method: 'get',
-        url: resource,
-        responseType: 'stream',
+    const runDefault = async (inheritedTransaction?: Transaction) => {
+      const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
+      const token = this.workflow.app.authManager.jwt.sign({ userId });
+      const isJSON = (str) => {
+        try {
+          return JSON.parse(str);
+        } catch (e) {
+          return false;
+        }
       };
-      const form = new FormData();
-      if (resource.startsWith('data:')) {
-        const matches = resource.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          const contentType = matches[1];
-          const base64Data = matches[2];
-          const buffer = Buffer.from(base64Data, 'base64');
+      //目前可处理url，json对象，base64
+      const handleResource = async (resource) => {
+        if (typeof resource === 'object' && resource?.url && resource?.filename) {
+          // 证明是系统原本的附件类型;
+          // NOTE: 这里是为了取出普通字段, 排除名称不定的中间表关联字段
+          const {
+            id,
+            createdAt,
+            updatedAt,
+            title,
+            filename,
+            extname,
+            size,
+            mimetype,
+            path,
+            meta,
+            url,
+            createById,
+            updatedById,
+            storageId,
+          } = resource || {};
+
+          return {
+            id,
+            createdAt,
+            updatedAt,
+            title,
+            filename,
+            extname,
+            size,
+            mimetype,
+            path,
+            meta,
+            url,
+            createById,
+            updatedById,
+            storageId,
+          };
+        }
+
+        const parseRes = isJSON(resource);
+        const config: AxiosRequestConfig<any> = {
+          method: 'get',
+          url: resource,
+          responseType: 'stream',
+        };
+        const form = new FormData();
+        if (resource.startsWith('data:')) {
+          const matches = resource.match(/^data:(.+);base64,(.+)$/);
+          if (matches) {
+            const contentType = matches[1];
+            const base64Data = matches[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            const ext = mime.extension(contentType);
+            const filename = `${uid()}.${ext}`;
+
+            form.append('file', buffer, {
+              filename,
+              contentType,
+            });
+          } else {
+            throw new Error('Invalid data URL format');
+          }
+        } else if (parseRes) {
+          /**
+           * XXX: 这个 API 不合适, 没有明确显然的指出用法
+           */
+          const {
+            url: resourceUrl,
+            params: resourceParams,
+            headers: resourceHeaders,
+            body: resourceBody,
+            filename,
+          } = parseRes;
+          config.url = resourceUrl;
+          config.params = resourceParams;
+          config.headers = resourceHeaders;
+          if (resourceHeaders['content-type'] === 'multipart/form-data') {
+            const formData = new FormData();
+            Object.entries(resourceBody).forEach(([key, value]) => {
+              formData.append(key, value);
+            });
+            config.data = formData;
+          } else {
+            config.data = resourceBody;
+          }
+          const response = await axios(config);
+          const contentType = response.headers['content-type'];
+          // 根据 MIME 类型获取文件扩展名
+          const ext = mime.extension(contentType);
+          const fullFilename = `${filename ?? uid()}.${ext}`;
+          // 创建 FormData 实例
+          form.append('file', response.data, {
+            filename: fullFilename,
+            contentType: response.headers['content-type'],
+          });
+        } else {
+          // 下载指定 URL 的内容
+          const response = await axios(config);
+          // 获取文件的 MIME 类型
+          const contentType = response.headers['content-type'];
+          // 根据 MIME 类型获取文件扩展名
           const ext = mime.extension(contentType);
           const filename = `${uid()}.${ext}`;
-
-          form.append('file', buffer, {
+          // 创建 FormData 实例
+          form.append('file', response.data, {
             filename,
-            contentType,
+            contentType: response.headers['content-type'],
           });
-        } else {
-          throw new Error('Invalid data URL format');
         }
-      } else if (parseRes) {
-        /**
-         * XXX: 这个 API 不合适, 没有明确显然的指出用法
-         */
-        const {
-          url: resourceUrl,
-          params: resourceParams,
-          headers: resourceHeaders,
-          body: resourceBody,
-          filename,
-        } = parseRes;
-        config.url = resourceUrl;
-        config.params = resourceParams;
-        config.headers = resourceHeaders;
-        if (resourceHeaders['content-type'] === 'multipart/form-data') {
-          const formData = new FormData();
-          Object.entries(resourceBody).forEach(([key, value]) => {
-            formData.append(key, value);
-          });
-          config.data = formData;
-        } else {
-          config.data = resourceBody;
-        }
-        const response = await axios(config);
-        const contentType = response.headers['content-type'];
-        // 根据 MIME 类型获取文件扩展名
-        const ext = mime.extension(contentType);
-        const fullFilename = `${filename ?? uid()}.${ext}`;
-        // 创建 FormData 实例
-        form.append('file', response.data, {
-          filename: fullFilename,
-          contentType: response.headers['content-type'],
+        // 发送 multipart 请求
+        const origin = Gateway.getInstance().runAtLoop;
+        const uploadResponse = await axios({
+          method: 'post',
+          url: origin + '/api/attachments:create',
+          data: form,
+          headers: buildAttachmentUploadHeaders(form.getHeaders(), token, repositoryContext),
         });
-      } else {
-        // 下载指定 URL 的内容
-        const response = await axios(config);
-        // 获取文件的 MIME 类型
-        const contentType = response.headers['content-type'];
-        // 根据 MIME 类型获取文件扩展名
-        const ext = mime.extension(contentType);
-        const filename = `${uid()}.${ext}`;
-        // 创建 FormData 实例
-        form.append('file', response.data, {
-          filename,
-          contentType: response.headers['content-type'],
-        });
-      }
-      // 发送 multipart 请求
-      const origin = Gateway.getInstance().runAtLoop;
-      const uploadResponse = await axios({
-        method: 'post',
-        url: origin + '/api/attachments:create',
-        data: form,
-        headers: buildAttachmentUploadHeaders(form.getHeaders(), token, repositoryContext),
-      });
-      return uploadResponse.data.data;
-    };
+        return uploadResponse.data.data;
+      };
 
-    // 处理文件类型
-    for (const attachmentField of includesFields) {
-      if (attachmentField.options.interface === 'attachment') {
-        let targetField = options.values[attachmentField.options.name];
-        if (Array.isArray(targetField)) {
-          for (const i in targetField) {
-            targetField[i] = await handleResource(targetField[i]);
+      // 处理文件类型
+      for (const attachmentField of includesFields) {
+        if (attachmentField.options.interface === 'attachment') {
+          let targetField = options.values[attachmentField.options.name];
+          if (Array.isArray(targetField)) {
+            for (const i in targetField) {
+              targetField[i] = await handleResource(targetField[i]);
+            }
+          } else {
+            // NOTE: targetField 此时可能是字符串, 因此赋值用原字段
+            options.values[attachmentField.options.name] = [await handleResource(targetField)];
           }
-        } else {
-          // NOTE: targetField 此时可能是字符串, 因此赋值用原字段
-          options.values[attachmentField.options.name] = [await handleResource(targetField)];
         }
       }
-    }
 
-    return withWorkflowDataSourceTransaction(
-      this.workflow,
-      dataSourceName,
-      processor.transaction,
-      async (transaction) => {
-        await guardWorkflowTenantAssociationValues(
-          repositoryContext,
-          dataSource.collectionManager.db,
-          c,
-          options.values,
-          options,
-          transaction,
-        );
-        const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
-        const created = await repository.create({
-          ...repositoryOptions,
-          context: repositoryContext,
-          transaction,
-        });
-
-        let result = created;
-        if (created && appends.length) {
-          const includeFields = appends.reduce((set, field) => {
-            set.add(field.split('.')[0]);
-            set.add(field);
-            return set;
-          }, new Set());
-          result = await repository.findOne({
-            filterByTk: created[filterTargetKey],
-            appends: Array.from(includeFields),
+      return withWorkflowDataSourceTransaction(
+        this.workflow,
+        dataSourceName,
+        inheritedTransaction ?? processor.transaction,
+        async (transaction) => {
+          await guardWorkflowTenantAssociationValues(
+            repositoryContext,
+            dataSource.collectionManager.db,
+            c,
+            options.values,
+            options,
+            transaction,
+          );
+          const repositoryOptions = applyTenantFilterToContext(repositoryContext, c, 'create', options);
+          const created = await repository.create({
+            ...repositoryOptions,
             context: repositoryContext,
             transaction,
           });
-        }
 
-        return {
-          // NOTE: get() for non-proxied instance (#380)
-          result: toJSON(result),
-          status: JOB_STATUS.RESOLVED,
-        };
+          let result = created;
+          if (created && appends.length) {
+            const includeFields = appends.reduce((set, field) => {
+              set.add(field.split('.')[0]);
+              set.add(field);
+              return set;
+            }, new Set());
+            result = await repository.findOne({
+              filterByTk: created[filterTargetKey],
+              appends: Array.from(includeFields),
+              context: repositoryContext,
+              transaction,
+            });
+          }
+
+          return {
+            // NOTE: get() for non-proxied instance (#380)
+            result: toJSON(result),
+            status: JOB_STATUS.RESOLVED,
+          };
+        },
+      );
+    };
+    return runWorkflowWriteResolver(
+      'create',
+      this.workflow,
+      processor,
+      node,
+      {
+        dataSourceName,
+        collectionName,
+        collection: c,
+        context: repositoryContext,
+        params: { ...options, appends },
       },
+      this.resolve,
+      runDefault,
     );
   }
 }

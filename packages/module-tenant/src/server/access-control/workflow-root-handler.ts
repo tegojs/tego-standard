@@ -18,7 +18,7 @@ import { cloneDeep, invalid, plain } from './write-support';
 
 /** Structural contract; the installed workflow plugin supplies its live, instance-bound verifier. */
 export interface AccessWorkflowOperationAuthority {
-  readonly actionName: 'list' | 'destroy';
+  readonly actionName: 'list' | 'destroy' | 'create' | 'update';
   readonly dataSourceName: string;
   readonly collectionName: string;
   readonly collection: unknown;
@@ -46,7 +46,7 @@ export class AccessWorkflowRootHandler {
     if (typeof captureAuthority !== 'function') invalid('Workflow operations require an installed authority verifier');
   }
 
-  private operation(request: unknown, action: AccessWorkflowOperationAuthority['actionName']) {
+  private operation(request: unknown, action: 'list' | 'destroy') {
     if (!plain(request)) invalid('Workflow operation request is unavailable');
     const authority = this.captureAuthority(request);
     if (!plain(authority) || data(authority, 'actionName') !== action)

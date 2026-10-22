@@ -6,6 +6,7 @@ import { AccessBelongsToService } from './belongs-to';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessCreationService } from './creation';
+import { AccessManyToManyService } from './many-to-many';
 import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessMutationService, type ExistingAccessWritePlan } from './mutation';
 import type { AccessQueryService } from './query';
@@ -40,7 +41,12 @@ export interface AccessWorkflowUpdateResult {
   data: Record<string, unknown>[];
 }
 
-/** Capture ordinary fields and existing single-value references; other relationships need separate adapters. */
+type DeferredAssociationEvents = <T>(
+  transaction: Transaction,
+  writer: (flush: () => Promise<void>) => Promise<T>,
+) => Promise<T>;
+
+/** Capture ordinary fields and existing single-value or pure-join references. */
 export function captureWorkflowScalarWrite(
   db: Database,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
@@ -61,10 +67,15 @@ export function captureWorkflowScalarWrite(
       raw.appends.length)
   )
     invalid('Workflow write associations require their own adapter');
-  const references = captureWorkflowWriteReferences(db, resolveIdentity, collection, params.values);
+  const references = captureWorkflowWriteReferences(
+    db,
+    resolveIdentity,
+    collection,
+    Object.getOwnPropertyDescriptor(raw, 'values')?.value,
+  );
   const values = references.values;
   // Ownership handling is checked again against the prepared configuration before writing.
-  if (action === 'create' || Object.keys(values).length || !references.items.length)
+  if (action === 'create' || Object.keys(values).length || !(references.items.length || references.links.length))
     validateRootValues(db, values, collection, action, true);
   const fields = Object.keys(values).map((name) => {
     const field = collection.getField(name);
@@ -134,7 +145,14 @@ export async function executeWorkflowScalarWrite(
   const primary = model.primaryKeyAttribute;
   if (model.primaryKeyAttributes.length !== 1 || collection.filterTargetKey !== primary)
     invalid('Workflow writes require a single primary target key');
-  if (action === 'create' || Object.keys(input.values).length || !input.references.items.length)
+  const related = !!(input.references.items.length || input.references.links.length);
+  const hasLinks = input.references.links.length > 0;
+  const repository = collection.repository as Collection['repository'] & {
+    withDeferredAssociationEvents?: DeferredAssociationEvents;
+  };
+  const defer = repository.withDeferredAssociationEvents;
+  if (hasLinks && typeof defer !== 'function') invalid('Workflow link writes require core deferred association events');
+  if (action === 'create' || Object.keys(input.values).length || !related)
     validateRootValues(db, input.values, collection, action, config.ownership.enabled);
   const condition = action === 'update' ? input.condition.compile(source, input.selection!.requestFilter) : undefined;
   if (condition && condition.rootWhere === undefined)
@@ -144,6 +162,8 @@ export async function executeWorkflowScalarWrite(
     operation.assertCurrent();
     input.assertCurrent();
     ruleMetadata();
+    if (hasLinks && (collection.repository !== repository || repository.withDeferredAssociationEvents !== defer))
+      invalid('Workflow association event capability changed during execution');
     if (
       model.primaryKeyAttributes.length !== 1 ||
       model.primaryKeyAttribute !== primary ||
@@ -153,35 +173,37 @@ export async function executeWorkflowScalarWrite(
     if (prepared.configuration(context, source) !== config) invalid('Workflow write preparation phase changed');
     condition?.assertCurrent();
   };
-  const serializable = input.references.items.length > 0 || requiresSerializable(config, { where }, collection);
+  const serializable = related || requiresSerializable(config, { where }, collection);
   await validateWriteTransaction(db, transaction, serializable);
   assertCurrent();
+  const withEvents = <T>(writer: (flush?: () => Promise<void>) => Promise<T>): Promise<T> =>
+    hasLinks ? defer!.call(repository, transaction!, writer) : writer();
   let keys: Array<string | number>;
   if (action === 'create') {
-    const result = await new AccessCreationService(db, prepared, queries).withCreatedRecordsInTransaction(
-      context,
-      source,
-      authenticated,
-      { values: [input.values], references: input.references.items },
-      transaction!,
-      async (plan) => {
-        assertCurrent();
-        const created = await collection.repository.create({
-          values: plan.values[0],
-          transaction: plan.transaction,
-          context,
-        });
-        assertCurrent();
-        return [created];
-      },
-      assertCurrent,
+    const result = await withEvents((flush) =>
+      new AccessCreationService(db, prepared, queries).withCreatedRecordsInTransaction(
+        context,
+        source,
+        authenticated,
+        { values: [input.values], references: input.references.items, links: input.references.links },
+        transaction!,
+        async (plan) => {
+          assertCurrent();
+          const created = await collection.repository.create({
+            values: plan.values[0],
+            transaction: plan.transaction,
+            context,
+          });
+          assertCurrent();
+          return [created];
+        },
+        assertCurrent,
+        flush,
+      ),
     );
     keys = result.keys;
   } else {
-    if (
-      !input.references.items.length &&
-      !Object.keys(input.values).some((name) => !config.ownership.enabled || name !== 'tenantId')
-    )
+    if (!related && !Object.keys(input.values).some((name) => !config.ownership.enabled || name !== 'tenantId'))
       invalid('No ordinary workflow fields to update');
     const explicit = input.selection!.params.filterByTk;
     if (explicit !== undefined) keys = normalizeKeys(Array.isArray(explicit) ? explicit : [explicit], collection);
@@ -225,40 +247,71 @@ export async function executeWorkflowScalarWrite(
         assertCurrent();
       }
     };
-    const result = input.references.items.length
-      ? await new AccessBelongsToService(
-          db,
-          prepared,
-          queries,
-          mutations,
-          new AccessReferenceService(db, prepared, queries),
-        ).withReferencesInTransaction(
-          context,
-          source,
-          authenticated,
-          {
-            sourceKeys: keys,
-            sourceWhere: where,
-            sourceValues: Object.keys(input.values).length ? input.values : undefined,
-            references: input.references.items.map((item) => ({
-              association: item.association,
-              target: item.target,
-              targetKey: item.key,
-            })),
-          },
-          transaction!,
-          writer,
-          { assertCurrent, targetScope: async () => ({}) },
+    const referenceUpdates = input.references.items.map((item) => ({
+      association: item.association,
+      target: item.target,
+      targetKey: item.key,
+    }));
+    const result = input.references.links.length
+      ? await withEvents((afterPersist) =>
+          new AccessManyToManyService(
+            db,
+            prepared,
+            queries,
+            mutations,
+            new AccessReferenceService(db, prepared, queries),
+          ).withLinkSetsInTransaction(
+            context,
+            source,
+            authenticated,
+            {
+              sourceKeys: keys,
+              sourceWhere: where,
+              sourceValues: Object.keys(input.values).length ? input.values : undefined,
+              links: input.references.links.map((link) => ({
+                association: link.association,
+                target: link.target,
+                through: link.through,
+                operation: 'set',
+                targetKeys: link.keys,
+              })),
+              references: referenceUpdates,
+              ...input.selection!.hookOptions,
+            },
+            transaction!,
+            { assertCurrent, targetScope: async () => ({}), referenceScope: async () => ({}), afterPersist },
+          ),
         )
-      : await mutations.withExistingRecordsInTransaction(
-          context,
-          source,
-          authenticated,
-          { operation: 'update', keys, values: input.values, where },
-          transaction!,
-          writer,
-          assertCurrent,
-        );
+      : input.references.items.length
+        ? await new AccessBelongsToService(
+            db,
+            prepared,
+            queries,
+            mutations,
+            new AccessReferenceService(db, prepared, queries),
+          ).withReferencesInTransaction(
+            context,
+            source,
+            authenticated,
+            {
+              sourceKeys: keys,
+              sourceWhere: where,
+              sourceValues: Object.keys(input.values).length ? input.values : undefined,
+              references: referenceUpdates,
+            },
+            transaction!,
+            writer,
+            { assertCurrent, targetScope: async () => ({}) },
+          )
+        : await mutations.withExistingRecordsInTransaction(
+            context,
+            source,
+            authenticated,
+            { operation: 'update', keys, values: input.values, where },
+            transaction!,
+            writer,
+            assertCurrent,
+          );
     keys = result.keys;
   }
   assertCurrent();

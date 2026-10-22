@@ -1,5 +1,5 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
-import { ACL, Transaction } from '@tego/server';
+import { ACL, Repository, Transaction } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../../../../module-workflow/src/server/constants';
 import type WorkflowPlugin from '../../../../../module-workflow/src/server/Plugin';
@@ -14,8 +14,10 @@ import { isolatedPostgresDatabase } from './database';
 import { configFor, ownerCondition } from './fixtures';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
+const supportsDeferredAssociationEvents =
+  typeof (Repository.prototype as unknown as Record<string, unknown>).withDeferredAssociationEvents === 'function';
 
-describe.runIf(!!postgresUrl)('configured workflow single-value reference writes', () => {
+describe.runIf(!!postgresUrl)('configured workflow existing reference writes', () => {
   let app: MockServer;
   let plugin: WorkflowPlugin;
   let adapter: AccessAclScopeAdapter;
@@ -34,7 +36,11 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
   let tamper: boolean;
   let failLater: boolean;
   let release: boolean;
-  const identity = (collection) => (collection === documents ? source : collection === projects ? target : undefined);
+  let transformInput: ((input) => void) | undefined;
+  const joinIdentities = new Map();
+  const joins = new Map();
+  const identity = (collection) =>
+    collection === documents ? source : collection === projects ? target : joinIdentities.get(collection);
   const targetConfig = () => ({
     ...configFor(ownerCondition),
     rules: [
@@ -83,6 +89,7 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
             },
             createResolver: () => async (input) => {
               request = input;
+              transformInput?.(input);
               if (planning) {
                 const [rows] = await app.db.sequelize.query(
                   "SELECT current_setting('transaction_isolation') AS transaction_isolation",
@@ -96,6 +103,7 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
             },
             updateResolver: () => async (input) => {
               request = input;
+              transformInput?.(input);
               if (planning) {
                 const [rows] = await app.db.sequelize.query(
                   "SELECT current_setting('transaction_isolation') AS transaction_isolation",
@@ -142,6 +150,23 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
     await documents.model.sync();
     source = { dataSourceKey: 'main', collectionKey: documentRow.get('key'), collectionName: documents.name };
     target = { dataSourceKey: 'main', collectionKey: projectRow.get('key'), collectionName: projects.name };
+    for (const name of ['tags', 'otherTags']) {
+      const row = await repo.create({
+        context: {},
+        values: { name: `workflowReference_${name}`, timestamps: false, fields: [] },
+      });
+      const join = app.db.getCollection(`workflowReference_${name}`);
+      documents.setField(name, {
+        type: 'belongsToMany',
+        target: projects.name,
+        through: join.name,
+        foreignKey: 'documentId',
+        otherKey: 'projectId',
+      });
+      await join.model.sync({ alter: true });
+      joins.set(name, join);
+      joinIdentities.set(join, { dataSourceKey: 'main', collectionKey: row.get('key'), collectionName: join.name });
+    }
     const tenants = app.db.collection({
       name: 'tenants',
       timestamps: false,
@@ -195,8 +220,10 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
     planningCalls = 0;
     actualIsolation = undefined;
     request = undefined;
+    transformInput = undefined;
     await save(source, configFor(ownerCondition));
     await save(target, targetConfig());
+    for (const join of joins.values()) await join.model.destroy({ where: {}, hooks: false });
     await documents.model.destroy({ where: {}, hooks: false });
     await projects.model.destroy({ where: {}, hooks: false });
     await projects.model.bulkCreate([
@@ -223,6 +250,7 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
   });
   afterEach(async () => {
     vi.restoreAllMocks();
+    for (const join of joins.values()) join.model.removeHook('afterBulkCreate', 'workflowLinkTest');
     await workflow?.update({ enabled: false });
   });
   afterAll(async () => {
@@ -238,6 +266,10 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
     }
   });
   const get = async (id = 1) => (await documents.model.findByPk(id))?.get({ plain: true });
+  const linked = async (id = 1, name = 'tags') =>
+    (await joins.get(name).model.findAll({ where: { documentId: id }, order: [['projectId', 'ASC']] })).map((row) =>
+      row.getDataValue('projectId'),
+    );
   async function execute(kind: 'create' | 'update', params: object, serializable: boolean | null = true) {
     await workflow.createNode({ type: kind, config: { collection: documents.name, params } });
     const transaction =
@@ -263,6 +295,37 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
       throw error;
     }
   }
+
+  it.each(['create', 'update'] as const)(
+    'refuses %s links before writing when the core lifecycle capability is missing',
+    async (kind) => {
+      const repository = documents.repository;
+      const previous = Object.getOwnPropertyDescriptor(repository, 'withDeferredAssociationEvents');
+      Object.defineProperty(repository, 'withDeferredAssociationEvents', { value: undefined, configurable: true });
+      let writes = 0;
+      const listener = () => {
+        writes++;
+      };
+      const event = `${documents.name}.after${kind === 'create' ? 'Create' : 'Update'}`;
+      app.db.on(event, listener);
+      try {
+        const job = await execute(kind, {
+          ...(kind === 'update' ? { filterByTk: 1 } : {}),
+          values: { ...(kind === 'create' ? { id: 100 } : {}), name: 'Must not write', tags: [101] },
+        });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/deferred association events/i);
+        expect(writes).toBe(0);
+        expect(await get(100)).toBeUndefined();
+        expect((await get()).name).toBe('First');
+        expect(await linked()).toEqual([]);
+      } finally {
+        app.db.off(event, listener);
+        if (previous) Object.defineProperty(repository, 'withDeferredAssociationEvents', previous);
+        else delete repository.withDeferredAssociationEvents;
+      }
+    },
+  );
 
   describe('node-owned transactions planned from written fields', () => {
     it.each([
@@ -344,6 +407,347 @@ describe.runIf(!!postgresUrl)('configured workflow single-value reference writes
       expect(planningCalls).toBe(0);
       expect(actualIsolation).toBe('read committed');
       expect((await get(3)).projectId).toBe(103);
+    });
+  });
+
+  describe.runIf(supportsDeferredAssociationEvents)('existing many-to-many connections', () => {
+    it.each(['create', 'update'] as const)(
+      'saves %s scalar fields, multiple links and a single reference atomically',
+      async (kind) => {
+        planning = true;
+        const job = await execute(
+          kind,
+          {
+            ...(kind === 'update' ? { filterByTk: 1 } : {}),
+            values: {
+              ...(kind === 'create' ? { id: 100 } : {}),
+              name: 'Links',
+              project: 103,
+              tags: [101, 104],
+              otherTags: [103],
+            },
+          },
+          null,
+        );
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        const id = kind === 'create' ? 100 : 1;
+        expect(await get(id)).toMatchObject({ tenantId: 'B', name: 'Links', projectId: 103 });
+        expect(await linked(id)).toEqual([101, 104]);
+        expect(await linked(id, 'otherTags')).toEqual([103]);
+        expect(actualIsolation).toBe('serializable');
+        const result = kind === 'create' ? job.result : job.result.data[0];
+        expect(result.tags).toBeUndefined();
+        expect((await projects.model.findByPk(104)).getDataValue('tenantId')).toBeNull();
+      },
+    );
+  });
+
+  describe.runIf(supportsDeferredAssociationEvents)('many-to-many write boundaries', () => {
+    it.each([false, true])('handles link-only lifecycle without notifying unchanged links (%s)', async (unchanged) => {
+      if (unchanged) await joins.get('tags').model.create({ documentId: 3, projectId: 101 });
+      const observed: number[][] = [];
+      const listener = async (_record, options) => {
+        const rows = await joins
+          .get('tags')
+          .model.findAll({ where: { documentId: 3 }, transaction: options.transaction });
+        observed.push(rows.map((row) => row.getDataValue('projectId')));
+      };
+      const event = `${documents.name}.afterUpdateWithAssociations`;
+      app.db.on(event, listener);
+      let job;
+      try {
+        job = await execute('update', { filterByTk: 3, values: { tags: [101] } });
+      } finally {
+        app.db.off(event, listener);
+      }
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(unchanged ? 0 : 1);
+      expect(observed).toEqual(unchanged ? [] : [[101]]);
+      expect((await get(3)).name).toBe('Second');
+      expect(await linked(3)).toEqual([101]);
+    });
+    it.each(['create', 'update'] as const)(
+      'rolls back %s and its links when the flushed listener fails',
+      async (kind) => {
+        let notifications = 0;
+        const event = `${documents.name}.${kind === 'create' ? 'afterCreateWithAssociations' : 'afterUpdateWithAssociations'}`;
+        const listener = async (_record, options) => {
+          options.transaction.afterCommit(() => {
+            notifications++;
+          });
+          throw new Error('association listener failed');
+        };
+        app.db.on(event, listener);
+        let job;
+        try {
+          job = await execute(kind, {
+            ...(kind === 'update' ? { filterByTk: 3 } : {}),
+            values: { ...(kind === 'create' ? { id: 100 } : {}), name: 'Must roll back', tags: [101] },
+          });
+        } finally {
+          app.db.off(event, listener);
+        }
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toBe('association listener failed');
+        expect(notifications).toBe(0);
+        expect(await get(100)).toBeUndefined();
+        expect((await get(3)).name).toBe('Second');
+        expect(await linked(kind === 'create' ? 100 : 3)).toEqual([]);
+      },
+    );
+    it.each([
+      ['create', 'ownership'],
+      ['create', 'connections'],
+      ['update', 'ownership'],
+      ['update', 'connections'],
+    ] as const)('rechecks %s %s after flushed listeners', async (kind, tamper) => {
+      const id = kind === 'create' ? 100 : 3;
+      const event = `${documents.name}.${kind === 'create' ? 'afterCreateWithAssociations' : 'afterUpdateWithAssociations'}`;
+      const listener = async (_record, options) => {
+        if (tamper === 'ownership')
+          await documents.model.update(
+            { tenantId: 'C' },
+            { where: { id }, transaction: options.transaction, hooks: false },
+          );
+        else
+          await joins
+            .get('tags')
+            .model.destroy({ where: { documentId: id }, transaction: options.transaction, hooks: false });
+      };
+      app.db.on(event, listener);
+      let job;
+      try {
+        job = await execute(kind, {
+          ...(kind === 'update' ? { filterByTk: id } : {}),
+          values: { ...(kind === 'create' ? { id } : {}), name: 'Must roll back', tags: [101] },
+        });
+      } finally {
+        app.db.off(event, listener);
+      }
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await get(100)).toBeUndefined();
+      expect(await get(3)).toMatchObject({ name: 'Second', tenantId: 'B' });
+      expect(await linked(id)).toEqual([]);
+    });
+    it.each(['create', 'update'] as const)(
+      'exposes completed connections to the %s association lifecycle event',
+      async (kind) => {
+        const event = `${documents.name}.${kind === 'create' ? 'afterCreateWithAssociations' : 'afterUpdateWithAssociations'}`;
+        const observed: number[][] = [];
+        const listener = async (record, options) => {
+          const rows = await joins.get('tags').model.findAll({
+            where: { documentId: record.getDataValue('id') },
+            transaction: options.transaction,
+            order: [['projectId', 'ASC']],
+          });
+          observed.push(rows.map((row) => row.getDataValue('projectId')));
+        };
+        app.db.on(event, listener);
+        let job;
+        try {
+          job = await execute(kind, {
+            ...(kind === 'update' ? { filterByTk: 1 } : {}),
+            values: { ...(kind === 'create' ? { id: 100 } : {}), name: 'Lifecycle', tags: [101] },
+          });
+        } finally {
+          app.db.off(event, listener);
+        }
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(observed).toEqual([[101]]);
+      },
+    );
+    it.each([103, 101])('checks create G against the persisted connections (%s)', async (key) => {
+      await save(
+        source,
+        configFor({
+          type: 'exists',
+          path: 'tags',
+          condition: {
+            type: 'compare',
+            operator: 'eq',
+            left: { type: 'field', path: 'name' },
+            right: { type: 'literal', value: 'Owned' },
+          },
+        }),
+      );
+      const job = await execute('create', { values: { id: 100, tags: [key] } });
+      expect(job.status).toBe(key === 103 ? EXECUTION_STATUS.RESOLVED : EXECUTION_STATUS.ERROR);
+      expect(!!(await get(100))).toBe(key === 103);
+      expect(await linked(100)).toEqual(key === 103 ? [103] : []);
+    });
+    it('captures connection keys and the canonical actor before configuration awaits', async () => {
+      const read = store.read.bind(store);
+      vi.spyOn(store, 'read').mockImplementation(async (identity) => {
+        const config = await read(identity);
+        request.params.values.tags[0] = 102;
+        request.context.state.currentTenantId = 'C';
+        return config;
+      });
+      const job = await execute('create', { values: { id: 100, tags: [103] } });
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect((await get(100)).tenantId).toBe('B');
+      expect(await linked(100)).toEqual([103]);
+    });
+    it.each([102, 999])('rejects an unreadable added target %s without partial writes', async (key) => {
+      const job = await execute('update', {
+        filterByTk: 1,
+        values: { name: 'No', project: 103, tags: [101], otherTags: [key] },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await get()).toMatchObject({ name: 'First', projectId: 101 });
+      expect(await linked()).toEqual([]);
+    });
+    it('requires G for every explicitly selected source', async () => {
+      const job = await execute('update', { filterByTk: [1, 2], values: { tags: [101] } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await linked()).toEqual([]);
+      expect(await linked(2)).toEqual([]);
+    });
+    it('updates only G-matching sources under a root filter', async () => {
+      const job = await execute('update', { filter: { id: { $in: [1, 2, 3] } }, values: { tags: [104] } });
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.data.map((row) => row.id)).toEqual([1, 3]);
+      expect(await linked()).toEqual([104]);
+      expect(await linked(2)).toEqual([]);
+    });
+    it.each([false, true])('preserves or clears hidden old connections (%s)', async (clear) => {
+      await joins.get('tags').repository.create({ values: { documentId: 1, projectId: 102 } });
+      const job = await execute('update', { filterByTk: 1, values: { tags: clear ? [] : [102] } });
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(clear ? 1 : 0);
+      expect(await linked()).toEqual(clear ? [] : [102]);
+      expect((await projects.model.findByPk(102)).getDataValue('tenantId')).toBe('C');
+    });
+    it.each([false, true])('claims a historical source only for a changed connection (%s)', async (changed) => {
+      await save(
+        source,
+        configFor({
+          type: 'any',
+          children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+        }),
+      );
+      await joins.get('tags').repository.create({ values: { documentId: 5, projectId: 103 } });
+      const job = await execute('update', { filterByTk: [1, 5], values: { tags: changed ? [104] : [103] } });
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.data.map((row) => row.id)).toEqual(changed ? [1, 5] : [1]);
+      expect((await get(5)).tenantId).toBe(changed ? 'B' : null);
+      expect((await projects.model.findByPk(104)).getDataValue('tenantId')).toBeNull();
+    });
+    it.each([false, true])('preserves configured source individualHooks (%s)', async (individualHooks) => {
+      failLater = true;
+      const job = await execute('update', { filterByTk: 3, individualHooks, values: { name: 'Hooked', tags: [101] } });
+      expect(job.status, job.result?.stack).toBe(individualHooks ? EXECUTION_STATUS.ERROR : EXECUTION_STATUS.RESOLVED);
+      expect((await get(3)).name).toBe(individualHooks ? 'Second' : 'Hooked');
+      expect(await linked(3)).toEqual(individualHooks ? [] : [101]);
+    });
+    it('rolls back every field and notification when a later join hook fails', async () => {
+      let notified = false;
+      joins.get('otherTags').model.addHook('afterBulkCreate', 'workflowLinkTest', async (_rows, options) => {
+        options.transaction.afterCommit(() => {
+          notified = true;
+        });
+        throw new Error('later join failed');
+      });
+      const job = await execute('update', {
+        filterByTk: 1,
+        values: { name: 'No', project: 103, tags: [101], otherTags: [104] },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toBe('later join failed');
+      expect(await get()).toMatchObject({ name: 'First', projectId: 101 });
+      expect(await linked()).toEqual([]);
+      expect(await linked(1, 'otherTags')).toEqual([]);
+      expect(notified).toBe(false);
+    });
+    it('rejects a join hook replacing an authorized target key', async () => {
+      joins.get('tags').model.addHook('afterBulkCreate', 'workflowLinkTest', async (_rows, options) => {
+        await joins
+          .get('tags')
+          .model.update(
+            { projectId: 102 },
+            { where: { documentId: 1 }, transaction: options.transaction, hooks: false },
+          );
+      });
+      const job = await execute('update', { filterByTk: 1, values: { tags: [101] } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await linked()).toEqual([]);
+    });
+    it.each(['joinIdentity', 'relation', 'column'] as const)('rejects %s drift during preparation', async (part) => {
+      const join = joins.get('tags');
+      const stable = joinIdentities.get(join);
+      const key = stable.collectionKey;
+      const relation = documents.model.associations.tags;
+      const column = join.model.rawAttributes.projectId.field;
+      const read = store.read.bind(store);
+      vi.spyOn(store, 'read').mockImplementation(async (identity) => {
+        const config = await read(identity);
+        if (part === 'joinIdentity') stable.collectionKey = 'replacement';
+        else if (part === 'relation') documents.model.associations.tags = Object.create(relation);
+        else join.model.rawAttributes.projectId.field = 'replacement_project';
+        return config;
+      });
+      let job;
+      try {
+        job = await execute('create', { values: { id: 100, tags: [101] } });
+      } finally {
+        stable.collectionKey = key;
+        documents.model.associations.tags = relation;
+        join.model.rawAttributes.projectId.field = column;
+      }
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await get(100)).toBeUndefined();
+    });
+    it.each([
+      ['null', null],
+      ['scalar', 101],
+      ['nested', [{ id: 101 }]],
+      ['placeholder', ['_']],
+      ['oversized', Array.from({ length: 1001 }, () => 101)],
+    ])('rejects %s link values', async (_name, tags) => {
+      const job = await execute('update', { filterByTk: 1, values: { tags } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await linked()).toEqual([]);
+    });
+    it.each(['prototype', 'sparse', 'symbol'] as const)('rejects an original %s array before copying', async (part) => {
+      transformInput = (input) => {
+        const tags = input.params.values.tags;
+        if (part === 'prototype') Object.setPrototypeOf(tags, Object.create(Array.prototype));
+        else if (part === 'sparse') delete tags[0];
+        else tags[Symbol('extra')] = true;
+      };
+      const job = await execute('update', { filterByTk: 1, values: { tags: [101] } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await linked()).toEqual([]);
+    });
+    it('deduplicates target IDs while preserving zero', async () => {
+      await projects.model.create({ id: 0, name: 'Zero', tenantId: 'B' });
+      const job = await execute('update', { filterByTk: 1, values: { tags: [0, 101, '0101'] } });
+      expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(await linked()).toEqual([0, 101]);
+    });
+    it('rejects a through table containing business fields', async () => {
+      const join = joins.get('tags');
+      join.setField('note', { type: 'string' });
+      let job;
+      try {
+        job = await execute('update', { filterByTk: 1, values: { tags: [101] } });
+      } finally {
+        join.removeField('note');
+      }
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await linked()).toEqual([]);
+    });
+    it('rejects independently controlled through records', async () => {
+      const join = joins.get('tags');
+      const read = store.read.bind(store);
+      const config = configFor({ type: 'all', children: [] });
+      config.ownership.enabled = false;
+      vi.spyOn(store, 'read').mockImplementation((identity) =>
+        identity.collectionName === join.name ? Promise.resolve(config) : read(identity),
+      );
+      const job = await execute('update', { filterByTk: 1, values: { tags: [101] } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(await linked()).toEqual([]);
     });
   });
 

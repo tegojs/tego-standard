@@ -310,7 +310,9 @@
 
 统一修改/删除服务另提供 `withExistingRecordsInTransaction`，复用调用方已开启的业务事务；原 `withExistingRecords` 继续自行管理事务。两者共用原有锁定、归属性授权、历史数据限制和写后验证，不把可见性当作写入权限。已有事务必须属于目标数据库、仍有效且满足原隔离要求，不得偷偷替换、提升或提前提交。调用方必须在任何授权或写后检查失败时回滚整个事务，不能捕获异常后继续提交。后续工作流适配还需协调其事务建立方式：SQLite 的默认 DEFERRED 不能当作已满足服务要求，涉及关联事实的 PostgreSQL 写入仍需 SERIALIZABLE；本批不放宽这些限制。
 
-单值关联引用更新同样提供 `AccessBelongsToService.withReferencesInTransaction`，复用目标同库有效根 PostgreSQL SERIALIZABLE 写事务。它与原自建事务入口共用来源 G、目标 G/V、未变化引用、历史来源认领及关系写后检查；仅引用不修改或认领目标。方法自身不结束调用方事务，较晚失败须回滚此前全部写入；提交时才出现的串行化冲突由调用方处理。该基础能力已用独立临时 PostgreSQL 实例验证，不等于工作流关联写入适配已接通，见配置实施记录 §63。
+单值关联引用更新同样提供 `AccessBelongsToService.withReferencesInTransaction`，复用目标同库有效根 PostgreSQL SERIALIZABLE 写事务。它与原自建事务入口共用来源 G、目标 G/V、未变化引用、历史来源认领及关系写后检查；仅引用不修改或认领目标。方法自身不结束调用方事务，较晚失败须回滚此前全部写入；提交时才出现的串行化冲突由调用方处理。该基础能力已用独立临时 PostgreSQL 实例验证；事务接口见配置实施记录 §63，工作流单值引用适配及自动规划见 §64–65。
+
+普通多对多连接更新另提供 `AccessManyToManyService.withLinkSetsInTransaction`，复用同库有效根 PostgreSQL SERIALIZABLE 调用方事务，与原 `withLinkSets` 共用完整执行过程；原 `withLinks/withLinkSets` 继续自建事务。来源 G、增加目标的独立 G/V、纯连接表限制、锁、变化集合、历史认领、混合单值引用和写后检查保持原规则。服务不升级或结束调用方事务，调用方在任何失败后须回滚整笔事务；执行期冲突沿用原错误映射，提交阶段冲突由调用方处理。独立 PostgreSQL 已验证未提交不可见、afterCommit 延迟、晚失败回滚和历史 noop/claim；SQLite 明确拒绝关联写入。此能力尚未接到真实工作流多对多字段，也未注册正式运行时，见配置实施记录 §66。
 
 新增服务同样提供 `withCreatedRecordsInTransaction`，共用原 `withCreatedRecords` 的归属注入、真实 INSERT 收据、关联保护、G 写后校验和错误映射。该方法不启动、替换或结束调用方事务；任意错误由调用方回滚整笔事务，通知必须挂在原事务 afterCommit。INSERT 收据同时绑定本次异步调用、数据库事务和模型，同一事务内并行或嵌套的已授权新增互不借用收据，也不把其他调用的合法 INSERT 误判为多写；每次结束均清理自己的观察器。SQLite 已覆盖事务责任和并行/嵌套调用，这不代表 PostgreSQL 多连接并发已验收；真正节点的新租户新增/修改组合仍待接入，见配置实施记录 §60。
 

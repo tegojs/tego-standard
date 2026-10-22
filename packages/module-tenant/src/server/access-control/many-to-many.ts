@@ -58,6 +58,13 @@ export interface ManyToManyLinkSetsRequest
   references?: BelongsToReferenceUpdate[];
 }
 
+export interface ManyToManyLinkSetsWriteEntry {
+  assertCurrent(): void;
+  targetScope(index: number): Promise<{ where?: WhereOptions }>;
+  referenceScope?(index: number): Promise<{ where?: WhereOptions }>;
+  authorizeChanges?(index: number, keys: string[], transaction: Transaction): Promise<void>;
+}
+
 /** Changes pure join rows and an optional source patch; never edits/deletes targets. */
 export class AccessManyToManyService {
   constructor(
@@ -139,12 +146,31 @@ export class AccessManyToManyService {
     source: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: ManyToManyLinkSetsRequest,
-    entry?: {
-      assertCurrent(): void;
-      targetScope(index: number): Promise<{ where?: WhereOptions }>;
-      referenceScope?(index: number): Promise<{ where?: WhereOptions }>;
-      authorizeChanges?(index: number, keys: string[], transaction: Transaction): Promise<void>;
-    },
+    entry?: ManyToManyLinkSetsWriteEntry,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    return this.writeLinkSets(ctx, source, authenticated, request, entry);
+  }
+
+  /** The caller owns commit/rollback and must roll back the whole transaction on any error. */
+  async withLinkSetsInTransaction(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ManyToManyLinkSetsRequest,
+    transaction: Transaction,
+    entry?: ManyToManyLinkSetsWriteEntry,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (!(transaction instanceof Transaction)) invalid('An active root write transaction is required');
+    return this.writeLinkSets(ctx, source, authenticated, request, entry, transaction);
+  }
+
+  private async writeLinkSets(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ManyToManyLinkSetsRequest,
+    entry?: ManyToManyLinkSetsWriteEntry,
+    inheritedTransaction?: Transaction,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     source = { ...source };
     authenticated = { ...authenticated };
@@ -285,270 +311,267 @@ export class AccessManyToManyService {
       return left < right ? -1 : left > right ? 1 : 0;
     });
     try {
-      return await this.db.sequelize.transaction(
-        { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
-        async (transaction) => {
-          await validateWriteTransaction(this.db, transaction, true);
-          current();
-          const sourceRequest = {
-            keys: sourceKeys,
-            where: request.sourceWhere,
-            bind: request.sourceBind,
-          };
-          const plan =
-            request.sourceValues === undefined
-              ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
-              : await this.mutations.authorizeExisting(
-                  ctx,
-                  source,
-                  authenticated,
-                  { ...sourceRequest, operation: 'update', values: request.sourceValues },
-                  transaction,
-                );
-          current();
-          const referenceChanges = new Set<string>();
-          for (const [index, { reference, relation, targetKey }] of references.entries()) {
-            const changed = plan.records.filter((record) => {
-              const old = record.getDataValue(relation.foreignKey);
-              return (old == null ? null : normalizeKeys([old], relation.target)[0]) !== targetKey;
-            });
-            for (const record of changed)
-              referenceChanges.add(
-                normalizeKeys([record.getDataValue(relation.sourceModel.primaryKeyAttribute)], relation.source)[0],
-              );
-            if (targetKey !== null && (changed.length || !entry)) {
-              const scope = await entry?.referenceScope?.(index);
-              current();
-              await this.references.authorizeTargets(
+      const execute = async (transaction: Transaction) => {
+        await validateWriteTransaction(this.db, transaction, true);
+        current();
+        const sourceRequest = {
+          keys: sourceKeys,
+          where: request.sourceWhere,
+          bind: request.sourceBind,
+        };
+        const plan =
+          request.sourceValues === undefined
+            ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
+            : await this.mutations.authorizeExisting(
                 ctx,
-                reference.target,
+                source,
                 authenticated,
-                {
-                  keys: [targetKey],
-                  where: { [Op.and]: [relation.scope ?? {}, reference.targetWhere ?? {}, scope?.where ?? {}] },
-                  bind: reference.targetBind,
-                },
+                { ...sourceRequest, operation: 'update', values: request.sourceValues },
                 transaction,
               );
-              current();
-            }
-          }
-          for (const { link, relation, targetKeys } of ordered) {
-            if (targetKeys.length && !entry)
-              await this.references.authorizeTargets(
-                ctx,
-                link.target,
-                authenticated,
-                {
-                  keys: targetKeys,
-                  where: { [Op.and]: [relation.scope ?? {}, link.targetWhere ?? {}] },
-                  bind: link.targetBind,
-                },
-                transaction,
-              );
-          }
-          current();
-          const primary = relation.sourceModel.primaryKeyAttribute;
-          const readLinks = async (relation: ReturnType<typeof resolveManyToMany>) => {
-            const rows = await relation.throughModel.unscoped().findAll(
-              internalQuery({
-                where: { [relation.foreignKey]: { [Op.in]: sourceKeys } },
-                transaction,
-                order: [
-                  [relation.foreignKey, 'ASC'] as [string, string],
-                  [relation.otherKey, 'ASC'] as [string, string],
-                ],
-                lock: transaction.LOCK.UPDATE,
-                limit: 10001,
-              }),
+        current();
+        const referenceChanges = new Set<string>();
+        for (const [index, { reference, relation, targetKey }] of references.entries()) {
+          const changed = plan.records.filter((record) => {
+            const old = record.getDataValue(relation.foreignKey);
+            return (old == null ? null : normalizeKeys([old], relation.target)[0]) !== targetKey;
+          });
+          for (const record of changed)
+            referenceChanges.add(
+              normalizeKeys([record.getDataValue(relation.sourceModel.primaryKeyAttribute)], relation.source)[0],
             );
+          if (targetKey !== null && (changed.length || !entry)) {
+            const scope = await entry?.referenceScope?.(index);
             current();
-            if (rows.length > 10000) invalid('Link mutation exceeds batch limit');
-            const grouped = new Map(sourceKeys.map((key) => [key, new Set<string>()]));
-            for (const row of rows) {
-              const owner = normalizeKeys([row.getDataValue(relation.foreignKey)], relation.source)[0];
-              const key = normalizeKeys([row.getDataValue(relation.otherKey)], relation.target)[0];
-              const set = grouped.get(owner);
-              if (!set || set.has(key)) invalid('Join table contains an invalid or duplicate connection');
-              set.add(key);
-            }
-            return grouped;
-          };
-          let existingCount = 0;
-          const plans: Array<{
-            link: ManyToManyLinkSet;
-            relation: ReturnType<typeof resolveManyToMany>;
-            expected: Map<string, Set<string>>;
-            changes: Map<string, { record: Model; key: string; add: string[]; remove: string[] }>;
-          }> = [];
-          for (const { index, link, relation, targetKeys } of ordered) {
-            const before = await readLinks(relation);
-            existingCount += [...before.values()].reduce((total, keys) => total + keys.size, 0);
-            if (existingCount > 10000) invalid('Link mutation exceeds batch limit');
-            const expected = new Map<string, Set<string>>();
-            const changes: Array<{ record: Model; key: string; add: string[]; remove: string[] }> = [];
-            for (const record of plan.records) {
-              const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
-              const old = before.get(key)!;
-              const desired = link.operation === 'set' ? new Set(targetKeys) : new Set(old);
-              if (link.operation === 'add') for (const id of targetKeys) desired.add(id);
-              if (link.operation === 'remove') for (const id of targetKeys) desired.delete(id);
-              expected.set(key, desired);
-              const add = [...desired].filter((id) => !old.has(id));
-              const remove = [...old].filter((id) => !desired.has(id));
-              if (add.length || remove.length) changes.push({ record, key, add, remove });
-            }
-            const additions = [...new Set(changes.flatMap((change) => change.add))];
-            const changedTargets = [...new Set(changes.flatMap((change) => [...change.add, ...change.remove]))];
-            if (entry?.authorizeChanges && changedTargets.length) {
-              await entry.authorizeChanges(index, changedTargets, transaction);
-              current();
-            }
-            if (entry && additions.length) {
-              const scope = await entry.targetScope(index);
-              current();
-              await this.references.authorizeTargets(
-                ctx,
-                link.target,
-                authenticated,
-                {
-                  keys: additions,
-                  where: { [Op.and]: [relation.scope ?? {}, link.targetWhere ?? {}, scope.where ?? {}] },
-                  bind: link.targetBind,
-                },
-                transaction,
-              );
-              current();
-            }
-            plans.push({ link, relation, expected, changes: new Map(changes.map((change) => [change.key, change])) });
-          }
-          const protectedValues = snapshotProtectedValues(this.db, relation.source, plan.records, [
-            ...references.map(({ relation }) => relation.foreignKey),
-            ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
-          ]);
-          const linkChanges = new Set(plans.flatMap((plan) => [...plan.changes.keys()]));
-          const patches = new Map<string, Record<string, unknown>>();
-          for (const record of plan.records) {
-            const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
-            const values = plan.valuesFor(record);
-            const scalarValues = Object.fromEntries(
-              Object.entries(values).filter(
-                ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
-              ),
-            );
-            const scalarChanged = hasPersistedChanges(record, scalarValues);
-            const patch: Record<string, unknown> = scalarChanged ? scalarValues : {};
-            if (relation.sourceConfig.ownership.enabled && record.getDataValue('tenantId') == null)
-              patch.tenantId = values.tenantId;
-            if (referenceChanges.has(key))
-              for (const { relation, targetKey } of references) patch[relation.foreignKey] = targetKey;
-            if (linkChanges.has(key) || scalarChanged || referenceChanges.has(key)) patches.set(key, patch);
-          }
-          const changed = new Set(patches.keys());
-          const owners = new Map(
-            plan.records.map((record) => {
-              const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
-              return [
-                key,
-                changed.has(key)
-                  ? (plan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'))
-                  : record.getDataValue('tenantId'),
-              ];
-            }),
-          );
-          for (const record of plan.records) {
-            const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
-            if (!patches.has(key)) continue;
-            current();
-            const patch = patches.get(key)!;
-            if (Object.keys(patch).length)
-              await relation.source.repository.update({
-                filterByTk: record.getDataValue(primary),
-                values: patch,
-                transaction,
-                ...(entry ? { context: ctx } : {}),
-              });
-            current();
-            for (const { link, relation, changes } of plans) {
-              const change = changes.get(key);
-              if (!change) continue;
-              const repository = relation.source.repository
-                .relation<BelongsToManyRepository>(link.association)
-                .of(record.getDataValue(primary));
-              for (const operation of ['remove', 'add'] as const) {
-                const targetKeys = change[operation];
-                if (!targetKeys.length) continue;
-                const joinCurrent = () => {
-                  current();
-                  if (
-                    operation === 'remove' &&
-                    (this.db.referenceMap.getReferences(relation.through.name) ?? []).some(
-                      (reference) => !['NO ACTION', 'RESTRICT'].includes(reference.onDelete),
-                    )
-                  )
-                    throw new AccessMutationError(
-                      'UNSUPPORTED_ACCESS_MUTATION',
-                      'Cascaded join writes require their own adapters',
-                      400,
-                    );
-                };
-                joinCurrent();
-                await guardJoinWrite(
-                  this.db,
-                  relation.source,
-                  relation.target,
-                  relation.through,
-                  relation.foreignKey,
-                  relation.otherKey,
-                  transaction,
-                  { operation, sourceKey: key, targetKeys },
-                  joinCurrent,
-                  () => repository[operation]({ tk: targetKeys, transaction, ...(entry ? { context: ctx } : {}) }),
-                );
-              }
-            }
-            current();
-          }
-          await validateWriteTransaction(this.db, transaction, true);
-          current();
-          for (const { relation, expected } of plans) {
-            const actual = await readLinks(relation);
-            for (const key of sourceKeys)
-              if (!isDeepStrictEqual(actual.get(key), expected.get(key)))
-                invalid('Writer changed unauthorized connections');
-          }
-          const after = await relation.sourceModel.unscoped().findAll(
-            internalQuery({
-              where: { [primary]: { [Op.in]: sourceKeys } },
+            await this.references.authorizeTargets(
+              ctx,
+              reference.target,
+              authenticated,
+              {
+                keys: [targetKey],
+                where: { [Op.and]: [relation.scope ?? {}, reference.targetWhere ?? {}, scope?.where ?? {}] },
+                bind: reference.targetBind,
+              },
               transaction,
+            );
+            current();
+          }
+        }
+        for (const { link, relation, targetKeys } of ordered) {
+          if (targetKeys.length && !entry)
+            await this.references.authorizeTargets(
+              ctx,
+              link.target,
+              authenticated,
+              {
+                keys: targetKeys,
+                where: { [Op.and]: [relation.scope ?? {}, link.targetWhere ?? {}] },
+                bind: link.targetBind,
+              },
+              transaction,
+            );
+        }
+        current();
+        const primary = relation.sourceModel.primaryKeyAttribute;
+        const readLinks = async (relation: ReturnType<typeof resolveManyToMany>) => {
+          const rows = await relation.throughModel.unscoped().findAll(
+            internalQuery({
+              where: { [relation.foreignKey]: { [Op.in]: sourceKeys } },
+              transaction,
+              order: [[relation.foreignKey, 'ASC'] as [string, string], [relation.otherKey, 'ASC'] as [string, string]],
+              lock: transaction.LOCK.UPDATE,
+              limit: 10001,
             }),
           );
           current();
-          if (after.length !== sourceKeys.length) invalid('Writer removed a relation source');
-          protectedValues.verify(after);
-          for (const record of after)
-            for (const { relation, targetKey } of references) {
-              const actual = record.getDataValue(relation.foreignKey);
-              if ((actual == null ? null : normalizeKeys([actual], relation.target)[0]) !== targetKey)
-                invalid('Writer did not set the authorized foreign key');
+          if (rows.length > 10000) invalid('Link mutation exceeds batch limit');
+          const grouped = new Map(sourceKeys.map((key) => [key, new Set<string>()]));
+          for (const row of rows) {
+            const owner = normalizeKeys([row.getDataValue(relation.foreignKey)], relation.source)[0];
+            const key = normalizeKeys([row.getDataValue(relation.otherKey)], relation.target)[0];
+            const set = grouped.get(owner);
+            if (!set || set.has(key)) invalid('Join table contains an invalid or duplicate connection');
+            set.add(key);
+          }
+          return grouped;
+        };
+        let existingCount = 0;
+        const plans: Array<{
+          link: ManyToManyLinkSet;
+          relation: ReturnType<typeof resolveManyToMany>;
+          expected: Map<string, Set<string>>;
+          changes: Map<string, { record: Model; key: string; add: string[]; remove: string[] }>;
+        }> = [];
+        for (const { index, link, relation, targetKeys } of ordered) {
+          const before = await readLinks(relation);
+          existingCount += [...before.values()].reduce((total, keys) => total + keys.size, 0);
+          if (existingCount > 10000) invalid('Link mutation exceeds batch limit');
+          const expected = new Map<string, Set<string>>();
+          const changes: Array<{ record: Model; key: string; add: string[]; remove: string[] }> = [];
+          for (const record of plan.records) {
+            const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
+            const old = before.get(key)!;
+            const desired = link.operation === 'set' ? new Set(targetKeys) : new Set(old);
+            if (link.operation === 'add') for (const id of targetKeys) desired.add(id);
+            if (link.operation === 'remove') for (const id of targetKeys) desired.delete(id);
+            expected.set(key, desired);
+            const add = [...desired].filter((id) => !old.has(id));
+            const remove = [...old].filter((id) => !desired.has(id));
+            if (add.length || remove.length) changes.push({ record, key, add, remove });
+          }
+          const additions = [...new Set(changes.flatMap((change) => change.add))];
+          const changedTargets = [...new Set(changes.flatMap((change) => [...change.add, ...change.remove]))];
+          if (entry?.authorizeChanges && changedTargets.length) {
+            await entry.authorizeChanges(index, changedTargets, transaction);
+            current();
+          }
+          if (entry && additions.length) {
+            const scope = await entry.targetScope(index);
+            current();
+            await this.references.authorizeTargets(
+              ctx,
+              link.target,
+              authenticated,
+              {
+                keys: additions,
+                where: { [Op.and]: [relation.scope ?? {}, link.targetWhere ?? {}, scope.where ?? {}] },
+                bind: link.targetBind,
+              },
+              transaction,
+            );
+            current();
+          }
+          plans.push({ link, relation, expected, changes: new Map(changes.map((change) => [change.key, change])) });
+        }
+        const protectedValues = snapshotProtectedValues(this.db, relation.source, plan.records, [
+          ...references.map(({ relation }) => relation.foreignKey),
+          ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
+        ]);
+        const linkChanges = new Set(plans.flatMap((plan) => [...plan.changes.keys()]));
+        const patches = new Map<string, Record<string, unknown>>();
+        for (const record of plan.records) {
+          const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
+          const values = plan.valuesFor(record);
+          const scalarValues = Object.fromEntries(
+            Object.entries(values).filter(
+              ([field]) => !(relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+            ),
+          );
+          const scalarChanged = hasPersistedChanges(record, scalarValues);
+          const patch: Record<string, unknown> = scalarChanged ? scalarValues : {};
+          if (relation.sourceConfig.ownership.enabled && record.getDataValue('tenantId') == null)
+            patch.tenantId = values.tenantId;
+          if (referenceChanges.has(key))
+            for (const { relation, targetKey } of references) patch[relation.foreignKey] = targetKey;
+          if (linkChanges.has(key) || scalarChanged || referenceChanges.has(key)) patches.set(key, patch);
+        }
+        const changed = new Set(patches.keys());
+        const owners = new Map(
+          plan.records.map((record) => {
+            const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
+            return [
+              key,
+              changed.has(key)
+                ? (plan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'))
+                : record.getDataValue('tenantId'),
+            ];
+          }),
+        );
+        for (const record of plan.records) {
+          const key = normalizeKeys([record.getDataValue(primary)], relation.source)[0];
+          if (!patches.has(key)) continue;
+          current();
+          const patch = patches.get(key)!;
+          if (Object.keys(patch).length)
+            await relation.source.repository.update({
+              filterByTk: record.getDataValue(primary),
+              values: patch,
+              transaction,
+              ...(entry ? { context: ctx } : {}),
+            });
+          current();
+          for (const { link, relation, changes } of plans) {
+            const change = changes.get(key);
+            if (!change) continue;
+            const repository = relation.source.repository
+              .relation<BelongsToManyRepository>(link.association)
+              .of(record.getDataValue(primary));
+            for (const operation of ['remove', 'add'] as const) {
+              const targetKeys = change[operation];
+              if (!targetKeys.length) continue;
+              const joinCurrent = () => {
+                current();
+                if (
+                  operation === 'remove' &&
+                  (this.db.referenceMap.getReferences(relation.through.name) ?? []).some(
+                    (reference) => !['NO ACTION', 'RESTRICT'].includes(reference.onDelete),
+                  )
+                )
+                  throw new AccessMutationError(
+                    'UNSUPPORTED_ACCESS_MUTATION',
+                    'Cascaded join writes require their own adapters',
+                    400,
+                  );
+              };
+              joinCurrent();
+              await guardJoinWrite(
+                this.db,
+                relation.source,
+                relation.target,
+                relation.through,
+                relation.foreignKey,
+                relation.otherKey,
+                transaction,
+                { operation, sourceKey: key, targetKeys },
+                joinCurrent,
+                () => repository[operation]({ tk: targetKeys, transaction, ...(entry ? { context: ctx } : {}) }),
+              );
             }
-          if (
-            relation.sourceConfig.ownership.enabled &&
-            after.some(
-              (record) =>
-                record.getDataValue('tenantId') !==
-                owners.get(normalizeKeys([record.getDataValue(primary)], relation.source)[0]),
-            )
+          }
+          current();
+        }
+        await validateWriteTransaction(this.db, transaction, true);
+        current();
+        for (const { relation, expected } of plans) {
+          const actual = await readLinks(relation);
+          for (const key of sourceKeys)
+            if (!isDeepStrictEqual(actual.get(key), expected.get(key)))
+              invalid('Writer changed unauthorized connections');
+        }
+        const after = await relation.sourceModel.unscoped().findAll(
+          internalQuery({
+            where: { [primary]: { [Op.in]: sourceKeys } },
+            transaction,
+          }),
+        );
+        current();
+        if (after.length !== sourceKeys.length) invalid('Writer removed a relation source');
+        protectedValues.verify(after);
+        for (const record of after)
+          for (const { relation, targetKey } of references) {
+            const actual = record.getDataValue(relation.foreignKey);
+            if ((actual == null ? null : normalizeKeys([actual], relation.target)[0]) !== targetKey)
+              invalid('Writer did not set the authorized foreign key');
+          }
+        if (
+          relation.sourceConfig.ownership.enabled &&
+          after.some(
+            (record) =>
+              record.getDataValue('tenantId') !==
+              owners.get(normalizeKeys([record.getDataValue(primary)], relation.source)[0]),
           )
-            throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed source ownership');
-          return {
-            keys: plan.records
-              .filter((record) => patches.has(normalizeKeys([record.getDataValue(primary)], relation.source)[0]))
-              .map((record) => record.getDataValue(primary) as string | number),
-            affected: patches.size,
-          };
-        },
-      );
+        )
+          throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed source ownership');
+        return {
+          keys: plan.records
+            .filter((record) => patches.has(normalizeKeys([record.getDataValue(primary)], relation.source)[0]))
+            .map((record) => record.getDataValue(primary) as string | number),
+          affected: patches.size,
+        };
+      };
+      return inheritedTransaction
+        ? await execute(inheritedTransaction)
+        : await this.db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE }, execute);
     } catch (error) {
       const conflict = error as { original?: { code?: string }; parent?: { code?: string } };
       if ((conflict?.original?.code ?? conflict?.parent?.code) === '40001')

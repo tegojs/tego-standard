@@ -164,11 +164,12 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access many-to-
       ...extra,
     });
 
-  async function linked(source = 3) {
+  async function linked(source = 3, transaction?) {
     const rows = await through.model.findAll({
       attributes: ['documentId', 'projectId'],
       where: { documentId: source },
       order: [['projectId', 'ASC']],
+      transaction,
     });
     return rows.map((row) => row.getDataValue('projectId'));
   }
@@ -179,9 +180,299 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access many-to-
     await adapter.prepare(ctx, [mainIdentity, target, throughIdentity]);
   }
 
+  describe.runIf(dialect === 'postgres')('caller-owned link transactions', () => {
+    const begin = (options = {}) =>
+      db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, ...options });
+    const get = async (id = 3, transaction?) => (await docs.model.findByPk(id, { transaction })).get({ plain: true });
+    const update = async (transaction, patch = {}, entry?) =>
+      links.withLinkSetsInTransaction(
+        ctx,
+        mainIdentity,
+        authenticated,
+        {
+          sourceKeys: [3],
+          sourceValues: { name: 'Caller edited' },
+          links: [{ target, through: throughIdentity, association: 'projects', operation: 'set', targetKeys: [101] }],
+          ...patch,
+        },
+        transaction,
+        entry,
+      );
+    const finish = async (transaction) => {
+      if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+    };
+    it('keeps scalar writes, links and notifications pending until the caller commits', async () => {
+      const transaction = await begin();
+      let notified = false;
+      transaction.afterCommit(() => {
+        notified = true;
+      });
+      try {
+        expect(await update(transaction)).toEqual({ keys: [3], affected: 1 });
+        expect(await linked(3, transaction)).toEqual([101]);
+        expect(await get(3, transaction)).toMatchObject({ name: 'Caller edited' });
+        expect(await linked()).toEqual([]);
+        expect(await get()).toMatchObject({ name: 'Owned' });
+        expect(notified).toBe(false);
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+        await transaction.commit();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([101]);
+      expect((await get()).name).toBe('Caller edited');
+      expect(notified).toBe(true);
+    });
+    it('lets the caller roll back prior writes and links together without publishing notifications', async () => {
+      const transaction = await begin();
+      let notified = false;
+      transaction.afterCommit(() => {
+        notified = true;
+      });
+      try {
+        await docs.model.update({ name: 'Earlier step' }, { where: { id: 1 }, transaction });
+        await update(transaction);
+      } finally {
+        await transaction.rollback();
+      }
+      expect(await linked()).toEqual([]);
+      expect((await get(1)).name).toBe('Shared');
+      expect((await get()).name).toBe('Owned');
+      expect(notified).toBe(false);
+    });
+    it('preserves a late hook error and leaves the caller transaction active for rollback', async () => {
+      const original = new Error('later link insert failed');
+      through.model.addHook('afterBulkCreate', () => {
+        throw original;
+      });
+      const transaction = await begin();
+      try {
+        await expect(update(transaction)).rejects.toBe(original);
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([]);
+      expect((await get()).name).toBe('Owned');
+    });
+    it('refuses insufficient isolation without upgrading the caller transaction', async () => {
+      const transaction = await begin({ isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED });
+      try {
+        await expect(update(transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+        const [rows] = await db.sequelize.query("SELECT current_setting('transaction_isolation') AS isolation", {
+          transaction,
+        });
+        expect((rows as Array<{ isolation: string }>)[0].isolation).toBe('read committed');
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([]);
+    });
+    it('rejects read-only transactions without ending them', async () => {
+      const transaction = await begin({ readOnly: true });
+      try {
+        await expect(update(transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await finish(transaction);
+      }
+    });
+    it('rejects nested savepoints and keeps their root transaction active', async () => {
+      const root = await begin();
+      const nested = await db.sequelize.transaction({ transaction: root });
+      try {
+        await expect(update(nested)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((root as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await nested.rollback();
+        await root.rollback();
+      }
+    });
+    it('rejects ended transactions instead of opening replacements', async () => {
+      const transaction = await begin();
+      await transaction.commit();
+      await expect(update(transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([]);
+    });
+    it('rejects a transaction from a different database instance', async () => {
+      const other = isolatedPostgresDatabase(postgresUrl!);
+      const transaction = await other.sequelize.transaction({
+        isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+      });
+      try {
+        await expect(update(transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await transaction.rollback();
+        await other.close();
+      }
+    });
+    it.each([undefined, null, {}])('rejects missing or invalid caller transactions %j', async (transaction) => {
+      await expect(update(transaction)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([]);
+    });
+    it.each([
+      { sourceKeys: [1] },
+      { links: [{ target, through: throughIdentity, association: 'projects', operation: 'set', targetKeys: [102] }] },
+      { links: [{ target, through: throughIdentity, association: 'projects', operation: 'set', targetKeys: [999] }] },
+    ])('preserves source G and independent target G/V checks: %j', async (patch) => {
+      const transaction = await begin();
+      try {
+        await expect(update(transaction, patch)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([]);
+      expect((await get()).name).toBe('Owned');
+    });
+    it('references a readable legacy target without claiming it', async () => {
+      const transaction = await begin();
+      try {
+        await update(transaction, {
+          links: [{ target, through: throughIdentity, association: 'projects', operation: 'set', targetKeys: [104] }],
+        });
+        await transaction.commit();
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual([104]);
+      expect((await projects.model.findByPk(104)).getDataValue('tenantId')).toBeNull();
+    });
+    it.each([false, true])('claims a legacy source only for a real change (%s)', async (changed) => {
+      await configure(configFor({ type: 'isNull', operand: { type: 'field', path: 'tenantId' } }));
+      const transaction = await begin();
+      try {
+        expect(
+          await update(transaction, {
+            sourceKeys: [5],
+            sourceValues: undefined,
+            links: [
+              {
+                target,
+                through: throughIdentity,
+                association: 'projects',
+                operation: 'set',
+                targetKeys: changed ? [104] : [],
+              },
+            ],
+          }),
+        ).toEqual(changed ? { keys: [5], affected: 1 } : { keys: [], affected: 0 });
+        await transaction.commit();
+      } finally {
+        await finish(transaction);
+      }
+      expect((await get(5)).tenantId).toBe(changed ? 'B' : null);
+      expect(await linked(5)).toEqual(changed ? [104] : []);
+    });
+    it.each(['set', 'remove'] as const)(
+      'preserves hidden old-target %s behavior under an entry decision',
+      async (operation) => {
+        await through.repository.create({ values: { documentId: 3, projectId: 102 } });
+        const transaction = await begin();
+        try {
+          expect(
+            await update(
+              transaction,
+              { links: [{ target, through: throughIdentity, association: 'projects', operation, targetKeys: [102] }] },
+              {
+                assertCurrent() {},
+                targetScope: async () => {
+                  throw new Error('old targets must not be selected again');
+                },
+              },
+            ),
+          ).toEqual({ keys: [3], affected: 1 });
+          await transaction.commit();
+        } finally {
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual(operation === 'set' ? [102] : []);
+        expect((await projects.model.findByPk(102)).getDataValue('tenantId')).toBe('C');
+      },
+    );
+    it.each([104, 102])('saves links and a single-value reference in one caller transaction: %s', async (key) => {
+      await db.sequelize.query('ALTER TABLE m2m_documents ADD COLUMN "billingProjectId" INTEGER');
+      docs.setField('billingProject', { type: 'belongsTo', target: 'projects', foreignKey: 'billingProjectId' });
+      const transaction = await begin();
+      try {
+        const operation = update(transaction, {
+          references: [{ target, association: 'billingProject', targetKey: key }],
+        });
+        if (key === 102) await expect(operation).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        else {
+          expect(await operation).toEqual({ keys: [3], affected: 1 });
+          await transaction.commit();
+        }
+      } finally {
+        await finish(transaction);
+      }
+      expect(await linked()).toEqual(key === 104 ? [101] : []);
+      expect(await get()).toMatchObject({
+        name: key === 104 ? 'Caller edited' : 'Owned',
+        billingProjectId: key === 104 ? 104 : null,
+      });
+      expect((await projects.model.findByPk(104)).getDataValue('tenantId')).toBeNull();
+    });
+    it.each(['owner', 'links', 'phase'] as const)(
+      'rejects %s tampering without committing the caller transaction',
+      async (part) => {
+        through.model.addHook('afterBulkCreate', async (_rows, options) => {
+          if (part === 'owner')
+            await docs.model.update({ tenantId: 'C' }, { where: { id: 3 }, transaction: options.transaction });
+          else if (part === 'links')
+            await through.model.update(
+              { projectId: 102 },
+              { where: { documentId: 3 }, transaction: options.transaction },
+            );
+          else adapter.release(ctx);
+        });
+        const transaction = await begin();
+        try {
+          await expect(update(transaction)).rejects.toMatchObject({
+            code:
+              part === 'owner'
+                ? 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN'
+                : part === 'links'
+                  ? 'INVALID_ACCESS_MUTATION'
+                  : 'INVALID_ACCESS_CONFIG_WRITE',
+          });
+          expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+        } finally {
+          await finish(transaction);
+        }
+        expect(await linked()).toEqual([]);
+        expect(await get()).toMatchObject({ tenantId: 'B', name: 'Owned' });
+      },
+    );
+  });
+
   if (dialect === 'sqlite') {
     it('rejects relationship writes on unvalidated dialects', async () => {
       await expect(mutate('add', [3], [101])).rejects.toMatchObject({ code: 'UNSUPPORTED_ACCESS_MUTATION' });
+      expect(await linked()).toEqual([]);
+    });
+    it('rejects SQLite link writes without ending an inherited transaction', async () => {
+      const transaction = await db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+      try {
+        await expect(
+          links.withLinkSetsInTransaction(
+            ctx,
+            mainIdentity,
+            authenticated,
+            {
+              sourceKeys: [3],
+              links: [
+                { target, through: throughIdentity, association: 'projects', operation: 'add', targetKeys: [101] },
+              ],
+            },
+            transaction,
+          ),
+        ).rejects.toMatchObject({ code: 'UNSUPPORTED_ACCESS_MUTATION' });
+        expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      } finally {
+        await transaction.rollback();
+      }
       expect(await linked()).toEqual([]);
     });
     return;

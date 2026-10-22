@@ -3,6 +3,7 @@ import type { Collection, Database, Transaction } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import { AccessEntryReadService } from './entry-reads';
+import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
 import { captureReadDateContext, type AccessReadDateContext } from './read-date-filter';
 import { parseWorkflowQueryParams } from './resource-read-params';
@@ -14,6 +15,12 @@ import {
 import { captureWorkflowAccessIdentity } from './workflow-identity';
 import { AccessWorkflowQueryHandler, type AccessWorkflowQueryRequest } from './workflow-query-handler';
 import { captureWorkflowReadPlan } from './workflow-read-plan';
+import {
+  captureWorkflowScalarWrite,
+  executeWorkflowScalarWrite,
+  type AccessWorkflowScalarWriteRequest,
+  type AccessWorkflowUpdateResult,
+} from './workflow-scalar-write';
 import { cloneDeep, invalid, plain } from './write-support';
 
 /** Structural contract; the installed workflow plugin supplies its live, instance-bound verifier. */
@@ -46,7 +53,7 @@ export class AccessWorkflowRootHandler {
     if (typeof captureAuthority !== 'function') invalid('Workflow operations require an installed authority verifier');
   }
 
-  private operation(request: unknown, action: 'list' | 'destroy') {
+  private operation(request: unknown, action: AccessWorkflowOperationAuthority['actionName']) {
     if (!plain(request)) invalid('Workflow operation request is unavailable');
     const authority = this.captureAuthority(request);
     if (!plain(authority) || data(authority, 'actionName') !== action)
@@ -175,6 +182,42 @@ export class AccessWorkflowRootHandler {
       plan.assertCurrent();
       return result;
     });
+  }
+
+  async create(request: AccessWorkflowScalarWriteRequest): Promise<Record<string, unknown>> {
+    return (await this.write('create', request)) as Record<string, unknown>;
+  }
+
+  async update(request: AccessWorkflowScalarWriteRequest): Promise<AccessWorkflowUpdateResult> {
+    return (await this.write('update', request)) as AccessWorkflowUpdateResult;
+  }
+
+  private async write(action: 'create' | 'update', request: AccessWorkflowScalarWriteRequest) {
+    const operation = this.operation(request, action);
+    const target = this.target(operation);
+    const input = captureWorkflowScalarWrite(
+      this.db,
+      this.resolveIdentity,
+      target.collection,
+      action,
+      data(request, 'params'),
+    );
+    const metadata = accessMetadataGuard(this.db, [], [{ model: target.collection.model, path: [] }]);
+    return this.prepared.withPrepared(operation.context, [target.source], () =>
+      executeWorkflowScalarWrite(this.db, this.prepared, this.queries, {
+        action,
+        context: operation.context,
+        source: target.source,
+        collection: target.collection,
+        authenticated: operation.authenticated,
+        transaction: operation.transaction,
+        input,
+        assertCurrent: () => {
+          target.assertCurrent();
+          metadata();
+        },
+      }),
+    );
   }
 
   async destroy(request: AccessWorkflowDestroyRequest): Promise<number> {

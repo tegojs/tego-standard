@@ -9,6 +9,7 @@ import {
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { bindWorkflowDataOperationRequest } from '../data-operation-authority';
 import { applyTenantFilterToContext } from '../helpers/tenant-context';
 import type Plugin from '../Plugin';
 import type Processor from '../Processor';
@@ -120,6 +121,7 @@ export class QueryInstruction extends Instruction {
       context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
+    if (this.resolve) bindWorkflowDataOperationRequest(request, 'list', processor, node);
     const execute = this.resolve?.(request);
     let result;
     if (execute === undefined) {

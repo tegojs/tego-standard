@@ -17,6 +17,7 @@ import type { TransactionOptions } from 'sequelize';
 
 import initActions from './actions';
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
+import { captureWorkflowDataOperationAuthority } from './data-operation-authority';
 import {
   getWorkflowExecutionOrigin,
   markEventSourceWorkflowExecution,
@@ -474,6 +475,11 @@ export default class PluginWorkflowServer extends Plugin {
   public createProcessor(execution: ExecutionModel, options = {}): Processor {
     const executionOptions = restoreWorkflowExecutionProvenance(execution, options);
     return new Processor(execution, { ...executionOptions, plugin: this });
+  }
+
+  /** Use the installed plugin instance so loaders cannot create a separate authority registry. */
+  public captureDataOperationAuthority(request: unknown) {
+    return captureWorkflowDataOperationAuthority(request, this);
   }
 
   private async createExecution(workflow: WorkflowModel, context, options): Promise<ExecutionModel | null> {

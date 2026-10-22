@@ -4,6 +4,7 @@ import type { TransactionOptions } from 'sequelize';
 
 import { Instruction } from '.';
 import { JOB_STATUS } from '../constants';
+import { bindWorkflowDataOperationRequest } from '../data-operation-authority';
 import {
   resolveTenantDestroyOptions,
   withWorkflowDataSourceTransaction,
@@ -126,6 +127,7 @@ export class DestroyInstruction extends Instruction {
           context: baseRepositoryContext,
           transaction,
         });
+        if (this.resolve) bindWorkflowDataOperationRequest(request, 'destroy', processor, node);
         const execute = this.resolve?.(request);
         if (execute !== undefined) {
           if (typeof execute !== 'function') {

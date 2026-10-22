@@ -1,6 +1,7 @@
 import { appendArrayColumn, Logger, Model, parse, Transaction, Transactionable } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
+import { withWorkflowNodeExecution } from './data-operation-authority';
 import { Runner } from './instructions';
 import type Plugin from './Plugin';
 import type { ExecutionModel, FlowNodeModel, JobModel } from './types';
@@ -128,7 +129,7 @@ export default class Processor {
       // call instruction to get result and status
       this.logger.info(`execution (${this.execution.id}) run instruction [${node.type}] for node (${node.id})`);
       this.logger.debug(`config of node`, { data: node.config });
-      job = await instruction(node, prevJob, this);
+      job = await withWorkflowNodeExecution(this, node, () => instruction(node, prevJob, this));
       if (!job) {
         return null;
       }

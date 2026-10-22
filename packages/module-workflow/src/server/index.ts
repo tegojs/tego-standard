@@ -1,5 +1,6 @@
 export * from './utils';
 export * from './constants';
+export type { WorkflowDataOperationAuthority } from './data-operation-authority';
 export { applyTenantFilterToContext, getDescendantTenantIds } from './helpers/tenant-context';
 export * from './instructions';
 export { Trigger } from './triggers';

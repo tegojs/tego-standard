@@ -38,6 +38,7 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
   let failLater: boolean;
   let release: boolean;
   let transformInput: ((input) => void) | undefined;
+  let afterWrite: (() => Promise<void>) | undefined;
   const joinIdentities = new Map();
   const joins = new Map();
   const dependents = new Map();
@@ -120,7 +121,9 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
                 );
                 actualIsolation = (rows[0] as { transaction_isolation: string }).transaction_isolation;
               }
-              return handler.update(input);
+              const result = await handler.update(input);
+              await afterWrite?.();
+              return result;
             },
           },
         ],
@@ -254,6 +257,7 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
     actualIsolation = undefined;
     request = undefined;
     transformInput = undefined;
+    afterWrite = undefined;
     await save(source, configFor(ownerCondition));
     await save(target, targetConfig());
     for (const dependent of dependents.values()) {
@@ -341,6 +345,81 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
       throw error;
     }
   }
+
+  describe.runIf(supportsDeferredAssociationEvents)('new core serialization failures', () => {
+    it.each([
+      { inherited: false, stage: 'afterWrite' },
+      { inherited: true, stage: 'afterWrite' },
+      { inherited: true, stage: 'write' },
+    ])('preserves the conflict and suppresses notifications for %j', async ({ inherited, stage }) => {
+      await save(
+        source,
+        configFor({
+          type: 'exists',
+          path: 'project',
+          condition: {
+            type: 'compare',
+            operator: 'eq',
+            left: { type: 'field', path: 'name' },
+            right: { type: 'literal', value: 'Owned' },
+          },
+        }),
+      );
+      const competitor = isolatedPostgresDatabase(postgresUrl!);
+      const qi = app.db.sequelize.getQueryInterface();
+      const quoteTable = (table) => qi.queryGenerator.quoteTable(table);
+      let writes = 0;
+      let notifications = 0;
+      const revoke = async () => {
+        await competitor.sequelize.transaction(
+          { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+          async (transaction) => {
+            await competitor.sequelize.query(
+              `SELECT id FROM ${quoteTable(documents.model.getTableName())} WHERE id = 3`,
+              { transaction },
+            );
+            await competitor.sequelize.query(
+              `UPDATE ${quoteTable(projects.model.getTableName())} SET name = 'Revoked' WHERE id = 103`,
+              { transaction },
+            );
+          },
+        );
+      };
+      const listener = async (_record, options) => {
+        writes++;
+        options.transaction.afterCommit(() => {
+          notifications++;
+        });
+        if (stage === 'write') await revoke();
+      };
+      if (stage === 'afterWrite') afterWrite = revoke;
+      app.db.on(`${documents.name}.afterUpdate`, listener);
+      planning = true;
+      try {
+        const attempt = execute(
+          'update',
+          { filterByTk: 3, values: { name: 'Must roll back' } },
+          inherited ? true : null,
+        );
+        if (inherited)
+          await expect(attempt).rejects.toMatchObject(
+            stage === 'write' ? { code: 'ACCESS_MUTATION_CONFLICT', status: 409 } : { original: { code: '40001' } },
+          );
+        else {
+          const job = await attempt;
+          expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+          expect(job.result.message).toMatch(/serializ|concurrent/i);
+        }
+        expect(writes).toBe(1);
+        expect(notifications).toBe(0);
+        expect((await get(3)).name).toBe('Second');
+        expect((await projects.model.findByPk(103)).getDataValue('name')).toBe('Revoked');
+      } finally {
+        app.db.off(`${documents.name}.afterUpdate`, listener);
+        await competitor.close();
+      }
+    });
+  });
 
   it.each(['create', 'update'] as const)(
     'refuses %s links before writing when the core lifecycle capability is missing',

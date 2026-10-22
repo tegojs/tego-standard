@@ -82,6 +82,31 @@ describe('workflow data source write transactions', () => {
     expect(await collection.model.count()).toBe(1);
   });
 
+  it('preserves a notification error after the owned transaction has already committed', async () => {
+    const original = new Error('notification failed after commit');
+    await expect(
+      withWorkflowDataSourceTransaction(plugin, 'main', undefined, async (transaction) => {
+        transaction.afterCommit(() => {
+          throw original;
+        });
+        await collection.model.update({ title: 'committed' }, { where: { id: 1 }, transaction });
+      }),
+    ).rejects.toBe(original);
+    expect((await collection.model.findByPk(1)).getDataValue('title')).toBe('committed');
+  });
+
+  it('preserves the callback error when its transaction has already rolled back', async () => {
+    const original = new Error('callback stopped after rollback');
+    await expect(
+      withWorkflowDataSourceTransaction(plugin, 'main', undefined, async (transaction) => {
+        await collection.model.update({ title: 'must roll back' }, { where: { id: 1 }, transaction });
+        await transaction.rollback();
+        throw original;
+      }),
+    ).rejects.toBe(original);
+    expect((await collection.model.findByPk(1)).getDataValue('title')).toBe('original');
+  });
+
   it('retains default transaction behavior when no server options are supplied', async () => {
     await withWorkflowDataSourceTransaction(plugin, 'main', undefined, async (transaction) => {
       expect(statements.some((sql) => sql.includes('BEGIN DEFERRED TRANSACTION'))).toBe(true);

@@ -1233,7 +1233,7 @@ export async function withWorkflowDataSourceTransaction<T>(
     await transaction.commit();
     return result;
   } catch (error) {
-    await transaction.rollback();
+    if (!transaction.finished) await transaction.rollback();
     throw error;
   }
 }

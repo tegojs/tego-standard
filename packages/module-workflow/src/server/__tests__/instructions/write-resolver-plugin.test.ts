@@ -1,5 +1,5 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
-import type { Collection } from '@tego/server';
+import { Transaction, type Collection } from '@tego/server';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
 import type { WorkflowDataOperationAuthority } from '../../data-operation-authority';
@@ -161,6 +161,60 @@ describe.each(['create', 'update'] as const)('workflow %s resolver plugin lifecy
     expect((await documents.model.findByPk(2)).get('title')).toBe('other');
     expect(() => plugin.captureDataOperationAuthority(request)).toThrow(/authority/i);
     expect(() => captured.assertCurrent()).toThrow(/authority/i);
+  });
+
+  it('returns a fatal job persistence failure to the transaction owner without ending its transaction', async () => {
+    await node();
+    const original = new Error('job persistence failed');
+    const listener = () => {
+      throw original;
+    };
+    const transaction = await app.db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+    app.db.on('jobs.beforeCreate', listener);
+    try {
+      await expect(
+        plugin.trigger(
+          workflow,
+          { data: { title: 'configured' } },
+          {
+            transaction,
+            context: { state: { currentTenantId: 'branch' } },
+          },
+        ),
+      ).rejects.toBe(original);
+      expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+      expect(() => captured.assertCurrent()).toThrow(/authority/i);
+    } finally {
+      app.db.off('jobs.beforeCreate', listener);
+      await transaction.rollback();
+    }
+    expect(await documents.model.count()).toBe(2);
+    expect((await documents.model.findByPk(2)).getDataValue('title')).toBe('other');
+  });
+
+  it('still records an ordinary instruction error in a writable caller transaction', async () => {
+    mode = 'error';
+    await node();
+    const transaction = await app.db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+    try {
+      const processor = await plugin.trigger(
+        workflow,
+        { data: { title: 'configured' } },
+        {
+          transaction,
+          context: { state: { currentTenantId: 'branch' } },
+        },
+      );
+      if (!processor) throw new Error('Workflow did not return its processor');
+      expect(processor.execution.status).toBe(EXECUTION_STATUS.ERROR);
+      const [job] = await processor.execution.getJobs({ transaction });
+      expect(job.result.message).toBe('write verification failed');
+      expect((transaction as Transaction & { finished?: string }).finished).toBeUndefined();
+    } finally {
+      await transaction.rollback();
+    }
+    expect(await documents.model.count()).toBe(2);
+    expect((await documents.model.findByPk(2)).getDataValue('title')).toBe('other');
   });
 
   it('retains the original tenant write when explicitly falling back', async () => {

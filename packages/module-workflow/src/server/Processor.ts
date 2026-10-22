@@ -121,6 +121,7 @@ export default class Processor {
   private async exec(instruction: Runner, node: FlowNodeModel, prevJob) {
     const start = Date.now();
     let job;
+    let instructionError: unknown;
     try {
       if (!this.executionPrepared) {
         await this.options.plugin.triggers.get(this.execution.workflow.type)?.prepareExecution?.(this);
@@ -134,6 +135,7 @@ export default class Processor {
         return null;
       }
     } catch (err) {
+      instructionError = err;
       // for uncaught error, set to error
       this.logger.error(
         `execution (${this.execution.id}) run instruction [${node.type}] for node (${node.id}) failed: `,
@@ -165,7 +167,20 @@ export default class Processor {
       job.nodeKey = node.key;
     }
     job.cost = Date.now() - (job?.createdAt ? new Date(job.createdAt).getTime() : start);
-    const savedJob = await this.saveJob(job);
+    let savedJob: JobModel;
+    try {
+      savedJob = await this.saveJob(job);
+    } catch (error) {
+      const databaseError = error as { original?: { code?: string }; parent?: { code?: string } };
+      // PostgreSQL cannot save an error job in a transaction aborted by the instruction.
+      if (
+        this.transaction &&
+        instructionError !== undefined &&
+        (databaseError.original?.code ?? databaseError.parent?.code) === '25P02'
+      )
+        throw instructionError;
+      throw error;
+    }
 
     this.logger.info(
       `execution (${this.execution.id}) run instruction [${node.type}] for node (${node.id}) finished as status: ${savedJob.status}`,

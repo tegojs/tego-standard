@@ -719,6 +719,8 @@ export default class PluginWorkflowServer extends Plugin {
       }
     } catch (err) {
       logger.error(`execution (${execution.id}) error: ${err.message}`, err);
+      // Only the caller can roll back its transaction after a fatal persistence failure.
+      if (options.transaction) throw err;
     }
 
     // this.emit('afterProcess', processor);

@@ -1,10 +1,8 @@
 import type { Collection, Database } from '@tego/server';
 
-import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessEntryReadOperation } from './entry-reads';
 import { accessMetadataGuard } from './metadata-snapshot';
-import type { AccessQueryService } from './query';
 import type { AccessReadDateContext } from './read-date-filter';
 import { collectRelatedReadPaths } from './read-paths';
 import type { AccessResourceListRequest } from './resource-read-params';
@@ -14,19 +12,14 @@ import { invalid } from './write-support';
 /** Metadata only. The caller must separately verify the original live list operation before using this plan. */
 export function captureWorkflowReadPlan(
   db: Database,
-  prepared: AccessAclScopeAdapter,
-  queries: AccessQueryService,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   operation: AccessEntryReadOperation,
   request: AccessResourceListRequest,
   dates?: AccessReadDateContext,
 ) {
   if (operation.kind !== 'list') invalid('Workflow read planning requires a list operation');
-  const { sort, limit: _limit, offset: _offset, ...selection } = request;
-  // Related sorting needs a separate metadata-only planner; never prepare unrelated tables speculatively.
-  if ((sort as string[] | undefined)?.some((field) => field.includes('.')))
-    invalid('Workflow association sorting requires an independent adapter');
-  const paths = collectRelatedReadPaths(db, prepared, queries, resolveIdentity, operation, selection, dates);
+  const { limit: _limit, offset: _offset, ...selection } = request;
+  const paths = collectRelatedReadPaths(db, resolveIdentity, operation, selection, dates);
   const root = db.getCollection(operation.source.collectionName);
   if (!root) invalid('Workflow read source is unavailable');
   const metadata = accessMetadataGuard(

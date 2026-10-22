@@ -83,7 +83,6 @@ export class AccessRootReadHandler {
     const preparation = captureAssociationReadPreparation(
       this.db,
       this.prepared,
-      this.queries,
       this.resolveIdentity,
       ctx,
       plan,
@@ -187,7 +186,6 @@ export class AccessRootReadHandler {
       ? await prepareAssociationReadContexts(
           this.db,
           this.prepared,
-          this.queries,
           this.resolveIdentity,
           ctx,
           plan,
@@ -403,15 +401,7 @@ export class AccessRootReadHandler {
       source: root.identity,
       authenticated: captured.identity,
     });
-    const paths = collectRelatedReadPaths(
-      this.db,
-      this.prepared,
-      this.queries,
-      this.resolveIdentity,
-      operation,
-      params,
-      captured.dateContext,
-    );
+    const paths = collectRelatedReadPaths(this.db, this.resolveIdentity, operation, params, captured.dateContext);
     const metadata = captureReadPreparationMetadata(
       this.db,
       this.prepared,

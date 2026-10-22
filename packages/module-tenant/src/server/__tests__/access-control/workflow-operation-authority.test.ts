@@ -272,7 +272,7 @@ describe('workflow runtime authority with tenant data scopes', () => {
   ] as const)('keeps unsupported relationship operations closed: %s', async (type, params) => {
     const { execution, job } = await execute(type, params);
     expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
-    expect(job.result.message).toMatch(/association|relationship/i);
+    expect(job.result.message).toMatch(/association|relationship|BelongsTo/i);
     expect(await ids()).toEqual([1, 2, 3, 4]);
     expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
   });

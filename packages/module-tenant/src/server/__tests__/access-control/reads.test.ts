@@ -356,6 +356,18 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     });
 
     describe('path planning', () => {
+      it('plans sort-only paths before preparing access configurations and without SQL', () => {
+        const sql = vi.spyOn(db.sequelize, 'query');
+        const paths = collectRelatedReadPaths(
+          db,
+          (collection) => identities.find((identity) => identity.collectionName === collection.name),
+          { kind: 'list', context: {}, source: mainIdentity, authenticated: {} },
+          { fields: ['id'], sort: ['project.name'] },
+        );
+        expect(paths).toEqual([['project']]);
+        expect(sql).not.toHaveBeenCalled();
+      });
+
       const plan = (
         params: unknown,
         kind: 'list' | 'get' | 'count' = 'list',
@@ -363,8 +375,6 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
       ) =>
         collectRelatedReadPaths(
           db,
-          adapter,
-          queries,
           (collection) => identities.find((identity) => identity.collectionName === collection.name),
           { kind, context: ctx, source: mainIdentity, authenticated: trusted() },
           params,
@@ -427,8 +437,6 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         const collect = (params: unknown) =>
           collectRelatedReadPaths(
             db,
-            adapter,
-            queries,
             resolve,
             {
               kind: 'list',
@@ -470,8 +478,6 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         const params = { fields: ['id'], appends: ['project.name'] };
         const paths = collectRelatedReadPaths(
           db,
-          adapter,
-          queries,
           (collection) => {
             params.appends.length = 0;
             return identities.find((identity) => identity.collectionName === collection.name);
@@ -486,8 +492,6 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         const params = { filter: { project: { name: 'Zebra' } } };
         const paths = collectRelatedReadPaths(
           db,
-          adapter,
-          queries,
           (collection) => {
             Reflect.deleteProperty(params.filter, 'project');
             return identities.find((identity) => identity.collectionName === collection.name);
@@ -546,8 +550,6 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
           expect(() =>
             collectRelatedReadPaths(
               db,
-              adapter,
-              queries,
               resolve,
               {
                 kind: 'list',
@@ -1078,7 +1080,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         const operation = { kind: 'list' as const, context: result, source: mainIdentity, authenticated: trusted() };
         const resolveIdentity = (collection: Collection) =>
           identities.find((identity) => identity.collectionName === collection.name);
-        const paths = collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params);
+        const paths = collectRelatedReadPaths(db, resolveIdentity, operation, params);
         const authorize = vi.fn(async () => target);
         const resolve = await prepareRelatedReadContexts(db, resolveIdentity, operation, paths, authorize);
         expect(authorize).toHaveBeenCalledTimes(1);
@@ -1104,7 +1106,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
           db,
           resolveIdentity,
           operation,
-          collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params),
+          collectRelatedReadPaths(db, resolveIdentity, operation, params),
           async () => target,
         );
         await createHandler(undefined, resolve).handle(result, trusted());
@@ -1123,7 +1125,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
           const resolveIdentity = (collection: Collection) =>
             identities.find((identity) => identity.collectionName === collection.name);
           const sql = vi.spyOn(db.sequelize, 'query');
-          const paths = collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params);
+          const paths = collectRelatedReadPaths(db, resolveIdentity, operation, params);
           const resolve = await prepareRelatedReadContexts(db, resolveIdentity, operation, paths, async () =>
             kind === 'missing target' ? null : target,
           );
@@ -1143,7 +1145,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         const operation = { kind: 'list' as const, context: result, source: mainIdentity, authenticated: trusted() };
         const resolveIdentity = (collection: Collection) =>
           identities.find((identity) => identity.collectionName === collection.name);
-        const paths = collectRelatedReadPaths(db, adapter, queries, resolveIdentity, operation, params);
+        const paths = collectRelatedReadPaths(db, resolveIdentity, operation, params);
         const authorize = vi.fn(async () => null);
         const resolve = await prepareRelatedReadContexts(db, resolveIdentity, operation, paths, authorize);
         await createHandler(undefined, resolve).handle(result, trusted());

@@ -1,11 +1,9 @@
 import { isDeepStrictEqual } from 'node:util';
 import type { Collection, Database } from '@tego/server';
 
-import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessEntryReadOperation } from './entry-reads';
 import { captureAccessFilter } from './filter-input';
-import type { AccessQueryService } from './query';
 import { captureReadDateContext, resolveReadDateFilter, type AccessReadDateContext } from './read-date-filter';
 import { AccessReadSelectionParser } from './read-selection';
 import { AccessRequestFilterParser, type AccessFilterReadGrant } from './request-filter';
@@ -17,14 +15,12 @@ import {
   parseResourceSumParams,
 } from './resource-read-params';
 import { resolveResourceReadRoute } from './resource-read-routing';
-import { AccessSortService } from './sort';
+import { assertAccessSortScalarField, captureAccessSortFields, resolveAccessSortTarget } from './sort-fields';
 import { cloneDeep, invalid, plain } from './write-support';
 
 /** Metadata-only planning for root reads. Private parser views never authorize or execute a query. */
 export function collectRelatedReadPaths(
   db: Database,
-  prepared: AccessAclScopeAdapter,
-  queries: AccessQueryService,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   operation: AccessEntryReadOperation,
   params: unknown,
@@ -147,13 +143,21 @@ export function collectRelatedReadPaths(
           (path) => db.getFieldByPath(`${captured.source.collectionName}.${path.join('.')}`)?.timezone,
         ),
   );
-  if (['list', 'export'].includes(captured.kind) && 'sort' in request && request.sort !== undefined)
-    new AccessSortService(db, prepared, queries, metadata).prepareRoots(
-      captured.context,
-      captured.source,
-      captured.authenticated,
-      { sort: request.sort },
-    );
+  if (['list', 'export'].includes(captured.kind) && 'sort' in request && request.sort !== undefined) {
+    const fields = captureAccessSortFields(request.sort);
+    const source = nodes.get('[]')!.collection;
+    if (source.model.primaryKeyAttributes.length !== 1) invalid('Stable sorting requires a single root primary key');
+    for (const { parts } of fields) {
+      let collection = source;
+      const path: string[] = [];
+      for (const part of parts.slice(0, -1)) {
+        collection = resolveAccessSortTarget(db, collection.model, part);
+        path.push(part);
+        metadata(collection, path);
+      }
+      assertAccessSortScalarField(collection.model, parts.at(-1)!);
+    }
+  }
   for (const node of nodes.values()) node.assertCurrent();
   return Object.freeze([...nodes.values()].filter(({ path }) => path.length).map(({ path }) => path));
 }

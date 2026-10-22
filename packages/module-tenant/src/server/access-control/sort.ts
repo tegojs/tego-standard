@@ -8,6 +8,7 @@ import type { AccessIdentity } from './context';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService, ScopedAccessQuery } from './query';
 import type { AccessFilterGrantResolver, AccessFilterReadGrant } from './request-filter';
+import { assertAccessSortScalarField, captureAccessSortFields, resolveAccessSortTarget } from './sort-fields';
 import type { AccessConfig } from './types';
 import { cloneDeep, invalid, plain } from './write-support';
 
@@ -82,35 +83,7 @@ export class AccessSortService {
     )
       invalid('Unsupported sort request');
     // Inspect descriptors before reading any untrusted array element or invoking a grant resolver.
-    const input = request.sort;
-    if (
-      !Array.isArray(input) ||
-      Object.getPrototypeOf(input) !== Array.prototype ||
-      input.length > 20 ||
-      Reflect.ownKeys(input).length !== input.length + 1
-    )
-      invalid('Sort fields require a bounded dense list');
-    const fields: Array<{ parts: string[]; direction: 'ASC' | 'DESC' }> = [];
-    const unique = new Set<string>();
-    for (let index = 0; index < input.length; index++) {
-      const descriptor = Object.getOwnPropertyDescriptor(input, index);
-      if (!descriptor || !Object.hasOwn(descriptor, 'value')) invalid('Sort fields cannot contain accessors or gaps');
-      const value: unknown = descriptor.value;
-      if (typeof value !== 'string' || !value || value.length > 512) invalid('Sort fields must be bounded strings');
-      const descending = value.startsWith('-');
-      const field = descending ? value.slice(1) : value;
-      const parts = field.split('.');
-      if (
-        parts.length > 4 ||
-        parts.some(
-          (part) => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(part) || ['__proto__', 'constructor', 'prototype'].includes(part),
-        ) ||
-        unique.has(field)
-      )
-        invalid('Sort field path is invalid, repeated or exceeds depth limit');
-      unique.add(field);
-      fields.push({ parts, direction: descending ? 'DESC' : 'ASC' });
-    }
+    const fields = captureAccessSortFields(request.sort);
     source = { ...source };
     authenticated = { ...authenticated };
     const { transaction, ...values } = request;
@@ -167,10 +140,7 @@ export class AccessSortService {
       const path: string[] = [];
       for (const part of parts.slice(0, -1)) {
         if (!current.grant.fields.includes(part)) invalid('Sort association field is not authorized');
-        const association = current.model.associations[part];
-        const target = association && this.db.modelCollection.get(association.target);
-        if (!target || association.associationType !== 'BelongsTo' || target.model === current.model)
-          invalid('Sort paths support only distinct registered BelongsTo models');
+        const target = resolveAccessSortTarget(this.db, current.model, part);
         path.push(part);
         const key = path.join('.');
         let entry = associations.get(key);
@@ -192,35 +162,8 @@ export class AccessSortService {
         current = entry.target;
       }
       const field = parts.at(-1)!;
-      const attribute = Object.hasOwn(current.model.rawAttributes, field)
-        ? current.model.rawAttributes[field]
-        : undefined;
-      const type = (attribute?.type as { key?: string } | undefined)?.key;
-      if (
-        !current.grant.fields.includes(field) ||
-        !attribute ||
-        ![
-          'STRING',
-          'CHAR',
-          'TEXT',
-          'UUID',
-          'ENUM',
-          'CITEXT',
-          'INTEGER',
-          'BIGINT',
-          'SMALLINT',
-          'TINYINT',
-          'MEDIUMINT',
-          'DECIMAL',
-          'FLOAT',
-          'DOUBLE',
-          'REAL',
-          'BOOLEAN',
-          'DATE',
-          'DATEONLY',
-        ].includes(type!)
-      )
-        invalid('Sort requires an authorized physical scalar field');
+      if (!current.grant.fields.includes(field)) invalid('Sort requires an authorized physical scalar field');
+      assertAccessSortScalarField(current.model, field);
       return { field, model: current.model, chain, direction };
     });
     const metadataCurrent = accessMetadataGuard(

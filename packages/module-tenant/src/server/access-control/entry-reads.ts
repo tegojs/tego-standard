@@ -414,8 +414,6 @@ export class AccessEntryReadService {
     const authorization = this.operation('list', ctx, identity, actor);
     const paths = collectRelatedReadPaths(
       this.db,
-      this.prepared,
-      this.queries,
       this.resolveIdentity,
       {
         kind: 'list',

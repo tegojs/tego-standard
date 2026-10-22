@@ -465,4 +465,166 @@ describe('configured workflow association read authority', () => {
     expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
     expect(job.result).toEqual([{ name: 'Owned with hidden project', project: null }]);
   });
+
+  describe('configured association sorting', () => {
+    it.each([
+      ['asc', ['Owned', 'Visible', 'Owned with hidden project']],
+      ['desc', ['Visible', 'Owned', 'Owned with hidden project']],
+    ])('uses only readable target values for %s ordering without projecting them', async (direction, expected) => {
+      const { execution, job } = await execute({ fields: ['name'], sort: [{ field: 'project.name', direction }] });
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual(expected.map((name) => ({ name })));
+      released();
+    });
+
+    it('ignores changes to hidden sort values', async () => {
+      const projects = app.db.getCollection('relatedProjects').model;
+      try {
+        await projects.update({ name: 'AAAA hidden sort value' }, { where: { id: 103 } });
+        const first = await execute({ fields: ['name'], sort: [{ field: 'project.name' }] });
+        expect(first.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(first.job.result).toEqual([
+          { name: 'Owned' },
+          { name: 'Visible' },
+          { name: 'Owned with hidden project' },
+        ]);
+        await projects.update({ name: 'ZZZZ hidden sort value' }, { where: { id: 103 } });
+        const next = await run();
+        expect(next.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(next.job.result).toEqual(first.job.result);
+      } finally {
+        await projects.update({ name: 'Secret project' }, { where: { id: 103 } });
+      }
+    });
+
+    it('checks each nested sort target without exposing hidden values', async () => {
+      const { execution, job } = await execute({
+        fields: ['name'],
+        sort: [{ field: 'project.region.name', direction: 'desc' }],
+      });
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual([{ name: 'Owned' }, { name: 'Visible' }, { name: 'Owned with hidden project' }]);
+    });
+
+    it.each([
+      [1, ['Visible']],
+      [2, ['Owned']],
+      [3, ['Owned with hidden project']],
+    ])('preserves stable page %s after scoped target ordering', async (page, expected) => {
+      const { execution, job } = await execute({
+        fields: ['name'],
+        sort: [{ field: 'project.name', direction: 'desc' }],
+        paginate: true,
+        pageSize: 1,
+        page,
+      });
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual(expected.map((name) => ({ name })));
+    });
+
+    it('intersects relation filters and sort scopes independently', async () => {
+      const { execution, job } = await execute({
+        fields: ['name'],
+        sort: [{ field: 'project.name', direction: 'desc' }],
+        filter: { project: { name: { $in: ['Local project', 'Secret project'] } } },
+      });
+      expect(job.result).toEqual([{ name: 'Owned' }]);
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    });
+
+    it('loads only participating tables and deduplicates shared sort/selection paths', async () => {
+      const read = vi.spyOn(store, 'read');
+      const { execution, job } = await execute({
+        fields: ['name', 'project.name'],
+        sort: [{ field: 'project.name', direction: 'desc' }],
+      });
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual([
+        { name: 'Visible', project: { name: 'Visible' } },
+        { name: 'Owned', project: { name: 'Local project' } },
+        { name: 'Owned with hidden project', project: null },
+      ]);
+      expect(read.mock.calls.map(([source]) => source.collectionName).sort()).toEqual([
+        'relatedDocs',
+        'relatedProjects',
+      ]);
+    });
+
+    it('rejects missing configuration even when the target is used only for sorting', async () => {
+      const read = store.read.bind(store);
+      vi.spyOn(store, 'read').mockImplementation((source) =>
+        source.collectionName === 'relatedProjects' ? Promise.resolve(null) : read(source),
+      );
+      const { execution, job } = await execute({ fields: ['name'], sort: [{ field: 'project.name' }] });
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/config/i);
+      released();
+    });
+
+    it('treats targets with empty rules as missing sort values', async () => {
+      await configure('relatedProjects', {
+        ...configFor({ type: 'constant', value: false }),
+        ownership: { enabled: false },
+        rules: [],
+      });
+      const { execution, job } = await execute({
+        fields: ['name'],
+        sort: [{ field: 'project.name', direction: 'desc' }],
+      });
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual([{ name: 'Owned' }, { name: 'Visible' }, { name: 'Owned with hidden project' }]);
+    });
+
+    it('does not borrow identity for sort-only target rules', async () => {
+      await configure('relatedDocs', configFor({ type: 'constant', value: true }));
+      const { execution, job } = await execute({ fields: ['name'], sort: [{ field: 'project.name' }] }, {});
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/context|tenant/i);
+      released();
+    });
+
+    it('captures sort options before configuration loading can suspend', async () => {
+      const read = store.read.bind(store);
+      vi.spyOn(store, 'read').mockImplementation(async (source) => {
+        await Promise.resolve();
+        (lastRequest.query as { sort: string[] }).sort[0] = 'name';
+        return read(source);
+      });
+      const { execution, job } = await execute({
+        fields: ['name'],
+        sort: [{ field: 'project.name', direction: 'desc' }],
+      });
+      expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual([{ name: 'Visible' }, { name: 'Owned' }, { name: 'Owned with hidden project' }]);
+    });
+
+    it('captures sort-only relationship metadata before configuration loading', async () => {
+      const relation = app.db.getCollection('relatedDocs').model.associations.project as { foreignKey?: string };
+      const foreignKey = relation.foreignKey;
+      const read = store.read.bind(store);
+      vi.spyOn(store, 'read').mockImplementation(async (source) => {
+        const result = await read(source);
+        relation.foreignKey = 'replacementId';
+        return result;
+      });
+      try {
+        const { execution, job } = await execute({ fields: ['name'], sort: [{ field: 'project.name' }] });
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/metadata changed/i);
+        released();
+      } finally {
+        relation.foreignKey = foreignKey;
+      }
+    });
+
+    it.each(['entries.name', 'projects.name', 'summary.name', 'project.missing', 'project.region.name.extra'])(
+      'rejects unsupported sort path %s without preparing configurations',
+      async (field) => {
+        const read = vi.spyOn(store, 'read');
+        const { execution } = await execute({ fields: ['name'], sort: [{ field }] });
+        expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(read).not.toHaveBeenCalled();
+      },
+    );
+  });
 });

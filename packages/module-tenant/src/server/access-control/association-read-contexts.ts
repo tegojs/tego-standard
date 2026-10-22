@@ -3,7 +3,6 @@ import type { Collection, Database } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessEntryReadOperation } from './entry-reads';
-import type { AccessQueryService } from './query';
 import { collectRelatedReadPaths } from './read-paths';
 import { captureReadPermissionMetadata, captureReadPreparationMetadata } from './read-preparation-metadata';
 import { prepareRelatedReadContexts, type AccessRelatedReadAuthorizer } from './related-read-contexts';
@@ -15,7 +14,6 @@ import { invalid } from './write-support';
 export function captureAssociationReadPreparation(
   db: Database,
   prepared: AccessAclScopeAdapter,
-  queries: AccessQueryService,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   ctx: AccessRootReadContext,
   plan: ReturnType<typeof captureAssociationReadContext>,
@@ -39,8 +37,6 @@ export function captureAssociationReadPreparation(
     : captured.params;
   const nested = collectRelatedReadPaths(
     db,
-    prepared,
-    queries,
     resolveIdentity,
     { ...operation, kind: detail ? 'list' : operation.kind, source: target.identity },
     params,
@@ -66,13 +62,12 @@ export function captureAssociationReadPreparation(
 export async function prepareAssociationReadContexts(
   db: Database,
   prepared: AccessAclScopeAdapter,
-  queries: AccessQueryService,
   resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   ctx: AccessRootReadContext,
   plan: ReturnType<typeof captureAssociationReadContext>,
   authorize: AccessRelatedReadAuthorizer,
   assertSourceCurrent: () => void,
-  captured = captureAssociationReadPreparation(db, prepared, queries, resolveIdentity, ctx, plan, assertSourceCurrent),
+  captured = captureAssociationReadPreparation(db, prepared, resolveIdentity, ctx, plan, assertSourceCurrent),
 ) {
   const { relation, targetCollection } = plan;
   const { operation, paths } = captured;

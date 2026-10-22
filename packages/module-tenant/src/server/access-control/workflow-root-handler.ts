@@ -123,8 +123,6 @@ export class AccessWorkflowRootHandler {
     const target = this.target(operation);
     const plan = captureWorkflowReadPlan(
       this.db,
-      this.prepared,
-      this.queries,
       this.resolveIdentity,
       {
         kind: 'list',

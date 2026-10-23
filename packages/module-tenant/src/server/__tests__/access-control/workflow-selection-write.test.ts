@@ -1,5 +1,5 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
-import { ACL, Transaction } from '@tego/server';
+import { ACL, Repository, Transaction } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../../../../module-workflow/src/server/constants';
 import type WorkflowPlugin from '../../../../../module-workflow/src/server/Plugin';
@@ -14,6 +14,8 @@ import { isolatedPostgresDatabase } from './database';
 import { configFor, ownerCondition } from './fixtures';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
+const supportsDeferredAssociationEvents =
+  typeof (Repository.prototype as unknown as Record<string, unknown>).withDeferredAssociationEvents === 'function';
 
 describe.runIf(!!postgresUrl)('configured workflow relationship selection writes', () => {
   let app: MockServer;
@@ -26,6 +28,7 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
   let projects;
   let links;
   let children;
+  let profiles;
   let workflow;
   let isolation: string;
   let executionError: Error | undefined;
@@ -127,6 +130,17 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
       foreignKey: 'documentId',
       onDelete: 'RESTRICT',
     });
+    profiles = await add('selectionProfiles', [
+      { name: 'name', type: 'string' },
+      { name: 'tenantId', type: 'string' },
+      { name: 'document', type: 'belongsTo', target: documents.name, foreignKey: 'documentId', onDelete: 'RESTRICT' },
+    ]);
+    documents.setField('profile', {
+      type: 'hasOne',
+      target: profiles.name,
+      foreignKey: 'documentId',
+      onDelete: 'RESTRICT',
+    });
     const tenants = app.db.collection({
       name: 'tenants',
       timestamps: false,
@@ -192,6 +206,8 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
     await save(projects, targetConfig);
     await save(links, { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false } });
     await save(children, targetConfig);
+    await save(profiles, targetConfig);
+    await profiles.model.destroy({ where: {}, hooks: false });
     await children.model.destroy({ where: {}, hooks: false });
     await links.model.destroy({ where: {}, hooks: false });
     await documents.model.destroy({ where: {}, hooks: false });
@@ -347,6 +363,219 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
     expect(job.result.length).toBe(1);
     expect(await get(1)).toMatchObject({ name: 'Selected' });
     expect(job.result.data[0].project).toBeUndefined();
+  });
+
+  describe.each(['children', 'profile'] as const)('selection child lifecycle capability: %s', (name) => {
+    it.each(['source', 'target'])('rejects missing %s capability before writing', async (side) => {
+      const target = name === 'children' ? children : profiles;
+      const repository = (side === 'source' ? documents : target).repository;
+      const previous = Object.getOwnPropertyDescriptor(repository, 'withDeferredAssociationEvents');
+      Object.defineProperty(repository, 'withDeferredAssociationEvents', { value: undefined, configurable: true });
+      let writes = 0;
+      const listener = () => {
+        writes++;
+      };
+      app.db.on(`${documents.name}.beforeUpdate`, listener);
+      try {
+        const job = await run('update', {
+          filterByTk: 1,
+          filter: { project: { name: 'Visible' } },
+          values: { [name]: name === 'children' ? [] : null, name: 'No' },
+        });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/core deferred association events/i);
+        expect(writes).toBe(0);
+        expect(await get(1)).toMatchObject({ name: 'First' });
+      } finally {
+        app.db.off(`${documents.name}.beforeUpdate`, listener);
+        if (previous) Object.defineProperty(repository, 'withDeferredAssociationEvents', previous);
+        else delete repository.withDeferredAssociationEvents;
+      }
+    });
+  });
+
+  describe.runIf(supportsDeferredAssociationEvents)('child writes with relationship selection', () => {
+    describe.each(['children', 'profile'] as const)('%s replacement', (name) => {
+      const target = () => (name === 'children' ? children : profiles);
+      const value = (keys: number[]) => (name === 'children' ? keys : (keys[0] ?? null));
+      const child = async (id: number) => (await target().model.findByPk(id)).get({ plain: true });
+      const connected = async (transaction?) =>
+        (await target().model.findAll({ where: { documentId: 1 }, order: [['id', 'ASC']], transaction })).map((row) =>
+          row.getDataValue('id'),
+        );
+      beforeEach(async () => {
+        await target().model.bulkCreate([
+          { id: 201, name: 'Owned', tenantId: 'B', documentId: 1 },
+          { id: 202, name: 'Replacement', tenantId: 'B', documentId: null },
+          { id: 203, name: 'Visible', tenantId: 'H', documentId: null },
+          { id: 204, name: 'Hidden', tenantId: 'C', documentId: null },
+        ]);
+      });
+
+      it.each([undefined, 'serializable'] as const)(
+        'replaces children selected through a readable project in a %s transaction',
+        async (inherited) => {
+          const job = await run(
+            'update',
+            {
+              filterByTk: 1,
+              filter: { project: { name: 'Visible' } },
+              values: { [name]: value([202]), name: 'Replaced' },
+            },
+            inherited,
+          );
+          expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+          expect(isolation).toBe('serializable');
+          expect(job.result).toMatchObject({ length: 1, data: [{ id: 1, name: 'Replaced', tenantId: 'B' }] });
+          expect(await child(201)).toMatchObject({ documentId: null, tenantId: 'B' });
+          expect(await child(202)).toMatchObject({ documentId: 1, tenantId: 'B' });
+          expect((await projects.model.findByPk(101)).get('tenantId')).toBe('H');
+        },
+      );
+
+      it('clears children selected through that relationship without requiring the old filter afterward', async () => {
+        const job = await run('update', { filter: { [name]: { name: 'Owned' } }, values: { [name]: value([]) } });
+        expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result).toMatchObject({ length: 1, data: [{ id: 1 }] });
+        expect(await child(201)).toMatchObject({ documentId: null, tenantId: 'B' });
+        expect(await get(1)).toMatchObject({ name: 'First', tenantId: 'B' });
+      });
+
+      it.each(['addition', 'removal'])('rejects a visibility-only child %s', async (operation) => {
+        if (operation === 'removal')
+          await target().model.update({ tenantId: 'H', name: 'Visible' }, { where: { id: 201 }, hooks: false });
+        const job = await run('update', {
+          filter: { project: { name: 'Visible' } },
+          values: { [name]: value([operation === 'addition' ? 203 : 202]), name: 'No' },
+        });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        expect(await connected()).toEqual([201]);
+        expect(await child(202)).toMatchObject({ documentId: null });
+        expect(await child(203)).toMatchObject({ documentId: null, tenantId: 'H' });
+        expect(await get(1)).toMatchObject({ name: 'First' });
+      });
+
+      it('rejects an explicit source outside G even if its project is visible', async () => {
+        const job = await run('update', {
+          filterByTk: 4,
+          filter: { project: { name: 'Visible' } },
+          values: { [name]: value([202]) },
+        });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        expect(await child(202)).toMatchObject({ documentId: null });
+      });
+
+      it('rejects a writable explicit source that does not match the original relationship filter', async () => {
+        const job = await run('update', {
+          filterByTk: 3,
+          filter: { project: { name: 'Visible' } },
+          values: { [name]: value([202]) },
+        });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        expect(await get(3)).toMatchObject({ name: 'Second' });
+        expect(await connected()).toEqual([201]);
+        expect(await child(202)).toMatchObject({ documentId: null });
+      });
+
+      it('does not select a hidden related row just because the replacement is writable', async () => {
+        const job = await run('update', { filter: { project: { name: 'Hidden' } }, values: { [name]: value([202]) } });
+        expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result).toEqual({ length: 0, data: [] });
+        expect(await connected()).toEqual([201]);
+        expect(await child(202)).toMatchObject({ documentId: null });
+      });
+
+      it('rejects multiple writable sources before replacing any child', async () => {
+        await documents.model.update({ projectId: 101 }, { where: { id: 3 }, hooks: false });
+        const job = await run('update', { filter: { project: { name: 'Visible' } }, values: { [name]: value([202]) } });
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/single source/i);
+        expect(await connected()).toEqual([201]);
+        expect(await child(202)).toMatchObject({ documentId: null });
+      });
+
+      it.each([false, true])('claims a legacy source only when child connections change: %s', async (change) => {
+        const config = configFor(ownerCondition);
+        config.rules.push({
+          ...configFor({ type: 'isNull', operand: { type: 'field', path: 'tenantId' } }).rules[0],
+          id: 'legacy-edit',
+        });
+        await save(documents, config);
+        const before = await get(5);
+        const job = await run('update', {
+          filterByTk: 5,
+          filter: { project: { name: 'Visible' } },
+          values: { [name]: value(change ? [202] : []) },
+        });
+        expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result.length).toBe(change ? 1 : 0);
+        if (change) {
+          expect(await get(5)).toMatchObject({ tenantId: 'B' });
+          expect(await child(202)).toMatchObject({ documentId: 5, tenantId: 'B' });
+        } else expect(await get(5)).toEqual(before);
+        expect((await projects.model.findByPk(101)).get('tenantId')).toBe('H');
+      });
+
+      it('publishes source and child events only after all selected connections persist', async () => {
+        const observed: Array<{ event: string; keys: number[] }> = [];
+        const events = [
+          `${documents.name}.afterUpdateWithAssociations`,
+          `${target().name}.afterUpdateWithAssociations`,
+        ];
+        const listeners = events.map((event) => async (_record, options) => {
+          observed.push({ event, keys: await connected(options.transaction) });
+        });
+        events.forEach((event, index) => app.db.on(event, listeners[index]));
+        let job;
+        try {
+          job = await run('update', { filter: { [name]: { name: 'Owned' } }, values: { [name]: value([202]) } });
+        } finally {
+          events.forEach((event, index) => app.db.off(event, listeners[index]));
+        }
+        expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(observed).toEqual([
+          { event: events[0], keys: [202] },
+          { event: events[1], keys: [202] },
+          { event: events[1], keys: [202] },
+        ]);
+      });
+
+      it('rolls back the source and both child writes when a complete-association hook fails', async () => {
+        const listener = async (record) => {
+          if (record.getDataValue('id') === 202) throw new Error('selected child hook failed');
+        };
+        const event = `${target().name}.afterUpdateWithAssociations`;
+        app.db.on(event, listener);
+        let job;
+        try {
+          job = await run('update', {
+            filter: { [name]: { name: 'Owned' } },
+            values: { [name]: value([202]), name: 'No' },
+          });
+        } finally {
+          app.db.off(event, listener);
+        }
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(executionError?.message).toContain('selected child hook failed');
+        expect(await get(1)).toMatchObject({ name: 'First' });
+        expect(await connected()).toEqual([201]);
+        expect(await child(202)).toMatchObject({ documentId: null });
+      });
+
+      it('does not replace an insufficient inherited transaction', async () => {
+        const job = await run(
+          'update',
+          { filter: { project: { name: 'Visible' } }, values: { [name]: value([202]) } },
+          'ordinary',
+        );
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/sufficient isolation/i);
+        expect(await connected()).toEqual([201]);
+      });
+    });
   });
 
   describe('single-reference writes with relationship selection', () => {

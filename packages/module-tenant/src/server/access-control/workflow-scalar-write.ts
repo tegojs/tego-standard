@@ -175,7 +175,7 @@ export async function executeWorkflowScalarWrite(
     validateRootValues(db, input.values, collection, action, config.ownership.enabled);
   const condition = action === 'update' ? input.condition.compile(source, input.selection!.requestFilter) : undefined;
   const relational = !!condition && condition.rootWhere === undefined;
-  if (relational && (!operation.selection || hasLinks || child))
+  if (relational && (!operation.selection || hasLinks))
     invalid('Workflow write relationship filters require their own adapter');
   let where = condition?.rootWhere;
   let bind: Record<string, unknown> | undefined;
@@ -330,6 +330,7 @@ export async function executeWorkflowScalarWrite(
         association: child.association,
         sourceKey: keys[0],
         sourceWhere: where,
+        sourceBind: bind,
         sourceValues: input.values,
       };
       const references = new AccessReferenceService(db, prepared, queries);

@@ -773,10 +773,10 @@ describe('configured workflow scalar writes with tenant ownership', () => {
     expect((await get(1)).name).toBe('Owned');
   });
 
-  it('rejects relationship filters instead of inferring target read authority', async () => {
+  it('rejects relationship selection on SQLite without upgrading the caller transaction', async () => {
     const job = await execute('update', { filter: { parent: { name: 'Hidden' } }, values: { name: 'No' } });
     expect(job.status).toBe(EXECUTION_STATUS.ERROR);
-    expect(job.result.message).toMatch(/relationship.*adapter/i);
+    expect(job.result.message).toMatch(/PostgreSQL/i);
     expect((await get(1)).name).toBe('Owned');
   });
 

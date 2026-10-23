@@ -72,17 +72,23 @@ export function resolveManyToManyRead(
     invalid('Association cannot bypass through soft deletion');
   const models = [sourceModel, targetModel, throughModel];
   const signatures = () =>
-    models.map((model) => ({
-      primaryKey: [...model.primaryKeyAttributes],
-      table: model.getTableName(),
-      attributes: Object.fromEntries(
-        Object.entries(model.rawAttributes).map(([key, attr]) => [key, attr.field || key]),
-      ),
-      scope: (model as unknown as { _scope: unknown })._scope,
-      paranoid: model.options.paranoid,
-      deletedAt: (model as unknown as { _timestampAttributes?: { deletedAt?: string } })._timestampAttributes
-        ?.deletedAt,
-    }));
+    models.map((model) => {
+      const table = model.getTableName();
+      return {
+        primaryKey: [...model.primaryKeyAttributes],
+        table:
+          typeof table === 'string'
+            ? table
+            : { tableName: table.tableName, schema: table.schema, delimiter: table.delimiter },
+        attributes: Object.fromEntries(
+          Object.entries(model.rawAttributes).map(([key, attr]) => [key, attr.field || key]),
+        ),
+        scope: (model as unknown as { _scope: unknown })._scope,
+        paranoid: model.options.paranoid,
+        deletedAt: (model as unknown as { _timestampAttributes?: { deletedAt?: string } })._timestampAttributes
+          ?.deletedAt,
+      };
+    });
   const snapshot = cloneDeep(signatures());
   const current = () => {
     if (

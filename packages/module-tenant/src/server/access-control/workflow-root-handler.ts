@@ -21,6 +21,7 @@ import {
   type AccessWorkflowScalarWriteRequest,
   type AccessWorkflowUpdateResult,
 } from './workflow-scalar-write';
+import { captureWorkflowWriteSelection } from './workflow-write-selection';
 import { cloneDeep, invalid, plain } from './write-support';
 
 /** Structural contract; the installed workflow plugin supplies its live, instance-bound verifier. */
@@ -203,9 +204,22 @@ export class AccessWorkflowRootHandler {
       data(request, 'params'),
     );
     const metadata = accessMetadataGuard(this.db, [], [{ model: target.collection.model, path: [] }]);
+    const selection =
+      input.selection &&
+      captureWorkflowWriteSelection(
+        this.db,
+        this.prepared,
+        this.queries,
+        this.resolveIdentity,
+        { context: operation.context, source: target.source, authenticated: operation.authenticated },
+        input.selection.requestFilter,
+      );
     const sources = [
       ...new Map(
-        [target.source, ...input.references.targets].map((source) => [accessCollectionKey(source), source]),
+        [target.source, ...input.references.targets, ...(selection?.sources ?? [])].map((source) => [
+          accessCollectionKey(source),
+          source,
+        ]),
       ).values(),
     ];
     return this.prepared.withPrepared(operation.context, sources, () =>
@@ -217,9 +231,11 @@ export class AccessWorkflowRootHandler {
         authenticated: operation.authenticated,
         transaction: operation.transaction,
         input,
+        selection,
         assertCurrent: () => {
           target.assertCurrent();
           metadata();
+          selection?.assertCurrent();
         },
       }),
     );
@@ -227,8 +243,16 @@ export class AccessWorkflowRootHandler {
 
   async destroy(request: AccessWorkflowDestroyRequest): Promise<number> {
     const operation = this.operation(request, 'destroy');
-    const params = captureWorkflowDestroyParams(data(request, 'params')).params;
+    const { params, requestFilter } = captureWorkflowDestroyParams(data(request, 'params'));
     const target = this.target(operation);
+    const selection = captureWorkflowWriteSelection(
+      this.db,
+      this.prepared,
+      this.queries,
+      this.resolveIdentity,
+      { context: operation.context, source: target.source, authenticated: operation.authenticated },
+      requestFilter,
+    );
     const captured: AccessWorkflowDestroyRequest = {
       dataSourceName: operation.dataSourceName,
       collectionName: operation.collectionName,
@@ -237,8 +261,9 @@ export class AccessWorkflowRootHandler {
       transaction: operation.transaction,
       params,
     };
-    return this.prepared.withPrepared(operation.context, [target.source], async () => {
+    return this.prepared.withPrepared(operation.context, selection.sources, async () => {
       target.assertCurrent();
+      selection.assertCurrent();
       if (!this.prepared.configuration(operation.context, target.source))
         invalid('Workflow root deletion requires an explicit access configuration');
       const result = await new AccessWorkflowDestroyHandler(
@@ -259,8 +284,9 @@ export class AccessWorkflowRootHandler {
             params: {},
           };
         },
-      ).handle(captured, operation.authenticated);
+      ).handle(captured, operation.authenticated, selection);
       target.assertCurrent();
+      selection.assertCurrent();
       return result;
     });
   }

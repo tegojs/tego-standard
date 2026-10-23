@@ -17,6 +17,7 @@ import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureWorkflowDestroyParams } from './workflow-destroy-handler';
 import { captureWorkflowWriteReferences } from './workflow-write-references';
+import type { AccessWorkflowWriteSelection } from './workflow-write-selection';
 import {
   cloneDeep,
   internalQuery,
@@ -140,6 +141,7 @@ export async function executeWorkflowScalarWrite(
     authenticated: Readonly<AccessIdentity>;
     transaction?: Transaction;
     input: ReturnType<typeof captureWorkflowScalarWrite>;
+    selection?: AccessWorkflowWriteSelection;
     assertCurrent(): void;
   },
 ): Promise<Record<string, unknown> | AccessWorkflowUpdateResult> {
@@ -172,9 +174,12 @@ export async function executeWorkflowScalarWrite(
   if (action === 'create' || Object.keys(input.values).length || !related)
     validateRootValues(db, input.values, collection, action, config.ownership.enabled);
   const condition = action === 'update' ? input.condition.compile(source, input.selection!.requestFilter) : undefined;
-  if (condition && condition.rootWhere === undefined)
+  const relational = !!condition && condition.rootWhere === undefined;
+  if (relational && (!operation.selection || related))
     invalid('Workflow write relationship filters require their own adapter');
-  const where = condition?.rootWhere;
+  let where = condition?.rootWhere;
+  let bind: Record<string, unknown> | undefined;
+  let selected: Awaited<ReturnType<AccessWorkflowWriteSelection['scope']>> | undefined;
   const assertCurrent = () => {
     operation.assertCurrent();
     input.assertCurrent();
@@ -194,10 +199,18 @@ export async function executeWorkflowScalarWrite(
       invalid('Workflow write target key changed during execution');
     if (prepared.configuration(context, source) !== config) invalid('Workflow write preparation phase changed');
     condition?.assertCurrent();
+    operation.selection?.assertCurrent();
+    selected?.assertCurrent();
   };
-  const serializable = related || requiresSerializable(config, { where }, collection);
+  const serializable = related || relational || requiresSerializable(config, { where }, collection);
   await validateWriteTransaction(db, transaction, serializable);
   assertCurrent();
+  if (relational) {
+    selected = await operation.selection!.scope(transaction);
+    assertCurrent();
+    where = selected.query.where;
+    bind = selected.query.bind;
+  }
   const withEvents = <T>(
     writer: (
       flush?: () => Promise<void>,
@@ -261,7 +274,13 @@ export async function executeWorkflowScalarWrite(
     const explicit = input.selection!.params.filterByTk;
     if (explicit !== undefined) keys = normalizeKeys(Array.isArray(explicit) ? explicit : [explicit], collection);
     else {
-      const scoped = await queries.scopeQuery(context, source, authenticated, { where, transaction }, 'ownership');
+      const scoped = await queries.scopeQuery(
+        context,
+        source,
+        authenticated,
+        { where, bind, transaction },
+        'ownership',
+      );
       assertCurrent();
       if (!scoped || scoped.config !== config) invalid('Workflow write preparation phase changed');
       const records = await model.findAll(
@@ -399,7 +418,7 @@ export async function executeWorkflowScalarWrite(
               context,
               source,
               authenticated,
-              { operation: 'update', keys, values: input.values, where },
+              { operation: 'update', keys, values: input.values, where, bind },
               transaction!,
               writer,
               assertCurrent,

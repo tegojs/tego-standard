@@ -8,6 +8,7 @@ import { captureAccessFilter } from './filter-input';
 import { AccessMutationService } from './mutation';
 import type { AccessQueryService } from './query';
 import { AccessRoleFilterCompiler } from './role-filter';
+import type { AccessWorkflowWriteSelection } from './workflow-write-selection';
 import {
   cloneDeep,
   internalQuery,
@@ -86,7 +87,11 @@ export class AccessWorkflowDestroyHandler {
   ) {}
 
   /** Any error requires the caller to roll back its entire transaction, including earlier workflow writes. */
-  async handle(request: AccessWorkflowDestroyRequest, authenticated: AccessIdentity): Promise<number> {
+  async handle(
+    request: AccessWorkflowDestroyRequest,
+    authenticated: AccessIdentity,
+    selection?: AccessWorkflowWriteSelection,
+  ): Promise<number> {
     if (!plain(request) || !plain(authenticated)) invalid('Workflow deletion execution context is unavailable');
     const actor = Object.freeze(cloneDeep(authenticated));
     const dataSourceName = data(request, 'dataSourceName');
@@ -176,9 +181,12 @@ export class AccessWorkflowDestroyHandler {
     const role = compiler.compile(identity, permission.params.filter);
     const condition = compiler.compile(identity, requestFilter);
     // User-selected relationship filters need independent read grants; final role facts do not grant those reads.
-    if (condition.rootWhere === undefined) invalid('Workflow relationship deletion filters require their own adapter');
-    const where = { [Op.and]: [role.rootWhere ?? role.where, condition.rootWhere] };
-    const serializable = requiresSerializable(config, { where }, collection);
+    const relational = condition.rootWhere === undefined;
+    if (relational && !selection) invalid('Workflow relationship deletion filters require their own adapter');
+    let selected: Awaited<ReturnType<AccessWorkflowWriteSelection['scope']>> | undefined;
+    let where = { [Op.and]: [role.rootWhere ?? role.where, condition.rootWhere ?? condition.where] };
+    let bind: Record<string, unknown> | undefined;
+    const serializable = relational || requiresSerializable(config, { where }, collection);
     const assertCurrent = () => {
       const current = this.resolveIdentity(collection);
       if (
@@ -192,12 +200,20 @@ export class AccessWorkflowDestroyHandler {
         invalid('Workflow deletion identity or preparation phase changed');
       role.assertCurrent();
       condition.assertCurrent();
+      selection?.assertCurrent();
+      selected?.assertCurrent();
       if (!isDeepStrictEqual(permission, capturePermission())) invalid('Workflow destroy permission changed');
     };
     await validateWriteTransaction(this.db, transaction, serializable);
     assertCurrent();
+    if (relational) {
+      selected = await selection!.scope(transaction);
+      assertCurrent();
+      where = { [Op.and]: [role.rootWhere ?? role.where, selected.query.where!] };
+      bind = selected.query.bind;
+    }
     if (!explicit) {
-      const scoped = await this.queries.scopeQuery(context, identity, actor, { where, transaction }, 'ownership');
+      const scoped = await this.queries.scopeQuery(context, identity, actor, { where, bind, transaction }, 'ownership');
       assertCurrent();
       if (!scoped || scoped.config !== config) invalid('Workflow deletion preparation phase changed');
       const records = await model.findAll(
@@ -229,7 +245,7 @@ export class AccessWorkflowDestroyHandler {
       context,
       identity,
       actor,
-      { operation: 'destroy', keys, where },
+      { operation: 'destroy', keys, where, bind },
       transaction!,
       async (plan) => {
         for (const record of plan.records) {

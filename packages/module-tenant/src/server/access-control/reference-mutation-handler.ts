@@ -17,8 +17,8 @@ import { AccessReadGrantAdapter } from './read-grants';
 import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
+import { prepareScalarMutationFilter } from './scalar-mutation-filter';
 import {
-  assertEmptyMutationFilter,
   cloneDeep,
   internalQuery,
   invalid,
@@ -86,7 +86,9 @@ export class AccessReferenceMutationHandler {
       'values',
       'filter',
     ]);
-    assertEmptyMutationFilter(data(raw, 'filter'));
+    const rawFilter = data(raw, 'filter');
+    const requestFilter = rawFilter === undefined ? {} : captureAccessFilter(rawFilter);
+    if (!plain(requestFilter)) invalid('Mutation request filters must be plain objects');
     const params = cloneDeep(raw);
     for (const [key, expected] of [
       ['resourceName', resourceName],
@@ -129,6 +131,7 @@ export class AccessReferenceMutationHandler {
         name,
         value,
         sourceKey: params.filterByTk,
+        requestFilter,
         originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
         references: names.map((name) => ({
           name,
@@ -171,6 +174,7 @@ export class AccessReferenceMutationHandler {
       name: string;
       value: unknown;
       sourceKey: string | number;
+      requestFilter?: Record<PropertyKey, unknown>;
       originalValue?: unknown;
       operation?: 'add' | 'remove' | 'set';
       targetName?: string;
@@ -307,6 +311,16 @@ export class AccessReferenceMutationHandler {
         return { name: selectedName, field, target, identity, relation, targetKey };
       });
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
+    const selection = prepareScalarMutationFilter(
+      this.db,
+      source,
+      sourceIdentity,
+      relation.sourceConfig,
+      input.requestFilter ?? {},
+      roleName,
+      compiler,
+      this.resolveIdentity,
+    );
     let role: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
     let targetRole: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
     const metadata = accessMetadataGuard(
@@ -337,6 +351,7 @@ export class AccessReferenceMutationHandler {
       metadata();
       role?.assertCurrent();
       targetRole?.assertCurrent();
+      selection?.assertCurrent();
       for (const guard of targetGuards.values()) guard();
       if (
         source.getField(name) !== field ||
@@ -433,6 +448,10 @@ export class AccessReferenceMutationHandler {
       if (Object.keys(values).length) sourceValues = values;
     }
     assertCurrent();
+    const requested = selection ? await selection.resolve(authorizeTarget, assertCurrent) : undefined;
+    const sourceWhere = requested
+      ? { [Op.and]: [role.rootWhere ?? role.where, requested] }
+      : (role.rootWhere ?? role.where);
     const entry = {
       assertCurrent,
       ...(targetRole
@@ -488,7 +507,7 @@ export class AccessReferenceMutationHandler {
         actor,
         {
           sourceKeys: keys,
-          sourceWhere: role.rootWhere ?? role.where,
+          sourceWhere,
           sourceValues,
           links: linkReferences.map(({ name, identity, throughIdentity, targetKeys }) => ({
             association: name,
@@ -534,7 +553,7 @@ export class AccessReferenceMutationHandler {
       actor,
       {
         sourceKeys: keys,
-        sourceWhere: role.rootWhere ?? role.where,
+        sourceWhere,
         sourceValues,
         references: references.map(({ name, identity, targetKey }) => ({
           association: name,

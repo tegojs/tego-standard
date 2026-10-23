@@ -302,6 +302,123 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     },
   );
 
+  describe('scalar-filtered root reference updates', () => {
+    const filteredUpdate = (values: object, filter: object = { name: 'Owned' }, id = 3) =>
+      supertest(app.callback())
+        .post('/api/documents:update')
+        .query({ filterByTk: id, filter: JSON.stringify(filter) })
+        .send(values);
+
+    it.each([
+      { kind: 'single', values: { project: 102, name: 'Changed' }, projectId: 102, projectIds: [] },
+      { kind: 'multiple', values: { projects: [102], name: 'Changed' }, projectId: null, projectIds: [102] },
+      {
+        kind: 'mixed',
+        values: { project: 102, projects: [101, 102], name: 'Changed' },
+        projectId: 102,
+        projectIds: [101, 102],
+      },
+    ])(
+      'preserves source selection when updating $kind references and scalar values',
+      async ({ values, projectId, projectIds }) => {
+        const response = await supertest(app.callback())
+          .post('/api/documents:update')
+          .query({ filterByTk: 3, filter: JSON.stringify({ name: { $startsWith: 'Own' } }) })
+          .send(values);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await row()).toMatchObject({ name: 'Changed', projectId, tenantId: 'B' });
+        expect(await links()).toEqual(projectIds);
+        expect(await row('projects', 102)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+      },
+    );
+
+    it.each(['project', 'projects'])('retains or replaces existing links on a filtered %s update', async (name) => {
+      await seedLinks([101]);
+      const response = await filteredUpdate({ [name]: name === 'project' ? 102 : [102], name: 'Changed' });
+      expect(response.status).toBe(200);
+      expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+      expect(await links()).toEqual(name === 'projects' ? [102] : [101]);
+    });
+
+    it.each(
+      ['project', 'projects'].flatMap((name) =>
+        [
+          'request',
+          'read-scope',
+          'field',
+          'write-scope',
+          'ownership',
+          'hidden-target',
+          'target-field',
+          'target-scope',
+          'write-field',
+        ].map((boundary) => ({ name, boundary })),
+      ),
+    )('rejects $boundary without changing source or links on a filtered $name update', async ({ name, boundary }) => {
+      await seedLinks([101]);
+      if (boundary === 'read-scope') await grant('documents', 'view', ['id', 'name'], { name: 'Other' });
+      if (boundary === 'field') await grant('documents', 'view', ['id']);
+      if (boundary === 'write-scope') await grant('documents', 'update', ['name', name], { name: 'Other' });
+      if (boundary === 'write-field') await grant('documents', 'update', ['name']);
+      if (boundary === 'target-field') await grant('projects', 'view', ['name']);
+      if (boundary === 'target-scope') await grant('projects', 'view', ['id', 'name'], { name: 'Other' });
+      const targetId = boundary === 'hidden-target' ? 103 : 102;
+      const id = boundary === 'ownership' ? 4 : 3;
+      const filter = { name: boundary === 'ownership' ? 'Visible' : boundary === 'request' ? 'Other' : 'Owned' };
+      const response = await filteredUpdate(
+        { [name]: name === 'project' ? targetId : [targetId], name: 'Forbidden' },
+        filter,
+        id,
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: null });
+      expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H', projectId: null });
+      expect(await links()).toEqual([101]);
+    });
+
+    it.each(['project', 'projects'])('clears a filtered %s without requiring old target access', async (name) => {
+      await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 3 } });
+      await seedLinks([103]);
+      await grant('projects', 'view', ['name'], { name: 'Other' });
+      const response = await filteredUpdate({ [name]: name === 'project' ? null : [], name: 'Changed' });
+      expect(response.status).toBe(200);
+      expect(await row()).toMatchObject({ name: 'Changed', projectId: name === 'project' ? null : 103 });
+      expect(await links()).toEqual(name === 'projects' ? [] : [103]);
+      expect(await row('projects', 103)).toMatchObject({ name: 'Hidden', tenantId: 'C' });
+    });
+
+    it('treats template markers in a filtered reference update as literal request text', async () => {
+      await app.db.getCollection('documents').model.update({ name: '{{ project name }}' }, { where: { id: 3 } });
+      const response = await filteredUpdate({ project: 102, name: 'Changed' }, { name: '{{ project name }}' });
+      expect(response.status).toBe(200);
+      expect(await row()).toMatchObject({ name: 'Changed', projectId: 102 });
+    });
+
+    it('rolls back source fields, references and links on a late filtered join failure', async () => {
+      await seedLinks([101]);
+      let observed: unknown;
+      app.db.getCollection('document_projects').model.addHook('afterBulkCreate', async (_records, options) => {
+        observed = {
+          source: (
+            await app.db.getCollection('documents').model.findByPk(3, { transaction: options.transaction })
+          )?.toJSON(),
+          links: (
+            await app.db.getCollection('document_projects').model.findAll({ transaction: options.transaction })
+          ).map((record) => Number(record.get('projectId'))),
+        };
+        throw new Error('filtered join rollback fixture');
+      });
+      const response = await filteredUpdate({ project: 102, projects: [102], name: 'Forbidden' });
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+      expect(observed).toEqual({ source: { id: 3, name: 'Forbidden', tenantId: 'B', projectId: 102 }, links: [102] });
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: null });
+      expect(await links()).toEqual([101]);
+    });
+  });
+
   describe('association reads', () => {
     const concrete = (relation: string, action: string, source: number | string = 3, query: object = {}) =>
       supertest(app.callback()).get(`/api/documents/${source}/${relation}:${action}`).query(query);
@@ -1586,10 +1703,10 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
   });
 
-  it.each(['project', 'projects'])('rejects a nonempty HTTP filter on a root %s reference update', async (name) => {
+  it.each(['project', 'projects'])('rejects a relational HTTP filter on a root %s reference update', async (name) => {
     const response = await supertest(app.callback())
       .post('/api/documents:update')
-      .query({ filterByTk: 3, filter: JSON.stringify({ name: 'Owned' }) })
+      .query({ filterByTk: 3, filter: JSON.stringify({ project: { name: 'Owned' } }) })
       .send({ name: 'Forbidden', [name]: name === 'project' ? 102 : [102] });
     expect(response.status).toBe(400);
     expect(response.body).not.toHaveProperty('data');

@@ -8,14 +8,10 @@ import { assertCreationKeyArray } from './creation-links';
 import { prepareCreationReferences, type AccessCreationTargetAuthorizer } from './creation-reference';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
-import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessMutationService } from './mutation';
 import type { AccessQueryService } from './query';
-import { AccessReadGrantAdapter } from './read-grants';
-import { AccessRequestFilterParser } from './request-filter';
 import { AccessRoleFilterCompiler } from './role-filter';
-import { rootFilterWhere } from './root-filter-predicate';
-import { captureRelatedReadPermission } from './root-read-context';
+import { prepareScalarMutationFilter } from './scalar-mutation-filter';
 import { cloneDeep, invalid, normalizeKeys, plain, validateRootValues } from './write-support';
 
 interface AccessRootMutationContext {
@@ -237,26 +233,16 @@ export class AccessRootMutationHandler {
     } else if (params.values !== undefined) invalid('Deletion cannot supply values');
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
     const role = compiler.compile(identity, filter);
-    const parseRequest = (readable: readonly string[]) =>
-      new AccessRequestFilterParser(this.db, (target, path) => {
-        if (target !== collection || path.length)
-          invalid('Relational mutation request filters require their own adapter');
-        return { identity, fields: readable };
-      }).parse(identity, requestFilter);
-    // Validate the actual request grammar before awaiting authorization; it is never a role fact grant.
-    const requested = filtered
-      ? rootFilterWhere(
-          parseRequest(
-            Object.keys(model.rawAttributes).filter(
-              (name) => (model.rawAttributes[name].type as { key?: string }).key !== 'VIRTUAL',
-            ),
-          ).filter,
-          model.primaryKeyAttribute,
-        )
-      : undefined;
-    if (filtered && requested === undefined) invalid('Mutation request filter must use root fields');
-    const metadataCurrent = filtered ? accessMetadataGuard(this.db, [{ model, config }]) : undefined;
-    let readPlan: ReturnType<AccessReadGrantAdapter['capturePlan']>;
+    const selection = prepareScalarMutationFilter(
+      this.db,
+      collection,
+      identity,
+      config,
+      requestFilter,
+      actor.roleName,
+      compiler,
+      this.resolveIdentity,
+    );
     const assertCurrent = () => {
       const current = this.resolveIdentity(collection);
       if (
@@ -270,8 +256,7 @@ export class AccessRootMutationHandler {
         invalid('Mutation entry identity or preparation phase changed');
       role.assertCurrent();
       reference?.assertCurrent();
-      metadataCurrent?.();
-      readPlan?.assertCurrent();
+      selection?.assertCurrent();
     };
     assertCurrent();
     if (operation === 'create') {
@@ -302,24 +287,8 @@ export class AccessRootMutationHandler {
       ctx.body = result;
       return;
     }
-    if (filtered) {
-      const related = await authorizeRead!(collection);
-      assertCurrent();
-      if (!related) invalid('Mutation filter read is not authorized');
-      const decision = captureRelatedReadPermission(this.db, collection, actor.roleName, related);
-      readPlan = new AccessReadGrantAdapter(this.db, (target) => {
-        const current = this.resolveIdentity(target);
-        return current && accessCollectionKey(current);
-      }).capturePlan(identity, decision, compiler);
-      if (!readPlan) invalid('Mutation filter read is not authorized');
-      parseRequest(readPlan.grant.fields);
-      assertCurrent();
-    }
-    const where = filtered
-      ? {
-          [Op.and]: [role.rootWhere ?? role.where, requested!, readPlan!.rootWhere ?? readPlan!.grant.where!],
-        }
-      : (role.rootWhere ?? role.where);
+    const requested = selection ? await selection.resolve(authorizeRead, assertCurrent) : undefined;
+    const where = requested ? { [Op.and]: [role.rootWhere ?? role.where, requested] } : (role.rootWhere ?? role.where);
     const result = await new AccessMutationService(this.db, this.prepared, this.queries).withExistingRecords(
       ctx,
       identity,

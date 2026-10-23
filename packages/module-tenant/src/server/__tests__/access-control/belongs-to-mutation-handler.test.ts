@@ -27,7 +27,13 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
   let handler: AccessBelongsToMutationHandler;
   const auth = () => ({ tenantId: 'B', roleName: 'editor', userId: 28 });
   const identity = (collection: Collection) =>
-    collection === docs ? mainIdentity : collection === customers ? customerIdentity : projectIdentity;
+    collection === docs
+      ? mainIdentity
+      : collection === customers
+        ? customerIdentity
+        : collection.name === 'tenants'
+          ? { ...mainIdentity, collectionKey: 'tenants-key', collectionName: 'tenants' }
+          : projectIdentity;
   const pg = (name: string, run: () => Promise<void>) => it.skipIf(dialect !== 'postgres')(name, run);
 
   beforeEach(async () => {
@@ -163,6 +169,157 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     const related = await target(grant, params);
     return handler.handle(ctx, auth(), async () => related);
   };
+
+  describe('scalar-filtered source selection', () => {
+    const filtered = (params: object = {}, grant: object = {}) =>
+      context(
+        'documents',
+        'update',
+        { filter: { name: 'Owned' }, values: { project: 101, name: 'Changed' }, ...params },
+        grant,
+      );
+    const authorize = (collection: Collection) =>
+      context(collection.name, 'list', {}, { fields: collection === docs ? ['name'] : ['id'] });
+
+    pg('captures filter, values and actor before resolving source read permission', async () => {
+      const ctx = await filtered();
+      const actor = auth();
+      await handler.handle(ctx, actor, async (collection) => {
+        if (collection === docs) {
+          Object.assign((ctx.permission as { rawParams: object }).rawParams, {
+            filter: { name: 'Other' },
+            values: { project: 102, name: 'Injected' },
+          });
+          actor.tenantId = 'C';
+        }
+        return authorize(collection);
+      });
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await read()).toMatchObject({ name: 'Changed', projectId: 101, tenantId: 'B' });
+    });
+
+    for (const kind of ['denied', 'wrong role', 'wrong resource', 'wrong action', 'filtered decision']) {
+      pg(`rejects a ${kind} independent source decision before editing`, async () => {
+        const ctx = await filtered();
+        await expect(
+          handler.handle(ctx, auth(), async (collection) => {
+            if (collection !== docs) return authorize(collection);
+            if (kind === 'denied') return null;
+            const decision = await context(
+              kind === 'wrong resource' ? 'projects' : 'documents',
+              'list',
+              kind === 'filtered decision' ? { filter: { id: 3 } } : {},
+            );
+            if (kind === 'wrong role')
+              Object.assign(decision.permission as object, {
+                can: { resource: 'documents', action: 'list', role: 'other' },
+              });
+            if (kind === 'wrong action') Object.assign(decision.action, { actionName: 'get' });
+            return decision;
+          }),
+        ).rejects.toThrow();
+        expect(ctx.body).toBe('unchanged');
+        expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, tenantId: 'B' });
+      });
+    }
+
+    pg('rejects changes to the source schema during independent read authorization', async () => {
+      const ctx = await filtered();
+      const attribute = docs.model.rawAttributes.name;
+      const original = attribute.field;
+      try {
+        await expect(
+          handler.handle(ctx, auth(), async (collection) => {
+            const decision = await authorize(collection);
+            if (collection === docs) attribute.field = 'changed_name';
+            return decision;
+          }),
+        ).rejects.toThrow();
+        expect(ctx.body).toBe('unchanged');
+      } finally {
+        attribute.field = original;
+      }
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+    });
+
+    pg('rejects an expired preparation phase after source read authorization', async () => {
+      const ctx = await filtered();
+      await expect(
+        handler.handle(ctx, auth(), async (collection) => {
+          const decision = await authorize(collection);
+          if (collection === docs) adapter.release(ctx);
+          return decision;
+        }),
+      ).rejects.toThrow();
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+    });
+
+    pg('preserves hidden read-role facts while updating references', async () => {
+      docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+      const ctx = await filtered();
+      await handler.handle(ctx, auth(), (collection) =>
+        collection === docs
+          ? context('documents', 'list', {}, { fields: ['name'], filter: { owner: { enabled: true } } })
+          : authorize(collection),
+      );
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await read()).toMatchObject({ name: 'Changed', projectId: 101 });
+    });
+
+    pg('rechecks read-role dependency metadata through later target authorization', async () => {
+      docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+      const ctx = await filtered();
+      const attribute = db.getCollection('tenants').model.rawAttributes.enabled;
+      const original = attribute.field;
+      try {
+        await expect(
+          handler.handle(ctx, auth(), async (collection) => {
+            if (collection === docs)
+              return context('documents', 'list', {}, { fields: ['name'], filter: { owner: { enabled: true } } });
+            const decision = await authorize(collection);
+            attribute.field = 'changed_enabled';
+            return decision;
+          }),
+        ).rejects.toThrow();
+        expect(ctx.body).toBe('unchanged');
+      } finally {
+        attribute.field = original;
+      }
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+    });
+
+    pg('does not claim legacy sources rejected by the request filter', async () => {
+      const previous = (await store.read(mainIdentity))!;
+      await store.save(
+        mainIdentity,
+        { ...configFor({ type: 'constant', value: true }), revision: previous.revision },
+        { userId: 28 },
+      );
+      const rejected = await filtered({ filterByTk: 5, filter: { name: 'Other' } });
+      await expect(handler.handle(rejected, auth(), authorize)).rejects.toThrow();
+      expect(await read(5)).toMatchObject({ name: 'Legacy', projectId: 103, tenantId: null });
+      const allowed = await filtered({ filterByTk: 5, filter: { name: 'Legacy' } });
+      await handler.handle(allowed, auth(), authorize);
+      expect(await read(5)).toMatchObject({ name: 'Changed', projectId: 101, tenantId: 'B' });
+    });
+
+    pg('does not claim a legacy source when its filtered reference update is a noop', async () => {
+      const previous = (await store.read(mainIdentity))!;
+      await store.save(
+        mainIdentity,
+        { ...configFor({ type: 'constant', value: true }), revision: previous.revision },
+        { userId: 28 },
+      );
+      const ctx = await filtered({
+        filterByTk: 5,
+        filter: { name: 'Legacy' },
+        values: { project: 103, name: 'Legacy' },
+      });
+      await handler.handle(ctx, auth(), authorize);
+      expect(await read(5)).toMatchObject({ name: 'Legacy', projectId: 103, tenantId: null });
+    });
+  });
 
   pg('references a visible-only target without changing or claiming it', async () => {
     const ctx = await context('documents', 'update', {}, { fields: ['project'] });
@@ -496,7 +653,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     { values: { projectId: 101 } },
     { values: { project: 101, projectId: 102 } },
     { values: { project: 101, unknown: 'edit' } },
-    { filter: { name: 'Owned' }, values: { project: 101 } },
+    { filter: { project: { name: 'Owned' } }, values: { project: 101 } },
     { appends: ['project'], values: { project: 101 } },
     { filterByTk: [3], values: { project: 101 } },
     { filterByTk: undefined, values: { project: 101 } },

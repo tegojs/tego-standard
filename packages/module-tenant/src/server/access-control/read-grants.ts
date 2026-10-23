@@ -79,6 +79,7 @@ export class AccessReadGrantAdapter {
     compiler: AccessRoleFilterCompiler,
   ): {
     grant: AccessFilterReadGrant;
+    rootWhere?: WhereOptions;
     fieldsAt(path: readonly string[], fields: readonly string[]): readonly string[];
     assertCurrent(): void;
   } | null {
@@ -87,6 +88,7 @@ export class AccessReadGrantAdapter {
     const role = compiler.compile(prepared.grant.identity, prepared.filter);
     return {
       grant: Object.freeze({ ...prepared.grant, where: role.where }),
+      rootWhere: role.rootWhere,
       fieldsAt: (path, fields) => prepared.paths?.fieldsAt(path, fields) ?? fields,
       assertCurrent: () => {
         role.assertCurrent();

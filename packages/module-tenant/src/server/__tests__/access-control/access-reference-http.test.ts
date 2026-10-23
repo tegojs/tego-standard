@@ -275,6 +275,33 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       .getCollection('document_projects')
       .model.bulkCreate(ids.map((projectId) => ({ documentId: source, projectId })));
 
+  it('applies a nonempty scalar filter through the actual root update HTTP route', async () => {
+    const response = await supertest(app.callback())
+      .post('/api/documents:update')
+      .query({ filterByTk: 3, filter: JSON.stringify({ name: { $startsWith: 'Own' } }) })
+      .send({ name: 'Changed' });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+  });
+
+  it.each(['request', 'field', 'read-scope', 'ownership'])(
+    'preserves the %s boundary on filtered HTTP updates',
+    async (boundary) => {
+      if (boundary === 'field') await grant('documents', 'view', ['id']);
+      if (boundary === 'read-scope') await grant('documents', 'view', ['id', 'name'], { name: 'Other' });
+      const id = boundary === 'ownership' ? 4 : 3;
+      const name = boundary === 'ownership' ? 'Visible' : boundary === 'request' ? 'Other' : 'Owned';
+      const response = await supertest(app.callback())
+        .post('/api/documents:update')
+        .query({ filterByTk: id, filter: JSON.stringify({ name }) })
+        .send({ name: 'Forbidden' });
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+    },
+  );
+
   describe('association reads', () => {
     const concrete = (relation: string, action: string, source: number | string = 3, query: object = {}) =>
       supertest(app.callback()).get(`/api/documents/${source}/${relation}:${action}`).query(query);

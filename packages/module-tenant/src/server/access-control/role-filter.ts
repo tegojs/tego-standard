@@ -13,6 +13,7 @@ import type { AccessFilterNode } from './filter-tree';
 import { accessMetadataGuard } from './metadata-snapshot';
 import { resolveModelMetadata } from './model-metadata';
 import { AccessRequestFilterParser } from './request-filter';
+import { rootFilterWhere } from './root-filter-predicate';
 import type { CollectionMetadata } from './types';
 import { cloneDeep, invalid, plain } from './write-support';
 
@@ -208,36 +209,7 @@ export class AccessRoleFilterCompiler {
       }
     };
     assertCurrent();
-    const predicate = rootPredicate(tree);
-    const rootWhere =
-      typeof predicate === 'boolean'
-        ? predicate
-          ? {}
-          : { [root.model.primaryKeyAttribute]: { [Op.in]: [] } }
-        : predicate;
+    const rootWhere = rootFilterWhere(tree, root.model.primaryKeyAttribute);
     return { where, rootWhere, assertCurrent };
-  }
-}
-
-/** Keep scalar writes on ordinary transactions; relationship facts still use the SQL expression. */
-function rootPredicate(node: AccessFilterNode): WhereOptions | boolean | undefined {
-  switch (node.type) {
-    case 'predicate':
-      return node.where;
-    case 'all':
-    case 'any': {
-      const conjunction = node.type === 'all';
-      const children = node.children.map(rootPredicate);
-      if (children.some((child) => child === undefined)) return;
-      if (children.includes(!conjunction)) return !conjunction;
-      const clauses = children.filter((child): child is WhereOptions => typeof child !== 'boolean');
-      return clauses.length ? { [conjunction ? Op.and : Op.or]: clauses } : conjunction;
-    }
-    case 'not': {
-      const child = rootPredicate(node.child);
-      return child === undefined ? undefined : typeof child === 'boolean' ? !child : { [Op.not]: child };
-    }
-    default:
-      return;
   }
 }

@@ -49,6 +49,12 @@ export function plain(value: unknown): value is Record<PropertyKey, unknown> {
   return !!value && typeof value === 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 }
 
+/** Only an empty request filter is neutral; nonempty conditions require their own authorization adapter. */
+export function assertEmptyMutationFilter(value: unknown): void {
+  if (value !== undefined && (!plain(value) || Reflect.ownKeys(value).length !== 0))
+    invalid('Only empty request filters are supported for explicit-key mutations');
+}
+
 export function internalQuery<T extends object>(options: T) {
   return { ...options, hooks: false, useMaster: true };
 }

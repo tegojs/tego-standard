@@ -11,7 +11,14 @@ import { captureFinalActionPermission } from './final-action-permission';
 import { AccessMutationService } from './mutation';
 import type { AccessQueryService } from './query';
 import { AccessRoleFilterCompiler } from './role-filter';
-import { cloneDeep, invalid, normalizeKeys, plain, validateRootValues } from './write-support';
+import {
+  assertEmptyMutationFilter,
+  cloneDeep,
+  invalid,
+  normalizeKeys,
+  plain,
+  validateRootValues,
+} from './write-support';
 
 interface AccessRootMutationContext {
   db: Database;
@@ -80,7 +87,9 @@ export class AccessRootMutationHandler {
       'resourceIndex',
       'filterByTk',
       'values',
+      ...(operation === 'create' ? [] : ['filter']),
     ]);
+    if (operation !== 'create') assertEmptyMutationFilter(data(raw, 'filter'));
     // cloneDeep deliberately normalizes array prototypes; validate raw selections first.
     const rawLocator = data(raw, 'filterByTk');
     if (Array.isArray(rawLocator)) {

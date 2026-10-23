@@ -1163,6 +1163,30 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
         expect(await row(target, 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: null });
       });
 
+      it('accepts an empty HTTP filter with source scalars and a child replacement', async () => {
+        const response = await supertest(app.callback())
+          .post('/api/documents:update?filterByTk=3&filter=%7B%7D')
+          .send({ name: 'Edited', [association]: selection });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await selected(target)).toEqual([201]);
+        expect(await row()).toEqual({ id: 3, name: 'Edited', tenantId: 'B', projectId: null });
+        expect(await row(target, 201)).toEqual({ id: 201, name: 'Owned', tenantId: 'B', documentId: 3 });
+        expect((await row(target, 205)).documentId).toBeNull();
+      });
+
+      it('rejects a nonempty request filter before saving source or children', async () => {
+        const response = await supertest(app.callback())
+          .post('/api/documents:update')
+          .query({ filterByTk: 3, filter: JSON.stringify({ name: 'Owned' }) })
+          .send({ name: 'Forbidden', [association]: selection });
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await selected(target)).toEqual([205]);
+        expect((await row()).name).toBe('Owned');
+        expect((await row(target, 201)).documentId).toBeNull();
+      });
+
       it('rejects implicit detachment of a visible-only child before changing source scalars', async () => {
         await app.db.getCollection(target).model.update({ tenantId: 'H', name: 'Visible' }, { where: { id: 205 } });
         const response = await update({ name: 'Must not persist', [association]: selection });
@@ -1522,6 +1546,28 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     expect(await row()).toEqual({ id: 3, name: 'Edited', tenantId: 'B', projectId: 102 });
     expect(await links()).toEqual([102]);
     expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+  });
+
+  it.each(['project', 'projects'])('accepts an empty HTTP filter on a root %s reference update', async (name) => {
+    const response = await supertest(app.callback())
+      .post('/api/documents:update?filterByTk=3&filter=%7B%7D')
+      .send({ name: 'Edited', [name]: name === 'project' ? 102 : [102] });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await row()).toEqual({ id: 3, name: 'Edited', tenantId: 'B', projectId: name === 'project' ? 102 : null });
+    expect(await links()).toEqual(name === 'projects' ? [102] : []);
+    expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+  });
+
+  it.each(['project', 'projects'])('rejects a nonempty HTTP filter on a root %s reference update', async (name) => {
+    const response = await supertest(app.callback())
+      .post('/api/documents:update')
+      .query({ filterByTk: 3, filter: JSON.stringify({ name: 'Owned' }) })
+      .send({ name: 'Forbidden', [name]: name === 'project' ? 102 : [102] });
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+    expect(await links()).toEqual([]);
   });
 
   it('rejects reference edits to a source that is only visible', async () => {

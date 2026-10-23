@@ -16,7 +16,14 @@ import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
-import { cloneDeep, invalid, normalizeKeys, plain, validateRootValues } from './write-support';
+import {
+  assertEmptyMutationFilter,
+  cloneDeep,
+  invalid,
+  normalizeKeys,
+  plain,
+  validateRootValues,
+} from './write-support';
 
 function data(input: object, key: PropertyKey): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(input, key);
@@ -85,10 +92,12 @@ export class AccessTargetForeignKeyMutationHandler {
       'resourceIndex',
       'filterByTk',
       'values',
+      'filter',
     ];
     if (!plain(raw) || Reflect.ownKeys(raw).some((key) => typeof key !== 'string' || !allowed.includes(key)))
       invalid('Unsupported root child parameters');
     for (const key of Reflect.ownKeys(raw)) data(raw, key);
+    assertEmptyMutationFilter(data(raw, 'filter'));
     const submitted = data(raw, 'values');
     if (!plain(submitted)) invalid('Root child update requires named values');
     for (const key of Reflect.ownKeys(submitted)) {

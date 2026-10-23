@@ -307,6 +307,17 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
     expect(await record(3)).toBeUndefined();
   });
 
+  it.each(['update', 'destroy'] as const)('accepts filter={} on an actual keyed HTTP %s', async (operation) => {
+    await grantMutation(operation, { name: 'D3' });
+    const response = await supertest(app.callback())
+      .post(`/api/documents:${operation}?filterByTk=3&filter=%7B%7D`)
+      .send(operation === 'update' ? { name: 'Changed', amount: 999 } : {});
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    if (operation === 'update') expect(await record(3)).toMatchObject({ name: 'Changed', amount: 300, tenantId: 'B' });
+    else expect(await record(3)).toBeUndefined();
+  });
+
   it.each(['update', 'destroy'] as const)('does not let V-only access authorize %s', async (operation) => {
     await grantMutation(operation);
     const visible = await app

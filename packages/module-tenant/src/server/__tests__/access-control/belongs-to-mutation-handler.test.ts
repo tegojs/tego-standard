@@ -496,7 +496,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     { values: { projectId: 101 } },
     { values: { project: 101, projectId: 102 } },
     { values: { project: 101, unknown: 'edit' } },
-    { filter: {}, values: { project: 101 } },
+    { filter: { name: 'Owned' }, values: { project: 101 } },
     { appends: ['project'], values: { project: 101 } },
     { filterByTk: [3], values: { project: 101 } },
     { filterByTk: undefined, values: { project: 101 } },

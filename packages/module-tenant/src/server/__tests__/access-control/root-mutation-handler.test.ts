@@ -140,6 +140,47 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     expect(await read()).toBeUndefined();
   });
 
+  it.each(['update', 'destroy'])('accepts an explicit empty request filter for keyed %s', async (operation) => {
+    const ctx = await context(
+      operation,
+      { filter: {}, ...(operation === 'update' ? { values: { name: 'Changed', amount: 999 } } : {}) },
+      { fields: ['name'], filter: { name: 'Owned' } },
+    );
+    await handler.handle(ctx, auth());
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    if (operation === 'update') expect(await read()).toMatchObject({ name: 'Changed', amount: 30, tenantId: 'B' });
+    else expect(await read()).toBeUndefined();
+    expect((ctx.permission as { rawParams: object }).rawParams).toHaveProperty('filter', {});
+  });
+
+  it.each(['nonempty', 'array', 'null', 'string', 'date', 'prototype', 'symbol', 'accessor'])(
+    'rejects a %s request filter before SQL without evaluating it',
+    async (kind) => {
+      const getter = vi.fn(() => 'Owned');
+      const filters: Record<string, unknown> = {
+        nonempty: { name: 'Owned' },
+        array: [],
+        null: null,
+        string: '{}',
+        date: new Date(),
+        prototype: Object.create({ name: 'Owned' }),
+        symbol: { [Symbol('condition')]: true },
+        accessor: Object.defineProperty({}, 'name', { get: getter }),
+      };
+      for (const operation of ['update', 'destroy']) {
+        const ctx = await context(operation, operation === 'update' ? { values: { name: 'Bad' } } : {});
+        (ctx.permission as { rawParams: { filter?: unknown } }).rawParams.filter = filters[kind];
+        const sql = vi.spyOn(db.sequelize, 'query');
+        await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect(sql).not.toHaveBeenCalled();
+        expect(getter).not.toHaveBeenCalled();
+        expect(ctx.body).toBe('unchanged');
+        sql.mockRestore();
+        expect(await read()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      }
+    },
+  );
+
   it.each(['whitelist', 'blacklist'])('accepts an omitted association in the finalized %s', async (fieldList) => {
     docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
     const ctx = await context('update', { values: { name: 'Changed' } });
@@ -362,6 +403,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
   it.each(['update', 'destroy'])('does not let visibility grant %s', async (operation) => {
     const ctx = await context(operation, {
       filterByTk: 1,
+      filter: {},
       ...(operation === 'update' ? { values: { name: 'Bad' } } : {}),
     });
     await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
@@ -370,7 +412,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
   });
 
   it('uses resolved role conditions instead of merged request params', async () => {
-    const ctx = await context('update', { values: { name: 'Bad' } }, { filter: { name: 'Other' } });
+    const ctx = await context('update', { filter: {}, values: { name: 'Bad' } }, { filter: { name: 'Other' } });
     ctx.action.mergeParams({ filter: {} });
     await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
     expect((await read()).name).toBe('Owned');

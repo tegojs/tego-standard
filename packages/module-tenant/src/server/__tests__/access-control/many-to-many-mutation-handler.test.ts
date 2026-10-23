@@ -740,7 +740,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized many-
     { values: { projects: [101], unknown: 'changed' } },
     { values: { projects: [101], tenantId: 'C' } },
     { filterByTk: [3] },
-    { filter: {} },
+    { filter: { name: 'Owned' } },
     { appends: ['projects'] },
     { updateAssociationValues: ['projects'] },
     { transaction: {} },

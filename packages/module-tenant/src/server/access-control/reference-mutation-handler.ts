@@ -18,6 +18,7 @@ import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
 import {
+  assertEmptyMutationFilter,
   cloneDeep,
   internalQuery,
   invalid,
@@ -83,7 +84,9 @@ export class AccessReferenceMutationHandler {
       'resourceIndex',
       'filterByTk',
       'values',
+      'filter',
     ]);
+    assertEmptyMutationFilter(data(raw, 'filter'));
     const params = cloneDeep(raw);
     for (const [key, expected] of [
       ['resourceName', resourceName],

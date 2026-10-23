@@ -319,15 +319,21 @@ describe('workflow runtime authority with tenant data scopes', () => {
     expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
   });
 
-  it.each([
-    ['query', { fields: ['name'], sort: [{ field: 'parent.name' }] }],
-    ['destroy', { filter: { parent: { name: 'Hidden' } } }],
-  ] as const)('keeps unsupported relationship operations closed: %s', async (type, params) => {
-    const { execution, job } = await execute(type, params);
+  it('rejects unsupported self-association sorting', async () => {
+    const { execution, job } = await execute('query', { fields: ['name'], sort: [{ field: 'parent.name' }] });
     expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
     expect(job.result.message).toMatch(/association|relationship|BelongsTo/i);
     expect(await ids()).toEqual([1, 2, 3, 4]);
     expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
+  });
+
+  it('rejects relationship-filtered deletion on SQLite before selecting its executor', async () => {
+    const { execution, job } = await execute('destroy', { filter: { parent: { name: 'Hidden' } } });
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toMatch(/PostgreSQL/i);
+    expect(captured).toHaveLength(0);
+    expect(await ids()).toEqual([1, 2, 3, 4]);
   });
 
   it('deduplicates configuration for a configured self association', async () => {

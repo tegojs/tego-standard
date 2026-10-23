@@ -24,6 +24,50 @@ export function captureWorkflowWriteValueFields(params: object): readonly string
   return Object.freeze(Object.keys(descriptor.value));
 }
 
+/** Detached, bounded JSON for selection planning; never expose mutable instruction inputs. */
+export function captureWorkflowWriteSelectionFilter(params: object): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(params, 'filter');
+  if (!descriptor) return;
+  if (!Object.hasOwn(descriptor, 'value')) throw new TypeError('Workflow selection filters cannot contain accessors');
+  if (descriptor.value === undefined) return;
+  let nodes = 0;
+  const seen = new Set<object>();
+  const copy = (value: unknown, depth = 0): unknown => {
+    if (++nodes > 1000 || depth > 16) throw new TypeError('Workflow selection filter exceeds size or depth limits');
+    if (value === null || typeof value === 'boolean') return value;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.length <= 10000) return value;
+    if (!value || typeof value !== 'object') throw new TypeError('Workflow selection filters require bounded JSON');
+    if (seen.has(value)) throw new TypeError('Workflow selection filters cannot contain cycles');
+    seen.add(value);
+    const array = Array.isArray(value);
+    const keys = Reflect.ownKeys(value);
+    if (array) {
+      if (
+        Object.getPrototypeOf(value) !== Array.prototype ||
+        value.length > 100 ||
+        keys.length !== value.length + 1 ||
+        Array.from({ length: value.length }, (_, index) => !Object.hasOwn(value, index)).some(Boolean)
+      )
+        throw new TypeError('Workflow selection filter lists must be bounded and dense');
+    } else if (![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+      throw new TypeError('Workflow selection filters require plain JSON objects');
+    }
+    const result = array ? [] : Object.create(null);
+    for (const key of keys) {
+      if (array && key === 'length') continue;
+      if (typeof key !== 'string' || key.length > 10000 || key.split('.').length > 10)
+        throw new TypeError('Workflow selection filter keys exceed supported limits');
+      const property = Object.getOwnPropertyDescriptor(value, key)!;
+      if (!Object.hasOwn(property, 'value')) throw new TypeError('Workflow selection filters cannot contain accessors');
+      result[key] = copy(property.value, depth + 1);
+    }
+    seen.delete(value);
+    return Object.freeze(result);
+  };
+  return copy(descriptor.value);
+}
+
 /** Observe resolved data properties without copying model/context internals or evaluating getters. */
 export function captureWorkflowWritePlanningInputs(params: object, context: object) {
   const checks: Array<() => boolean> = [];

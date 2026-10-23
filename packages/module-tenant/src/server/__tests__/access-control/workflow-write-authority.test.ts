@@ -230,6 +230,43 @@ describe('configured workflow scalar writes with tenant ownership', () => {
   }
 
   describe('node-owned transactions planned from current policy', () => {
+    it('uses the actual selection filter to reject SQLite relationship planning before selecting a writer', async () => {
+      planning = true;
+      const job = await execute(
+        'update',
+        {
+          filter: { parent: { name: 'Hidden' } },
+          values: { name: 'No' },
+        },
+        { currentTenantId: 'B' },
+        null,
+      );
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/PostgreSQL/i);
+      expect(planningCalls).toBe(1);
+      expect(request).toBeUndefined();
+      expect((await get(1)).name).toBe('Owned');
+    });
+
+    it('keeps scalar selection planning compatible with the ownership-checked writer', async () => {
+      planning = true;
+      const job = await execute(
+        'update',
+        {
+          filter: { name: 'Owned' },
+          values: { name: 'Planned selection' },
+        },
+        { currentTenantId: 'B' },
+        null,
+      );
+      expect(job.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(planningCalls).toBe(1);
+      expect((request.transaction as Transaction & { options: { type: string } }).options.type).toBe(
+        Transaction.TYPES.IMMEDIATE,
+      );
+      expect(await get(1)).toMatchObject({ name: 'Planned selection', tenantId: 'B' });
+    });
+
     it.each(['create', 'update'] as const)(
       'rejects SQLite %s references during planning before execution',
       async (kind) => {

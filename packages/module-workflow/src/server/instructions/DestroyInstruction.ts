@@ -13,6 +13,7 @@ import {
 import type Plugin from '../Plugin';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
+import { captureWorkflowWritePlanningInputs, captureWorkflowWriteSelectionFilter } from './write-planning-snapshot';
 
 export interface WorkflowDestroyRequest {
   readonly dataSourceName: string;
@@ -37,8 +38,8 @@ export type WorkflowDestroyTransactionOptionsResolver = (
 export type WorkflowDestroyTransactionTarget = Pick<
   WorkflowDestroyRequest,
   'dataSourceName' | 'collectionName' | 'collection'
->;
-/** Target-only asynchronous policy loading; neither a delete request nor operation authorization. */
+> & { readonly captureFilter?: () => unknown };
+/** Inspect captureFilter only after selecting the target; this planning never authorizes deletion. */
 export type WorkflowDestroyTransactionPlanner = (
   target: WorkflowDestroyTransactionTarget,
 ) => WorkflowDestroyTransactionOptions | undefined | Promise<WorkflowDestroyTransactionOptions | undefined>;
@@ -106,12 +107,26 @@ export class DestroyInstruction extends Instruction {
     };
     const processorTransaction = processor.transaction;
     let transactionOptions: WorkflowDestroyTransactionOptions | undefined;
+    let assertPlanningInputsCurrent: (() => void) | undefined;
     // Existing transactions belong to the caller and cannot be planned, replaced or upgraded here.
     if (this.transactionPlanner && !this.workflow.useDataSourceTransaction(dataSourceName, processorTransaction)) {
       const transactionDatabase = (collectionManager as { db?: { sequelize?: unknown } }).db;
       const transactionConnection = transactionDatabase?.sequelize;
+      assertPlanningInputsCurrent = captureWorkflowWritePlanningInputs(options, baseRepositoryContext);
       const planned = await this.transactionPlanner(
-        Object.freeze({ dataSourceName, collectionName, collection: targetCollection }),
+        Object.freeze({
+          dataSourceName,
+          collectionName,
+          collection: targetCollection,
+          ...(Object.hasOwn(options, 'filter')
+            ? {
+                captureFilter: () => {
+                  assertPlanningInputsCurrent!();
+                  return captureWorkflowWriteSelectionFilter(options);
+                },
+              }
+            : {}),
+        }),
       );
       if (
         this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) !== dataSource ||
@@ -121,6 +136,7 @@ export class DestroyInstruction extends Instruction {
         collectionManager.getCollection(collectionName) !== targetCollection
       )
         throw new TypeError('Destroy transaction target changed during planning');
+      assertPlanningInputsCurrent();
       if (planned !== undefined) {
         if (
           !planned ||
@@ -161,6 +177,7 @@ export class DestroyInstruction extends Instruction {
       dataSourceName,
       processorTransaction,
       async (transaction) => {
+        assertPlanningInputsCurrent?.();
         const request: WorkflowDestroyRequest = Object.freeze({
           dataSourceName,
           collectionName,

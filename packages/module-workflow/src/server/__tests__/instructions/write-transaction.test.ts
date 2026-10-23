@@ -49,9 +49,12 @@ describe.each(['create', 'update'] as const)('workflow %s asynchronous transacti
     await db.close();
   });
 
-  const run = (resolve?, planner?, source = 'documents', values = { name: 'Changed' }) =>
+  const run = (resolve?, planner?, source = 'documents', values = { name: 'Changed' }, filter?: unknown) =>
     new Instruction(workflow, resolve, planner).run(
-      { id: 9, config: { collection: source, params: { filterByTk: 1, values } } } as any,
+      {
+        id: 9,
+        config: { collection: source, params: { filterByTk: 1, values, ...(filter === undefined ? {} : { filter }) } },
+      } as any,
       null,
       processor,
     );
@@ -109,6 +112,140 @@ describe.each(['create', 'update'] as const)('workflow %s asynchronous transacti
     );
     expect(job.status).toBe(JOB_STATUS.RESOLVED);
   });
+
+  if (action === 'update') {
+    it.each([
+      { id: { $in: Array.from({ length: 101 }, (_, index) => index + 1) } },
+      { createdAt: { $lt: new Date('2099-01-01') } },
+    ])('preserves original selection when both planner and resolver decline', async (filter) => {
+      const job = await run(
+        () => undefined,
+        async () => undefined,
+        'documents',
+        { name: 'Changed' },
+        filter,
+      );
+      expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      expect(await names()).toEqual(['Changed']);
+    });
+
+    it.each([
+      { name: Number.NaN },
+      { name: undefined },
+      { name: new Date() },
+      { name: Object.assign([], { length: 1 }) },
+      { name: Array.from({ length: 101 }, () => 'Owned') },
+      { name: 'x'.repeat(10001) },
+      Object.assign({}, { [Symbol('hidden')]: 'Owned' }),
+    ])('rejects non-JSON or unbounded selection %j before opening a transaction', async (filter) => {
+      await expect(
+        run(
+          () => selected,
+          async (target) => {
+            target.captureFilter();
+            return {};
+          },
+          'documents',
+          { name: 'Changed' },
+          filter,
+        ),
+      ).rejects.toThrow(/filter|selection|JSON/i);
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await names()).toEqual(['Original']);
+    });
+
+    it('rejects cyclic selections before opening a transaction', async () => {
+      const filter: Record<string, unknown> = {};
+      filter.self = filter;
+      await expect(
+        run(
+          () => selected,
+          async (target) => {
+            target.captureFilter();
+            return {};
+          },
+          'documents',
+          { name: 'Changed' },
+          filter,
+        ),
+      ).rejects.toThrow(/cycles/i);
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await names()).toEqual(['Original']);
+    });
+
+    it('plans from an isolated frozen selection before beginning the update transaction', async () => {
+      const filter = { $and: [{ 'parent.name': { $eq: 'Owned' } }] };
+      const job = await run(
+        (request) => {
+          expect(request.transaction.options.type).toBe(Transaction.TYPES.IMMEDIATE);
+          expect(request.params.filter).toBe(filter);
+          return selected;
+        },
+        async (target) => {
+          const snapshot = target.captureFilter();
+          expect(snapshot).toEqual(filter);
+          expect(snapshot).not.toBe(filter);
+          expect(Object.isFrozen(snapshot.$and)).toBe(true);
+          expect(Object.isFrozen(snapshot.$and[0]['parent.name'])).toBe(true);
+          expect(() => {
+            snapshot.$and[0]['parent.name'].$eq = 'Injected';
+          }).toThrow();
+          expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+          return { type: Transaction.TYPES.IMMEDIATE };
+        },
+        'documents',
+        { name: 'Changed' },
+        filter,
+      );
+      expect(job.status).toBe(JOB_STATUS.RESOLVED);
+      expect(filter.$and[0]['parent.name'].$eq).toBe('Owned');
+      expect(await names()).toEqual(['Changed']);
+    });
+
+    it('rejects changed selection during planning before opening a write transaction', async () => {
+      const filter = { name: { $eq: 'Original' } };
+      await expect(
+        run(
+          () => selected,
+          async () => {
+            filter.name.$eq = 'Injected';
+            return {};
+          },
+          'documents',
+          { name: 'Changed' },
+          filter,
+        ),
+      ).rejects.toThrow(/inputs changed/i);
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await names()).toEqual(['Original']);
+    });
+
+    it('rejects selection getters without evaluating them or beginning a transaction', async () => {
+      let accessed = false;
+      const filter = Object.defineProperty({}, 'name', {
+        enumerable: true,
+        get() {
+          accessed = true;
+          return 'Original';
+        },
+      });
+      await expect(
+        run(
+          () => selected,
+          async (target) => {
+            target.captureFilter();
+            return {};
+          },
+          'documents',
+          { name: 'Changed' },
+          filter,
+        ),
+      ).rejects.toThrow(/filter|selection|accessor/i);
+      expect(accessed).toBe(false);
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await names()).toEqual(['Original']);
+    });
+  }
   it('passes only frozen value field names to transaction planning', async () => {
     const job = await run(
       () => selected,

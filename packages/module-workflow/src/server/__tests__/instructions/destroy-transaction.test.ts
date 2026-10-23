@@ -53,12 +53,25 @@ describe('server-selected workflow destroy transaction options', () => {
   const ids = async () => (await collection.model.findAll({ order: [['id', 'ASC']] })).map((row) => row.get('id'));
 
   describe('asynchronous target-only planning', () => {
-    const planned = (select, planner) =>
+    const planned = (select, planner, params = { filterByTk: 1 }) =>
       new DestroyInstruction(workflow, select, undefined, planner).run(
-        { id: 9, config: { collection: 'documents', params: { filterByTk: 1 } } } as any,
+        { id: 9, config: { collection: 'documents', params } } as any,
         null,
         processor,
       );
+
+    it.each([
+      { id: { $in: Array.from({ length: 101 }, (_, index) => index + 1) } },
+      { createdAt: { $lt: new Date('2099-01-01') } },
+    ])('preserves original selection when both planner and resolver decline', async (filter) => {
+      const job = await planned(
+        () => undefined,
+        async () => undefined,
+        { filterByTk: 1, filter } as any,
+      );
+      expect(job.result).toBe(1);
+      expect(await ids()).toEqual([2]);
+    });
 
     it('awaits planning before creating a transaction and exposes only the registered target', async () => {
       const calls: string[] = [];
@@ -92,6 +105,76 @@ describe('server-selected workflow destroy transaction options', () => {
         async () => undefined,
       );
       expect(job.result).toBe(0);
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('passes an isolated frozen selection to planning before opening the delete transaction', async () => {
+      const filter = { $and: [{ 'parent.name': { $eq: 'Owned' } }] };
+      const job = await planned(
+        (request) => {
+          expect(request.transaction.options.type).toBe(Transaction.TYPES.IMMEDIATE);
+          expect(request.params.filter).toBe(filter);
+          return async () => collection.repository.destroy({ filterByTk: 1, transaction: request.transaction });
+        },
+        async (target) => {
+          const snapshot = target.captureFilter();
+          expect(snapshot).toEqual(filter);
+          expect(snapshot).not.toBe(filter);
+          expect(Object.isFrozen(snapshot.$and)).toBe(true);
+          expect(Object.isFrozen(snapshot.$and[0]['parent.name'])).toBe(true);
+          expect(() => {
+            snapshot.$and[0]['parent.name'].$eq = 'Injected';
+          }).toThrow();
+          expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+          return { type: Transaction.TYPES.IMMEDIATE };
+        },
+        { filterByTk: 1, filter } as any,
+      );
+      expect(job.result).toBe(1);
+      expect(filter.$and[0]['parent.name'].$eq).toBe('Owned');
+      expect(await ids()).toEqual([2]);
+    });
+
+    it.each(['filter', 'key', 'tenant'] as const)('rejects %s drift while delete planning suspends', async (part) => {
+      const params = { filterByTk: 1, filter: { name: { $eq: 'first' } } };
+      await expect(
+        planned(
+          (request) => async () =>
+            collection.repository.destroy({ filterByTk: request.params.filterByTk, transaction: request.transaction }),
+          async () => {
+            if (part === 'filter') params.filter.name.$eq = 'second';
+            else if (part === 'key') params.filterByTk = 2;
+            else context.state.currentTenantId = 'C';
+            return {};
+          },
+          params,
+        ),
+      ).rejects.toThrow(/inputs changed/i);
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
+      expect(await ids()).toEqual([1, 2]);
+    });
+
+    it('rejects selection getters without evaluating them or opening a delete transaction', async () => {
+      let accessed = false;
+      const filter = Object.defineProperty({}, 'name', {
+        enumerable: true,
+        get() {
+          accessed = true;
+          return 'first';
+        },
+      });
+      await expect(
+        planned(
+          () => async () => 0,
+          async (target) => {
+            target.captureFilter();
+            return {};
+          },
+          { filterByTk: 1, filter } as any,
+        ),
+      ).rejects.toThrow(/filter|selection|accessor/i);
+      expect(accessed).toBe(false);
+      expect(statements.some((sql) => /BEGIN /.test(sql))).toBe(false);
       expect(await ids()).toEqual([1, 2]);
     });
 

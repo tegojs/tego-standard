@@ -137,6 +137,23 @@ describe.each([
     });
   });
 
+  it('reads a server-supplied filter capture before loading policy', async () => {
+    collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+    vi.spyOn(db.sequelize, 'getDialect').mockReturnValue('postgres');
+    expect(await planner.plan({ ...target(), captureFilter: () => ({ parent: { name: 'Owned' } }) })).toEqual({
+      isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+    });
+  });
+
+  it.each([{ captureFilter: true }, { captureFilter: () => ({}), filter: {} }])(
+    'rejects invalid or ambiguous filter capture %j before policy loading',
+    async (input) => {
+      const read = vi.spyOn(store, 'read');
+      await expect(planner.plan({ ...target(), ...input } as any)).rejects.toThrow(/selection descriptor/i);
+      expect(read).not.toHaveBeenCalled();
+    },
+  );
+
   it('rejects relationship selection on SQLite instead of opening an inadequate transaction', async () => {
     collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
     await expect(planner.plan({ ...target(), filter: { 'parent.name': 'Owned' } })).rejects.toThrow(/PostgreSQL/i);

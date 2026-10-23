@@ -14,6 +14,7 @@ export interface AccessWorkflowWriteTransactionTarget {
   readonly collection: unknown;
   readonly valueFields?: readonly string[];
   readonly filter?: unknown;
+  readonly captureFilter?: () => unknown;
 }
 
 /** Pure option selection, not a claim that a PostgreSQL transaction has been opened or verified. */
@@ -47,13 +48,20 @@ export class AccessWorkflowWriteTransactionPlanner {
       !plain(target) ||
       Reflect.ownKeys(target).some(
         (name) =>
-          !['dataSourceName', 'collectionName', 'collection', 'valueFields', 'filter'].includes(name as string) ||
-          !Object.hasOwn(Object.getOwnPropertyDescriptor(target, name)!, 'value'),
+          !['dataSourceName', 'collectionName', 'collection', 'valueFields', 'filter', 'captureFilter'].includes(
+            name as string,
+          ) || !Object.hasOwn(Object.getOwnPropertyDescriptor(target, name)!, 'value'),
       )
     )
       invalid('Workflow transaction planning requires a target and selection descriptor');
+    if (
+      target.captureFilter !== undefined &&
+      (typeof target.captureFilter !== 'function' || Object.hasOwn(target, 'filter'))
+    )
+      invalid('Workflow planning requires one unambiguous selection descriptor');
     // Capture before any metadata resolver can observe or change the caller's selection.
-    const filter = target.filter === undefined ? undefined : captureAccessFilter(target.filter);
+    const inputFilter = target.captureFilter === undefined ? target.filter : target.captureFilter();
+    const filter = inputFilter === undefined ? undefined : captureAccessFilter(inputFilter);
     const { dataSourceName, collectionName, collection: supplied } = target;
     if (typeof dataSourceName !== 'string' || typeof collectionName !== 'string')
       invalid('Workflow transaction target is unavailable');

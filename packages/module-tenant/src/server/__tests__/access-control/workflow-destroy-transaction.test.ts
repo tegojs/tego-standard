@@ -129,6 +129,83 @@ describe.each([
     expect(() => optionsFor('mysql', initialConfig(), collection)).toThrow(/dialect/i);
   });
 
+  it('requires serializable PostgreSQL planning for a relationship selection filter', async () => {
+    collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+    vi.spyOn(db.sequelize, 'getDialect').mockReturnValue('postgres');
+    expect(await planner.plan({ ...target(), filter: { parent: { name: 'Owned' } } })).toEqual({
+      isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+    });
+  });
+
+  it('rejects relationship selection on SQLite instead of opening an inadequate transaction', async () => {
+    collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+    await expect(planner.plan({ ...target(), filter: { 'parent.name': 'Owned' } })).rejects.toThrow(/PostgreSQL/i);
+  });
+
+  it('keeps scalar selection filters on the original transaction plan', async () => {
+    collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+    expect(await planner.plan({ ...target(), filter: { name: { $eq: 'Owned' } } })).toEqual({
+      type: Transaction.TYPES.IMMEDIATE,
+    });
+  });
+
+  it('captures the relationship filter before configuration loading suspends', async () => {
+    collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+    vi.spyOn(db.sequelize, 'getDialect').mockReturnValue('postgres');
+    const filter: { parent?: { name: string } } = { parent: { name: 'Owned' } };
+    const read = store.read.bind(store);
+    vi.spyOn(store, 'read').mockImplementation(async (source) => {
+      const config = await read(source);
+      delete filter.parent;
+      return config;
+    });
+    expect(await planner.plan({ ...target(), filter })).toEqual({
+      isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+    });
+  });
+
+  it('captures the selection before the identity resolver can mutate caller input', async () => {
+    collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+    vi.spyOn(db.sequelize, 'getDialect').mockReturnValue('postgres');
+    const filter: { parent?: { name: string } } = { parent: { name: 'Owned' } };
+    const mutatingPlanner = new Planner(db, store, () => {
+      delete filter.parent;
+      return currentIdentity;
+    });
+    expect(await mutatingPlanner.plan({ ...target(), filter })).toEqual({
+      isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+    });
+  });
+
+  it('rejects selection relationship metadata changes during policy loading', async () => {
+    collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });
+    const relation = collection.model.associations.parent;
+    const read = store.read.bind(store);
+    vi.spyOn(store, 'read').mockImplementation(async (source) => {
+      const config = await read(source);
+      collection.model.associations.parent = Object.create(relation);
+      return config;
+    });
+    await expect(planner.plan({ ...target(), filter: { parent: { name: 'Owned' } } })).rejects.toThrow(
+      /metadata changed/i,
+    );
+  });
+
+  it('rejects selection filter accessors without evaluating them or reading policy', async () => {
+    let accessed = false;
+    const filter = Object.defineProperty({}, 'name', {
+      enumerable: true,
+      get() {
+        accessed = true;
+        return 'Owned';
+      },
+    });
+    const read = vi.spyOn(store, 'read');
+    await expect(planner.plan({ ...target(), filter })).rejects.toThrow(/accessor/i);
+    expect(accessed).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+  });
+
   if (_name === 'write') {
     it('requires PostgreSQL when the actual written field is an association', async () => {
       collection.setField('parent', { type: 'belongsTo', target: 'documents', foreignKey: 'parentId' });

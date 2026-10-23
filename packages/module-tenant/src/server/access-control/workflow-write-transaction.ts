@@ -1,8 +1,10 @@
 import { Transaction, type Collection, type Database } from '@tego/server';
 
 import { accessCollectionKey, type AccessCollectionIdentity, type AccessConfigStore } from './config-store';
+import { captureAccessFilter } from './filter-input';
 import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessMutationError } from './mutation-errors';
+import { AccessRoleFilterCompiler } from './role-filter';
 import type { AccessConfig } from './types';
 import { cloneDeep, invalid, plain, requiresSerializable } from './write-support';
 
@@ -11,6 +13,7 @@ export interface AccessWorkflowWriteTransactionTarget {
   readonly collectionName: string;
   readonly collection: unknown;
   readonly valueFields?: readonly string[];
+  readonly filter?: unknown;
 }
 
 /** Pure option selection, not a claim that a PostgreSQL transaction has been opened or verified. */
@@ -44,11 +47,13 @@ export class AccessWorkflowWriteTransactionPlanner {
       !plain(target) ||
       Reflect.ownKeys(target).some(
         (name) =>
-          !['dataSourceName', 'collectionName', 'collection', 'valueFields'].includes(name as string) ||
+          !['dataSourceName', 'collectionName', 'collection', 'valueFields', 'filter'].includes(name as string) ||
           !Object.hasOwn(Object.getOwnPropertyDescriptor(target, name)!, 'value'),
       )
     )
-      invalid('Workflow transaction planning requires a target and field-name descriptor');
+      invalid('Workflow transaction planning requires a target and selection descriptor');
+    // Capture before any metadata resolver can observe or change the caller's selection.
+    const filter = target.filter === undefined ? undefined : captureAccessFilter(target.filter);
     const { dataSourceName, collectionName, collection: supplied } = target;
     if (typeof dataSourceName !== 'string' || typeof collectionName !== 'string')
       invalid('Workflow transaction target is unavailable');
@@ -65,6 +70,11 @@ export class AccessWorkflowWriteTransactionPlanner {
       invalid('Workflow transaction identity does not match its target');
     const source = Object.freeze(cloneDeep(identity));
     const key = accessCollectionKey(source);
+    // Inspect the captured selection only for transaction requirements. This grants no read or write access.
+    const selection =
+      filter === undefined
+        ? undefined
+        : new AccessRoleFilterCompiler(this.db, this.resolveIdentity).compile(source, filter);
     const input = target.valueFields;
     if (
       input !== undefined &&
@@ -89,6 +99,7 @@ export class AccessWorkflowWriteTransactionPlanner {
     );
     const assertCurrent = () => {
       metadata();
+      selection?.assertCurrent();
       const current = this.resolveIdentity(collection);
       if (!current || current.collectionName !== source.collectionName || accessCollectionKey(current) !== key)
         invalid('Workflow transaction identity changed during planning');
@@ -96,6 +107,11 @@ export class AccessWorkflowWriteTransactionPlanner {
     const config = await this.store.read(source);
     assertCurrent();
     if (!config) invalid('Workflow transaction planning requires an explicit access configuration');
-    return workflowWriteTransactionOptions(this.db.sequelize.getDialect(), config, collection, associations.length > 0);
+    return workflowWriteTransactionOptions(
+      this.db.sequelize.getDialect(),
+      config,
+      collection,
+      associations.length > 0 || (selection !== undefined && selection.rootWhere === undefined),
+    );
   }
 }

@@ -27,6 +27,7 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
   let documents;
   let projects;
   let links;
+  let labelLinks;
   let children;
   let profiles;
   let workflow;
@@ -119,6 +120,16 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
       onDelete: 'RESTRICT',
     });
     await links.model.sync({ alter: true });
+    labelLinks = await add('selectionLabelLinks', []);
+    documents.setField('labels', {
+      type: 'belongsToMany',
+      target: projects.name,
+      through: labelLinks.name,
+      foreignKey: 'documentId',
+      otherKey: 'projectId',
+      onDelete: 'RESTRICT',
+    });
+    await labelLinks.model.sync({ alter: true });
     children = await add('selectionChildren', [
       { name: 'name', type: 'string' },
       { name: 'tenantId', type: 'string' },
@@ -209,6 +220,7 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
     await save(profiles, targetConfig);
     await profiles.model.destroy({ where: {}, hooks: false });
     await children.model.destroy({ where: {}, hooks: false });
+    await labelLinks.model.destroy({ where: {}, hooks: false });
     await links.model.destroy({ where: {}, hooks: false });
     await documents.model.destroy({ where: {}, hooks: false });
     await projects.model.destroy({ where: {}, hooks: false });
@@ -363,6 +375,273 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
     expect(job.result.length).toBe(1);
     expect(await get(1)).toMatchObject({ name: 'Selected' });
     expect(job.result.data[0].project).toBeUndefined();
+  });
+
+  it('rejects link selection writes before any source write when core lifecycle capability is missing', async () => {
+    const repository = documents.repository;
+    const previous = Object.getOwnPropertyDescriptor(repository, 'withDeferredAssociationEvents');
+    Object.defineProperty(repository, 'withDeferredAssociationEvents', { value: undefined, configurable: true });
+    let writes = 0;
+    const listener = () => {
+      writes++;
+    };
+    app.db.on(`${documents.name}.beforeUpdate`, listener);
+    try {
+      const job = await run('update', {
+        filter: { project: { name: 'Visible' } },
+        values: { labels: [103], name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/core deferred association events/i);
+      expect(writes).toBe(0);
+      expect(await get(1)).toMatchObject({ name: 'First' });
+      expect(await labelLinks.model.count()).toBe(0);
+    } finally {
+      app.db.off(`${documents.name}.beforeUpdate`, listener);
+      if (previous) Object.defineProperty(repository, 'withDeferredAssociationEvents', previous);
+      else delete repository.withDeferredAssociationEvents;
+    }
+  });
+
+  describe.runIf(supportsDeferredAssociationEvents)('pure-link writes with relationship selection', () => {
+    const linked = async (documentId = 1, transaction?) =>
+      (await labelLinks.model.findAll({ where: { documentId }, order: [['projectId', 'ASC']], transaction })).map(
+        (row) => row.getDataValue('projectId'),
+      );
+
+    it.each([undefined, 'serializable'] as const)(
+      'replaces links selected through a readable project in a %s transaction',
+      async (inherited) => {
+        await labelLinks.model.create({ documentId: 1, projectId: 101 });
+        const job = await run(
+          'update',
+          { filter: { project: { name: 'Visible' } }, values: { labels: [103], name: 'Linked' } },
+          inherited,
+        );
+        expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(isolation).toBe('serializable');
+        expect(job.result).toMatchObject({ length: 1, data: [{ id: 1, name: 'Linked', tenantId: 'B' }] });
+        expect(await linked()).toEqual([103]);
+        expect(await get(4)).toMatchObject({ name: 'Other tenant', tenantId: 'C' });
+        expect((await projects.model.findByPk(101)).get('tenantId')).toBe('H');
+      },
+    );
+
+    it('clears links without reading an old hidden target', async () => {
+      await labelLinks.model.create({ documentId: 1, projectId: 102 });
+      const job = await run('update', { filter: { project: { name: 'Visible' } }, values: { labels: [] } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(1);
+      expect(await linked()).toEqual([]);
+      expect((await projects.model.findByPk(102)).get('tenantId')).toBe('C');
+    });
+
+    it('changes a link set and a single reference without requiring the old project filter afterward', async () => {
+      const job = await run('update', {
+        filter: { project: { name: 'Visible' } },
+        values: { labels: [101], project: 103, name: 'Both' },
+      });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toMatchObject({ length: 1, data: [{ id: 1, name: 'Both', projectId: 103 }] });
+      expect(await linked()).toEqual([101]);
+    });
+
+    it('rejects a hidden new target without persisting links or scalar values', async () => {
+      const job = await run('update', {
+        filter: { project: { name: 'Visible' } },
+        values: { labels: [102], name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await get(1)).toMatchObject({ name: 'First' });
+      expect(await linked()).toEqual([]);
+    });
+
+    it.each([3, 4])('requires both G and the old filter for explicit source %s', async (id) => {
+      const job = await run('update', {
+        filterByTk: id,
+        filter: { project: { name: 'Visible' } },
+        values: { labels: [103] },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await labelLinks.model.count()).toBe(0);
+      expect(await get(id)).toMatchObject({ name: id === 3 ? 'Second' : 'Other tenant' });
+    });
+
+    it('does not select a hidden related row because the new link target is readable', async () => {
+      const job = await run('update', { filter: { project: { name: 'Hidden' } }, values: { labels: [103] } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual({ length: 0, data: [] });
+      expect(await labelLinks.model.count()).toBe(0);
+    });
+
+    it.each([true, false])('respects independently configured filter-through readability: %s', async (readable) => {
+      await links.model.create({ documentId: 1, projectId: 101 });
+      await save(links, { ...configFor({ type: 'constant', value: readable }), ownership: { enabled: false } });
+      const job = await run('update', { filter: { tags: { name: 'Visible' } }, values: { labels: [103] } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(readable ? 1 : 0);
+      expect(await linked()).toEqual(readable ? [103] : []);
+      expect(await links.model.count()).toBe(1);
+    });
+
+    it('keeps an unchanged hidden link without writing or treating it as a new selection', async () => {
+      await labelLinks.model.create({ documentId: 1, projectId: 102 });
+      const before = await get(1);
+      const job = await run('update', { filter: { project: { name: 'Visible' } }, values: { labels: [102] } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toEqual({ length: 0, data: [] });
+      expect(await get(1)).toEqual(before);
+      expect(await linked()).toEqual([102]);
+    });
+
+    it.each([false, true])('claims an editable legacy source only when its links change: %s', async (change) => {
+      const config = configFor(ownerCondition);
+      config.rules.push({
+        ...configFor({ type: 'isNull', operand: { type: 'field', path: 'tenantId' } }).rules[0],
+        id: 'legacy-edit',
+      });
+      await save(documents, config);
+      const before = await get(5);
+      const job = await run('update', {
+        filterByTk: 5,
+        filter: { project: { name: 'Visible' } },
+        values: { labels: change ? [103] : [] },
+      });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(change ? 1 : 0);
+      if (change) expect(await get(5)).toMatchObject({ tenantId: 'B' });
+      else expect(await get(5)).toEqual(before);
+      expect(await linked(5)).toEqual(change ? [103] : []);
+    });
+
+    it('keeps the original owner when a G rule authorizes a different tenant', async () => {
+      await save(
+        documents,
+        configFor({
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'field', path: 'tenantId' },
+          right: { type: 'literal', value: 'C' },
+        }),
+      );
+      const job = await run('update', {
+        filterByTk: 4,
+        filter: { project: { name: 'Visible' } },
+        values: { labels: [103] },
+      });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(await get(4)).toMatchObject({ tenantId: 'C' });
+      expect(await linked(4)).toEqual([103]);
+    });
+
+    it('rejects an explicit batch containing a V-only source before writing any link', async () => {
+      const job = await run('update', {
+        filterByTk: [1, 4],
+        filter: { project: { name: 'Visible' } },
+        values: { labels: [103], name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await labelLinks.model.count()).toBe(0);
+      expect(await get(1)).toMatchObject({ name: 'First' });
+    });
+
+    it('rolls back earlier source and link writes after a later source fails', async () => {
+      failLater = true;
+      let notifications = 0;
+      interfere = async (_record, options) => {
+        options.transaction.afterCommit(() => {
+          notifications++;
+        });
+      };
+      const job = await run('update', {
+        filter: { project: { name: { $in: ['Visible', 'Owned'] } } },
+        values: { labels: [103], name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError?.message).toContain('later selection write failed');
+      expect(await labelLinks.model.count()).toBe(0);
+      expect(await get(1)).toMatchObject({ name: 'First' });
+      expect(await get(3)).toMatchObject({ name: 'Second' });
+      expect(notifications).toBe(0);
+    });
+
+    it('publishes the complete source event after both links and references persist', async () => {
+      const observed: Array<{ keys: number[]; projectId: number }> = [];
+      const event = `${documents.name}.afterUpdateWithAssociations`;
+      const listener = async (record, options) => {
+        const persisted = await documents.model.findByPk(record.getDataValue('id'), {
+          transaction: options.transaction,
+        });
+        observed.push({ keys: await linked(1, options.transaction), projectId: persisted.getDataValue('projectId') });
+      };
+      app.db.on(event, listener);
+      let job;
+      try {
+        job = await run('update', {
+          filter: { project: { name: 'Visible' } },
+          values: { labels: [103], project: 103 },
+        });
+      } finally {
+        app.db.off(event, listener);
+      }
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(observed).toEqual([{ keys: [103], projectId: 103 }]);
+    });
+
+    it('rolls back links and a reference when the complete source event fails', async () => {
+      const event = `${documents.name}.afterUpdateWithAssociations`;
+      const listener = () => {
+        throw new Error('selected link hook failed');
+      };
+      app.db.on(event, listener);
+      let job;
+      try {
+        job = await run('update', {
+          filter: { project: { name: 'Visible' } },
+          values: { labels: [103], project: 103 },
+        });
+      } finally {
+        app.db.off(event, listener);
+      }
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError?.message).toContain('selected link hook failed');
+      expect(await get(1)).toMatchObject({ projectId: 101 });
+      expect(await linked()).toEqual([]);
+    });
+
+    it('does not read an unconfigured through table even when it is a pure join', async () => {
+      await labelLinks.model.create({ documentId: 1, projectId: 101 });
+      const job = await run('update', { filter: { labels: { name: 'Visible' } }, values: { labels: [103] } });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/configured related tables/i);
+      expect(await linked()).toEqual([101]);
+    });
+
+    it('does not write an independently configured through table through the pure-link adapter', async () => {
+      await links.model.create({ documentId: 1, projectId: 101 });
+      const job = await run('update', {
+        filter: { project: { name: 'Visible' } },
+        values: { tags: [103], name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/Independently controlled join records/i);
+      expect(await links.model.count({ where: { documentId: 1, projectId: 101 } })).toBe(1);
+      expect(await get(1)).toMatchObject({ name: 'First' });
+    });
+
+    it('does not upgrade or replace an inadequate inherited transaction', async () => {
+      const job = await run(
+        'update',
+        { filter: { project: { name: 'Visible' } }, values: { labels: [103] } },
+        'ordinary',
+      );
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/sufficient isolation/i);
+      expect(await linked()).toEqual([]);
+    });
   });
 
   describe.each(['children', 'profile'] as const)('selection child lifecycle capability: %s', (name) => {

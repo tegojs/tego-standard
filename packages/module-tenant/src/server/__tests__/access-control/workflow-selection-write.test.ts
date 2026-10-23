@@ -98,6 +98,13 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
       { name: 'name', type: 'string' },
       { name: 'tenantId', type: 'string' },
       { name: 'project', type: 'belongsTo', target: projects.name, foreignKey: 'projectId', onDelete: 'RESTRICT' },
+      {
+        name: 'alternative',
+        type: 'belongsTo',
+        target: projects.name,
+        foreignKey: 'alternativeId',
+        onDelete: 'RESTRICT',
+      },
     ]);
     links = await add('selectionLinks', []);
     documents.setField('tags', {
@@ -340,6 +347,191 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
     expect(job.result.length).toBe(1);
     expect(await get(1)).toMatchObject({ name: 'Selected' });
     expect(job.result.data[0].project).toBeUndefined();
+  });
+
+  describe('single-reference writes with relationship selection', () => {
+    it.each([undefined, 'serializable'] as const)(
+      'selects and changes a reference in a %s transaction',
+      async (inherited) => {
+        const job = await run(
+          'update',
+          {
+            filter: { project: { name: 'Visible' } },
+            values: { project: 103, name: 'Reference changed' },
+          },
+          inherited,
+        );
+        expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(isolation).toBe('serializable');
+        expect(job.result).toMatchObject({
+          length: 1,
+          data: [{ id: 1, name: 'Reference changed', projectId: 103, tenantId: 'B' }],
+        });
+        expect(job.result.data[0].project).toBeUndefined();
+        expect(await get(4)).toMatchObject({ name: 'Other tenant', projectId: 101, tenantId: 'C' });
+      },
+    );
+
+    it('allows a visible new target without requiring the old filter to match after writing', async () => {
+      const job = await run('update', { filter: { project: { name: 'Owned' } }, values: { project: 101 } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toMatchObject({ length: 1, data: [{ id: 3, projectId: 101 }] });
+      expect((await projects.model.findByPk(101)).get('tenantId')).toBe('H');
+    });
+
+    it('clears the selected reference without requiring the original filter afterward', async () => {
+      const job = await run('update', { filter: { project: { name: 'Visible' } }, values: { project: null } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result).toMatchObject({ length: 1, data: [{ id: 1, projectId: null }] });
+      expect(await get(4)).toMatchObject({ projectId: 101 });
+    });
+
+    it('rejects a hidden new target without changing the selected source', async () => {
+      const job = await run('update', {
+        filter: { project: { name: 'Visible' } },
+        values: { project: 102, name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await get(1)).toMatchObject({ projectId: 101, name: 'First' });
+    });
+
+    it('changes two references and scalar fields together', async () => {
+      const job = await run('update', {
+        filter: { project: { name: 'Visible' } },
+        values: { project: 103, alternative: 101, name: 'Both' },
+      });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(await get(1)).toMatchObject({ projectId: 103, alternativeId: 101, name: 'Both' });
+    });
+
+    it('rejects the whole change when the second new reference is hidden', async () => {
+      const job = await run('update', {
+        filter: { project: { name: 'Visible' } },
+        values: { project: 103, alternative: 102, name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await get(1)).toMatchObject({ projectId: 101, alternativeId: null, name: 'First' });
+    });
+
+    it('retains an unchanged hidden reference without writing or resolving that target', async () => {
+      await documents.model.update({ alternativeId: 102 }, { where: { id: 1 }, hooks: false });
+      const before = await get(1);
+      const job = await run('update', { filter: { project: { name: 'Visible' } }, values: { alternative: 102 } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(0);
+      expect(await get(1)).toEqual(before);
+    });
+
+    it('does not select hidden related records because the new reference is readable', async () => {
+      const job = await run('update', { filter: { project: { name: 'Hidden' } }, values: { project: 103 } });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(0);
+      expect(await get(2)).toMatchObject({ projectId: 102, name: 'Hidden target' });
+    });
+
+    it('rejects an explicit batch containing a visible but nonwritable source', async () => {
+      const job = await run('update', {
+        filterByTk: [1, 4],
+        filter: { project: { name: 'Visible' } },
+        values: { project: 103 },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await get(1)).toMatchObject({ projectId: 101 });
+      expect(await get(4)).toMatchObject({ projectId: 101 });
+    });
+
+    it('requires the old relationship filter for every explicit source key', async () => {
+      const job = await run('update', {
+        filterByTk: [1, 3],
+        filter: { project: { name: 'Visible' } },
+        values: { project: 103 },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      expect(await get(1)).toMatchObject({ projectId: 101 });
+      expect(await get(3)).toMatchObject({ projectId: 103 });
+    });
+
+    it.each([101, 103])('claims an editable legacy source only when reference %s changes it', async (target) => {
+      const config = configFor(ownerCondition);
+      config.rules.push({
+        ...configFor({ type: 'isNull', operand: { type: 'field', path: 'tenantId' } }).rules[0],
+        id: 'legacy-edit',
+      });
+      await save(documents, config);
+      const before = await get(5);
+      const job = await run('update', {
+        filterByTk: 5,
+        filter: { project: { name: 'Visible' } },
+        values: { project: target },
+      });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(job.result.length).toBe(target === 101 ? 0 : 1);
+      if (target === 101) expect(await get(5)).toEqual(before);
+      else expect(await get(5)).toMatchObject({ projectId: 103, tenantId: 'B' });
+      expect((await projects.model.findByPk(101)).get('tenantId')).toBe('H');
+    });
+
+    it.each(['tags', 'children'] as const)(
+      'selects through readable %s while changing a single reference',
+      async (relation) => {
+        if (relation === 'tags') await links.model.create({ documentId: 1, projectId: 101 });
+        else await children.model.create({ name: 'Visible', tenantId: 'H', documentId: 1 });
+        const job = await run('update', {
+          filter: { [relation]: { name: 'Visible' } },
+          values: { project: 103 },
+        });
+        expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(job.result).toMatchObject({ length: 1, data: [{ id: 1, projectId: 103 }] });
+        if (relation === 'tags') expect(await links.model.count()).toBe(1);
+        else expect((await children.model.findOne()).get('tenantId')).toBe('H');
+      },
+    );
+
+    it('preserves another owner when an explicit G rule authorizes the reference update', async () => {
+      await save(
+        documents,
+        configFor({
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'field', path: 'tenantId' },
+          right: { type: 'literal', value: 'C' },
+        }),
+      );
+      const job = await run('update', {
+        filterByTk: 4,
+        filter: { project: { name: 'Visible' } },
+        values: { project: 103 },
+      });
+      expect(job.status, executionError?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(await get(4)).toMatchObject({ projectId: 103, tenantId: 'C' });
+    });
+
+    it('rejects a reference write in an inadequate inherited transaction', async () => {
+      const job = await run(
+        'update',
+        { filter: { project: { name: 'Visible' } }, values: { project: 103 } },
+        'ordinary',
+      );
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.result.message).toMatch(/sufficient isolation/i);
+      expect(await get(1)).toMatchObject({ projectId: 101 });
+    });
+
+    it('rolls back references and scalar fields when a later source hook fails', async () => {
+      failLater = true;
+      const job = await run('update', {
+        filter: { project: { name: { $in: ['Visible', 'Owned'] } } },
+        values: { project: 101, name: 'No' },
+      });
+      expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(executionError?.message).toContain('later selection write failed');
+      expect(await get(1)).toMatchObject({ projectId: 101, name: 'First' });
+      expect(await get(3)).toMatchObject({ projectId: 103, name: 'Second' });
+    });
   });
 
   describe.each(['update', 'destroy'] as const)('%s selection', (action) => {

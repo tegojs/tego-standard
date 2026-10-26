@@ -1129,11 +1129,20 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       },
     );
 
-    it('keeps configured business join tables protected when filtering the relation being assigned', async () => {
+    it('keeps conditionally controlled join tables protected when filtering the relation being assigned', async () => {
       const through = identity(app.db.getCollection('document_projects'));
       await store.save(
         through,
-        { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 0 },
+        {
+          ...configFor({
+            type: 'compare',
+            operator: 'eq',
+            left: { type: 'field', path: 'projectId' },
+            right: { type: 'literal', value: 101 },
+          }),
+          ownership: { enabled: false },
+          revision: 0,
+        },
         { userId: 28 },
       );
       await grant('documents', 'view', ['id', 'name', 'projects']);
@@ -1143,6 +1152,161 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       expect(response.body).not.toHaveProperty('data');
       expect(await links()).toEqual([101]);
       expect(await row()).toMatchObject({ name: 'Owned', projectId: 101 });
+    });
+  });
+
+  describe('shared connection read/write HTTP', () => {
+    beforeEach(async () => {
+      await grant('documents', 'view', ['id', 'name', 'project', 'projects']);
+      await grant('document_projects', 'view', ['documentId', 'projectId']);
+      await store.save(
+        identity(app.db.getCollection('document_projects')),
+        {
+          ...configFor({ type: 'constant', value: true }),
+          ownership: { enabled: false },
+          revision: 0,
+        },
+        { userId: 28 },
+      );
+      await seedLinks([101]);
+    });
+    const filtered = (values: object, source = 3) =>
+      supertest(app.callback())
+        .post('/api/documents:update')
+        .query({ filterByTk: source, filter: JSON.stringify({ projects: { id: 101 } }) })
+        .send(values);
+    const detail = (id = 3) =>
+      app
+        .agent()
+        .resource('documents')
+        .get({
+          filterByTk: id,
+          fields: ['id', 'name', 'projects.id'],
+        });
+
+    it('replaces the same connection used for filtering and reads the new relationship immediately', async () => {
+      const response = await filtered({ name: 'Edited', project: 102, projects: [102] });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await row()).toEqual({ id: 3, name: 'Edited', tenantId: 'B', projectId: 102 });
+      expect(await links()).toEqual([102]);
+      const read = await detail();
+      expect(read.status).toBe(200);
+      expect(read.body).toEqual({ data: { id: 3, name: 'Edited', projects: [{ id: 102 }] } });
+      for (const id of [101, 102]) {
+        const count = await app
+          .agent()
+          .resource('documents')
+          .count({ filter: { projects: { id } } });
+        expect(count.status).toBe(200);
+        expect(count.body).toEqual({ data: id === 101 ? 0 : 1 });
+      }
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+    });
+
+    it('creates and then reads a source with the same explicitly shared connection configuration', async () => {
+      acl.setAvailableAction('create', {});
+      await grant('documents', 'create', ['name', 'project', 'projects']);
+      const response = await app
+        .agent()
+        .resource('documents')
+        .create({
+          values: { name: 'Created', project: 102, projects: [102] },
+        });
+      expect(response.status).toBe(200);
+      const id = response.body.data.keys[0];
+      expect(response.body.data.affected).toBe(1);
+      expect(await row('documents', id)).toEqual({ id, name: 'Created', projectId: 102, tenantId: 'B' });
+      const read = await detail(id);
+      expect(read.status).toBe(200);
+      expect(read.body).toEqual({ data: { id, name: 'Created', projects: [{ id: 102 }] } });
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+    });
+
+    it.each(['add', 'remove', 'set'] as const)('reads the persisted result of concrete %s', async (operation) => {
+      await grantLink(operation);
+      const response = await link(operation, [operation === 'remove' ? 101 : 102]);
+      const expected = operation === 'add' ? [101, 102] : operation === 'remove' ? [] : [102];
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await links()).toEqual(expected);
+      const read = await detail();
+      expect(read.status).toBe(200);
+      expect(read.body).toEqual({ data: { id: 3, name: 'Owned', projects: expected.map((id) => ({ id })) } });
+      expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+    });
+
+    it.each(['source-operation', 'source-field', 'source-V', 'target-role', 'through-operation', 'through-role'])(
+      'retains the independent %s boundary on filtered replacement',
+      async (boundary) => {
+        if (boundary === 'source-operation') acl.getRole('editor').revokeAction('documents:update');
+        if (boundary === 'source-field') await grant('documents', 'update', ['name']);
+        if (boundary === 'source-V') await seedLinks([101], 4);
+        if (boundary === 'target-role') await grant('projects', 'view', ['id', 'name'], { id: 101 });
+        if (boundary === 'through-operation') acl.getRole('editor').revokeAction('document_projects:view');
+        if (boundary === 'through-role')
+          await grant('document_projects', 'view', ['documentId', 'projectId'], { projectId: 102 });
+        const response = await filtered({ name: 'Denied', projects: [102] }, boundary === 'source-V' ? 4 : 3);
+        expect(response.status).toBe(boundary === 'source-field' ? 400 : 403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+        expect(await row('documents', 4)).toEqual({ id: 4, name: 'Visible', tenantId: 'H', projectId: null });
+        expect(await links()).toEqual(boundary === 'source-V' ? [101, 101] : [101]);
+      },
+    );
+
+    it('keeps a readable but conditionally controlled connection read-only for this adapter', async () => {
+      const key = identity(app.db.getCollection('document_projects'));
+      const current = (await store.read(key))!;
+      await store.save(
+        key,
+        {
+          ...current,
+          rules: configFor({
+            type: 'compare',
+            operator: 'eq',
+            left: { type: 'field', path: 'projectId' },
+            right: { type: 'literal', value: 101 },
+          }).rules,
+        },
+        { userId: 28 },
+      );
+      const read = await detail();
+      expect(read.status).toBe(200);
+      expect(read.body).toEqual({ data: { id: 3, name: 'Owned', projects: [{ id: 101 }] } });
+      const response = await filtered({ projects: [102] });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await links()).toEqual([101]);
+    });
+
+    it('rolls back a persisted filtered replacement and suppresses its commit notification', async () => {
+      let observed: unknown;
+      let notifications = 0;
+      app.db.getCollection('document_projects').model.addHook('afterBulkCreate', async (_records, options) => {
+        observed = {
+          source: (
+            await app.db.getCollection('documents').model.findByPk(3, { transaction: options.transaction })
+          )?.toJSON(),
+          links: (
+            await app.db.getCollection('document_projects').model.findAll({ transaction: options.transaction })
+          ).map((record) => Number(record.get('projectId'))),
+        };
+        options.transaction.afterCommit(() => {
+          notifications++;
+        });
+        throw new Error('shared connection HTTP rollback');
+      });
+      const response = await filtered({ name: 'Edited', project: 102, projects: [102] });
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+      expect(observed).toEqual({ source: { id: 3, name: 'Edited', tenantId: 'B', projectId: 102 }, links: [102] });
+      expect(notifications).toBe(0);
+      expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+      expect(await links()).toEqual([101]);
+      const read = await detail();
+      expect(read.status).toBe(200);
+      expect(read.body).toEqual({ data: { id: 3, name: 'Owned', projects: [{ id: 101 }] } });
     });
   });
 

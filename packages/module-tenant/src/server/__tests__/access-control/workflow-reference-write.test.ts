@@ -811,6 +811,54 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
   });
 
   describe.runIf(supportsDeferredAssociationEvents)('existing many-to-many connections', () => {
+    describe('shared connection filtered replacements', () => {
+      beforeEach(async () => {
+        planning = true;
+        await joins.get('tags').model.create({ documentId: 3, projectId: 101 });
+      });
+      const params = (target = 101) => ({
+        filterByTk: 3,
+        filter: { tags: { id: target } },
+        values: { name: 'Shared replacement', tags: [104] },
+      });
+      it('replaces the same shared connection used in its old selection condition', async () => {
+        const job = await execute('update', params(), null);
+        expect(job.status, job.result?.stack).toBe(EXECUTION_STATUS.RESOLVED);
+        expect(actualIsolation).toBe('serializable');
+        expect(await get(3)).toMatchObject({ name: 'Shared replacement', tenantId: 'B', projectId: 103 });
+        expect(await linked(3)).toEqual([104]);
+        expect((await projects.model.findByPk(104)).getDataValue('tenantId')).toBeNull();
+      });
+      it('cannot select a source by an unreadable connection target', async () => {
+        await joins.get('tags').model.create({ documentId: 3, projectId: 102 });
+        const job = await execute('update', params(102), null);
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(await get(3)).toMatchObject({ name: 'Second', tenantId: 'B', projectId: 103 });
+        expect(await linked(3)).toEqual([101, 102]);
+      });
+      it('rolls back the stored filtered replacement if the execution adapter fails afterward', async () => {
+        let observed: unknown;
+        let notifications = 0;
+        afterWrite = async () => {
+          observed = {
+            name: (await documents.model.findByPk(3, { transaction: request.transaction })).getDataValue('name'),
+            links: (
+              await joins.get('tags').model.findAll({ where: { documentId: 3 }, transaction: request.transaction })
+            ).map((row) => row.getDataValue('projectId')),
+          };
+          request.transaction.afterCommit(() => {
+            notifications++;
+          });
+          throw new Error('shared connection workflow rollback');
+        };
+        const job = await execute('update', params(), null);
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(observed).toEqual({ name: 'Shared replacement', links: [104] });
+        expect(notifications).toBe(0);
+        expect(await get(3)).toMatchObject({ name: 'Second', tenantId: 'B', projectId: 103 });
+        expect(await linked(3)).toEqual([101]);
+      });
+    });
     it.each(['create', 'update'] as const)(
       'saves %s scalar fields, multiple links and a single reference atomically',
       async (kind) => {
